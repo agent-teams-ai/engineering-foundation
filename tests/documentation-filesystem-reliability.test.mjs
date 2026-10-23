@@ -69,12 +69,12 @@ test("treats missing configured Markdown roots as root-missing", async () => {
             throw filesystemError(code);
           }
           return nodeFilesystemMarkdownOperations.lstat(path);
-        }
+        },
       });
       const observation = await observeFilesystemMarkdownTree(
         { consumerRoot: root, roots: [`missing-${code}`] },
         new FilesystemMarkdownDocumentReader(operations),
-        operations
+        operations,
       );
 
       assert.deepEqual(observation, {
@@ -83,9 +83,9 @@ test("treats missing configured Markdown roots as root-missing", async () => {
           {
             kind: "root-missing",
             message: "Configured Markdown root does not exist.",
-            repositoryPath: `missing-${code}`
-          }
-        ]
+            repositoryPath: `missing-${code}`,
+          },
+        ],
       });
       assert.equal(injected, true, `Expected ${code} fault injection.`);
     });
@@ -101,16 +101,16 @@ test("propagates unavailable Markdown directory reads as retryable failures", as
           throw filesystemError("EACCES");
         }
         return nodeFilesystemMarkdownOperations.readdir(path, ...arguments_);
-      }
+      },
     });
 
     await assert.rejects(
       observeFilesystemMarkdownTree(
         { consumerRoot: root, roots: ["docs"] },
         new FilesystemMarkdownDocumentReader(operations),
-        operations
+        operations,
       ),
-      assertUnavailable
+      assertUnavailable,
     );
   });
 });
@@ -138,13 +138,13 @@ test("revalidates a Markdown directory before enumeration", async () => {
           rootReads += 1;
         }
         return nodeFilesystemMarkdownOperations.readdir(path, ...arguments_);
-      }
+      },
     });
     try {
       const observation = await observeFilesystemMarkdownTree(
         { consumerRoot: root, roots: ["docs"] },
         new FilesystemMarkdownDocumentReader(operations),
-        operations
+        operations,
       );
       assert.equal(rootReads, 0);
       assert.equal(observation.documents.length, 0);
@@ -169,21 +169,19 @@ test("bounds aggregate Markdown observation bytes", async () => {
         }
         return new Proxy(metadata, {
           get(target, property) {
-            return property === "size"
-              ? 4 * 1024 * 1024
-              : Reflect.get(target, property, target);
-          }
+            return property === "size" ? 4 * 1024 * 1024 : Reflect.get(target, property, target);
+          },
         });
-      }
+      },
     });
 
     await assert.rejects(
       observeFilesystemMarkdownTree(
         { consumerRoot: root, roots: ["docs"] },
         new FilesystemMarkdownDocumentReader(operations),
-        operations
+        operations,
       ),
-      assertResourceLimit
+      assertResourceLimit,
     );
   });
 });
@@ -203,18 +201,14 @@ test("bounds aggregate Markdown bytes from contained reads after metadata races"
           headings: [],
           references: [],
           repositoryPath: path.slice(context.canonicalRoot.length + 1),
-          source: largeSource
+          source: largeSource,
         };
-      }
+      },
     };
 
     await assert.rejects(
-      observeFilesystemMarkdownTree(
-        { consumerRoot: root, roots: ["docs"] },
-        reader,
-        filesystem()
-      ),
-      assertResourceLimit
+      observeFilesystemMarkdownTree({ consumerRoot: root, roots: ["docs"] }, reader, filesystem()),
+      assertResourceLimit,
     );
   });
 });
@@ -226,11 +220,11 @@ test("rejects pathological Markdown structure before AST construction", async ()
     const operations = filesystem();
     const context = {
       canonicalRoot: root,
-      consumerRoot: root
+      consumerRoot: root,
     };
     await assert.rejects(
       new FilesystemMarkdownDocumentReader(operations).read(context, path),
-      assertResourceLimit
+      assertResourceLimit,
     );
   });
 });
@@ -248,16 +242,16 @@ test("does not classify unavailable configured-root metadata as root-missing", a
           }
         }
         return nodeFilesystemMarkdownOperations.lstat(path);
-      }
+      },
     });
 
     await assert.rejects(
       observeFilesystemMarkdownTree(
         { consumerRoot: root, roots: ["docs"] },
         new FilesystemMarkdownDocumentReader(operations),
-        operations
+        operations,
       ),
-      assertUnavailable
+      assertUnavailable,
     );
     assert.equal(rootInspections, 2);
   });
@@ -275,12 +269,12 @@ test("treats configured roots that disappear during enumeration as root-missing"
             throw filesystemError(code);
           }
           return nodeFilesystemMarkdownOperations.readdir(path, ...arguments_);
-        }
+        },
       });
       const observation = await observeFilesystemMarkdownTree(
         { consumerRoot: root, roots: ["docs"] },
         new FilesystemMarkdownDocumentReader(operations),
-        operations
+        operations,
       );
 
       assert.deepEqual(observation, {
@@ -289,9 +283,9 @@ test("treats configured roots that disappear during enumeration as root-missing"
           {
             kind: "root-missing",
             message: "Configured Markdown root does not exist.",
-            repositoryPath: "docs"
-          }
-        ]
+            repositoryPath: "docs",
+          },
+        ],
       });
       assert.equal(injected, true, `Expected ${code} fault injection.`);
     });
@@ -310,22 +304,22 @@ test("treats missing local Markdown targets as missing", async () => {
             throw filesystemError(code);
           }
           return nodeFilesystemMarkdownOperations.lstat(path);
-        }
+        },
       });
       const resolution = await resolveFilesystemMarkdownReference(
         {
           consumerRoot: root,
           rawTarget: `missing-${code}.md`,
-          source: sourceDocument
+          source: sourceDocument,
         },
         new FilesystemMarkdownDocumentReader(operations),
-        operations
+        operations,
       );
 
       assert.deepEqual(resolution, {
         kind: "missing",
         reason: "target-missing",
-        repositoryPath: `docs/missing-${code}.md`
+        repositoryPath: `docs/missing-${code}.md`,
       });
       assert.equal(injected, true, `Expected ${code} fault injection.`);
     });
@@ -342,16 +336,16 @@ test("does not classify unavailable local-target metadata as missing", async () 
           throw filesystemError("EIO");
         }
         return nodeFilesystemMarkdownOperations.readContainedRegularFile(input);
-      }
+      },
     });
 
     await assert.rejects(
       resolveFilesystemMarkdownReference(
         { consumerRoot: root, rawTarget: "missing.md", source: sourceDocument },
         new FilesystemMarkdownDocumentReader(operations),
-        operations
+        operations,
       ),
-      assertUnavailable
+      assertUnavailable,
     );
   });
 });
@@ -368,16 +362,16 @@ test("does not convert unavailable Markdown reads into broken links", async () =
             throw filesystemError(code);
           }
           return nodeFilesystemMarkdownOperations.readContainedRegularFile(input);
-        }
+        },
       });
 
       await assert.rejects(
         resolveFilesystemMarkdownReference(
           { consumerRoot: root, rawTarget: targetName, source: sourceDocument },
           new FilesystemMarkdownDocumentReader(operations),
-          operations
+          operations,
         ),
-        assertUnavailable
+        assertUnavailable,
       );
     });
   }
@@ -393,16 +387,16 @@ test("does not swallow cancellation after a Markdown directory read", async () =
           controller.abort();
         }
         return nodeFilesystemMarkdownOperations.readdir(path, ...arguments_);
-      }
+      },
     });
 
     await assert.rejects(
       observeFilesystemMarkdownTree(
         { consumerRoot: root, roots: ["docs"], signal: controller.signal },
         new FilesystemMarkdownDocumentReader(operations),
-        operations
+        operations,
       ),
-      assertCancelled
+      assertCancelled,
     );
   });
 });
@@ -419,7 +413,7 @@ test("preserves cancellation while a Markdown reference is being read", async ()
           throw filesystemError("EIO");
         }
         return nodeFilesystemMarkdownOperations.readContainedRegularFile(input);
-      }
+      },
     });
 
     await assert.rejects(
@@ -428,12 +422,12 @@ test("preserves cancellation while a Markdown reference is being read", async ()
           consumerRoot: root,
           rawTarget: "target.md",
           signal: controller.signal,
-          source: sourceDocument
+          source: sourceDocument,
         },
         new FilesystemMarkdownDocumentReader(operations),
-        operations
+        operations,
       ),
-      assertCancelled
+      assertCancelled,
     );
   });
 });

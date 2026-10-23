@@ -22,14 +22,14 @@ export interface ManagedRestorationLockV1Request {
 }
 
 export interface ManagedRestorationLockV1Diagnostic {
-  readonly code: 'input' | 'derivation' | 'mismatch' | 'preservation';
+  readonly code: "input" | "derivation" | "mismatch" | "preservation";
   readonly path: readonly (string | number)[];
   readonly message: string;
 }
 
 export interface ManagedRestorationLockV1Provenance {
   readonly originalClosureSha256: string;
-  readonly originalPackageManager: 'pnpm@11.20.0';
+  readonly originalPackageManager: "pnpm@11.20.0";
   readonly sourceLockSha256: string;
   readonly sourceLockBlob: string;
   readonly archives: Readonly<Record<string, ManagedRestorationArchiveBindingV1>>;
@@ -47,18 +47,18 @@ export type ManagedRestorationLockV1Result = {
   readonly schemaVersion: 1;
 } & (
   | {
-    readonly conformance: 'conformant';
-    /** SHA-256 of domain-separated, recursively key-sorted typed JSON, not YAML bytes. */
-    readonly expectedLockDigest: `sha256:${string}`;
-    readonly provenance: ManagedRestorationLockV1Provenance;
-    readonly diagnostics: readonly [];
-  }
+      readonly conformance: "conformant";
+      /** SHA-256 of domain-separated, recursively key-sorted typed JSON, not YAML bytes. */
+      readonly expectedLockDigest: `sha256:${string}`;
+      readonly provenance: ManagedRestorationLockV1Provenance;
+      readonly diagnostics: readonly [];
+    }
   | {
-    readonly conformance: 'nonconformant';
-    readonly expectedLockDigest?: `sha256:${string}`;
-    readonly provenance?: ManagedRestorationLockV1Provenance;
-    readonly diagnostics: readonly ManagedRestorationLockV1Diagnostic[];
-  }
+      readonly conformance: "nonconformant";
+      readonly expectedLockDigest?: `sha256:${string}`;
+      readonly provenance?: ManagedRestorationLockV1Provenance;
+      readonly diagnostics: readonly ManagedRestorationLockV1Diagnostic[];
+    }
 );
 
 export type ManagedRestorationLockV1 = ManagedRestorationLockV1Request;

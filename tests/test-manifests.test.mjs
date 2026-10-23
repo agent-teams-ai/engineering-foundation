@@ -15,9 +15,7 @@ import { builtTestArguments } from "../scripts/run-built-tests.mjs";
 import * as manifestTools from "../scripts/check-test-manifests.mjs";
 import { selectTestShardPaths } from "../scripts/run-test-shard.mjs";
 
-const examplePackages = Object.freeze([
-  Object.freeze({ root: "packages/example" }),
-]);
+const examplePackages = Object.freeze([Object.freeze({ root: "packages/example" })]);
 
 function fixture(packages = examplePackages) {
   return {
@@ -67,41 +65,46 @@ function fixture(packages = examplePackages) {
 test("repository test manifests cover every top-level test exactly once", async () => {
   const result = await validateTestManifests();
   assert.equal(result.tests.length, result.testCount);
-  assert.ok(result.tests.includes("packages/docs-protocol-agent-teams/tests/qualification.test.mjs"));
+  assert.ok(
+    result.tests.includes("packages/docs-protocol-agent-teams/tests/qualification.test.mjs"),
+  );
   assert.ok(testRoots.includes("packages/docs-protocol-agent-teams/tests"));
   assert.deepEqual([...result.shards.keys()], ["1", "2", "3", "4", "5", "6", "7", "8"]);
   assert.equal([...result.coverageShards.values()].flat().length, result.testCount);
-  assert.ok(result.coverageConfig.include.includes(
-    "packages/docs-protocol-agent-teams/dist/**/*.js",
-  ));
+  assert.ok(
+    result.coverageConfig.include.includes("packages/docs-protocol-agent-teams/dist/**/*.js"),
+  );
 });
 
 test("Foundation mandatory identities belong to their required shard", async () => {
-  const contract = JSON.parse(await readFile(join(repositoryRoot,
-    "architecture/foundation/node-test-execution.json"), "utf8"));
+  const contract = JSON.parse(
+    await readFile(
+      join(repositoryRoot, "architecture/foundation/node-test-execution.json"),
+      "utf8",
+    ),
+  );
   const manifest = await validateTestManifests();
   assert.doesNotThrow(() => validateMandatoryShardSelection(contract, manifest));
   for (const file of new Set(contract.required.map((item) => item.file))) {
     const coverageOnly = {
       ...manifest,
-      shards: new Map([...manifest.shards].map(([id, files]) =>
-        [id, files.filter((path) => path !== file)])),
+      shards: new Map(
+        [...manifest.shards].map(([id, files]) => [id, files.filter((path) => path !== file)]),
+      ),
     };
-    assert.throws(() => validateMandatoryShardSelection(contract, coverageOnly),
-      /not selected by a required shard/u, `${file} cannot rely only on coverage selection`);
+    assert.throws(
+      () => validateMandatoryShardSelection(contract, coverageOnly),
+      /not selected by a required shard/u,
+      `${file} cannot rely only on coverage selection`,
+    );
   }
 });
 
 test("built test runner consumes the validated inventory without shell globs", () => {
-  assert.deepEqual(builtTestArguments({ tests: [
-    "tests/a.test.mjs",
-    "packages/example/tests/b.test.mjs",
-  ] }), [
-    "--test",
-    "--test-concurrency=1",
-    "tests/a.test.mjs",
-    "packages/example/tests/b.test.mjs",
-  ]);
+  assert.deepEqual(
+    builtTestArguments({ tests: ["tests/a.test.mjs", "packages/example/tests/b.test.mjs"] }),
+    ["--test", "--test-concurrency=1", "tests/a.test.mjs", "packages/example/tests/b.test.mjs"],
+  );
   assert.throws(() => builtTestArguments({ tests: [] }), /non-empty validated test inventory/u);
 });
 
@@ -111,7 +114,11 @@ test("feature tests retain closed manifest coverage and a bounded portable path"
   input.testPaths.push(path);
   input.shardManifest.shards[0].tests.push(path);
   assert.equal(validateTestManifestData(input).testCount, 9);
-  for (const invalid of ["tests/features/con/policy.test.mjs", "tests/features/quality/deep/policy.test.mjs", "tests/arbitrary/policy.test.mjs"]) {
+  for (const invalid of [
+    "tests/features/con/policy.test.mjs",
+    "tests/features/quality/deep/policy.test.mjs",
+    "tests/arbitrary/policy.test.mjs",
+  ]) {
     const bad = structuredClone(input);
     bad.testPaths[8] = invalid;
     bad.shardManifest.shards[0].tests[1] = invalid;
@@ -129,9 +136,7 @@ test("test manifests fail closed for missing, duplicate, and nonexistent coverag
   assert.throws(() => validateTestManifestData(duplicate), /assigned more than once/u);
 
   const duplicateCoverageAddition = fixture();
-  duplicateCoverageAddition.coverageManifest.additionalTestsByShard["2"] = [
-    "tests/a.test.mjs",
-  ];
+  duplicateCoverageAddition.coverageManifest.additionalTestsByShard["2"] = ["tests/a.test.mjs"];
   assert.throws(
     () => validateTestManifestData(duplicateCoverageAddition),
     /assigned more than once/u,
@@ -155,10 +160,7 @@ test("coverage manifest pins its merger and bounded thresholds", () => {
 });
 
 test("coverage arrays are exact projections of publishable package roots", () => {
-  const missing = fixture([
-    ...examplePackages,
-    { root: "packages/missing-example" },
-  ]);
+  const missing = fixture([...examplePackages, { root: "packages/missing-example" }]);
   assert.throws(
     () => validateTestManifestData(missing),
     /missing=\[packages\/missing-example\/dist\/\*\*\/\*\.js\]/u,
@@ -184,10 +186,7 @@ test("coverage arrays are exact projections of publishable package roots", () =>
     /coverage include contains a duplicate/u,
   );
 
-  const reordered = fixture([
-    { root: "packages/example" },
-    { root: "packages/first-example" },
-  ]);
+  const reordered = fixture([{ root: "packages/example" }, { root: "packages/first-example" }]);
   reordered.coverageManifest.include.unshift("packages/first-example/dist/**/*.js");
   reordered.coverageManifest.exclude.unshift("packages/first-example/dist/**/*.d.ts");
   assert.throws(
@@ -197,10 +196,7 @@ test("coverage arrays are exact projections of publishable package roots", () =>
 });
 
 test("coverage projections change when injected package membership changes", () => {
-  const packages = [
-    ...examplePackages,
-    { root: "packages/fifth-example" },
-  ];
+  const packages = [...examplePackages, { root: "packages/fifth-example" }];
   const staleProjection = fixture(packages);
   assert.throws(
     () => validateTestManifestData(staleProjection),
@@ -208,12 +204,8 @@ test("coverage projections change when injected package membership changes", () 
   );
 
   const completeProjection = fixture(packages);
-  completeProjection.coverageManifest.include.push(
-    "packages/fifth-example/dist/**/*.js",
-  );
-  completeProjection.coverageManifest.exclude.push(
-    "packages/fifth-example/dist/**/*.d.ts",
-  );
+  completeProjection.coverageManifest.include.push("packages/fifth-example/dist/**/*.js");
+  completeProjection.coverageManifest.exclude.push("packages/fifth-example/dist/**/*.d.ts");
   assert.doesNotThrow(() => validateTestManifestData(completeProjection));
 });
 
@@ -254,7 +246,6 @@ test("test manifests reject numeric shard ids", () => {
   assert.throws(() => validateTestManifestData(data), /id must be a string/u);
 });
 
-
 test("managed platform routing preserves complete Linux qualification and every portable identity", async () => {
   const manifest = await validateTestManifests();
   const linuxOnly = [
@@ -271,20 +262,49 @@ test("managed platform routing preserves complete Linux qualification and every 
   const globalInventory = [...manifest.tests];
   const requiredShardFiles = [...manifest.shards.values()].flat();
   assert.equal(manifest.testCount, globalInventory.length);
-  assert.deepEqual(selectTestShardPaths(manifest, ids, true, "linux", "x64").toSorted(), globalInventory.toSorted());
+  assert.deepEqual(
+    selectTestShardPaths(manifest, ids, true, "linux", "x64").toSorted(),
+    globalInventory.toSorted(),
+  );
   assert.deepEqual(selectTestShardPaths(manifest, ids, false, "linux", "x64"), requiredShardFiles);
   // Linux on another architecture is outside the linux/x64 runtime support contract.
-  for (const [platform, architecture] of [["win32", "x64"], ["darwin", "arm64"], ["linux", "arm64"]]) {
+  for (const [platform, architecture] of [
+    ["win32", "x64"],
+    ["darwin", "arm64"],
+    ["linux", "arm64"],
+  ]) {
     const selected = selectTestShardPaths(manifest, ids, false, platform, architecture);
-    assert.deepEqual(selected, requiredShardFiles.filter((path) => !linuxOnly.includes(path)));
+    assert.deepEqual(
+      selected,
+      requiredShardFiles.filter((path) => !linuxOnly.includes(path)),
+    );
     assert.equal(selected.length, requiredShardFiles.length - 8);
-    assert.ok(selected.includes("packages/docs-protocol-agent-teams/tests/managed-portable-profile.test.mjs"));
-    assert.throws(() => selectTestShardPaths(manifest, ids, true, platform, architecture), /complete Linux selection/u);
-    const built = manifestTools.selectTestPathsForPlatform(manifest, manifest.tests, platform, architecture);
-    assert.deepEqual(built, globalInventory.filter((path) => !linuxOnly.includes(path)));
+    assert.ok(
+      selected.includes(
+        "packages/docs-protocol-agent-teams/tests/managed-portable-profile.test.mjs",
+      ),
+    );
+    assert.throws(
+      () => selectTestShardPaths(manifest, ids, true, platform, architecture),
+      /complete Linux selection/u,
+    );
+    const built = manifestTools.selectTestPathsForPlatform(
+      manifest,
+      manifest.tests,
+      platform,
+      architecture,
+    );
+    assert.deepEqual(
+      built,
+      globalInventory.filter((path) => !linuxOnly.includes(path)),
+    );
     assert.equal(built.length, globalInventory.length - linuxOnly.length);
-    const contract = JSON.parse(await readFile(join(repositoryRoot,
-      "architecture/foundation/node-test-execution.json"), "utf8"));
+    const contract = JSON.parse(
+      await readFile(
+        join(repositoryRoot, "architecture/foundation/node-test-execution.json"),
+        "utf8",
+      ),
+    );
     for (const identity of contract.required) {
       assert.ok(selected.includes(identity.file), JSON.stringify(identity));
     }
@@ -298,9 +318,12 @@ test("managed platform policy rejects inventory drift, empty dispatch and mandat
   for (const tests of [
     manifest.tests.filter((path) => path !== linuxFile),
     [...manifest.tests, "packages/docs-protocol-agent-teams/tests/managed-runtime-extra.test.mjs"],
-    manifest.tests.map((path) => path === linuxFile ? `${path}.renamed` : path),
+    manifest.tests.map((path) => (path === linuxFile ? `${path}.renamed` : path)),
   ]) {
-    assert.throws(() => manifestTools.validateManagedTestPlatforms({ ...manifest, tests }), /platform policy review/u);
+    assert.throws(
+      () => manifestTools.validateManagedTestPlatforms({ ...manifest, tests }),
+      /platform policy review/u,
+    );
   }
   for (const [files, platform, message] of [
     [[linuxFile], "win32", /empty qualification/u],
@@ -308,26 +331,56 @@ test("managed platform policy rejects inventory drift, empty dispatch and mandat
     [["tests/uninventoried.test.mjs"], "linux", /unique inventoried/u],
     [[linuxFile], "freebsd", /unsupported test platform/u],
   ]) {
-    assert.throws(() => manifestTools.selectTestPathsForPlatform(manifest, files, platform), message);
+    assert.throws(
+      () => manifestTools.selectTestPathsForPlatform(manifest, files, platform),
+      message,
+    );
   }
-  assert.throws(() => manifestTools.selectTestPathsForPlatform(manifest, [linuxFile], "linux", "arm64"),
-    /empty qualification/u);
-  const contract = JSON.parse(await readFile(join(repositoryRoot,
-    "architecture/foundation/node-test-execution.json"), "utf8"));
-  contract.required.push({ file: linuxFile, names: ["new mandatory runtime identity"], kind: "test" });
-  assert.throws(() => validateMandatoryShardSelection(contract, manifest), /reviewed platform contract/u);
+  assert.throws(
+    () => manifestTools.selectTestPathsForPlatform(manifest, [linuxFile], "linux", "arm64"),
+    /empty qualification/u,
+  );
+  const contract = JSON.parse(
+    await readFile(
+      join(repositoryRoot, "architecture/foundation/node-test-execution.json"),
+      "utf8",
+    ),
+  );
+  contract.required.push({
+    file: linuxFile,
+    names: ["new mandatory runtime identity"],
+    kind: "test",
+  });
+  assert.throws(
+    () => validateMandatoryShardSelection(contract, manifest),
+    /reviewed platform contract/u,
+  );
 });
 
 test("repository shard placement rejects loss of loader isolation or managed runtime tooling", async () => {
   const manifest = await validateTestManifests();
   for (const [source, file, expected] of [
     ["3", "tests/source-dependency-loader-cli.test.mjs", /pinned loader/u],
-    ["4", "packages/docs-protocol-agent-teams/tests/managed-runtime-observation.test.mjs", /Node 26 tooling/u],
-    ["4", "packages/docs-protocol-agent-teams/tests/managed-runtime-process.test.mjs", /Node 26 tooling/u],
+    [
+      "4",
+      "packages/docs-protocol-agent-teams/tests/managed-runtime-observation.test.mjs",
+      /Node 26 tooling/u,
+    ],
+    [
+      "4",
+      "packages/docs-protocol-agent-teams/tests/managed-runtime-process.test.mjs",
+      /Node 26 tooling/u,
+    ],
   ]) {
     const shards = new Map([...manifest.shards].map(([id, files]) => [id, [...files]]));
-    shards.set(source, shards.get(source).filter((path) => path !== file));
+    shards.set(
+      source,
+      shards.get(source).filter((path) => path !== file),
+    );
     shards.get("1").push(file);
-    assert.throws(() => manifestTools.validateRepositoryShardPins({ ...manifest, shards }), expected);
+    assert.throws(
+      () => manifestTools.validateRepositoryShardPins({ ...manifest, shards }),
+      expected,
+    );
   }
 });

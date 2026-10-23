@@ -9,8 +9,11 @@ export interface FoundationPackageArtifactPolicy {
   readonly packageFileAllowlist: readonly string[];
 }
 
-export function createFoundationPackageArtifactPolicy(schemaIds: readonly string[]): FoundationPackageArtifactPolicy {
-  const historicalDocumentPlanPath = "assets/transaction-coordination/historical/document-plan-v1.schema.json";
+export function createFoundationPackageArtifactPolicy(
+  schemaIds: readonly string[],
+): FoundationPackageArtifactPolicy {
+  const historicalDocumentPlanPath =
+    "assets/transaction-coordination/historical/document-plan-v1.schema.json";
   const requiredArtifactPaths = [
     historicalDocumentPlanPath,
     "dist/cli.js",
@@ -23,7 +26,7 @@ export function createFoundationPackageArtifactPolicy(schemaIds: readonly string
     "dist/scaffolding/index.js",
     ...schemaIds.map((schemaId) => `schemas/${schemaId}.schema.json`),
     "assets/windows-managed-process/bootstrap.ps1",
-    "assets/windows-managed-process/WindowsManagedProcess.cs"
+    "assets/windows-managed-process/WindowsManagedProcess.cs",
   ] as const;
   const packageFileAllowlist = [
     "dist",
@@ -32,7 +35,7 @@ export function createFoundationPackageArtifactPolicy(schemaIds: readonly string
     "assets/windows-managed-process/bootstrap.ps1",
     "assets/windows-managed-process/WindowsManagedProcess.cs",
     "LICENSE",
-    "README.md"
+    "README.md",
   ] as const;
   return { requiredArtifactPaths, packageFileAllowlist };
 }
@@ -52,38 +55,26 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function assertStringRecord(
-  value: unknown,
-  field: string
-): Record<string, string> {
+function assertStringRecord(value: unknown, field: string): Record<string, string> {
   if (!isRecord(value)) {
-    throw new FoundationError(
-      "PACKAGE_INVALID",
-      `Foundation target ${field} must be an object.`
-    );
+    throw new FoundationError("PACKAGE_INVALID", `Foundation target ${field} must be an object.`);
   }
   const entries = Object.entries(value);
   if (
     entries.some(
       ([name, specifier]) =>
-        name.length === 0 ||
-        typeof specifier !== "string" ||
-        specifier.length === 0
+        name.length === 0 || typeof specifier !== "string" || specifier.length === 0,
     )
   ) {
     throw new FoundationError(
       "PACKAGE_INVALID",
-      `Foundation target ${field} must contain non-empty string specifiers.`
+      `Foundation target ${field} must contain non-empty string specifiers.`,
     );
   }
   return Object.fromEntries(entries) as Record<string, string>;
 }
 
-function assertExactStringArray(
-  value: unknown,
-  field: string,
-  expected: readonly string[]
-): void {
+function assertExactStringArray(value: unknown, field: string, expected: readonly string[]): void {
   if (
     !Array.isArray(value) ||
     value.some((entry) => typeof entry !== "string") ||
@@ -93,7 +84,7 @@ function assertExactStringArray(
   ) {
     throw new FoundationError(
       "PACKAGE_INVALID",
-      `Foundation target ${field} must match the exact release allowlist.`
+      `Foundation target ${field} must match the exact release allowlist.`,
     );
   }
 }
@@ -101,14 +92,14 @@ function assertExactStringArray(
 function validateExport(
   exportsField: Record<string, unknown>,
   exportPath: string,
-  expected: Readonly<Record<string, string>> | string
+  expected: Readonly<Record<string, string>> | string,
 ): void {
   const candidate = exportsField[exportPath];
   if (typeof expected === "string") {
     if (candidate !== expected) {
       throw new FoundationError(
         "PACKAGE_INVALID",
-        `Foundation target export ${exportPath} must resolve to ${expected}.`
+        `Foundation target export ${exportPath} must resolve to ${expected}.`,
       );
     }
     return;
@@ -116,14 +107,14 @@ function validateExport(
   if (!isRecord(candidate)) {
     throw new FoundationError(
       "PACKAGE_INVALID",
-      `Foundation target export ${exportPath} is invalid.`
+      `Foundation target export ${exportPath} is invalid.`,
     );
   }
   for (const [condition, destination] of Object.entries(expected)) {
     if (candidate[condition] !== destination) {
       throw new FoundationError(
         "PACKAGE_INVALID",
-        `Foundation target export ${exportPath}.${condition} must resolve to ${destination}.`
+        `Foundation target export ${exportPath}.${condition} must resolve to ${destination}.`,
       );
     }
   }
@@ -144,42 +135,41 @@ function parseProtocolMetadata(manifest: Record<string, unknown>): {
     !Array.isArray(metadata.compatibleLocalModeProtocolVersions) ||
     metadata.compatibleLocalModeProtocolVersions.length === 0 ||
     metadata.compatibleLocalModeProtocolVersions.some(
-      (version) =>
-        typeof version !== "number" ||
-        !Number.isSafeInteger(version) ||
-        version < 1
+      (version) => typeof version !== "number" || !Number.isSafeInteger(version) || version < 1,
     )
   ) {
     throw new FoundationError(
       "PACKAGE_INVALID",
-      "Foundation target protocol compatibility metadata is invalid."
+      "Foundation target protocol compatibility metadata is invalid.",
     );
   }
   const compatibleLocalModeProtocolVersions = [
-    ...new Set(metadata.compatibleLocalModeProtocolVersions as number[])
+    ...new Set(metadata.compatibleLocalModeProtocolVersions as number[]),
   ].toSorted((left, right) => left - right);
-  if (
-    !compatibleLocalModeProtocolVersions.includes(
-      FOUNDATION_LOCAL_MODE_PROTOCOL_VERSION
-    )
-  ) {
+  if (!compatibleLocalModeProtocolVersions.includes(FOUNDATION_LOCAL_MODE_PROTOCOL_VERSION)) {
     throw new FoundationError(
       "PACKAGE_INVALID",
-      `Foundation target does not support local-mode protocol ${FOUNDATION_LOCAL_MODE_PROTOCOL_VERSION}.`
+      `Foundation target does not support local-mode protocol ${FOUNDATION_LOCAL_MODE_PROTOCOL_VERSION}.`,
     );
   }
   return {
     metadataSchemaVersion: FOUNDATION_METADATA_SCHEMA_VERSION,
     localModeProtocolVersion: metadata.localModeProtocolVersion,
-    compatibleLocalModeProtocolVersions
+    compatibleLocalModeProtocolVersions,
   };
 }
 
-export function validatePackageManifest(manifest: unknown, packageFileAllowlist: readonly string[]): asserts manifest is Record<string, unknown> & { readonly version: string; readonly exports: Record<string, unknown> } {
+export function validatePackageManifest(
+  manifest: unknown,
+  packageFileAllowlist: readonly string[],
+): asserts manifest is Record<string, unknown> & {
+  readonly version: string;
+  readonly exports: Record<string, unknown>;
+} {
   if (!isRecord(manifest)) {
     throw new FoundationError(
       "PACKAGE_INVALID",
-      "Foundation target package.json must contain an object."
+      "Foundation target package.json must contain an object.",
     );
   }
   if (
@@ -190,55 +180,44 @@ export function validatePackageManifest(manifest: unknown, packageFileAllowlist:
   ) {
     throw new FoundationError(
       "PACKAGE_INVALID",
-      "Foundation target package identity, version, or module type is invalid."
+      "Foundation target package identity, version, or module type is invalid.",
     );
   }
-  if (
-    !isRecord(manifest.bin) ||
-    manifest.bin["agent-teams-foundation"] !== "./dist/cli.js"
-  ) {
-    throw new FoundationError(
-      "PACKAGE_INVALID",
-      "Foundation target CLI entry is invalid."
-    );
+  if (!isRecord(manifest.bin) || manifest.bin["agent-teams-foundation"] !== "./dist/cli.js") {
+    throw new FoundationError("PACKAGE_INVALID", "Foundation target CLI entry is invalid.");
   }
-  assertExactStringArray(
-    manifest.files,
-    "files",
-    packageFileAllowlist
-  );
+  assertExactStringArray(manifest.files, "files", packageFileAllowlist);
 
   if (!isRecord(manifest.exports)) {
-    throw new FoundationError(
-      "PACKAGE_INVALID",
-      "Foundation target exports must be an object."
-    );
+    throw new FoundationError("PACKAGE_INVALID", "Foundation target exports must be an object.");
   }
   validateExport(manifest.exports, ".", {
     types: "./dist/index.d.ts",
-    import: "./dist/index.js"
+    import: "./dist/index.js",
   });
   validateExport(manifest.exports, "./local-mode", {
     types: "./dist/local-mode/index.d.ts",
-    import: "./dist/local-mode/index.js"
+    import: "./dist/local-mode/index.js",
   });
   validateExport(manifest.exports, "./scaffolding", {
     types: "./dist/scaffolding/index.d.ts",
-    import: "./dist/scaffolding/index.js"
+    import: "./dist/scaffolding/index.js",
   });
   validateExport(manifest.exports, "./schemas/*", "./schemas/*");
   validateExport(manifest.exports, "./package.json", "./package.json");
 }
 
-export function packageMetadata(manifest: Record<string, unknown> & { readonly version: string; readonly exports: Record<string, unknown> }): {
+export function packageMetadata(
+  manifest: Record<string, unknown> & {
+    readonly version: string;
+    readonly exports: Record<string, unknown>;
+  },
+): {
   readonly selfCheck: FoundationPackageSelfCheck;
   readonly runtimeDependencyNames: readonly string[];
 } {
   const protocolMetadata = parseProtocolMetadata(manifest);
-  const runtimeDependencies = assertStringRecord(
-    manifest.dependencies,
-    "dependencies"
-  );
+  const runtimeDependencies = assertStringRecord(manifest.dependencies, "dependencies");
   const selfCheck: FoundationPackageSelfCheck = {
     ok: true,
     ...protocolMetadata,
@@ -247,16 +226,14 @@ export function packageMetadata(manifest: Record<string, unknown> & { readonly v
     exportPaths: Object.keys(manifest.exports).toSorted(),
     runtimeDependencies: Object.fromEntries(
       Object.entries(runtimeDependencies).toSorted(([left], [right]) =>
-        compareBinaryStrings(left, right)
-      )
-    )
+        compareBinaryStrings(left, right),
+      ),
+    ),
   };
   return { selfCheck, runtimeDependencyNames: Object.keys(runtimeDependencies) };
 }
 
-export function parseFoundationPackageSelfCheck(
-  value: unknown
-): FoundationPackageSelfCheck {
+export function parseFoundationPackageSelfCheck(value: unknown): FoundationPackageSelfCheck {
   if (
     !isRecord(value) ||
     value.ok !== true ||
@@ -266,20 +243,13 @@ export function parseFoundationPackageSelfCheck(
     !isExactVersion(value.packageVersion) ||
     typeof value.localModeProtocolVersion !== "number" ||
     !Array.isArray(value.compatibleLocalModeProtocolVersions) ||
-    value.compatibleLocalModeProtocolVersions.some(
-      (version) => typeof version !== "number"
-    ) ||
+    value.compatibleLocalModeProtocolVersions.some((version) => typeof version !== "number") ||
     !Array.isArray(value.exportPaths) ||
     value.exportPaths.some((path) => typeof path !== "string") ||
     !isRecord(value.runtimeDependencies) ||
-    Object.values(value.runtimeDependencies).some(
-      (specifier) => typeof specifier !== "string"
-    )
+    Object.values(value.runtimeDependencies).some((specifier) => typeof specifier !== "string")
   ) {
-    throw new FoundationError(
-      "PACKAGE_INVALID",
-      "Foundation target self-check output is invalid."
-    );
+    throw new FoundationError("PACKAGE_INVALID", "Foundation target self-check output is invalid.");
   }
   return value as unknown as FoundationPackageSelfCheck;
 }

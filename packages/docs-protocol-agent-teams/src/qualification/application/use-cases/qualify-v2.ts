@@ -1,16 +1,36 @@
 import {
-  changedPaths, digest, documentResult, qualificationEvidencePolicy, requireSuccess, signalOption,
-  type DocsNewRequest, type PortableQualificationProtocol, type QualificationEvidencePolicy
+  changedPaths,
+  digest,
+  documentResult,
+  qualificationEvidencePolicy,
+  requireSuccess,
+  signalOption,
+  type DocsNewRequest,
+  type PortableQualificationProtocol,
+  type QualificationEvidencePolicy,
 } from "@agent-teams/docs-protocol/qualification";
-import type { ManagedQualificationIntegration, DocsProtocolQualificationContractV2, DocsProtocolQualificationScenarioV2, DocsProtocolQualificationV2Request, DocsProtocolQualificationReceiptV2 } from "../model/v2-contract.js";
-import type { ManagedIntegrationCandidate, QualifiedManagedIntegration, ManagedQualificationEnvironment } from "../model/managed-environment.js";
+import type {
+  ManagedQualificationIntegration,
+  DocsProtocolQualificationContractV2,
+  DocsProtocolQualificationScenarioV2,
+  DocsProtocolQualificationV2Request,
+  DocsProtocolQualificationReceiptV2,
+} from "../model/v2-contract.js";
+import type {
+  ManagedIntegrationCandidate,
+  QualifiedManagedIntegration,
+  ManagedQualificationEnvironment,
+} from "../model/managed-environment.js";
 
 function canonicalJson(value: unknown): string {
-  if (Array.isArray(value)) {return `[${value.map(canonicalJson).join(",")}]`;}
+  if (Array.isArray(value)) {
+    return `[${value.map(canonicalJson).join(",")}]`;
+  }
   if (value !== null && typeof value === "object") {
-    return `{${Object.entries(value as Record<string, unknown>).toSorted(([left], [right]) =>
-      Buffer.compare(Buffer.from(left), Buffer.from(right)))
-      .map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`).join(",")}}`;
+    return `{${Object.entries(value as Record<string, unknown>)
+      .toSorted(([left], [right]) => Buffer.compare(Buffer.from(left), Buffer.from(right)))
+      .map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`)
+      .join(",")}}`;
   }
   return JSON.stringify(value);
 }
@@ -19,7 +39,7 @@ function scenarioRequest(
   scenario: DocsProtocolQualificationScenarioV2,
   consumerRoot: string,
   profilePath: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Omit<DocsNewRequest, "apply"> {
   return {
     consumerRoot,
@@ -31,13 +51,19 @@ function scenarioRequest(
       owner: scenario.intent.owner,
       summary: scenario.intent.summary,
       ...(scenario.intent.slug === undefined ? {} : { slug: scenario.intent.slug }),
-      ...(scenario.intent.destination === undefined ? {} : { destination: scenario.intent.destination })
+      ...(scenario.intent.destination === undefined
+        ? {}
+        : { destination: scenario.intent.destination }),
     },
     ...(scenario.intent.related === undefined ? {} : { related: scenario.intent.related }),
     ...(scenario.intent.blockedBy === undefined ? {} : { blockedBy: scenario.intent.blockedBy }),
-    ...(scenario.intent.codeAnchors === undefined ? {} : { codeAnchors: scenario.intent.codeAnchors }),
-    ...(scenario.intent.metadata === undefined ? {} : { additionalMetadata: scenario.intent.metadata }),
-    ...(signal === undefined ? {} : { signal })
+    ...(scenario.intent.codeAnchors === undefined
+      ? {}
+      : { codeAnchors: scenario.intent.codeAnchors }),
+    ...(scenario.intent.metadata === undefined
+      ? {}
+      : { additionalMetadata: scenario.intent.metadata }),
+    ...(signal === undefined ? {} : { signal }),
   };
 }
 
@@ -45,62 +71,117 @@ type CompiledDocumentResult = ReturnType<typeof documentResult> & {
   readonly compiled: { readonly document: { readonly content: string; readonly digest: string } };
 };
 
-function assertExpectedScenario(scenario: DocsProtocolQualificationScenarioV2, result: CompiledDocumentResult): void {
+function assertExpectedScenario(
+  scenario: DocsProtocolQualificationScenarioV2,
+  result: CompiledDocumentResult,
+): void {
   if (result.documentPath !== scenario.expected.documentPath) {
     throw new Error(`Qualification scenario ${scenario.id} path mismatch: ${result.documentPath}.`);
   }
   if (canonicalJson(result.reachability) !== canonicalJson(scenario.expected.reachability)) {
     throw new Error(`Qualification scenario ${scenario.id} reachability mismatch.`);
   }
-  if (scenario.expected.goldenDigest !== undefined && result.compiled.document.digest !== scenario.expected.goldenDigest) {
+  if (
+    scenario.expected.goldenDigest !== undefined &&
+    result.compiled.document.digest !== scenario.expected.goldenDigest
+  ) {
     throw new Error(`Qualification scenario ${scenario.id} golden digest mismatch.`);
   }
 }
 
-function assertScenarioCoverage(contract: DocsProtocolQualificationContractV2, declaredTypes: readonly string[]): void {
+function assertScenarioCoverage(
+  contract: DocsProtocolQualificationContractV2,
+  declaredTypes: readonly string[],
+): void {
   const scenarioTypes = contract.scenarios.map(({ type }) => type);
-  if (new Set(contract.scenarios.map(({ id }) => id)).size !== contract.scenarios.length ||
-    new Set(scenarioTypes).size !== scenarioTypes.length || canonicalJson(scenarioTypes.toSorted()) !== canonicalJson(declaredTypes.toSorted())) {
-    throw new Error(`Qualification scenarios must cover every authorable type exactly once; expected ${declaredTypes.join(", ")}.`);
+  if (
+    new Set(contract.scenarios.map(({ id }) => id)).size !== contract.scenarios.length ||
+    new Set(scenarioTypes).size !== scenarioTypes.length ||
+    canonicalJson(scenarioTypes.toSorted()) !== canonicalJson(declaredTypes.toSorted())
+  ) {
+    throw new Error(
+      `Qualification scenarios must cover every authorable type exactly once; expected ${declaredTypes.join(", ")}.`,
+    );
   }
 }
 
-async function assertManagedIntegrationAuthority(integration: ManagedIntegrationCandidate, integrationApi: ManagedQualificationIntegration): Promise<void> {
+async function assertManagedIntegrationAuthority(
+  integration: ManagedIntegrationCandidate,
+  integrationApi: ManagedQualificationIntegration,
+): Promise<void> {
   await integrationApi.assertProfile(integration);
   if (integration.schemaVersion !== 2 || integration.qualification === undefined) {
-    throw new Error("DOCS_QUALIFICATION_V1_MIGRATION_REQUIRED: managed integration schemaVersion 2 with qualification authority is required.");
+    throw new Error(
+      "DOCS_QUALIFICATION_V1_MIGRATION_REQUIRED: managed integration schemaVersion 2 with qualification authority is required.",
+    );
   }
 }
 
-async function assertReleasedIntegrationCurrent(sourceRoot: string, integrationPath: string, integrationApi: ManagedQualificationIntegration): Promise<void> {
+async function assertReleasedIntegrationCurrent(
+  sourceRoot: string,
+  integrationPath: string,
+  integrationApi: ManagedQualificationIntegration,
+): Promise<void> {
   const managed = await integrationApi.check({
     consumerRoot: sourceRoot,
-    integrationProfilePath: integrationPath
+    integrationProfilePath: integrationPath,
   });
   if (managed.outcome !== "current") {
-    throw new Error(`Released-cohort qualification requires a current exact managed integration: ${JSON.stringify(managed.issues)}.`);
+    throw new Error(
+      `Released-cohort qualification requires a current exact managed integration: ${JSON.stringify(managed.issues)}.`,
+    );
   }
 }
 
 async function qualifyScenarios(input: {
-  readonly base: { readonly consumerRoot: string; readonly profilePath: string; readonly signal?: AbortSignal };
+  readonly base: {
+    readonly consumerRoot: string;
+    readonly profilePath: string;
+    readonly signal?: AbortSignal;
+  };
   readonly contract: DocsProtocolQualificationContractV2;
   readonly evidencePolicy: QualificationEvidencePolicy;
   readonly protocol: PortableQualificationProtocol;
   readonly environment: ManagedQualificationEnvironment;
-}): Promise<readonly { readonly id: string; readonly type: string; readonly documentPath: string; readonly outputDigest: string }[]> {
+}): Promise<
+  readonly {
+    readonly id: string;
+    readonly type: string;
+    readonly documentPath: string;
+    readonly outputDigest: string;
+  }[]
+> {
   const receipts: { id: string; type: string; documentPath: string; outputDigest: string }[] = [];
   for (const [index, scenario] of input.contract.scenarios.entries()) {
-    const scenarioBase = scenarioRequest(scenario, input.base.consumerRoot, input.base.profilePath, input.base.signal);
-    const beforePreview = await input.environment.fileSnapshot(input.base.consumerRoot, input.evidencePolicy);
+    const scenarioBase = scenarioRequest(
+      scenario,
+      input.base.consumerRoot,
+      input.base.profilePath,
+      input.base.signal,
+    );
+    const beforePreview = await input.environment.fileSnapshot(
+      input.base.consumerRoot,
+      input.evidencePolicy,
+    );
     const preview = await input.protocol.newDocumentV2({ ...scenarioBase, apply: false });
     const previewResult = documentResult(preview) as CompiledDocumentResult;
-    if (changedPaths(beforePreview, await input.environment.fileSnapshot(input.base.consumerRoot, input.evidencePolicy)).length !== 0) {
-      throw new Error(`Qualification scenario ${scenario.id} preview mutated the disposable consumer.`);
+    if (
+      changedPaths(
+        beforePreview,
+        await input.environment.fileSnapshot(input.base.consumerRoot, input.evidencePolicy),
+      ).length !== 0
+    ) {
+      throw new Error(
+        `Qualification scenario ${scenario.id} preview mutated the disposable consumer.`,
+      );
     }
     assertExpectedScenario(scenario, previewResult);
     if (scenario.expected.goldenFile !== undefined) {
-      const golden = await input.environment.readGolden(input.base.consumerRoot, scenario.expected.goldenFile, `Qualification scenario ${scenario.id} golden file`);
+      const golden = await input.environment.readGolden(
+        input.base.consumerRoot,
+        scenario.expected.goldenFile,
+        `Qualification scenario ${scenario.id} golden file`,
+      );
       if (golden !== previewResult.compiled.document.content) {
         throw new Error(`Qualification scenario ${scenario.id} golden file mismatch.`);
       }
@@ -111,18 +192,26 @@ async function qualifyScenarios(input: {
         consumerRoot: input.base.consumerRoot,
         previewResult,
         profilePath: input.base.profilePath,
-        protocol: input.protocol
+        protocol: input.protocol,
       });
     } else {
       const applied = await input.protocol.newDocumentV2({ ...scenarioBase, apply: true });
       const appliedResult = documentResult(applied) as CompiledDocumentResult;
-      if (appliedResult.planDigest !== previewResult.planDigest || appliedResult.compiled.document.content !== previewResult.compiled.document.content) {
+      if (
+        appliedResult.planDigest !== previewResult.planDigest ||
+        appliedResult.compiled.document.content !== previewResult.compiled.document.content
+      ) {
         throw new Error(`Qualification scenario ${scenario.id} preview/apply parity mismatch.`);
       }
     }
-    const actual = await input.environment.readDocument(input.base.consumerRoot, previewResult.documentPath);
+    const actual = await input.environment.readDocument(
+      input.base.consumerRoot,
+      previewResult.documentPath,
+    );
     if (actual !== previewResult.compiled.document.content) {
-      throw new Error(`Qualification scenario ${scenario.id} materialized bytes differ from preview.`);
+      throw new Error(
+        `Qualification scenario ${scenario.id} materialized bytes differ from preview.`,
+      );
     }
     await input.environment.applyReachability(input.base.consumerRoot, previewResult.reachability);
     requireSuccess(`check after ${scenario.id}`, await input.protocol.checkV2(input.base));
@@ -130,29 +219,72 @@ async function qualifyScenarios(input: {
       id: scenario.id,
       type: scenario.type,
       documentPath: previewResult.documentPath,
-      outputDigest: previewResult.compiled.document.digest
+      outputDigest: previewResult.compiled.document.digest,
     });
   }
   return Object.freeze(receipts.map((receipt) => Object.freeze(receipt)));
 }
 
-export function createDocsProtocolQualificationV2(dependencies: { readonly integrationApi: ManagedQualificationIntegration; readonly environment: ManagedQualificationEnvironment }) {
+async function inspectQualificationSource(
+  request: DocsProtocolQualificationV2Request,
+  integrationApi: ManagedQualificationIntegration,
+  environment: ManagedQualificationEnvironment,
+) {
+  const sourceRoot = await environment.resolveRoot(request.consumerRoot);
+  const integrationPath =
+    request.integrationPath ?? "architecture/foundation/docs-consumer-integration.json";
+  const integrationFile = await environment.readIntegration(sourceRoot, integrationPath);
+  const integration = integrationFile.value;
+  await assertManagedIntegrationAuthority(integration, integrationApi);
+  const qualifiedIntegration = integration as QualifiedManagedIntegration;
+  const evidencePolicy = qualificationEvidencePolicy(qualifiedIntegration.governedDocsRoots ?? []);
+  const before = (await environment.snapshot(sourceRoot, evidencePolicy)) as `sha256:${string}`;
+  const qualification = await environment.readContract(
+    sourceRoot,
+    qualifiedIntegration.qualification.contractPath,
+  );
+  if (request.localDevelopment !== true) {
+    await assertReleasedIntegrationCurrent(sourceRoot, integrationPath, integrationApi);
+  }
+  return {
+    sourceRoot,
+    qualifiedIntegration,
+    evidencePolicy,
+    before,
+    qualification,
+    integrationPath,
+    integrationFile,
+  };
+}
+
+function assertGateScript(
+  scripts: Awaited<ReturnType<ManagedQualificationEnvironment["readScripts"]>>,
+  gateCommand: string,
+): void {
+  if (typeof scripts?.["docs:protocol:check"] !== "string") {
+    throw new Error(
+      `Managed qualification gate ${gateCommand} must resolve to a package script; it is never executed by qualification.`,
+    );
+  }
+}
+
+export function createDocsProtocolQualificationV2(dependencies: {
+  readonly integrationApi: ManagedQualificationIntegration;
+  readonly environment: ManagedQualificationEnvironment;
+}) {
   const { integrationApi, environment } = dependencies;
   return async function runDocsProtocolQualificationV2(
-    request: DocsProtocolQualificationV2Request
+    request: DocsProtocolQualificationV2Request,
   ): Promise<DocsProtocolQualificationReceiptV2> {
-    const sourceRoot = await environment.resolveRoot(request.consumerRoot);
-    const integrationPath = request.integrationPath ?? "architecture/foundation/docs-consumer-integration.json";
-    const integrationFile = await environment.readIntegration(sourceRoot, integrationPath);
-    const integration = integrationFile.value;
-    await assertManagedIntegrationAuthority(integration, integrationApi);
-    const qualifiedIntegration = integration as QualifiedManagedIntegration;
-    const evidencePolicy = qualificationEvidencePolicy(qualifiedIntegration.governedDocsRoots ?? []);
-    const before = await environment.snapshot(sourceRoot, evidencePolicy) as `sha256:${string}`;
-    const qualification = await environment.readContract(sourceRoot, qualifiedIntegration.qualification.contractPath);
-    if (request.localDevelopment !== true) {
-      await assertReleasedIntegrationCurrent(sourceRoot, integrationPath, integrationApi);
-    }
+    const {
+      sourceRoot,
+      qualifiedIntegration,
+      evidencePolicy,
+      before,
+      qualification,
+      integrationPath,
+      integrationFile,
+    } = await inspectQualificationSource(request, integrationApi, environment);
     const disposable = await environment.createDisposable();
     const { consumerRoot } = disposable;
     try {
@@ -160,19 +292,28 @@ export function createDocsProtocolQualificationV2(dependencies: { readonly integ
       await disposable.copyFrom(sourceRoot, evidencePolicy);
       const executingPackages = await environment.bootstrapInstallation(
         consumerRoot,
-        request.localDevelopment === true
+        request.localDevelopment === true,
       );
-      await environment.overlaySkill(consumerRoot, qualifiedIntegration.skillPath, request.localDevelopment === true);
+      await environment.overlaySkill(
+        consumerRoot,
+        qualifiedIntegration.skillPath,
+        request.localDevelopment === true,
+      );
       const scripts = await environment.readScripts(consumerRoot);
-      if (typeof scripts?.["docs:protocol:check"] !== "string") {
-        throw new Error(`Managed qualification gate ${qualifiedIntegration.qualification.gateCommand} must resolve to a package script; it is never executed by qualification.`);
-      }
+      assertGateScript(scripts, qualifiedIntegration.qualification.gateCommand);
       const { protocol } = environment;
-      const base = { consumerRoot, profilePath: qualifiedIntegration.profilePath, ...signalOption(request.signal) };
+      const base = {
+        consumerRoot,
+        profilePath: qualifiedIntegration.profilePath,
+        ...signalOption(request.signal),
+      };
       const info = await protocol.infoV2(base);
       requireSuccess("info", info);
       const infoResult = info.envelope.result;
-      assertScenarioCoverage(qualification.contract, infoResult.types.map(({ type }) => type));
+      assertScenarioCoverage(
+        qualification.contract,
+        infoResult.types.map(({ type }) => type),
+      );
       requireSuccess("find", await protocol.findV2({ ...base, query: {} }));
       requireSuccess("check", await protocol.checkV2(base));
       const initialDoctor = await protocol.doctorV2(base);
@@ -182,26 +323,37 @@ export function createDocsProtocolQualificationV2(dependencies: { readonly integ
       if (idleRecovery.envelope.result.transactionState !== "no-pending-transaction") {
         throw new Error("Qualification recover did not prove the initial idle state.");
       }
-      const receipts = await qualifyScenarios({ base, contract: qualification.contract, evidencePolicy, protocol, environment });
+      const receipts = await qualifyScenarios({
+        base,
+        contract: qualification.contract,
+        evidencePolicy,
+        protocol,
+        environment,
+      });
       requireSuccess("doctor", await protocol.doctorV2(base));
       requireSuccess("recover", await protocol.recoverV2(base));
-      if (await environment.snapshot(sourceRoot, evidencePolicy) !== before) {
+      if ((await environment.snapshot(sourceRoot, evidencePolicy)) !== before) {
         throw new Error("Qualification modified its source consumer.");
       }
       const evidence = await environment.collectEvidence({
         consumerRoot,
-        integration: qualifiedIntegration
+        integration: qualifiedIntegration,
       });
       const installedEnvironment = initialDoctor.envelope.result.environment as {
         readonly installedFoundationBuildIdentity: `sha256:${string}`;
         readonly installedFoundationVersion: string;
       };
-      if (request.localDevelopment !== true &&
-        executingPackages.docsVersion !== qualifiedIntegration.cohort.packages.docsProtocol.version) {
-        throw new Error("Released-cohort qualification execution identity does not match the exact cohort package versions.");
+      if (
+        request.localDevelopment !== true &&
+        executingPackages.docsVersion !== qualifiedIntegration.cohort.packages.docsProtocol.version
+      ) {
+        throw new Error(
+          "Released-cohort qualification execution identity does not match the exact cohort package versions.",
+        );
       }
-      const hasGolden = qualification.contract.scenarios.some(({ expected }) =>
-        expected.goldenFile !== undefined || expected.goldenDigest !== undefined);
+      const hasGolden = qualification.contract.scenarios.some(
+        ({ expected }) => expected.goldenFile !== undefined || expected.goldenDigest !== undefined,
+      );
       const body = Object.freeze({
         schemaVersion: 2,
         cohortAdmissible: request.localDevelopment !== true,
@@ -209,22 +361,34 @@ export function createDocsProtocolQualificationV2(dependencies: { readonly integ
         projectId: infoResult.projectId,
         scenarios: receipts,
         checks: Object.freeze([
-          "info", "find", "check", "doctor", "recover", "preview", "apply", "path", "reachability",
+          "info",
+          "find",
+          "check",
+          "doctor",
+          "recover",
+          "preview",
+          "apply",
+          "path",
+          "reachability",
           ...(hasGolden ? ["golden" as const] : []),
-          "source-unchanged"
+          "source-unchanged",
         ] as const),
         derived: Object.freeze({
           contractPath: qualifiedIntegration.qualification.contractPath,
           gateCommand: qualifiedIntegration.qualification.gateCommand,
           packageVersions: Object.freeze({
             docsProtocol: qualifiedIntegration.cohort.packages.docsProtocol.version,
-            engineeringFoundation: qualifiedIntegration.cohort.packages.engineeringFoundation.version
+            engineeringFoundation:
+              qualifiedIntegration.cohort.packages.engineeringFoundation.version,
           }),
-          profilePath: qualifiedIntegration.profilePath
+          profilePath: qualifiedIntegration.profilePath,
         }),
         evidence: Object.freeze({
           sourceDigest: before,
-          integration: Object.freeze({ path: integrationPath, digest: integrationFile.evidence.digest }),
+          integration: Object.freeze({
+            path: integrationPath,
+            digest: integrationFile.evidence.digest,
+          }),
           contract: qualification.evidence,
           profile: Object.freeze(evidence.profile),
           skill: Object.freeze(evidence.skill),
@@ -232,17 +396,19 @@ export function createDocsProtocolQualificationV2(dependencies: { readonly integ
           lockfileDigest: evidence.lockfileDigest,
           executingDocsProtocol: Object.freeze({
             version: executingPackages.docsVersion,
-            buildDigest: digest(canonicalJson({
-              "adapters/outbound/node-managed-qualification.js": digest(evidence.executingModule),
-              "application/use-cases/qualify-v2.js": digest(evidence.executingApplication)
-            }))
+            buildDigest: digest(
+              canonicalJson({
+                "adapters/outbound/node-managed-qualification.js": digest(evidence.executingModule),
+                "application/use-cases/qualify-v2.js": digest(evidence.executingApplication),
+              }),
+            ),
           }),
           executingFoundation: Object.freeze({
             version: installedEnvironment.installedFoundationVersion,
-            buildIdentity: installedEnvironment.installedFoundationBuildIdentity
+            buildIdentity: installedEnvironment.installedFoundationBuildIdentity,
           }),
-          cohort: Object.freeze({ ...qualifiedIntegration.cohort })
-        })
+          cohort: Object.freeze({ ...qualifiedIntegration.cohort }),
+        }),
       });
       return Object.freeze({ ...body, receiptDigest: digest(canonicalJson(body)) });
     } finally {

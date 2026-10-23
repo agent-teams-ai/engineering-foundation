@@ -22,7 +22,10 @@ const protocol = {
 };
 
 process.exitCode = await runDocsCli(["info", "--json"], () => protocol);
-if (process.listenerCount("SIGINT") !== baseline.SIGINT || process.listenerCount("SIGTERM") !== baseline.SIGTERM) {
+if (
+  process.listenerCount("SIGINT") !== baseline.SIGINT ||
+  process.listenerCount("SIGTERM") !== baseline.SIGTERM
+) {
   process.stderr.write("Docs CLI signal listeners leaked.\n");
   process.exitCode = 99;
 }

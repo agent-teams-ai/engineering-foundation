@@ -5,7 +5,7 @@ import { assertDocumentTransactionEnvelope } from "../application/policies/docum
 import {
   createDocumentAuthoringCrashQualification,
   type DocumentAuthoringCrashQualificationResult,
-  type RunDocumentAuthoringCrashQualificationRequest
+  type RunDocumentAuthoringCrashQualificationRequest,
 } from "./crash-qualification.js";
 
 export function createDocumentAuthoringQualification(dependencies: {
@@ -15,12 +15,12 @@ export function createDocumentAuthoringQualification(dependencies: {
   const runCrashQualification = createDocumentAuthoringCrashQualification(dependencies.authority);
   return {
     runDocumentAuthoringCrashQualification(
-      request: RunDocumentAuthoringCrashQualificationRequest
+      request: RunDocumentAuthoringCrashQualificationRequest,
     ): Promise<DocumentAuthoringCrashQualificationResult> {
       return runCrashQualification(request);
     },
     assertDocumentTransactionEnvelope(value: unknown): Promise<DocumentTransactionEnvelope> {
       return assertDocumentTransactionEnvelope(dependencies.schema, value);
-    }
+    },
   };
 }

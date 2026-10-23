@@ -7,7 +7,5 @@ export interface DocumentationCatalogReadRequest {
 }
 
 export interface DocumentationSearchCatalogReader {
-  read(
-    request: DocumentationCatalogReadRequest
-  ): Promise<DocumentationSearchCatalogSnapshot>;
+  read(request: DocumentationCatalogReadRequest): Promise<DocumentationSearchCatalogSnapshot>;
 }

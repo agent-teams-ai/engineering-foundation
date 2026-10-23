@@ -4,6 +4,6 @@ export interface WorkspaceReader {
   read(
     consumerRoot: string,
     workspaceManifestPath: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ): Promise<WorkspaceSnapshot>;
 }

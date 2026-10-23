@@ -17,44 +17,45 @@ authoring:
   artifactTypes:
     - type: adr
       initialStatus: proposed
-      identity: {kind: explicit, format: adr-four-digits}
-      placement: {kind: collection, directory: docs/decisions, filename: numeric-id-slug}
-      template: {kind: fenced-markdown-body, path: docs/templates/adr.md}
-      heading: {kind: id-colon-title}
-      reachability: {kind: manual-fixed-index, indexPath: docs/decisions/README.md}
+      identity: { kind: explicit, format: adr-four-digits }
+      placement: { kind: collection, directory: docs/decisions, filename: numeric-id-slug }
+      template: { kind: fenced-markdown-body, path: docs/templates/adr.md }
+      heading: { kind: id-colon-title }
+      reachability: { kind: manual-fixed-index, indexPath: docs/decisions/README.md }
     - type: open-decision
       initialStatus: open
-      identity: {kind: explicit, format: open-decision-three-digits}
-      placement: {kind: collection, directory: docs/open-decisions, filename: id-slug}
-      template: {kind: fenced-markdown-body, path: docs/templates/open-decision.md}
-      heading: {kind: id-colon-title}
-      reachability: {kind: manual-fixed-index, indexPath: docs/open-decisions/README.md}
+      identity: { kind: explicit, format: open-decision-three-digits }
+      placement: { kind: collection, directory: docs/open-decisions, filename: id-slug }
+      template: { kind: fenced-markdown-body, path: docs/templates/open-decision.md }
+      heading: { kind: id-colon-title }
+      reachability: { kind: manual-fixed-index, indexPath: docs/open-decisions/README.md }
     - type: bounded-context
       initialStatus: proposed
       identity:
         kind: explicit
         format: qualified
-        grammar: {prefixSegments: [domain, contexts], minSuffixSegments: 1, maxSuffixSegments: 1}
-      placement: {kind: qualified-leaf-index, root: docs/domain/contexts, requiredBasename: README.md}
-      template: {kind: fenced-markdown-body, path: docs/templates/bounded-context.md}
-      heading: {kind: title}
-      reachability: {kind: not-required}
+        grammar: { prefixSegments: [domain, contexts], minSuffixSegments: 1, maxSuffixSegments: 1 }
+      placement:
+        { kind: qualified-leaf-index, root: docs/domain/contexts, requiredBasename: README.md }
+      template: { kind: fenced-markdown-body, path: docs/templates/bounded-context.md }
+      heading: { kind: title }
+      reachability: { kind: not-required }
     - type: contract
       initialStatus: proposed
       identity:
         kind: explicit
         format: qualified
-        grammar: {prefixSegments: [contract], minSuffixSegments: 2, maxSuffixSegments: 16}
-      placement: {kind: collection, directory: docs/contracts, filename: slug}
-      template: {kind: fenced-markdown-body, path: docs/templates/contract.md}
-      heading: {kind: title}
-      reachability: {kind: manual-fixed-index, indexPath: docs/contracts/README.md}
+        grammar: { prefixSegments: [contract], minSuffixSegments: 2, maxSuffixSegments: 16 }
+      placement: { kind: collection, directory: docs/contracts, filename: slug }
+      template: { kind: fenced-markdown-body, path: docs/templates/contract.md }
+      heading: { kind: title }
+      reachability: { kind: manual-fixed-index, indexPath: docs/contracts/README.md }
     - type: feature
       initialStatus: proposed
       identity:
         kind: explicit
         format: qualified
-        grammar: {prefixSegments: [feature], minSuffixSegments: 2, maxSuffixSegments: 16}
+        grammar: { prefixSegments: [feature], minSuffixSegments: 2, maxSuffixSegments: 16 }
       placement:
         kind: explicit
         allowedRoots: [apps, packages, tooling]
@@ -62,16 +63,21 @@ authoring:
         requiredBasename: README.md
         minimumSegmentsBeforeRequired: 1
         minimumSegmentsAfterRequired: 1
-      template: {kind: fenced-markdown-body, path: docs/templates/feature.md}
-      heading: {kind: title}
-      reachability: {kind: manual-colocated-index, pathPrefix: before-required-segments, indexBasename: README.md}
+      template: { kind: fenced-markdown-body, path: docs/templates/feature.md }
+      heading: { kind: title }
+      reachability:
+        {
+          kind: manual-colocated-index,
+          pathPrefix: before-required-segments,
+          indexBasename: README.md,
+        }
     - type: runbook
       initialStatus: active
       identity:
         kind: explicit
         format: qualified
-        grammar: {prefixSegments: [runbook], minSuffixSegments: 2, maxSuffixSegments: 16}
-      placement: {kind: collection, directory: docs/operations, filename: slug}
-      template: {kind: fenced-markdown-body, path: docs/templates/runbook.md}
-      heading: {kind: title}
-      reachability: {kind: manual-fixed-index, indexPath: docs/operations/README.md}
+        grammar: { prefixSegments: [runbook], minSuffixSegments: 2, maxSuffixSegments: 16 }
+      placement: { kind: collection, directory: docs/operations, filename: slug }
+      template: { kind: fenced-markdown-body, path: docs/templates/runbook.md }
+      heading: { kind: title }
+      reachability: { kind: manual-fixed-index, indexPath: docs/operations/README.md }

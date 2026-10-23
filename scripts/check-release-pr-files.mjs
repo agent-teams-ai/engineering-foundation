@@ -100,9 +100,7 @@ function validPrereleaseState(state, mode = "pre") {
     typeof state.initialVersions === "object" &&
     !Array.isArray(state.initialVersions) &&
     Array.isArray(state.changesets) &&
-    state.changesets.every(
-      (id) => typeof id === "string" && /^[A-Za-z0-9_-]+$/u.test(id),
-    ) &&
+    state.changesets.every((id) => typeof id === "string" && /^[A-Za-z0-9_-]+$/u.test(id)) &&
     new Set(state.changesets).size === state.changesets.length
   );
 }
@@ -127,8 +125,10 @@ function normalizeInitialVersionAdditions(
     allowedAdditions.add(DOCS_PROTOCOL_NAME);
   }
   for (const packageName of allowedAdditions) {
-    if (!Object.hasOwn(normalizedBase.initialVersions, packageName) &&
-        normalizedHead.initialVersions?.[packageName] === "0.0.0") {
+    if (
+      !Object.hasOwn(normalizedBase.initialVersions, packageName) &&
+      normalizedHead.initialVersions?.[packageName] === "0.0.0"
+    ) {
       normalizedBase.initialVersions[packageName] = "0.0.0";
     }
   }
@@ -139,7 +139,10 @@ function prereleaseStateViolations(
   headState,
   baseVersion,
   headVersion,
-  { docsBootstrapInitialVersionAddition, initialVersionAdditions = /** @type {string[]} */ ([]) } = {},
+  {
+    docsBootstrapInitialVersionAddition,
+    initialVersionAdditions = /** @type {string[]} */ ([]),
+  } = {},
 ) {
   if (baseState === undefined && headState === undefined) {
     return [];
@@ -179,10 +182,7 @@ function isAllowedReleaseFile(file, prereleaseExit) {
   if (CHANGESET_PATTERN.test(file.filename)) {
     return file.status === "removed";
   }
-  if (
-    PUBLIC_API_PATTERN.test(file.filename) ||
-    CONTRACT_BASELINE_PATTERN.test(file.filename)
-  ) {
+  if (PUBLIC_API_PATTERN.test(file.filename) || CONTRACT_BASELINE_PATTERN.test(file.filename)) {
     return file.status === "added" || file.status === "modified";
   }
   if (PACKAGE_MANIFESTS.has(file.filename) || PACKAGE_CHANGELOGS.has(file.filename)) {
@@ -215,22 +215,17 @@ export function releasePullRequestFileViolations(files, { prereleaseExit = false
     files.some((file) => file?.filename === filename && file.status === "modified");
   const releasedPackages = PUBLISHABLE_PACKAGES.filter(
     (releasePackage) =>
-      hasModifiedFile(releasePackage.manifestPath) ||
-      hasModifiedFile(releasePackage.changelogPath),
+      hasModifiedFile(releasePackage.manifestPath) || hasModifiedFile(releasePackage.changelogPath),
   );
   if (releasedPackages.length === 0) {
     violations.push("release pull request must modify at least one publishable package");
   }
   for (const releasePackage of releasedPackages) {
     if (!hasModifiedFile(releasePackage.manifestPath)) {
-      violations.push(
-        `release pull request must modify ${releasePackage.manifestPath}`,
-      );
+      violations.push(`release pull request must modify ${releasePackage.manifestPath}`);
     }
     if (!hasModifiedFile(releasePackage.changelogPath)) {
-      violations.push(
-        `release pull request must modify ${releasePackage.changelogPath}`,
-      );
+      violations.push(`release pull request must modify ${releasePackage.changelogPath}`);
     }
   }
   if (
@@ -315,13 +310,22 @@ async function main() {
   const baseRevision = revisionArgument("--base");
   const headRevision = revisionArgument("--head");
   const qualified = await checkReleaseCandidateRevisions(process.cwd(), baseRevision, headRevision);
-  if (!Array.isArray(files) || files.some(file => file === null || typeof file !== "object" ||
-      typeof file.filename !== "string" || typeof file.status !== "string")) {
+  if (
+    !Array.isArray(files) ||
+    files.some(
+      (file) =>
+        file === null ||
+        typeof file !== "object" ||
+        typeof file.filename !== "string" ||
+        typeof file.status !== "string",
+    )
+  ) {
     throw new Error("release pull request contains malformed file evidence");
   }
-  const supplied = files.map(file => `${file.filename}\0${file.status}`).toSorted();
-  const actual = qualified.observed.diff.map(change =>
-    `${change.path}\0${change.kind === "deleted" ? "removed" : change.kind}`).toSorted();
+  const supplied = files.map((file) => `${file.filename}\0${file.status}`).toSorted();
+  const actual = qualified.observed.diff
+    .map((change) => `${change.path}\0${change.kind === "deleted" ? "removed" : change.kind}`)
+    .toSorted();
   if (!isDeepStrictEqual(supplied, actual)) {
     throw new Error("release file evidence does not match the complete Git diff");
   }
@@ -332,7 +336,9 @@ if (invokedPath !== undefined && fileURLToPath(import.meta.url) === resolve(invo
   // Qualification reuses this module's retained content policy. Complete module
   // initialization before that dynamic import, while keeping CLI failure fatal.
   main().catch((error) => {
-    process.stderr.write(`${error instanceof Error ? error.stack ?? error.message : String(error)}\n`);
+    process.stderr.write(
+      `${error instanceof Error ? (error.stack ?? error.message) : String(error)}\n`,
+    );
     process.exitCode = 1;
   });
 }

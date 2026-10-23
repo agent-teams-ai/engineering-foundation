@@ -15,7 +15,7 @@ export class ScaffoldError extends Error {
     code: ScaffoldErrorCode,
     message: string,
     diagnostics: readonly ScaffoldDiagnostic[] = [],
-    options?: ErrorOptions
+    options?: ErrorOptions,
   ) {
     super(message, options);
     this.name = "ScaffoldError";

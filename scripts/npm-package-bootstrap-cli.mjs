@@ -20,7 +20,10 @@ import {
   verifyLiveBootstrapBaselines,
   verifyReleaseBootstrapBaselines,
 } from "./npm-package-bootstrap.mjs";
-import { collectPlannedReleaseVersions, plannedReleaseVersions } from "./npm-package-bootstrap-release-plan.mts";
+import {
+  collectPlannedReleaseVersions,
+  plannedReleaseVersions,
+} from "./npm-package-bootstrap-release-plan.mts";
 import { fail, assertOptionalDependencyManifest } from "./npm-package-bootstrap-catalog.mjs";
 import {
   REGISTRY_OBSERVATION_ATTEMPTS,
@@ -30,7 +33,9 @@ import {
 async function output(path, values) {
   await appendFile(
     path,
-    Object.entries(values).map(([key, value]) => `${key}=${value}\n`).join(""),
+    Object.entries(values)
+      .map(([key, value]) => `${key}=${value}\n`)
+      .join(""),
     "utf8",
   );
 }
@@ -41,8 +46,11 @@ async function tokenWindow(args) {
 
 export function assertWorkspaceManifestMatchesProfile(profile, manifest) {
   if (
-    manifest.name !== profile.name || manifest.version !== profile.bootstrapVersion || manifest.private === true ||
-    manifest.publishConfig?.access !== "public" || manifest.publishConfig.provenance !== true ||
+    manifest.name !== profile.name ||
+    manifest.version !== profile.bootstrapVersion ||
+    manifest.private === true ||
+    manifest.publishConfig?.access !== "public" ||
+    manifest.publishConfig.provenance !== true ||
     manifest.publishConfig.registry !== NPM_PACKAGE_BOOTSTRAP.registry
   ) {
     fail("workspace manifest does not match approved public bootstrap authority.");
@@ -107,7 +115,14 @@ async function registryPreflight(args, observationOptions) {
   await output(args[2], { action });
 }
 
-function verifiedEvidence({ deprecationMatches, distTags, expectedCommit, operatingCommit, localIntegrity, profile }) {
+function verifiedEvidence({
+  deprecationMatches,
+  distTags,
+  expectedCommit,
+  operatingCommit,
+  localIntegrity,
+  profile,
+}) {
   const evidence = {
     schemaVersion: 2,
     verified: true,
@@ -118,11 +133,17 @@ function verifiedEvidence({ deprecationMatches, distTags, expectedCommit, operat
     },
     live: {
       deprecationMatches,
-      distTags: Object.fromEntries(Object.keys(distTags).toSorted().map((tag) => [tag, distTags[tag]])),
+      distTags: Object.fromEntries(
+        Object.keys(distTags)
+          .toSorted()
+          .map((tag) => [tag, distTags[tag]]),
+      ),
     },
   };
   if (operatingCommit !== undefined) {
-    if (!/^[a-f0-9]{40}$/u.test(operatingCommit)) {fail("operating main commit must be exact.");}
+    if (!/^[a-f0-9]{40}$/u.test(operatingCommit)) {
+      fail("operating main commit must be exact.");
+    }
     evidence.execution = { commit: operatingCommit };
   }
   if (expectedCommit !== undefined) {
@@ -247,22 +268,32 @@ export async function proveQuarantine(
 const handlers = Object.freeze({
   "check-live": async () => {
     const verified = await verifyLiveBootstrapBaselines();
-    process.stdout.write(`Verified npm bootstrap baselines: ${verified.join(", ") || "none required"}.\n`);
+    process.stdout.write(
+      `Verified npm bootstrap baselines: ${verified.join(", ") || "none required"}.\n`,
+    );
   },
   "check-release": async (args, options = {}) => {
     const catalog = options.catalog ?? NPM_PACKAGE_BOOTSTRAP;
     assertBootstrapReleaseApprovals(catalog);
     const {
-      freezeReleaseCandidate, removeReleaseCandidateContext, shouldRunChangesetsAction,
+      freezeReleaseCandidate,
+      removeReleaseCandidateContext,
+      shouldRunChangesetsAction,
       writeReleaseCandidateContext,
     } = await import("./release-candidate-host.ts");
-    const frozen = options.plannedReleaseVersions === undefined && options.collectPlannedReleaseVersions === undefined
-      ? await freezeReleaseCandidate(options.cwd ?? process.cwd()) : undefined;
-    const releaseVersions = frozen === undefined ? options.plannedReleaseVersions ??
-      await (options.collectPlannedReleaseVersions ?? collectPlannedReleaseVersions)({
-        cwd: options.cwd ?? process.cwd(),
-        temporaryRoot: options.temporaryRoot,
-      }) : plannedReleaseVersions(frozen.officialPlan);
+    const frozen =
+      options.plannedReleaseVersions === undefined &&
+      options.collectPlannedReleaseVersions === undefined
+        ? await freezeReleaseCandidate(options.cwd ?? process.cwd())
+        : undefined;
+    const releaseVersions =
+      frozen === undefined
+        ? (options.plannedReleaseVersions ??
+          (await (options.collectPlannedReleaseVersions ?? collectPlannedReleaseVersions)({
+            cwd: options.cwd ?? process.cwd(),
+            temporaryRoot: options.temporaryRoot,
+          })))
+        : plannedReleaseVersions(frozen.officialPlan);
     const verified = await verifyReleaseBootstrapBaselines({
       auditPackage: options.auditPackage,
       catalog,
@@ -274,11 +305,17 @@ const handlers = Object.freeze({
     });
     const writeOutput = options.writeOutput ?? ((value) => process.stdout.write(value));
     writeOutput(`Verified required npm bootstrap baselines: ${verified.join(", ")}.\n`);
-    if (frozen !== undefined && process.env.GITHUB_ENV !== undefined && process.env.GITHUB_OUTPUT !== undefined) {
+    if (
+      frozen !== undefined &&
+      process.env.GITHUB_ENV !== undefined &&
+      process.env.GITHUB_OUTPUT !== undefined
+    ) {
       const context = await writeReleaseCandidateContext(frozen);
       try {
         await output(process.env.GITHUB_ENV, context.environment);
-        await output(process.env.GITHUB_OUTPUT, { run_action: String(shouldRunChangesetsAction(frozen)) });
+        await output(process.env.GITHUB_OUTPUT, {
+          run_action: String(shouldRunChangesetsAction(frozen)),
+        });
       } catch (error) {
         await removeReleaseCandidateContext(context.environment);
         throw error;
@@ -287,40 +324,31 @@ const handlers = Object.freeze({
   },
   "pack-evidence": packEvidence,
   "existing-evidence": existingEvidence,
-  "mutation-proof": (args) => prove(
-    args,
-    assertBootstrapMutationPreconditions,
-    "bootstrap mutation target remained absent.",
-    { assertionAttempts: REGISTRY_OBSERVATION_ATTEMPTS },
-  ),
-  "postconditions": (args) => prove(
-    args,
-    assertBootstrapPostconditions,
-    "published bootstrap package remained absent.",
-    { assertionAttempts: REGISTRY_OBSERVATION_ATTEMPTS },
-  ),
+  "mutation-proof": (args) =>
+    prove(
+      args,
+      assertBootstrapMutationPreconditions,
+      "bootstrap mutation target remained absent.",
+      { assertionAttempts: REGISTRY_OBSERVATION_ATTEMPTS },
+    ),
+  postconditions: (args) =>
+    prove(args, assertBootstrapPostconditions, "published bootstrap package remained absent.", {
+      assertionAttempts: REGISTRY_OBSERVATION_ATTEMPTS,
+    }),
   prepare,
-  "quarantine-postconditions": (args) => proveQuarantine(
-    args,
-    assertBootstrapQuarantinePostconditions,
-    { assertionAttempts: REGISTRY_OBSERVATION_ATTEMPTS },
-  ),
-  "quarantine-final-proof": (args) => proveQuarantine(
-    args,
-    assertBootstrapQuarantineCandidate,
-    { observationOptions: { attempts: 1 } },
-  ),
-  "quarantine-proof": (args) => proveQuarantine(
-    args,
-    assertBootstrapQuarantineCandidate,
-  ),
+  "quarantine-postconditions": (args) =>
+    proveQuarantine(args, assertBootstrapQuarantinePostconditions, {
+      assertionAttempts: REGISTRY_OBSERVATION_ATTEMPTS,
+    }),
+  "quarantine-final-proof": (args) =>
+    proveQuarantine(args, assertBootstrapQuarantineCandidate, {
+      observationOptions: { attempts: 1 },
+    }),
+  "quarantine-proof": (args) => proveQuarantine(args, assertBootstrapQuarantineCandidate),
   "registry-preflight": registryPreflight,
   "registry-final-preflight": (args) => registryPreflight(args, { attempts: 1 }),
-  "reuse-proof": (args) => prove(
-    args,
-    assertReusableBootstrap,
-    "reused bootstrap package became absent.",
-  ),
+  "reuse-proof": (args) =>
+    prove(args, assertReusableBootstrap, "reused bootstrap package became absent."),
   "token-window": tokenWindow,
 });
 

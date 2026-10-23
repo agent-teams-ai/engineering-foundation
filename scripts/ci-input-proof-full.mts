@@ -1,7 +1,7 @@
-import { spawn, type ChildProcess } from 'node:child_process';
-import { readFileSync, readdirSync } from 'node:fs';
-import { resolve as resolvePath } from 'node:path';
-import type { Readable } from 'node:stream';
+import { spawn, type ChildProcess } from "node:child_process";
+import { readFileSync, readdirSync } from "node:fs";
+import { resolve as resolvePath } from "node:path";
+import type { Readable } from "node:stream";
 
 export type CheckCommand = Readonly<{
   command: string;
@@ -10,7 +10,7 @@ export type CheckCommand = Readonly<{
   timeoutMs: number;
 }>;
 export type ProcessReport = Readonly<{
-  status: 'passed' | 'failed' | 'unavailable';
+  status: "passed" | "failed" | "unavailable";
   exitCode: number | null;
   signal: NodeJS.Signals | null;
   errorCode: string | null;
@@ -32,8 +32,8 @@ type WindowsManagedProcessModule = Readonly<{
   spawnWindowsManagedProcess: (request: WindowsManagedProcessRequest) => ChildProcess;
 }>;
 type ProcessOutcome = Readonly<
-  | { kind: 'exit'; exitCode: number | null; signal: NodeJS.Signals | null }
-  | { kind: 'error'; errorCode: string }
+  | { kind: "exit"; exitCode: number | null; signal: NodeJS.Signals | null }
+  | { kind: "error"; errorCode: string }
 >;
 type BoundedSettlement = Readonly<{ error: string | null; settled: boolean }>;
 type OutputStream = {
@@ -58,16 +58,16 @@ const cleanupSettlementMs = 5_000;
 const exitSettlementMs = 1_000;
 const streamSettlementMs = 500;
 const windowsManagedProcessModuleUrl = new URL(
-  '../packages/engineering-foundation/dist/process-execution/windows-managed-process.js',
+  "../packages/engineering-foundation/dist/process-execution/windows-managed-process.js",
   import.meta.url,
 );
 
 function isMissingProcess(error: unknown): boolean {
-  return error instanceof Error && 'code' in error && error.code === 'ESRCH';
+  return error instanceof Error && "code" in error && error.code === "ESRCH";
 }
 
 function errorCode(error: unknown, fallback: string): string {
-  if (error instanceof Error && 'code' in error && typeof error.code === 'string') {
+  if (error instanceof Error && "code" in error && typeof error.code === "string") {
     return error.code;
   }
   return fallback;
@@ -99,13 +99,16 @@ type PosixProcessObservation = Readonly<{
 
 function readPosixProcessObservation(pid: number): PosixProcessObservation | null {
   try {
-    const stat = readFileSync(`/proc/${String(pid)}/stat`, 'utf8');
-    const stateStart = stat.lastIndexOf(') ');
+    const stat = readFileSync(`/proc/${String(pid)}/stat`, "utf8");
+    const stateStart = stat.lastIndexOf(") ");
     if (stateStart < 0) {
       throw new Error(`Process ${String(pid)} has an invalid /proc stat record.`);
     }
-    const fields = stat.slice(stateStart + 2).trim().split(/\s+/u);
-    const state = fields[0] ?? '';
+    const fields = stat
+      .slice(stateStart + 2)
+      .trim()
+      .split(/\s+/u);
+    const state = fields[0] ?? "";
     const processGroupId = Number(fields[2]);
     if (processGroupId === 0) {
       return null;
@@ -116,9 +119,9 @@ function readPosixProcessObservation(pid: number): PosixProcessObservation | nul
     return Object.freeze({ state, processGroupId });
   } catch (error) {
     if (
-      error instanceof Error
-      && 'code' in error
-      && (error.code === 'ENOENT' || error.code === 'ESRCH')
+      error instanceof Error &&
+      "code" in error &&
+      (error.code === "ENOENT" || error.code === "ESRCH")
     ) {
       return null;
     }
@@ -127,25 +130,32 @@ function readPosixProcessObservation(pid: number): PosixProcessObservation | nul
 }
 
 function posixProcessGroupHasLiveMembers(processGroupId: number): boolean {
-  if (process.platform !== 'linux') {
+  if (process.platform !== "linux") {
     return processGroupPresent(processGroupId);
   }
-  for (const entry of readdirSync('/proc')) {
+  for (const entry of readdirSync("/proc")) {
     if (!/^\d+$/u.test(entry)) {
       continue;
     }
     const observation = readPosixProcessObservation(Number(entry));
-    if (observation !== null && observation.processGroupId === processGroupId && observation.state !== 'Z') {
+    if (
+      observation !== null &&
+      observation.processGroupId === processGroupId &&
+      observation.state !== "Z"
+    ) {
       return true;
     }
   }
   return false;
 }
 
-async function waitForPosixProcessGroup(processGroupId: number, timeoutMs: number): Promise<boolean> {
+async function waitForPosixProcessGroup(
+  processGroupId: number,
+  timeoutMs: number,
+): Promise<boolean> {
   const deadline = Date.now() + timeoutMs;
   while (posixProcessGroupHasLiveMembers(processGroupId) && Date.now() < deadline) {
-    await new Promise(resolve => {
+    await new Promise((resolve) => {
       setTimeout(resolve, 25);
     });
   }
@@ -153,26 +163,26 @@ async function waitForPosixProcessGroup(processGroupId: number, timeoutMs: numbe
 }
 
 async function terminatePosixProcessGroup(processGroupId: number): Promise<void> {
-  signalPosixProcessGroup(processGroupId, 'SIGTERM');
+  signalPosixProcessGroup(processGroupId, "SIGTERM");
   if (await waitForPosixProcessGroup(processGroupId, cleanupGraceMs)) {
     return;
   }
-  signalPosixProcessGroup(processGroupId, 'SIGKILL');
-  if (!await waitForPosixProcessGroup(processGroupId, cleanupGraceMs)) {
+  signalPosixProcessGroup(processGroupId, "SIGKILL");
+  if (!(await waitForPosixProcessGroup(processGroupId, cleanupGraceMs))) {
     throw new Error(`process group ${String(processGroupId)} did not exit after forced shutdown`);
   }
 }
 
 async function loadWindowsManagedProcess(): Promise<WindowsManagedProcessModule> {
-  return await import(windowsManagedProcessModuleUrl.href) as WindowsManagedProcessModule;
+  return (await import(windowsManagedProcessModuleUrl.href)) as WindowsManagedProcessModule;
 }
 
 function fullEnvironment(): Readonly<NodeJS.ProcessEnv> {
   return Object.freeze({
-    PATH: process.env.PATH ?? '',
-    TMPDIR: process.env.TMPDIR ?? '',
-    NODE_ENV: process.env.NODE_ENV ?? '',
-    CI: process.env.CI ?? '',
+    PATH: process.env.PATH ?? "",
+    TMPDIR: process.env.TMPDIR ?? "",
+    NODE_ENV: process.env.NODE_ENV ?? "",
+    CI: process.env.CI ?? "",
   });
 }
 
@@ -194,7 +204,7 @@ function spawnCommand(
   return spawn(spec.command, [...spec.args], {
     cwd,
     env: environment,
-    stdio: ['ignore', 'pipe', 'pipe'],
+    stdio: ["ignore", "pipe", "pipe"],
     detached: true,
     windowsHide: true,
   });
@@ -221,21 +231,21 @@ function appendOutput(output: OutputStream, chunk: Buffer): void {
 }
 
 function outputText(output: OutputStream): string {
-  return Buffer.concat(output.chunks).toString('utf8');
+  return Buffer.concat(output.chunks).toString("utf8");
 }
 
 function monitorOutput(stream: Readable, output: OutputStream): void {
-  stream.on('data', (chunk: Buffer) => {
+  stream.on("data", (chunk: Buffer) => {
     appendOutput(output, chunk);
   });
-  stream.once('end', () => {
+  stream.once("end", () => {
     output.settled = true;
   });
-  stream.once('close', () => {
+  stream.once("close", () => {
     output.settled = true;
   });
-  stream.once('error', (error: Error) => {
-    output.failure = errorCode(error, 'process-stream-error');
+  stream.once("error", (error: Error) => {
+    output.failure = errorCode(error, "process-stream-error");
     output.settled = true;
   });
 }
@@ -251,7 +261,7 @@ async function settleWithin(
       () => null,
       (error: unknown) => errorCode(error, fallbackCode),
     ),
-    new Promise<string>(resolve => {
+    new Promise<string>((resolve) => {
       timeout = setTimeout(() => {
         resolve(fallbackCode);
       }, timeoutMs);
@@ -273,18 +283,18 @@ async function waitForOutputSettlement(
 ): Promise<BoundedSettlement> {
   const deadline = Date.now() + streamSettlementMs;
   while ((!stdout.settled || !stderr.settled) && Date.now() < deadline) {
-    await new Promise(resolve => {
+    await new Promise((resolve) => {
       setTimeout(resolve, 10);
     });
   }
   if (stdout.failure !== null || stderr.failure !== null) {
     return Object.freeze({
-      error: stdout.failure ?? stderr.failure ?? 'process-stream-error',
+      error: stdout.failure ?? stderr.failure ?? "process-stream-error",
       settled: false,
     });
   }
   return Object.freeze({
-    error: stdout.settled && stderr.settled ? null : 'process-stream-settlement-timeout',
+    error: stdout.settled && stderr.settled ? null : "process-stream-settlement-timeout",
     settled: stdout.settled && stderr.settled,
   });
 }
@@ -308,34 +318,34 @@ function processReason(
   settlementFailure: boolean,
 ): string | null {
   if (timedOut) {
-    return 'process-timeout';
+    return "process-timeout";
   }
   if (outcome === null) {
-    return 'process-unavailable';
+    return "process-unavailable";
   }
-  if (outcome.kind === 'error') {
-    return 'process-unavailable';
+  if (outcome.kind === "error") {
+    return "process-unavailable";
   }
   if (outcome.signal !== null) {
-    return 'process-signal';
+    return "process-signal";
   }
   if (outcome.exitCode !== 0) {
-    return 'process-failed';
+    return "process-failed";
   }
-  return settlementFailure ? 'process-settlement-failed' : null;
+  return settlementFailure ? "process-settlement-failed" : null;
 }
 
 function unavailableExecutedFull(errorCodeValue: string): ExecutedFull {
   return Object.freeze({
     report: Object.freeze({
-      status: 'unavailable',
+      status: "unavailable",
       exitCode: null,
       signal: null,
       errorCode: errorCodeValue,
       outputTruncated: false,
-      reason: 'process-unavailable',
+      reason: "process-unavailable",
     }),
-    stdout: '',
+    stdout: "",
   });
 }
 
@@ -344,37 +354,39 @@ function processFailureCode(
   cleanupSettlement: BoundedSettlement,
   outputSettlement: BoundedSettlement,
 ): string | null {
-  return outcome?.kind === 'error'
+  return outcome?.kind === "error"
     ? outcome.errorCode
-    : cleanupSettlement.error
-      ?? outputSettlement.error
-      ?? (outcome === null ? 'process-exit-settlement-timeout' : null);
+    : (cleanupSettlement.error ??
+        outputSettlement.error ??
+        (outcome === null ? "process-exit-settlement-timeout" : null));
 }
 
 function finalizeExecutedFull(finalization: ProcessFinalization): ExecutedFull {
-  const settlementFailure = !finalization.cleanupSettlement.settled
-    || !finalization.outputSettlement.settled
-    || finalization.outcome === null;
+  const settlementFailure =
+    !finalization.cleanupSettlement.settled ||
+    !finalization.outputSettlement.settled ||
+    finalization.outcome === null;
   const processErrorCode = processFailureCode(
     finalization.outcome,
     finalization.cleanupSettlement,
     finalization.outputSettlement,
   );
-  const passed = !finalization.timedOut
-    && finalization.outcome?.kind === 'exit'
-    && finalization.outcome.exitCode === 0
-    && finalization.outcome.signal === null
-    && !settlementFailure;
+  const passed =
+    !finalization.timedOut &&
+    finalization.outcome?.kind === "exit" &&
+    finalization.outcome.exitCode === 0 &&
+    finalization.outcome.signal === null &&
+    !settlementFailure;
   const status = passed
-    ? 'passed' as const
-    : finalization.timedOut || finalization.outcome?.kind === 'exit'
-      ? 'failed' as const
-      : 'unavailable' as const;
+    ? ("passed" as const)
+    : finalization.timedOut || finalization.outcome?.kind === "exit"
+      ? ("failed" as const)
+      : ("unavailable" as const);
   return Object.freeze({
     report: Object.freeze({
       status,
-      exitCode: finalization.outcome?.kind === 'exit' ? finalization.outcome.exitCode : null,
-      signal: finalization.outcome?.kind === 'exit' ? finalization.outcome.signal : null,
+      exitCode: finalization.outcome?.kind === "exit" ? finalization.outcome.exitCode : null,
+      signal: finalization.outcome?.kind === "exit" ? finalization.outcome.signal : null,
       errorCode: processErrorCode,
       outputTruncated: finalization.stdout.truncated || finalization.stderr.truncated,
       reason: processReason(finalization.timedOut, finalization.outcome, settlementFailure),
@@ -385,20 +397,20 @@ function finalizeExecutedFull(finalization: ProcessFinalization): ExecutedFull {
 
 export async function executeFixedFull(spec: CheckCommand): Promise<ExecutedFull> {
   if (!Number.isSafeInteger(spec.timeoutMs) || spec.timeoutMs <= 0) {
-    throw new TypeError('The FULL process timeout must be a positive safe integer.');
+    throw new TypeError("The FULL process timeout must be a positive safe integer.");
   }
   let windowsManagedProcess: WindowsManagedProcessModule | null = null;
   try {
-    windowsManagedProcess = process.platform === 'win32' ? await loadWindowsManagedProcess() : null;
+    windowsManagedProcess = process.platform === "win32" ? await loadWindowsManagedProcess() : null;
   } catch (error) {
-    return unavailableExecutedFull(errorCode(error, 'windows-managed-process-unavailable'));
+    return unavailableExecutedFull(errorCode(error, "windows-managed-process-unavailable"));
   }
 
   let child: ChildProcess;
   try {
     child = spawnCommand(spec, windowsManagedProcess);
   } catch (error) {
-    return unavailableExecutedFull(errorCode(error, 'process-error'));
+    return unavailableExecutedFull(errorCode(error, "process-error"));
   }
 
   const stdout = createOutputStream();
@@ -414,15 +426,16 @@ export async function executeFixedFull(spec: CheckCommand): Promise<ExecutedFull
     stderr.settled = true;
   }
 
-  const { promise: outcomePromise, resolve: resolveOutcome } = Promise.withResolvers<ProcessOutcome>();
-  child.once('exit', (exitCode, signal) => {
-    resolveOutcome({ kind: 'exit', exitCode, signal });
+  const { promise: outcomePromise, resolve: resolveOutcome } =
+    Promise.withResolvers<ProcessOutcome>();
+  child.once("exit", (exitCode, signal) => {
+    resolveOutcome({ kind: "exit", exitCode, signal });
   });
-  child.once('error', (error: Error) => {
+  child.once("error", (error: Error) => {
     if (windowsManagedProcess !== null) {
       windowsManagedProcess.cleanUpWindowsManagedProcessLaunchFailure(child);
     }
-    resolveOutcome({ kind: 'error', errorCode: errorCode(error, 'process-error') });
+    resolveOutcome({ kind: "error", errorCode: errorCode(error, "process-error") });
   });
 
   const { promise: cleanupTriggered, resolve: triggerCleanup } = Promise.withResolvers<void>();
@@ -447,11 +460,11 @@ export async function executeFixedFull(spec: CheckCommand): Promise<ExecutedFull
   const cleanupSettlement = await settleWithin(
     cleanup,
     cleanupSettlementMs,
-    'process-cleanup-settlement-timeout',
+    "process-cleanup-settlement-timeout",
   );
   const observedOutcome = await Promise.race([
     outcomePromise.then((outcome: ProcessOutcome): ProcessOutcome | null => outcome),
-    new Promise<null>(resolve => {
+    new Promise<null>((resolve) => {
       setTimeout(() => {
         resolve(null);
       }, exitSettlementMs);

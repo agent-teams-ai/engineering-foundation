@@ -5,7 +5,9 @@ export interface RuntimeTuple {
   readonly platform: "linux" | "macos" | "windows";
   readonly architecture: "x64" | "arm64";
 }
-export interface ManagedRuntimeHandle { readonly kind: "managed-runtime-handle" }
+export interface ManagedRuntimeHandle {
+  readonly kind: "managed-runtime-handle";
+}
 export interface RuntimeFileIdentity {
   readonly realpath: string;
   readonly sha256: string;
@@ -29,10 +31,20 @@ export interface RuntimeObservation {
   readonly launcher: { readonly kind: "direct-node" };
   readonly containment: "cooperative-posix-process-group";
 }
-export type RuntimeRefusalCode = "invalid-selection" | "unsupported-platform" |
-  "unsupported-launcher" | "runtime-mismatch" | "identity-changed" | "spawn-failed" |
-  "cancelled" | "deadline" | "output-limit" | "invalid-output" |
-  "process-failed" | "cleanup-failed" | "liveness-uncertain";
+export type RuntimeRefusalCode =
+  | "invalid-selection"
+  | "unsupported-platform"
+  | "unsupported-launcher"
+  | "runtime-mismatch"
+  | "identity-changed"
+  | "spawn-failed"
+  | "cancelled"
+  | "deadline"
+  | "output-limit"
+  | "invalid-output"
+  | "process-failed"
+  | "cleanup-failed"
+  | "liveness-uncertain";
 export interface ProcessFacts {
   readonly spawned: boolean;
   readonly exitCode: number | null;
@@ -52,11 +64,23 @@ export interface RuntimeDebt {
   readonly facts: ProcessFacts;
 }
 export type RuntimeObservationResult =
-  | { readonly outcome: "observed"; readonly observation: RuntimeObservation; readonly facts: ProcessFacts }
-  | { readonly outcome: "refused"; readonly code: RuntimeRefusalCode; readonly facts: ProcessFacts; readonly debt: RuntimeDebt | null };
+  | {
+      readonly outcome: "observed";
+      readonly observation: RuntimeObservation;
+      readonly facts: ProcessFacts;
+    }
+  | {
+      readonly outcome: "refused";
+      readonly code: RuntimeRefusalCode;
+      readonly facts: ProcessFacts;
+      readonly debt: RuntimeDebt | null;
+    };
 export interface ManagedRuntimeObservationPort {
-  observe(input: { readonly runtime: ManagedRuntimeHandle; readonly expected: RuntimeTuple;
-    readonly signal: AbortSignal }): Promise<RuntimeObservationResult>;
+  observe(input: {
+    readonly runtime: ManagedRuntimeHandle;
+    readonly expected: RuntimeTuple;
+    readonly signal: AbortSignal;
+  }): Promise<RuntimeObservationResult>;
 }
 
 /** Source-private contracts; physical custody and settlement remain Host effects. */
@@ -82,7 +106,11 @@ export interface ManagedRuntimeAttemptHandle {
 }
 export type AttemptAcquisition =
   | { readonly outcome: "acquired"; readonly attempt: ManagedRuntimeAttemptHandle }
-  | { readonly outcome: "refused"; readonly code: RuntimeRefusalCode; readonly debt: RuntimeDebt | null };
+  | {
+      readonly outcome: "refused";
+      readonly code: RuntimeRefusalCode;
+      readonly debt: RuntimeDebt | null;
+    };
 export interface OwnedInstallationRoot {
   readonly kind: "managed-owned-installation-root";
 }
@@ -96,9 +124,17 @@ export interface ManagedPnpmInstallInput {
   readonly signal: AbortSignal;
 }
 export type ManagedPnpmInstallResult =
-  | { readonly outcome: "installed"; readonly facts: ProcessFacts;
-      readonly runtime: RuntimeObservation; readonly lockDigest: string;
-      readonly virtualStoreLockDigest: string }
-  | { readonly outcome: "refused"; readonly code: RuntimeRefusalCode;
-      readonly facts: ProcessFacts; readonly debt: RuntimeDebt | null;
-      readonly diagnosticTailBase64?: string };
+  | {
+      readonly outcome: "installed";
+      readonly facts: ProcessFacts;
+      readonly runtime: RuntimeObservation;
+      readonly lockDigest: string;
+      readonly virtualStoreLockDigest: string;
+    }
+  | {
+      readonly outcome: "refused";
+      readonly code: RuntimeRefusalCode;
+      readonly facts: ProcessFacts;
+      readonly debt: RuntimeDebt | null;
+      readonly diagnosticTailBase64?: string;
+    };

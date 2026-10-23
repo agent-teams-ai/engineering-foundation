@@ -103,9 +103,7 @@
           "mode": "0644",
           "size": 860
         },
-        "causes": [
-          "foundation.node-typescript-library-boundary"
-        ],
+        "causes": ["foundation.node-typescript-library-boundary"],
         "id": "materialize/packages/contexts/project-management/package.json",
         "kind": "materialize-file",
         "path": "packages/contexts/project-management/package.json",
@@ -121,9 +119,7 @@
           "mode": "0644",
           "size": 11
         },
-        "causes": [
-          "foundation.node-typescript-library-boundary"
-        ],
+        "causes": ["foundation.node-typescript-library-boundary"],
         "id": "materialize/packages/contexts/project-management/src/index.ts",
         "kind": "materialize-file",
         "path": "packages/contexts/project-management/src/index.ts",
@@ -139,9 +135,7 @@
           "mode": "0644",
           "size": 362
         },
-        "causes": [
-          "foundation.node-typescript-library-boundary"
-        ],
+        "causes": ["foundation.node-typescript-library-boundary"],
         "id": "materialize/packages/contexts/project-management/tsconfig.json",
         "kind": "materialize-file",
         "path": "packages/contexts/project-management/tsconfig.json",
@@ -173,9 +167,7 @@
         "state": "file"
       }
     ],
-    "requiredAdapterCapabilities": [
-      "materialize-file/v1"
-    ],
+    "requiredAdapterCapabilities": ["materialize-file/v1"],
     "resolved": {
       "facets": [],
       "policies": [],

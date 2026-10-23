@@ -3,11 +3,11 @@ import { assertNotCancelled } from "../../../../features/validation-reporting/ap
 import type { MarkdownRepository } from "@agent-teams/document-authoring/observation";
 import type {
   ArchitectureDecision,
-  ArchitectureDecisionPolicy
+  ArchitectureDecisionPolicy,
 } from "../model/architecture-decision.js";
 import type {
   ArchitectureDecisionBaselineReadResult,
-  ArchitectureDecisionBaselineRepository
+  ArchitectureDecisionBaselineRepository,
 } from "../ports/architecture-decision-baseline-repository.js";
 import type { ArchitectureDecisionFingerprint } from "../ports/architecture-decision-fingerprint.js";
 import { evaluateArchitectureDecisionBaselineDiagnostics } from "../policies/evaluate-architecture-decisions.js";
@@ -38,23 +38,23 @@ export interface ArchitectureDecisionEvidenceAnalysis {
 
 export async function analyzeArchitectureDecisionEvidence(
   input: AnalyzeArchitectureDecisionsInput,
-  dependencies: AnalyzeArchitectureDecisionsDependencies
+  dependencies: AnalyzeArchitectureDecisionsDependencies,
 ): Promise<ArchitectureDecisionEvidenceAnalysis> {
   assertNotCancelled(input.signal);
   const [baseline, catalog] = await Promise.all([
     dependencies.baselineRepository.read({
       consumerRoot: input.consumerRoot,
       path: input.policy.acceptedBaselinePath,
-      ...(input.signal === undefined ? {} : { signal: input.signal })
+      ...(input.signal === undefined ? {} : { signal: input.signal }),
     }),
     inspectArchitectureDecisionCatalog(
       {
         consumerRoot: input.consumerRoot,
         policy: input.policy,
-        ...(input.signal === undefined ? {} : { signal: input.signal })
+        ...(input.signal === undefined ? {} : { signal: input.signal }),
       },
-      dependencies
-    )
+      dependencies,
+    ),
   ]);
   return Object.freeze({
     baseline,
@@ -65,15 +65,15 @@ export async function analyzeArchitectureDecisionEvidence(
         baseline,
         decisions: catalog.decisions,
         fingerprint: dependencies.fingerprint,
-        path: input.policy.acceptedBaselinePath
-      })
-    ])
+        path: input.policy.acceptedBaselinePath,
+      }),
+    ]),
   });
 }
 
 export async function analyzeArchitectureDecisions(
   input: AnalyzeArchitectureDecisionsInput,
-  dependencies: AnalyzeArchitectureDecisionsDependencies
+  dependencies: AnalyzeArchitectureDecisionsDependencies,
 ): Promise<readonly FoundationDiagnostic[]> {
   return (await analyzeArchitectureDecisionEvidence(input, dependencies)).diagnostics;
 }

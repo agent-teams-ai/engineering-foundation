@@ -1,12 +1,26 @@
 import type { GrowthDecisionAuthority } from "./growth-admission.js";
 import type { GrowthContextRequest, GrowthInputContext } from "./growth-admission-context.js";
-import type { GrowthCoverage, GrowthDigest, GrowthInvocation, GrowthObservationReference, GrowthSurfaceObservation } from "./growth-observation.js";
+import type {
+  GrowthCoverage,
+  GrowthDigest,
+  GrowthInvocation,
+  GrowthObservationReference,
+  GrowthSurfaceObservation,
+} from "./growth-observation.js";
 import type { PackageReleaseEvidence, PublicApiSnapshot } from "./public-api.js";
 
 /** Version 3 distinguishes authenticated non-release metadata roots from
  * package release obligations. Prior protocol bytes are not reinterpreted. */
 export const growthAuthoritySchemaVersion = "reviewrouter:sdk-growth-authority:3" as const;
-export const growthAuthorityRequiredPhases = ["topology", "observation", "packed", "decision", "trusted-base", "released", "authority"] as const;
+export const growthAuthorityRequiredPhases = [
+  "topology",
+  "observation",
+  "packed",
+  "decision",
+  "trusted-base",
+  "released",
+  "authority",
+] as const;
 
 export interface GrowthAuthorityRepository {
   readonly provider: string;
@@ -81,7 +95,11 @@ export interface GrowthAuthorityReleasedEvidence {
   readonly releaseEvidence: PackageReleaseEvidence;
   readonly observation?: GrowthSurfaceObservation;
   readonly evidence:
-    | { readonly kind: "released"; readonly typed: PublicApiSnapshot; readonly artifact: PublicApiSnapshot }
+    | {
+        readonly kind: "released";
+        readonly typed: PublicApiSnapshot;
+        readonly artifact: PublicApiSnapshot;
+      }
     | { readonly kind: "initial-unreleased"; readonly historyDigest: GrowthDigest };
 }
 
@@ -98,7 +116,13 @@ export interface GrowthAuthorityPackedEvidence {
   readonly observationDigest: GrowthDigest;
   readonly coverage: GrowthCoverage;
   readonly custodyEvidenceDigest: GrowthDigest;
-  readonly custodyEvidence: { readonly archiveDigest: GrowthDigest; readonly archiveIntegrity: string; readonly archivePayload: string; readonly archiveManifest: readonly { readonly path: string; readonly digest: GrowthDigest }[]; readonly installedFiles: readonly { readonly path: string; readonly digest: GrowthDigest }[] };
+  readonly custodyEvidence: {
+    readonly archiveDigest: GrowthDigest;
+    readonly archiveIntegrity: string;
+    readonly archivePayload: string;
+    readonly archiveManifest: readonly { readonly path: string; readonly digest: GrowthDigest }[];
+    readonly installedFiles: readonly { readonly path: string; readonly digest: GrowthDigest }[];
+  };
   readonly installedDistribution: {
     readonly packageName: string;
     readonly packageVersion: string;
@@ -138,7 +162,9 @@ export interface GrowthAuthorityGrant {
   readonly kind: "grant";
   readonly grantId: string;
   readonly requestDigest: GrowthDigest;
-  readonly admissionReceipt: { readonly kind: "none" } | { readonly kind: "receipt"; readonly receipt: GrowthAuthorityReceipt };
+  readonly admissionReceipt:
+    | { readonly kind: "none" }
+    | { readonly kind: "receipt"; readonly receipt: GrowthAuthorityReceipt };
   readonly binding: GrowthAuthorityBinding;
   readonly workflowRef: string;
   readonly runRef: string;
@@ -188,7 +214,9 @@ export interface GrowthAuthorityCompletion {
   readonly verdict: "admitted" | "rejected" | "incomplete";
   readonly releaseEligible: boolean;
   readonly publication: "finalized";
-  readonly promotion: { readonly kind: "none" } | { readonly kind: "plan"; readonly planDigest: GrowthDigest };
+  readonly promotion:
+    | { readonly kind: "none" }
+    | { readonly kind: "plan"; readonly planDigest: GrowthDigest };
 }
 
 export interface GrowthAuthorityReceipt {
@@ -208,10 +236,15 @@ export interface GrowthAuthorityReceipt {
   readonly releaseEligible: boolean;
   readonly qualification: "qualified" | "not-qualified";
   readonly operation: "check" | "promote-release";
-  readonly promotion: { readonly kind: "none" } | { readonly kind: "plan"; readonly planDigest: GrowthDigest };
+  readonly promotion:
+    | { readonly kind: "none" }
+    | { readonly kind: "plan"; readonly planDigest: GrowthDigest };
   readonly custodyRef: string;
   readonly issuedAt: string;
-  readonly provenance?: { readonly grant: GrowthAuthorityGrant; readonly completion: GrowthAuthorityCompletion };
+  readonly provenance?: {
+    readonly grant: GrowthAuthorityGrant;
+    readonly completion: GrowthAuthorityCompletion;
+  };
 }
 
 export interface ResolvedGrowthAuthority {

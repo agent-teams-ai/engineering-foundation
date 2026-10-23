@@ -4,19 +4,19 @@ const IDENTIFIER = "[A-Za-z_$][A-Za-z0-9_$]*";
 const TYPE_ATOM = `${IDENTIFIER}(?:\\.${IDENTIFIER})*`;
 const TYPE_ALIAS = new RegExp(
   `^(export type ${IDENTIFIER}(?:<([^<>\\r\\n]+)>)? = )(${IDENTIFIER})(?:<(${TYPE_ATOM}(?:, ${TYPE_ATOM})*)>)?;$`,
-  "u"
+  "u",
 );
 const GENERIC_DECLARATION = new RegExp(
   `^export (?:declare )?(?:abstract )?(class|interface|type) (${IDENTIFIER})<([^<>\\r\\n]+)>(?=$| extends | implements | = )`,
-  "u"
+  "u",
 );
 const TOP_LEVEL_TYPE_DECLARATION = new RegExp(
   `^export (?:declare )?(?:abstract )?(?:class|interface|type|enum) (${IDENTIFIER})(?:<| |$)`,
-  "u"
+  "u",
 );
 const TYPE_PARAMETER = new RegExp(
   `^(${IDENTIFIER})(?: extends (${TYPE_ATOM}))?(?: = (${TYPE_ATOM}))?$`,
-  "u"
+  "u",
 );
 const LEADING_TYPE_NAME = new RegExp(`^(${IDENTIFIER})(?:\\.|$)`, "u");
 const RESERVED_IDENTIFIERS = new Set([
@@ -80,7 +80,7 @@ const RESERVED_IDENTIFIERS = new Set([
   "void",
   "while",
   "with",
-  "yield"
+  "yield",
 ]);
 const SUPPORTED_KEYWORD_TYPE_ATOMS = new Set([
   "any",
@@ -97,7 +97,7 @@ const SUPPORTED_KEYWORD_TYPE_ATOMS = new Set([
   "true",
   "undefined",
   "unknown",
-  "void"
+  "void",
 ]);
 
 interface DirectTypeAlias {
@@ -160,7 +160,7 @@ function parseTypeParameters(header: string): TypeParameterList | undefined {
   }
   return Object.freeze({
     names: Object.freeze(names),
-    defaults: Object.freeze(defaults)
+    defaults: Object.freeze(defaults),
   });
 }
 
@@ -184,7 +184,7 @@ function parseDirectTypeAlias(signature: string): DirectTypeAlias | undefined {
     header: match[1],
     parameterNames: new Set(parameters.names),
     target: match[3],
-    arguments: Object.freeze(aliasArguments)
+    arguments: Object.freeze(aliasArguments),
   });
 }
 
@@ -204,21 +204,16 @@ function parseGenericDeclaration(signature: string): GenericDeclaration | undefi
   }
   return Object.freeze({
     name: match[2],
-    kind:
-      match[1] === "class"
-        ? "Class"
-        : match[1] === "interface"
-          ? "Interface"
-          : "TypeAlias",
+    kind: match[1] === "class" ? "Class" : match[1] === "interface" ? "Interface" : "TypeAlias",
     parameterNames: new Set(parameters.names),
-    defaults: parameters.defaults
+    defaults: parameters.defaults,
   });
 }
 
 function unchangedTopLevelType(
   name: string,
   releasedItems: readonly PublicApiItem[],
-  currentItems: readonly PublicApiItem[]
+  currentItems: readonly PublicApiItem[],
 ): PublicApiItem | undefined {
   const candidates = (items: readonly PublicApiItem[]) =>
     items.filter((item) => {
@@ -251,7 +246,7 @@ function unchangedTopLevelType(
 function unchangedTarget(
   name: string,
   releasedItems: readonly PublicApiItem[],
-  currentItems: readonly PublicApiItem[]
+  currentItems: readonly PublicApiItem[],
 ): GenericDeclaration | undefined {
   const target = unchangedTopLevelType(name, releasedItems, currentItems);
   if (target === undefined) {
@@ -265,7 +260,7 @@ function hasUnchangedTypeAtomBinding(
   type: string,
   releasedItems: readonly PublicApiItem[],
   currentItems: readonly PublicApiItem[],
-  stableTypeBindings: ReadonlySet<string>
+  stableTypeBindings: ReadonlySet<string>,
 ): boolean {
   if (SUPPORTED_KEYWORD_TYPE_ATOMS.has(type)) {
     return true;
@@ -283,7 +278,7 @@ function omittedArgumentsEqualDefaults(
   shorter: DirectTypeAlias,
   longer: DirectTypeAlias,
   declaration: GenericDeclaration,
-  bindings: TypeBindingEvidence
+  bindings: TypeBindingEvidence,
 ): boolean {
   if (
     shorter.arguments.length >= longer.arguments.length ||
@@ -296,16 +291,10 @@ function omittedArgumentsEqualDefaults(
       return false;
     }
   }
-  for (
-    let index = shorter.arguments.length;
-    index < longer.arguments.length;
-    index += 1
-  ) {
+  for (let index = shorter.arguments.length; index < longer.arguments.length; index += 1) {
     const declaredDefault = declaration.defaults[index];
     const leadingName =
-      declaredDefault === undefined
-        ? undefined
-        : LEADING_TYPE_NAME.exec(declaredDefault)?.[1];
+      declaredDefault === undefined ? undefined : LEADING_TYPE_NAME.exec(declaredDefault)?.[1];
     if (
       declaredDefault === undefined ||
       declaredDefault !== longer.arguments[index] ||
@@ -316,7 +305,7 @@ function omittedArgumentsEqualDefaults(
         declaredDefault,
         bindings.releasedItems,
         bindings.currentItems,
-        bindings.stableTypeBindings
+        bindings.stableTypeBindings,
       )
     ) {
       return false;
@@ -353,18 +342,14 @@ export function hasEquivalentTrailingDefaultTypeArguments(input: {
   ) {
     return false;
   }
-  const target = unchangedTarget(
-    released.target,
-    input.releasedItems,
-    input.currentItems
-  );
+  const target = unchangedTarget(released.target, input.releasedItems, input.currentItems);
   if (target === undefined) {
     return false;
   }
   const bindings = Object.freeze({
     releasedItems: input.releasedItems,
     currentItems: input.currentItems,
-    stableTypeBindings: input.stableTypeBindings ?? new Set<string>()
+    stableTypeBindings: input.stableTypeBindings ?? new Set<string>(),
   });
   return released.arguments.length < current.arguments.length
     ? omittedArgumentsEqualDefaults(released, current, target, bindings)
@@ -376,16 +361,16 @@ export function collectUnchangedPublicTypeBindings(
   pairs: readonly {
     readonly released: PublicApiSnapshot;
     readonly current: PublicApiSnapshot;
-  }[]
+  }[],
 ): ReadonlySet<string> {
   const comparablePairs = pairs.filter(
-    ({ released, current }) => released.extractorVersion === current.extractorVersion
+    ({ released, current }) => released.extractorVersion === current.extractorVersion,
   );
   const releasedItems = comparablePairs.flatMap(({ released }) =>
-    released.entrypoints.flatMap(({ items }) => items)
+    released.entrypoints.flatMap(({ items }) => items),
   );
   const currentItems = comparablePairs.flatMap(({ current }) =>
-    current.entrypoints.flatMap(({ items }) => items)
+    current.entrypoints.flatMap(({ items }) => items),
   );
   const names = new Set<string>();
   for (const item of [...releasedItems, ...currentItems]) {
@@ -396,7 +381,7 @@ export function collectUnchangedPublicTypeBindings(
   }
   return new Set(
     [...names].filter(
-      (name) => unchangedTopLevelType(name, releasedItems, currentItems) !== undefined
-    )
+      (name) => unchangedTopLevelType(name, releasedItems, currentItems) !== undefined,
+    ),
   );
 }

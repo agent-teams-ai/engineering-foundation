@@ -3,7 +3,7 @@ import type { AcceptedDecisionEvidence } from "../ports/accepted-decision-eviden
 
 export function isApprovedBreakingChangeAccepted(
   approval: ApprovedBreakingChange,
-  evidence: AcceptedDecisionEvidence
+  evidence: AcceptedDecisionEvidence,
 ): boolean {
   return evidence.acceptedDecisionIds.includes(approval.decisionId);
 }

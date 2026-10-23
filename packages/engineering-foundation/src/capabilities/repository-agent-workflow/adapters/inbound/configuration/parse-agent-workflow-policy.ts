@@ -3,10 +3,13 @@ import type {
   AgentInstructionPaths,
   AgentWorkflowScripts,
   ChangedCheckPolicy,
-  RepositoryAgentWorkflowPolicy
+  RepositoryAgentWorkflowPolicy,
 } from "../../../application/model/repository-agent-workflow.js";
 
-import { configurationInputError as inputError, assertConfigRepositoryRelativePath } from "../../../application/configuration-input.js";
+import {
+  configurationInputError as inputError,
+  assertConfigRepositoryRelativePath,
+} from "../../../application/configuration-input.js";
 
 function record(value: unknown, field: string): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -41,7 +44,7 @@ function instructions(value: unknown): AgentInstructionPaths {
     canonical: path(input["canonical"], "instructions.canonical"),
     claude: path(input["claude"], "instructions.claude"),
     gemini: path(input["gemini"], "instructions.gemini"),
-    copilot: path(input["copilot"], "instructions.copilot")
+    copilot: path(input["copilot"], "instructions.copilot"),
   });
 }
 
@@ -50,7 +53,7 @@ function scripts(value: unknown): AgentWorkflowScripts {
   return Object.freeze({
     changed: string(input["changed"], "scripts.changed"),
     fast: string(input["fast"], "scripts.fast"),
-    full: string(input["full"], "scripts.full")
+    full: string(input["full"], "scripts.full"),
   });
 }
 
@@ -66,10 +69,10 @@ function changedCheck(value: unknown, index: number): ChangedCheckPolicy {
     script: string(input["script"], `${field}.script`),
     extensions: Object.freeze(
       extensionsInput.map((entry, extensionIndex) =>
-        string(entry, `${field}.extensions[${extensionIndex}]`).toLowerCase()
-      )
+        string(entry, `${field}.extensions[${extensionIndex}]`).toLowerCase(),
+      ),
     ),
-    passPaths: input["passPaths"] !== false
+    passPaths: input["passPaths"] !== false,
   });
 }
 
@@ -88,7 +91,10 @@ function packageManager(root: Record<string, unknown>): "bun" | "pnpm" {
   return manager;
 }
 
-export function parseAgentWorkflowPolicy(input: unknown, configPath: string): RepositoryAgentWorkflowPolicy {
+export function parseAgentWorkflowPolicy(
+  input: unknown,
+  configPath: string,
+): RepositoryAgentWorkflowPolicy {
   const root = record(input, "repository agent workflow config");
   const checksInput = root["changedChecks"];
   if (!Array.isArray(checksInput)) {
@@ -99,13 +105,13 @@ export function parseAgentWorkflowPolicy(input: unknown, configPath: string): Re
     instructions: instructions(root["instructions"]),
     scripts: scripts(root["scripts"]),
     changedChecks: Object.freeze(checksInput.map(changedCheck)),
-    fullScanPaths: paths(root["fullScanPaths"], "fullScanPaths")
+    fullScanPaths: paths(root["fullScanPaths"], "fullScanPaths"),
   });
   const instructionPaths: readonly string[] = [
     result.instructions.canonical,
     result.instructions.claude,
     result.instructions.gemini,
-    result.instructions.copilot
+    result.instructions.copilot,
   ];
   if (new Set(instructionPaths).size !== instructionPaths.length) {
     inputError("Instruction file paths must be unique.");
@@ -132,13 +138,15 @@ export function parseAgentWorkflowPolicy(input: unknown, configPath: string): Re
   return Object.freeze({
     ...result,
     fullScanPaths: Object.freeze(
-      [...new Set<string>([
-        ...result.fullScanPaths,
-        ...instructionPaths,
-        "foundation.config.yaml",
-        configPath,
-        "package.json"
-      ])].toSorted(compareBinaryStrings)
-    )
+      [
+        ...new Set<string>([
+          ...result.fullScanPaths,
+          ...instructionPaths,
+          "foundation.config.yaml",
+          configPath,
+          "package.json",
+        ]),
+      ].toSorted(compareBinaryStrings),
+    ),
   });
 }

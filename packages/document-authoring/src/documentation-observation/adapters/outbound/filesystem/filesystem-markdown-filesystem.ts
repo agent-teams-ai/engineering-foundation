@@ -20,16 +20,14 @@ export const nodeFilesystemMarkdownOperations: FilesystemMarkdownOperations = {
   readContainedRegularFile,
   readdir,
   realpath,
-  stat
+  stat,
 };
 
 function filesystemErrorCode(error: unknown): string | undefined {
-  return (
-    typeof error === "object" &&
+  return typeof error === "object" &&
     error !== null &&
     "code" in error &&
     typeof error.code === "string"
-  )
     ? error.code
     : undefined;
 }
@@ -48,9 +46,9 @@ export function throwMarkdownFilesystemUnavailable(error: unknown, operation: st
       code: "DOCUMENTATION_FILESYSTEM_UNAVAILABLE",
       message: `Documentation filesystem is unavailable while ${operation}.`,
       phase: "documentation-observation",
-      retryable: true
+      retryable: true,
     },
-    { cause: error }
+    { cause: error },
   );
 }
 
@@ -58,7 +56,7 @@ export async function markdownPathTraversesSymbolicLink(
   root: string,
   candidate: string,
   filesystem: FilesystemMarkdownOperations,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<boolean> {
   const relation = relative(root, candidate);
   let current = root;

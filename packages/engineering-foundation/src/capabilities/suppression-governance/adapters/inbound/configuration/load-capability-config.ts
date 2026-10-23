@@ -2,8 +2,17 @@ import type { SuppressionGovernancePolicy } from "../../../application/model/sup
 import { parseCapabilityConfig } from "./parse-capability-config.js";
 
 export interface SuppressionConfigurationDependencies {
-  readonly readYaml: (consumerRoot: string, configPath: string, phase: string, signal?: AbortSignal) => Promise<unknown>;
-  readonly assertSchema: (schemaId: "quality-suppression-governance/v1", input: unknown, phase: string) => Promise<void>;
+  readonly readYaml: (
+    consumerRoot: string,
+    configPath: string,
+    phase: string,
+    signal?: AbortSignal,
+  ) => Promise<unknown>;
+  readonly assertSchema: (
+    schemaId: "quality-suppression-governance/v1",
+    input: unknown,
+    phase: string,
+  ) => Promise<void>;
 }
 
 export function createSuppressionPolicyReader(dependencies: SuppressionConfigurationDependencies) {
@@ -15,18 +24,18 @@ export async function loadCapabilityConfig(
   dependencies: SuppressionConfigurationDependencies,
   consumerRoot: string,
   configPath: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<SuppressionGovernancePolicy> {
   const input = await dependencies.readYaml(
     consumerRoot,
     configPath,
     "suppression-governance-config",
-    signal
+    signal,
   );
   await dependencies.assertSchema(
     "quality-suppression-governance/v1",
     input,
-    "suppression-governance-config"
+    "suppression-governance-config",
   );
   return parseCapabilityConfig(input);
 }

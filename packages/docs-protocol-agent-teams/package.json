@@ -2,12 +2,29 @@
   "name": "@agent-teams/docs-protocol-agent-teams",
   "version": "0.5.4",
   "description": "Agent Teams managed integration adapter for the portable Docs Protocol.",
+  "homepage": "https://github.com/agent-teams-ai/engineering-foundation#readme",
+  "bugs": {
+    "url": "https://github.com/agent-teams-ai/engineering-foundation/issues"
+  },
   "license": "Apache-2.0",
-  "type": "module",
-  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agent-teams-ai/engineering-foundation.git",
+    "directory": "packages/docs-protocol-agent-teams"
+  },
   "bin": {
     "agent-teams-docs-managed": "./dist/cli.js"
   },
+  "files": [
+    "dist",
+    "schemas",
+    "skills/docs/SKILL.md",
+    "assets",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "type": "module",
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -21,38 +38,17 @@
     "./assets/runtime-policy.v1.json": "./assets/runtime-policy.v1.json",
     "./package.json": "./package.json"
   },
-  "files": [
-    "dist",
-    "schemas",
-    "skills/docs/SKILL.md",
-    "assets",
-    "README.md",
-    "CHANGELOG.md"
-  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true,
+    "registry": "https://registry.npmjs.org/"
+  },
   "scripts": {
     "assets:generate": "node scripts/generate-consumer-assets.mjs --write && node scripts/generate-runtime-policy.mjs --write",
     "assets:check": "node scripts/generate-consumer-assets.mjs && node scripts/generate-runtime-policy.mjs",
     "build": "pnpm assets:check && tsc --build tsconfig.json --pretty false",
     "test": "pnpm build && node --test tests/*.test.mjs tests/qualification-cohort-v3.test.mts",
     "test:restoration-lock": "pnpm build && pnpm --dir ../.. typecheck:restoration-lock && node --test tests/restoration-lock.test.mts"
-  },
-  "engines": {
-    "node": "^24.18.0 || ^26.0.0",
-    "pnpm": ">=11.17.0 <12"
-  },
-  "publishConfig": {
-    "access": "public",
-    "provenance": true,
-    "registry": "https://registry.npmjs.org/"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/agent-teams-ai/engineering-foundation.git",
-    "directory": "packages/docs-protocol-agent-teams"
-  },
-  "homepage": "https://github.com/agent-teams-ai/engineering-foundation#readme",
-  "bugs": {
-    "url": "https://github.com/agent-teams-ai/engineering-foundation/issues"
   },
   "dependencies": {
     "@agent-teams/docs-protocol": "workspace:*",
@@ -64,5 +60,9 @@
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:"
+  },
+  "engines": {
+    "node": "^24.18.0 || ^26.0.0",
+    "pnpm": ">=11.17.0 <12"
   }
 }

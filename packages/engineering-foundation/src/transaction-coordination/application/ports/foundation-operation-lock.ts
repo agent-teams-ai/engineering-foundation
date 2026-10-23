@@ -3,7 +3,5 @@ export interface FoundationOperationReleaseOptions {
 }
 
 export interface FoundationOperationLock {
-  acquire(): Promise<
-    (options?: FoundationOperationReleaseOptions) => Promise<void>
-  >;
+  acquire(): Promise<(options?: FoundationOperationReleaseOptions) => Promise<void>>;
 }

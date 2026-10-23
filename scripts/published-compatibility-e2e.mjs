@@ -34,8 +34,14 @@ export async function verifyPublishedCompatibilityBootstrapBaselines({
     }
     manifests.set(resolve(profile.manifestPath), manifest);
     if (profile.state === "candidate") {
-      if (profile.approval !== null || profile.bootstrapVersion !== "0.0.0" || manifest.version !== profile.bootstrapVersion) {
-        fail(`${profile.name} compatibility candidate must retain its unapproved 0.0.0 bootstrap identity.`);
+      if (
+        profile.approval !== null ||
+        profile.bootstrapVersion !== "0.0.0" ||
+        manifest.version !== profile.bootstrapVersion
+      ) {
+        fail(
+          `${profile.name} compatibility candidate must retain its unapproved 0.0.0 bootstrap identity.`,
+        );
       }
     } else {
       profiles.push(profile);
@@ -65,28 +71,22 @@ export async function main({
   removeTemporaryRoot = rm,
   write = (line) => process.stdout.write(line),
 } = {}) {
-  const temporaryRoot = await mkdtemp(
-    resolve(tmpdir(), "foundation-published-compatibility-e2e-"),
-  );
+  const temporaryRoot = await mkdtemp(resolve(tmpdir(), "foundation-published-compatibility-e2e-"));
   const failures = [];
   let result;
   try {
-    const { pending: pendingBootstrapBaselines, verified: bootstrapBaselines } = await verifyBootstrap({ temporaryRoot });
+    const { pending: pendingBootstrapBaselines, verified: bootstrapBaselines } =
+      await verifyBootstrap({ temporaryRoot });
     // Current public completion depends on the ordered publisher reconciling GitHub.
     // CI and release preflight still require every historical compatibility check.
     const publicDocs = args.includes("--require-public-docs")
       ? requirePublicDocsDecision(
-        await qualifyPublicDocs({ temporaryRoot }, { observationAttempts: 5 }),
-        { required: true },
-      )
+          await qualifyPublicDocs({ temporaryRoot }, { observationAttempts: 5 }),
+          { required: true },
+        )
       : { status: "deferred" };
     const installPackage = createPublishedCompatibilityInstallPolicy();
-    const currentCliPath = resolve(
-      "packages",
-      "engineering-foundation",
-      "dist",
-      "cli.js",
-    );
+    const currentCliPath = resolve("packages", "engineering-foundation", "dist", "cli.js");
     await verifyTransactions({ currentCliPath, installPackage });
     await verifyAuthoring({
       installPackage,
@@ -106,11 +106,20 @@ export async function main({
   } catch (error) {
     failures.push(error);
   } finally {
-    try { await removeTemporaryRoot(temporaryRoot, { force: true, recursive: true }); }
-    catch (error) { failures.push(error); }
+    try {
+      await removeTemporaryRoot(temporaryRoot, { force: true, recursive: true });
+    } catch (error) {
+      failures.push(error);
+    }
   }
-  if (failures.length === 1) { throw failures[0]; }
-  if (failures.length > 1) { throw new AggregateError(failures, "Published compatibility and cleanup failed.", { cause: failures[0] }); }
+  if (failures.length === 1) {
+    throw failures[0];
+  }
+  if (failures.length > 1) {
+    throw new AggregateError(failures, "Published compatibility and cleanup failed.", {
+      cause: failures[0],
+    });
+  }
   return result;
 }
 

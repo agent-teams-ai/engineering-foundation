@@ -49,7 +49,7 @@ export class DirectoryMutationError extends Error {
   constructor(
     code: DirectoryMutationErrorCode,
     message: string,
-    options?: ErrorOptions & { readonly manualRecoveryRequired?: boolean }
+    options?: ErrorOptions & { readonly manualRecoveryRequired?: boolean },
   ) {
     super(message, options);
     this.name = "DirectoryMutationError";

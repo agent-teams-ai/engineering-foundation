@@ -7,7 +7,7 @@ import test from "node:test";
 const publicApi = await import("../dist/index.js");
 const qualificationApi = await import("../dist/qualification/index.js");
 const packageManifest = JSON.parse(
-  await readFile(new URL("../package.json", import.meta.url), "utf8")
+  await readFile(new URL("../package.json", import.meta.url), "utf8"),
 );
 
 const FORBIDDEN_MANAGED_EXPORTS = [
@@ -19,7 +19,7 @@ const FORBIDDEN_MANAGED_EXPORTS = [
   "planConsumerIntegration",
   "recoverConsumerIntegration",
   "runDocsProtocolQualificationV2",
-  "upgradeConsumerIntegration"
+  "upgradeConsumerIntegration",
 ];
 const FORBIDDEN_LEGACY_ROOT_EXPORTS = [
   "docsCheck",
@@ -29,15 +29,12 @@ const FORBIDDEN_LEGACY_ROOT_EXPORTS = [
   "docsInfo",
   "docsNew",
   "docsRecover",
-  "renderDocsHuman"
+  "renderDocsHuman",
 ];
 
 test("package exports map the tested runtime barrels without private subpath exports", () => {
   assert.equal(packageManifest.exports["."].import, "./dist/index.js");
-  assert.equal(
-    packageManifest.exports["./qualification"].import,
-    "./dist/qualification/index.js"
-  );
+  assert.equal(packageManifest.exports["./qualification"].import, "./dist/qualification/index.js");
   assert.equal(packageManifest.exports["./dist/index.js"], undefined);
   assert.equal(packageManifest.exports["./dist/qualification/index.js"], undefined);
 });
@@ -57,7 +54,7 @@ test("portable public surface exposes generic commands, recovery, and MCP-facing
     "docsProfilePath",
     "docsRecoverV2",
     "renderDocsHumanV3",
-    "runDocsCli"
+    "runDocsCli",
   ]) {
     assert.equal(typeof publicApi[name], "function", name);
   }
@@ -80,7 +77,11 @@ test("public profile discovery retains the portable default and explicit path", 
   const consumerRoot = await mkdtemp(join(tmpdir(), "portable-public-profile-"));
   t.after(() => rm(consumerRoot, { recursive: true, force: true }));
   assert.equal(await publicApi.docsProfilePath({ consumerRoot }), "docs.config.yaml");
-  assert.equal(await publicApi.docsProfilePath({
-    consumerRoot, explicitProfilePath: "architecture/project-docs.yaml",
-  }), "architecture/project-docs.yaml");
+  assert.equal(
+    await publicApi.docsProfilePath({
+      consumerRoot,
+      explicitProfilePath: "architecture/project-docs.yaml",
+    }),
+    "architecture/project-docs.yaml",
+  );
 });

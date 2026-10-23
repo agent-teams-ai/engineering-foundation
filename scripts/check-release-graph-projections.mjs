@@ -35,8 +35,10 @@ function referencePaths(tsconfig, label, diagnostics, { required = false } = {})
 }
 
 function sameSet(left, right) {
-  return left.length === right.length &&
-    left.toSorted().every((value, index) => value === right.toSorted()[index]);
+  return (
+    left.length === right.length &&
+    left.toSorted().every((value, index) => value === right.toSorted()[index])
+  );
 }
 
 export function releaseGraphProjectionDiagnostics({
@@ -52,12 +54,9 @@ export function releaseGraphProjectionDiagnostics({
     diagnostics.push("projected package identities must be unique");
   }
   const expectedRootReferences = packages.map(({ root }) => `./${root}`);
-  const actualRootReferences = referencePaths(
-    rootTsconfig,
-    "root tsconfig",
-    diagnostics,
-    { required: true },
-  );
+  const actualRootReferences = referencePaths(rootTsconfig, "root tsconfig", diagnostics, {
+    required: true,
+  });
   if (!sameSet(actualRootReferences, expectedRootReferences)) {
     diagnostics.push("root tsconfig references must exactly include every qualified package");
   }
@@ -68,9 +67,10 @@ export function releaseGraphProjectionDiagnostics({
       diagnostics.push(`${releasePackage.name} tsconfig is missing`);
       continue;
     }
-    const dependencyNames = dependencyDeclarations === undefined
-      ? dependencies[releasePackage.name]
-      : dependencyDeclarations[releasePackage.name]?.map(({ name }) => name);
+    const dependencyNames =
+      dependencyDeclarations === undefined
+        ? dependencies[releasePackage.name]
+        : dependencyDeclarations[releasePackage.name]?.map(({ name }) => name);
     if (!Array.isArray(dependencyNames)) {
       diagnostics.push(`${releasePackage.name} manifest-derived dependencies are missing`);
       continue;
@@ -78,7 +78,9 @@ export function releaseGraphProjectionDiagnostics({
     const expectedReferences = dependencyNames.flatMap((dependencyName) => {
       const dependency = packageByName.get(dependencyName);
       if (dependency === undefined) {
-        diagnostics.push(`${releasePackage.name} has unknown projected dependency ${dependencyName}`);
+        diagnostics.push(
+          `${releasePackage.name} has unknown projected dependency ${dependencyName}`,
+        );
         return [];
       }
       return [portableRelativePath(releasePackage.root, dependency.root)];
@@ -107,9 +109,13 @@ export async function validateReleaseGraphProjections({
   packages = PUBLISHABLE_PACKAGES,
 } = {}) {
   const packageTsconfigsByName = new Map();
-  await Promise.all(packages.map((releasePackage) =>
-    readJson(`${releasePackage.root}/tsconfig.json`).then((tsconfig) =>
-      packageTsconfigsByName.set(releasePackage.name, tsconfig))));
+  await Promise.all(
+    packages.map((releasePackage) =>
+      readJson(`${releasePackage.root}/tsconfig.json`).then((tsconfig) =>
+        packageTsconfigsByName.set(releasePackage.name, tsconfig),
+      ),
+    ),
+  );
   const diagnostics = releaseGraphProjectionDiagnostics({
     dependencies,
     dependencyDeclarations,
@@ -123,9 +129,8 @@ export async function validateReleaseGraphProjections({
   return Object.freeze({ packageCount: packages.length });
 }
 
-const invokedPath = process.argv[1] === undefined
-  ? undefined
-  : pathToFileURL(resolvePath(process.argv[1])).href;
+const invokedPath =
+  process.argv[1] === undefined ? undefined : pathToFileURL(resolvePath(process.argv[1])).href;
 if (invokedPath === import.meta.url) {
   const result = await validateReleaseGraphProjections();
   process.stdout.write(`Validated ${result.packageCount} package graph projections.\n`);

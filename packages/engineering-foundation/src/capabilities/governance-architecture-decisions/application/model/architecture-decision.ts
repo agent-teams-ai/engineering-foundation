@@ -1,17 +1,12 @@
 import { compareBinaryStrings } from "../../../../binary-string-comparator.js";
 import {
   markdownSourceWithoutFrontmatter,
-  type MarkdownDocumentObservation
+  type MarkdownDocumentObservation,
 } from "@agent-teams/document-authoring/observation";
 
-export const ARCHITECTURE_DECISION_STATUSES = [
-  "proposed",
-  "accepted",
-  "superseded"
-] as const;
+export const ARCHITECTURE_DECISION_STATUSES = ["proposed", "accepted", "superseded"] as const;
 
-export type ArchitectureDecisionStatus =
-  (typeof ARCHITECTURE_DECISION_STATUSES)[number];
+export type ArchitectureDecisionStatus = (typeof ARCHITECTURE_DECISION_STATUSES)[number];
 
 export interface ArchitectureDecisionIndexPolicy {
   readonly path: string;
@@ -53,22 +48,20 @@ function canonicalize(value: unknown): unknown {
     return Object.fromEntries(
       Object.entries(value as Record<string, unknown>)
         .toSorted(([left], [right]) => compareBinaryStrings(left, right))
-        .map(([key, nested]) => [key, canonicalize(nested)])
+        .map(([key, nested]) => [key, canonicalize(nested)]),
     );
   }
   return value;
 }
 
-export function immutableArchitectureDecisionPayload(
-  decision: ArchitectureDecision
-): string {
+export function immutableArchitectureDecisionPayload(decision: ArchitectureDecision): string {
   const immutableMetadata = Object.fromEntries(
     Object.entries(decision.metadata).filter(
-      ([key]) => key !== "status" && key !== "superseded_by"
-    )
+      ([key]) => key !== "status" && key !== "superseded_by",
+    ),
   );
   return JSON.stringify({
     body: markdownSourceWithoutFrontmatter(decision.document).replace(/\r\n/g, "\n"),
-    metadata: canonicalize(immutableMetadata)
+    metadata: canonicalize(immutableMetadata),
   });
 }

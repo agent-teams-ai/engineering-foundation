@@ -40,15 +40,9 @@
       "packages/docs-protocol/src/features/portable-documentation/application",
       "packages/docs-protocol/src/features/portable-documentation/application.ts"
     ],
-    "boundaries": [
-      "docs-protocol.portable-documentation.domain"
-    ],
-    "packages": [
-      "@agent-teams/repository-mutation"
-    ],
-    "builtins": [
-      "node:path"
-    ],
+    "boundaries": ["docs-protocol.portable-documentation.domain"],
+    "packages": ["@agent-teams/repository-mutation"],
+    "builtins": ["node:path"],
     "entrypoints": [
       "packages/docs-protocol/src/features/portable-documentation/application.ts",
       "packages/docs-protocol/src/features/portable-documentation/application/authoring-observation.ts",
@@ -63,25 +57,13 @@
     ]
   },
   "docs-protocol.portable-documentation.adapters": {
-    "roots": [
-      "packages/docs-protocol/src/features/portable-documentation/adapters"
-    ],
+    "roots": ["packages/docs-protocol/src/features/portable-documentation/adapters"],
     "boundaries": [
       "docs-protocol.portable-documentation.application",
       "docs-protocol.portable-documentation.domain"
     ],
-    "packages": [
-      "@agent-teams/document-authoring",
-      "ajv",
-      "ajv-formats",
-      "minisearch",
-      "yaml"
-    ],
-    "builtins": [
-      "node:fs",
-      "node:fs/promises",
-      "node:path"
-    ],
+    "packages": ["@agent-teams/document-authoring", "ajv", "ajv-formats", "minisearch", "yaml"],
+    "builtins": ["node:fs", "node:fs/promises", "node:path"],
     "entrypoints": [
       "packages/docs-protocol/src/features/portable-documentation/adapters/outbound/document-authoring-port.ts",
       "packages/docs-protocol/src/features/portable-documentation/adapters/outbound/minisearch-adapter.ts",
@@ -116,13 +98,9 @@
       "packages/docs-protocol/src/features/portable-bootstrap/application",
       "packages/docs-protocol/src/features/portable-bootstrap/application.ts"
     ],
-    "boundaries": [
-      "docs-protocol.portable-documentation.domain"
-    ],
+    "boundaries": ["docs-protocol.portable-documentation.domain"],
     "packages": [],
-    "builtins": [
-      "node:crypto"
-    ],
+    "builtins": ["node:crypto"],
     "entrypoints": [
       "packages/docs-protocol/src/features/portable-bootstrap/application.ts",
       "packages/docs-protocol/src/features/portable-bootstrap/application/bootstrap-model.ts",
@@ -132,20 +110,10 @@
     ]
   },
   "docs-protocol.portable-bootstrap.adapters": {
-    "roots": [
-      "packages/docs-protocol/src/features/portable-bootstrap/adapters"
-    ],
-    "boundaries": [
-      "docs-protocol.portable-bootstrap.application"
-    ],
-    "packages": [
-      "@agent-teams/repository-mutation"
-    ],
-    "builtins": [
-      "node:fs",
-      "node:fs/promises",
-      "node:path"
-    ],
+    "roots": ["packages/docs-protocol/src/features/portable-bootstrap/adapters"],
+    "boundaries": ["docs-protocol.portable-bootstrap.application"],
+    "packages": ["@agent-teams/repository-mutation"],
+    "builtins": ["node:fs", "node:fs/promises", "node:path"],
     "entrypoints": [
       "packages/docs-protocol/src/features/portable-bootstrap/adapters/outbound/node-bootstrap-repository.ts",
       "packages/docs-protocol/src/features/portable-bootstrap/adapters/outbound/node-bootstrap-transactions.ts"
@@ -169,9 +137,7 @@
     ]
   },
   "docs-protocol.docs-command.application": {
-    "roots": [
-      "packages/docs-protocol/src/features/docs-command/application"
-    ],
+    "roots": ["packages/docs-protocol/src/features/docs-command/application"],
     "boundaries": [
       "docs-protocol.portable-bootstrap.application",
       "docs-protocol.portable-documentation.application",
@@ -184,31 +150,20 @@
     ]
   },
   "docs-protocol.docs-command.contracts": {
-    "roots": [
-      "packages/docs-protocol/src/features/docs-command/contracts"
-    ],
+    "roots": ["packages/docs-protocol/src/features/docs-command/contracts"],
     "boundaries": [],
     "packages": [],
     "builtins": [],
-    "entrypoints": [
-      "packages/docs-protocol/src/features/docs-command/contracts/command.ts"
-    ]
+    "entrypoints": ["packages/docs-protocol/src/features/docs-command/contracts/command.ts"]
   },
   "docs-protocol.docs-command.adapters": {
-    "roots": [
-      "packages/docs-protocol/src/features/docs-command/adapters"
-    ],
+    "roots": ["packages/docs-protocol/src/features/docs-command/adapters"],
     "boundaries": [
       "docs-protocol.docs-command.application",
       "docs-protocol.docs-command.contracts"
     ],
-    "packages": [
-      "@agent-teams/document-authoring",
-      "ajv"
-    ],
-    "builtins": [
-      "node:fs/promises"
-    ],
+    "packages": ["@agent-teams/document-authoring", "ajv"],
+    "builtins": ["node:fs/promises"],
     "entrypoints": [
       "packages/docs-protocol/src/features/docs-command/adapters/inbound/cli.ts",
       "packages/docs-protocol/src/features/docs-command/adapters/inbound/docs-cli-machine.ts",
@@ -239,9 +194,7 @@
     ]
   },
   "docs-protocol.qualification": {
-    "roots": [
-      "packages/docs-protocol/src/features/qualification/index.ts"
-    ],
+    "roots": ["packages/docs-protocol/src/features/qualification/index.ts"],
     "boundaries": [
       "docs-protocol.qualification.application",
       "docs-protocol.qualification.adapters",
@@ -250,41 +203,29 @@
     ],
     "packages": [],
     "builtins": [],
-    "entrypoints": [
-      "packages/docs-protocol/src/features/qualification/index.ts"
-    ]
+    "entrypoints": ["packages/docs-protocol/src/features/qualification/index.ts"]
   },
   "docs-protocol.qualification.composition": {
-    "roots": [
-      "packages/docs-protocol/src/qualification/composition.ts"
-    ],
+    "roots": ["packages/docs-protocol/src/qualification/composition.ts"],
     "boundaries": [
       "docs-protocol.qualification.application",
       "docs-protocol.qualification.adapters",
       "docs-protocol.docs-command.composition",
       "docs-protocol.portable-documentation.composition"
     ],
-    "packages": [
-      "@agent-teams/document-authoring"
-    ],
+    "packages": ["@agent-teams/document-authoring"],
     "builtins": [],
-    "entrypoints": [
-      "packages/docs-protocol/src/qualification/composition.ts"
-    ]
+    "entrypoints": ["packages/docs-protocol/src/qualification/composition.ts"]
   },
   "docs-protocol.qualification.application": {
-    "roots": [
-      "packages/docs-protocol/src/features/qualification/application"
-    ],
+    "roots": ["packages/docs-protocol/src/features/qualification/application"],
     "boundaries": [
       "docs-protocol.portable-bootstrap.application",
       "docs-protocol.portable-documentation.application",
       "docs-protocol.portable-documentation.domain"
     ],
     "packages": [],
-    "builtins": [
-      "node:crypto"
-    ],
+    "builtins": ["node:crypto"],
     "entrypoints": [
       "packages/docs-protocol/src/features/qualification/application/model.ts",
       "packages/docs-protocol/src/features/qualification/application/runtime.ts",
@@ -296,12 +237,8 @@
     ]
   },
   "docs-protocol.qualification.adapters": {
-    "roots": [
-      "packages/docs-protocol/src/features/qualification/adapters"
-    ],
-    "boundaries": [
-      "docs-protocol.qualification.application"
-    ],
+    "roots": ["packages/docs-protocol/src/features/qualification/adapters"],
+    "boundaries": ["docs-protocol.qualification.application"],
     "packages": [],
     "builtins": [
       "node:child_process",

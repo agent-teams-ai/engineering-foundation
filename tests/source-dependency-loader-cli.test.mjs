@@ -14,7 +14,10 @@ const capabilityId = "architecture.source-dependencies";
 
 async function write(root, path, contents) {
   await mkdir(dirname(join(root, path)), { recursive: true });
-  await writeFile(join(root, path), typeof contents === "string" ? contents : JSON.stringify(contents));
+  await writeFile(
+    join(root, path),
+    typeof contents === "string" ? contents : JSON.stringify(contents),
+  );
 }
 
 // Execute the complete CLI from its own installed package tree, never from source.
@@ -40,15 +43,23 @@ async function withInstalledCli(callback) {
 }
 
 function boundary(id, root, options = {}) {
-  return { id, roots: [root], entrypoints: [`${root}/index.ts`], allow: {
-    boundaries: options.boundaries ?? [], packages: options.packages ?? [],
-    builtins: options.builtins ?? [], runtimeReferences: options.runtimeReferences ?? [],
-  } };
+  return {
+    id,
+    roots: [root],
+    entrypoints: [`${root}/index.ts`],
+    allow: {
+      boundaries: options.boundaries ?? [],
+      packages: options.packages ?? [],
+      builtins: options.builtins ?? [],
+      runtimeReferences: options.runtimeReferences ?? [],
+    },
+  };
 }
 
 async function fixture(root, schemaVersion, options = {}) {
   const config = {
-    schemaVersion, workspace: { kind: "pnpm", manifest: "pnpm-workspace.yaml" },
+    schemaVersion,
+    workspace: { kind: "pnpm", manifest: "pnpm-workspace.yaml" },
     ...(schemaVersion >= 2 ? { packageRoots: ["packages"] } : {}),
     governedRoots: ["packages/app/src", "packages/core/src"],
     boundaries: [
@@ -59,25 +70,48 @@ async function fixture(root, schemaVersion, options = {}) {
   };
   await write(root, "package.json", { name: "loader-fixture", private: true });
   await write(root, "pnpm-workspace.yaml", "packages:\n  - packages/*\n");
-  await write(root, "foundation.config.yaml", { schemaVersion: 1, project: { id: "loader-fixture" },
-    capabilities: { [capabilityId]: { configPath: "source.yaml" } } });
+  await write(root, "foundation.config.yaml", {
+    schemaVersion: 1,
+    project: { id: "loader-fixture" },
+    capabilities: { [capabilityId]: { configPath: "source.yaml" } },
+  });
   await write(root, "source.yaml", config);
   for (const name of ["app", "core"]) {
-    await write(root, `packages/${name}/package.json`, { name: `@fixture/${name}`, private: true,
-      version: "1.0.0", type: "module", exports: { ".": "./src/index.ts" },
+    await write(root, `packages/${name}/package.json`, {
+      name: `@fixture/${name}`,
+      private: true,
+      version: "1.0.0",
+      type: "module",
+      exports: { ".": "./src/index.ts" },
       ...(name === "app" ? { dependencies: { "@fixture/core": "workspace:*" } } : {}),
     });
   }
-  await write(root, "packages/app/src/a/index.ts", options.source ?? 'module.require("@fixture/core");');
+  await write(
+    root,
+    "packages/app/src/a/index.ts",
+    options.source ?? 'module.require("@fixture/core");',
+  );
   await write(root, "packages/app/src/b/index.ts", options.other ?? "export const value = 1;");
-  await write(root, "packages/core/src/index.ts", "export type Value = string; export const value = 1;");
+  await write(
+    root,
+    "packages/core/src/index.ts",
+    "export type Value = string; export const value = 1;",
+  );
 }
 
 async function check(root, cli, expectedRules, extraPaths = []) {
-  const watched = ["source.yaml", "foundation.config.yaml", "packages/app/src/a/index.ts", "packages/app/src/b/index.ts", ...extraPaths];
+  const watched = [
+    "source.yaml",
+    "foundation.config.yaml",
+    "packages/app/src/a/index.ts",
+    "packages/app/src/b/index.ts",
+    ...extraPaths,
+  ];
   const before = await Promise.all(watched.map((path) => readFile(join(root, path))));
   const result = spawnSync(process.execPath, [cli, "check", "--consumer", root, "--json"], {
-    cwd: root, encoding: "utf8", timeout: 30_000,
+    cwd: root,
+    encoding: "utf8",
+    timeout: 30_000,
   });
   assert.equal(result.error, undefined);
   assert.equal(result.signal, null);
@@ -87,8 +121,11 @@ async function check(root, cli, expectedRules, extraPaths = []) {
   assert.equal(report.coverage, "full");
   assert.equal(report.capabilities.length, 1);
   assert.equal(report.capabilities[0].capabilityId, capabilityId);
-  assert.deepEqual(report.capabilities[0].diagnostics.map(({ ruleId }) => ruleId).toSorted(),
-    expectedRules.map((rule) => `${capabilityId}.${rule}`).toSorted(), result.stdout);
+  assert.deepEqual(
+    report.capabilities[0].diagnostics.map(({ ruleId }) => ruleId).toSorted(),
+    expectedRules.map((rule) => `${capabilityId}.${rule}`).toSorted(),
+    result.stdout,
+  );
   const after = await Promise.all(watched.map((path) => readFile(join(root, path))));
   assert.deepEqual(after, before, "CLI must preserve consumer source and policy bytes");
   return report;
@@ -98,12 +135,18 @@ for (const schemaVersion of [1, 2, 3]) {
   test(`installed CLI v${schemaVersion}: loader edges, exceptions, and cycles`, async (t) => {
     await withInstalledCli(async (root, cli) => {
       const loaders = [
-        ['direct require', 'require("@fixture/core");'],
-        ['module.require', 'module.require("@fixture/core");'],
-        ['require alias', 'const load = require; load("@fixture/core");'],
-        ['createRequire', 'import { createRequire } from "node:module"; createRequire(import.meta.url)("@fixture/core");'],
-        ['builtin getter', 'process.getBuiltinModule("module").createRequire(import.meta.url)("@fixture/core");'],
-        ['type edge', 'import type { Value } from "@fixture/core";'],
+        ["direct require", 'require("@fixture/core");'],
+        ["module.require", 'module.require("@fixture/core");'],
+        ["require alias", 'const load = require; load("@fixture/core");'],
+        [
+          "createRequire",
+          'import { createRequire } from "node:module"; createRequire(import.meta.url)("@fixture/core");',
+        ],
+        [
+          "builtin getter",
+          'process.getBuiltinModule("module").createRequire(import.meta.url)("@fixture/core");',
+        ],
+        ["type edge", 'import type { Value } from "@fixture/core";'],
       ];
       for (const [name, source] of loaders) {
         await t.test(`${name} forbidden and allowed`, async () => {
@@ -115,18 +158,24 @@ for (const schemaVersion of [1, 2, 3]) {
         });
       }
       await t.test("shadowed APIs are admitted", async () => {
-        await fixture(root, schemaVersion, { source: `
+        await fixture(root, schemaVersion, {
+          source: `
 declare function require(name: string): unknown;
 require("not-a-package");
 function f(module, process) { module.require("user"); process.getBuiltinModule("user"); }
-const createRequire = (base) => (name) => name; createRequire(import.meta.url)("user");` });
+const createRequire = (base) => (name) => name; createRequire(import.meta.url)("user");`,
+        });
         await check(root, cli, []);
       });
       for (const [name, source, kind] of [
-        ["dynamic import", 'import(selected);', "dynamic"],
-        ["nonliteral loader", 'module.require(selected);', "commonjs"],
+        ["dynamic import", "import(selected);", "dynamic"],
+        ["nonliteral loader", "module.require(selected);", "commonjs"],
         ["written alias", 'let load = require; load = user; load("@fixture/core");', "commonjs"],
-        ["different base", 'import { createRequire } from "node:module"; createRequire("/different/base.cjs")("@fixture/core");', "commonjs"],
+        [
+          "different base",
+          'import { createRequire } from "node:module"; createRequire("/different/base.cjs")("@fixture/core");',
+          "commonjs",
+        ],
       ]) {
         await t.test(`${name} requires exact runtimeReferences exception`, async () => {
           const options = { source, builtins: ["node:module"] };
@@ -134,18 +183,29 @@ const createRequire = (base) => (name) => name; createRequire(import.meta.url)("
           await check(root, cli, ["unresolved-runtime-reference"]);
           await fixture(root, schemaVersion, { ...options, runtimeReferences: [kind] });
           await check(root, cli, []);
-          await fixture(root, schemaVersion, { ...options, runtimeReferences: [kind === "commonjs" ? "dynamic" : "commonjs"] });
+          await fixture(root, schemaVersion, {
+            ...options,
+            runtimeReferences: [kind === "commonjs" ? "dynamic" : "commonjs"],
+          });
           await check(root, cli, ["unresolved-runtime-reference"]);
         });
       }
       await t.test("runtime loader cycle", async () => {
-        await fixture(root, schemaVersion, { source: 'module.require("../b/index.js");',
-          other: 'const load = require; load("../a/index.js");', boundaries: ["app.b"], reverse: true });
+        await fixture(root, schemaVersion, {
+          source: 'module.require("../b/index.js");',
+          other: 'const load = require; load("../a/index.js");',
+          boundaries: ["app.b"],
+          reverse: true,
+        });
         await check(root, cli, ["boundary-runtime-cycle"]);
       });
       await t.test("type-only cycle", async () => {
-        await fixture(root, schemaVersion, { source: 'export type { Value } from "../b/index.js";',
-          other: 'export type { Value } from "../a/index.js";', boundaries: ["app.b"], reverse: true });
+        await fixture(root, schemaVersion, {
+          source: 'export type { Value } from "../b/index.js";',
+          other: 'export type { Value } from "../a/index.js";',
+          boundaries: ["app.b"],
+          reverse: true,
+        });
         await check(root, cli, ["boundary-type-only-cycle"]);
       });
     });
@@ -179,7 +239,11 @@ for (const schemaVersion of [1, 2, 3]) {
         ["declaration type export", 'export type { Shape } from "@fixture/dev-only";', false],
         ["inline type import", 'import { type Shape } from "@fixture/dev-only";', true],
         ["inline type export", 'export { type Shape } from "@fixture/dev-only";', true],
-        ["aliased inline types", 'import { type Shape as Local, type Other } from "@fixture/dev-only";', true],
+        [
+          "aliased inline types",
+          'import { type Shape as Local, type Other } from "@fixture/dev-only";',
+          true,
+        ],
         ["mixed import", 'import { type Shape, value } from "@fixture/dev-only";', true],
         ["mixed export", 'export { type Shape, value } from "@fixture/dev-only";', true],
         ["side effect", 'import "@fixture/dev-only";', true],
@@ -192,7 +256,9 @@ for (const schemaVersion of [1, 2, 3]) {
           const manifest = JSON.parse(await readFile(join(root, manifestPath), "utf8"));
           manifest.devDependencies = { "@fixture/dev-only": "1.0.0" };
           await write(root, manifestPath, manifest);
-          await check(root, cli, runtime ? ["runtime-import-from-development-dependency"] : [], [manifestPath]);
+          await check(root, cli, runtime ? ["runtime-import-from-development-dependency"] : [], [
+            manifestPath,
+          ]);
         });
       }
     });
@@ -203,22 +269,97 @@ for (const schemaVersion of [1, 2, 3]) {
   test(`installed CLI v${schemaVersion}: wrapper and parameter provenance`, async (t) => {
     await withInstalledCli(async (root, cli) => {
       const cases = [
-        ["default var", 'function f(load = require) { var load; load("node:fs"); } f();', "unresolved-runtime-reference", true],
-        ["destructured default var", 'function f({load = require} = {}) { var load; load("node:fs"); } f();', "unresolved-runtime-reference", true],
-        ["array default var", 'function f([load = require] = []) { var load; load("node:fs"); } f();', "unresolved-runtime-reference", true],
-        ["wrapper require var", 'var require; require("node:fs");', "forbidden-builtin-dependency", true],
-        ["wrapper module var", 'var module; module.require("node:fs");', "forbidden-builtin-dependency", true],
-        ["require alias", 'var require; const load = require; load("node:fs");', "forbidden-builtin-dependency", true],
-        ["retained receiver", 'var module; const m = module; m.require("node:fs");', "forbidden-builtin-dependency", true],
-        ["body reset", 'function f(load = require) { var load; load = () => {}; load("node:fs"); } f();', "unresolved-runtime-reference", false],
-        ["wrapper reset", 'var require; require = () => {}; require("node:fs");', "unresolved-runtime-reference", false],
-        ["wrapper initializer", 'var require = () => {}; require("node:fs");', "unresolved-runtime-reference", false],
-        ["wrapper iteration reset", 'for (var require of [() => {}]) { require("node:fs"); }', "unresolved-runtime-reference", false],
+        [
+          "default var",
+          'function f(load = require) { var load; load("node:fs"); } f();',
+          "unresolved-runtime-reference",
+          true,
+        ],
+        [
+          "destructured default var",
+          'function f({load = require} = {}) { var load; load("node:fs"); } f();',
+          "unresolved-runtime-reference",
+          true,
+        ],
+        [
+          "array default var",
+          'function f([load = require] = []) { var load; load("node:fs"); } f();',
+          "unresolved-runtime-reference",
+          true,
+        ],
+        [
+          "wrapper require var",
+          'var require; require("node:fs");',
+          "forbidden-builtin-dependency",
+          true,
+        ],
+        [
+          "wrapper module var",
+          'var module; module.require("node:fs");',
+          "forbidden-builtin-dependency",
+          true,
+        ],
+        [
+          "require alias",
+          'var require; const load = require; load("node:fs");',
+          "forbidden-builtin-dependency",
+          true,
+        ],
+        [
+          "retained receiver",
+          'var module; const m = module; m.require("node:fs");',
+          "forbidden-builtin-dependency",
+          true,
+        ],
+        [
+          "body reset",
+          'function f(load = require) { var load; load = () => {}; load("node:fs"); } f();',
+          "unresolved-runtime-reference",
+          false,
+        ],
+        [
+          "wrapper reset",
+          'var require; require = () => {}; require("node:fs");',
+          "unresolved-runtime-reference",
+          false,
+        ],
+        [
+          "wrapper initializer",
+          'var require = () => {}; require("node:fs");',
+          "unresolved-runtime-reference",
+          false,
+        ],
+        [
+          "wrapper iteration reset",
+          'for (var require of [() => {}]) { require("node:fs"); }',
+          "unresolved-runtime-reference",
+          false,
+        ],
         ["lexical shadow", '{ const require = () => {}; require("node:fs"); }', undefined, false],
-        ["module lexical shadow", '{ const module = { require() {} }; module.require("node:fs"); }', undefined, false],
-        ["plain parameter var", 'function f(require) { var require; require("node:fs"); } f(() => {});', undefined, false],
-        ["user default var", 'function f(load = () => {}) { var load; load("node:fs"); } f();', undefined, false],
-        ["destructured user default var", 'function f({load = () => {}} = {}) { var load; load("node:fs"); } f();', undefined, false],
+        [
+          "module lexical shadow",
+          '{ const module = { require() {} }; module.require("node:fs"); }',
+          undefined,
+          false,
+        ],
+        [
+          "plain parameter var",
+          'function f(require) { var require; require("node:fs"); } f(() => {});',
+          undefined,
+          false,
+        ],
+        [
+          "user default var",
+          'function f(load = () => {}) { var load; load("node:fs"); } f();',
+          undefined,
+          false,
+        ],
+        [
+          "destructured user default var",
+          'function f({load = () => {}} = {}) { var load; load("node:fs"); } f();',
+          undefined,
+          false,
+        ],
       ];
       for (const extension of ["cjs", "cts"]) {
         const path = `packages/app/src/a/probe.${extension}`;
@@ -240,10 +381,16 @@ for (const schemaVersion of [1, 2, 3]) {
               await write(root, "source.yaml", config);
               await check(root, cli, [], [path]);
             }
-            await write(root, "packages/app/src/a/payload.cjs", 'console.log("NATIVE_PAYLOAD_LOADED");');
+            await write(
+              root,
+              "packages/app/src/a/payload.cjs",
+              'console.log("NATIVE_PAYLOAD_LOADED");',
+            );
             await write(root, path, source.replaceAll('"node:fs"', '"./payload.cjs"'));
             const native = spawnSync(process.execPath, [join(root, path)], {
-              cwd: root, encoding: "utf8", timeout: 10_000,
+              cwd: root,
+              encoding: "utf8",
+              timeout: 10_000,
             });
             assert.equal(native.status, 0, native.stderr);
             assert.equal(native.stdout, nativeLoad ? "NATIVE_PAYLOAD_LOADED\n" : "");
@@ -272,25 +419,37 @@ for (const schemaVersion of [1, 2, 3]) {
           [["dynamic"], ["unresolved-runtime-reference"]],
           [["commonjs"], []],
         ]) {
-          await fixture(root, schemaVersion, { source: "export const marker = 1;", runtimeReferences: allowed });
+          await fixture(root, schemaVersion, {
+            source: "export const marker = 1;",
+            runtimeReferences: allowed,
+          });
           await check(root, cli, rules, [path]);
         }
-        for (const [cwd, output] of [["a", "IMPORTER_A\n"], ["b", "CWD_B\n"]]) {
+        for (const [cwd, output] of [
+          ["a", "IMPORTER_A\n"],
+          ["b", "CWD_B\n"],
+        ]) {
           const native = spawnSync(process.execPath, [join(root, path)], {
-            cwd: join(root, "packages/app/src", cwd), encoding: "utf8", timeout: 10_000,
+            cwd: join(root, "packages/app/src", cwd),
+            encoding: "utf8",
+            timeout: 10_000,
           });
           assert.equal(native.status, 0, native.stderr);
           assert.equal(native.stdout, output);
         }
       }
       // Retaining the receiver and ordinary require aliases preserve the importer base.
-      for (const source of ['const m = module; m.require("./payload.cjs");',
-        'const load = require; load("./payload.cjs");']) {
+      for (const source of [
+        'const m = module; m.require("./payload.cjs");',
+        'const load = require; load("./payload.cjs");',
+      ]) {
         await fixture(root, schemaVersion, { source: "export const marker = 1;" });
         await write(root, path, source);
         await check(root, cli, [], [path]);
         const native = spawnSync(process.execPath, [join(root, path)], {
-          cwd: join(root, "packages/app/src/b"), encoding: "utf8", timeout: 10_000,
+          cwd: join(root, "packages/app/src/b"),
+          encoding: "utf8",
+          timeout: 10_000,
         });
         assert.equal(native.status, 0, native.stderr);
         assert.equal(native.stdout, "IMPORTER_A\n");
@@ -317,7 +476,9 @@ for (const schemaVersion of [1, 2, 3]) {
       await write(root, "packages/app/src/a/payload.cjs", 'console.log("NATIVE_PAYLOAD_LOADED");');
       await write(root, path, source.replace('"node:fs"', '"./payload.cjs"'));
       const native = spawnSync(process.execPath, [join(root, path)], {
-        cwd: root, encoding: "utf8", timeout: 10_000,
+        cwd: root,
+        encoding: "utf8",
+        timeout: 10_000,
       });
       assert.equal(native.status, 0, native.stderr);
       assert.equal(native.stdout, "NATIVE_PAYLOAD_LOADED\n");
@@ -331,10 +492,22 @@ for (const schemaVersion of [1, 2, 3]) {
       for (const extension of ["cjs", "cts", "js", "ts"]) {
         const path = `packages/app/src/a/probe.${extension}`;
         for (const [name, source] of [
-          ["var first", 'var require; function require(value) { return "USER"; } console.log(require("node:fs"));'],
-          ["function first", 'function require(value) { return "USER"; } var require; console.log(require("node:fs"));'],
-          ["call before declarations", 'console.log(require("node:fs")); var require; function require(value) { return "USER"; }'],
-          ["alias before declaration", 'var require; const load = require; function require(value) { return "USER"; } console.log(load("node:fs"));'],
+          [
+            "var first",
+            'var require; function require(value) { return "USER"; } console.log(require("node:fs"));',
+          ],
+          [
+            "function first",
+            'function require(value) { return "USER"; } var require; console.log(require("node:fs"));',
+          ],
+          [
+            "call before declarations",
+            'console.log(require("node:fs")); var require; function require(value) { return "USER"; }',
+          ],
+          [
+            "alias before declaration",
+            'var require; const load = require; function require(value) { return "USER"; } console.log(load("node:fs"));',
+          ],
         ]) {
           await t.test(`${extension}: ${name}`, async () => {
             await fixture(root, schemaVersion, { source: "export const marker = 1;" });
@@ -344,7 +517,9 @@ for (const schemaVersion of [1, 2, 3]) {
             const manifest = JSON.parse(await readFile(join(root, manifestPath), "utf8"));
             await write(root, manifestPath, { ...manifest, type: "commonjs" });
             const native = spawnSync(process.execPath, [join(root, path)], {
-              cwd: root, encoding: "utf8", timeout: 10_000,
+              cwd: root,
+              encoding: "utf8",
+              timeout: 10_000,
             });
             assert.equal(native.status, 0, native.stderr);
             assert.equal(native.stdout, "USER\n");
@@ -361,22 +536,102 @@ for (const schemaVersion of [1, 2, 3]) {
   test(`installed CLI v${schemaVersion}: ARCH assignment and process default counterexamples`, async (t) => {
     await withInstalledCli(async (root, cli) => {
       const cases = [
-        ["assignment callee", "cjs", 'let load; console.log(typeof (load = require)("node:fs").readFileSync);', "forbidden-builtin-dependency"],
-        ["assignment initializer", "cjs", 'let first; const load = first = require; console.log(typeof load("node:fs").readFileSync);', "forbidden-builtin-dependency"],
-        ["assignment chain", "cjs", 'let first, second; first = second = require; console.log(typeof first("node:fs").readFileSync);', "unresolved-runtime-reference"],
-        ["logical OR RHS", "cjs", 'let load; console.log(typeof (load ||= require)("node:fs").readFileSync);', "unresolved-runtime-reference"],
-        ["logical AND RHS", "cjs", 'let load = true; console.log(typeof (load &&= require)("node:fs").readFileSync);', "unresolved-runtime-reference"],
-        ["nullish RHS", "cjs", 'let load; console.log(typeof (load ??= require)("node:fs").readFileSync);', "unresolved-runtime-reference"],
-        ["logical retained LHS", "cjs", 'let load = require; console.log(typeof (load ||= (() => {}))("node:fs").readFileSync);', "unresolved-runtime-reference"],
-        ["direct require control", "cjs", 'console.log(typeof require("node:fs").readFileSync);', "forbidden-builtin-dependency"],
-        ["separate write control", "cjs", 'let load; load = require; console.log(typeof load("node:fs").readFileSync);', "unresolved-runtime-reference"],
-        ["parameter shadow", "cjs", 'function f(require) { let first; const load = first = require; console.log(load("node:fs")); } f(() => "USER");', undefined],
-        ["user function", "cjs", 'function require() { return "USER"; } let load; console.log((load = require)("node:fs"));', undefined],
-        ["named default", "mjs", 'import { default as p } from "node:process"; console.log(typeof p.getBuiltinModule("node:fs").readFileSync);', "forbidden-builtin-dependency"],
-        ["namespace default", "mjs", 'import * as p from "node:process"; console.log(typeof p.default.getBuiltinModule("node:fs").readFileSync);', "forbidden-builtin-dependency"],
-        ["ordinary default control", "mjs", 'import p from "node:process"; console.log(typeof p.getBuiltinModule("node:fs").readFileSync);', "forbidden-builtin-dependency"],
-        ["named getter control", "mjs", 'import { getBuiltinModule as get } from "node:process"; console.log(typeof get("node:fs").readFileSync);', "forbidden-builtin-dependency"],
-        ["namespace getter control", "mjs", 'import * as p from "node:process"; console.log(typeof p.getBuiltinModule("node:fs").readFileSync);', "forbidden-builtin-dependency"],
+        [
+          "assignment callee",
+          "cjs",
+          'let load; console.log(typeof (load = require)("node:fs").readFileSync);',
+          "forbidden-builtin-dependency",
+        ],
+        [
+          "assignment initializer",
+          "cjs",
+          'let first; const load = first = require; console.log(typeof load("node:fs").readFileSync);',
+          "forbidden-builtin-dependency",
+        ],
+        [
+          "assignment chain",
+          "cjs",
+          'let first, second; first = second = require; console.log(typeof first("node:fs").readFileSync);',
+          "unresolved-runtime-reference",
+        ],
+        [
+          "logical OR RHS",
+          "cjs",
+          'let load; console.log(typeof (load ||= require)("node:fs").readFileSync);',
+          "unresolved-runtime-reference",
+        ],
+        [
+          "logical AND RHS",
+          "cjs",
+          'let load = true; console.log(typeof (load &&= require)("node:fs").readFileSync);',
+          "unresolved-runtime-reference",
+        ],
+        [
+          "nullish RHS",
+          "cjs",
+          'let load; console.log(typeof (load ??= require)("node:fs").readFileSync);',
+          "unresolved-runtime-reference",
+        ],
+        [
+          "logical retained LHS",
+          "cjs",
+          'let load = require; console.log(typeof (load ||= (() => {}))("node:fs").readFileSync);',
+          "unresolved-runtime-reference",
+        ],
+        [
+          "direct require control",
+          "cjs",
+          'console.log(typeof require("node:fs").readFileSync);',
+          "forbidden-builtin-dependency",
+        ],
+        [
+          "separate write control",
+          "cjs",
+          'let load; load = require; console.log(typeof load("node:fs").readFileSync);',
+          "unresolved-runtime-reference",
+        ],
+        [
+          "parameter shadow",
+          "cjs",
+          'function f(require) { let first; const load = first = require; console.log(load("node:fs")); } f(() => "USER");',
+          undefined,
+        ],
+        [
+          "user function",
+          "cjs",
+          'function require() { return "USER"; } let load; console.log((load = require)("node:fs"));',
+          undefined,
+        ],
+        [
+          "named default",
+          "mjs",
+          'import { default as p } from "node:process"; console.log(typeof p.getBuiltinModule("node:fs").readFileSync);',
+          "forbidden-builtin-dependency",
+        ],
+        [
+          "namespace default",
+          "mjs",
+          'import * as p from "node:process"; console.log(typeof p.default.getBuiltinModule("node:fs").readFileSync);',
+          "forbidden-builtin-dependency",
+        ],
+        [
+          "ordinary default control",
+          "mjs",
+          'import p from "node:process"; console.log(typeof p.getBuiltinModule("node:fs").readFileSync);',
+          "forbidden-builtin-dependency",
+        ],
+        [
+          "named getter control",
+          "mjs",
+          'import { getBuiltinModule as get } from "node:process"; console.log(typeof get("node:fs").readFileSync);',
+          "forbidden-builtin-dependency",
+        ],
+        [
+          "namespace getter control",
+          "mjs",
+          'import * as p from "node:process"; console.log(typeof p.getBuiltinModule("node:fs").readFileSync);',
+          "forbidden-builtin-dependency",
+        ],
       ];
       for (const [name, extension, source, rule] of cases) {
         await t.test(name, async () => {
@@ -386,7 +641,9 @@ for (const schemaVersion of [1, 2, 3]) {
           await write(root, path, source);
           try {
             const native = spawnSync(process.execPath, [join(root, path)], {
-              cwd: root, encoding: "utf8", timeout: 10_000,
+              cwd: root,
+              encoding: "utf8",
+              timeout: 10_000,
             });
             assert.equal(native.error, undefined);
             assert.equal(native.status, 0, native.stderr);
@@ -402,7 +659,10 @@ for (const schemaVersion of [1, 2, 3]) {
             } else if (rule !== undefined) {
               await fixture(root, schemaVersion, { ...options, runtimeReferences: ["commonjs"] });
               await check(root, cli, [rule], [path]);
-              await fixture(root, schemaVersion, { ...options, builtins: ["node:process", "node:fs"] });
+              await fixture(root, schemaVersion, {
+                ...options,
+                builtins: ["node:process", "node:fs"],
+              });
               await check(root, cli, [], [path]);
             }
           } finally {
@@ -419,10 +679,17 @@ test("installed CLI preserves historical source schemas and exposes canonical v3
   await withInstalledCli(async (root, cli) => {
     // The CLI has schema <id>, not a schema-list command. Inspect its installed
     // catalog contribution and exercise every listed source schema through CLI.
-    const { FOUNDATION_SCHEMA_IDS } = await import(pathToFileURL(join(dirname(cli), "schema-ids.js")).href);
-    assert.deepEqual(FOUNDATION_SCHEMA_IDS.filter((id) => id.startsWith("architecture-source-dependencies/")), [
-      "architecture-source-dependencies/v1", "architecture-source-dependencies/v2", "architecture-source-dependencies/v3",
-    ]);
+    const { FOUNDATION_SCHEMA_IDS } = await import(
+      pathToFileURL(join(dirname(cli), "schema-ids.js")).href
+    );
+    assert.deepEqual(
+      FOUNDATION_SCHEMA_IDS.filter((id) => id.startsWith("architecture-source-dependencies/")),
+      [
+        "architecture-source-dependencies/v1",
+        "architecture-source-dependencies/v2",
+        "architecture-source-dependencies/v3",
+      ],
+    );
     const digests = new Map([
       [1, "e09297414ef883272c492f14319f50b74dc4e12603352ede80b893723b296f80"],
       [2, "90a43d2058014bb12b9b6d87e13d8a43c1de532e1b67c52b9c57b81e4ef7d5bd"],
@@ -431,13 +698,16 @@ test("installed CLI preserves historical source schemas and exposes canonical v3
       const id = `architecture-source-dependencies/v${version}`;
       const expected = await readFile(join(packageInput, "schemas", `${id}.schema.json`));
       const result = spawnSync(process.execPath, [cli, "schema", id], {
-        cwd: root, timeout: 30_000,
+        cwd: root,
+        timeout: 30_000,
       });
       assert.equal(result.error, undefined);
       assert.equal(result.status, 0, result.stderr?.toString());
       assert.deepEqual(result.stdout, expected);
-      assert.equal(JSON.parse(expected).$id,
-        `https://schemas.agent-teams.ai/engineering-foundation/${id}`);
+      assert.equal(
+        JSON.parse(expected).$id,
+        `https://schemas.agent-teams.ai/engineering-foundation/${id}`,
+      );
       if (digests.has(version)) {
         assert.equal(createHash("sha256").update(expected).digest("hex"), digests.get(version));
       }

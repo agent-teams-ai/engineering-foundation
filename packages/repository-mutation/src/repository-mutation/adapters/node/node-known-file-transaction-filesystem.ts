@@ -6,12 +6,12 @@ import { basename, join, resolve } from "node:path";
 
 import type {
   KnownFileImageV1,
-  KnownFileTransactionPlanV1
+  KnownFileTransactionPlanV1,
 } from "../../application/model/known-file-transaction.js";
 import type { KnownFileTransactionJournalOperationV1 } from "../../application/model/known-file-transaction-journal.js";
 import {
   portableRepositoryPathIdentity,
-  portableRepositoryPathProblem
+  portableRepositoryPathProblem,
 } from "../../application/model/repository-path.js";
 
 import { isLexicallyContainedPath } from "./node-repository-path.js";
@@ -39,10 +39,9 @@ export function knownFileErrorCode(error: unknown): string | undefined {
 
 export function sameKnownFileIdentity(
   left: Awaited<ReturnType<KnownFileCoordination["captureFileHandleIdentity"]>>,
-  right: Awaited<ReturnType<KnownFileCoordination["captureFileHandleIdentity"]>>
+  right: Awaited<ReturnType<KnownFileCoordination["captureFileHandleIdentity"]>>,
 ): boolean {
-  return left.birthtimeNs === right.birthtimeNs &&
-    left.dev === right.dev && left.ino === right.ino;
+  return left.birthtimeNs === right.birthtimeNs && left.dev === right.dev && left.ino === right.ino;
 }
 
 export function knownFileImageBytes(image: KnownFileImageV1): Buffer {
@@ -51,18 +50,21 @@ export function knownFileImageBytes(image: KnownFileImageV1): Buffer {
 
 export function matchesKnownFileImage(
   observed: ObservedKnownFile,
-  image: KnownFileImageV1
+  image: KnownFileImageV1,
 ): boolean {
-  return observed.state === "file" && observed.bytes !== undefined &&
+  return (
+    observed.state === "file" &&
+    observed.bytes !== undefined &&
     observed.bytes.byteLength === image.size &&
     `sha256:${createHash("sha256").update(observed.bytes).digest("hex")}` === image.digest &&
-    observed.mode === image.mode;
+    observed.mode === image.mode
+  );
 }
 
 export function knownFileTemporaryName(
   path: string,
   planDigest: string,
-  operationIndex: number
+  operationIndex: number,
 ): string {
   return `.${basename(path)}.agent-teams.${planDigest.slice(7, 23)}.${operationIndex}.tmp`;
 }
@@ -70,7 +72,7 @@ export function knownFileTemporaryName(
 export function knownFileCaptureDirectoryName(
   path: string,
   planDigest: string,
-  operationIndex: number
+  operationIndex: number,
 ): string {
   return `.${basename(path)}.agent-teams.capture.${planDigest.slice(7, 23)}.${operationIndex}`;
 }
@@ -81,7 +83,7 @@ export async function canonicalKnownFileRoot(consumerRoot: string): Promise<stri
   if (metadata.isSymbolicLink() || !metadata.isDirectory()) {
     throw new KnownFileTransactionError(
       "KNOWN_FILE_ROOT_INVALID",
-      "Consumer root must be one real directory, not a symlink."
+      "Consumer root must be one real directory, not a symlink.",
     );
   }
   return realpath(requested);
@@ -89,7 +91,7 @@ export async function canonicalKnownFileRoot(consumerRoot: string): Promise<stri
 
 export async function knownFileAliasEntry(
   parent: string,
-  requested: string
+  requested: string,
 ): Promise<string | undefined> {
   const identity = portableRepositoryPathIdentity(requested);
   const directory = await opendir(parent);
@@ -98,12 +100,14 @@ export async function knownFileAliasEntry(
   try {
     for (;;) {
       const entry = await directory.read();
-      if (entry === null) {break;}
+      if (entry === null) {
+        break;
+      }
       entries += 1;
       if (entries > MAXIMUM_DIRECTORY_ENTRIES) {
         throw new KnownFileTransactionError(
           "KNOWN_FILE_PATH_ALIAS",
-          `Directory enumeration budget was exceeded while checking ${requested}.`
+          `Directory enumeration budget was exceeded while checking ${requested}.`,
         );
       }
       if (portableRepositoryPathIdentity(entry.name) === identity) {
@@ -116,7 +120,7 @@ export async function knownFileAliasEntry(
   if (matches.some((entry) => entry !== requested)) {
     throw new KnownFileTransactionError(
       "KNOWN_FILE_PATH_ALIAS",
-      `Portable case or Unicode path collision blocks ${requested}.`
+      `Portable case or Unicode path collision blocks ${requested}.`,
     );
   }
   return matches.find((entry) => entry === requested);
@@ -124,20 +128,20 @@ export async function knownFileAliasEntry(
 
 async function resolveExistingParent(
   root: string,
-  repositoryPath: string
+  repositoryPath: string,
 ): Promise<{ readonly absolute: string; readonly complete: boolean }> {
   const problem = portableRepositoryPathProblem(repositoryPath);
   if (problem !== undefined) {
     throw new KnownFileTransactionError(
       "KNOWN_FILE_PATH_INVALID",
-      `Repository path is not portable (${problem}): ${repositoryPath}.`
+      `Repository path is not portable (${problem}): ${repositoryPath}.`,
     );
   }
   const segments = repositoryPath.split("/");
   segments.pop();
   let current = root;
   for (const segment of segments) {
-    if (await knownFileAliasEntry(current, segment) === undefined) {
+    if ((await knownFileAliasEntry(current, segment)) === undefined) {
       return { absolute: current, complete: false };
     }
     current = join(current, segment);
@@ -145,29 +149,32 @@ async function resolveExistingParent(
     if (metadata.isSymbolicLink() || !metadata.isDirectory()) {
       throw new KnownFileTransactionError(
         "KNOWN_FILE_ANCESTOR_INVALID",
-        `Repository ancestor must be one real directory: ${repositoryPath}.`
+        `Repository ancestor must be one real directory: ${repositoryPath}.`,
       );
     }
     const canonical = await realpath(current);
     if (!isLexicallyContainedPath(root, canonical) || canonical !== current) {
       throw new KnownFileTransactionError(
         "KNOWN_FILE_PATH_ESCAPE",
-        `Repository ancestor escapes or aliases the root: ${repositoryPath}.`
+        `Repository ancestor escapes or aliases the root: ${repositoryPath}.`,
       );
     }
   }
   return { absolute: current, complete: true };
 }
 
-export async function observeKnownFile(coordination: Pick<KnownFileCoordination, "readBoundedRegularFile">,
+export async function observeKnownFile(
+  coordination: Pick<KnownFileCoordination, "readBoundedRegularFile">,
   root: string,
   repositoryPath: string,
-  maximumBytes: number
+  maximumBytes: number,
 ): Promise<ObservedKnownFile> {
   const parent = await resolveExistingParent(root, repositoryPath);
-  if (!parent.complete) {return { state: "absent" };}
+  if (!parent.complete) {
+    return { state: "absent" };
+  }
   const name = repositoryPath.split("/").at(-1)!;
-  if (await knownFileAliasEntry(parent.absolute, name) === undefined) {
+  if ((await knownFileAliasEntry(parent.absolute, name)) === undefined) {
     return { state: "absent" };
   }
   const path = join(root, ...repositoryPath.split("/"));
@@ -175,47 +182,47 @@ export async function observeKnownFile(coordination: Pick<KnownFileCoordination,
   if (metadata.isSymbolicLink() || !metadata.isFile()) {
     throw new KnownFileTransactionError(
       "KNOWN_FILE_DESTINATION_INVALID",
-      `Managed path must be a real regular file: ${repositoryPath}.`
+      `Managed path must be a real regular file: ${repositoryPath}.`,
     );
   }
   const observed = await coordination.readBoundedRegularFile(
     path,
-    Math.max(maximumBytes, MAXIMUM_MANAGED_FILE_BYTES)
+    Math.max(maximumBytes, MAXIMUM_MANAGED_FILE_BYTES),
   );
   if (observed.outcome !== "read") {
     throw new KnownFileTransactionError(
       "KNOWN_FILE_UNSTABLE",
-      `Managed path is oversized, unstable, or invalid: ${repositoryPath}.`
+      `Managed path is oversized, unstable, or invalid: ${repositoryPath}.`,
     );
   }
   if (observed.linkCount !== 1n) {
     throw new KnownFileTransactionError(
       "KNOWN_FILE_HARDLINK",
-      `Managed path has multiple hard links: ${repositoryPath}.`
+      `Managed path has multiple hard links: ${repositoryPath}.`,
     );
   }
   return {
     state: "file",
     bytes: observed.bytes,
     identity: observed.identity,
-    mode: observed.mode & 0o777
+    mode: observed.mode & 0o777,
   };
 }
 
 export function maximumKnownFileEvidenceBytes(
-  operation: KnownFileTransactionPlanV1["operations"][number]
+  operation: KnownFileTransactionPlanV1["operations"][number],
 ): number {
   return Math.max(
     operation.postimage.size,
     ...(operation.precondition.state === "known-file"
       ? operation.precondition.acceptedPreimages.map(({ size }) => size)
-      : [0])
+      : [0]),
   );
 }
 
 export function classifyKnownFileOperation(
   operation: KnownFileTransactionPlanV1["operations"][number],
-  observed: ObservedKnownFile
+  observed: ObservedKnownFile,
 ): KnownFileTransactionJournalOperationV1 {
   if (matchesKnownFileImage(observed, operation.postimage)) {
     return { path: operation.path, state: "already-satisfied" };
@@ -224,18 +231,18 @@ export function classifyKnownFileOperation(
     if (observed.state !== "absent") {
       throw new KnownFileTransactionError(
         "KNOWN_FILE_CAS_MISMATCH",
-        `Expected an absent managed path: ${operation.path}.`
+        `Expected an absent managed path: ${operation.path}.`,
       );
     }
     return { path: operation.path, state: "pending" };
   }
-  const matchedPreimage = operation.precondition.acceptedPreimages.findIndex(
-    (image) => matchesKnownFileImage(observed, image)
+  const matchedPreimage = operation.precondition.acceptedPreimages.findIndex((image) =>
+    matchesKnownFileImage(observed, image),
   );
   if (matchedPreimage === -1) {
     throw new KnownFileTransactionError(
       "KNOWN_FILE_CAS_MISMATCH",
-      `Managed path does not match an exact accepted preimage: ${operation.path}.`
+      `Managed path does not match an exact accepted preimage: ${operation.path}.`,
     );
   }
   return { path: operation.path, state: "pending", matchedPreimage };

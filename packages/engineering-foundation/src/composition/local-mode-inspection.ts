@@ -8,9 +8,15 @@ function inspectTransaction(consumerRoot: string) {
 }
 const inspection = createFoundationModeInspection(inspectTransaction);
 
-export async function inspectFoundationMode(consumerPath: string, options?: { readonly ignoreOperationLock?: boolean }): Promise<FoundationStatus> {
+export async function inspectFoundationMode(
+  consumerPath: string,
+  options?: { readonly ignoreOperationLock?: boolean },
+): Promise<FoundationStatus> {
   return inspection.inspectFoundationMode(consumerPath, options);
 }
-export async function inspectFoundationTransactionAwareMode(consumerPath: string, options?: { readonly ignoreOperationLock?: boolean }): Promise<FoundationTransactionAwareStatus> {
+export async function inspectFoundationTransactionAwareMode(
+  consumerPath: string,
+  options?: { readonly ignoreOperationLock?: boolean },
+): Promise<FoundationTransactionAwareStatus> {
   return inspection.inspectFoundationTransactionAwareMode(consumerPath, options);
 }

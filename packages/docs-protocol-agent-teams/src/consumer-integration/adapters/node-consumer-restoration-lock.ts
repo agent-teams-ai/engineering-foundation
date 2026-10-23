@@ -1,23 +1,43 @@
 import { isNode, parseDocument, visit } from "yaml";
-import type { ConsumerIntegrationDesiredStateV1, ConsumerIntegrationDesiredStateV3 } from "../domain/model.js";
+import type {
+  ConsumerIntegrationDesiredStateV1,
+  ConsumerIntegrationDesiredStateV3,
+} from "../domain/model.js";
 import { requireRestoration, restorationJson } from "../application-api.js";
 import { assertQualifiedPnpmLockfileV1 } from "./pnpm-lockfile-validator-v1.js";
 import { observeQualifiedPnpmLockfileV2 } from "./pnpm-lockfile-validator-v2.js";
 
 type RecordValue = Record<string, unknown>;
-const managedRoots = new Set(["@agent-teams/docs-protocol", "@agent-teams/engineering-foundation", "@agent-teams/docs-protocol-agent-teams"]);
+const managedRoots = new Set([
+  "@agent-teams/docs-protocol",
+  "@agent-teams/engineering-foundation",
+  "@agent-teams/docs-protocol-agent-teams",
+]);
 const sections = ["dependencies", "devDependencies", "optionalDependencies"];
 function record(value: unknown): RecordValue {
-  requireRestoration(value !== null && typeof value === "object" && !Array.isArray(value), "invalid lock mapping.");
+  requireRestoration(
+    value !== null && typeof value === "object" && !Array.isArray(value),
+    "invalid lock mapping.",
+  );
   return value as RecordValue;
 }
 function parse(bytes: Uint8Array) {
-  const document = parseDocument(new TextDecoder("utf-8", { fatal: true }).decode(bytes), { uniqueKeys: true });
+  const document = parseDocument(new TextDecoder("utf-8", { fatal: true }).decode(bytes), {
+    uniqueKeys: true,
+  });
   requireRestoration(document.errors.length === 0, "invalid lock YAML.");
-  const comments = [document.commentBefore, document.comment].filter((value): value is string => typeof value === "string");
+  const comments = [document.commentBefore, document.comment].filter(
+    (value): value is string => typeof value === "string",
+  );
   visit(document, (_key, node) => {
-    if (!isNode(node)) {return;}
-    for (const value of [node.commentBefore, node.comment]) {if (typeof value === "string") {comments.push(value);}}
+    if (!isNode(node)) {
+      return;
+    }
+    for (const value of [node.commentBefore, node.comment]) {
+      if (typeof value === "string") {
+        comments.push(value);
+      }
+    }
   });
   return { value: record(document.toJS({ maxAliasCount: 0 })), comments: comments.toSorted() };
 }
@@ -31,10 +51,14 @@ function closure(lock: RecordValue, roots: readonly string[]): Set<string> {
   const pending = [...roots];
   while (pending.length > 0) {
     const key = pending.pop()!;
-    if (visited.has(key)) {continue;}
+    if (visited.has(key)) {
+      continue;
+    }
     requireRestoration(visited.size < 8192, "lock scope exceeds bounded graph.");
     // Unrelated workspace/link dependencies remain verbatim in their importer.
-    if (!Object.hasOwn(snapshots, key)) {continue;}
+    if (!Object.hasOwn(snapshots, key)) {
+      continue;
+    }
     visited.add(key);
     const snapshot = record(snapshots[key]);
     for (const section of ["dependencies", "optionalDependencies"]) {
@@ -60,10 +84,14 @@ function nonOwnedProjection(lock: RecordValue): RecordValue {
         requireRestoration(typeof binding["version"] === "string", "invalid importer resolution.");
         const isOwned = path === "." && section === "devDependencies" && managedRoots.has(name);
         (isOwned ? owned : foreign).push(snapshotLocator(lock, name, binding["version"]));
-        if (isOwned) {delete entries[name];}
+        if (isOwned) {
+          delete entries[name];
+        }
       }
       // pnpm removes empty dependency sections; normalize only this structural difference.
-      if (Object.keys(entries).length === 0) {delete importer[section];}
+      if (Object.keys(entries).length === 0) {
+        delete importer[section];
+      }
     }
   }
   const managed = closure(lock, owned);
@@ -72,21 +100,35 @@ function nonOwnedProjection(lock: RecordValue): RecordValue {
   const snapshots = record(copy["snapshots"]);
   const packages = record(copy["packages"]);
   for (const key of managed) {
-    if (!preserved.has(key)) {delete snapshots[key];}
+    if (!preserved.has(key)) {
+      delete snapshots[key];
+    }
     const physical = key.split("(", 1)[0]!;
-    if (!preservedPackages.has(physical)) {delete packages[physical];}
+    if (!preservedPackages.has(physical)) {
+      delete packages[physical];
+    }
   }
   return copy;
 }
 
-export function assertRestorationLockScope(before: Uint8Array, after: Uint8Array,
-  source: ConsumerIntegrationDesiredStateV1, target: ConsumerIntegrationDesiredStateV3): void {
+export function assertRestorationLockScope(
+  before: Uint8Array,
+  after: Uint8Array,
+  source: ConsumerIntegrationDesiredStateV1,
+  target: ConsumerIntegrationDesiredStateV3,
+): void {
   // Validate consumer coordinates, provenance and edges without equating its graph to isolated qualification.
   assertQualifiedPnpmLockfileV1(before, source);
   observeQualifiedPnpmLockfileV2(after, target);
-  const sourceLock = parse(before), targetLock = parse(after);
-  requireRestoration(restorationJson(sourceLock.comments) === restorationJson(targetLock.comments),
-    "lock migration changes consumer comments.");
-  requireRestoration(restorationJson(nonOwnedProjection(sourceLock.value)) === restorationJson(nonOwnedProjection(targetLock.value)),
-    "lock migration changes non-owned policy, importers, dependencies or package graphs.");
+  const sourceLock = parse(before),
+    targetLock = parse(after);
+  requireRestoration(
+    restorationJson(sourceLock.comments) === restorationJson(targetLock.comments),
+    "lock migration changes consumer comments.",
+  );
+  requireRestoration(
+    restorationJson(nonOwnedProjection(sourceLock.value)) ===
+      restorationJson(nonOwnedProjection(targetLock.value)),
+    "lock migration changes non-owned policy, importers, dependencies or package graphs.",
+  );
 }

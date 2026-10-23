@@ -6,13 +6,13 @@ import {
   recoveryPathsOutsideConsumer,
   invalidRegistryBackup,
   unprovenRegistryEntry,
-  missingTargetPackage
+  missingTargetPackage,
 } from "../../application/inspection-failures.js";
 import type { FoundationLinkState } from "../../application/model.js";
 import {
   FOUNDATION_PACKAGE_NAME,
   LOCAL_REGISTRY_BACKUP,
-  LOCAL_STATE_DIRECTORY
+  LOCAL_STATE_DIRECTORY,
 } from "../../application/model.js";
 
 interface PackageManifest {
@@ -33,7 +33,11 @@ async function pathExists(path: string): Promise<boolean> {
     await stat(path);
     return true;
   } catch (error) {
-    if (error instanceof Error && "code" in error && (error as NodeJS.ErrnoException).code === "ENOENT") {
+    if (
+      error instanceof Error &&
+      "code" in error &&
+      (error as NodeJS.ErrnoException).code === "ENOENT"
+    ) {
       return false;
     }
     throw error;
@@ -45,7 +49,11 @@ export async function pathEntryExists(path: string): Promise<boolean> {
     await lstat(path);
     return true;
   } catch (error) {
-    if (error instanceof Error && "code" in error && (error as NodeJS.ErrnoException).code === "ENOENT") {
+    if (
+      error instanceof Error &&
+      "code" in error &&
+      (error as NodeJS.ErrnoException).code === "ENOENT"
+    ) {
       return false;
     }
     throw error;
@@ -80,21 +88,22 @@ function backupRootExpected(
   consumerRoot: string,
   backupRoot: string,
   backupPath: string,
-  state: FoundationLinkState | undefined
+  state: FoundationLinkState | undefined,
 ): boolean {
   if (state === undefined) {
     return backupRoot === backupPath || isWithin(join(consumerRoot, "node_modules"), backupRoot);
   }
-  return backupRoot === (state.registryEntryKind === "directory"
-    ? backupPath
-    : resolve(state.registryPackageRoot));
+  return (
+    backupRoot ===
+    (state.registryEntryKind === "directory" ? backupPath : resolve(state.registryPackageRoot))
+  );
 }
 
 export async function restoreRegistryEntry(
   consumerRoot: string,
   dependencySpec: string,
   state: FoundationLinkState | undefined,
-  syncDirectory: (path: string) => Promise<void>
+  syncDirectory: (path: string) => Promise<void>,
 ): Promise<void> {
   const installedPath = join(consumerRoot, "node_modules", FOUNDATION_PACKAGE_NAME);
   const backupPath = join(consumerRoot, LOCAL_STATE_DIRECTORY, LOCAL_REGISTRY_BACKUP);
@@ -119,9 +128,11 @@ export async function restoreRegistryEntry(
   }
   if (await pathEntryExists(installedPath)) {
     const installed = await readPackageEntry(installedPath).catch(() => {});
-    const expectedRoot = state === undefined
-      ? installed !== undefined && isWithin(join(consumerRoot, "node_modules"), installed.packageRoot)
-      : installed?.packageRoot === resolve(state.registryPackageRoot);
+    const expectedRoot =
+      state === undefined
+        ? installed !== undefined &&
+          isWithin(join(consumerRoot, "node_modules"), installed.packageRoot)
+        : installed?.packageRoot === resolve(state.registryPackageRoot);
     if (
       installed !== undefined &&
       expectedRoot &&

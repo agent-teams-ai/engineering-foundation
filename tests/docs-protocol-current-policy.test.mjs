@@ -7,7 +7,10 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { Ajv2020 } from "ajv/dist/2020.js";
-import { assertNodeLane, importInstalledQualification } from "../scripts/node-engine-compatibility.mjs";
+import {
+  assertNodeLane,
+  importInstalledQualification,
+} from "../scripts/node-engine-compatibility.mjs";
 
 const schemaPath = "architecture/contracts/docs-protocol-current-policy/v1.schema.json";
 const policyPath = "architecture/foundation/docs-protocol-current-policy.json";
@@ -28,13 +31,18 @@ async function json(path) {
 
 test("current-policy schema rejects swapped and mixed runtime lane identities", () => {
   const swapped = structuredClone(policy);
-  [swapped.runtime.productionDefault, swapped.runtime.compatibilityLane] =
-    [swapped.runtime.compatibilityLane, swapped.runtime.productionDefault];
+  [swapped.runtime.productionDefault, swapped.runtime.compatibilityLane] = [
+    swapped.runtime.compatibilityLane,
+    swapped.runtime.productionDefault,
+  ];
   assert.equal(validatePolicy(swapped), false);
   for (const slot of ["productionDefault", "compatibilityLane"]) {
     for (const key of ["id", "status", "nodeMajor", "engine", "qualificationVersion", "default"]) {
       const mixed = structuredClone(policy);
-      mixed.runtime[slot][key] = policy.runtime[slot === "productionDefault" ? "compatibilityLane" : "productionDefault"][key];
+      mixed.runtime[slot][key] =
+        policy.runtime[slot === "productionDefault" ? "compatibilityLane" : "productionDefault"][
+          key
+        ];
       assert.equal(validatePolicy(mixed), false, `${slot}.${key}`);
     }
   }
@@ -61,7 +69,9 @@ test("v2 current policy binds each family's current generation, supported set an
   const rejectsAt = (candidate, family, field, description) => {
     assert.equal(validateV2Policy(candidate), false, description);
     assert.ok(
-      validateV2Policy.errors.some((error) => error.instancePath === `/contracts/${family}/${field}`),
+      validateV2Policy.errors.some(
+        (error) => error.instancePath === `/contracts/${family}/${field}`,
+      ),
       `${description}: ${JSON.stringify(validateV2Policy.errors)}`,
     );
   };
@@ -85,18 +95,25 @@ test("v2 current policy binds each family's current generation, supported set an
     const shiftedGeneration = structuredClone(v2Policy);
     shiftedGeneration.contracts[family].current = wrongCurrent.contracts[family].current;
     shiftedGeneration.contracts[family].currentSchemaPath = canonical.currentSchemaPath.replace(
-      `/v${canonical.current}.schema.json`, `/v${wrongCurrent.contracts[family].current}.schema.json`,
+      `/v${canonical.current}.schema.json`,
+      `/v${wrongCurrent.contracts[family].current}.schema.json`,
     );
     rejectsAt(shiftedGeneration, family, "current", `${family}: v2 generation is fixed`);
 
     const wrongVersionPath = structuredClone(v2Policy);
-    wrongVersionPath.contracts[family].currentSchemaPath = shiftedGeneration.contracts[family].currentSchemaPath;
-    rejectsAt(wrongVersionPath, family, "currentSchemaPath", `${family}: path differs from current`);
+    wrongVersionPath.contracts[family].currentSchemaPath =
+      shiftedGeneration.contracts[family].currentSchemaPath;
+    rejectsAt(
+      wrongVersionPath,
+      family,
+      "currentSchemaPath",
+      `${family}: path differs from current`,
+    );
 
     const wrongFamilyPath = structuredClone(v2Policy);
-    wrongFamilyPath.contracts[family].currentSchemaPath = v2Policy.contracts[otherFamily].currentSchemaPath.replace(
-      /\/v\d+\.schema\.json$/, `/v${canonical.current}.schema.json`,
-    );
+    wrongFamilyPath.contracts[family].currentSchemaPath = v2Policy.contracts[
+      otherFamily
+    ].currentSchemaPath.replace(/\/v\d+\.schema\.json$/, `/v${canonical.current}.schema.json`);
     rejectsAt(wrongFamilyPath, family, "currentSchemaPath", `${family}: path names another family`);
   }
 });
@@ -146,17 +163,35 @@ test("current policy binds package engines, schema generations and the real qual
   assert.equal(repositoryDefault, "26.11.1");
   assert.equal(Number(repositoryDefault.split(".")[0]), policy.runtime.compatibilityLane.nodeMajor);
   assert.doesNotThrow(() => assertNodeLane(repositoryDefault, policy, repositoryDefault));
-  assert.doesNotThrow(() => assertNodeLane(policy.runtime.productionDefault.qualificationVersion, policy, repositoryDefault));
-  assert.throws(() => assertNodeLane("26.9.0", policy, repositoryDefault), /repository default or a policy-qualified/u);
+  assert.doesNotThrow(() =>
+    assertNodeLane(
+      policy.runtime.productionDefault.qualificationVersion,
+      policy,
+      repositoryDefault,
+    ),
+  );
+  assert.throws(
+    () => assertNodeLane("26.9.0", policy, repositoryDefault),
+    /repository default or a policy-qualified/u,
+  );
 
   for (const [family, expectedPath] of [
     ["profile", "packages/docs-protocol/schemas/docs-protocol-profile"],
-    ["portableCommandEnvelope", "packages/docs-protocol/schemas/docs-protocol-portable-command-envelope"],
+    [
+      "portableCommandEnvelope",
+      "packages/docs-protocol/schemas/docs-protocol-portable-command-envelope",
+    ],
   ]) {
     const generation = policy.contracts[family];
-    assert.deepEqual(generation.supported, generation.supported.toSorted((left, right) => left - right));
+    assert.deepEqual(
+      generation.supported,
+      generation.supported.toSorted((left, right) => left - right),
+    );
     assert.ok(generation.supported.includes(generation.current));
-    assert.equal(generation.currentSchemaPath, `${expectedPath}/v${generation.current}.schema.json`);
+    assert.equal(
+      generation.currentSchemaPath,
+      `${expectedPath}/v${generation.current}.schema.json`,
+    );
     for (const version of generation.supported) {
       const candidate = await json(`${expectedPath}/v${version}.schema.json`);
       assert.equal(candidate.properties.schemaVersion.const, version);
@@ -172,7 +207,11 @@ test("current policy binds package engines, schema generations and the real qual
 test("current policy freezes historical v1, v2 and cohort schema bytes", async () => {
   assert.equal(policy.history.preservedSchemas.length, 12);
   for (const preserved of policy.history.preservedSchemas) {
-    assert.equal(sha256(await readFile(fromRoot(preserved.path))), preserved.sha256, preserved.path);
+    assert.equal(
+      sha256(await readFile(fromRoot(preserved.path))),
+      preserved.sha256,
+      preserved.path,
+    );
   }
 });
 
@@ -188,8 +227,14 @@ test("installed ESM qualification rejects missing and wrong public export target
       const installed = join(consumer, "node_modules", "@agent-teams", "docs-protocol");
       await mkdir(installed, { recursive: true });
       await writeFile(join(consumer, "package.json"), '{"type":"module"}\n');
-      await writeFile(join(installed, "package.json"), JSON.stringify({ name: "@agent-teams/docs-protocol", type: "module", exports }));
-      await writeFile(join(installed, "qualification.mjs"), "export function runDocsProtocolQualification() {}\n");
+      await writeFile(
+        join(installed, "package.json"),
+        JSON.stringify({ name: "@agent-teams/docs-protocol", type: "module", exports }),
+      );
+      await writeFile(
+        join(installed, "qualification.mjs"),
+        "export function runDocsProtocolQualification() {}\n",
+      );
       if (name === "working") {
         const imported = await importInstalledQualification(consumer);
         assert.equal(typeof imported.runDocsProtocolQualification, "function");

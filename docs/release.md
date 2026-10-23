@@ -450,8 +450,9 @@ approved in the bootstrap profile. Adding it to the closed catalog blocks
 **every ordinary Foundation publication** until the existing protected
 namespace bootstrap has reviewed approval and the immutable deprecated
 `0.0.0` baseline. Required interactive npm readiness was blocked at preflight,
-so public admission remains unmerged while source/review/CI preparation is
-completed. Final-head/current-base full CI must reproduce that approved archive
+and source admission subsequently merged through PR421. That merge does not
+prove interactive readiness or authorize bootstrap. The latest reviewed writer
+identity is recorded in the admission note. Final-head/current-base full CI must reproduce that approved archive
 under the current writer inputs before merge; the retained earlier run does not
 qualify the integrated source. Require fresh protected-main CI after merge before creating its timed
 credential. Provision no short-lived token or bootstrap enablement early.

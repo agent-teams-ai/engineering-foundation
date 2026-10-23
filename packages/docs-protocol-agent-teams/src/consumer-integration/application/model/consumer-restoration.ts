@@ -1,11 +1,14 @@
 import type { ConsumerUpgradeExecutionV1 } from "./consumer-upgrade-execution.js";
 import type {
-  KnownFileTransactionPlanV1, KnownFileTransactionReceiptV1,
-  RepositoryMutationArtifactIdentity
+  KnownFileTransactionPlanV1,
+  KnownFileTransactionReceiptV1,
+  RepositoryMutationArtifactIdentity,
 } from "@agent-teams/repository-mutation";
 import type {
-  ConsumerIntegrationDesiredStateV1, ConsumerIntegrationIssue, QualifiedDocsCohortBindingV1,
-  QualifiedDocsCohortBindingV2
+  ConsumerIntegrationDesiredStateV1,
+  ConsumerIntegrationIssue,
+  QualifiedDocsCohortBindingV1,
+  QualifiedDocsCohortBindingV2,
 } from "../../domain/model.js";
 
 export interface ConsumerRestorationIntent {
@@ -71,7 +74,10 @@ export interface ConsumerRestorationExecution {
 }
 
 // The existing public upgrade API stays unchanged; retained proof is an explicit CLI lifecycle.
-export interface RestorableConsumerUpgradeExecution extends Omit<ConsumerUpgradeExecutionV1, "outcome" | "command"> {
+export interface RestorableConsumerUpgradeExecution extends Omit<
+  ConsumerUpgradeExecutionV1,
+  "outcome" | "command"
+> {
   readonly command: "consumer.upgrade" | "consumer.finalize";
   readonly outcome: ConsumerUpgradeExecutionV1["outcome"] | "prepared";
   readonly preparation?: RetainedConsumerRestoration;

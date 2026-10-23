@@ -1,17 +1,25 @@
-import type { KnownFileMutationPort, KnownFileLeaseReleaseRequest } from "../ports/known-file-mutation.js";
+import type {
+  KnownFileMutationPort,
+  KnownFileLeaseReleaseRequest,
+} from "../ports/known-file-mutation.js";
 
 /**
  * Releases a known-file lease without allowing a release failure to mask the
  * already-settled primary failure.
  */
-export async function releaseKnownFileTransactionLease(coordination: Pick<KnownFileMutationPort, "releaseMutationLease" | "retainMutationBarrier">, options: KnownFileLeaseReleaseRequest): Promise<void> {
+export async function releaseKnownFileTransactionLease(
+  coordination: Pick<KnownFileMutationPort, "releaseMutationLease" | "retainMutationBarrier">,
+  options: KnownFileLeaseReleaseRequest,
+): Promise<void> {
   return releaseKnownFileTransactionLeaseWith({
     jointFailureMessage: options.jointFailureMessage,
     ...(options.primaryFailure === undefined ? {} : { primaryFailure: options.primaryFailure }),
     release: async () => {
-      if (options.retainTransactionBarrier) {coordination.retainMutationBarrier(options.lease);}
+      if (options.retainTransactionBarrier) {
+        coordination.retainMutationBarrier(options.lease);
+      }
       await coordination.releaseMutationLease(options.lease);
-    }
+    },
   });
 }
 
@@ -26,12 +34,14 @@ export async function releaseKnownFileTransactionLeaseWith(options: {
   } catch (error) {
     releaseFailure = { reason: error };
   }
-  if (releaseFailure === undefined) {return;}
+  if (releaseFailure === undefined) {
+    return;
+  }
   if (options.primaryFailure !== undefined) {
     throw new AggregateError(
       [options.primaryFailure.reason, releaseFailure.reason],
       options.jointFailureMessage,
-      { cause: options.primaryFailure.reason }
+      { cause: options.primaryFailure.reason },
     );
   }
   return Promise.reject(releaseFailure.reason);

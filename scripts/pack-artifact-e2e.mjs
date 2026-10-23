@@ -1,17 +1,49 @@
+import { describeArchiveDifference } from "./pack-archive-difference.ts";
+import {
+  expectedArchiveName,
+  parsedArchiveListings,
+  sameAuthoritativeFileIdentity,
+  workspaceCatalogVersions,
+  releaseManifestIdentity,
+} from "./pack-artifact-identities.ts";
+export { sameAuthoritativeFileIdentity } from "./pack-artifact-identities.ts";
 import { lstat, mkdir, mkdtemp, realpath, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { observePackageWildcardExports } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/adapters/outbound/filesystem/filesystem-package-artifact-inventory.js";
 import { assertPackedWildcardMembers } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/module.js";
-import { readContainedRegularFile, pathTraversesSymbolicLink } from "../packages/engineering-foundation/dist/source-inventory/node.js";
+import {
+  readContainedRegularFile,
+  pathTraversesSymbolicLink,
+} from "../packages/engineering-foundation/dist/source-inventory/node.js";
 
 import { assertSecretCanaryAbsent } from "./pack-test-support.mjs";
 import { projectMarkdownPublication } from "./markdown-publication.mjs";
 import {
-  assertArchiveSafety, inspectCompressedTarArchive, portableEntryIdentity, readRegularArchive, sha256,
+  assertArchiveSafety,
+  inspectCompressedTarArchive,
+  portableEntryIdentity,
+  readRegularArchive,
+  sha256,
 } from "./pack-artifact-archive.mjs";
-import { boundedDirectoryEntries, canonicalPublishManifest, containsPhysicalPath, generatedPackageEntries, materializeStableTree, npmPackManifest, pathExists, publishDependencyIdentity, readBoundedStableJson, readStableRegularFile, wireStagedPackageDependencies } from "./pack-artifact-stage-support.mjs";
+import {
+  boundedDirectoryEntries,
+  canonicalPublishManifest,
+  containsPhysicalPath,
+  generatedPackageEntries,
+  materializeStableTree,
+  npmPackManifest,
+  pathExists,
+  publishDependencyIdentity,
+  readBoundedStableJson,
+  readStableRegularFile,
+  wireStagedPackageDependencies,
+} from "./pack-artifact-stage-support.mjs";
 export {
-  assertArchiveListing, assertArchiveSafety, assertNoSpecialTarEntries, inspectCompressedTarArchive, readVerifiedArchive,
+  assertArchiveListing,
+  assertArchiveSafety,
+  assertNoSpecialTarEntries,
+  inspectCompressedTarArchive,
+  readVerifiedArchive,
 } from "./pack-artifact-archive.mjs";
 
 const verifiedArchiveBytes = new WeakMap();
@@ -21,88 +53,32 @@ async function stageManagedPolicyBuildInputs(repositoryRoot, stageRoot, stagedPa
   if (!stagedPackagesByName.has(managedPolicyPackage)) {
     return;
   }
-  const { runtimePolicyBuildInputPaths } = await import("../packages/docs-protocol-agent-teams/scripts/runtime-policy-input-paths.mjs");
+  const { runtimePolicyBuildInputPaths } =
+    await import("../packages/docs-protocol-agent-teams/scripts/runtime-policy-input-paths.mjs");
   const physicalRepositoryRoot = await realpath(repositoryRoot);
   for (const relativePath of runtimePolicyBuildInputPaths) {
     const source = join(repositoryRoot, relativePath);
     const physical = await realpath(source);
     if (physical !== join(physicalRepositoryRoot, relativePath)) {
-      throw new Error(`Managed policy build input is not the canonical repository file: ${relativePath}.`);
+      throw new Error(
+        `Managed policy build input is not the canonical repository file: ${relativePath}.`,
+      );
     }
     const [pathname, metadata] = await Promise.all([lstat(source), lstat(physical)]);
-    const { bytes, mode } = await readStableRegularFile(source, { bytes: 0 }, "Managed policy build input", {
-      metadata, pathname, physical,
-    });
+    const { bytes, mode } = await readStableRegularFile(
+      source,
+      { bytes: 0 },
+      "Managed policy build input",
+      {
+        metadata,
+        pathname,
+        physical,
+      },
+    );
     const destination = join(stageRoot, relativePath);
     await mkdir(dirname(destination), { recursive: true });
     await writeFile(destination, bytes, { flag: "wx", mode });
   }
-}
-
-function hasAuthoritativeFileIdentity(metadata) {
-  return (typeof metadata.dev === "bigint" ? metadata.dev > 0n : Number.isSafeInteger(metadata.dev) && metadata.dev > 0) &&
-    (typeof metadata.ino === "bigint" ? metadata.ino > 0n : Number.isSafeInteger(metadata.ino) && metadata.ino > 0);
-}
-
-export function sameAuthoritativeFileIdentity(first, second) {
-  return hasAuthoritativeFileIdentity(first) && hasAuthoritativeFileIdentity(second) &&
-    first.dev === second.dev && first.ino === second.ino;
-}
-
-function describeArchiveDifference(firstBytes, secondBytes, packageName) {
-  let firstEntries;
-  let secondEntries;
-  try {
-    firstEntries = inspectCompressedTarArchive(firstBytes, packageName).entries;
-    secondEntries = inspectCompressedTarArchive(secondBytes, packageName).entries;
-  } catch (error) {
-    return `archive structure inspection failed: ${error instanceof Error ? error.message : "unknown error"}`;
-  }
-  if (firstEntries.length !== secondEntries.length) {
-    return `entry counts differ (${firstEntries.length} != ${secondEntries.length})`;
-  }
-  for (let index = 0; index < firstEntries.length; index += 1) {
-    const first = firstEntries[index];
-    const second = secondEntries[index];
-    if (first.name !== second.name || first.type !== second.type || first.size !== second.size) {
-      return `entry ${index} metadata differs (${first.name}:${first.type}:${first.size} != ${second.name}:${second.type}:${second.size})`;
-    }
-    const firstDigest = sha256(first.data);
-    const secondDigest = sha256(second.data);
-    if (firstDigest !== secondDigest) {
-      return `entry ${first.name} content differs (${firstDigest} != ${secondDigest})`;
-    }
-  }
-  return "payload entries match; tar headers or gzip metadata differ";
-}
-
-function workspaceCatalogVersions(bytes) {
-  const versions = new Map();
-  let inCatalog = false;
-  for (const line of bytes.toString("utf8").split(/\r?\n/u)) {
-    if (/^catalog:\s*$/u.test(line)) { inCatalog = true; continue; }
-    if (inCatalog && /^\S/u.test(line)) {
-      break;
-    }
-    if (!inCatalog) {
-      continue;
-    }
-    const match = /^  (["']?)([^"':]+|@[^"']+)\1:\s*([0-9][0-9A-Za-z.-]*)\s*$/u.exec(line);
-    if (match !== null) {
-      versions.set(match[2], match[3]);
-    }
-  }
-  return versions;
-}
-
-function releaseManifestIdentity(manifest) {
-  const identity = {};
-  for (const key of ["name", "version", "type", "bin", "exports", "files", "scripts"]) {
-    if (Object.hasOwn(manifest, key)) {
-      identity[key] = manifest[key];
-    }
-  }
-  return JSON.stringify(identity);
 }
 
 function packageSourceRoot(entry, repositoryRoot) {
@@ -112,12 +88,18 @@ function packageSourceRoot(entry, repositoryRoot) {
 async function expectedPackedEntries(packageRoot, manifest, requiredArtifactPaths) {
   // Export membership is observed independently of the manifest files allowlist:
   // a pack omission must not also erase the authority used to detect it.
-  const wildcardExports = await observePackageWildcardExports(packageRoot, manifest, {
-    packageName: manifest.name, packageRoot: ".",
-  }, {
-    files: { read: readContainedRegularFile },
-    paths: { traversesSymbolicLink: pathTraversesSymbolicLink },
-  });
+  const wildcardExports = await observePackageWildcardExports(
+    packageRoot,
+    manifest,
+    {
+      packageName: manifest.name,
+      packageRoot: ".",
+    },
+    {
+      files: { read: readContainedRegularFile },
+      paths: { traversesSymbolicLink: pathTraversesSymbolicLink },
+    },
+  );
   const entries = new Set(["package/package.json", "package/LICENSE", "package/README.md"]);
   const fileDigests = new Map();
   const state = { bytes: 0, entries: 0 };
@@ -135,7 +117,11 @@ async function expectedPackedEntries(packageRoot, manifest, requiredArtifactPath
       }
       return;
     }
-    for (const entry of await boundedDirectoryEntries(absolute, "Packed payload authority", state)) {
+    for (const entry of await boundedDirectoryEntries(
+      absolute,
+      "Packed payload authority",
+      state,
+    )) {
       await visit(join(absolute, entry.name), `${relativePath}/${entry.name}`);
     }
   }
@@ -149,16 +135,20 @@ async function expectedPackedEntries(packageRoot, manifest, requiredArtifactPath
     }
   }
   for (const path of ["LICENSE", "README.md"]) {
-    if (!fileDigests.has(`package/${path}`) && await pathExists(join(packageRoot, path))) {
+    if (!fileDigests.has(`package/${path}`) && (await pathExists(join(packageRoot, path)))) {
       await visit(join(packageRoot, path), path);
     }
   }
   // Seal every concrete export's bytes, including schemas outside files. Do not
   // materialize them: an omitted public member must fail the archive gate.
   for (const member of new Set(wildcardExports.flatMap(({ members }) => members))) {
-    if (fileDigests.has(`package/${member}`)) { continue; }
+    if (fileDigests.has(`package/${member}`)) {
+      continue;
+    }
     const bytes = await readContainedRegularFile({
-      root: packageRoot, candidate: join(packageRoot, member), maxBytes: 32 * 1024 * 1024,
+      root: packageRoot,
+      candidate: join(packageRoot, member),
+      maxBytes: 32 * 1024 * 1024,
     });
     state.bytes += bytes.byteLength;
     if (state.bytes > 32 * 1024 * 1024) {
@@ -166,7 +156,11 @@ async function expectedPackedEntries(packageRoot, manifest, requiredArtifactPath
     }
     fileDigests.set(`package/${member}`, sha256(bytes));
   }
-  return Object.freeze({ entries: Object.freeze([...entries].toSorted()), fileDigests, wildcardExports });
+  return Object.freeze({
+    entries: Object.freeze([...entries].toSorted()),
+    fileDigests,
+    wildcardExports,
+  });
 }
 
 export async function createCleanBuildStage(input, label) {
@@ -174,25 +168,41 @@ export async function createCleanBuildStage(input, label) {
     throw new Error("Clean package staging requires a manifest-derived stagePackages closure.");
   }
   await mkdir(input.temporaryRoot, { recursive: true });
-  const stageRoot = await mkdtemp(join(input.temporaryRoot, `clean-build-${input.artifactLabel ?? "package"}-${label}-`));
-  const stagedPackagesByName = new Map(input.stagePackages.map((entry) => [entry.name, join(stageRoot, entry.root)]));
+  const stageRoot = await mkdtemp(
+    join(input.temporaryRoot, `clean-build-${input.artifactLabel ?? "package"}-${label}-`),
+  );
+  const stagedPackagesByName = new Map(
+    input.stagePackages.map((entry) => [entry.name, join(stageRoot, entry.root)]),
+  );
   const dependencyDeclarations = input.dependencyDeclarations ?? {};
-  const internalPackageNames = new Set([...Object.keys(dependencyDeclarations), ...stagedPackagesByName.keys()]);
+  const internalPackageNames = new Set([
+    ...Object.keys(dependencyDeclarations),
+    ...stagedPackagesByName.keys(),
+  ]);
   const physicalInternalRoots = [];
-  for (const root of input.authoritativePackageRoots ?? input.stagePackages.map((entry) => entry.sourceRoot)) {
+  for (const root of input.authoritativePackageRoots ??
+    input.stagePackages.map((entry) => entry.sourceRoot)) {
     if (typeof root === "string") {
       physicalInternalRoots.push(await realpath(root));
     }
   }
   const manifestsByName = new Map();
   const workspace = await readStableRegularFile(
-    join(input.repositoryRoot, "pnpm-workspace.yaml"), { bytes: 0 }, "Workspace manifest",
+    join(input.repositoryRoot, "pnpm-workspace.yaml"),
+    { bytes: 0 },
+    "Workspace manifest",
   );
   const catalogVersions = workspaceCatalogVersions(workspace.bytes);
   for (const entry of input.stagePackages) {
     const sourceRoot = packageSourceRoot(entry, input.repositoryRoot);
-    const sourceManifest = await readBoundedStableJson(join(sourceRoot, "package.json"), "Authoritative package manifest");
-    if (sourceManifest.name !== entry.name || (entry.version !== undefined && sourceManifest.version !== entry.version)) {
+    const sourceManifest = await readBoundedStableJson(
+      join(sourceRoot, "package.json"),
+      "Authoritative package manifest",
+    );
+    if (
+      sourceManifest.name !== entry.name ||
+      (entry.version !== undefined && sourceManifest.version !== entry.version)
+    ) {
       throw new Error(`Authoritative package manifest identity changed for ${entry.name}.`);
     }
     manifestsByName.set(entry.name, sourceManifest);
@@ -204,12 +214,17 @@ export async function createCleanBuildStage(input, label) {
       label: "Package source tree",
       state: { bytes: 0, entries: 0 },
     });
-    const stagedManifest = await readBoundedStableJson(join(stagedRoot, "package.json"), "Staged package manifest");
+    const stagedManifest = await readBoundedStableJson(
+      join(stagedRoot, "package.json"),
+      "Staged package manifest",
+    );
     if (releaseManifestIdentity(stagedManifest) !== releaseManifestIdentity(sourceManifest)) {
       throw new Error(`Authoritative package manifest changed while staging ${entry.name}.`);
     }
     const license = await readStableRegularFile(
-      join(input.repositoryRoot, "LICENSE"), { bytes: 0 }, "Repository license",
+      join(input.repositoryRoot, "LICENSE"),
+      { bytes: 0 },
+      "Repository license",
     );
     await writeFile(join(stagedRoot, "LICENSE"), license.bytes, { mode: license.mode });
   }
@@ -230,30 +245,57 @@ export async function createCleanBuildStage(input, label) {
   if (packageRoot === undefined) {
     throw new Error(`Clean stage has no target package ${input.packageName}.`);
   }
-  await writeFile(join(stageRoot, "pnpm-workspace.yaml"), workspace.bytes, { flag: "wx", mode: workspace.mode });
+  await writeFile(join(stageRoot, "pnpm-workspace.yaml"), workspace.bytes, {
+    flag: "wx",
+    mode: workspace.mode,
+  });
   await stageManagedPolicyBuildInputs(input.repositoryRoot, stageRoot, stagedPackagesByName);
   for (const packageName of input.buildPackageNames ?? [input.packageName]) {
     const buildRoot = stagedPackagesByName.get(packageName);
     if (buildRoot === undefined) {
       throw new Error(`Clean stage build order names unstaged package ${packageName}.`);
     }
-    await input.runBuild(buildRoot, Object.freeze({ packageName, stageRoot, stagedPackagesByName }));
+    await input.runBuild(
+      buildRoot,
+      Object.freeze({ packageName, stageRoot, stagedPackagesByName }),
+    );
   }
   const sourceManifest = manifestsByName.get(input.packageName);
-  const packedManifest = await readBoundedStableJson(join(packageRoot, "package.json"), "Post-build package manifest");
+  const packedManifest = await readBoundedStableJson(
+    join(packageRoot, "package.json"),
+    "Post-build package manifest",
+  );
   if (releaseManifestIdentity(packedManifest) !== releaseManifestIdentity(sourceManifest)) {
     throw new Error(`Package build changed release manifest identity for ${input.packageName}.`);
   }
   const canonicalManifest = canonicalPublishManifest(sourceManifest, {
     catalogVersions,
-    internalPackageVersions: new Map([...manifestsByName].map(([name, manifest]) => [name, manifest.version])),
+    internalPackageVersions: new Map(
+      [...manifestsByName].map(([name, manifest]) => [name, manifest.version]),
+    ),
   });
   const publishManifest = await projectMarkdownPublication({
-    ...input.markdownPublication, packageRoot, manifest: canonicalManifest, receiptPath: join(stageRoot, "markdown-build-receipt.json"),
+    ...input.markdownPublication,
+    packageRoot,
+    manifest: canonicalManifest,
+    receiptPath: join(stageRoot, "markdown-build-receipt.json"),
   });
-  await writeFile(join(packageRoot, "package.json"), `${JSON.stringify(npmPackManifest(publishManifest), null, 2)}\n`);
-  const expectedEntries = await expectedPackedEntries(packageRoot, sourceManifest, input.requiredArtifactPaths);
-  return Object.freeze({ expectedEntries, packageRoot, publishManifest, sourceManifest, stageRoot });
+  await writeFile(
+    join(packageRoot, "package.json"),
+    `${JSON.stringify(npmPackManifest(publishManifest), null, 2)}\n`,
+  );
+  const expectedEntries = await expectedPackedEntries(
+    packageRoot,
+    sourceManifest,
+    input.requiredArtifactPaths,
+  );
+  return Object.freeze({
+    expectedEntries,
+    packageRoot,
+    publishManifest,
+    sourceManifest,
+    stageRoot,
+  });
 }
 
 async function createArtifact(input, stage) {
@@ -262,48 +304,54 @@ async function createArtifact(input, stage) {
   // Use only this repository-owned canonical packing hook, never an ambient
   // consumer pnpmfile. pnpm inserts scripts after its manifest projection.
   const hookPath = join(stage.stageRoot, "canonical-packing-hook.cjs");
-  const hook = await readStableRegularFile(new URL("../.pnpmfile.cjs", import.meta.url), { bytes: 0 }, "Canonical packing hook");
+  const hook = await readStableRegularFile(
+    new URL("../.pnpmfile.cjs", import.meta.url),
+    { bytes: 0 },
+    "Canonical packing hook",
+  );
   await writeFile(hookPath, hook.bytes, { flag: "wx", mode: 0o444 });
-  await input.runPnpm(["pack", "--pack-destination", destination, `--config.pnpmfile=${hookPath}`, "--config.global-pnpmfile=", "--config.config-dependencies="], stage.packageRoot, {
-    environment: {
-      ...process.env,
-      pnpm_config_ignore_pnpmfile: "false",
-      pnpm_config_ignore_scripts: "true",
+  await input.runPnpm(
+    [
+      "pack",
+      "--pack-destination",
+      destination,
+      `--config.pnpmfile=${hookPath}`,
+      "--config.global-pnpmfile=",
+      "--config.config-dependencies=",
+    ],
+    stage.packageRoot,
+    {
+      environment: {
+        ...process.env,
+        pnpm_config_ignore_pnpmfile: "false",
+        pnpm_config_ignore_scripts: "true",
+      },
     },
-  });
+  );
   const state = { entries: 0 };
   const archives = (await boundedDirectoryEntries(destination, "Pack destination", state))
-    .map(({ name }) => name).filter((name) => name.endsWith(".tgz"));
+    .map(({ name }) => name)
+    .filter((name) => name.endsWith(".tgz"));
   if (archives.length !== 1) {
     throw new Error(`pnpm pack produced ${archives.length} tarballs; expected exactly one.`);
   }
   return { archiveName: archives[0], archivePath: join(destination, archives[0]) };
 }
 
-function expectedArchiveName({ name, version }) {
-  return `${name.replace(/^@/u, "").replace("/", "-")}-${version}.tgz`;
-}
-
-function parsedArchiveListings(inspection) {
-  const listing = inspection.entries
-    .filter(({ type }) => type !== "x" && type !== "g")
-    .map(({ name, type }) => type === "5" && !name.endsWith("/") ? `${name}/` : name)
-    .join("\n");
-  const verboseListing = inspection.entries
-    .filter(({ type }) => type !== "x" && type !== "g")
-    .map(({ name, type }) => `${type === "5" ? "d" : type === "0" ? "-" : type}--------- ${name}`)
-    .join("\n");
-  return { listing, verboseListing };
-}
-
 function assertExactArchiveManifest(inspection, expectedManifest) {
-  const manifests = inspection.entries.filter(({ name, type }) => name === "package/package.json" && type === "0");
+  const manifests = inspection.entries.filter(
+    ({ name, type }) => name === "package/package.json" && type === "0",
+  );
   if (manifests.length !== 1) {
     throw new Error("Package tar must contain exactly one regular package/package.json.");
   }
   let manifest;
-  try { manifest = JSON.parse(manifests[0].data.toString("utf8")); } catch (error) {
-    throw new Error(`Packed package manifest is not valid JSON: ${error.message}`, { cause: error });
+  try {
+    manifest = JSON.parse(manifests[0].data.toString("utf8"));
+  } catch (error) {
+    throw new Error(`Packed package manifest is not valid JSON: ${error.message}`, {
+      cause: error,
+    });
   }
   if (releaseManifestIdentity(manifest) !== releaseManifestIdentity(expectedManifest)) {
     throw new Error(
@@ -311,24 +359,34 @@ function assertExactArchiveManifest(inspection, expectedManifest) {
     );
   }
   const packedPublishManifest = canonicalPublishManifest(manifest, {
-    catalogVersions: new Map(), internalPackageVersions: new Map(),
+    catalogVersions: new Map(),
+    internalPackageVersions: new Map(),
   });
-  if (publishDependencyIdentity(packedPublishManifest) !== publishDependencyIdentity(expectedManifest)) {
-    throw new Error("Packed package dependency manifest differs from the sealed publish authority.");
+  if (
+    publishDependencyIdentity(packedPublishManifest) !== publishDependencyIdentity(expectedManifest)
+  ) {
+    throw new Error(
+      "Packed package dependency manifest differs from the sealed publish authority.",
+    );
   }
 }
 
 function assertExactPackedEntries(inspection, listing, expected) {
   assertPackedWildcardMembers({
-    actualArtifactPaths: inspection.entries.filter(({ type }) => type === "0")
+    actualArtifactPaths: inspection.entries
+      .filter(({ type }) => type === "0")
       .map(({ name }) => name.slice("package/".length)),
     expected,
   });
   const actual = listing.split(/\r?\n/u).filter(Boolean).toSorted();
   if (actual.join("\0") !== expected.entries.join("\0")) {
-    throw new Error("Packed archive payload differs from the post-build manifest-owned package tree.");
+    throw new Error(
+      "Packed archive payload differs from the post-build manifest-owned package tree.",
+    );
   }
-  const files = new Map(inspection.entries.filter(({ type }) => type === "0").map(({ data, name }) => [name, data]));
+  const files = new Map(
+    inspection.entries.filter(({ type }) => type === "0").map(({ data, name }) => [name, data]),
+  );
   for (const [name, digest] of expected.fileDigests) {
     if (files.get(name) === undefined || sha256(files.get(name)) !== digest) {
       throw new Error(`Packed archive content differs from its proved post-build file: ${name}.`);
@@ -360,29 +418,43 @@ async function extractVerifiedArchive(inspection, extractedRoot) {
 export async function packAndInspectArtifact(input) {
   const firstStage = await createCleanBuildStage(input, "a");
   const secondStage = await createCleanBuildStage(input, "b");
-  if (releaseManifestIdentity(firstStage.sourceManifest) !== releaseManifestIdentity(secondStage.sourceManifest)) {
+  if (
+    releaseManifestIdentity(firstStage.sourceManifest) !==
+    releaseManifestIdentity(secondStage.sourceManifest)
+  ) {
     throw new Error("Authoritative package manifest changed between clean builds.");
   }
   const first = await createArtifact(input, firstStage);
   const second = await createArtifact(input, secondStage);
   const authoritativeArchiveName = expectedArchiveName(firstStage.sourceManifest);
-  if (first.archiveName !== authoritativeArchiveName || second.archiveName !== authoritativeArchiveName) {
+  if (
+    first.archiveName !== authoritativeArchiveName ||
+    second.archiveName !== authoritativeArchiveName
+  ) {
     throw new Error(`pnpm pack archive identity must be exactly ${authoritativeArchiveName}.`);
   }
   const [firstPhysicalPath, secondPhysicalPath] = await Promise.all([
-    realpath(first.archivePath), realpath(second.archivePath),
+    realpath(first.archivePath),
+    realpath(second.archivePath),
   ]);
-  const [firstStat, secondStat] = await Promise.all([lstat(first.archivePath), lstat(second.archivePath)]);
-  if (firstPhysicalPath === secondPhysicalPath || sameAuthoritativeFileIdentity(firstStat, secondStat)) {
+  const [firstStat, secondStat] = await Promise.all([
+    lstat(first.archivePath),
+    lstat(second.archivePath),
+  ]);
+  if (
+    firstPhysicalPath === secondPhysicalPath ||
+    sameAuthoritativeFileIdentity(firstStat, secondStat)
+  ) {
     throw new Error("Two clean package builds must produce distinct archive files.");
   }
   const [firstBytes, secondBytes] = await Promise.all([
-    readRegularArchive(first.archivePath), readRegularArchive(second.archivePath),
+    readRegularArchive(first.archivePath),
+    readRegularArchive(second.archivePath),
   ]);
   if (sha256(firstBytes) !== sha256(secondBytes)) {
     throw new Error(
       `Two clean package builds did not produce byte-identical tarballs for ${input.packageName}: ` +
-      `${sha256(firstBytes)} != ${sha256(secondBytes)}; ${describeArchiveDifference(firstBytes, secondBytes, input.packageName)}.`,
+        `${sha256(firstBytes)} != ${sha256(secondBytes)}; ${describeArchiveDifference(firstBytes, secondBytes, input.packageName)}.`,
     );
   }
   const inspection = inspectCompressedTarArchive(firstBytes, input.packageName);
@@ -397,11 +469,15 @@ export async function packAndInspectArtifact(input) {
     verboseListing,
   });
   assertExactPackedEntries(inspection, listing, firstStage.expectedEntries);
-  const extractedRoot = await mkdtemp(join(input.temporaryRoot, `extracted-${input.artifactLabel ?? "package"}-`));
+  const extractedRoot = await mkdtemp(
+    join(input.temporaryRoot, `extracted-${input.artifactLabel ?? "package"}-`),
+  );
   const packageExtractionRoot = join(extractedRoot, "payload");
   await extractVerifiedArchive(inspection, packageExtractionRoot);
   await assertSecretCanaryAbsent(extractedRoot);
-  const verifiedRoot = await mkdtemp(join(input.temporaryRoot, `verified-${input.artifactLabel ?? "package"}-`));
+  const verifiedRoot = await mkdtemp(
+    join(input.temporaryRoot, `verified-${input.artifactLabel ?? "package"}-`),
+  );
   const verifiedArchivePath = join(verifiedRoot, first.archiveName);
   await writeFile(verifiedArchivePath, firstBytes, { flag: "wx", mode: 0o444 });
   const artifact = Object.freeze({

@@ -1,15 +1,7 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "ignoreBinaries": [
-    "mkfifo",
-    "prlimit"
-  ],
-  "ignoreDependencies": [
-    "@openai/codex",
-    "c8",
-    "publint",
-    "vfile"
-  ],
+  "ignoreBinaries": ["mkfifo", "prlimit"],
+  "ignoreDependencies": ["@openai/codex", "c8", "publint", "vfile"],
   "ignoreIssues": {
     "tests/fixtures/source-dependencies/valid/packages/app/src/application/execute.ts": [
       "unlisted"
@@ -17,9 +9,7 @@
     "tests/fixtures/source-dependencies/valid/packages/app/src/infrastructure/adapter.ts": [
       "unlisted"
     ],
-    "tests/fixtures/source-dependencies/v2-valid/packages/app/src/index.ts": [
-      "unlisted"
-    ]
+    "tests/fixtures/source-dependencies/v2-valid/packages/app/src/index.ts": ["unlisted"]
   },
   "workspaces": {
     ".": {
@@ -56,9 +46,7 @@
         "tests/**/*.mjs",
         "tests/**/*.ts"
       ],
-      "ignoreDependencies": [
-        "stack-toolchain"
-      ]
+      "ignoreDependencies": ["stack-toolchain"]
     },
     "packages/engineering-foundation": {
       "entry": [
@@ -70,49 +58,30 @@
         "src/schema-ids.ts",
         "tests/**/*.test.ts"
       ],
-      "project": [
-        "src/**/*.ts",
-        "tests/**/*.ts"
-      ]
+      "project": ["src/**/*.ts", "tests/**/*.ts"]
     },
     "packages/document-authoring": {
-      "entry": [
-        "tests/fixtures/public-api/crash-worker.mjs"
-      ],
-      "project": [
-        "src/**/*.ts",
-        "tests/**/*.mjs"
-      ]
+      "entry": ["tests/fixtures/public-api/crash-worker.mjs"],
+      "project": ["src/**/*.ts", "tests/**/*.mjs"]
     },
     "packages/docs-protocol": {
-      "project": [
-        "src/**/*.ts"
-      ]
+      "project": ["src/**/*.ts"]
     },
     "packages/docs-protocol-agent-teams": {
-      "project": [
-        "src/**/*.ts"
-      ]
+      "project": ["src/**/*.ts", "tests/**/*.mjs", "tests/**/*.ts"],
+      "entry": ["tests/**/*.test.mjs"]
     },
     "packages/docs-protocol-mcp": {
-      "project": [
-        "src/**/*.ts"
-      ]
+      "project": ["src/**/*.ts"]
     },
     "packages/repository-mutation": {
-      "project": [
-        "src/**/*.ts"
-      ]
+      "project": ["src/**/*.ts"]
     },
     "spikes/source-dependency-parser": {
-      "project": [
-        "*.ts"
-      ]
+      "project": ["*.ts"]
     },
     "packages/stack-toolchain": {
-      "ignoreDependencies": [
-        "oxfmt"
-      ]
+      "ignoreDependencies": ["oxfmt"]
     }
   }
 }

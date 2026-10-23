@@ -52,12 +52,7 @@ test("v2 revalidation treats canonical absolute spellings as physical evidence",
 test("source architecture schema v2 is strict and explicit while v1 stays loadable", async () => {
   const schema = JSON.parse(
     await readFile(
-      join(
-        foundationPackageRoot,
-        "schemas",
-        "architecture-source-dependencies",
-        "v2.schema.json",
-      ),
+      join(foundationPackageRoot, "schemas", "architecture-source-dependencies", "v2.schema.json"),
       "utf8",
     ),
   );
@@ -98,7 +93,10 @@ test("source architecture schema v2 is strict and explicit while v1 stays loadab
     assert.equal((await loadCapabilityConfig(consumerRoot, "v2.yaml")).schemaVersion, 2);
     await writeFile(
       join(consumerRoot, "missing-entrypoints.yaml"),
-      sourceArchitectureConfig(1).replace("    entrypoints:\n      - packages/app/src/index.ts\n", ""),
+      sourceArchitectureConfig(1).replace(
+        "    entrypoints:\n      - packages/app/src/index.ts\n",
+        "",
+      ),
       "utf8",
     );
     await assert.rejects(
@@ -117,7 +115,8 @@ function overlappingBoundaryConfig(schemaVersion, boundaryIds) {
   const packageRoots = schemaVersion === 2 ? "packageRoots:\n  - packages\n" : "";
   return `schemaVersion: ${schemaVersion}\nworkspace:\n  kind: pnpm\n  manifest: pnpm-workspace.yaml\n${packageRoots}governedRoots:\n  - packages/app/src\nboundaries:\n${boundaryIds
     .map(
-      (id) => `  - id: ${id}\n    roots:\n      - ${roots[id]}\n    entrypoints: []\n    allow:\n      boundaries: []\n      packages: []\n      builtins: []\n      runtimeReferences: []`,
+      (id) =>
+        `  - id: ${id}\n    roots:\n      - ${roots[id]}\n    entrypoints: []\n    allow:\n      boundaries: []\n      packages: []\n      builtins: []\n      runtimeReferences: []`,
     )
     .join("\n")}\n`;
 }
@@ -173,7 +172,8 @@ function portableOverlapConfig(governedRoots, boundaryRoots) {
     .map((root) => `  - ${JSON.stringify(root)}`)
     .join("\n")}\nboundaries:\n${boundaryRoots
     .map(
-      ({ id, root }) => `  - id: ${id}\n    roots:\n      - ${JSON.stringify(root)}\n    entrypoints: []\n    allow:\n      boundaries: []\n      packages: []\n      builtins: []\n      runtimeReferences: []`,
+      ({ id, root }) =>
+        `  - id: ${id}\n    roots:\n      - ${JSON.stringify(root)}\n    entrypoints: []\n    allow:\n      boundaries: []\n      packages: []\n      builtins: []\n      runtimeReferences: []`,
     )
     .join("\n")}\n`;
 }
@@ -229,10 +229,7 @@ test("v2 root overlap identity is portable, NFC-normalized, and segment-aware", 
       ],
     );
     await writeFile(join(consumerRoot, "distinct.yaml"), distinct, "utf8");
-    assert.equal(
-      (await loadCapabilityConfig(consumerRoot, "distinct.yaml")).schemaVersion,
-      2,
-    );
+    assert.equal((await loadCapabilityConfig(consumerRoot, "distinct.yaml")).schemaVersion, 2);
   });
 });
 
@@ -279,10 +276,12 @@ async function addQualifiedDocumentAuthoringPackage(consumerRoot) {
   );
   const configPath = sourceConfigPath(consumerRoot);
   const config = await readFile(configPath, "utf8");
-  await writeFile(configPath, `${config.replace(
-    "  - packages/core/src\n",
-    "  - packages/core/src\n  - packages/document-authoring/src\n",
-  )}  - id: document-authoring.surface
+  await writeFile(
+    configPath,
+    `${config.replace(
+      "  - packages/core/src\n",
+      "  - packages/core/src\n  - packages/document-authoring/src\n",
+    )}  - id: document-authoring.surface
     roots:
       - packages/document-authoring/src
     entrypoints:
@@ -293,7 +292,9 @@ async function addQualifiedDocumentAuthoringPackage(consumerRoot) {
         - "@fixture/core"
       builtins: []
       runtimeReferences: []
-`, "utf8");
+`,
+    "utf8",
+  );
 }
 
 test("v2 closes classification over a sixth public-package-shaped authoring leaf", async () => {
@@ -331,10 +332,14 @@ test("v2 does not let type-only imports hide a cycle through Document Authoring"
     );
     const configPath = sourceConfigPath(consumerRoot);
     const config = await readFile(configPath, "utf8");
-    await writeFile(configPath, config.replace(
-      "  - id: core.surface\n    roots:\n      - packages/core/src\n    entrypoints:\n      - packages/core/src/index.ts\n    allow:\n      boundaries: []\n      packages: []",
-      '  - id: core.surface\n    roots:\n      - packages/core/src\n    entrypoints:\n      - packages/core/src/index.ts\n    allow:\n      boundaries: []\n      packages:\n        - "@agent-teams/document-authoring"',
-    ), "utf8");
+    await writeFile(
+      configPath,
+      config.replace(
+        "  - id: core.surface\n    roots:\n      - packages/core/src\n    entrypoints:\n      - packages/core/src/index.ts\n    allow:\n      boundaries: []\n      packages: []",
+        '  - id: core.surface\n    roots:\n      - packages/core/src\n    entrypoints:\n      - packages/core/src/index.ts\n    allow:\n      boundaries: []\n      packages:\n        - "@agent-teams/document-authoring"',
+      ),
+      "utf8",
+    );
     assert.deepEqual(ruleIds((await runSourceCapability(consumerRoot)).diagnostics), [
       "architecture.source-dependencies.package-type-only-cycle",
     ]);
@@ -522,16 +527,18 @@ function runTypeOnlyCycleFixture(writeOrder) {
     const coreManifest = JSON.parse(await readFile(coreManifestPath, "utf8"));
     coreManifest.dependencies = { "@fixture/app": "workspace:*" };
     const writes = {
-      app: () => writeFile(
-        appSource,
-        'import type { CoreType } from "@fixture/core";\nexport interface AppType { readonly core?: CoreType }\n',
-        "utf8",
-      ),
-      core: () => writeFile(
-        coreSource,
-        'import type { AppType } from "@fixture/app";\nexport interface CoreType { readonly app?: AppType }\n',
-        "utf8",
-      ),
+      app: () =>
+        writeFile(
+          appSource,
+          'import type { CoreType } from "@fixture/core";\nexport interface AppType { readonly core?: CoreType }\n',
+          "utf8",
+        ),
+      core: () =>
+        writeFile(
+          coreSource,
+          'import type { AppType } from "@fixture/app";\nexport interface CoreType { readonly app?: AppType }\n',
+          "utf8",
+        ),
     };
     for (const key of writeOrder) {
       await writes[key]();
@@ -555,9 +562,7 @@ test("v2 rejects type-only package cycles deterministically", async () => {
   const first = await runTypeOnlyCycleFixture(["app", "core"]);
   const second = await runTypeOnlyCycleFixture(["core", "app"]);
   assert.deepEqual(first, second);
-  assert.deepEqual(ruleIds(first), [
-    "architecture.source-dependencies.package-type-only-cycle",
-  ]);
+  assert.deepEqual(ruleIds(first), ["architecture.source-dependencies.package-type-only-cycle"]);
 });
 
 test("reports the requested v1 and v2 schema version on success, failure, and cancellation", async () => {
@@ -572,20 +577,13 @@ test("reports the requested v1 and v2 schema version on success, failure, and ca
 
       const configPath = sourceConfigPath(consumerRoot);
       const config = await readFile(configPath, "utf8");
-      await writeFile(
-        configPath,
-        config.replace("kind: pnpm", "kind: invalid"),
-        "utf8",
-      );
+      await writeFile(configPath, config.replace("kind: pnpm", "kind: invalid"), "utf8");
       const invalid = await runSourceCapability(consumerRoot);
       assert.equal(invalid.outcome, "invalid-input");
       assert.equal(invalid.capabilityConfigSchemaVersion, schemaVersion);
 
       await writeFile(configPath, config, "utf8");
-      const failed = await runSourceCapability(
-        consumerRoot,
-        signalThatFailsAfterConfiguration(),
-      );
+      const failed = await runSourceCapability(consumerRoot, signalThatFailsAfterConfiguration());
       assert.equal(failed.outcome, "failed");
       assert.equal(failed.problem.code, "UNEXPECTED_FAILURE");
       assert.equal(failed.capabilityConfigSchemaVersion, schemaVersion);

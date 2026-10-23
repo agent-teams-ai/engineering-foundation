@@ -7,7 +7,7 @@ if (pidPath === undefined) {
 }
 
 const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 60_000);"], {
-  stdio: ["ignore", "inherit", "inherit"]
+  stdio: ["ignore", "inherit", "inherit"],
 });
 child.unref();
 
@@ -15,6 +15,6 @@ const temporaryPidPath = `${pidPath}.${process.pid}.tmp`;
 await writeFile(
   temporaryPidPath,
   `${JSON.stringify({ parent: process.pid, child: child.pid })}\n`,
-  "utf8"
+  "utf8",
 );
 await rename(temporaryPidPath, pidPath);

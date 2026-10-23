@@ -102,24 +102,27 @@ export function buildCiSignalArtifact({ sourceRun, jobs, relevance }) {
   if (!/^[a-f0-9]{40}$/u.test(requireString(sourceRun.head_sha, "head SHA"))) {
     throw new Error("head SHA must be a full lowercase Git commit SHA");
   }
-  const normalizedJobs = jobs.map((job) => {
-    const name = requireString(job.name, "job name");
-    const measuredDuration = duration(job.started_at ?? null, job.completed_at ?? null);
-    const labels = Array.isArray(job.labels) && job.labels.every((label) => typeof label === "string")
-      ? [...job.labels]
-      : [];
-    return {
-      id: requirePositiveInteger(job.id, `${name} id`),
-      name,
-      conclusion: job.conclusion ?? null,
-      status: requireString(job.status, `${name} status`),
-      startedAt: job.started_at ?? null,
-      completedAt: job.completed_at ?? null,
-      durationMilliseconds: measuredDuration.milliseconds,
-      timingAnomaly: measuredDuration.anomaly,
-      labels,
-    };
-  }).toSorted((left, right) => left.name.localeCompare(right.name, "en"));
+  const normalizedJobs = jobs
+    .map((job) => {
+      const name = requireString(job.name, "job name");
+      const measuredDuration = duration(job.started_at ?? null, job.completed_at ?? null);
+      const labels =
+        Array.isArray(job.labels) && job.labels.every((label) => typeof label === "string")
+          ? [...job.labels]
+          : [];
+      return {
+        id: requirePositiveInteger(job.id, `${name} id`),
+        name,
+        conclusion: job.conclusion ?? null,
+        status: requireString(job.status, `${name} status`),
+        startedAt: job.started_at ?? null,
+        completedAt: job.completed_at ?? null,
+        durationMilliseconds: measuredDuration.milliseconds,
+        timingAnomaly: measuredDuration.anomaly,
+        labels,
+      };
+    })
+    .toSorted((left, right) => left.name.localeCompare(right.name, "en"));
   if (new Set(normalizedJobs.map(({ name }) => name)).size !== normalizedJobs.length) {
     throw new Error("source run contains duplicate job names");
   }
@@ -157,17 +160,19 @@ export function renderCiSignalSummary(artifact) {
     .filter(({ durationMilliseconds }) => durationMilliseconds !== null)
     .toSorted((left, right) => right.durationMilliseconds - left.durationMilliseconds)
     .slice(0, 12);
-  const rows = slowest.map((job) =>
-    `| <code>${markdownCodeCell(job.name)}</code> | <code>${markdownCodeCell(job.conclusion ?? job.status)}</code> | ${(job.durationMilliseconds / 60_000).toFixed(2)} min |`,
+  const rows = slowest.map(
+    (job) =>
+      `| <code>${markdownCodeCell(job.name)}</code> | <code>${markdownCodeCell(job.conclusion ?? job.status)}</code> | ${(job.durationMilliseconds / 60_000).toFixed(2)} min |`,
   );
   const timingAnomalies = [
     artifact.source.timingAnomaly,
     ...artifact.jobs.map(({ timingAnomaly }) => timingAnomaly),
   ].filter((anomaly) => typeof anomaly === "string");
   const anomalyCodes = [...new Set(timingAnomalies)].toSorted();
-  const wallTime = artifact.source.wallMilliseconds === null
-    ? "unavailable"
-    : `${(artifact.source.wallMilliseconds / 60_000).toFixed(2)} min`;
+  const wallTime =
+    artifact.source.wallMilliseconds === null
+      ? "unavailable"
+      : `${(artifact.source.wallMilliseconds / 60_000).toFixed(2)} min`;
   return [
     "## CI feedback",
     "",
@@ -176,7 +181,9 @@ export function renderCiSignalSummary(artifact) {
     `Wall time: **${wallTime}**`,
     ...(timingAnomalies.length === 0
       ? []
-      : [`Timing anomalies: **${timingAnomalies.length}** (${anomalyCodes.map((code) => `\`${code}\``).join(", ")}). Affected durations are unavailable.`]),
+      : [
+          `Timing anomalies: **${timingAnomalies.length}** (${anomalyCodes.map((code) => `\`${code}\``).join(", ")}). Affected durations are unavailable.`,
+        ]),
     "",
     "| Slowest lanes | Result | Duration |",
     "|---|---|---:|",
@@ -246,9 +253,11 @@ async function associatedPullRequests(sourceRun, token, apiUrl, request, pageReq
   }
   const headRepository = sourceRun.head_repository.full_name;
   pullRequests = Array.isArray(page.data)
-    ? page.data.filter((pullRequest) =>
-      pullRequest.head?.sha === sourceRun.head_sha &&
-      pullRequest.head?.repo?.full_name === headRepository)
+    ? page.data.filter(
+        (pullRequest) =>
+          pullRequest.head?.sha === sourceRun.head_sha &&
+          pullRequest.head?.repo?.full_name === headRepository,
+      )
     : [];
   return pullRequests;
 }
@@ -270,10 +279,17 @@ export async function sourceRelevance(sourceRun, token, apiUrl, request = github
     return { status: "unresolved", pullRequest: null };
   }
   if (pullRequests.length !== 1) {
-    return { status: sourceRun.event === "push" ? "main-or-branch" : "unresolved", pullRequest: null };
+    return {
+      status: sourceRun.event === "push" ? "main-or-branch" : "unresolved",
+      pullRequest: null,
+    };
   }
   const number = requirePositiveInteger(pullRequests[0].number, "pull request number");
-  const pullRequest = await request(`/repos/${sourceRun.repository.full_name}/pulls/${number}`, token, apiUrl);
+  const pullRequest = await request(
+    `/repos/${sourceRun.repository.full_name}/pulls/${number}`,
+    token,
+    apiUrl,
+  );
   const current =
     pullRequest.state === "open" &&
     pullRequest.head?.sha === sourceRun.head_sha &&
@@ -286,7 +302,9 @@ export function workflowRunAttemptPath(repository, runId, runAttempt) {
 }
 
 async function run() {
-  const event = JSON.parse(await readFile(requireString(process.env.GITHUB_EVENT_PATH, "GITHUB_EVENT_PATH"), "utf8"));
+  const event = JSON.parse(
+    await readFile(requireString(process.env.GITHUB_EVENT_PATH, "GITHUB_EVENT_PATH"), "utf8"),
+  );
   const eventRun = event.workflow_run;
   if (event.action !== "completed" || eventRun?.status !== "completed") {
     throw new Error("CI feedback accepts only completed workflow_run events");
@@ -296,7 +314,11 @@ async function run() {
   const apiUrl = requireString(process.env.GITHUB_API_URL, "GITHUB_API_URL");
   const runId = requirePositiveInteger(eventRun.id, "event run id");
   const runAttempt = requirePositiveInteger(eventRun.run_attempt, "event run attempt");
-  const sourceRun = await githubJson(workflowRunAttemptPath(repository, runId, runAttempt), token, apiUrl);
+  const sourceRun = await githubJson(
+    workflowRunAttemptPath(repository, runId, runAttempt),
+    token,
+    apiUrl,
+  );
   if (
     sourceRun.id !== runId ||
     sourceRun.repository?.full_name !== repository ||
@@ -324,13 +346,18 @@ async function run() {
     jobs: jobsResponse.jobs,
     relevance: await sourceRelevance(sourceRun, token, apiUrl),
   });
-  await writeFile(outputArgument(process.argv.slice(2)), `${JSON.stringify(artifact, null, 2)}\n`, "utf8");
+  await writeFile(
+    outputArgument(process.argv.slice(2)),
+    `${JSON.stringify(artifact, null, 2)}\n`,
+    "utf8",
+  );
   if (process.env.GITHUB_STEP_SUMMARY !== undefined) {
     await appendFile(process.env.GITHUB_STEP_SUMMARY, renderCiSignalSummary(artifact), "utf8");
   }
 }
 
-const invokedPath = process.argv[1] === undefined ? undefined : pathToFileURL(resolve(process.argv[1])).href;
+const invokedPath =
+  process.argv[1] === undefined ? undefined : pathToFileURL(resolve(process.argv[1])).href;
 if (invokedPath === import.meta.url) {
   await run();
 }

@@ -1,6 +1,12 @@
 import { ContainedFileReadError } from "../../../../source-inventory/api.js";
-import { CapabilityInputError, assertNotCancelled } from "../../../../features/validation-reporting/api.js";
-import type { ArchitectureDecisionBaselineExpectedState, ArchitectureDecisionBaselineReadResult } from "../ports/architecture-decision-baseline-repository.js";
+import {
+  CapabilityInputError,
+  assertNotCancelled,
+} from "../../../../features/validation-reporting/api.js";
+import type {
+  ArchitectureDecisionBaselineExpectedState,
+  ArchitectureDecisionBaselineReadResult,
+} from "../ports/architecture-decision-baseline-repository.js";
 
 const WRITE_PHASE = "architecture-decision-baseline-write";
 
@@ -8,29 +14,36 @@ export function rejectBaselineWrite(code: string, message: string, options?: Err
   throw baselineWriteFailure(code, message, options);
 }
 
-export function baselineWriteFailure(code: string, message: string, options?: ErrorOptions): CapabilityInputError {
-  return new CapabilityInputError({
-    code,
-    message,
-    phase: WRITE_PHASE,
-    retryable: false
-  }, options);
+export function baselineWriteFailure(
+  code: string,
+  message: string,
+  options?: ErrorOptions,
+): CapabilityInputError {
+  return new CapabilityInputError(
+    {
+      code,
+      message,
+      phase: WRITE_PHASE,
+      retryable: false,
+    },
+    options,
+  );
 }
 
 export function assertExpectedBaselineState(
   current: ArchitectureDecisionBaselineReadResult,
-  expected: ArchitectureDecisionBaselineExpectedState
+  expected: ArchitectureDecisionBaselineExpectedState,
 ): void {
   if (current.kind === "unsafe") {
     rejectBaselineWrite(
       "ARCHITECTURE_DECISION_BASELINE_WRITE_UNSAFE_TARGET",
-      `Accepted-decision baseline target is unsafe: ${current.message}`
+      `Accepted-decision baseline target is unsafe: ${current.message}`,
     );
   }
   if (current.kind === "invalid") {
     rejectBaselineWrite(
       "ARCHITECTURE_DECISION_BASELINE_WRITE_INVALID_TARGET",
-      `Accepted-decision baseline target is invalid: ${current.message}`
+      `Accepted-decision baseline target is invalid: ${current.message}`,
     );
   }
   if (expected.kind === "missing" && current.kind === "missing") {
@@ -45,7 +58,7 @@ export function assertExpectedBaselineState(
   }
   rejectBaselineWrite(
     "ARCHITECTURE_DECISION_BASELINE_WRITE_CONFLICT",
-    "Accepted-decision baseline changed, appeared, or became unavailable during promotion. Re-run promotion from the current repository state."
+    "Accepted-decision baseline changed, appeared, or became unavailable during promotion. Re-run promotion from the current repository state.",
   );
 }
 
@@ -59,7 +72,7 @@ export function isBaselineInputFailure(error: unknown): boolean {
 
 export function baselineObservationFailure(
   error: unknown,
-  maxBytes: number
+  maxBytes: number,
 ): ArchitectureDecisionBaselineReadResult {
   if (!(error instanceof ContainedFileReadError)) {
     throw error;
@@ -70,23 +83,23 @@ export function baselineObservationFailure(
   if (error.failure === "invalid") {
     return {
       kind: "invalid",
-      message: `Accepted-decision baseline must be a regular JSON file no larger than ${maxBytes} bytes.`
+      message: `Accepted-decision baseline must be a regular JSON file no larger than ${maxBytes} bytes.`,
     };
   }
   return {
     kind: "unsafe",
-    message: "Accepted-decision baseline is unavailable, unsafe, or changed while reading."
+    message: "Accepted-decision baseline is unavailable, unsafe, or changed while reading.",
   };
 }
 
 export function baselineWriteObservationFailure(
   error: unknown,
-  maxBytes: number
+  maxBytes: number,
 ): ArchitectureDecisionBaselineReadResult {
   if (error instanceof ContainedFileReadError && error.failure === "changed") {
     rejectBaselineWrite(
       "ARCHITECTURE_DECISION_BASELINE_WRITE_CONFLICT",
-      "Accepted-decision baseline changed while observing the promotion target. Re-run promotion from the current repository state."
+      "Accepted-decision baseline changed while observing the promotion target. Re-run promotion from the current repository state.",
     );
   }
   return baselineObservationFailure(error, maxBytes);

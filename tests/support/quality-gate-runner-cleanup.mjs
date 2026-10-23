@@ -19,7 +19,12 @@ function defaultDeadline(milliseconds) {
   const promise = new Promise((resolve) => {
     timer = setTimeout(resolve, milliseconds);
   });
-  return { cancel: () => { clearTimeout(timer); }, promise };
+  return {
+    cancel: () => {
+      clearTimeout(timer);
+    },
+    promise,
+  };
 }
 
 function startAction(action) {
@@ -73,9 +78,11 @@ async function runCleanupStage({
   label,
   stageDeadlineMs,
 }) {
-  const actionsPromise = Promise.all(actions.map(({ action, actionLabel }) => (
-    boundedAction(action, actionLabel, actionDeadlineMs, createDeadline)
-  )));
+  const actionsPromise = Promise.all(
+    actions.map(({ action, actionLabel }) =>
+      boundedAction(action, actionLabel, actionDeadlineMs, createDeadline),
+    ),
+  );
   const stageOutcome = await settleWithin(
     actionsPromise,
     `${label} stage`,
@@ -122,23 +129,27 @@ async function terminateDirectChild(command, completed, shutdownGraceMs, createD
   if (command.exitCode === null && command.signalCode === null) {
     command.kill("SIGTERM");
   }
-  if (await waitForClose(
-    completed,
-    "Retained CLI close after SIGTERM",
-    shutdownGraceMs,
-    createDeadline,
-  )) {
+  if (
+    await waitForClose(
+      completed,
+      "Retained CLI close after SIGTERM",
+      shutdownGraceMs,
+      createDeadline,
+    )
+  ) {
     return;
   }
   if (command.exitCode === null && command.signalCode === null) {
     command.kill("SIGKILL");
   }
-  if (!await waitForClose(
-    completed,
-    "Retained CLI close after SIGKILL",
-    shutdownGraceMs,
-    createDeadline,
-  )) {
+  if (
+    !(await waitForClose(
+      completed,
+      "Retained CLI close after SIGKILL",
+      shutdownGraceMs,
+      createDeadline,
+    ))
+  ) {
     throw new Error("Retained CLI fixture did not close after forced shutdown.");
   }
 }
@@ -153,19 +164,16 @@ async function terminateRetainedChild(
 ) {
   const terminations = [];
   if (terminateTree === undefined) {
-    terminations.push(terminateDirectChild(
-      command,
-      completed,
-      shutdownGraceMs,
-      createDeadline,
-    ));
+    terminations.push(terminateDirectChild(command, completed, shutdownGraceMs, createDeadline));
   } else {
     terminations.push(terminateTree(command));
   }
   if (process.platform !== "win32") {
-    terminations.push(...[...managedProcessGroups].map((processGroupId) => (
-      terminatePosixProcessGroup(processGroupId)
-    )));
+    terminations.push(
+      ...[...managedProcessGroups].map((processGroupId) =>
+        terminatePosixProcessGroup(processGroupId),
+      ),
+    );
   }
   const outcomes = await Promise.allSettled(terminations);
   const failures = outcomes
@@ -174,12 +182,14 @@ async function terminateRetainedChild(
   if (failures.length > 0) {
     throw new AggregateError(failures, "Managed process containment cleanup failed.");
   }
-  if (!await waitForClose(
-    completed,
-    "Retained CLI close after tree termination",
-    shutdownGraceMs,
-    createDeadline,
-  )) {
+  if (
+    !(await waitForClose(
+      completed,
+      "Retained CLI close after tree termination",
+      shutdownGraceMs,
+      createDeadline,
+    ))
+  ) {
     throw new Error("Retained CLI process tree terminated without closing its streams.");
   }
 }
@@ -244,7 +254,9 @@ export function createControlledQgrCancellationSource() {
         throw new Error("Controlled QGR cancellation accepts only one active subscriber.");
       }
       listener = onCancellation;
-      return () => { listener = undefined; };
+      return () => {
+        listener = undefined;
+      };
     },
   };
 }
@@ -273,17 +285,18 @@ export function startBoundedCli(cliPath, arguments_, options = {}) {
   const watchdogMs = options.watchdogMs ?? TEST_HARNESS_WATCHDOG_MS;
   const createDeadline = options.createDeadline ?? defaultDeadline;
   const nodeEntrypoint = options.nodeEntrypoint ?? true;
-  const spawnChild = options.spawnChild ?? ((command, args, spawnOptions) => (
-    spawnNodeManagedProcess({
-      command,
-      args,
-      cwd: spawnOptions.cwd ?? process.cwd(),
-      environment: spawnOptions.env,
-    })
-  ));
-  const terminateTree = options.terminateTree ?? (
-    options.spawnChild === undefined ? terminateNodeManagedProcess : undefined
-  );
+  const spawnChild =
+    options.spawnChild ??
+    ((command, args, spawnOptions) =>
+      spawnNodeManagedProcess({
+        command,
+        args,
+        cwd: spawnOptions.cwd ?? process.cwd(),
+        environment: spawnOptions.env,
+      }));
+  const terminateTree =
+    options.terminateTree ??
+    (options.spawnChild === undefined ? terminateNodeManagedProcess : undefined);
   const managedProcessGroups = new Set();
   const command = spawnChild(
     nodeEntrypoint ? process.execPath : cliPath,
@@ -302,8 +315,12 @@ export function startBoundedCli(cliPath, arguments_, options = {}) {
   let stdout = "";
   command.stderr.setEncoding("utf8");
   command.stdout.setEncoding("utf8");
-  command.stderr.on("data", (chunk) => { stderr += chunk; });
-  command.stdout.on("data", (chunk) => { stdout += chunk; });
+  command.stderr.on("data", (chunk) => {
+    stderr += chunk;
+  });
+  command.stdout.on("data", (chunk) => {
+    stdout += chunk;
+  });
 
   const completed = new Promise((resolve, reject) => {
     command.once("error", reject);
@@ -335,11 +352,7 @@ export function startBoundedCli(cliPath, arguments_, options = {}) {
         shutdownGraceMs,
         createDeadline,
       );
-      const finalFailure = outcomeFailure(
-        finalClose,
-        "Retained CLI final close",
-        shutdownGraceMs,
-      );
+      const finalFailure = outcomeFailure(finalClose, "Retained CLI final close", shutdownGraceMs);
       if (finalFailure !== undefined) {
         failures.push(finalFailure);
       }
@@ -352,7 +365,9 @@ export function startBoundedCli(cliPath, arguments_, options = {}) {
 
   let watchdogExpired = false;
   let rejectWatchdog;
-  const watchdogFailure = new Promise((_resolve, reject) => { rejectWatchdog = reject; });
+  const watchdogFailure = new Promise((_resolve, reject) => {
+    rejectWatchdog = reject;
+  });
   const armWatchdog = () => {
     if (watchdog !== undefined || stopPromise !== undefined) {
       return;
@@ -364,8 +379,9 @@ export function startBoundedCli(cliPath, arguments_, options = {}) {
         startAction(stop),
         startAction(() => options.fixtureBoundary?.stop()),
       ];
-      const cleanup = Promise.allSettled(cleanupActions)
-        .then((outcomes) => collectCleanupFailures(outcomes, cleanupFailures));
+      const cleanup = Promise.allSettled(cleanupActions).then((outcomes) =>
+        collectCleanupFailures(outcomes, cleanupFailures),
+      );
       const boundedCleanup = settleWithin(
         cleanup,
         "Watchdog containment cleanup",
@@ -384,7 +400,7 @@ export function startBoundedCli(cliPath, arguments_, options = {}) {
       });
       const error = new Error(
         `Test-harness watchdog expired after ${watchdogMs}ms; ` +
-        "QGR task timeout semantics were not changed.",
+          "QGR task timeout semantics were not changed.",
       );
       Object.defineProperties(error, {
         cleanup: { enumerable: false, value: boundedCleanup },
@@ -394,9 +410,11 @@ export function startBoundedCli(cliPath, arguments_, options = {}) {
     }, watchdogMs);
   };
   const result = Promise.race([
-    completed.then((value) => watchdogExpired ? watchdogFailure : value),
+    completed.then((value) => (watchdogExpired ? watchdogFailure : value)),
     watchdogFailure,
-  ]).finally(() => { clearTimeout(watchdog); });
+  ]).finally(() => {
+    clearTimeout(watchdog);
+  });
   if (options.deferWatchdogUntilReady !== true) {
     armWatchdog();
   }
@@ -425,6 +443,18 @@ export async function removeFixtureRoot(root) {
   });
 }
 
+/**
+ * @param {{
+ *   actionDeadlineMs?: number,
+ *   boundaries?: readonly ({ stop: () => unknown } | null | undefined)[],
+ *   createDeadline?: (milliseconds: number, label?: string) => { cancel: () => void, promise: Promise<unknown> },
+ *   executions?: readonly ({ stop: () => unknown } | null | undefined)[],
+ *   remove?: (root: string) => unknown,
+ *   roots?: readonly string[],
+ *   primaryFailures?: readonly unknown[],
+ *   stageDeadlineMs?: number
+ * }} options
+ */
 export async function cleanupSyntheticFixture({
   actionDeadlineMs = TEST_HARNESS_SHUTDOWN_GRACE_MS * 3,
   boundaries = [],
@@ -471,6 +501,9 @@ export async function cleanupSyntheticFixture({
     stageDeadlineMs,
   });
   if (failures.length > 0) {
-    throw new AggregateError([...primaryFailures, ...failures], "Synthetic QGR fixture cleanup failed.");
+    throw new AggregateError(
+      [...primaryFailures, ...failures],
+      "Synthetic QGR fixture cleanup failed.",
+    );
   }
 }

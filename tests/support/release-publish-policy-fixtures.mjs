@@ -4,9 +4,17 @@ import { dirname, join } from "node:path";
 export async function publicLeafFixture(root, manifest, registry, symbol) {
   const packageRoot = join(root, "packages", manifest.name.slice("@agent-teams/".length));
   await mkdir(packageRoot, { recursive: true });
-  await writeFile(join(packageRoot, "package.json"), `${JSON.stringify({
-    ...manifest, publishConfig: { registry },
-  }, null, 2)}\n`);
+  await writeFile(
+    join(packageRoot, "package.json"),
+    `${JSON.stringify(
+      {
+        ...manifest,
+        publishConfig: { registry },
+      },
+      null,
+      2,
+    )}\n`,
+  );
   await writeFile(join(packageRoot, "dist.js"), `export const ${symbol} = 1;\n`);
 }
 
@@ -35,9 +43,12 @@ export function commandEnvironment(
   const environment = Object.fromEntries(
     Object.entries(baseEnvironment).filter(([key]) => {
       const normalized = key.toLowerCase();
-      return !["home", "homedrive", "homepath", "path", "pathext", "userprofile"].includes(normalized) &&
+      return (
+        !["home", "homedrive", "homepath", "path", "pathext", "userprofile"].includes(normalized) &&
         !normalized.startsWith("npm_") &&
-        !normalized.startsWith("pnpm_") && !normalized.startsWith("corepack_");
+        !normalized.startsWith("pnpm_") &&
+        !normalized.startsWith("corepack_")
+      );
     }),
   );
   const isolatedHome = join(root, "home");

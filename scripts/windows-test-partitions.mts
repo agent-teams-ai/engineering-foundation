@@ -6,8 +6,9 @@ export const WINDOWS_TEST_LANES = Object.freeze(["a", "b", "c", "d", "e"] as con
 export type WindowsTestLane = (typeof WINDOWS_TEST_LANES)[number];
 const shardIds = ["1", "2", "3", "4", "5", "6", "7", "8"] as const;
 const loaderTest = "tests/source-dependency-loader-cli.test.mjs";
-const defaultWindowsLanePolicy: unknown = JSON.parse(readFileSync(
-  new URL("../tests/manifests/windows-lanes.v1.json", import.meta.url), "utf8"));
+const defaultWindowsLanePolicy: unknown = JSON.parse(
+  readFileSync(new URL("../tests/manifests/windows-lanes.v1.json", import.meta.url), "utf8"),
+);
 
 export interface WindowsTestManifest {
   readonly tests: readonly string[];
@@ -29,9 +30,17 @@ function fail(message: string): never {
   throw new Error(`Windows test partition is invalid: ${message}`);
 }
 
-function exactObject(value: unknown, keys: readonly string[], label: string): Record<string, unknown> {
-  if (value === null || typeof value !== "object" || Array.isArray(value) ||
-      Object.keys(value).toSorted().join("\0") !== [...keys].toSorted().join("\0")) {
+function exactObject(
+  value: unknown,
+  keys: readonly string[],
+  label: string,
+): Record<string, unknown> {
+  if (
+    value === null ||
+    typeof value !== "object" ||
+    Array.isArray(value) ||
+    Object.keys(value).toSorted().join("\0") !== [...keys].toSorted().join("\0")
+  ) {
     fail(`${label} keys must be exactly ${keys.join(", ")}`);
   }
   return value as Record<string, unknown>;
@@ -39,11 +48,19 @@ function exactObject(value: unknown, keys: readonly string[], label: string): Re
 
 function parseWindowsLanePolicy(input: unknown): ReadonlyMap<WindowsTestLane, readonly string[]> {
   const policy = exactObject(input, ["schemaVersion", "source", "lanes"], "lane policy");
-  if (policy.schemaVersion !== 1) { fail("lane policy schemaVersion must be 1"); }
+  if (policy.schemaVersion !== 1) {
+    fail("lane policy schemaVersion must be 1");
+  }
   const source = exactObject(policy.source, ["runId", "headSha", "strategy"], "lane policy source");
-  if (typeof source.runId !== "number" || !Number.isSafeInteger(source.runId) || source.runId <= 0 ||
-      typeof source.headSha !== "string" || !/^[a-f0-9]{40}$/u.test(source.headSha) ||
-      typeof source.strategy !== "string" || source.strategy.trim() === "") {
+  if (
+    typeof source.runId !== "number" ||
+    !Number.isSafeInteger(source.runId) ||
+    source.runId <= 0 ||
+    typeof source.headSha !== "string" ||
+    !/^[a-f0-9]{40}$/u.test(source.headSha) ||
+    typeof source.strategy !== "string" ||
+    source.strategy.trim() === ""
+  ) {
     fail("lane policy source requires a run ID, full head SHA and strategy");
   }
   const lanes = exactObject(policy.lanes, WINDOWS_TEST_LANES, "lane policy lanes");
@@ -65,10 +82,17 @@ function requireShardIds(ids: readonly string[], label: string): void {
   }
 }
 
-function requirePaths(files: unknown, label: string, allowEmpty = false): asserts files is readonly string[] {
-  if (!Array.isArray(files) || (!allowEmpty && files.length === 0) ||
-      files.some((file) => typeof file !== "string" || file === "") ||
-      new Set(files).size !== files.length) {
+function requirePaths(
+  files: unknown,
+  label: string,
+  allowEmpty = false,
+): asserts files is readonly string[] {
+  if (
+    !Array.isArray(files) ||
+    (!allowEmpty && files.length === 0) ||
+    files.some((file) => typeof file !== "string" || file === "") ||
+    new Set(files).size !== files.length
+  ) {
     fail(`${label} requires unique non-empty test paths`);
   }
 }
@@ -98,8 +122,10 @@ function canonicalInventory(manifest: WindowsTestManifest): readonly string[] {
     requirePaths(extra, `coverage additions ${id}`, true);
     requirePaths(coverage, `coverage shard ${id}`);
     const projection = [...files, ...extra];
-    if (coverage.length !== projection.length ||
-        coverage.some((file: string, index: number) => file !== projection[index])) {
+    if (
+      coverage.length !== projection.length ||
+      coverage.some((file: string, index: number) => file !== projection[index])
+    ) {
       fail(`coverage shard ${id} differs from its canonical projection`);
     }
     canonical.push(...files);
@@ -121,8 +147,14 @@ export function selectWindowsTestLanePaths(
   lane: string,
   coverageEvidenceEnabled = false,
   {
-    platform = process.platform, architecture = process.arch, policy = defaultWindowsLanePolicy,
-  }: Readonly<{ platform?: NodeJS.Platform; architecture?: typeof process.arch; policy?: unknown }> = {},
+    platform = process.platform,
+    architecture = process.arch,
+    policy = defaultWindowsLanePolicy,
+  }: Readonly<{
+    platform?: NodeJS.Platform;
+    architecture?: typeof process.arch;
+    policy?: unknown;
+  }> = {},
 ): readonly string[] {
   requireWindowsTestLane(lane);
   if (coverageEvidenceEnabled) {

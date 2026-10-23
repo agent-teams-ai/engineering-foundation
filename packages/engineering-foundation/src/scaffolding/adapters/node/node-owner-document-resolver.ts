@@ -1,17 +1,12 @@
 import { lstat, opendir, realpath } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 
-import type {
-  Sha256Digest
-} from "../../application/model/scaffold-values.js";
+import type { Sha256Digest } from "../../application/model/scaffold-values.js";
 import { sha256Json } from "../../kernel/canonical-json.js";
 import { ScaffoldError } from "../../scaffold-error.js";
 import type { ScaffoldAuthorityObservation } from "../../application/ports/authority-observation.js";
 import { assertScaffoldAuthorityPath } from "../../application/policies/authority-path.js";
-import {
-  readContainedRepositoryFile,
-  type LoadedRepositoryFile
-} from "./node-repository-file.js";
+import { readContainedRepositoryFile, type LoadedRepositoryFile } from "./node-repository-file.js";
 import { ScaffoldAuthorityStaleError } from "./node-authority-error.js";
 
 const MAX_AUTHORITY_DOCUMENTS = 4096;
@@ -44,9 +39,7 @@ function isContained(root: string, candidate: string): boolean {
   const relation = relative(root, candidate);
   return (
     relation === "" ||
-    (!relation.startsWith(`..${sep}`) &&
-      relation !== ".." &&
-      !isAbsolute(relation))
+    (!relation.startsWith(`..${sep}`) && relation !== ".." && !isAbsolute(relation))
   );
 }
 
@@ -54,25 +47,25 @@ function compareStrings(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
-function parseOwnerFrontmatter(source: string, observation: ScaffoldAuthorityObservation): OwnerDocumentMetadata {
+function parseOwnerFrontmatter(
+  source: string,
+  observation: ScaffoldAuthorityObservation,
+): OwnerDocumentMetadata {
   const normalized = source.replace(/\r\n?/gu, "\n");
   if (!normalized.startsWith("---\n")) {
     throw new ScaffoldError(
       "SCAFFOLD_INPUT_INVALID",
-      "Authority documents must start with strict YAML frontmatter."
+      "Authority documents must start with strict YAML frontmatter.",
     );
   }
   const end = normalized.indexOf("\n---\n", 4);
   if (end === -1) {
     throw new ScaffoldError(
       "SCAFFOLD_INPUT_INVALID",
-      "Authority document YAML frontmatter must have a closing delimiter."
+      "Authority document YAML frontmatter must have a closing delimiter.",
     );
   }
-  const parsed = observation.parseYaml(
-    normalized.slice(4, end),
-    "scaffold-owner-document"
-  );
+  const parsed = observation.parseYaml(normalized.slice(4, end), "scaffold-owner-document");
   if (
     !isRecord(parsed) ||
     typeof parsed.id !== "string" ||
@@ -84,36 +77,30 @@ function parseOwnerFrontmatter(source: string, observation: ScaffoldAuthorityObs
   ) {
     throw new ScaffoldError(
       "SCAFFOLD_INPUT_INVALID",
-      "Authority document frontmatter must contain normalized id and status strings."
+      "Authority document frontmatter must contain normalized id and status strings.",
     );
   }
   return Object.freeze({ id: parsed.id, status: parsed.status });
 }
 
-async function listMarkdownFilesInRoot(options: {
-  readonly canonicalConsumerRoot: string;
-  readonly documentRoot: string;
-  readonly budget: AuthorityDocumentTraversalBudget;
-}, observation: ScaffoldAuthorityObservation): Promise<readonly string[]> {
-  assertScaffoldAuthorityPath(
-    options.documentRoot,
-    "scaffold-owner-document-root"
-  );
-  const absoluteRoot = resolve(
-    options.canonicalConsumerRoot,
-    options.documentRoot
-  );
+async function listMarkdownFilesInRoot(
+  options: {
+    readonly canonicalConsumerRoot: string;
+    readonly documentRoot: string;
+    readonly budget: AuthorityDocumentTraversalBudget;
+  },
+  observation: ScaffoldAuthorityObservation,
+): Promise<readonly string[]> {
+  assertScaffoldAuthorityPath(options.documentRoot, "scaffold-owner-document-root");
+  const absoluteRoot = resolve(options.canonicalConsumerRoot, options.documentRoot);
   if (
-    (await observation.pathTraversesSymbolicLink(
-      options.canonicalConsumerRoot,
-      absoluteRoot
-    )) ||
+    (await observation.pathTraversesSymbolicLink(options.canonicalConsumerRoot, absoluteRoot)) ||
     !isContained(options.canonicalConsumerRoot, await realpath(absoluteRoot)) ||
     !(await lstat(absoluteRoot)).isDirectory()
   ) {
     throw new ScaffoldError(
       "SCAFFOLD_INPUT_INVALID",
-      `Authority document root must be a contained regular directory: ${options.documentRoot}.`
+      `Authority document root must be a contained regular directory: ${options.documentRoot}.`,
     );
   }
 
@@ -121,12 +108,12 @@ async function listMarkdownFilesInRoot(options: {
   const walk = async (
     absoluteDirectory: string,
     repositoryDirectory: string,
-    depth: number
+    depth: number,
   ): Promise<void> => {
     if (depth > MAX_AUTHORITY_DOCUMENT_DEPTH) {
       throw new ScaffoldError(
         "SCAFFOLD_INPUT_INVALID",
-        `Authority document roots cannot exceed ${MAX_AUTHORITY_DOCUMENT_DEPTH} directory levels.`
+        `Authority document roots cannot exceed ${MAX_AUTHORITY_DOCUMENT_DEPTH} directory levels.`,
       );
     }
     const entries = [];
@@ -136,7 +123,7 @@ async function listMarkdownFilesInRoot(options: {
       if (options.budget.entriesVisited > MAX_AUTHORITY_DOCUMENT_ENTRIES) {
         throw new ScaffoldError(
           "SCAFFOLD_INPUT_INVALID",
-          `Authority document roots cannot contain more than ${MAX_AUTHORITY_DOCUMENT_ENTRIES} entries.`
+          `Authority document roots cannot contain more than ${MAX_AUTHORITY_DOCUMENT_ENTRIES} entries.`,
         );
       }
       entries.push(entry);
@@ -148,7 +135,7 @@ async function listMarkdownFilesInRoot(options: {
       if (entry.isSymbolicLink()) {
         throw new ScaffoldError(
           "SCAFFOLD_INPUT_INVALID",
-          `Authority document roots cannot contain symbolic links: ${repositoryPath}.`
+          `Authority document roots cannot contain symbolic links: ${repositoryPath}.`,
         );
       }
       if (entry.isDirectory()) {
@@ -158,14 +145,14 @@ async function listMarkdownFilesInRoot(options: {
         if (options.budget.documentsVisited > MAX_AUTHORITY_DOCUMENTS) {
           throw new ScaffoldError(
             "SCAFFOLD_INPUT_INVALID",
-            `Authority document roots cannot contain more than ${MAX_AUTHORITY_DOCUMENTS} Markdown files.`
+            `Authority document roots cannot contain more than ${MAX_AUTHORITY_DOCUMENTS} Markdown files.`,
           );
         }
         paths.push(repositoryPath);
       } else if (!entry.isFile()) {
         throw new ScaffoldError(
           "SCAFFOLD_INPUT_INVALID",
-          `Authority document roots may contain only regular files and directories: ${repositoryPath}.`
+          `Authority document roots may contain only regular files and directories: ${repositoryPath}.`,
         );
       }
     }
@@ -177,7 +164,7 @@ async function listMarkdownFilesInRoot(options: {
 async function listAuthorityDocumentPaths(
   consumerRoot: string,
   documentRoots: readonly string[],
-  observation: ScaffoldAuthorityObservation
+  observation: ScaffoldAuthorityObservation,
 ): Promise<readonly string[]> {
   try {
     const normalizedRoots = documentRoots
@@ -192,7 +179,7 @@ async function listAuthorityDocumentPaths(
         ) {
           throw new ScaffoldError(
             "SCAFFOLD_INPUT_INVALID",
-            "Authority document roots cannot overlap or differ only by case."
+            "Authority document roots cannot overlap or differ only by case.",
           );
         }
       }
@@ -202,11 +189,14 @@ async function listAuthorityDocumentPaths(
     const paths: string[] = [];
     for (const documentRoot of documentRoots.toSorted(compareStrings)) {
       paths.push(
-        ...(await listMarkdownFilesInRoot({
-          canonicalConsumerRoot,
-          documentRoot,
-          budget
-        }, observation))
+        ...(await listMarkdownFilesInRoot(
+          {
+            canonicalConsumerRoot,
+            documentRoot,
+            budget,
+          },
+          observation,
+        )),
       );
     }
     paths.sort(compareStrings);
@@ -215,7 +205,7 @@ async function listAuthorityDocumentPaths(
     if (exact.size !== paths.length || caseFolded.size !== paths.length) {
       throw new ScaffoldError(
         "SCAFFOLD_INPUT_INVALID",
-        "Authority document roots overlap or contain case-folding path collisions."
+        "Authority document roots overlap or contain case-folding path collisions.",
       );
     }
     return Object.freeze(paths);
@@ -227,26 +217,29 @@ async function listAuthorityDocumentPaths(
       "SCAFFOLD_INPUT_INVALID",
       "Cannot index configured authority document roots.",
       [],
-      { cause: error }
+      { cause: error },
     );
   }
 }
 
-export async function resolveOwnerDocument(options: {
-  readonly consumerRoot: string;
-  readonly documentRoots: readonly string[];
-  readonly ownerDocumentId: string;
-}, observation: ScaffoldAuthorityObservation): Promise<ResolvedOwnerDocument> {
+export async function resolveOwnerDocument(
+  options: {
+    readonly consumerRoot: string;
+    readonly documentRoots: readonly string[];
+    readonly ownerDocumentId: string;
+  },
+  observation: ScaffoldAuthorityObservation,
+): Promise<ResolvedOwnerDocument> {
   if (!OWNER_DOCUMENT_ID_PATTERN.test(options.ownerDocumentId)) {
     throw new ScaffoldError(
       "SCAFFOLD_INPUT_INVALID",
-      "Owner document ID must be a normalized authority identifier."
+      "Owner document ID must be a normalized authority identifier.",
     );
   }
   const paths = await listAuthorityDocumentPaths(
     options.consumerRoot,
     options.documentRoots,
-    observation
+    observation,
   );
   const index: {
     readonly path: string;
@@ -262,7 +255,7 @@ export async function resolveOwnerDocument(options: {
       options.consumerRoot,
       path,
       "scaffold-owner-document",
-      observation
+      observation,
     );
     const metadata = parseOwnerFrontmatter(file.source, observation);
     index.push({ path: file.path, id: metadata.id, status: metadata.status });
@@ -272,7 +265,7 @@ export async function resolveOwnerDocument(options: {
   }
   if (matches.length !== 1) {
     throw new ScaffoldAuthorityStaleError(
-      `Owner document must resolve exactly once from configured roots: ${options.ownerDocumentId}.`
+      `Owner document must resolve exactly once from configured roots: ${options.ownerDocumentId}.`,
     );
   }
   const selected = matches[0] as (typeof matches)[number];
@@ -280,6 +273,6 @@ export async function resolveOwnerDocument(options: {
   return Object.freeze({
     ...selected.metadata,
     file: selected.file,
-    indexDigest
+    indexDigest,
   });
 }

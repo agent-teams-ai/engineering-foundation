@@ -8,10 +8,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
 
 const cliPath = fileURLToPath(
-  new URL(
-    "../packages/engineering-foundation/dist/cli.js",
-    import.meta.url,
-  ),
+  new URL("../packages/engineering-foundation/dist/cli.js", import.meta.url),
 );
 
 function sha256(value) {
@@ -134,11 +131,7 @@ test("uses the stable invalid-invocation exit code", () => {
       encoding: "utf8",
     });
 
-    assert.equal(
-      result.status,
-      2,
-      `${commandArguments.join(" ")}: ${result.stderr}`,
-    );
+    assert.equal(result.status, 2, `${commandArguments.join(" ")}: ${result.stderr}`);
     assert.match(result.stderr, /^CONSUMER_INVALID:/u);
   }
 });
@@ -186,142 +179,206 @@ test("renders every requested JSON invocation failure as one JSON envelope", () 
 });
 
 test("accepts the canonical repo check namespace", () => {
-  const direct = spawnSync(process.execPath, [
-    cliPath, "check", "--consumer", "/definitely-missing-foundation-consumer",
-    "--format", "json",
-  ], { encoding: "utf8" });
-  const namespaced = spawnSync(process.execPath, [
-    cliPath, "repo", "check", "--consumer", "/definitely-missing-foundation-consumer",
-    "--format", "json",
-  ], { encoding: "utf8" });
+  const direct = spawnSync(
+    process.execPath,
+    [cliPath, "check", "--consumer", "/definitely-missing-foundation-consumer", "--format", "json"],
+    { encoding: "utf8" },
+  );
+  const namespaced = spawnSync(
+    process.execPath,
+    [
+      cliPath,
+      "repo",
+      "check",
+      "--consumer",
+      "/definitely-missing-foundation-consumer",
+      "--format",
+      "json",
+    ],
+    { encoding: "utf8" },
+  );
 
   assert.equal(namespaced.status, direct.status);
   assert.equal(namespaced.stdout, direct.stdout);
   assert.equal(namespaced.stderr, direct.stderr);
 });
 
-test("SIGTERM cancels Buf qualification with exit code 130", {
-  skip: process.platform === "win32",
-  timeout: 10_000,
-}, async () => {
-  const root = await mkdtemp(join(tmpdir(), "foundation-cli-cancellation-"));
-  const fakeBuf = join(root, "fake-buf");
-  const marker = `${fakeBuf}.started`;
-  const bufConfig = "version: v2\nmodules:\n  - path: .\nbreaking:\n  use:\n    - FILE\n";
-  const descriptor = Buffer.from("released descriptor\n", "utf8");
-  const generatedDigest = sha256("generated");
-  try {
-    await mkdir(join(root, "architecture", "contracts"), { recursive: true });
-    await writeFile(fakeBuf, '#!/bin/sh\ntouch "$0.started"\nsleep 30\n', "utf8");
-    await chmod(fakeBuf, 0o755);
-    await writeFile(join(root, "buf.yaml"), bufConfig, "utf8");
-    await writeFile(join(root, "architecture", "contracts", "released.binpb"), descriptor);
-    await writeFile(join(root, "foundation.config.yaml"), JSON.stringify({
-      schemaVersion: 1,
-      project: { id: "cli-cancellation" },
-      capabilities: {
-        "contract.protobuf-evolution": { configPath: "contract.yaml" },
-      },
-    }), "utf8");
-    await writeFile(join(root, "architecture", "contracts", "released.json"), JSON.stringify({
-      schemaVersion: 1,
-      contractId: "cli-cancellation.control",
-      publicContractVersion: "1.0.0",
-      bufVersion: "1.72.0",
-      bufConfigDigest: sha256(bufConfig),
-      descriptorImageDigest: sha256(descriptor),
-      generatorVersions: [],
-      generatedOutputDigest: generatedDigest,
-    }), "utf8");
-    await writeFile(join(root, "contract.yaml"), JSON.stringify({
-      schemaVersion: 1,
-      releasedBaselinePath: "architecture/contracts/released.json",
-      approvedBreakingChanges: [],
-      qualification: {
-        modulePath: ".",
-        bufConfigPath: "buf.yaml",
-        releasedDescriptorImagePath: "architecture/contracts/released.binpb",
-        evidencePath: "architecture/evidence/protobuf/qualification.json",
-      },
-      current: {
-        schemaVersion: 1,
-        contractId: "cli-cancellation.control",
-        publicContractVersion: "1.0.0",
-        bufVersion: "1.72.0",
-        bufConfigDigest: sha256(bufConfig),
-        descriptorImageDigest: sha256(descriptor),
-        generatorVersions: [],
-        generationDrift: {
-          expectedGeneratedOutputDigest: generatedDigest,
-          observedGeneratedOutputDigest: generatedDigest,
-        },
-      },
-    }), "utf8");
+test(
+  "SIGTERM cancels Buf qualification with exit code 130",
+  {
+    skip: process.platform === "win32",
+    timeout: 10_000,
+  },
+  async () => {
+    const root = await mkdtemp(join(tmpdir(), "foundation-cli-cancellation-"));
+    const fakeBuf = join(root, "fake-buf");
+    const marker = `${fakeBuf}.started`;
+    const bufConfig = "version: v2\nmodules:\n  - path: .\nbreaking:\n  use:\n    - FILE\n";
+    const descriptor = Buffer.from("released descriptor\n", "utf8");
+    const generatedDigest = sha256("generated");
+    try {
+      await mkdir(join(root, "architecture", "contracts"), { recursive: true });
+      await writeFile(fakeBuf, '#!/bin/sh\ntouch "$0.started"\nsleep 30\n', "utf8");
+      await chmod(fakeBuf, 0o755);
+      await writeFile(join(root, "buf.yaml"), bufConfig, "utf8");
+      await writeFile(join(root, "architecture", "contracts", "released.binpb"), descriptor);
+      await writeFile(
+        join(root, "foundation.config.yaml"),
+        JSON.stringify({
+          schemaVersion: 1,
+          project: { id: "cli-cancellation" },
+          capabilities: {
+            "contract.protobuf-evolution": { configPath: "contract.yaml" },
+          },
+        }),
+        "utf8",
+      );
+      await writeFile(
+        join(root, "architecture", "contracts", "released.json"),
+        JSON.stringify({
+          schemaVersion: 1,
+          contractId: "cli-cancellation.control",
+          publicContractVersion: "1.0.0",
+          bufVersion: "1.72.0",
+          bufConfigDigest: sha256(bufConfig),
+          descriptorImageDigest: sha256(descriptor),
+          generatorVersions: [],
+          generatedOutputDigest: generatedDigest,
+        }),
+        "utf8",
+      );
+      await writeFile(
+        join(root, "contract.yaml"),
+        JSON.stringify({
+          schemaVersion: 1,
+          releasedBaselinePath: "architecture/contracts/released.json",
+          approvedBreakingChanges: [],
+          qualification: {
+            modulePath: ".",
+            bufConfigPath: "buf.yaml",
+            releasedDescriptorImagePath: "architecture/contracts/released.binpb",
+            evidencePath: "architecture/evidence/protobuf/qualification.json",
+          },
+          current: {
+            schemaVersion: 1,
+            contractId: "cli-cancellation.control",
+            publicContractVersion: "1.0.0",
+            bufVersion: "1.72.0",
+            bufConfigDigest: sha256(bufConfig),
+            descriptorImageDigest: sha256(descriptor),
+            generatorVersions: [],
+            generationDrift: {
+              expectedGeneratedOutputDigest: generatedDigest,
+              observedGeneratedOutputDigest: generatedDigest,
+            },
+          },
+        }),
+        "utf8",
+      );
 
-    const child = spawn(process.execPath, [
-      cliPath,
-      "protobuf-qualify-breaking",
-      "--consumer",
-      root,
-      "--buf-executable",
-      fakeBuf,
-      "--write",
-    ], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
-    let stderr = "";
-    child.stderr.on("data", (chunk) => { stderr += chunk.toString(); });
-    await waitForFile(marker);
-    child.kill("SIGTERM");
-    const result = await new Promise((resolve) => {
-      child.once("close", (code, signal) => resolve({ code, signal }));
-    });
-    assert.deepEqual(result, { code: 130, signal: null });
-    assert.match(stderr, /^EXECUTION_CANCELLED:/u);
-  } finally {
-    await rm(root, { force: true, recursive: true });
-  }
-});
+      const child = spawn(
+        process.execPath,
+        [
+          cliPath,
+          "protobuf-qualify-breaking",
+          "--consumer",
+          root,
+          "--buf-executable",
+          fakeBuf,
+          "--write",
+        ],
+        { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+      );
+      let stderr = "";
+      child.stderr.on("data", (chunk) => {
+        stderr += chunk.toString();
+      });
+      await waitForFile(marker);
+      child.kill("SIGTERM");
+      const result = await new Promise((resolve) => {
+        child.once("close", (code, signal) => resolve({ code, signal }));
+      });
+      assert.deepEqual(result, { code: 130, signal: null });
+      assert.match(stderr, /^EXECUTION_CANCELLED:/u);
+    } finally {
+      await rm(root, { force: true, recursive: true });
+    }
+  },
+);
 
 test("command host dispatches once, preserves handler precedence and propagates failures", async () => {
-  const { dispatchFoundationCommand } = await import("../packages/engineering-foundation/dist/features/command-host/api.js");
-  const { FoundationError } = await import("../packages/engineering-foundation/dist/features/validation-reporting/api.js");
-  const input = Object.freeze({ command: "fixture", positional: [], consumerRoot: "/inert", configPath: "unused", format: "json", write: false });
+  const { dispatchFoundationCommand } =
+    await import("../packages/engineering-foundation/dist/features/command-host/api.js");
+  const { FoundationError } =
+    await import("../packages/engineering-foundation/dist/features/validation-reporting/api.js");
+  const input = Object.freeze({
+    command: "fixture",
+    positional: [],
+    consumerRoot: "/inert",
+    configPath: "unused",
+    format: "json",
+    write: false,
+  });
   const calls = [];
   await dispatchFoundationCommand(input, [
-    async invocation => { assert.equal(invocation, input); calls.push("declined"); return false; },
-    async () => { calls.push("handled"); return true; },
-    async () => { assert.fail("no dispatch after handling"); },
+    async (invocation) => {
+      assert.equal(invocation, input);
+      calls.push("declined");
+      return false;
+    },
+    async () => {
+      calls.push("handled");
+      return true;
+    },
+    async () => {
+      assert.fail("no dispatch after handling");
+    },
   ]);
   assert.deepEqual(calls, ["declined", "handled"]);
-  await assert.rejects(dispatchFoundationCommand(input, [async () => false]), error => {
+  await assert.rejects(dispatchFoundationCommand(input, [async () => false]), (error) => {
     assert.ok(error instanceof FoundationError);
     assert.equal(error.code, "CONSUMER_INVALID");
     assert.equal(error.message, "Unknown command: fixture.");
     return true;
   });
   const failure = new Error("handler failed");
-  await assert.rejects(dispatchFoundationCommand(input, [
-    async () => { throw failure; },
-    async () => { assert.fail("no fallback after failure"); },
-  ]), error => error === failure);
+  await assert.rejects(
+    dispatchFoundationCommand(input, [
+      async () => {
+        throw failure;
+      },
+      async () => {
+        assert.fail("no fallback after failure");
+      },
+    ]),
+    (error) => error === failure,
+  );
 });
 
 test("command cancellation composes exact signal subscriptions and disposes on success and failure", async () => {
-  const { nodeCommandCancellation } = await import("../packages/engineering-foundation/dist/features/command-host/module.js");
-  const before = { SIGINT: process.listenerCount("SIGINT"), SIGTERM: process.listenerCount("SIGTERM") };
-  await nodeCommandCancellation.withSignal(["SIGINT"], async signal => {
+  const { nodeCommandCancellation } =
+    await import("../packages/engineering-foundation/dist/features/command-host/module.js");
+  const before = {
+    SIGINT: process.listenerCount("SIGINT"),
+    SIGTERM: process.listenerCount("SIGTERM"),
+  };
+  await nodeCommandCancellation.withSignal(["SIGINT"], async (signal) => {
     assert.equal(process.listenerCount("SIGINT"), before.SIGINT + 1);
     assert.equal(process.listenerCount("SIGTERM"), before.SIGTERM);
     process.emit("SIGINT");
     assert.equal(signal.aborted, true);
   });
   const error = new Error("lifecycle failure");
-  await assert.rejects(nodeCommandCancellation.withSignal(["SIGINT", "SIGTERM"], async signal => {
-    assert.equal(process.listenerCount("SIGINT"), before.SIGINT + 1);
-    assert.equal(process.listenerCount("SIGTERM"), before.SIGTERM + 1);
-    process.emit("SIGTERM");
-    assert.equal(signal.aborted, true);
-    throw error;
-  }), failure => failure === error);
+  await assert.rejects(
+    nodeCommandCancellation.withSignal(["SIGINT", "SIGTERM"], async (signal) => {
+      assert.equal(process.listenerCount("SIGINT"), before.SIGINT + 1);
+      assert.equal(process.listenerCount("SIGTERM"), before.SIGTERM + 1);
+      process.emit("SIGTERM");
+      assert.equal(signal.aborted, true);
+      throw error;
+    }),
+    (failure) => failure === error,
+  );
   assert.equal(process.listenerCount("SIGINT"), before.SIGINT);
   assert.equal(process.listenerCount("SIGTERM"), before.SIGTERM);
 });
@@ -339,7 +396,9 @@ test("self-check resolves package metadata from the executable after command-hos
 
 test("command host classifies sibling errors in application without lookalike or accessor drift", async () => {
   const { observeCommandFailures } = await import("./command-host-observations.mjs");
-  const observations = observeCommandFailures(new URL("../packages/engineering-foundation/dist/", import.meta.url).href);
+  const observations = observeCommandFailures(
+    new URL("../packages/engineering-foundation/dist/", import.meta.url).href,
+  );
   assert.equal(observations.length, 32);
   for (const item of observations) {
     if (item.kind === "lookalike") {
@@ -350,29 +409,51 @@ test("command host classifies sibling errors in application without lookalike or
       assert.equal(item.exitCode, 17);
     }
   }
-  assert.deepEqual(observations.find(item => item.kind === "scaffold" && !item.json && item.fault === "none").trace,
-    ["code", "message", "stderr", "code", "code"]);
-  assert.deepEqual(observations.find(item => item.kind === "transaction" && !item.json && item.fault === "none").trace,
-    ["code", "message", "stderr"]);
+  assert.deepEqual(
+    observations.find((item) => item.kind === "scaffold" && !item.json && item.fault === "none")
+      .trace,
+    ["code", "message", "stderr", "code", "code"],
+  );
+  assert.deepEqual(
+    observations.find((item) => item.kind === "transaction" && !item.json && item.fault === "none")
+      .trace,
+    ["code", "message", "stderr"],
+  );
 });
 
 test("node command integration leaves service creation behind parsing and preserves explicit inputs", async () => {
-  const { createNodeCommandHost } = await import("../packages/engineering-foundation/dist/features/command-host/adapters/inbound/cli/node-command-host.js");
-  const calls = [], environment = {}, args = ["version"], services = {};
-  const host = createNodeCommandHost((env, readRoot) => {
-    assert.equal(env, environment);
-    calls.push(readRoot());
-    return services;
-  }, async (createServices, received) => {
-    assert.equal(received, args);
-    assert.deepEqual(calls, []);
-    assert.equal(createServices(), services);
-  });
+  const { createNodeCommandHost } =
+    await import("../packages/engineering-foundation/dist/features/command-host/adapters/inbound/cli/node-command-host.js");
+  const calls = [],
+    environment = {},
+    args = ["version"],
+    services = {};
+  const host = createNodeCommandHost(
+    (env, readRoot) => {
+      assert.equal(env, environment);
+      calls.push(readRoot());
+      return services;
+    },
+    async (createServices, received) => {
+      assert.equal(received, args);
+      assert.deepEqual(calls, []);
+      assert.equal(createServices(), services);
+    },
+  );
   const packageRoot = join(tmpdir(), "disposable", "package");
   const moduleUrl = pathToFileURL(join(packageRoot, "dist", "cli.js")).href;
   await host.runNodeFoundationCli(environment, moduleUrl, args);
   assert.deepEqual(calls, [packageRoot]);
   const sentinel = Symbol("factory failure");
-  await assert.rejects(createNodeCommandHost(() => { throw sentinel; }, async create => { create(); })
-    .runNodeFoundationCli(environment, moduleUrl, args), error => error === sentinel);
+  await assert.rejects(
+    createNodeCommandHost(
+      () => {
+        throw sentinel;
+      },
+      async (create) => {
+        create();
+      },
+    ).runNodeFoundationCli(environment, moduleUrl, args),
+    (error) => error === sentinel,
+  );
 });

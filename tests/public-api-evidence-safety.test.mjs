@@ -5,10 +5,7 @@ import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import test from "node:test";
 
-import {
-  check,
-  withPublicApiFixture,
-} from "./support/capability-fixtures.mjs";
+import { check, withPublicApiFixture } from "./support/capability-fixtures.mjs";
 import {
   ROOT_STABLE_ITEM,
   currentBaseline,
@@ -20,9 +17,7 @@ const stagingDirectoryPrefix = ".agent-teams-public-api-stage-";
 
 async function stagingDirectories() {
   return new Set(
-    (await readdir(tmpdir())).filter((entry) =>
-      entry.startsWith(stagingDirectoryPrefix)
-    ),
+    (await readdir(tmpdir())).filter((entry) => entry.startsWith(stagingDirectoryPrefix)),
   );
 }
 
@@ -89,9 +84,7 @@ test("normalizes an immutable single-entrypoint v1 baseline into the current v1 
     approvedBreakingChanges: [],
   });
   assert.equal(mapped.schemaVersion, 1);
-  assert.deepEqual(mapped.entrypoints, [
-    { exportPath: ".", items: [ROOT_STABLE_ITEM] },
-  ]);
+  assert.deepEqual(mapped.entrypoints, [{ exportPath: ".", items: [ROOT_STABLE_ITEM] }]);
 
   await withPublicApiFixture(async (consumerRoot) => {
     await configureCurrentPublicApiFixture(consumerRoot);
@@ -112,16 +105,17 @@ test("rejects symlinked public API extraction inputs before staging", async () =
   await withPublicApiFixture(async (consumerRoot) => {
     const declarationPath = join(consumerRoot, "packages", "library", "dist", "index.d.ts");
     const externalPath = join(consumerRoot, "external-declaration.d.ts");
-    await writeFile(externalPath, "export declare function stable(value: string): string;\n", "utf8");
+    await writeFile(
+      externalPath,
+      "export declare function stable(value: string): string;\n",
+      "utf8",
+    );
     await unlink(declarationPath);
     await symlink(externalPath, declarationPath);
 
     const result = check(consumerRoot);
     assert.equal(result.result.status, 2);
-    assert.equal(
-      result.report.capabilities[0].problem?.code,
-      "PUBLIC_API_PATH_SYMLINK_PROHIBITED",
-    );
+    assert.equal(result.report.capabilities[0].problem?.code, "PUBLIC_API_PATH_SYMLINK_PROHIBITED");
   });
 });
 
@@ -134,11 +128,7 @@ test("extracts from a staged package snapshot when the original declaration muta
     const readyPath = join(packageDirectory, "watcher-ready");
     const mutatedPath = join(packageDirectory, "watcher-mutated");
     const originalDeclaration = await readFile(declarationPath, "utf8");
-    await writeFile(
-      declarationPath,
-      `// ${snapshotMarker}\n${originalDeclaration}`,
-      "utf8",
-    );
+    await writeFile(declarationPath, `// ${snapshotMarker}\n${originalDeclaration}`, "utf8");
     await writeFile(
       watcherPath,
       `import { readFile, readdir, stat, writeFile } from "node:fs/promises";
@@ -209,16 +199,12 @@ test("resolves strict package-local declaration dependencies without retaining s
   await withPublicApiFixture(async (consumerRoot) => {
     const stagesBefore = await stagingDirectories();
     const packageDirectory = join(consumerRoot, "packages", "library");
-    const dependencyStore = join(
-      consumerRoot,
-      ".pnpm-store",
-      "stage-only-dependency"
-    );
+    const dependencyStore = join(consumerRoot, ".pnpm-store", "stage-only-dependency");
     const installedDependency = join(
       packageDirectory,
       "node_modules",
       "@fixture",
-      "stage-only-dependency"
+      "stage-only-dependency",
     );
     await mkdir(dependencyStore, { recursive: true });
     await writeFile(
@@ -262,22 +248,30 @@ test("preserves root tsconfig extends paths in the staged package sibling", asyn
     const packageDirectory = join(consumerRoot, "packages", "library");
     await writeFile(
       join(consumerRoot, "tsconfig.json"),
-      `${JSON.stringify({
-        compilerOptions: {
-          module: "NodeNext",
-          moduleResolution: "NodeNext",
-          strict: true,
-          target: "ES2024",
+      `${JSON.stringify(
+        {
+          compilerOptions: {
+            module: "NodeNext",
+            moduleResolution: "NodeNext",
+            strict: true,
+            target: "ES2024",
+          },
         },
-      }, null, 2)}\n`,
+        null,
+        2,
+      )}\n`,
       "utf8",
     );
     await writeFile(
       join(packageDirectory, "tsconfig.json"),
-      `${JSON.stringify({
-        extends: "../../tsconfig.json",
-        include: ["dist/index.d.ts"],
-      }, null, 2)}\n`,
+      `${JSON.stringify(
+        {
+          extends: "../../tsconfig.json",
+          include: ["dist/index.d.ts"],
+        },
+        null,
+        2,
+      )}\n`,
       "utf8",
     );
 
@@ -296,22 +290,30 @@ test("extracts from staged root compiler configuration after the source mutates"
     const readyPath = join(packageDirectory, "root-watcher-ready");
     await writeFile(
       rootTsconfigPath,
-      `// ${snapshotMarker}\n${JSON.stringify({
-        compilerOptions: {
-          module: "NodeNext",
-          moduleResolution: "NodeNext",
-          strict: true,
-          target: "ES2024",
+      `// ${snapshotMarker}\n${JSON.stringify(
+        {
+          compilerOptions: {
+            module: "NodeNext",
+            moduleResolution: "NodeNext",
+            strict: true,
+            target: "ES2024",
+          },
         },
-      }, null, 2)}\n`,
+        null,
+        2,
+      )}\n`,
       "utf8",
     );
     await writeFile(
       join(packageDirectory, "tsconfig.json"),
-      `${JSON.stringify({
-        extends: "../../tsconfig.json",
-        include: ["dist/index.d.ts"],
-      }, null, 2)}\n`,
+      `${JSON.stringify(
+        {
+          extends: "../../tsconfig.json",
+          include: ["dist/index.d.ts"],
+        },
+        null,
+        2,
+      )}\n`,
       "utf8",
     );
     await writeFile(

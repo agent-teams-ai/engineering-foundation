@@ -4,6 +4,6 @@ export interface WorkspaceInventoryReader {
   read(
     consumerRoot: string,
     workspaceManifestPath: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ): Promise<WorkspaceInventory>;
 }

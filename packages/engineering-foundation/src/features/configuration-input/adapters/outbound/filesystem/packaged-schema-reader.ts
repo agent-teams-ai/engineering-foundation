@@ -14,9 +14,14 @@ export function createPackagedSchemaReader(input: {
   readonly readAuthoringSchema: (schemaId: AuthoringDependencyId) => Promise<string>;
 }): (schemaId: string) => Promise<string> {
   return async (schemaId) => {
-    const selectedFile = input.schemaFiles !== undefined && Object.hasOwn(input.schemaFiles, schemaId)
-      ? input.schemaFiles[schemaId] : undefined;
-    if (selectedFile === undefined && (schemaId === "document-intent/v1" || schemaId === "document-plan/v1")) {
+    const selectedFile =
+      input.schemaFiles !== undefined && Object.hasOwn(input.schemaFiles, schemaId)
+        ? input.schemaFiles[schemaId]
+        : undefined;
+    if (
+      selectedFile === undefined &&
+      (schemaId === "document-intent/v1" || schemaId === "document-plan/v1")
+    ) {
       return input.readAuthoringSchema(schemaId);
     }
     assertConfigurationRelativePath(schemaId, "schema-read");
@@ -25,7 +30,7 @@ export function createPackagedSchemaReader(input: {
     const bytes = await input.files.read({
       candidate: resolve(input.packageRoot, relativeFile),
       maxBytes: MAX_SCHEMA_BYTES,
-      root: input.packageRoot
+      root: input.packageRoot,
     });
     return Buffer.from(bytes).toString("utf8");
   };

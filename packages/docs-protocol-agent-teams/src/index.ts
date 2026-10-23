@@ -18,7 +18,7 @@ export {
   upgradeConsumerIntegration,
   ConsumerIntegrationNodeError,
   readConsumerIntegrationInput,
-  projectManagedPortableProfileV4
+  projectManagedPortableProfileV4,
 } from "./consumer-integration/index.js";
 export type {
   CanonicalManagedAssetDigests,
@@ -45,15 +45,18 @@ export type {
   QualifiedDocsCohortV1,
   QualifiedDocsCohortV2,
   QualifiedDocsPackageCoordinateV2,
-  UnselectedCohortV3
+  UnselectedCohortV3,
 } from "./consumer-integration/index.js";
 export { runManagedDocsCli } from "./composition/managed-cli.js";
-export { runDocsProtocolQualificationV2, runDocsProtocolQualificationV3 } from "./qualification/index.js";
+export {
+  runDocsProtocolQualificationV2,
+  runDocsProtocolQualificationV3,
+} from "./qualification/index.js";
 export type {
   DocsProtocolQualificationContractV2,
   DocsProtocolQualificationReceiptV2,
   DocsProtocolQualificationScenarioV2,
-  DocsProtocolQualificationV2Request
+  DocsProtocolQualificationV2Request,
 } from "./qualification/index.js";
 export type {
   DocsProtocolQualificationCheckV3,
@@ -66,5 +69,5 @@ export type {
   DocsProtocolQualificationPackageKeyV3,
   DocsProtocolQualificationPackageReceiptV3,
   DocsProtocolQualificationReceiptV3,
-  DocsProtocolQualificationV3Request
+  DocsProtocolQualificationV3Request,
 } from "./qualification/index.js";

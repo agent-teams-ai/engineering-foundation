@@ -25,9 +25,7 @@ import { NodeDocumentPublisher } from "../packages/document-authoring/dist/docum
 import { createDocumentTransactionEnvelope as createDocumentTransactionEnvelopeWithSchema } from "../packages/document-authoring/dist/document-authoring/application/policies/document-transaction-envelope-policy.js";
 import { envelopeBodyV4 } from "../packages/document-authoring/dist/document-authoring/application/policies/document-transaction-envelope-body.js";
 import { materializeDocumentParentDirectories } from "../packages/document-authoring/dist/document-authoring/application/use-cases/document-transaction-continuation.js";
-import {
-  planDocumentationDocument,
-} from "../packages/document-authoring/dist/index.js";
+import { planDocumentationDocument } from "../packages/document-authoring/dist/index.js";
 
 const planningFixtures = fileURLToPath(
   new URL("fixtures/document-planning/orchestrator/", import.meta.url),
@@ -43,44 +41,47 @@ function directoryPlan() {
   };
 }
 
-qualified("path authority rejects a post-realpath parent replacement and returns final identity", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "document-realpath-authority-"));
-  t.after(() => rm(root, { force: true, recursive: true }));
-  const docs = join(root, "docs");
-  await mkdir(docs);
-  let swapped = false;
-  await assert.rejects(
-    captureNodeRepositoryPathAuthority({
-      consumerRoot: root,
-      operations: {
-        lstat: (path) => lstat(path, { bigint: true }),
-        readdir,
-        async realpath(path) {
-          const canonical = await realpath(path);
-          if (basename(path) === "docs" && !swapped) {
-            swapped = true;
-            await rename(docs, `${docs}.original`);
-            await mkdir(docs);
-          }
-          return canonical;
+qualified(
+  "path authority rejects a post-realpath parent replacement and returns final identity",
+  async (t) => {
+    const root = await mkdtemp(join(tmpdir(), "document-realpath-authority-"));
+    t.after(() => rm(root, { force: true, recursive: true }));
+    const docs = join(root, "docs");
+    await mkdir(docs);
+    let swapped = false;
+    await assert.rejects(
+      captureNodeRepositoryPathAuthority({
+        consumerRoot: root,
+        operations: {
+          lstat: (path) => lstat(path, { bigint: true }),
+          readdir,
+          async realpath(path) {
+            const canonical = await realpath(path);
+            if (basename(path) === "docs" && !swapped) {
+              swapped = true;
+              await rename(docs, `${docs}.original`);
+              await mkdir(docs);
+            }
+            return canonical;
+          },
         },
-      },
+        repositoryPath: "docs/output.md",
+      }),
+      /ancestry identity changed/iu,
+    );
+    const authority = await captureNodeRepositoryPathAuthority({
+      consumerRoot: root,
       repositoryPath: "docs/output.md",
-    }),
-    /ancestry identity changed/iu,
-  );
-  const authority = await captureNodeRepositoryPathAuthority({
-    consumerRoot: root,
-    repositoryPath: "docs/output.md",
-  });
-  const finalParent = await lstat(docs, { bigint: true });
-  assert.deepEqual(authority.parentIdentity, {
-    birthtimeNs: finalParent.birthtimeNs,
-    dev: finalParent.dev,
-    ino: finalParent.ino,
-  });
-  assert.equal(authority.destinationPath, join(await realpath(docs), "output.md"));
-});
+    });
+    const finalParent = await lstat(docs, { bigint: true });
+    assert.deepEqual(authority.parentIdentity, {
+      birthtimeNs: finalParent.birthtimeNs,
+      dev: finalParent.dev,
+      ino: finalParent.ino,
+    });
+    assert.equal(authority.destinationPath, join(await realpath(docs), "output.md"));
+  },
+);
 
 qualified("mkdir replacement cannot be laundered into created-directory evidence", async (t) => {
   const root = await mkdtemp(join(tmpdir(), "document-mkdir-authority-"));
@@ -116,37 +117,44 @@ qualified("mkdir replacement cannot be laundered into created-directory evidence
   });
 });
 
-qualified("post-open recapture rejects a temporary created through swapped symlink ancestry", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "document-temp-authority-"));
-  const outside = await mkdtemp(join(tmpdir(), "document-temp-outside-"));
-  t.after(async () => {
-    await rm(root, { force: true, recursive: true });
-    await rm(outside, { force: true, recursive: true });
-  });
-  await mkdir(join(root, "docs/decisions"), { recursive: true });
-  const fixture = JSON.parse(
-    await import("node:fs/promises").then(({ readFile }) =>
-      readFile(new URL("fixtures/document-authoring-contracts/valid-v1.json", import.meta.url), "utf8")),
-  );
-  let swapped = false;
-  const publisher = new NodeDocumentPublisher({
-    async open(path, flags, mode) {
-      if (!swapped) {
-        swapped = true;
-        await rename(join(root, "docs/decisions"), join(root, "docs/decisions.original"));
-        await symlink(outside, join(root, "docs/decisions"), "dir");
-      }
-      return open(path, flags, mode);
-    },
-    async syncDirectoryStrictly() {},
-  });
-  await assert.rejects(
-    publisher.prepare({ consumerRoot: root, plan: fixture.plan }),
-    /real directory|redirected|ancestry|parent changed/iu,
-  );
-  assert.equal(swapped, true);
-  assert.equal((await readdir(outside)).length, 1);
-});
+qualified(
+  "post-open recapture rejects a temporary created through swapped symlink ancestry",
+  async (t) => {
+    const root = await mkdtemp(join(tmpdir(), "document-temp-authority-"));
+    const outside = await mkdtemp(join(tmpdir(), "document-temp-outside-"));
+    t.after(async () => {
+      await rm(root, { force: true, recursive: true });
+      await rm(outside, { force: true, recursive: true });
+    });
+    await mkdir(join(root, "docs/decisions"), { recursive: true });
+    const fixture = JSON.parse(
+      await import("node:fs/promises").then(({ readFile }) =>
+        readFile(
+          new URL("fixtures/document-authoring-contracts/valid-v1.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+    );
+    let swapped = false;
+    const publisher = new NodeDocumentPublisher({
+      async open(path, flags, mode) {
+        if (!swapped) {
+          swapped = true;
+          await rename(join(root, "docs/decisions"), join(root, "docs/decisions.original"));
+          await symlink(outside, join(root, "docs/decisions"), "dir");
+        }
+        return open(path, flags, mode);
+      },
+      async syncDirectoryStrictly() {},
+    });
+    await assert.rejects(
+      publisher.prepare({ consumerRoot: root, plan: fixture.plan }),
+      /real directory|redirected|ancestry|parent changed/iu,
+    );
+    assert.equal(swapped, true);
+    assert.equal((await readdir(outside)).length, 1);
+  },
+);
 
 qualified("root replacement during temporary open is never accepted", async (t) => {
   const root = await mkdtemp(join(tmpdir(), "document-root-authority-"));
@@ -158,7 +166,11 @@ qualified("root replacement during temporary open is never accepted", async (t) 
   await mkdir(join(root, "docs/decisions"), { recursive: true });
   const fixture = JSON.parse(
     await import("node:fs/promises").then(({ readFile }) =>
-      readFile(new URL("fixtures/document-authoring-contracts/valid-v1.json", import.meta.url), "utf8")),
+      readFile(
+        new URL("fixtures/document-authoring-contracts/valid-v1.json", import.meta.url),
+        "utf8",
+      ),
+    ),
   );
   const publisher = new NodeDocumentPublisher({
     async open(path, flags, mode) {
@@ -185,7 +197,11 @@ qualified("a link through replaced ancestry is never accepted as publication", a
   await mkdir(join(root, "docs/decisions"), { recursive: true });
   const fixture = JSON.parse(
     await import("node:fs/promises").then(({ readFile }) =>
-      readFile(new URL("fixtures/document-authoring-contracts/valid-v1.json", import.meta.url), "utf8")),
+      readFile(
+        new URL("fixtures/document-authoring-contracts/valid-v1.json", import.meta.url),
+        "utf8",
+      ),
+    ),
   );
   const temporary = await new NodeDocumentPublisher({
     async syncDirectoryStrictly() {},
@@ -214,17 +230,25 @@ async function featurePlanV2(root) {
   await cp(planningFixtures, root, { recursive: true });
   const { cases, profilePath } = JSON.parse(
     await import("node:fs/promises").then(({ readFile }) =>
-      readFile(join(root, "cases.json"), "utf8")),
+      readFile(join(root, "cases.json"), "utf8"),
+    ),
   );
   const vector = cases.find(({ name }) => name === "feature");
   const { readFile, writeFile } = await import("node:fs/promises");
   const source = await readFile(join(root, profilePath), "utf8");
-  await writeFile(join(root, profilePath), source
-    .replace("schemaVersion: 1", "schemaVersion: 2")
-    .replaceAll(/(    - type: [^\n]+\n)/gu,
-      "$1      allowedOwnerIds: [architecture/tooling, example/create-widget]\n")
-    .replace("reachability: {kind: not-required}",
-      "reachability: {kind: not-required, reason: indexed by bounded-context hierarchy}"));
+  await writeFile(
+    join(root, profilePath),
+    source
+      .replace("schemaVersion: 1", "schemaVersion: 2")
+      .replaceAll(
+        /(    - type: [^\n]+\n)/gu,
+        "$1      allowedOwnerIds: [architecture/tooling, example/create-widget]\n",
+      )
+      .replace(
+        /reachability:\s*\{\s*kind:\s*not-required\s*\}/u,
+        "reachability: {kind: not-required, reason: indexed by bounded-context hierarchy}",
+      ),
+  );
   await rm(join(root, "packages/example/src/features/create-widget"), {
     force: true,
     recursive: true,
@@ -260,7 +284,10 @@ qualified("transaction materialization never journals a successfully replaced mk
     plan: plan.parentMaterialization,
   });
   const envelope = await createDocumentTransactionEnvelope(
-    envelopeBodyV4(plan, fixtureKernelArtifact, parentJournal, { destination: "pending", state: "PREPARED" }),
+    envelopeBodyV4(plan, fixtureKernelArtifact, parentJournal, {
+      destination: "pending",
+      state: "PREPARED",
+    }),
   );
   const identity = {
     adapter: "node-filesystem",
@@ -309,4 +336,6 @@ qualified("transaction materialization never journals a successfully replaced mk
   );
 });
 
-function createDocumentTransactionEnvelope(...args) { return createDocumentTransactionEnvelopeWithSchema({ assertSchema }, ...args); }
+function createDocumentTransactionEnvelope(...args) {
+  return createDocumentTransactionEnvelopeWithSchema({ assertSchema }, ...args);
+}

@@ -28,9 +28,7 @@ const profile = Object.freeze({
       type: "guide",
     }),
   ]),
-  collections: Object.freeze([
-    Object.freeze({ kind: "markdown-tree", root: "docs/content" }),
-  ]),
+  collections: Object.freeze([Object.freeze({ kind: "markdown-tree", root: "docs/content" })]),
   evidence,
   excludedPrefixes: Object.freeze([]),
   metadataSchemaPath: "metadata.schema.json",
@@ -128,15 +126,11 @@ test("catalog transition preserves unrelated full-corpus drift", () => {
     summary: "Unrelated.",
     title: "Unrelated",
   });
-  const drifted = transition(catalog(
-    [unrelated],
-    [{ id: unrelated.id, repositoryPath: unrelated.repositoryPath }],
-  ));
-
-  assert.notEqual(
-    drifted.catalogPreimageSemanticDigest,
-    baseline.catalogPreimageSemanticDigest,
+  const drifted = transition(
+    catalog([unrelated], [{ id: unrelated.id, repositoryPath: unrelated.repositoryPath }]),
   );
+
+  assert.notEqual(drifted.catalogPreimageSemanticDigest, baseline.catalogPreimageSemanticDigest);
   assert.notEqual(
     drifted.expectedCatalogPostimageSemanticDigest,
     baseline.expectedCatalogPostimageSemanticDigest,

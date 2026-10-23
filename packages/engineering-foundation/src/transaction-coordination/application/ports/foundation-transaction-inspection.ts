@@ -9,10 +9,14 @@ export interface InstalledFoundationInspectionIdentity {
   readonly installedBuildIdentity: string;
 }
 
-type RecordInspection = (value: Record<string, unknown>) => InternalFoundationTransactionStatus | Promise<InternalFoundationTransactionStatus>;
-type InstalledOwnerInspection = (input: InstalledFoundationInspectionIdentity & {
-  readonly value: Record<string, unknown>;
-}) => Promise<InternalFoundationTransactionStatus>;
+type RecordInspection = (
+  value: Record<string, unknown>,
+) => InternalFoundationTransactionStatus | Promise<InternalFoundationTransactionStatus>;
+type InstalledOwnerInspection = (
+  input: InstalledFoundationInspectionIdentity & {
+    readonly value: Record<string, unknown>;
+  },
+) => Promise<InternalFoundationTransactionStatus>;
 
 /** Fixed supported owners, wired by composition; no runtime registration. */
 export interface FoundationTransactionInspectors {

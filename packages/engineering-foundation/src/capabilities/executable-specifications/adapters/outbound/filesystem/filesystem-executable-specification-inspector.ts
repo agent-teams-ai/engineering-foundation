@@ -7,7 +7,7 @@ import {
   assertExecutableInspectionActive as assertNotCancelled,
   executableArtifactReadFailure,
   executableInspectionInputError as inputError,
-  type ExecutableArtifactFileReader
+  type ExecutableArtifactFileReader,
 } from "../../../api.js";
 import { parseStrictJson, StrictJsonError } from "@agent-teams/repository-mutation/serialization";
 import type { JsonSchemaInspectorFactory } from "../../../application/ports/json-schema-inspector-factory.js";
@@ -16,7 +16,7 @@ import type {
   JsonSchemaFixture,
   ConsumerGateBinding,
   ExecutableSpecification,
-  ObservedGateBinding
+  ObservedGateBinding,
 } from "../../../application/model/executable-specification.js";
 
 import type { ExecutableSpecificationInspector } from "../../../application/ports/executable-specification-inspector.js";
@@ -24,7 +24,7 @@ import {
   executableSpecificationArtifactPaths,
   executableSpecificationPathDeclarations,
   portableExecutableSpecificationPathIdentity,
-  portableExecutableSpecificationPathProblem
+  portableExecutableSpecificationPathProblem,
 } from "../../../application/policies/portable-executable-specification-path.js";
 
 const MAX_ARTIFACT_BYTES = 8 * 1024 * 1024;
@@ -34,7 +34,6 @@ interface PackageScripts {
   readonly manifestPath: string;
   readonly scripts: ReadonlySet<string>;
 }
-
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -62,14 +61,14 @@ function canonicalJson(value: unknown): string {
 async function readArtifact(
   root: string,
   repositoryPath: string,
-  files: ExecutableArtifactFileReader
+  files: ExecutableArtifactFileReader,
 ): Promise<Buffer | undefined> {
   let bytes: Uint8Array;
   try {
     bytes = await files.read({
       candidate: resolve(root, repositoryPath),
       maxBytes: MAX_ARTIFACT_BYTES,
-      root
+      root,
     });
   } catch (error) {
     executableArtifactReadFailure(error, repositoryPath);
@@ -89,7 +88,7 @@ class ArtifactReadSession {
   constructor(
     private readonly root: string,
     private readonly maxAggregateBytes: number,
-    private readonly files: ExecutableArtifactFileReader
+    private readonly files: ExecutableArtifactFileReader,
   ) {}
 
   async read(repositoryPath: string): Promise<Buffer | undefined> {
@@ -99,7 +98,7 @@ class ArtifactReadSession {
       if (cached.firstPath !== repositoryPath) {
         inputError(
           "EXECUTABLE_SPECIFICATION_ARTIFACT_PATH_COLLISION",
-          `Artifact paths have the same portable identity: ${cached.firstPath} and ${repositoryPath}.`
+          `Artifact paths have the same portable identity: ${cached.firstPath} and ${repositoryPath}.`,
         );
       }
       return cached.result;
@@ -109,7 +108,7 @@ class ArtifactReadSession {
         if (bytes.byteLength > this.maxAggregateBytes - this.#aggregateBytes) {
           inputError(
             "EXECUTABLE_SPECIFICATION_AGGREGATE_BYTES_EXCEEDED",
-            "Executable specification artifacts and workspace manifests exceed the 32 MiB aggregate inspection budget."
+            "Executable specification artifacts and workspace manifests exceed the 32 MiB aggregate inspection budget.",
           );
         }
         this.#aggregateBytes += bytes.byteLength;
@@ -124,7 +123,7 @@ class ArtifactReadSession {
 async function packageCatalog(
   manifestPaths: readonly string[],
   artifacts: ArtifactReadSession,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<ReadonlyMap<string, PackageScripts>> {
   const packages = new Map<string, PackageScripts>();
   for (const manifestPath of manifestPaths) {
@@ -140,12 +139,12 @@ async function packageCatalog(
       if (error instanceof StrictJsonError && error.failure === "duplicate-key") {
         inputError(
           "EXECUTABLE_SPECIFICATION_PACKAGE_MANIFEST_DUPLICATE_KEY",
-          `Package manifest contains duplicate object keys: ${manifestPath}.`
+          `Package manifest contains duplicate object keys: ${manifestPath}.`,
         );
       }
       inputError(
         "EXECUTABLE_SPECIFICATION_PACKAGE_MANIFEST_INVALID",
-        `Package manifest is invalid JSON: ${manifestPath}.`
+        `Package manifest is invalid JSON: ${manifestPath}.`,
       );
     }
     if (!isRecord(value) || typeof value["name"] !== "string") {
@@ -155,14 +154,14 @@ async function packageCatalog(
     if (packages.has(name)) {
       inputError(
         "EXECUTABLE_SPECIFICATION_PACKAGE_DUPLICATE",
-        `Gate package name is not unique in the workspace: ${name}.`
+        `Gate package name is not unique in the workspace: ${name}.`,
       );
     }
     const scripts = isRecord(value["scripts"])
       ? new Set(
           Object.entries(value["scripts"])
             .filter(([, command]) => typeof command === "string" && command.trim().length > 0)
-            .map(([script]) => script)
+            .map(([script]) => script),
         )
       : new Set<string>();
     packages.set(name, { manifestPath, scripts });
@@ -172,35 +171,33 @@ async function packageCatalog(
 
 function observeGate(
   binding: ConsumerGateBinding,
-  packages: ReadonlyMap<string, PackageScripts>
+  packages: ReadonlyMap<string, PackageScripts>,
 ): ObservedGateBinding {
   const target = packages.get(binding.packageName);
   return Object.freeze({
     ...binding,
     ...(target === undefined ? {} : { manifestPath: target.manifestPath }),
     packageExists: target !== undefined,
-    scriptExists: target?.scripts.has(binding.script) ?? false
+    scriptExists: target?.scripts.has(binding.script) ?? false,
   });
 }
 
 function gateEntries(
-  specification: ExecutableSpecification
+  specification: ExecutableSpecification,
 ): readonly (readonly [string, ConsumerGateBinding])[] {
   return [
     ["mutation", specification.gateBindings.mutation],
     ["property", specification.gateBindings.property],
     ...(specification.gateBindings.typeGeneration === undefined
       ? []
-      : ([['typeGeneration', specification.gateBindings.typeGeneration]] as const)),
+      : ([["typeGeneration", specification.gateBindings.typeGeneration]] as const)),
     ...(specification.stateModel.kind === "xstate"
-      ? ([['spec-model', specification.stateModel.gateBinding]] as const)
-      : [])
+      ? ([["spec-model", specification.stateModel.gateBinding]] as const)
+      : []),
   ];
 }
 
-export class FilesystemExecutableSpecificationInspector
-  implements ExecutableSpecificationInspector
-{
+export class FilesystemExecutableSpecificationInspector implements ExecutableSpecificationInspector {
   readonly #workspaceManifestPathReader: WorkspaceManifestPathReader;
   readonly #maxAggregateArtifactBytes: number;
 
@@ -208,14 +205,16 @@ export class FilesystemExecutableSpecificationInspector
     workspaceManifestPathReader: WorkspaceManifestPathReader,
     private readonly createJsonSchemaInspector: JsonSchemaInspectorFactory,
     private readonly artifactFiles: ExecutableArtifactFileReader,
-    maxAggregateArtifactBytes = MAX_AGGREGATE_ARTIFACT_BYTES
+    maxAggregateArtifactBytes = MAX_AGGREGATE_ARTIFACT_BYTES,
   ) {
     if (
       !Number.isSafeInteger(maxAggregateArtifactBytes) ||
       maxAggregateArtifactBytes < 1 ||
       maxAggregateArtifactBytes > MAX_AGGREGATE_ARTIFACT_BYTES
     ) {
-      throw new TypeError("Aggregate artifact budget must be a positive safe integer up to 32 MiB.");
+      throw new TypeError(
+        "Aggregate artifact budget must be a positive safe integer up to 32 MiB.",
+      );
     }
     this.#workspaceManifestPathReader = workspaceManifestPathReader;
     this.#maxAggregateArtifactBytes = maxAggregateArtifactBytes;
@@ -230,19 +229,22 @@ export class FilesystemExecutableSpecificationInspector
     const artifacts = new ArtifactReadSession(
       input.consumerRoot,
       this.#maxAggregateArtifactBytes,
-      this.artifactFiles
+      this.artifactFiles,
     );
     const jsonSchemaInspector = this.createJsonSchemaInspector((repositoryPath) =>
-      artifacts.read(repositoryPath)
+      artifacts.read(repositoryPath),
     );
     const manifestPaths = await this.#workspaceManifestPathReader.discoverManifestPaths(
       input.consumerRoot,
       "pnpm-workspace.yaml",
-      input.signal
+      input.signal,
     );
     const occupiedPaths = new Map<
       string,
-      { path: string; role: ReturnType<typeof executableSpecificationPathDeclarations>[number]["role"] }
+      {
+        path: string;
+        role: ReturnType<typeof executableSpecificationPathDeclarations>[number]["role"];
+      }
     >();
     for (const declaration of executableSpecificationPathDeclarations(input.catalog)) {
       const identity = portableExecutableSpecificationPathIdentity(declaration.path);
@@ -254,7 +256,7 @@ export class FilesystemExecutableSpecificationInspector
       if (portabilityProblem !== undefined) {
         inputError(
           "EXECUTABLE_SPECIFICATION_MANIFEST_PATH_NOT_PORTABLE",
-          `Selected workspace manifest path is not portable: ${manifestPath} (${portabilityProblem}).`
+          `Selected workspace manifest path is not portable: ${manifestPath} (${portabilityProblem}).`,
         );
       }
       const identity = portableExecutableSpecificationPathIdentity(manifestPath);
@@ -262,7 +264,7 @@ export class FilesystemExecutableSpecificationInspector
       if (previousManifest !== undefined && previousManifest !== manifestPath) {
         inputError(
           "EXECUTABLE_SPECIFICATION_MANIFEST_PATH_COLLISION",
-          `Selected workspace manifests have the same portable path identity: ${previousManifest} and ${manifestPath}.`
+          `Selected workspace manifests have the same portable path identity: ${previousManifest} and ${manifestPath}.`,
         );
       }
       const occupiedPath = occupiedPaths.get(identity);
@@ -276,23 +278,22 @@ export class FilesystemExecutableSpecificationInspector
       ) {
         inputError(
           "EXECUTABLE_SPECIFICATION_MANIFEST_PATH_COLLISION",
-          `Selected workspace manifest collides with a declared or reserved executable specification path: ${manifestPath}.`
+          `Selected workspace manifest collides with a declared or reserved executable specification path: ${manifestPath}.`,
         );
       }
       selectedManifestIdentities.set(identity, manifestPath);
     }
     const uniqueManifestPaths = [...selectedManifestIdentities.values()];
     const paths = [
-      ...new Set(input.catalog.specifications.flatMap(executableSpecificationArtifactPaths))
+      ...new Set(input.catalog.specifications.flatMap(executableSpecificationArtifactPaths)),
     ].toSorted(compareBinaryStrings);
     if (
-      new Set(
-        [...uniqueManifestPaths, ...paths].map(portableExecutableSpecificationPathIdentity)
-      ).size > 1_024
+      new Set([...uniqueManifestPaths, ...paths].map(portableExecutableSpecificationPathIdentity))
+        .size > 1_024
     ) {
       inputError(
         "EXECUTABLE_SPECIFICATION_ARTIFACT_COUNT_EXCEEDED",
-        "Executable specification catalogs and selected workspace packages may reference at most 1024 unique artifacts."
+        "Executable specification catalogs and selected workspace packages may reference at most 1024 unique artifacts.",
       );
     }
     const packages = await packageCatalog(uniqueManifestPaths, artifacts, input.signal);
@@ -305,9 +306,9 @@ export class FilesystemExecutableSpecificationInspector
       assertNotCancelled(input.signal);
       const content = new Map<string, string>();
       const missingArtifactPaths: string[] = [];
-      for (const repositoryPath of [...new Set(executableSpecificationArtifactPaths(specification))].toSorted(
-        compareBinaryStrings
-      )) {
+      for (const repositoryPath of [
+        ...new Set(executableSpecificationArtifactPaths(specification)),
+      ].toSorted(compareBinaryStrings)) {
         const bytes = await artifacts.read(repositoryPath);
         if (bytes === undefined) {
           missingArtifactPaths.push(repositoryPath);
@@ -320,21 +321,18 @@ export class FilesystemExecutableSpecificationInspector
           id: `${specification.id.slice(0, 90)}.document.${index}`,
           path: document.path,
           schemaId: document.schemaId,
-          expectation: "valid"
-        })
+          expectation: "valid",
+        }),
       );
       const jsonSchemas = await jsonSchemaInspector.inspect({
         consumerRoot: input.consumerRoot,
         schemaPaths: specification.schemaPaths,
         fixtures,
         requireMixedExpectations: false,
-        ...(input.signal === undefined ? {} : { signal: input.signal })
+        ...(input.signal === undefined ? {} : { signal: input.signal }),
       });
       const gates = Object.fromEntries(
-        gateEntries(specification).map(([role, binding]) => [
-          role,
-          observeGate(binding, packages)
-        ])
+        gateEntries(specification).map(([role, binding]) => [role, observeGate(binding, packages)]),
       );
       observations.push(
         Object.freeze({
@@ -344,8 +342,8 @@ export class FilesystemExecutableSpecificationInspector
           gates: Object.freeze(gates),
           artifactDigest: `sha256:${createHash("sha256")
             .update(canonicalJson(Object.fromEntries(content)), "utf8")
-            .digest("hex")}` as const
-        })
+            .digest("hex")}` as const,
+        }),
       );
     }
     return Object.freeze(observations);

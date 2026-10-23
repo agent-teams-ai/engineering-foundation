@@ -4,11 +4,11 @@ export interface FoundationConfigInput {
     consumerRoot: string,
     repositoryPath: string,
     phase: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ) => Promise<unknown>;
   readonly assertSchema: (
     schemaId: "foundation-config/v1" | "foundation-config/v2",
     input: unknown,
-    phase: string
+    phase: string,
   ) => Promise<void>;
 }

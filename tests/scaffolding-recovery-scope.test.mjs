@@ -1,15 +1,5 @@
 import assert from "node:assert/strict";
-import {
-  cp,
-  mkdir,
-  mkdtemp,
-  open,
-  readFile,
-  rename,
-  rm,
-  stat,
-  writeFile,
-} from "node:fs/promises";
+import { cp, mkdir, mkdtemp, open, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -19,57 +9,41 @@ import {
   planScaffoldFromFile,
   recoverFilesystemScaffold,
 } from "../packages/engineering-foundation/dist/scaffolding/index.js";
-import {
-  recoverAuthorityFilesystemScaffoldWithFaultInjection,
-} from "../packages/engineering-foundation/dist/composition/scaffold-filesystem.js";
-import {
-  sha256Json,
-} from "../packages/engineering-foundation/dist/scaffolding/kernel/canonical-json.js";
-import {
-  SCAFFOLDING_V1_REPOSITORY_PATH_PATTERN,
-} from "../packages/engineering-foundation/dist/scaffolding/kernel/recovery-scope.js";
+import { recoverAuthorityFilesystemScaffoldWithFaultInjection } from "../packages/engineering-foundation/dist/composition/scaffold-filesystem.js";
+import { sha256Json } from "../packages/engineering-foundation/dist/scaffolding/kernel/canonical-json.js";
+import { SCAFFOLDING_V1_REPOSITORY_PATH_PATTERN } from "../packages/engineering-foundation/dist/scaffolding/kernel/recovery-scope.js";
 
-const fixtureRoot = fileURLToPath(new URL(
-  "fixtures/scaffolding-authority-consumer/",
-  import.meta.url,
-));
+const fixtureRoot = fileURLToPath(
+  new URL("fixtures/scaffolding-authority-consumer/", import.meta.url),
+);
 const scopeMismatchMessage =
   "Scaffolding recovery scope does not match the prepared journal; the journal and outputs were preserved.";
 
 test("scaffolding public declarations export the recovery authority and alias", async () => {
-  const declarations = await readFile(new URL(
-    "../packages/engineering-foundation/dist/scaffolding/index.d.ts",
-    import.meta.url,
-  ), "utf8");
+  const declarations = await readFile(
+    new URL("../packages/engineering-foundation/dist/scaffolding/index.d.ts", import.meta.url),
+    "utf8",
+  );
   assert.match(declarations, /AuthorityScaffoldRecoveryScope/u);
   assert.match(declarations, /ScaffoldRecoveryScope/u);
 });
 
 test("recovery path validation stays identical to the published v1 schemas", async () => {
-  const schemaDirectory = fileURLToPath(new URL(
-    "../packages/engineering-foundation/schemas/",
-    import.meta.url,
-  ));
-  const configSchema = JSON.parse(await readFile(
-    join(schemaDirectory, "scaffolding-config/v1.schema.json"),
-    "utf8",
-  ));
-  const planSchema = JSON.parse(await readFile(
-    join(schemaDirectory, "scaffold-plan/v1.schema.json"),
-    "utf8",
-  ));
+  const schemaDirectory = fileURLToPath(
+    new URL("../packages/engineering-foundation/schemas/", import.meta.url),
+  );
+  const configSchema = JSON.parse(
+    await readFile(join(schemaDirectory, "scaffolding-config/v1.schema.json"), "utf8"),
+  );
+  const planSchema = JSON.parse(
+    await readFile(join(schemaDirectory, "scaffold-plan/v1.schema.json"), "utf8"),
+  );
   assert.equal(
     SCAFFOLDING_V1_REPOSITORY_PATH_PATTERN,
     "^(?!.*(?:^|/)\\.{1,2}(?:/|$))[A-Za-z0-9._@-]+(?:/[A-Za-z0-9._@-]+)*$",
   );
-  assert.equal(
-    configSchema.$defs.repositoryPath.pattern,
-    SCAFFOLDING_V1_REPOSITORY_PATH_PATTERN,
-  );
-  assert.equal(
-    planSchema.$defs.repositoryPath.pattern,
-    SCAFFOLDING_V1_REPOSITORY_PATH_PATTERN,
-  );
+  assert.equal(configSchema.$defs.repositoryPath.pattern, SCAFFOLDING_V1_REPOSITORY_PATH_PATTERN);
+  assert.equal(planSchema.$defs.repositoryPath.pattern, SCAFFOLDING_V1_REPOSITORY_PATH_PATTERN);
 });
 
 async function withConsumer(run) {
@@ -177,20 +151,19 @@ async function prepareScopeMismatchEvidence(root, plan) {
   await materializeOutput(root, conflictingOperation, conflictingBytes, 0o600);
   return {
     journal: await snapshotPath(journalPath(root)),
-    outputs: await Promise.all(plan.operations.map(async (operation) => ({
-      path: operation.path,
-      snapshot: await snapshotPath(join(root, operation.path)),
-    }))),
+    outputs: await Promise.all(
+      plan.operations.map(async (operation) => ({
+        path: operation.path,
+        snapshot: await snapshotPath(join(root, operation.path)),
+      })),
+    ),
   };
 }
 
 async function assertScopeMismatchEvidenceUnchanged(root, before) {
   assert.deepEqual(await snapshotPath(journalPath(root)), before.journal);
   for (const output of before.outputs) {
-    assert.deepEqual(
-      await snapshotPath(join(root, output.path)),
-      output.snapshot,
-    );
+    assert.deepEqual(await snapshotPath(join(root, output.path)), output.snapshot);
   }
   const barrier = await snapshotPath(barrierPath(root));
   assert.equal(barrier.state, "file");
@@ -198,11 +171,7 @@ async function assertScopeMismatchEvidenceUnchanged(root, before) {
     assert.equal(barrier.mode, 0o600);
   }
   const evidence = JSON.parse(barrier.bytes.toString("utf8"));
-  assert.deepEqual(Object.keys(evidence).toSorted(), [
-    "kind",
-    "schemaVersion",
-    "token",
-  ]);
+  assert.deepEqual(Object.keys(evidence).toSorted(), ["kind", "schemaVersion", "token"]);
   assert.equal(evidence.kind, "transaction-barrier");
   assert.equal(evidence.schemaVersion, 1);
   assert.match(
@@ -218,33 +187,29 @@ function withRecomputedPlanDigest(value) {
 
 async function assertOutputsMissing(root, plan) {
   for (const operation of plan.operations) {
-    await assert.rejects(
-      stat(join(root, operation.path)),
-      (error) => error?.code === "ENOENT",
-    );
+    await assert.rejects(stat(join(root, operation.path)), (error) => error?.code === "ENOENT");
   }
 }
 
 async function assertRetainedBarrier(root) {
-  const barrier = JSON.parse(await readFile(
-    barrierPath(root),
-    "utf8",
-  ));
+  const barrier = JSON.parse(await readFile(barrierPath(root), "utf8"));
   assert.equal(barrier.kind, "transaction-barrier");
 }
 
 function isScopeMismatch(error) {
   assert.equal(error?.code, "SCAFFOLD_RECOVERY_REQUIRED");
   assert.equal(error.message, scopeMismatchMessage);
-  assert.deepEqual(error.diagnostics, [{
-    ruleId: "scaffolding.recovery.scope-mismatch",
-    severity: "error",
-    phase: "recovery",
-    subject: "scaffold-recovery-scope",
-    message: scopeMismatchMessage,
-    remediation:
-      "Retry only with the exact project, authority paths, and Composition expected by the caller.",
-  }]);
+  assert.deepEqual(error.diagnostics, [
+    {
+      ruleId: "scaffolding.recovery.scope-mismatch",
+      severity: "error",
+      phase: "recovery",
+      subject: "scaffold-recovery-scope",
+      message: scopeMismatchMessage,
+      remediation:
+        "Retry only with the exact project, authority paths, and Composition expected by the caller.",
+    },
+  ]);
   return true;
 }
 
@@ -268,18 +233,12 @@ test("keeps one-argument recovery behavior and exact scoped recovery replay", as
 test("fails closed for explicit undefined and excess runtime arguments", async () => {
   assert.equal(recoverFilesystemScaffold.length, 1);
   await withConsumer(async (root, plan) => {
-    await assert.rejects(
-      recoverFilesystemScaffold(root, void 0),
-      (error) => {
-        assert.equal(error?.code, "SCAFFOLD_INPUT_INVALID");
-        assert.equal(
-          error.message,
-          "Scaffolding recovery scope must be a closed data object.",
-        );
-        assert.deepEqual(error.diagnostics, []);
-        return true;
-      },
-    );
+    await assert.rejects(recoverFilesystemScaffold(root, void 0), (error) => {
+      assert.equal(error?.code, "SCAFFOLD_INPUT_INVALID");
+      assert.equal(error.message, "Scaffolding recovery scope must be a closed data object.");
+      assert.deepEqual(error.diagnostics, []);
+      return true;
+    });
     await assert.rejects(
       Reflect.apply(recoverFilesystemScaffold, undefined, [
         root,
@@ -288,18 +247,12 @@ test("fails closed for explicit undefined and excess runtime arguments", async (
       ]),
       (error) => {
         assert.equal(error?.code, "SCAFFOLD_INPUT_INVALID");
-        assert.equal(
-          error.message,
-          "Scaffolding recovery accepts at most one recovery scope.",
-        );
+        assert.equal(error.message, "Scaffolding recovery accepts at most one recovery scope.");
         assert.deepEqual(error.diagnostics, []);
         return true;
       },
     );
-    assert.deepEqual(
-      await snapshotPath(join(root, ".agent-teams-local")),
-      { state: "missing" },
-    );
+    assert.deepEqual(await snapshotPath(join(root, ".agent-teams-local")), { state: "missing" });
   });
 });
 
@@ -448,10 +401,7 @@ test("fails closed when journal Intent and Composition disagree", async () => {
     disagreeing.composition.id = `${plan.composition.id}-other`;
     const persistedPlan = withRecomputedPlanDigest(disagreeing);
     const before = await prepareScopeMismatchEvidence(root, persistedPlan);
-    await assert.rejects(
-      recoverFilesystemScaffold(root, recoveryScope(plan)),
-      isScopeMismatch,
-    );
+    await assert.rejects(recoverFilesystemScaffold(root, recoveryScope(plan)), isScopeMismatch);
     await assertScopeMismatchEvidenceUnchanged(root, before);
   });
 });
@@ -460,8 +410,7 @@ test("keeps temporary and transition residue precedence ahead of scoped continua
   for (const scenario of [
     {
       name: "orphan temporary",
-      prepare: async (root, plan) =>
-        writePreparedJournal(root, plan, `${journalPath(root)}.tmp`),
+      prepare: async (root, plan) => writePreparedJournal(root, plan, `${journalPath(root)}.tmp`),
     },
     {
       name: "canonical and temporary",
@@ -492,21 +441,16 @@ test("keeps temporary and transition residue precedence ahead of scoped continua
       await withConsumer(async (root, plan) => {
         await scenario.prepare(root, plan);
         const before = await readFile(
-          scenario.name === "orphan temporary"
-            ? `${journalPath(root)}.tmp`
-            : journalPath(root),
+          scenario.name === "orphan temporary" ? `${journalPath(root)}.tmp` : journalPath(root),
         );
         await assert.rejects(
           recoverFilesystemScaffold(root, recoveryScope(plan)),
           (error) =>
-            error?.code === "SCAFFOLD_RECOVERY_REQUIRED" &&
-            error.message !== scopeMismatchMessage,
+            error?.code === "SCAFFOLD_RECOVERY_REQUIRED" && error.message !== scopeMismatchMessage,
         );
         assert.deepEqual(
           await readFile(
-            scenario.name === "orphan temporary"
-              ? `${journalPath(root)}.tmp`
-              : journalPath(root),
+            scenario.name === "orphan temporary" ? `${journalPath(root)}.tmp` : journalPath(root),
           ),
           before,
         );
@@ -537,9 +481,7 @@ test("continues the checked record and fences a later pathname replacement", asy
     const checkedBytes = await writePreparedJournal(root, plan);
     const replacementPlan = structuredClone(plan);
     replacementPlan.composition.id = `${plan.composition.id}-replacement`;
-    const replacementBytes = journalBytes(
-      withRecomputedPlanDigest(replacementPlan),
-    );
+    const replacementBytes = journalBytes(withRecomputedPlanDigest(replacementPlan));
     const checkedPath = `${journalPath(root)}.checked-record`;
     await assert.rejects(
       recoverAuthorityFilesystemScaffoldWithFaultInjection(
@@ -553,8 +495,7 @@ test("continues the checked record and fences a later pathname replacement", asy
         },
       ),
       (error) =>
-        error?.code === "SCAFFOLD_RECOVERY_REQUIRED" &&
-        error.message !== scopeMismatchMessage,
+        error?.code === "SCAFFOLD_RECOVERY_REQUIRED" && error.message !== scopeMismatchMessage,
     );
     assert.deepEqual(await readFile(checkedPath), checkedBytes);
     assert.deepEqual(await readFile(journalPath(root)), replacementBytes);

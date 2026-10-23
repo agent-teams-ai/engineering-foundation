@@ -1,9 +1,9 @@
 export type Json = null | boolean | number | string | readonly Json[] | JsonRecord;
 export type JsonRecord = { readonly [key: string]: Json };
 export type LeafShape =
-  | Readonly<{ type: 'file'; mode: '100644' | '100755' }>
-  | Readonly<{ type: 'symlink'; mode: '120000' }>
-  | Readonly<{ type: 'gitlink'; mode: '160000' }>;
+  | Readonly<{ type: "file"; mode: "100644" | "100755" }>
+  | Readonly<{ type: "symlink"; mode: "120000" }>
+  | Readonly<{ type: "gitlink"; mode: "160000" }>;
 /** Digest fields use sha256:<64 lowercase hexadecimal characters>. Hashing belongs to the Host. */
 export type FileLeaf = LeafShape & Readonly<{ digest: string }>;
 export type ManifestSnapshot = Readonly<{ file: FileLeaf; semantic: JsonRecord }>;
@@ -20,31 +20,31 @@ export type WorkspacePackage = Readonly<{
   name: string;
   root: string;
   manifestPath: string;
-  classification: 'public' | 'private';
-  versioning: 'versioned' | 'unversioned' | 'ignored';
+  classification: "public" | "private";
+  versioning: "versioned" | "unversioned" | "ignored";
   before: ManifestSnapshot;
 }>;
-export type ReleaseType = 'major' | 'minor' | 'patch';
+export type ReleaseType = "major" | "minor" | "patch";
 export type ReleaseIntent = Readonly<{
   id: string;
   path: string;
   digest: string;
-  participation: 'pending' | 'retained';
+  participation: "pending" | "retained";
   requests: readonly Readonly<{ packageName: string; type: ReleaseType }>[];
 }>;
 export type PlannedRelease = Readonly<{
   packageName: string;
   manifestPath: string;
-  type: ReleaseType | 'none';
+  type: ReleaseType | "none";
   oldVersion: string | null;
   newVersion: string | null;
   intentIds: readonly string[];
 }>;
 export type ConsumptionEffect =
-  | Readonly<{ kind: 'remove' }>
-  | Readonly<{ kind: 'record'; evidencePath: string }>;
+  | Readonly<{ kind: "remove" }>
+  | Readonly<{ kind: "record"; evidencePath: string }>;
 export type PlannedConsumption = Readonly<{ intentId: string; effect: ConsumptionEffect }>;
-export type ChangeKind = 'added' | 'modified' | 'deleted';
+export type ChangeKind = "added" | "modified" | "deleted";
 export type PermittedChange = Readonly<{
   path: string;
   classification: string;
@@ -99,11 +99,22 @@ export type PackageChange = Readonly<{
   newVersion: string | null;
 }>;
 export type DiagnosticCode =
-  | 'input.invalid' | 'identity.duplicate' | 'inventory.ambiguous' | 'binding.mismatch'
-  | 'package.unknown' | 'manifest.missing' | 'manifest.identity' | 'manifest.source-mismatch'
-  | 'manifest.content-changed' | 'plan.version-mismatch' | 'plan.unexpected-version'
-  | 'intent.unknown' | 'intent.coverage' | 'intent.consumption'
-  | 'diff.unexpected' | 'diff.inconsistent';
+  | "input.invalid"
+  | "identity.duplicate"
+  | "inventory.ambiguous"
+  | "binding.mismatch"
+  | "package.unknown"
+  | "manifest.missing"
+  | "manifest.identity"
+  | "manifest.source-mismatch"
+  | "manifest.content-changed"
+  | "plan.version-mismatch"
+  | "plan.unexpected-version"
+  | "intent.unknown"
+  | "intent.coverage"
+  | "intent.consumption"
+  | "diff.unexpected"
+  | "diff.inconsistent";
 export type Diagnostic = Readonly<{
   code: DiagnosticCode;
   packageName?: string;
@@ -112,5 +123,15 @@ export type Diagnostic = Readonly<{
   message: string;
 }>;
 export type CheckReport =
-  | Readonly<{ schemaVersion: 1; outcome: 'passed'; diagnostics: readonly []; packageChanges: readonly PackageChange[] }>
-  | Readonly<{ schemaVersion: 1; outcome: 'rejected'; diagnostics: readonly Diagnostic[]; packageChanges: readonly PackageChange[] }>;
+  | Readonly<{
+      schemaVersion: 1;
+      outcome: "passed";
+      diagnostics: readonly [];
+      packageChanges: readonly PackageChange[];
+    }>
+  | Readonly<{
+      schemaVersion: 1;
+      outcome: "rejected";
+      diagnostics: readonly Diagnostic[];
+      packageChanges: readonly PackageChange[];
+    }>;

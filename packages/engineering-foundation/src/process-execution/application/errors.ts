@@ -12,12 +12,12 @@ export class ProcessCancellationError extends FoundationError {
 export class ProcessTimeoutError extends FoundationError {
   constructor(
     readonly timeoutMs: number,
-    options?: ErrorOptions & { readonly requestDescription?: string }
+    options?: ErrorOptions & { readonly requestDescription?: string },
   ) {
     super(
       "PROCESS_FAILED",
       `${options?.requestDescription ?? "Process"} timed out after ${String(timeoutMs)}ms.`,
-      options
+      options,
     );
     this.name = "ProcessTimeoutError";
     associateProcessFailureFacts(this, { reason: "timeout", timeoutMs });

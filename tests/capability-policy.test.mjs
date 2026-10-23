@@ -1,14 +1,6 @@
+import { registerCapabilityPolicySchemaCases } from "./capability-policy-schema-cases.ts";
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
-import {
-  readFile,
-  mkdir,
-  mkdtemp,
-  rm,
-  rename,
-  symlink,
-  writeFile,
-} from "node:fs/promises";
+import { readFile, mkdtemp, rm, rename, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
@@ -19,15 +11,16 @@ import {
   check,
   utcDateAfter,
   withRepositorySecurityFixture,
-  withSuppressionFixture
+  withSuppressionFixture,
 } from "./support/capability-fixtures.mjs";
 
-import { createFoundationConfigReader, createRegisteredFoundationConfigReader } from "../packages/engineering-foundation/dist/features/foundation-check/module.js";
-import { createStrictYamlFileLoader, createPackagedSchemaReader, createSchemaCatalog } from "../packages/engineering-foundation/dist/features/configuration-input/module.js";
+import {
+  createFoundationConfigReader,
+  createRegisteredFoundationConfigReader,
+} from "../packages/engineering-foundation/dist/features/foundation-check/module.js";
+import { createStrictYamlFileLoader } from "../packages/engineering-foundation/dist/features/configuration-input/module.js";
 import { parseStrictYamlSource } from "../packages/engineering-foundation/dist/features/configuration-input/yaml.js";
-import { ContainedFileReadError, readContainedRegularFile } from "../packages/engineering-foundation/dist/source-inventory/node.js";
-import { FOUNDATION_SCHEMA_IDS } from "../packages/engineering-foundation/dist/schema-ids.js";
-import { readFoundationSchema, assertSchema } from "../packages/engineering-foundation/dist/schema-catalog.js";
+import { ContainedFileReadError } from "../packages/engineering-foundation/dist/source-inventory/node.js";
 
 test("accepts a closed-world repository security baseline", async () => {
   await withRepositorySecurityFixture(async (consumerRoot) => {
@@ -75,12 +68,7 @@ test("fails closed when the repository container-image allowlist is removed", as
 
 test("binds Dependency Review to the declared job and exact comparison refs", async () => {
   await withRepositorySecurityFixture(async (consumerRoot) => {
-    const dependencyReviewPath = join(
-      consumerRoot,
-      ".github",
-      "workflows",
-      "ci.yml",
-    );
+    const dependencyReviewPath = join(consumerRoot, ".github", "workflows", "ci.yml");
     const dependencyReview = parseYaml(await readFile(dependencyReviewPath, "utf8"));
     const step = dependencyReview.jobs["dependency-review"].steps[0];
     step.with["head-ref"] = step.with["base-ref"];
@@ -190,12 +178,7 @@ test("rejects stale privilege declarations and a missing dependency review actio
 
 test("requires dependency and SBOM evidence on every pull request", async () => {
   await withRepositorySecurityFixture(async (consumerRoot) => {
-    const dependencyReviewPath = join(
-      consumerRoot,
-      ".github",
-      "workflows",
-      "ci.yml",
-    );
+    const dependencyReviewPath = join(consumerRoot, ".github", "workflows", "ci.yml");
     const dependencyReview = parseYaml(await readFile(dependencyReviewPath, "utf8"));
     dependencyReview.jobs["dependency-review"].if = false;
     await writeFile(
@@ -225,12 +208,7 @@ test("requires dependency and SBOM evidence on every pull request", async () => 
 
 test("rejects advisory dependency review and partial SBOM evidence", async () => {
   await withRepositorySecurityFixture(async (consumerRoot) => {
-    const dependencyReviewPath = join(
-      consumerRoot,
-      ".github",
-      "workflows",
-      "ci.yml",
-    );
+    const dependencyReviewPath = join(consumerRoot, ".github", "workflows", "ci.yml");
     const dependencyReview = parseYaml(await readFile(dependencyReviewPath, "utf8"));
     dependencyReview.jobs["dependency-review"].steps[0].with = { "warn-only": true };
     await writeFile(
@@ -266,10 +244,7 @@ test("rejects workflow evidence that traverses a symbolic link", async () => {
     await symlink(realPath, workflowPath);
     const { result, report } = check(consumerRoot);
     assert.equal(result.status, 2);
-    assert.equal(
-      report.capabilities[0].problem.code,
-      "REPOSITORY_SECURITY_WORKFLOW_ENTRY_INVALID",
-    );
+    assert.equal(report.capabilities[0].problem.code, "REPOSITORY_SECURITY_WORKFLOW_ENTRY_INVALID");
   });
 });
 
@@ -451,15 +426,24 @@ test("rejects expired and overlong exact waivers", async () => {
 });
 
 test("foundation-check pure mapping preserves ordered settings and mapping diagnostics", async () => {
-  const { mapFoundationConfig } = await import("../packages/engineering-foundation/dist/features/foundation-check/application/map-foundation-config.js");
+  const { mapFoundationConfig } =
+    await import("../packages/engineering-foundation/dist/features/foundation-check/application/map-foundation-config.js");
   const supported = new Set(["z.check", "a.check"]);
-  const input = { project: { id: "fixture" }, capabilities: {
-    "z.check": { configPath: "z.yaml" }, "a.check": { configPath: "a.yaml" },
-  }};
+  const input = {
+    project: { id: "fixture" },
+    capabilities: {
+      "z.check": { configPath: "z.yaml" },
+      "a.check": { configPath: "a.yaml" },
+    },
+  };
   const settings = mapFoundationConfig(input, supported);
-  assert.deepEqual(settings, { projectId: "fixture", declaredCapabilities: [
-    { id: "a.check", configPath: "a.yaml" }, { id: "z.check", configPath: "z.yaml" },
-  ] });
+  assert.deepEqual(settings, {
+    projectId: "fixture",
+    declaredCapabilities: [
+      { id: "a.check", configPath: "a.yaml" },
+      { id: "z.check", configPath: "z.yaml" },
+    ],
+  });
   assert.equal(Object.isFrozen(settings), true);
   assert.equal(Object.isFrozen(settings.declaredCapabilities), true);
   assert.deepEqual(Object.keys(input.capabilities), ["z.check", "a.check"]);
@@ -467,21 +451,37 @@ test("foundation-check pure mapping preserves ordered settings and mapping diagn
     [null, "foundation config must be an object."],
     [{ project: false }, "project must be an object."],
     [{ project: {}, capabilities: [] }, "capabilities must be an object."],
-    [{ project: {}, capabilities: { "x.check": {} } }, "Unsupported capability declaration: x.check."],
+    [
+      { project: {}, capabilities: { "x.check": {} } },
+      "Unsupported capability declaration: x.check.",
+    ],
     [{ project: {}, capabilities: { "a.check": [] } }, "capabilities.a.check must be an object."],
-    [{ project: {}, capabilities: { "a.check": { configPath: 1 } } }, "capabilities.a.check.configPath must be a string."],
+    [
+      { project: {}, capabilities: { "a.check": { configPath: 1 } } },
+      "capabilities.a.check.configPath must be a string.",
+    ],
     [{ project: {}, capabilities: {} }, "project.id must be a string."],
   ]) {
-    assert.throws(() => mapFoundationConfig(value, supported), (error) => {
-      assert.deepEqual(error.problem, { code: "FOUNDATION_CONFIG_INVALID", message, phase: "foundation-config", retryable: false });
-      return true;
-    });
+    assert.throws(
+      () => mapFoundationConfig(value, supported),
+      (error) => {
+        assert.deepEqual(error.problem, {
+          code: "FOUNDATION_CONFIG_INVALID",
+          message,
+          phase: "foundation-config",
+          retryable: false,
+        });
+        return true;
+      },
+    );
   }
 });
 
 test("foundation-check runs injected independent capabilities concurrently and orders their reports", async () => {
-  const { createFoundationCheck } = await import("../packages/engineering-foundation/dist/features/foundation-check/api.js");
-  const { capabilityReport } = await import("../packages/engineering-foundation/dist/features/validation-reporting/api.js");
+  const { createFoundationCheck } =
+    await import("../packages/engineering-foundation/dist/features/foundation-check/api.js");
+  const { capabilityReport } =
+    await import("../packages/engineering-foundation/dist/features/validation-reporting/api.js");
   const started = [];
   const releases = new Map();
   const controller = new AbortController();
@@ -492,20 +492,41 @@ test("foundation-check runs injected independent capabilities concurrently and o
       assert.equal(signal, controller.signal);
       return read.promise;
     },
-    capabilities: new Map(["z.check", "a.check"].map((id) => [id, {
-      id, configSchemaVersion: 1,
-      run: (input) => {
-        assert.deepEqual(input, { consumerRoot: "no-filesystem-authority", configPath: `${id}.yaml`, signal: controller.signal });
-        started.push(id);
-        const deferred = Promise.withResolvers();
-        releases.set(id, () => deferred.resolve(capabilityReport({ capabilityId: id, capabilityConfigSchemaVersion: 1 })));
-        return deferred.promise;
-      },
-    }])),
+    capabilities: new Map(
+      ["z.check", "a.check"].map((id) => [
+        id,
+        {
+          id,
+          configSchemaVersion: 1,
+          run: (input) => {
+            assert.deepEqual(input, {
+              consumerRoot: "no-filesystem-authority",
+              configPath: `${id}.yaml`,
+              signal: controller.signal,
+            });
+            started.push(id);
+            const deferred = Promise.withResolvers();
+            releases.set(id, () =>
+              deferred.resolve(
+                capabilityReport({ capabilityId: id, capabilityConfigSchemaVersion: 1 }),
+              ),
+            );
+            return deferred.promise;
+          },
+        },
+      ]),
+    ),
   });
-  const result = runner({ consumerRoot: "no-filesystem-authority", foundationVersion: "1.2.3", signal: controller.signal });
+  const result = runner({
+    consumerRoot: "no-filesystem-authority",
+    foundationVersion: "1.2.3",
+    signal: controller.signal,
+  });
   assert.deepEqual(started, []);
-  read.resolve({ projectId: "fixture", declaredCapabilities: ["z.check", "a.check"].map(id => ({ id, configPath: `${id}.yaml` })) });
+  read.resolve({
+    projectId: "fixture",
+    declaredCapabilities: ["z.check", "a.check"].map((id) => ({ id, configPath: `${id}.yaml` })),
+  });
   await Promise.resolve();
   assert.deepEqual(started, ["z.check", "a.check"]);
   releases.get("a.check")();
@@ -514,22 +535,46 @@ test("foundation-check runs injected independent capabilities concurrently and o
   assert.equal(report.outcome, "passed");
   assert.equal(report.coverage, "full");
   assert.equal(report.foundationVersion, "1.2.3");
-  assert.deepEqual(report.capabilities.map(({ capabilityId }) => capabilityId), ["a.check", "z.check"]);
+  assert.deepEqual(
+    report.capabilities.map(({ capabilityId }) => capabilityId),
+    ["a.check", "z.check"],
+  );
 });
 
 test("foundation-check preserves full versus selected scope and every aggregate outcome", async () => {
-  const { createFoundationCheck } = await import("../packages/engineering-foundation/dist/features/foundation-check/api.js");
-  const { capabilityReport, exitCodeForOutcome } = await import("../packages/engineering-foundation/dist/features/validation-reporting/api.js");
+  const { createFoundationCheck } =
+    await import("../packages/engineering-foundation/dist/features/foundation-check/api.js");
+  const { capabilityReport, exitCodeForOutcome } =
+    await import("../packages/engineering-foundation/dist/features/validation-reporting/api.js");
   const outcomes = ["passed", "violations", "invalid-input", "failed", "cancelled"];
   const exits = [0, 1, 2, 3, 130];
   for (const [index, outcome] of outcomes.entries()) {
     const calls = [];
     const runner = createFoundationCheck({
-      readConfig: async () => ({ projectId: "fixture", declaredCapabilities: ["a.check", "b.check"].map(id => ({ id, configPath: `${id}.yaml` })) }),
-      capabilities: new Map(["a.check", "b.check"].map(id => [id, { id, configSchemaVersion: 1, run: async () => {
-        calls.push(id);
-        return capabilityReport({ capabilityId: id, capabilityConfigSchemaVersion: 1, outcome: id === "a.check" ? outcome : "passed" });
-      } }])),
+      readConfig: async () => ({
+        projectId: "fixture",
+        declaredCapabilities: ["a.check", "b.check"].map((id) => ({
+          id,
+          configPath: `${id}.yaml`,
+        })),
+      }),
+      capabilities: new Map(
+        ["a.check", "b.check"].map((id) => [
+          id,
+          {
+            id,
+            configSchemaVersion: 1,
+            run: async () => {
+              calls.push(id);
+              return capabilityReport({
+                capabilityId: id,
+                capabilityConfigSchemaVersion: 1,
+                outcome: id === "a.check" ? outcome : "passed",
+              });
+            },
+          },
+        ]),
+      ),
     });
     const input = { consumerRoot: "inert", foundationVersion: "1.2.3" };
     const full = await runner(input);
@@ -551,16 +596,45 @@ test("foundation-check preserves full versus selected scope and every aggregate 
 });
 
 test("foundation-check injected input failures retain cancellation and sanitized root failures", async () => {
-  const { createFoundationCheck } = await import("../packages/engineering-foundation/dist/features/foundation-check/api.js");
-  const { CapabilityInputError } = await import("../packages/engineering-foundation/dist/features/validation-reporting/api.js");
+  const { createFoundationCheck } =
+    await import("../packages/engineering-foundation/dist/features/foundation-check/api.js");
+  const { CapabilityInputError } =
+    await import("../packages/engineering-foundation/dist/features/validation-reporting/api.js");
   const input = { consumerRoot: "inert", foundationVersion: "1.2.3", capabilityId: "a.check" };
   for (const [error, outcome, code] of [
-    [new CapabilityInputError({ code: "EXECUTION_CANCELLED", message: "Cancelled.", phase: "fixture", retryable: false }), "cancelled", "EXECUTION_CANCELLED"],
-    [Object.assign(new Error("private"), { name: "ProcessCancellationError" }), "cancelled", "EXECUTION_CANCELLED"],
+    [
+      new CapabilityInputError({
+        code: "EXECUTION_CANCELLED",
+        message: "Cancelled.",
+        phase: "fixture",
+        retryable: false,
+      }),
+      "cancelled",
+      "EXECUTION_CANCELLED",
+    ],
+    [
+      Object.assign(new Error("private"), { name: "ProcessCancellationError" }),
+      "cancelled",
+      "EXECUTION_CANCELLED",
+    ],
     [new TypeError("private"), "failed", "UNEXPECTED_CONTRACT_FAILURE"],
-    [new CapabilityInputError({ code: "CONFIG_FILE_UNAVAILABLE", message: "Missing.", phase: "foundation-config", retryable: false }), "invalid-input", "CONFIG_FILE_UNAVAILABLE"],
+    [
+      new CapabilityInputError({
+        code: "CONFIG_FILE_UNAVAILABLE",
+        message: "Missing.",
+        phase: "foundation-config",
+        retryable: false,
+      }),
+      "invalid-input",
+      "CONFIG_FILE_UNAVAILABLE",
+    ],
   ]) {
-    const report = await createFoundationCheck({ readConfig: async () => { throw error; }, capabilities: new Map() })(input);
+    const report = await createFoundationCheck({
+      readConfig: async () => {
+        throw error;
+      },
+      capabilities: new Map(),
+    })(input);
     assert.equal(report.coverage, "selected");
     assert.equal(report.outcome, outcome);
     assert.equal(report.problem.code, code);
@@ -568,7 +642,10 @@ test("foundation-check injected input failures retain cancellation and sanitized
     assert.equal(JSON.stringify(report).includes("private"), false);
   }
   const unsupported = await createFoundationCheck({
-    readConfig: async () => ({ projectId: "fixture", declaredCapabilities: [{ id: "a.check", configPath: "a.yaml" }] }),
+    readConfig: async () => ({
+      projectId: "fixture",
+      declaredCapabilities: [{ id: "a.check", configPath: "a.yaml" }],
+    }),
     capabilities: new Map(),
   })(input);
   assert.equal(unsupported.problem.code, "CAPABILITY_UNSUPPORTED");
@@ -582,7 +659,7 @@ test("configuration observation retains failure and cancellation precedence thro
       async read(input) {
         observed.push(input);
         return new TextEncoder().encode("a: 1\n");
-      }
+      },
     });
     assert.deepEqual(await load(root, "config.yaml", "test-input"), { a: 1 });
     assert.equal(observed[0].maxBytes, 1024 * 1024);
@@ -593,46 +670,77 @@ test("configuration observation retains failure and cancellation precedence thro
       ["symlink", "CONFIG_SYMLINK_PROHIBITED"],
       ["missing", "CONFIG_FILE_UNAVAILABLE"],
       ["changed", "CONFIG_FILE_UNAVAILABLE"],
-      ["unavailable", "CONFIG_FILE_UNAVAILABLE"]
+      ["unavailable", "CONFIG_FILE_UNAVAILABLE"],
     ]) {
-      const failed = createStrictYamlFileLoader({ async read() { throw new ContainedFileReadError(failure); } });
-      await assert.rejects(failed(root, "config.yaml", "test-input"), (error) =>
-        error.problem.code === code && error.problem.phase === "test-input" && error.problem.retryable === false);
+      const failed = createStrictYamlFileLoader({
+        async read() {
+          throw new ContainedFileReadError(failure);
+        },
+      });
+      await assert.rejects(
+        failed(root, "config.yaml", "test-input"),
+        (error) =>
+          error.problem.code === code &&
+          error.problem.phase === "test-input" &&
+          error.problem.retryable === false,
+      );
     }
     const controller = new AbortController();
     controller.abort();
-    await assert.rejects(load("/must-not-be-observed", "../bad", "test-input", controller.signal),
-      (error) => error.problem.code === "EXECUTION_CANCELLED");
+    await assert.rejects(
+      load("/must-not-be-observed", "../bad", "test-input", controller.signal),
+      (error) => error.problem.code === "EXECUTION_CANCELLED",
+    );
     assert.equal(observed.length, 1);
     for (const fail of [false, true]) {
       const during = new AbortController();
-      const interrupted = createStrictYamlFileLoader({ async read() {
-        during.abort();
-        if (fail) { throw new ContainedFileReadError("changed"); }
-        return new TextEncoder().encode("[malformed");
-      } });
-      await assert.rejects(interrupted(root, "config.yaml", "test-input", during.signal),
-        (error) => error.problem.code === (fail ? "CONFIG_FILE_UNAVAILABLE" : "EXECUTION_CANCELLED"));
+      const interrupted = createStrictYamlFileLoader({
+        async read() {
+          during.abort();
+          if (fail) {
+            throw new ContainedFileReadError("changed");
+          }
+          return new TextEncoder().encode("[malformed");
+        },
+      });
+      await assert.rejects(
+        interrupted(root, "config.yaml", "test-input", during.signal),
+        (error) =>
+          error.problem.code === (fail ? "CONFIG_FILE_UNAVAILABLE" : "EXECUTION_CANCELLED"),
+      );
     }
     const providerFailure = new Error("provider failed");
-    const unavailable = createStrictYamlFileLoader({ async read() { throw providerFailure; } });
-    await assert.rejects(unavailable(root, "config.yaml", "test-input"), (error) => error === providerFailure);
+    const unavailable = createStrictYamlFileLoader({
+      async read() {
+        throw providerFailure;
+      },
+    });
+    await assert.rejects(
+      unavailable(root, "config.yaml", "test-input"),
+      (error) => error === providerFailure,
+    );
   } finally {
     await rm(root, { recursive: true, force: true });
   }
 });
 
 test("strict YAML keeps inert values and prohibits duplicate keys, tags, aliases and merge keys", () => {
-  assert.deepEqual(parseStrictYamlSource("\uFEFFa: 1\nb: null\nc: [true, false]\n", "input"),
-    { a: 1, b: null, c: [true, false] });
+  assert.deepEqual(parseStrictYamlSource("\uFEFFa: 1\nb: null\nc: [true, false]\n", "input"), {
+    a: 1,
+    b: null,
+    c: [true, false],
+  });
   for (const [source, code] of [
     ["a: 1\na: 2", "YAML_INVALID"],
     ["a: &a 1\nb: *a", "YAML_FEATURE_PROHIBITED"],
     ["a: !!str 1", "YAML_FEATURE_PROHIBITED"],
     ["a: {<<: {b: 1}}", "YAML_FEATURE_PROHIBITED"],
-    ["a: [", "YAML_INVALID"]
+    ["a: [", "YAML_INVALID"],
   ]) {
-    assert.throws(() => parseStrictYamlSource(source, "input"), (error) => error.problem.code === code);
+    assert.throws(
+      () => parseStrictYamlSource(source, "input"),
+      (error) => error.problem.code === code,
+    );
   }
   assert.deepEqual(parseStrictYamlSource("a: 1\0", "input"), { a: "1\0" });
 });
@@ -641,14 +749,19 @@ test("check-host config observation receives strict input without a schema regis
   const calls = [];
   const config = { schemaVersion: 1, project: { id: "port" }, capabilities: {} };
   const reader = createFoundationConfigReader(new Set(), {
-    async loadStrictYamlFile(...args) { calls.push(["load", ...args]); return config; },
-    async assertSchema(...args) { calls.push(["schema", ...args]); }
+    async loadStrictYamlFile(...args) {
+      calls.push(["load", ...args]);
+      return config;
+    },
+    async assertSchema(...args) {
+      calls.push(["schema", ...args]);
+    },
   });
   const result = await reader("/virtual-consumer");
   assert.equal(result.projectId, "port");
   assert.deepEqual(calls, [
     ["load", "/virtual-consumer", "foundation.config.yaml", "foundation-config", undefined],
-    ["schema", "foundation-config/v1", config, "foundation-config"]
+    ["schema", "foundation-config/v1", config, "foundation-config"],
   ]);
 });
 
@@ -656,170 +769,39 @@ test("registered config admission snapshots capability IDs at composition", asyn
   const capabilities = new Map([["alpha", {}]]);
   const signal = new AbortController().signal;
   const calls = [];
-  let config = { schemaVersion: 1, project: { id: "snapshot" }, capabilities: {
-    alpha: { configPath: "alpha.yaml" }
-  } };
+  let config = {
+    schemaVersion: 1,
+    project: { id: "snapshot" },
+    capabilities: {
+      alpha: { configPath: "alpha.yaml" },
+    },
+  };
   const reader = createRegisteredFoundationConfigReader(capabilities, {
-    async loadStrictYamlFile(...args) { calls.push(["load", ...args]); return config; },
-    async assertSchema(...args) { calls.push(["schema", ...args]); }
+    async loadStrictYamlFile(...args) {
+      calls.push(["load", ...args]);
+      return config;
+    },
+    async assertSchema(...args) {
+      calls.push(["schema", ...args]);
+    },
   });
   capabilities.clear();
   capabilities.set("beta", {});
   assert.deepEqual(await reader("/virtual-snapshot", signal), {
-    projectId: "snapshot", declaredCapabilities: [{ id: "alpha", configPath: "alpha.yaml" }]
+    projectId: "snapshot",
+    declaredCapabilities: [{ id: "alpha", configPath: "alpha.yaml" }],
   });
   assert.deepEqual(calls, [
     ["load", "/virtual-snapshot", "foundation.config.yaml", "foundation-config", signal],
-    ["schema", "foundation-config/v1", config, "foundation-config"]
+    ["schema", "foundation-config/v1", config, "foundation-config"],
   ]);
   config = { ...config, capabilities: { beta: { configPath: "beta.yaml" } } };
-  await assert.rejects(reader("/virtual-snapshot", signal),
-    (error) => error.problem.code === "FOUNDATION_CONFIG_INVALID" &&
-      error.message === "Unsupported capability declaration: beta.");
+  await assert.rejects(
+    reader("/virtual-snapshot", signal),
+    (error) =>
+      error.problem.code === "FOUNDATION_CONFIG_INVALID" &&
+      error.message === "Unsupported capability declaration: beta.",
+  );
 });
 
-test("schema contribution assembly preserves every published source byte and dependency registration", async () => {
-  const released = JSON.parse(await readFile("architecture/public-api/engineering-foundation.artifacts.json", "utf8"));
-  const releasedIds = released.jsonSchemas.map(schema => schema.path.replace(/^schemas\//u, "").replace(/\.schema\.json$/u, ""));
-  assert.equal(new Set(releasedIds).size, releasedIds.length);
-  assert.equal(releasedIds.filter(id => id !== "quality-source-coverage/v4").length, 44);
-  const expectedIds = new Set([...releasedIds, "quality-source-coverage/v4"]);
-  assert.equal(expectedIds.size, 45);
-  assert.deepEqual(FOUNDATION_SCHEMA_IDS.toSorted(), [...expectedIds].toSorted());
-  for (const schema of released.jsonSchemas) {
-    const bytes = await readFile(`packages/engineering-foundation/${schema.path}`);
-    assert.equal(`sha256:${createHash("sha256").update(bytes).digest("hex")}`, schema.digest,
-      `${schema.path} must preserve its released bytes`);
-  }
-  assert.ok(FOUNDATION_SCHEMA_IDS.includes("workspace-dependency-declarations/v2"));
-  assert.ok(FOUNDATION_SCHEMA_IDS.includes("repository-agent-workflow/v1"));
-  assert.ok(FOUNDATION_SCHEMA_IDS.includes("repository-agent-workflow/v2"));
-  assert.ok(FOUNDATION_SCHEMA_IDS.includes("quality-findings-baseline/v1"));
-  assert.ok(FOUNDATION_SCHEMA_IDS.includes("package-public-api-audit-request/v1"));
-  assert.ok(FOUNDATION_SCHEMA_IDS.includes("package-public-api-audit-report/v1"));
-  assert.ok(FOUNDATION_SCHEMA_IDS.includes("package-public-api-native-transition/v1"));
-  assert.ok(FOUNDATION_SCHEMA_IDS.includes("foundation-config/v2"));
-  assert.ok(FOUNDATION_SCHEMA_IDS.includes("quality-source-coverage/v1"));
-  assert.ok(FOUNDATION_SCHEMA_IDS.includes("quality-source-coverage/v2"));
-  assert.ok(FOUNDATION_SCHEMA_IDS.includes("quality-source-coverage/v3"));
-  assert.ok(FOUNDATION_SCHEMA_IDS.includes("architecture-source-dependencies/v3"));
-  assert.ok(FOUNDATION_SCHEMA_IDS.includes("quality-gate-runner/v1"));
-  assert.ok(FOUNDATION_SCHEMA_IDS.includes("quality-gate-runner/v2"));
-  assert.equal(new Set(FOUNDATION_SCHEMA_IDS).size, FOUNDATION_SCHEMA_IDS.length);
-  for (const id of FOUNDATION_SCHEMA_IDS) {
-    const source = await readFoundationSchema(id);
-    assert.equal(source, await readFile(new URL(`../packages/engineering-foundation/schemas/${id}.schema.json`, import.meta.url), "utf8"));
-    await assert.rejects(assertSchema(id, null, "schema-parity"), (error) => error.problem.code === "SCHEMA_INVALID");
-  }
-});
-
-test("schema validation retains dependency order, concurrent caching and bounded diagnostics", async () => {
-  const reads = [];
-  const sources = {
-    child: { $id: "urn:ef2:child", type: "string" },
-    parent: { $id: "urn:ef2:parent", type: "object", additionalProperties: false,
-      required: ["x", "y"], properties: { x: { $ref: "urn:ef2:child" }, y: { type: "integer" } } }
-  };
-  const catalog = createSchemaCatalog({
-    schemaIds: ["parent", "child"], dependencies: { parent: ["child"] },
-    async readSchema(id) { reads.push(id); return JSON.stringify(sources[id]); }
-  });
-  await Promise.all([catalog.assertSchema("parent", { x: "ok", y: 1 }, "input"), catalog.assertSchema("parent", { x: "ok", y: 2 }, "input")]);
-  assert.deepEqual(reads, ["child", "parent"]);
-  assert.equal(catalog.isSchemaId("child"), true);
-  assert.equal(catalog.isSchemaId("missing"), false);
-  await assert.rejects(catalog.assertSchema("parent", { x: 1, y: "bad" }, "input"), (error) =>
-    error.problem.message === "/x must be string; /y must be integer");
-  const many = createSchemaCatalog({ schemaIds: ["many"], dependencies: {}, async readSchema() {
-    const required = Array.from({ length: 20 }, (_, i) => `missing${i}`);
-    return JSON.stringify({ $id: "urn:ef2:many", type: "object", required,
-      properties: Object.fromEntries(required.map((key) => [key, { type: "string" }])) });
-  } });
-  await assert.rejects(many.assertSchema("many", {}, "input"), (error) =>
-    error.problem.message.split("; ").length === 8 && error.problem.message.length <= 1000);
-});
-
-test("packaged schema observation enforces the existing contained-file bound before retaining bytes", async () => {
-  const root = await mkdtemp(join(tmpdir(), "foundation-schema-bound-"));
-  try {
-    await mkdir(join(root, "schemas"));
-    const reader = createPackagedSchemaReader({ packageRoot: root, files: { read: readContainedRegularFile },
-      async readAuthoringSchema() { throw new Error("unexpected external schema"); } });
-    const bytes = " ".repeat(1024 * 1024);
-    await writeFile(join(root, "schemas/large.schema.json"), bytes);
-    assert.equal(await reader("large"), bytes);
-    await writeFile(join(root, "schemas/large.schema.json"), bytes + " ");
-    await assert.rejects(reader("large"), (error) => error instanceof ContainedFileReadError && error.failure === "invalid");
-    await assert.rejects(reader("../outside"), (error) => error.problem.code === "CONFIG_PATH_INVALID");
-  } finally { await rm(root, { recursive: true, force: true }); }
-});
-
-test("packaged schema observation refuses file and ancestor symlinks", { skip: process.platform === "win32" }, async () => {
-  const root = await mkdtemp(join(tmpdir(), "foundation-schema-symlink-"));
-  try {
-    await mkdir(join(root, "schemas"));
-    await mkdir(join(root, "real"));
-    await writeFile(join(root, "real/value.schema.json"), "{}");
-    await symlink(join(root, "real/value.schema.json"), join(root, "schemas/file.schema.json"));
-    await symlink(join(root, "real"), join(root, "schemas/ancestor"));
-    const reader = createPackagedSchemaReader({ packageRoot: root, files: { read: readContainedRegularFile },
-      async readAuthoringSchema() { throw new Error("unexpected external schema"); } });
-    for (const id of ["file", "ancestor/value"]) {
-      await assert.rejects(reader(id), (error) => error instanceof ContainedFileReadError && error.failure === "symlink");
-    }
-    await rm(join(root, "schemas"), { recursive: true });
-    await symlink(join(root, "real"), join(root, "schemas"));
-    await assert.rejects(reader("value"), (error) => error instanceof ContainedFileReadError && error.failure === "symlink");
-  } finally { await rm(root, { recursive: true, force: true }); }
-});
-
-test("suppression analysis consumes explicit snapshots and preserves scanner failures", async () => {
-  const { analyzeSuppressionGovernance } = await import("../packages/engineering-foundation/dist/capabilities/suppression-governance/api.js");
-  const { OxcSuppressionScanner } = await import("../packages/engineering-foundation/dist/capabilities/suppression-governance/adapters/outbound/oxc/oxc-suppression-scanner.js");
-  const signal = new AbortController().signal;
-  const input = { consumerRoot: "/inert", policy: { governedRoots: ["src"], nonWaivableRulePrefixes: [], waivers: [] }, signal };
-  const reader = { async read(root, roots, observedSignal) {
-    assert.equal(root, input.consumerRoot);
-    assert.deepEqual(roots, ["src"]);
-    assert.equal(observedSignal, signal);
-    return [{ path: "src/test.ts", source: "// @ts-ignore\nexport const value = 1;" }];
-  } };
-  const dependencies = { sourceReader: reader, scanner: new OxcSuppressionScanner(), clock: { today: () => "2026-09-05" } };
-  const diagnostics = await analyzeSuppressionGovernance(input, dependencies);
-  assert.ok(diagnostics.some(({ ruleId }) => ruleId === "quality.suppression-governance.prohibited-typescript-suppression"));
-  const failure = new Error("snapshot unavailable");
-  await assert.rejects(analyzeSuppressionGovernance(input, {
-    ...dependencies, sourceReader: { async read() { throw failure; } },
-  }), (error) => error === failure);
-});
-
-test("owner-selected historical schemas preserve exact bytes and contained observation", async () => {
-  const root = await mkdtemp(join(tmpdir(), "foundation-owner-schema-"));
-  try {
-    const relativeFile = "assets/legacy/plan.schema.json";
-    const bytes = await readFile(new URL("../packages/engineering-foundation/assets/transaction-coordination/historical/document-plan-v1.schema.json", import.meta.url));
-    await mkdir(join(root, "assets/legacy"), { recursive: true });
-    await writeFile(join(root, relativeFile), bytes);
-    const calls = [];
-    const reader = createPackagedSchemaReader({
-      packageRoot: root,
-      schemaFiles: { "document-plan/v1": relativeFile },
-      files: { async read(input) { calls.push(input); return readContainedRegularFile(input); } },
-      async readAuthoringSchema() { throw new Error("Current Authoring cannot redefine historical Plan bytes"); }
-    });
-    assert.equal(await reader("document-plan/v1"), bytes.toString("utf8"));
-    assert.deepEqual(calls, [{ candidate: join(root, relativeFile), root, maxBytes: 1024 * 1024 }]);
-    const escaped = createPackagedSchemaReader({
-      packageRoot: root, schemaFiles: { "document-plan/v1": "../outside.json" },
-      files: { async read() { throw new Error("escaped resource must not be observed"); } },
-      async readAuthoringSchema() { throw new Error("escaped resource must not delegate"); }
-    });
-    await assert.rejects(escaped("document-plan/v1"), (error) => error.problem.code === "CONFIG_PATH_INVALID");
-    const inherited = createPackagedSchemaReader({
-      packageRoot: root, schemaFiles: Object.create({ "document-plan/v1": "../outside.json" }),
-      files: { async read() { throw new Error("inherited mapping must not be observed"); } },
-      async readAuthoringSchema(id) { return id; }
-    });
-    assert.equal(await inherited("document-plan/v1"), "document-plan/v1");
-  } finally { await rm(root, { recursive: true, force: true }); }
-});
+registerCapabilityPolicySchemaCases();

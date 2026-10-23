@@ -6,13 +6,13 @@ export {
   canonicalDocsScripts,
   canonicalManagedRoute,
   canonicalManagedState,
-  describeCanonicalConsumerAssets
+  describeCanonicalConsumerAssets,
 } from "./application-api.js";
 export type {
   CanonicalManagedAssetDigests,
   ManagedSuccessorAssetDigests,
   ManagedSuccessorProfile,
-  UnselectedCohortV3
+  UnselectedCohortV3,
 } from "./application-api.js";
 export { planConsumerIntegration } from "./composition/consumer-integration-planner.js";
 export { planAgentsRouteV1 } from "./adapters/agents-route-adapter-v1.js";
@@ -25,15 +25,13 @@ export {
   checkConsumerIntegration,
   planNodeConsumerIntegration,
   recoverConsumerIntegration,
-  upgradeConsumerIntegration
+  upgradeConsumerIntegration,
 } from "./composition/node-consumer-integration.js";
 export type { ConsumerIntegrationExecutionV1 } from "./composition/node-consumer-integration.js";
-export type {
-  ConsumerUpgradeExecutionV1
-} from "./application-api.js";
+export type { ConsumerUpgradeExecutionV1 } from "./application-api.js";
 export {
   ConsumerIntegrationNodeError,
-  readConsumerIntegrationInput
+  readConsumerIntegrationInput,
 } from "./adapters/node-consumer-integration-repository.js";
 export type {
   ConsumerIntegrationAssetPlan,
@@ -52,7 +50,7 @@ export type {
   QualifiedDocsCohortBindingV2,
   QualifiedDocsCohortV1,
   QualifiedDocsCohortV2,
-  QualifiedDocsPackageCoordinateV2
+  QualifiedDocsPackageCoordinateV2,
 } from "./application-api.js";
 
 export { projectManagedPortableProfileV4 } from "./adapters/consumer-upgrade-file-projectors.js";

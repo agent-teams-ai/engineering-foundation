@@ -5,10 +5,7 @@ import { tmpdir } from "node:os";
 import { basename, isAbsolute, join, resolve } from "node:path";
 import { promisify } from "node:util";
 
-import {
-  NPM_PACKAGE_BOOTSTRAP,
-  validatePackEvidence,
-} from "./npm-package-bootstrap.mjs";
+import { NPM_PACKAGE_BOOTSTRAP, validatePackEvidence } from "./npm-package-bootstrap.mjs";
 import { preparePackages } from "./prepare-package.mjs";
 import { canonicalDigest } from "./pack-test-support.mjs";
 import { prepareExistingBootstrap } from "./npm-bootstrap-recovery.ts";
@@ -51,9 +48,15 @@ async function retainWriterEvidence({
   const archiveName = basename(archivePath);
   await Promise.all([
     writeFile(join(packageRoot, archiveName), archiveBytes, { flag: "wx", mode: 0o444 }),
-    writeFile(join(packageRoot, "package.json"), `${JSON.stringify(packedManifest, null, 2)}\n`, { flag: "wx", mode: 0o444 }),
+    writeFile(join(packageRoot, "package.json"), `${JSON.stringify(packedManifest, null, 2)}\n`, {
+      flag: "wx",
+      mode: 0o444,
+    }),
     writeFile(join(packageRoot, "tar-listing.txt"), tarEntries, { flag: "wx", mode: 0o444 }),
-    writeFile(join(packageRoot, "tar-verbose-listing.txt"), tarVerboseListing, { flag: "wx", mode: 0o444 }),
+    writeFile(join(packageRoot, "tar-verbose-listing.txt"), tarVerboseListing, {
+      flag: "wx",
+      mode: 0o444,
+    }),
   ]);
   return Object.freeze({
     archive: `${profile.id}/${archiveName}`,
@@ -76,9 +79,16 @@ async function verifyProfile(profile, outputRoot) {
       const authority = await assertExplicitSourceGitAuthority(
         process.env.AGENT_TEAMS_FOUNDATION_SOURCE_ROOT ?? process.cwd(),
       );
-      const { stdout: treeOutput } = await execute("git", [
-        "rev-parse", `${profile.recovery.sourceCommit}:${profile.root}`,
-      ], { cwd: authority.sourceRoot, env: authority.environment, encoding: "utf8", maxBuffer: MAX_OUTPUT_BYTES });
+      const { stdout: treeOutput } = await execute(
+        "git",
+        ["rev-parse", `${profile.recovery.sourceCommit}:${profile.root}`],
+        {
+          cwd: authority.sourceRoot,
+          env: authority.environment,
+          encoding: "utf8",
+          maxBuffer: MAX_OUTPUT_BYTES,
+        },
+      );
       const packageTree = treeOutput.trim();
       const evidence = await prepareExistingBootstrap(profile, packageTree, evidenceRoot);
       const [tarEntries, tarVerboseListing, manifest, archiveBytes] = await Promise.all([
@@ -88,21 +98,28 @@ async function verifyProfile(profile, outputRoot) {
         readFile(evidence.archivePath),
       ]);
       const writerEvidence = await retainWriterEvidence({
-        archiveBytes, archivePath: evidence.archivePath, outputRoot,
-        packedManifest: JSON.parse(manifest), profile, packageTree,
-        tarEntries, tarVerboseListing,
+        archiveBytes,
+        archivePath: evidence.archivePath,
+        outputRoot,
+        packedManifest: JSON.parse(manifest),
+        profile,
+        packageTree,
+        tarEntries,
+        tarVerboseListing,
       });
       return Object.freeze({ ...evidence, writerEvidence });
     }
-    const packReport = JSON.parse(await command("pnpm", [
-      "--filter",
-      profile.name,
-      "pack",
-      "--pack-destination",
-      evidenceRoot,
-      "--json",
-      "--config.ignore-scripts=true",
-    ]));
+    const packReport = JSON.parse(
+      await command("pnpm", [
+        "--filter",
+        profile.name,
+        "pack",
+        "--pack-destination",
+        evidenceRoot,
+        "--json",
+        "--config.ignore-scripts=true",
+      ]),
+    );
     const report = Array.isArray(packReport) ? packReport[0] : packReport;
     const archivePath = report?.filename;
     if (typeof archivePath !== "string") {
@@ -130,28 +147,30 @@ async function verifyProfile(profile, outputRoot) {
     try {
       const validated = validatePackEvidence({
         archiveBytes,
-      archivePath,
-      packedManifest: parsedManifest,
-      packageTree: packageTreeValue,
-      packReport,
-      profile,
-      tarEntries: tarEntries.trim().split("\n"),
-      tarVerboseListing,
+        archivePath,
+        packedManifest: parsedManifest,
+        packageTree: packageTreeValue,
+        packReport,
+        profile,
+        tarEntries: tarEntries.trim().split("\n"),
+        tarVerboseListing,
       });
       return Object.freeze({ ...validated, writerEvidence });
     } catch (error) {
       const observed = `sha512-${createHash("sha512").update(archiveBytes).digest("base64")}`;
       const message = error instanceof Error ? error.message : "bootstrap writer evidence failed.";
       const wrapped = new Error(`${message} (observed ${observed})`, { cause: error });
-      wrapped.writerEvidence = writerEvidence ?? Object.freeze({
-        archive: basename(archivePath),
-        archiveIntegrity: observed,
-        archiveSha256: archiveSha256(archiveBytes),
-        id: profile.id,
-        name: profile.name,
-        packageTree: packageTreeValue,
-        version: profile.bootstrapVersion,
-      });
+      wrapped.writerEvidence =
+        writerEvidence ??
+        Object.freeze({
+          archive: basename(archivePath),
+          archiveIntegrity: observed,
+          archiveSha256: archiveSha256(archiveBytes),
+          id: profile.id,
+          name: profile.name,
+          packageTree: packageTreeValue,
+          version: profile.bootstrapVersion,
+        });
       throw wrapped;
     }
   } finally {
@@ -205,16 +224,26 @@ async function main(outputRoot = null) {
     );
   }
   if (failures.length > 0) {
-    throw new Error(`Bootstrap writer evidence failed for ${failures.length} package(s): ${failures.join("; ")}`);
+    throw new Error(
+      `Bootstrap writer evidence failed for ${failures.length} package(s): ${failures.join("; ")}`,
+    );
   }
-  process.stdout.write(`Verified local npm bootstrap approvals: ${verified.join(", ") || "none pending"}.\n`);
+  process.stdout.write(
+    `Verified local npm bootstrap approvals: ${verified.join(", ") || "none pending"}.\n`,
+  );
 }
 
 const outputArgument = process.argv.slice(2);
 if (outputArgument.length === 0) {
   await main();
-} else if (outputArgument.length === 2 && outputArgument[0] === "--output" && isAbsolute(outputArgument[1])) {
+} else if (
+  outputArgument.length === 2 &&
+  outputArgument[0] === "--output" &&
+  isAbsolute(outputArgument[1])
+) {
   await main(resolve(outputArgument[1]));
 } else {
-  throw new Error("Usage: node scripts/npm-package-bootstrap-local-evidence.mjs [--output <absolute-directory>]");
+  throw new Error(
+    "Usage: node scripts/npm-package-bootstrap-local-evidence.mjs [--output <absolute-directory>]",
+  );
 }

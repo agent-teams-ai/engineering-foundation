@@ -11,8 +11,5 @@ export interface BufExecutionResult {
 }
 
 export interface BufExecutable {
-  run(
-    invocation: BufInvocation,
-    signal?: AbortSignal
-  ): Promise<BufExecutionResult>;
+  run(invocation: BufInvocation, signal?: AbortSignal): Promise<BufExecutionResult>;
 }

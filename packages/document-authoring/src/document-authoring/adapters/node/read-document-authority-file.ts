@@ -1,11 +1,14 @@
-import { type DocumentFileReadFailure, isDocumentFileReadFailure } from "../../application/policies/document-file-read-failure.js";
+import {
+  type DocumentFileReadFailure,
+  isDocumentFileReadFailure,
+} from "../../application/policies/document-file-read-failure.js";
 import type { DocumentFileReader } from "../../application/ports/document-file-reader.js";
 import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 
 import type {
   DocumentAuthorityDigest,
-  DocumentAuthorityEvidence
+  DocumentAuthorityEvidence,
 } from "../../application/model/document-catalog.js";
 import { isDocumentRepositoryPath } from "../../application/policies/document-repository-path.js";
 import { DocumentCatalogError } from "../../application/model/document-catalog-error.js";
@@ -17,28 +20,19 @@ export interface DocumentAuthorityFile {
 }
 
 function inputInvalid(message: string, options?: ErrorOptions): never {
-  throw new DocumentCatalogError(
-    "DOCUMENT_CATALOG_INPUT_INVALID",
-    message,
-    options
-  );
+  throw new DocumentCatalogError("DOCUMENT_CATALOG_INPUT_INVALID", message, options);
 }
 
 function assertPortableDocumentAuthorityPath(path: string): void {
   if (!isDocumentRepositoryPath(path)) {
     inputInvalid(
-      "Document authority paths must use the portable repository-relative path grammar."
+      "Document authority paths must use the portable repository-relative path grammar.",
     );
   }
 }
 
 function decodeAuthoritySource(bytes: Buffer, path: string): string {
-  if (
-    bytes.length >= 3 &&
-    bytes[0] === 0xef &&
-    bytes[1] === 0xbb &&
-    bytes[2] === 0xbf
-  ) {
+  if (bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
     inputInvalid(`Document authority must not contain a UTF-8 BOM: ${path}.`);
   }
   let source: string;
@@ -46,7 +40,7 @@ function decodeAuthoritySource(bytes: Buffer, path: string): string {
     source = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
   } catch (error) {
     inputInvalid(`Document authority must contain well-formed UTF-8: ${path}.`, {
-      cause: error
+      cause: error,
     });
   }
   if (source.includes("\u0000")) {
@@ -71,23 +65,28 @@ function unavailable(path: string, error: DocumentFileReadFailure): never {
   throw new DocumentCatalogError(
     "DOCUMENT_CATALOG_AUTHORITY_UNAVAILABLE",
     `Document authority ${detail}: ${path}.`,
-    { cause: error }
+    { cause: error },
   );
 }
 
-export async function readDocumentAuthorityFile(readContainedRegularFile: DocumentFileReader, request: {
-  readonly consumerRoot: string;
-  readonly maxBytes: number;
-  readonly path: string;
-}): Promise<DocumentAuthorityFile> {
+export async function readDocumentAuthorityFile(
+  readContainedRegularFile: DocumentFileReader,
+  request: {
+    readonly consumerRoot: string;
+    readonly maxBytes: number;
+    readonly path: string;
+  },
+): Promise<DocumentAuthorityFile> {
   assertPortableDocumentAuthorityPath(request.path);
   let bytes: Buffer;
   try {
-    bytes = Buffer.from(await readContainedRegularFile({
-      candidate: resolve(request.consumerRoot, request.path),
-      maxBytes: request.maxBytes,
-      root: request.consumerRoot
-    }));
+    bytes = Buffer.from(
+      await readContainedRegularFile({
+        candidate: resolve(request.consumerRoot, request.path),
+        maxBytes: request.maxBytes,
+        root: request.consumerRoot,
+      }),
+    );
   } catch (error) {
     if (isDocumentFileReadFailure(error)) {
       unavailable(request.path, error);
@@ -103,8 +102,8 @@ export async function readDocumentAuthorityFile(readContainedRegularFile: Docume
     evidence: Object.freeze({
       digest: digest(bytes),
       path: request.path,
-      size: bytes.byteLength
+      size: bytes.byteLength,
     }),
-    source
+    source,
   });
 }

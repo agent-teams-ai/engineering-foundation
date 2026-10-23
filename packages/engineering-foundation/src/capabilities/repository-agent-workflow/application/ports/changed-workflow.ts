@@ -1,7 +1,4 @@
-import type {
-  RepositoryChanges,
-  ScriptExecutionResult
-} from "../model/changed-workflow.js";
+import type { RepositoryChanges, ScriptExecutionResult } from "../model/changed-workflow.js";
 import type { RepositoryPackageManager } from "../../../../process-execution/application/runtime-selection.js";
 
 export interface RepositoryChangesReader {

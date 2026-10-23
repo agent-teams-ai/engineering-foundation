@@ -1,5 +1,14 @@
-import type { GrowthDigest, GrowthEvidence, GrowthObservationReference, GrowthSurfaceObservation } from "./growth-observation.js";
-import type { PackageReleaseEvidence, PublicApiPackagePolicy, PublicApiSnapshot } from "./public-api.js";
+import type {
+  GrowthDigest,
+  GrowthEvidence,
+  GrowthObservationReference,
+  GrowthSurfaceObservation,
+} from "./growth-observation.js";
+import type {
+  PackageReleaseEvidence,
+  PublicApiPackagePolicy,
+  PublicApiSnapshot,
+} from "./public-api.js";
 import type { AcceptedDecisionEvidence } from "../ports/accepted-decision-evidence.js";
 
 export interface GrowthReleasedPackage {
@@ -10,7 +19,11 @@ export interface GrowthReleasedPackage {
   /** Present only after trusted packed custody has qualified this row. */
   readonly qualification?: { readonly receiptDigest: GrowthDigest };
   readonly evidence:
-    | { readonly kind: "released"; readonly typed: GrowthEvidence<PublicApiSnapshot>; readonly artifact: GrowthEvidence<PublicApiSnapshot> }
+    | {
+        readonly kind: "released";
+        readonly typed: GrowthEvidence<PublicApiSnapshot>;
+        readonly artifact: GrowthEvidence<PublicApiSnapshot>;
+      }
     | { readonly kind: "initial-unreleased"; readonly history: GrowthEvidence<GrowthDigest> };
 }
 
@@ -19,7 +32,10 @@ export interface GrowthReleasedPackage {
  * a validated exact-target retained receipt, not a caller's initial flag. */
 export interface GrowthInputContext {
   /** Only the authenticated v3 adapter supplies these exact grant qualifications. */
-  readonly nonReleaseMetadataRoots?: readonly { readonly packageName: string; readonly receiptDigest: GrowthDigest }[];
+  readonly nonReleaseMetadataRoots?: readonly {
+    readonly packageName: string;
+    readonly receiptDigest: GrowthDigest;
+  }[];
   readonly trustedBase: GrowthEvidence<GrowthSurfaceObservation>;
   readonly trustedBaseReference: GrowthEvidence<GrowthObservationReference>;
   readonly retainedHistory: GrowthEvidence<{
@@ -30,7 +46,12 @@ export interface GrowthInputContext {
   readonly decisions: readonly unknown[];
   readonly acceptedBreakingDecisions: AcceptedDecisionEvidence;
   readonly authority:
-    | { readonly status: "verified"; readonly receiptDigest: GrowthDigest; readonly workflowRef?: string; readonly runRef?: string }
+    | {
+        readonly status: "verified";
+        readonly receiptDigest: GrowthDigest;
+        readonly workflowRef?: string;
+        readonly runRef?: string;
+      }
     | { readonly status: "unverified"; readonly reasons: readonly string[] };
 }
 

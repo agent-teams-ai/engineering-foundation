@@ -12,7 +12,7 @@ import {
   assertJsonSchemaRepositoryPath,
   jsonSchemaInputError as inputError,
   rejectJsonSchemaFileFailure,
-  type JsonSchemaFileReader
+  type JsonSchemaFileReader,
 } from "../../../api.js";
 
 import { parseStrictJson, StrictJsonError } from "@agent-teams/repository-mutation/serialization";
@@ -20,7 +20,7 @@ import type {
   JsonSchemaDigest,
   JsonSchemaFixture,
   JsonSchemaFixtureResult,
-  JsonSchemaInspection
+  JsonSchemaInspection,
 } from "../../../application/model/json-schema-release.js";
 import type { JsonSchemaReleaseInspector } from "../../../application/ports/json-schema-release-inspector.js";
 
@@ -74,7 +74,7 @@ function canonicalJson(value: unknown): string {
   }
   if (typeof value === "object") {
     const entries = Object.entries(value as Record<string, unknown>).toSorted(([left], [right]) =>
-      compareBinaryStrings(left, right)
+      compareBinaryStrings(left, right),
     );
     return `{${entries.map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`).join(",")}}`;
   }
@@ -87,14 +87,17 @@ async function safeJsonFile(
   root: string,
   repositoryPath: string,
   files: JsonSchemaFileReader,
-  evidenceReader?: JsonEvidenceReader
+  evidenceReader?: JsonEvidenceReader,
 ): Promise<unknown> {
   assertJsonSchemaEvidencePath(repositoryPath);
   let bytes: Uint8Array;
   if (evidenceReader !== undefined) {
     const observed = await evidenceReader(repositoryPath);
     if (observed === undefined) {
-      inputError("JSON_SCHEMA_FILE_UNAVAILABLE", `JSON evidence is unavailable: ${repositoryPath}.`);
+      inputError(
+        "JSON_SCHEMA_FILE_UNAVAILABLE",
+        `JSON evidence is unavailable: ${repositoryPath}.`,
+      );
     }
     bytes = observed;
   } else {
@@ -102,14 +105,17 @@ async function safeJsonFile(
       bytes = await files.read({
         candidate: resolve(root, repositoryPath),
         maxBytes: MAX_JSON_BYTES,
-        root
+        root,
       });
     } catch (error) {
       rejectJsonSchemaFileFailure(error, repositoryPath);
     }
   }
   if (bytes.byteLength > MAX_JSON_BYTES) {
-    inputError("JSON_SCHEMA_FILE_INVALID", `JSON evidence is not a supported file: ${repositoryPath}.`);
+    inputError(
+      "JSON_SCHEMA_FILE_INVALID",
+      `JSON evidence is not a supported file: ${repositoryPath}.`,
+    );
   }
   try {
     return parseStrictJson(Buffer.from(bytes).toString("utf8"));
@@ -117,7 +123,7 @@ async function safeJsonFile(
     if (error instanceof StrictJsonError && error.failure === "duplicate-key") {
       inputError(
         "JSON_SCHEMA_DUPLICATE_KEY",
-        `JSON evidence contains a duplicate object key: ${repositoryPath}.`
+        `JSON evidence contains a duplicate object key: ${repositoryPath}.`,
       );
     }
     inputError("JSON_SCHEMA_FILE_INVALID", `JSON evidence is invalid: ${repositoryPath}.`);
@@ -133,7 +139,10 @@ function schemaId(value: Record<string, unknown>, path: string): string {
     id.includes("#") ||
     hasControlCharacter(id)
   ) {
-    inputError("JSON_SCHEMA_ID_INVALID", `Schema must have an absolute fragment-free $id: ${path}.`);
+    inputError(
+      "JSON_SCHEMA_ID_INVALID",
+      `Schema must have an absolute fragment-free $id: ${path}.`,
+    );
   }
   try {
     const parsedId = new URL(id);
@@ -169,7 +178,7 @@ function nestedSchemaId(value: unknown, inheritedId: string): string {
   ) {
     inputError(
       "JSON_SCHEMA_ID_INVALID",
-      "Nested schema $id must be a non-empty fragment-free URI-reference."
+      "Nested schema $id must be a non-empty fragment-free URI-reference.",
     );
   }
   try {
@@ -191,7 +200,7 @@ const SINGLE_SCHEMA_KEYWORDS = Object.freeze([
   "propertyNames",
   "then",
   "unevaluatedItems",
-  "unevaluatedProperties"
+  "unevaluatedProperties",
 ]);
 const SCHEMA_ARRAY_KEYWORDS = Object.freeze(["allOf", "anyOf", "oneOf", "prefixItems"]);
 const SCHEMA_MAP_KEYWORDS = Object.freeze([
@@ -199,14 +208,14 @@ const SCHEMA_MAP_KEYWORDS = Object.freeze([
   "definitions",
   "dependentSchemas",
   "patternProperties",
-  "properties"
+  "properties",
 ]);
 
 function assertReferenceKeyword(
   schema: Readonly<Record<string, unknown>>,
   key: "$dynamicRef" | "$ref",
   sourceId: string,
-  knownSchemaIds: ReadonlySet<string>
+  knownSchemaIds: ReadonlySet<string>,
 ): void {
   const entry = schema[key];
   if (entry === undefined) {
@@ -219,7 +228,7 @@ function assertReferenceKeyword(
   if (!knownSchemaIds.has(target)) {
     inputError(
       "JSON_SCHEMA_REFERENCE_NOT_LOCAL",
-      `Schema ${sourceId} references a schema not declared in this local contract set.`
+      `Schema ${sourceId} references a schema not declared in this local contract set.`,
     );
   }
 }
@@ -260,7 +269,7 @@ function collectNestedSchemaIds(
   value: unknown,
   inheritedId: string,
   knownSchemaIds: Set<string>,
-  documentRoot = false
+  documentRoot = false,
 ): void {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return;
@@ -274,7 +283,7 @@ function collectNestedSchemaIds(
     if (knownSchemaIds.has(currentId)) {
       inputError(
         "JSON_SCHEMA_ID_DUPLICATE",
-        `Schema resource $id values must be unique within a contract: ${currentId}.`
+        `Schema resource $id values must be unique within a contract: ${currentId}.`,
       );
     }
     knownSchemaIds.add(currentId);
@@ -288,7 +297,7 @@ function assertLocalReferences(
   value: unknown,
   sourceId: string,
   knownSchemaIds: ReadonlySet<string>,
-  documentRoot = false
+  documentRoot = false,
 ): void {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return;
@@ -308,13 +317,16 @@ function assertLocalReferences(
 
 function assertFixtures(
   fixtures: readonly JsonSchemaFixture[],
-  requireMixedExpectations: boolean
+  requireMixedExpectations: boolean,
 ): void {
   const ids = new Set<string>();
   const expectations = new Set<JsonSchemaFixture["expectation"]>();
   for (const fixture of fixtures) {
     if (!FIXTURE_ID.test(fixture.id) || ids.has(fixture.id)) {
-      inputError("JSON_SCHEMA_FIXTURE_INVALID", "Fixture IDs must be unique normalized identifiers.");
+      inputError(
+        "JSON_SCHEMA_FIXTURE_INVALID",
+        "Fixture IDs must be unique normalized identifiers.",
+      );
     }
     ids.add(fixture.id);
     assertJsonSchemaRepositoryPath(fixture.path);
@@ -327,13 +339,10 @@ function assertFixtures(
       inputError("JSON_SCHEMA_FIXTURE_INVALID", `Fixture schemaId is invalid: ${fixture.id}.`);
     }
   }
-  if (
-    requireMixedExpectations &&
-    (!expectations.has("valid") || !expectations.has("invalid"))
-  ) {
+  if (requireMixedExpectations && (!expectations.has("valid") || !expectations.has("invalid"))) {
     inputError(
       "JSON_SCHEMA_FIXTURE_CORPUS_INCOMPLETE",
-      "Fixture corpus must contain at least one valid and one invalid example."
+      "Fixture corpus must contain at least one valid and one invalid example.",
     );
   }
 }
@@ -344,7 +353,7 @@ function compileSchemas(documents: readonly SchemaDocument[]): Ajv2020 {
     strict: true,
     // Open prefix tuples are valid Draft 2020-12, including released scaffold receipts.
     strictTuples: false,
-    validateFormats: true
+    validateFormats: true,
   });
   addFormats.default(ajv);
   try {
@@ -356,7 +365,10 @@ function compileSchemas(documents: readonly SchemaDocument[]): Ajv2020 {
       ajv.compile(document.value);
     }
   } catch {
-    inputError("JSON_SCHEMA_COMPILE_FAILED", "AJV strict 2020-12 could not compile the local schema set.");
+    inputError(
+      "JSON_SCHEMA_COMPILE_FAILED",
+      "AJV strict 2020-12 could not compile the local schema set.",
+    );
   }
   return ajv;
 }
@@ -366,14 +378,14 @@ function schemaSetDigest(documents: readonly SchemaDocument[]): JsonSchemaDigest
     canonicalJson(
       documents
         .map((document) => ({ id: document.id, schema: document.value }))
-        .toSorted((left, right) => compareBinaryStrings(left.id, right.id))
-    )
+        .toSorted((left, right) => compareBinaryStrings(left.id, right.id)),
+    ),
   );
 }
 
 function fixtureCorpusDigest(
   fixtures: readonly JsonSchemaFixture[],
-  values: ReadonlyMap<string, unknown>
+  values: ReadonlyMap<string, unknown>,
 ): JsonSchemaDigest {
   return digest(
     canonicalJson(
@@ -382,17 +394,17 @@ function fixtureCorpusDigest(
           id: fixture.id,
           schemaId: fixture.schemaId,
           expectation: fixture.expectation,
-          value: values.get(fixture.id)
+          value: values.get(fixture.id),
         }))
-        .toSorted((left, right) => compareBinaryStrings(left.id, right.id))
-    )
+        .toSorted((left, right) => compareBinaryStrings(left.id, right.id)),
+    ),
   );
 }
 
 export class AjvJsonSchemaReleaseInspector implements JsonSchemaReleaseInspector {
   constructor(
     private readonly files: JsonSchemaFileReader,
-    private readonly evidenceReader?: JsonEvidenceReader
+    private readonly evidenceReader?: JsonEvidenceReader,
   ) {}
 
   async inspect(input: {
@@ -406,14 +418,20 @@ export class AjvJsonSchemaReleaseInspector implements JsonSchemaReleaseInspector
   }): Promise<JsonSchemaInspection> {
     assertJsonSchemaInspectionActive(input.signal);
     if (input.schemaPaths.length === 0 || input.schemaPaths.length > 1_000) {
-      inputError("JSON_SCHEMA_PATHS_INVALID", "Contract must declare between one and 1000 schemas.");
+      inputError(
+        "JSON_SCHEMA_PATHS_INVALID",
+        "Contract must declare between one and 1000 schemas.",
+      );
     }
     if (new Set(input.schemaPaths).size !== input.schemaPaths.length) {
       inputError("JSON_SCHEMA_PATHS_INVALID", "Contract schema paths must be unique.");
     }
     assertFixtures(input.fixtures, input.requireMixedExpectations ?? true);
     const root = await realpath(input.consumerRoot).catch(() =>
-      inputError("CONSUMER_ROOT_UNAVAILABLE", "Consumer root must be an existing accessible directory.")
+      inputError(
+        "CONSUMER_ROOT_UNAVAILABLE",
+        "Consumer root must be an existing accessible directory.",
+      ),
     );
     if (!(await stat(root)).isDirectory()) {
       inputError("CONSUMER_ROOT_INVALID", "Consumer root must be a directory.");
@@ -423,12 +441,12 @@ export class AjvJsonSchemaReleaseInspector implements JsonSchemaReleaseInspector
       assertJsonSchemaInspectionActive(input.signal);
       const value = record(
         await safeJsonFile(root, path, this.files, input.evidenceReader ?? this.evidenceReader),
-        `schema ${path}`
+        `schema ${path}`,
       );
       if (value["$schema"] !== DRAFT_2020_12) {
         inputError(
           "JSON_SCHEMA_DIALECT_INVALID",
-          `Schema must declare JSON Schema draft 2020-12: ${path}.`
+          `Schema must declare JSON Schema draft 2020-12: ${path}.`,
         );
       }
       documents.push({ id: schemaId(value, path), path, value });
@@ -448,32 +466,40 @@ export class AjvJsonSchemaReleaseInspector implements JsonSchemaReleaseInspector
     const fixtureValues = new Map<string, unknown>();
     const fixtureResults: JsonSchemaFixtureResult[] = [];
     for (const fixture of input.fixtures.toSorted((left, right) =>
-      compareBinaryStrings(left.id, right.id)
+      compareBinaryStrings(left.id, right.id),
     )) {
       assertJsonSchemaInspectionActive(input.signal);
-      const value = await safeJsonFile(root, fixture.path, this.files, input.evidenceReader ?? this.evidenceReader);
+      const value = await safeJsonFile(
+        root,
+        fixture.path,
+        this.files,
+        input.evidenceReader ?? this.evidenceReader,
+      );
       fixtureValues.set(fixture.id, value);
       const validate = ajv.getSchema(fixture.schemaId) as ValidateFunction | undefined;
       if (validate === undefined) {
         inputError(
           "JSON_SCHEMA_FIXTURE_SCHEMA_UNKNOWN",
-          `Fixture ${fixture.id} references a schema outside the local contract set.`
+          `Fixture ${fixture.id} references a schema outside the local contract set.`,
         );
       }
       const valid = validate(value);
       fixtureResults.push({
         id: fixture.id,
         expectation: fixture.expectation,
-        matched: fixture.expectation === "valid" ? valid : !valid
+        matched: fixture.expectation === "valid" ? valid : !valid,
       });
     }
     const output = {
       schemaSetDigest: schemaSetDigest(documents),
       fixtureCorpusDigest: fixtureCorpusDigest(input.fixtures, fixtureValues),
       schemaIds: Object.freeze(schemaIds.toSorted(compareBinaryStrings)),
-      fixtureResults: Object.freeze(fixtureResults.map((result) => Object.freeze(result)))
+      fixtureResults: Object.freeze(fixtureResults.map((result) => Object.freeze(result))),
     } as const;
-    if (!SHA256_DIGEST.test(output.schemaSetDigest) || !SHA256_DIGEST.test(output.fixtureCorpusDigest)) {
+    if (
+      !SHA256_DIGEST.test(output.schemaSetDigest) ||
+      !SHA256_DIGEST.test(output.fixtureCorpusDigest)
+    ) {
       inputError("JSON_SCHEMA_DIGEST_INVALID", "Internal JSON Schema digest generation failed.");
     }
     return Object.freeze(output);

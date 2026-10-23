@@ -9,7 +9,7 @@ import {
   type KnownPriorCohortCatalogEntryV1,
   type KnownPriorCohortCatalogEntryV2,
   type QualifiedDocsCohortBindingV2,
-  type ConsumerAssetCatalogReader
+  type ConsumerAssetCatalogReader,
 } from "../application-api.js";
 
 const DIGEST = /^sha256:[0-9a-f]{64}$/u;
@@ -21,8 +21,12 @@ const MAXIMUM_CATALOG_BYTES = 2 * 1024 * 1024;
 const MAXIMUM_BUNDLE_BYTES = 1024 * 1024;
 
 function record(value: unknown, subject: string): Record<string, unknown> {
-  if (typeof value !== "object" || value === null || Array.isArray(value) ||
-    Object.getPrototypeOf(value) !== Object.prototype) {
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    Array.isArray(value) ||
+    Object.getPrototypeOf(value) !== Object.prototype
+  ) {
     throw new TypeError(`${subject} must be one plain object.`);
   }
   return value as Record<string, unknown>;
@@ -41,18 +45,27 @@ function hasExactKeys(value: object, keys: readonly string[]): boolean {
 
 export function packagePair(value: unknown): CurrentSourceExecutorV1["packages"] {
   const packages = record(value, "currentSourceExecutor.packages");
-  const docsProtocol = record(packages["docsProtocol"], "currentSourceExecutor.packages.docsProtocol");
+  const docsProtocol = record(
+    packages["docsProtocol"],
+    "currentSourceExecutor.packages.docsProtocol",
+  );
   const engineeringFoundation = record(
     packages["engineeringFoundation"],
-    "currentSourceExecutor.packages.engineeringFoundation"
+    "currentSourceExecutor.packages.engineeringFoundation",
   );
-  if (!hasExactKeys(packages, ["docsProtocol", "engineeringFoundation"]) ||
+  if (
+    !hasExactKeys(packages, ["docsProtocol", "engineeringFoundation"]) ||
     !hasExactKeys(docsProtocol, ["version", "integrity"]) ||
     !hasExactKeys(engineeringFoundation, ["version", "integrity"]) ||
-    typeof docsProtocol["version"] !== "string" || !SEMVER.test(docsProtocol["version"]) ||
-    typeof engineeringFoundation["version"] !== "string" || !SEMVER.test(engineeringFoundation["version"]) ||
-    typeof docsProtocol["integrity"] !== "string" || !INTEGRITY.test(docsProtocol["integrity"]) ||
-    typeof engineeringFoundation["integrity"] !== "string" || !INTEGRITY.test(engineeringFoundation["integrity"])) {
+    typeof docsProtocol["version"] !== "string" ||
+    !SEMVER.test(docsProtocol["version"]) ||
+    typeof engineeringFoundation["version"] !== "string" ||
+    !SEMVER.test(engineeringFoundation["version"]) ||
+    typeof docsProtocol["integrity"] !== "string" ||
+    !INTEGRITY.test(docsProtocol["integrity"]) ||
+    typeof engineeringFoundation["integrity"] !== "string" ||
+    !INTEGRITY.test(engineeringFoundation["integrity"])
+  ) {
     throw new TypeError("Current source executor package pair is invalid.");
   }
   return packages as unknown as CurrentSourceExecutorV1["packages"];
@@ -60,8 +73,10 @@ export function packagePair(value: unknown): CurrentSourceExecutorV1["packages"]
 
 function schemas(value: unknown): CurrentSourceExecutorV1["schemas"] {
   const candidate = record(value, "currentSourceExecutor.schemas");
-  if (!hasExactKeys(candidate, ["consumerIntegration", "managedState", "docsProtocol"]) ||
-    Object.values(candidate).some((entry) => entry !== 1)) {
+  if (
+    !hasExactKeys(candidate, ["consumerIntegration", "managedState", "docsProtocol"]) ||
+    Object.values(candidate).some((entry) => entry !== 1)
+  ) {
     throw new TypeError("Current source executor schemas are invalid.");
   }
   return candidate as unknown as CurrentSourceExecutorV1["schemas"];
@@ -69,8 +84,11 @@ function schemas(value: unknown): CurrentSourceExecutorV1["schemas"] {
 
 function runtime(value: unknown): CurrentSourceExecutorV1["runtime"] {
   const candidate = record(value, "currentSourceExecutor.runtime");
-  if (!hasExactKeys(candidate, ["node", "pnpm", "runtimeClosureDigest"]) ||
-    candidate["node"] !== ">=24.18.0 <25" || candidate["pnpm"] !== ">=11.17.0 <12") {
+  if (
+    !hasExactKeys(candidate, ["node", "pnpm", "runtimeClosureDigest"]) ||
+    candidate["node"] !== ">=24.18.0 <25" ||
+    candidate["pnpm"] !== ">=11.17.0 <12"
+  ) {
     throw new TypeError("Current source executor runtime is invalid.");
   }
   digest(candidate["runtimeClosureDigest"], "currentSourceExecutor.runtime.runtimeClosureDigest");
@@ -78,9 +96,15 @@ function runtime(value: unknown): CurrentSourceExecutorV1["runtime"] {
 }
 
 function cohortIds(value: unknown): readonly string[] {
-  if (!Array.isArray(value) || value.length === 0 || value.length > 32 ||
-    !value.every((entry: unknown): entry is string => typeof entry === "string" && COHORT_ID.test(entry)) ||
-    new Set(value).size !== value.length) {
+  if (
+    !Array.isArray(value) ||
+    value.length === 0 ||
+    value.length > 32 ||
+    !value.every(
+      (entry: unknown): entry is string => typeof entry === "string" && COHORT_ID.test(entry),
+    ) ||
+    new Set(value).size !== value.length
+  ) {
     throw new TypeError("Current source executor target Cohort IDs are invalid.");
   }
   return value;
@@ -99,22 +123,43 @@ async function bundleBytes(path: unknown, expected: unknown): Promise<Uint8Array
 
 function currentSource(value: unknown): CurrentSourceExecutorV1 {
   const source = record(value, "currentSourceExecutor");
-  if (!hasExactKeys(source, [
-    "packages", "schemas", "runtime", "assetCatalogDigest", "skillDigest", "callerWorkflowDigest",
-    "agentsRouteDigest", "docsScriptsDigest", "directTargetCohortIds"
-  ])) {
+  if (
+    !hasExactKeys(source, [
+      "packages",
+      "schemas",
+      "runtime",
+      "assetCatalogDigest",
+      "skillDigest",
+      "callerWorkflowDigest",
+      "agentsRouteDigest",
+      "docsScriptsDigest",
+      "directTargetCohortIds",
+    ])
+  ) {
     throw new TypeError("Current source executor fields are invalid.");
   }
   return Object.freeze({
     packages: packagePair(source["packages"]),
     schemas: schemas(source["schemas"]),
     runtime: runtime(source["runtime"]),
-    assetCatalogDigest: digest(source["assetCatalogDigest"], "currentSourceExecutor.assetCatalogDigest"),
+    assetCatalogDigest: digest(
+      source["assetCatalogDigest"],
+      "currentSourceExecutor.assetCatalogDigest",
+    ),
     skillDigest: digest(source["skillDigest"], "currentSourceExecutor.skillDigest"),
-    callerWorkflowDigest: digest(source["callerWorkflowDigest"], "currentSourceExecutor.callerWorkflowDigest"),
-    agentsRouteDigest: digest(source["agentsRouteDigest"], "currentSourceExecutor.agentsRouteDigest"),
-    docsScriptsDigest: digest(source["docsScriptsDigest"], "currentSourceExecutor.docsScriptsDigest"),
-    directTargetCohortIds: cohortIds(source["directTargetCohortIds"])
+    callerWorkflowDigest: digest(
+      source["callerWorkflowDigest"],
+      "currentSourceExecutor.callerWorkflowDigest",
+    ),
+    agentsRouteDigest: digest(
+      source["agentsRouteDigest"],
+      "currentSourceExecutor.agentsRouteDigest",
+    ),
+    docsScriptsDigest: digest(
+      source["docsScriptsDigest"],
+      "currentSourceExecutor.docsScriptsDigest",
+    ),
+    directTargetCohortIds: cohortIds(source["directTargetCohortIds"]),
   });
 }
 
@@ -124,10 +169,19 @@ type LoadedTarget = Omit<KnownPriorCohortCatalogEntryV1, "cohort"> & {
 
 async function directTarget(value: unknown): Promise<LoadedTarget> {
   const target = record(value, "directTargetBundle");
-  if (!hasExactKeys(target, [
-    "cohort", "skillPath", "skillDigest", "callerWorkflowPath", "callerWorkflowDigest",
-    "agentsRouteDigest", "docsScriptsDigest"
-  ])) {throw new TypeError("Direct-target bundle fields are invalid.");}
+  if (
+    !hasExactKeys(target, [
+      "cohort",
+      "skillPath",
+      "skillDigest",
+      "callerWorkflowPath",
+      "callerWorkflowDigest",
+      "agentsRouteDigest",
+      "docsScriptsDigest",
+    ])
+  ) {
+    throw new TypeError("Direct-target bundle fields are invalid.");
+  }
   const cohort = record(target["cohort"], "directTargetBundle.cohort");
   if (cohort["schemaVersion"] === 2) {
     assertQualifiedDocsCohortBindingV2(cohort);
@@ -136,19 +190,27 @@ async function directTarget(value: unknown): Promise<LoadedTarget> {
   }
   const [skill, callerWorkflow] = await Promise.all([
     bundleBytes(target["skillPath"], target["skillDigest"]),
-    bundleBytes(target["callerWorkflowPath"], target["callerWorkflowDigest"])
+    bundleBytes(target["callerWorkflowPath"], target["callerWorkflowDigest"]),
   ]);
-  const agentsRouteDigest = digest(target["agentsRouteDigest"], "directTargetBundle.agentsRouteDigest");
-  const docsScriptsDigest = digest(target["docsScriptsDigest"], "directTargetBundle.docsScriptsDigest");
-  if (target["skillDigest"] !== cohort.assets.skillDigest ||
-    target["callerWorkflowDigest"] !== cohort.assets.callerWorkflowDigest) {
+  const agentsRouteDigest = digest(
+    target["agentsRouteDigest"],
+    "directTargetBundle.agentsRouteDigest",
+  );
+  const docsScriptsDigest = digest(
+    target["docsScriptsDigest"],
+    "directTargetBundle.docsScriptsDigest",
+  );
+  if (
+    target["skillDigest"] !== cohort.assets.skillDigest ||
+    target["callerWorkflowDigest"] !== cohort.assets.callerWorkflowDigest
+  ) {
     throw new TypeError("Direct-target bundle assets differ from their Cohort binding.");
   }
   const bundle = Object.freeze({
     skill,
     callerWorkflow,
     agentsRouteDigest,
-    docsScriptsDigest
+    docsScriptsDigest,
   });
   return Object.freeze({ cohort, ...bundle });
 }
@@ -157,43 +219,61 @@ export async function loadPackageConsumerAssetCatalog(): Promise<ConsumerAssetCa
   const [bytes, transitionBytes, docsManifestBytes] = await Promise.all([
     readFile(new URL("../../../assets/catalog.json", import.meta.url)),
     readFile(new URL("../../../assets/transition-catalog.json", import.meta.url)),
-    readFile(new URL("../../../package.json", import.meta.url))
+    readFile(new URL("../../../package.json", import.meta.url)),
   ]);
-  if (bytes.byteLength > MAXIMUM_CATALOG_BYTES) {throw new TypeError("Consumer asset catalog is too large.");}
+  if (bytes.byteLength > MAXIMUM_CATALOG_BYTES) {
+    throw new TypeError("Consumer asset catalog is too large.");
+  }
   if (transitionBytes.byteLength > MAXIMUM_CATALOG_BYTES) {
     throw new TypeError("Consumer transition catalog is too large.");
   }
   const source = record(
     JSON.parse(transitionBytes.toString("utf8")) as unknown,
-    "consumer transition catalog"
+    "consumer transition catalog",
   );
-  if (!hasExactKeys(source, ["schemaVersion", "currentSourceExecutors", "directTargetBundles"]) ||
-    source["schemaVersion"] !== 1) {
+  if (
+    !hasExactKeys(source, ["schemaVersion", "currentSourceExecutors", "directTargetBundles"]) ||
+    source["schemaVersion"] !== 1
+  ) {
     throw new TypeError("Consumer transition catalog fields are invalid.");
   }
   const sources = source["currentSourceExecutors"];
   const targets = source["directTargetBundles"];
-  if (!Array.isArray(sources) || sources.length > 32 || !Array.isArray(targets) || targets.length > 32) {
+  if (
+    !Array.isArray(sources) ||
+    sources.length > 32 ||
+    !Array.isArray(targets) ||
+    targets.length > 32
+  ) {
     throw new TypeError("Consumer asset catalog executor and target lists must be bounded arrays.");
   }
-  const docsVersion = record(JSON.parse(docsManifestBytes.toString("utf8")), "Docs package")["version"];
-  const currentSourceExecutors = sources.map(currentSource).filter(({ packages }) =>
-    packages.docsProtocol.version === docsVersion
-  );
+  const docsVersion = record(JSON.parse(docsManifestBytes.toString("utf8")), "Docs package")[
+    "version"
+  ];
+  const currentSourceExecutors = sources
+    .map(currentSource)
+    .filter(({ packages }) => packages.docsProtocol.version === docsVersion);
   const loadedTargets = await Promise.all(targets.map(directTarget));
   // V2 history is validated above, but is not executable by the V1 planner.
   const directTargetBundles = loadedTargets.filter(
-    (target): target is KnownPriorCohortCatalogEntryV1 => target.cohort.schemaVersion === 1
+    (target): target is KnownPriorCohortCatalogEntryV1 => target.cohort.schemaVersion === 1,
   );
   const historicalV2Bundles = loadedTargets.filter(
-    (target): target is KnownPriorCohortCatalogEntryV2 => target.cohort.schemaVersion === 2
+    (target): target is KnownPriorCohortCatalogEntryV2 => target.cohort.schemaVersion === 2,
   );
-  const directTargetIds = new Set(targets.map((target: unknown) =>
-    record(record(target, "directTargetBundle")["cohort"], "cohort")["cohortId"]));
+  const directTargetIds = new Set(
+    targets.map(
+      (target: unknown) =>
+        record(record(target, "directTargetBundle")["cohort"], "cohort")["cohortId"],
+    ),
+  );
   const legacyTargetIds = new Set(directTargetBundles.map(({ cohort }) => cohort.cohortId));
-  if (directTargetIds.size !== targets.length || currentSourceExecutors.some(
-    ({ directTargetCohortIds }) => directTargetCohortIds.some((id) => !legacyTargetIds.has(id))
-  )) {
+  if (
+    directTargetIds.size !== targets.length ||
+    currentSourceExecutors.some(({ directTargetCohortIds }) =>
+      directTargetCohortIds.some((id) => !legacyTargetIds.has(id)),
+    )
+  ) {
     throw new TypeError("Consumer transition catalog target Cohort identities must be unique.");
   }
   return Object.freeze({
@@ -201,9 +281,10 @@ export async function loadPackageConsumerAssetCatalog(): Promise<ConsumerAssetCa
     transitionCatalogDigest: digestBytes(transitionBytes),
     currentSourceExecutors: Object.freeze(currentSourceExecutors),
     directTargetBundles: Object.freeze(directTargetBundles),
-    historicalV2Bundles: Object.freeze(historicalV2Bundles)
+    historicalV2Bundles: Object.freeze(historicalV2Bundles),
   });
 }
 
-export const packageConsumerAssetCatalogReader: ConsumerAssetCatalogReader =
-  Object.freeze({ read: loadPackageConsumerAssetCatalog });
+export const packageConsumerAssetCatalogReader: ConsumerAssetCatalogReader = Object.freeze({
+  read: loadPackageConsumerAssetCatalog,
+});

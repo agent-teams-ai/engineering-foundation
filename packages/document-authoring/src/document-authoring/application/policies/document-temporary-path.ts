@@ -16,31 +16,22 @@ class DocumentTemporaryPathError extends Error {
  * The name is bounded independently of the destination basename and remains
  * in the destination's already-authorized parent directory.
  */
-export function documentTemporaryPath(
-  destination: string,
-  planDigest: string
-): string {
+export function documentTemporaryPath(destination: string, planDigest: string): string {
   if (!isDocumentRepositoryPath(destination)) {
-    throw new DocumentTemporaryPathError(
-      "Document destination is not a portable repository path."
-    );
+    throw new DocumentTemporaryPathError("Document destination is not a portable repository path.");
   }
   if (!CANONICAL_SHA256_DIGEST.test(planDigest)) {
-    throw new DocumentTemporaryPathError(
-      "Document Plan digest is not canonical SHA-256."
-    );
+    throw new DocumentTemporaryPathError("Document Plan digest is not canonical SHA-256.");
   }
 
   const separator = destination.lastIndexOf("/");
   const parent = separator === -1 ? "" : destination.slice(0, separator);
   const temporaryName = `${TEMPORARY_PREFIX}${planDigest.slice("sha256:".length)}${TEMPORARY_SUFFIX}`;
-  const temporaryPath = parent.length === 0
-    ? temporaryName
-    : `${parent}/${temporaryName}`;
+  const temporaryPath = parent.length === 0 ? temporaryName : `${parent}/${temporaryName}`;
 
   if (!isDocumentRepositoryPath(temporaryPath)) {
     throw new DocumentTemporaryPathError(
-      "Document destination parent cannot contain the bounded transaction temporary."
+      "Document destination parent cannot contain the bounded transaction temporary.",
     );
   }
   return temporaryPath;

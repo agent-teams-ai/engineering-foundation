@@ -1,5 +1,10 @@
 export type ContainedFileReadFailure =
-  | "changed" | "escape" | "invalid" | "missing" | "symlink" | "unavailable";
+  | "changed"
+  | "escape"
+  | "invalid"
+  | "missing"
+  | "symlink"
+  | "unavailable";
 
 export class ContainedFileReadError extends Error {
   readonly failure: ContainedFileReadFailure;

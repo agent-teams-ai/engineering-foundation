@@ -10,11 +10,18 @@ export interface DocsOperationResult<Result, Command extends DocsCommandV3 = Doc
   readonly result: Result;
 }
 
-export function execution<Result, Command extends DocsCommandV3>(command: Command, outcome: DocsCommandOutcome, result: Result, diagnostics: readonly DocsDiagnostic[] = []): DocsOperationResult<Result, Command> {
+export function execution<Result, Command extends DocsCommandV3>(
+  command: Command,
+  outcome: DocsCommandOutcome,
+  result: Result,
+  diagnostics: readonly DocsDiagnostic[] = [],
+): DocsOperationResult<Result, Command> {
   return Object.freeze({ command, outcome, result, diagnostics: boundedDiagnostics(diagnostics) });
 }
 
-export function compatibleProfileV2(profile: NormalizedDocsProtocolProfile): Pick<
+export function compatibleProfileV2(
+  profile: NormalizedDocsProtocolProfile,
+): Pick<
   NormalizedDocsProtocolProfile,
   "agentWorkflow" | "foundationProfile" | "protocol" | "semanticValidatorIds"
 > {
@@ -22,6 +29,6 @@ export function compatibleProfileV2(profile: NormalizedDocsProtocolProfile): Pic
     protocol: profile.protocol,
     foundationProfile: profile.foundationProfile,
     agentWorkflow: profile.agentWorkflow,
-    semanticValidatorIds: profile.semanticValidatorIds
+    semanticValidatorIds: profile.semanticValidatorIds,
   });
 }

@@ -10,7 +10,7 @@ export function assertNotCancelled(signal: AbortSignal | undefined): void {
       code: "EXECUTION_CANCELLED",
       message: "Foundation check was cancelled.",
       phase: "execution",
-      retryable: false
+      retryable: false,
     });
   }
 }

@@ -1,24 +1,20 @@
-import type {
-  NormalizedQualityGateProfile,
-  QualityGateTask
-} from "../model/quality-gate.js";
-import type {
-  QualityGateRunReport,
-  QualityGateTaskReport
-} from "../model/quality-gate-report.js";
+import type { NormalizedQualityGateProfile, QualityGateTask } from "../model/quality-gate.js";
+import type { QualityGateRunReport, QualityGateTaskReport } from "../model/quality-gate-report.js";
 import type { MonotonicClock } from "../ports/monotonic-clock.js";
 import {
   PackageScriptCancellationError,
   PackageScriptTimeoutError,
-  type PackageScriptExecutor
+  type PackageScriptExecutor,
 } from "../ports/package-script-executor.js";
 
 const FAILURE_TAIL_CHARACTERS = 8_192;
 
 function unsafeTerminalControl(codePoint: number): boolean {
-  return codePoint <= 0x08 ||
+  return (
+    codePoint <= 0x08 ||
     (codePoint >= 0x0b && codePoint <= 0x1f) ||
-    (codePoint >= 0x7f && codePoint <= 0x9f);
+    (codePoint >= 0x7f && codePoint <= 0x9f)
+  );
 }
 
 function sanitizeFailureOutput(value: string): string {
@@ -37,31 +33,34 @@ function elapsed(clock: MonotonicClock, startedAt: number): number {
 }
 
 function failureTail(stdout: string, stderr: string): string {
-  const combined = sanitizeFailureOutput([stdout.trim(), stderr.trim()]
-    .filter((value) => value.length > 0)
-    .join("\n"));
-  const tail = combined.length <= FAILURE_TAIL_CHARACTERS
-    ? combined
-    : combined.slice(combined.length - FAILURE_TAIL_CHARACTERS);
+  const combined = sanitizeFailureOutput(
+    [stdout.trim(), stderr.trim()].filter((value) => value.length > 0).join("\n"),
+  );
+  const tail =
+    combined.length <= FAILURE_TAIL_CHARACTERS
+      ? combined
+      : combined.slice(combined.length - FAILURE_TAIL_CHARACTERS);
   return /^[\udc00-\udfff]/u.test(tail) ? tail.slice(1) : tail;
 }
 
-async function executeTask(input: {
-  readonly packageManager: "bun" | "pnpm";
-  readonly consumerRoot: string;
-  readonly task: QualityGateTask;
-  readonly signal?: AbortSignal;
-}, executor: PackageScriptExecutor, clock: MonotonicClock): Promise<QualityGateTaskReport> {
+async function executeTask(
+  input: {
+    readonly packageManager: "bun" | "pnpm";
+    readonly consumerRoot: string;
+    readonly task: QualityGateTask;
+    readonly signal?: AbortSignal;
+  },
+  executor: PackageScriptExecutor,
+  clock: MonotonicClock,
+): Promise<QualityGateTaskReport> {
   const startedAt = clock.nowMs();
   try {
     const result = await executor.run({
       packageManager: input.packageManager,
       consumerRoot: input.consumerRoot,
       scriptId: input.task.id,
-      ...(input.task.timeoutMs === undefined
-        ? {}
-        : { timeoutMs: input.task.timeoutMs }),
-      ...(input.signal === undefined ? {} : { signal: input.signal })
+      ...(input.task.timeoutMs === undefined ? {} : { timeoutMs: input.task.timeoutMs }),
+      ...(input.signal === undefined ? {} : { signal: input.signal }),
     });
     const durationMs = elapsed(clock, startedAt);
     return Object.freeze({
@@ -70,10 +69,7 @@ async function executeTask(input: {
       durationMs,
       exitCode: result.exitCode,
       signal: result.signal,
-      failureTail:
-        result.exitCode === 0
-          ? ""
-          : failureTail(result.stdout, result.stderr)
+      failureTail: result.exitCode === 0 ? "" : failureTail(result.stdout, result.stderr),
     });
   } catch (error) {
     const cancelled = error instanceof PackageScriptCancellationError;
@@ -88,50 +84,44 @@ async function executeTask(input: {
         ? ""
         : error instanceof Error
           ? failureTail("", error.message)
-          : "Package script execution failed."
+          : "Package script execution failed.",
     });
   }
 }
 
-function terminalReport(
-  id: string,
-  outcome: "blocked" | "cancelled"
-): QualityGateTaskReport {
+function terminalReport(id: string, outcome: "blocked" | "cancelled"): QualityGateTaskReport {
   return Object.freeze({
     id,
     outcome,
     durationMs: 0,
     exitCode: null,
     signal: null,
-    failureTail: ""
+    failureTail: "",
   });
 }
 
 function profileOutcome(
   tasks: readonly QualityGateTaskReport[],
-  signal: AbortSignal | undefined
+  signal: AbortSignal | undefined,
 ): QualityGateRunReport["outcome"] {
-  if (tasks.some(({ outcome }) =>
-    outcome === "failed" || outcome === "timed-out"
-  )) {
+  if (tasks.some(({ outcome }) => outcome === "failed" || outcome === "timed-out")) {
     return "failed";
   }
-  if (
-    signal?.aborted === true ||
-    tasks.some(({ outcome }) => outcome === "cancelled")
-  ) {
+  if (signal?.aborted === true || tasks.some(({ outcome }) => outcome === "cancelled")) {
     return "cancelled";
   }
-  return tasks.every(({ outcome }) => outcome === "passed")
-    ? "passed"
-    : "failed";
+  return tasks.every(({ outcome }) => outcome === "passed") ? "passed" : "failed";
 }
 
-export async function runQualityGateProfile(input: {
-  readonly consumerRoot: string;
-  readonly profile: NormalizedQualityGateProfile;
-  readonly signal?: AbortSignal;
-}, executor: PackageScriptExecutor, clock: MonotonicClock): Promise<QualityGateRunReport> {
+export async function runQualityGateProfile(
+  input: {
+    readonly consumerRoot: string;
+    readonly profile: NormalizedQualityGateProfile;
+    readonly signal?: AbortSignal;
+  },
+  executor: PackageScriptExecutor,
+  clock: MonotonicClock,
+): Promise<QualityGateRunReport> {
   const startedAt = clock.nowMs();
   const reports = new Map<string, QualityGateTaskReport>();
   const active = new Map<string, Promise<QualityGateTaskReport>>();
@@ -151,7 +141,7 @@ export async function runQualityGateProfile(input: {
   }
 
   const tasks = Object.freeze(
-    input.profile.tasks.map((task) => reports.get(task.id) as QualityGateTaskReport)
+    input.profile.tasks.map((task) => reports.get(task.id) as QualityGateTaskReport),
   );
   const durationMs = elapsed(clock, startedAt);
   return Object.freeze({
@@ -159,7 +149,7 @@ export async function runQualityGateProfile(input: {
     profileId: input.profile.id,
     outcome: profileOutcome(tasks, input.signal),
     durationMs,
-    tasks
+    tasks,
   });
 }
 
@@ -172,7 +162,7 @@ function scheduleReadyTasks(
   reports: Map<string, QualityGateTaskReport>,
   active: Map<string, Promise<QualityGateTaskReport>>,
   executor: PackageScriptExecutor,
-  clock: MonotonicClock
+  clock: MonotonicClock,
 ): boolean {
   let madeProgress = false;
   for (const task of input.profile.tasks) {
@@ -196,12 +186,19 @@ function scheduleReadyTasks(
     if (active.size >= input.profile.concurrency) {
       break;
     }
-    active.set(task.id, executeTask({
-      packageManager: input.profile.packageManager,
-      consumerRoot: input.consumerRoot,
-      task,
-      ...(input.signal === undefined ? {} : { signal: input.signal })
-    }, executor, clock));
+    active.set(
+      task.id,
+      executeTask(
+        {
+          packageManager: input.profile.packageManager,
+          consumerRoot: input.consumerRoot,
+          task,
+          ...(input.signal === undefined ? {} : { signal: input.signal }),
+        },
+        executor,
+        clock,
+      ),
+    );
     madeProgress = true;
   }
   return madeProgress;

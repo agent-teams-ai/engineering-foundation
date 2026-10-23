@@ -1,13 +1,9 @@
+import { writeScaffoldingTypeConsumer } from "./packed-scaffolding-type-consumer.ts";
 import { createRequire } from "node:module";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
-import {
-  canonicalDigest,
-  readJson,
-  syntheticDigest,
-  writeJson
-} from "./pack-test-support.mjs";
+import { canonicalDigest, readJson, syntheticDigest, writeJson } from "./pack-test-support.mjs";
 import { writePackedConsumerProtobufFixture } from "./packed-consumer-protobuf-fixture.mjs";
 import { writeExecutableSpecificationFixture } from "./packed-consumer-executable-specification-fixture.mjs";
 import { preparePackedNativePublicApiBaseline } from "./packed-consumer-native-public-api.ts";
@@ -25,79 +21,60 @@ function consumerManifest(foundationVersion, packageManager) {
     scripts: {
       "spec:typegen": "consumer-owned-type-generation",
       "spec:property": "consumer-owned-property-tests",
-      "spec:mutation": "consumer-owned-mutation-tests"
+      "spec:mutation": "consumer-owned-mutation-tests",
     },
     devDependencies: {
       [foundationPackage]: foundationVersion,
       "jsonc-parser": "catalog:",
       oxlint: "catalog:",
       "oxlint-tsgolint": "catalog:",
-      typescript: "catalog:"
-    }
+      typescript: "catalog:",
+    },
   };
 }
 
 async function writeInstallManifests(input) {
-  await writeJson(
-    join(input.consumerRoot, "package.json"),
-    { ...consumerManifest(input.foundationVersion, input.packageManager), devDependencies: { ...consumerManifest(input.foundationVersion, input.packageManager).devDependencies, "stack-toolchain": input.stackToolchainArchiveFileSpecifier } }
-  );
+  await writeJson(join(input.consumerRoot, "package.json"), {
+    ...consumerManifest(input.foundationVersion, input.packageManager),
+    devDependencies: {
+      ...consumerManifest(input.foundationVersion, input.packageManager).devDependencies,
+      "stack-toolchain": input.stackToolchainArchiveFileSpecifier,
+    },
+  });
   await writeFile(
     join(input.consumerRoot, "pnpm-workspace.yaml"),
     `packages:\n  - "packages/*"\noverrides:\n  "@agent-teams/engineering-foundation": ${JSON.stringify(input.foundationVersion)}\n  "@agent-teams/document-authoring": ${JSON.stringify(input.documentAuthoringArchiveFileSpecifier)}\n  "@agent-teams/repository-mutation": ${JSON.stringify(input.mutationArchiveFileSpecifier)}\n  "stack-toolchain": ${JSON.stringify(input.stackToolchainArchiveFileSpecifier)}\ncatalogMode: strict\ncatalog:\n  jsonc-parser: 3.3.1\n  oxlint: ${input.toolingVersions.oxlint}\n  oxlint-tsgolint: ${input.toolingVersions.oxlintTsgolint}\n  typescript: ${input.toolingVersions.typescript}\n`,
-    "utf8"
+    "utf8",
   );
 }
 
 async function installPackedPackage(input) {
   await writeInstallManifests({
     ...input,
-    foundationVersion: input.archiveFileSpecifier
+    foundationVersion: input.archiveFileSpecifier,
   });
-  await input.runPnpm(
-    ["install", "--ignore-scripts", "--no-frozen-lockfile"],
-    input.consumerRoot
-  );
+  await input.runPnpm(["install", "--ignore-scripts", "--no-frozen-lockfile"], input.consumerRoot);
   const { stdout: versionOutput } = await input.runPnpm(
     ["--reporter=silent", "exec", "agent-teams-foundation", "--version"],
-    input.consumerRoot
+    input.consumerRoot,
   );
-  const packedManifest = await readJson(join(input.consumerRoot, "node_modules", foundationPackage, "package.json"));
+  const packedManifest = await readJson(
+    join(input.consumerRoot, "node_modules", foundationPackage, "package.json"),
+  );
   if (versionOutput.trim() !== packedManifest.version) {
     throw new Error("Packed CLI version differs from packed package version.");
   }
-  const stackManifest = await readJson(join(input.consumerRoot, "node_modules", "stack-toolchain", "package.json"));
-  await writeJson(
-    join(input.consumerRoot, "package.json"),
-    { ...consumerManifest(packedManifest.version, input.packageManager), devDependencies: { ...consumerManifest(packedManifest.version, input.packageManager).devDependencies, "stack-toolchain": stackManifest.version } }
+  const stackManifest = await readJson(
+    join(input.consumerRoot, "node_modules", "stack-toolchain", "package.json"),
   );
+  await writeJson(join(input.consumerRoot, "package.json"), {
+    ...consumerManifest(packedManifest.version, input.packageManager),
+    devDependencies: {
+      ...consumerManifest(packedManifest.version, input.packageManager).devDependencies,
+      "stack-toolchain": stackManifest.version,
+    },
+  });
   return packedManifest;
-}
-
-async function writeScaffoldingTypeConsumer(consumerRoot) {
-  const typeConsumerRoot = join(consumerRoot, "type-consumer");
-  await mkdir(typeConsumerRoot, { recursive: true });
-  await writeFile(
-    join(typeConsumerRoot, "scaffold-target-catalog.ts"),
-    [
-      "import type { ScaffoldTargetCatalog } from \"@agent-teams/engineering-foundation/scaffolding\";",
-      "",
-      "export const schemaShapedTargetCatalog = {",
-      "  version: 1,",
-      "  packages: [",
-      "    {",
-      "      id: \"testing.generated\",",
-      "      role: \"testing-package\",",
-      "      path: \"packages/testing/generated\",",
-      "      package_name: \"@fixture/generated\",",
-      "      owner_document: \"ADR-0001\"",
-      "    }",
-      "  ]",
-      "} satisfies ScaffoldTargetCatalog;",
-      ""
-    ].join("\n"),
-    "utf8"
-  );
 }
 
 async function writeFoundationConfiguration(consumerRoot) {
@@ -129,7 +106,7 @@ capabilities:
   workspace.dependency-declarations:
     configPath: architecture/foundation/dependency-declarations.yaml
 `,
-    "utf8"
+    "utf8",
   );
   await writeFile(
     join(consumerRoot, "architecture", "foundation", "dependency-declarations.yaml"),
@@ -151,7 +128,7 @@ policies:
     - "@agent-teams/engineering-foundation"
     - stack-toolchain
 `,
-    "utf8"
+    "utf8",
   );
   await writeFile(
     join(consumerRoot, "architecture", "foundation", "source-dependencies.yaml"),
@@ -185,11 +162,11 @@ boundaries:
       builtins: []
       runtimeReferences: []
 `,
-    "utf8"
+    "utf8",
   );
   await writeJson(
     join(consumerRoot, "architecture", "foundation", "documentation-local-references.yaml"),
-    { schemaVersion: 1, markdownRoots: ["docs"], anchorProfile: "github" }
+    { schemaVersion: 1, markdownRoots: ["docs"], anchorProfile: "github" },
   );
   await writeJson(
     join(consumerRoot, "architecture", "foundation", "governance-architecture-decisions.yaml"),
@@ -198,10 +175,10 @@ boundaries:
       adrRoots: ["docs/decisions"],
       index: {
         path: "docs/decisions/README.md",
-        sections: { proposed: "Proposed", accepted: "Accepted", superseded: "Superseded" }
+        sections: { proposed: "Proposed", accepted: "Accepted", superseded: "Superseded" },
       },
-      acceptedBaselinePath: "architecture/decisions/accepted-decisions.json"
-    }
+      acceptedBaselinePath: "architecture/decisions/accepted-decisions.json",
+    },
   );
 }
 
@@ -211,18 +188,22 @@ async function writeDocumentationFixture(consumerRoot) {
   await writeFile(
     join(consumerRoot, "docs", "README.md"),
     "# Packaged Consumer\n\nSee the [guide](guide.md#packaged-guide) and [decisions](decisions/README.md).\n",
-    "utf8"
+    "utf8",
   );
-  await writeFile(join(consumerRoot, "docs", "guide.md"), "# Packaged Guide\n\nThe installed Foundation package governs this clean consumer.\n", "utf8");
+  await writeFile(
+    join(consumerRoot, "docs", "guide.md"),
+    "# Packaged Guide\n\nThe installed Foundation package governs this clean consumer.\n",
+    "utf8",
+  );
   await writeFile(
     join(decisionsRoot, "README.md"),
     "# Architecture Decisions\n\n## Proposed\n\n## Accepted\n\n- [ADR-0001: Verify packaged capabilities](0001-verify-packaged-capabilities.md)\n\n## Superseded\n",
-    "utf8"
+    "utf8",
   );
   await writeFile(
     join(decisionsRoot, "0001-verify-packaged-capabilities.md"),
     "---\nid: ADR-0001\nstatus: accepted\nsupersedes: []\nsuperseded_by: []\n---\n\n# ADR-0001: Verify Packaged Capabilities\n\nStatus: Accepted\n\n## Decision\n\nThe clean consumer executes capabilities from the packed artifact.\n",
-    "utf8"
+    "utf8",
   );
 }
 
@@ -234,7 +215,7 @@ function createJsonContractEvidence() {
     type: "object",
     additionalProperties: false,
     required: ["contact"],
-    properties: { contact: { type: "string", format: "email" } }
+    properties: { contact: { type: "string", format: "email" } },
   };
   const validFixture = { contact: "runtime@example.test" };
   const invalidFixture = { contact: "not-an-email" };
@@ -243,19 +224,19 @@ function createJsonContractEvidence() {
       id: "invalid-payload",
       path: "contracts/json-schema/fixtures/invalid.json",
       schemaId,
-      expectation: "invalid"
+      expectation: "invalid",
     },
     {
       id: "valid-payload",
       path: "contracts/json-schema/fixtures/valid.json",
       schemaId,
-      expectation: "valid"
-    }
+      expectation: "valid",
+    },
   ];
   const schemaSetDigest = canonicalDigest([{ id: schemaId, schema: eventSchema }]);
   const fixtureCorpusDigest = canonicalDigest([
     { id: fixtures[0].id, schemaId, expectation: fixtures[0].expectation, value: invalidFixture },
-    { id: fixtures[1].id, schemaId, expectation: fixtures[1].expectation, value: validFixture }
+    { id: fixtures[1].id, schemaId, expectation: fixtures[1].expectation, value: validFixture },
   ]);
   const consumerEvidence = {
     consumerId: "pack-consumer",
@@ -265,9 +246,17 @@ function createJsonContractEvidence() {
     schemaSetDigest,
     fixtureCorpusDigest,
     evidenceDigest: syntheticDigest("e"),
-    outcome: "passed"
+    outcome: "passed",
   };
-  return { consumerEvidence, eventSchema, fixtureCorpusDigest, fixtures, invalidFixture, schemaSetDigest, validFixture };
+  return {
+    consumerEvidence,
+    eventSchema,
+    fixtureCorpusDigest,
+    fixtures,
+    invalidFixture,
+    schemaSetDigest,
+    validFixture,
+  };
 }
 
 async function writeJsonContractFixture(consumerRoot) {
@@ -276,26 +265,26 @@ async function writeJsonContractFixture(consumerRoot) {
   await writeJson(join(contractRoot, "event.schema.json"), evidence.eventSchema);
   await writeJson(join(contractRoot, "fixtures", "valid.json"), evidence.validFixture);
   await writeJson(join(contractRoot, "fixtures", "invalid.json"), evidence.invalidFixture);
-  await writeJson(join(consumerRoot, "architecture", "contracts", "json-schema", "pack-consumer.events.json"), {
-    schemaVersion: 1,
-    contractId: "pack-consumer.events",
-    publicContractVersion: "1.0.0",
-    schemaSetDigest: evidence.schemaSetDigest,
-    fixtureCorpusDigest: evidence.fixtureCorpusDigest,
-    supportedConsumers: [evidence.consumerEvidence]
-  });
   await writeJson(
-    join(consumerRoot, "architecture", "foundation", "json-schema-releases.yaml"),
+    join(consumerRoot, "architecture", "contracts", "json-schema", "pack-consumer.events.json"),
     {
       schemaVersion: 1,
       contractId: "pack-consumer.events",
       publicContractVersion: "1.0.0",
-      schemaPaths: ["contracts/json-schema/event.schema.json"],
-      fixtures: evidence.fixtures,
-      releasedBaselinePath: "architecture/contracts/json-schema/pack-consumer.events.json",
-      currentConsumerEvidence: [evidence.consumerEvidence]
-    }
+      schemaSetDigest: evidence.schemaSetDigest,
+      fixtureCorpusDigest: evidence.fixtureCorpusDigest,
+      supportedConsumers: [evidence.consumerEvidence],
+    },
   );
+  await writeJson(join(consumerRoot, "architecture", "foundation", "json-schema-releases.yaml"), {
+    schemaVersion: 1,
+    contractId: "pack-consumer.events",
+    publicContractVersion: "1.0.0",
+    schemaPaths: ["contracts/json-schema/event.schema.json"],
+    fixtures: evidence.fixtures,
+    releasedBaselinePath: "architecture/contracts/json-schema/pack-consumer.events.json",
+    currentConsumerEvidence: [evidence.consumerEvidence],
+  });
   return evidence;
 }
 
@@ -306,12 +295,12 @@ async function writePublicApiFixture(consumerRoot) {
   await writeFile(
     join(packageRoot, "dist", "index.d.ts"),
     "export declare function stable(value: string): string;\n",
-    "utf8"
+    "utf8",
   );
   await writeFile(
     join(packageRoot, "dist", "local-mode.d.ts"),
     "export declare function stable(value: string): string;\n",
-    "utf8"
+    "utf8",
   );
   await writeJson(join(packageRoot, "package.json"), {
     name: "@fixture/public-api",
@@ -321,17 +310,17 @@ async function writePublicApiFixture(consumerRoot) {
     publishConfig: { provenance: true },
     exports: {
       ".": { types: "./dist/index.d.ts" },
-      "./local-mode": { types: "./dist/local-mode.d.ts" }
-    }
+      "./local-mode": { types: "./dist/local-mode.d.ts" },
+    },
   });
   await writeJson(join(packageRoot, "tsconfig.json"), {
     compilerOptions: {
       module: "NodeNext",
       moduleResolution: "NodeNext",
       strict: true,
-      target: "ES2024"
+      target: "ES2024",
     },
-    include: ["dist/*.d.ts"]
+    include: ["dist/*.d.ts"],
   });
   await writeFile(
     join(consumerRoot, "architecture", "foundation", "public-api-compatibility.yaml"),
@@ -340,7 +329,7 @@ async function writePublicApiFixture(consumerRoot) {
       "acceptedDecisionBaselinePath: architecture/decisions/accepted-decisions.json",
       "changesetDirectory: .changeset",
       "packages:",
-      "  - packageName: \"@fixture/public-api\"",
+      '  - packageName: "@fixture/public-api"',
       "    packageRoot: packages/library",
       "    manifestPath: packages/library/package.json",
       "    entrypoints:",
@@ -352,16 +341,16 @@ async function writePublicApiFixture(consumerRoot) {
       "    tsconfigPath: packages/library/tsconfig.json",
       "    releasedBaselinePath: architecture/public-api/public-api.json",
       "    approvedBreakingChanges: []",
-      ""
+      "",
     ].join("\n"),
-    "utf8"
+    "utf8",
   );
   const stableItem = {
     canonicalReference: "@fixture/public-api!stable:function(1)",
     kind: "Function",
     parentReference: "@fixture/public-api!",
     parentKind: "EntryPoint",
-    signature: "export declare function stable(value: string): string;"
+    signature: "export declare function stable(value: string): string;",
   };
   await writeJson(join(consumerRoot, "architecture", "public-api", "public-api.json"), {
     schemaVersion: 1,
@@ -370,8 +359,8 @@ async function writePublicApiFixture(consumerRoot) {
     extractorVersion: "7.58.12",
     entrypoints: [
       { exportPath: ".", items: [stableItem] },
-      { exportPath: "./local-mode", items: [stableItem] }
-    ]
+      { exportPath: "./local-mode", items: [stableItem] },
+    ],
   });
 }
 
@@ -385,9 +374,9 @@ async function writeSuppressionGovernanceFixture(consumerRoot) {
       "nonWaivableRulePrefixes:",
       "  - access-control.",
       "waivers: []",
-      ""
+      "",
     ].join("\n"),
-    "utf8"
+    "utf8",
   );
 }
 
@@ -419,9 +408,9 @@ async function writeRepositorySecurityFixture(consumerRoot) {
       "    steps:",
       "      - uses: actions/checkout@1111111111111111111111111111111111111111",
       "      - uses: anchore/sbom-action@3333333333333333333333333333333333333333",
-      ""
+      "",
     ].join("\n"),
-    "utf8"
+    "utf8",
   );
   await writeFile(
     join(consumerRoot, "architecture", "foundation", "repository-security-baseline.yaml"),
@@ -446,9 +435,9 @@ async function writeRepositorySecurityFixture(consumerRoot) {
       "privilegedJobs: []",
       "publishablePackageManifests:",
       "  - packages/library/package.json",
-      ""
+      "",
     ].join("\n"),
-    "utf8"
+    "utf8",
   );
 }
 
@@ -462,8 +451,8 @@ function resolveConsumerToolEntrypoints(consumerRoot) {
     typescript: join(
       dirname(requireFromConsumer.resolve("typescript/package.json")),
       "lib",
-      "tsc.js"
-    )
+      "tsc.js",
+    ),
   };
 }
 
@@ -480,7 +469,7 @@ export async function createPackedConsumerFixture(input) {
   await mkdir(join(input.consumerRoot, "fixtures", "outside-duplicate"), { recursive: true });
   await writeJson(join(input.consumerRoot, "fixtures", "outside-duplicate", "package.json"), {
     name: "foundation-pack-consumer",
-    scripts: { "spec:typegen": "outside-workspace-duplicate" }
+    scripts: { "spec:typegen": "outside-workspace-duplicate" },
   });
   await mkdir(join(input.consumerRoot, "fixtures", "outside-gates"), { recursive: true });
   await writeJson(join(input.consumerRoot, "fixtures", "outside-gates", "package.json"), {
@@ -488,15 +477,16 @@ export async function createPackedConsumerFixture(input) {
     scripts: {
       "spec:typegen": "outside-type-generation",
       "spec:property": "outside-property-tests",
-      "spec:mutation": "outside-mutation-tests"
-    }
+      "spec:mutation": "outside-mutation-tests",
+    },
   });
-  await writePackedConsumerProtobufFixture(
-    input.consumerRoot,
-    toolEntrypoints.foundationRoot
-  );
+  await writePackedConsumerProtobufFixture(input.consumerRoot, toolEntrypoints.foundationRoot);
   await writePublicApiFixture(input.consumerRoot);
-  const legacyPublicApiBaseline = await preparePackedNativePublicApiBaseline({ consumerRoot: input.consumerRoot, toolEntrypoints, packedManifest });
+  const legacyPublicApiBaseline = await preparePackedNativePublicApiBaseline({
+    consumerRoot: input.consumerRoot,
+    toolEntrypoints,
+    packedManifest,
+  });
   await writeSuppressionGovernanceFixture(input.consumerRoot);
   await writeRepositorySecurityFixture(input.consumerRoot);
   const sourceRoot = join(input.consumerRoot, "src");
@@ -509,6 +499,6 @@ export async function createPackedConsumerFixture(input) {
     legacyPublicApiBaseline,
     packedManifest,
     sourceRoot,
-    toolEntrypoints
+    toolEntrypoints,
   });
 }

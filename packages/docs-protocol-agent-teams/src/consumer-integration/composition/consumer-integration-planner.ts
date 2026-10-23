@@ -7,14 +7,13 @@ import {
   type ConsumerIntegrationDesiredStateV1,
   type ConsumerIntegrationDesiredStateV3,
   type ConsumerIntegrationPlanV1,
-  type ConsumerIntegrationSnapshot
+  type ConsumerIntegrationSnapshot,
 } from "../application-api.js";
 
-export const consumerIntegrationPlanningPorts: ConsumerIntegrationPlanningPorts =
-  Object.freeze({
-    agentsRoute: agentsRoutePlannerV1,
-    packageManifest: pnpmManifestPlanner
-  });
+export const consumerIntegrationPlanningPorts: ConsumerIntegrationPlanningPorts = Object.freeze({
+  agentsRoute: agentsRoutePlannerV1,
+  packageManifest: pnpmManifestPlanner,
+});
 
 const planner = createConsumerIntegrationPlanner(consumerIntegrationPlanningPorts);
 export const compileConsumerIntegration = planner.compileConsumerIntegration;

@@ -8,10 +8,9 @@ import test from "node:test";
 
 import { assertDocsCommandEnvelopeSchema } from "../packages/docs-protocol/dist/features/docs-command/adapters/outbound/docs-command-envelope-schema-validator.js";
 
-const childPath = fileURLToPath(new URL(
-  "fixtures/document-command-cancellation-child.mjs",
-  import.meta.url,
-));
+const childPath = fileURLToPath(
+  new URL("fixtures/document-command-cancellation-child.mjs", import.meta.url),
+);
 
 async function collectCancellation(command, signal) {
   const consumerRoot = await mkdtemp(join(tmpdir(), "foundation-docs-cancel-"));
@@ -23,8 +22,12 @@ async function collectCancellation(command, signal) {
   let stdout = "";
   child.stderr.setEncoding("utf8");
   child.stdout.setEncoding("utf8");
-  child.stderr.on("data", (chunk) => { stderr += chunk; });
-  child.stdout.on("data", (chunk) => { stdout += chunk; });
+  child.stderr.on("data", (chunk) => {
+    stderr += chunk;
+  });
+  child.stdout.on("data", (chunk) => {
+    stdout += chunk;
+  });
   try {
     await new Promise((resolve, reject) => {
       child.once("error", reject);
@@ -51,21 +54,22 @@ async function collectCancellation(command, signal) {
 
 for (const command of ["doctor", "new", "recover"]) {
   for (const signal of ["SIGINT", "SIGTERM"]) {
-    test(`${signal} cancels docs ${command} through the CLI boundary`, {
-      skip: process.platform === "win32",
-      timeout: 10_000,
-    }, async () => {
-      const { result, stderr, stdout } = await collectCancellation(
-        command,
-        signal,
-      );
-      assert.deepEqual(result, { code: 130, signal: null });
-      assert.equal(stderr, "");
-      const envelope = JSON.parse(stdout);
-      assert.equal(`${JSON.stringify(envelope)}\n`, stdout);
-      assert.equal(envelope.command, `docs.${command}`);
-      assert.equal(envelope.outcome, "cancelled");
-      await assertDocsCommandEnvelopeSchema(envelope);
-    });
+    test(
+      `${signal} cancels docs ${command} through the CLI boundary`,
+      {
+        skip: process.platform === "win32",
+        timeout: 10_000,
+      },
+      async () => {
+        const { result, stderr, stdout } = await collectCancellation(command, signal);
+        assert.deepEqual(result, { code: 130, signal: null });
+        assert.equal(stderr, "");
+        const envelope = JSON.parse(stdout);
+        assert.equal(`${JSON.stringify(envelope)}\n`, stdout);
+        assert.equal(envelope.command, `docs.${command}`);
+        assert.equal(envelope.outcome, "cancelled");
+        await assertDocsCommandEnvelopeSchema(envelope);
+      },
+    );
   }
 }

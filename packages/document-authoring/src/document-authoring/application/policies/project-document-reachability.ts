@@ -1,6 +1,6 @@
 import type {
   DocumentArtifactType,
-  DocumentReachabilityStrategy
+  DocumentReachabilityStrategy,
 } from "../model/document-planning.js";
 import { isDocumentRepositoryPath } from "./document-repository-path.js";
 import { isRepositoryPathAllowedByPlacement } from "./authoring-profile-semantics.js";
@@ -31,18 +31,18 @@ function relativeRepositoryPath(fromFile: string, toFile: string): string {
 function colocatedIndexPath(
   artifact: DocumentArtifactType,
   destination: string,
-  strategy: Extract<DocumentReachabilityStrategy, { readonly kind: "manual-colocated-index" }>
+  strategy: Extract<DocumentReachabilityStrategy, { readonly kind: "manual-colocated-index" }>,
 ): string {
   if (artifact.placement.kind !== "explicit") {
     throw new DocumentPlanningPolicyError(
       "invalid-destination",
-      "Colocated reachability requires explicit placement authority."
+      "Colocated reachability requires explicit placement authority.",
     );
   }
   if (!isRepositoryPathAllowedByPlacement(destination, artifact.placement)) {
     throw new DocumentPlanningPolicyError(
       "invalid-destination",
-      "Colocated reachability destination is outside explicit placement authority."
+      "Colocated reachability destination is outside explicit placement authority.",
     );
   }
   const destinationSegments = destination.split("/");
@@ -51,12 +51,12 @@ function colocatedIndexPath(
   const starts = directorySegments.flatMap((_segment, start) =>
     required.every((segment, offset) => directorySegments[start + offset] === segment)
       ? [start]
-      : []
+      : [],
   );
   if (starts.length !== 1 || starts[0] === 0) {
     throw new DocumentPlanningPolicyError(
       "invalid-destination",
-      "Colocated reachability cannot project a unique index prefix."
+      "Colocated reachability cannot project a unique index prefix.",
     );
   }
   return `${directorySegments.slice(0, starts[0]).join("/")}/${strategy.indexBasename}`;
@@ -71,9 +71,10 @@ export function projectDocumentReachability(input: {
   if (strategy.kind === "not-required") {
     return Object.freeze({ state: "not-required" });
   }
-  const indexPath = strategy.kind === "manual-fixed-index"
-    ? strategy.indexPath
-    : colocatedIndexPath(input.artifact, input.destination, strategy);
+  const indexPath =
+    strategy.kind === "manual-fixed-index"
+      ? strategy.indexPath
+      : colocatedIndexPath(input.artifact, input.destination, strategy);
   if (
     !isDocumentRepositoryPath(indexPath) ||
     !isDocumentRepositoryPath(input.destination) ||
@@ -84,13 +85,13 @@ export function projectDocumentReachability(input: {
   ) {
     throw new DocumentPlanningPolicyError(
       "invalid-destination",
-      "Document reachability projection is invalid."
+      "Document reachability projection is invalid.",
     );
   }
   const relative = relativeRepositoryPath(indexPath, input.destination);
   return Object.freeze({
     state: "manual-required",
     indexPath,
-    markdownLink: `[${markdownLinkLabel(input.heading)}](${relative})`
+    markdownLink: `[${markdownLinkLabel(input.heading)}](${relative})`,
   });
 }

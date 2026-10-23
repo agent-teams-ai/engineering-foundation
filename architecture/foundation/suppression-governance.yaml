@@ -15,7 +15,7 @@ nonWaivableRulePrefixes:
 waivers:
   - id: DOCS-CONSUMER-UPGRADE-GENERATION-COMPLEXITY
     path: packages/docs-protocol-agent-teams/src/consumer-integration/application/use-cases/upgrade-consumer-integration.ts
-    line: 220
+    line: 43
     directive: oxlint-disable-next-line
     rules: [complexity]
     owner: foundation-maintainers
@@ -25,7 +25,7 @@ waivers:
     decisionRef: ADR-0045
   - id: DOCS-CONSUMER-BOUNDED-JSON-COMPLEXITY
     path: packages/docs-protocol-agent-teams/src/consumer-integration/application/policies/consumer-integration-desired-state.ts
-    line: 54
+    line: 72
     directive: oxlint-disable-next-line
     rules: [complexity]
     owner: foundation-maintainers
@@ -35,7 +35,7 @@ waivers:
     decisionRef: ADR-0031
   - id: DOCS-CONSUMER-PRIOR-EVIDENCE-COMPLEXITY
     path: packages/docs-protocol-agent-teams/src/consumer-integration/application/policies/consumer-integration-prior-cohort.ts
-    line: 131
+    line: 148
     directive: oxlint-disable-next-line
     rules: [complexity]
     owner: foundation-maintainers
@@ -45,7 +45,7 @@ waivers:
     decisionRef: ADR-0032
   - id: DOCS-CONSUMER-CLI-ROUTER-COMPLEXITY
     path: packages/docs-protocol-agent-teams/src/consumer-integration/adapters/inbound/consumer-integration-cli.ts
-    line: 191
+    line: 314
     directive: oxlint-disable-next-line
     rules: [complexity]
     owner: foundation-maintainers

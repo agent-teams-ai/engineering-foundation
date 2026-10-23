@@ -7,22 +7,26 @@ import { installedFoundationBuildIdentity } from "../adapters/node/installed-fou
 import { NodeFoundationOperationLock } from "../adapters/node/node-foundation-operation-lock.js";
 import type { FoundationTransactionSlotFactory } from "../application/ports/foundation-transaction-slot-factory.js";
 
-export function createFoundationTransactionCoordinatorFactory(createNodeFoundationTransactionSlot: FoundationTransactionSlotFactory) {
-  return { async createNodeFoundationTransactionCoordinator(
-    consumerRoot: string
-  ): Promise<FoundationTransactionCoordinator> {
-    const canonicalRoot = await realpath(resolve(consumerRoot));
-    const [installedVersion, installedBuildIdentity] = await Promise.all([
-      installedFoundationVersion(),
-      installedFoundationBuildIdentity()
-    ]);
-    return new FoundationTransactionCoordinator({
-      lock: new NodeFoundationOperationLock(canonicalRoot),
-      slot: createNodeFoundationTransactionSlot({
-        consumerRoot: canonicalRoot,
-        installedVersion,
-        installedBuildIdentity
-      })
-    });
-  } };
+export function createFoundationTransactionCoordinatorFactory(
+  createNodeFoundationTransactionSlot: FoundationTransactionSlotFactory,
+) {
+  return {
+    async createNodeFoundationTransactionCoordinator(
+      consumerRoot: string,
+    ): Promise<FoundationTransactionCoordinator> {
+      const canonicalRoot = await realpath(resolve(consumerRoot));
+      const [installedVersion, installedBuildIdentity] = await Promise.all([
+        installedFoundationVersion(),
+        installedFoundationBuildIdentity(),
+      ]);
+      return new FoundationTransactionCoordinator({
+        lock: new NodeFoundationOperationLock(canonicalRoot),
+        slot: createNodeFoundationTransactionSlot({
+          consumerRoot: canonicalRoot,
+          installedVersion,
+          installedBuildIdentity,
+        }),
+      });
+    },
+  };
 }

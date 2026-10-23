@@ -188,15 +188,8 @@
   "runtime": {
     "node": ">=24.18.0 <25",
     "pnpm": ">=11.17.0 <12",
-    "apply_platforms": [
-      "linux",
-      "macos"
-    ],
-    "check_plan_platforms": [
-      "linux",
-      "macos",
-      "windows"
-    ]
+    "apply_platforms": ["linux", "macos"],
+    "check_plan_platforms": ["linux", "macos", "windows"]
   },
   "runtime_closure": {
     "schema_version": 2,

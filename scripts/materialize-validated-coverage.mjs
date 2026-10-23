@@ -50,8 +50,11 @@ function coverageFileUrl(value) {
 
 /** @param {unknown} value @param {{ sourceRoot: string; prefix: string }} root */
 function hasSourcePrefix(value, root) {
-  return typeof value === "string" && (value.startsWith(root.prefix) ||
-    (isAbsolute(value) && value.startsWith(`${root.sourceRoot}${sep}`)));
+  return (
+    typeof value === "string" &&
+    (value.startsWith(root.prefix) ||
+      (isAbsolute(value) && value.startsWith(`${root.sourceRoot}${sep}`)))
+  );
 }
 
 /**
@@ -86,20 +89,26 @@ function assertCoverageSourceAddress(value, knownRoots, expectedRoot) {
  * @returns {CoverageTestIdentifier}
  */
 export function createCoverageSourceLayout(expectedTests, pairedSourceRoot) {
-  const sourceRoots = pairedSourceRoot === undefined
-    ? [repositoryRoot]
-    : [repositoryRoot, pairedSourceRoot];
+  const sourceRoots =
+    pairedSourceRoot === undefined ? [repositoryRoot] : [repositoryRoot, pairedSourceRoot];
   const expectedTestByUrl = new Map(
-    sourceRoots.flatMap((sourceRoot) => expectedTests.map((testPath) =>
-      /** @type {[string, CoverageTestSource]} */ ([
-        pathToFileURL(join(sourceRoot, ...testPath.split("/"))).href,
-        { sourceRoot, testPath },
-      ]))),
+    sourceRoots.flatMap((sourceRoot) =>
+      expectedTests.map(
+        (testPath) =>
+          /** @type {[string, CoverageTestSource]} */ ([
+            pathToFileURL(join(sourceRoot, ...testPath.split("/"))).href,
+            { sourceRoot, testPath },
+          ]),
+      ),
+    ),
   );
-  const knownRoots = (pairedSourceRoot === undefined ? sourceRoots : [
-    join(repositoryRoot, "a"), join(repositoryRoot, "b"), repositoryRoot,
-  ]).map((sourceRoot) => ({
-    sourceRoot, prefix: pathToFileURL(`${sourceRoot}${sep}`).href,
+  const knownRoots = (
+    pairedSourceRoot === undefined
+      ? sourceRoots
+      : [join(repositoryRoot, "a"), join(repositoryRoot, "b"), repositoryRoot]
+  ).map((sourceRoot) => ({
+    sourceRoot,
+    prefix: pathToFileURL(`${sourceRoot}${sep}`).href,
   }));
   /** @type {string | undefined} */
   let observedSourceRoot;
@@ -109,7 +118,9 @@ export function createCoverageSourceLayout(expectedTests, pairedSourceRoot) {
   }
 
   return (report, filename) => {
-    const matchedUrls = [...new Set(report.result.map((script) => script.url))].filter(isExpectedTestUrl);
+    const matchedUrls = [...new Set(report.result.map((script) => script.url))].filter(
+      isExpectedTestUrl,
+    );
     const matchedTest = expectedTestByUrl.get(matchedUrls[0]);
     if (matchedUrls.length !== 1 || matchedTest === undefined) {
       fail(`raw coverage file ${filename} does not contain exactly one expected shard test`);
@@ -121,7 +132,9 @@ export function createCoverageSourceLayout(expectedTests, pairedSourceRoot) {
     const urls = [
       ...report.result.map((script) => script.url),
       ...Object.entries(report["source-map-cache"] ?? {}).flatMap(([key, cache]) => [
-        key, cache?.url, cache?.data?.file,
+        key,
+        cache?.url,
+        cache?.data?.file,
         ...(Array.isArray(cache?.data?.sources) ? cache.data.sources : []),
       ]),
     ];
@@ -139,8 +152,7 @@ function digest(bytes) {
 
 /** @param {unknown} source @returns {source is string} */
 function isAbsoluteSource(source) {
-  return typeof source === "string" &&
-    (isAbsolute(source) || /^[a-z][a-z\d+.-]*:/iu.test(source));
+  return typeof source === "string" && (isAbsolute(source) || /^[a-z][a-z\d+.-]*:/iu.test(source));
 }
 
 /** @param {unknown} entry @param {CoverageProjector} project */
@@ -157,10 +169,15 @@ function projectSourceMapEntry(entry, project) {
   // Node resolves sources to absolute URLs and clears sourceRoot before
   // persisting this cache. Fail closed rather than moving a relative
   // source into governed production code when its generated URL moves.
-  if ((data.sourceRoot !== undefined && data.sourceRoot !== "") || !Array.isArray(data.sources) ||
-      data.sources.some((source) => !isAbsoluteSource(source)) ||
-      (data.sources.length === 0 && data.file !== undefined && !isAbsoluteSource(data.file))) {
-    throw new Error("Coverage evidence is invalid: paired source map sources must be absolute with an empty sourceRoot");
+  if (
+    (data.sourceRoot !== undefined && data.sourceRoot !== "") ||
+    !Array.isArray(data.sources) ||
+    data.sources.some((source) => !isAbsoluteSource(source)) ||
+    (data.sources.length === 0 && data.file !== undefined && !isAbsoluteSource(data.file))
+  ) {
+    throw new Error(
+      "Coverage evidence is invalid: paired source map sources must be absolute with an empty sourceRoot",
+    );
   }
   data.sources = data.sources.map(project);
   data.file = project(data.file);
@@ -232,17 +249,26 @@ export async function materializeValidatedRawCoverage(validated, outputDirectory
   for (const { evidence, sourceRoot, validatedFiles } of validated.artifacts) {
     const pairedSourceRoot = join(repositoryRoot, Number(evidence.shard.id) % 2 === 1 ? "a" : "b");
     if (sourceRoot !== repositoryRoot && sourceRoot !== pairedSourceRoot) {
-      throw new Error("Coverage evidence is invalid: retained source root is not a fixed shard producer");
+      throw new Error(
+        "Coverage evidence is invalid: retained source root is not a fixed shard producer",
+      );
     }
     for (const { bytes, name } of validatedFiles) {
       const record = evidence.rawFiles.find(({ path }) => basename(path) === name);
-      if (record === undefined || record.sha256 !== digest(bytes) || record.size !== bytes.byteLength) {
+      if (
+        record === undefined ||
+        record.sha256 !== digest(bytes) ||
+        record.size !== bytes.byteLength
+      ) {
         throw new Error(
           `Coverage evidence is invalid: shard ${evidence.shard.id} retained raw bytes differ from validated evidence`,
         );
       }
-      const outputBytes = sourceRoot === repositoryRoot ? bytes : projectPairedCoverage(bytes, sourceRoot);
-      await writeFile(join(outputDirectory, `${evidence.shard.id}-${name}`), outputBytes, { flag: "wx" });
+      const outputBytes =
+        sourceRoot === repositoryRoot ? bytes : projectPairedCoverage(bytes, sourceRoot);
+      await writeFile(join(outputDirectory, `${evidence.shard.id}-${name}`), outputBytes, {
+        flag: "wx",
+      });
     }
   }
 }

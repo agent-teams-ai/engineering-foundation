@@ -1,27 +1,22 @@
 import { randomUUID } from "node:crypto";
-import {
-  mkdir,
-  open,
-  rename,
-  type FileHandle
-} from "node:fs/promises";
+import { mkdir, open, rename, type FileHandle } from "node:fs/promises";
 import { join } from "node:path";
 
 import { FOUNDATION_TRANSACTION_CLEANUP_RESIDUE_PREFIX } from "../../application/model/foundation-transaction-identity.js";
 import type {
   OwnedTemporaryCleanupTransition,
   OwnedTemporaryCleanupTransitionPort,
-  PortablePathIdentity
+  PortablePathIdentity,
 } from "@agent-teams/repository-mutation/node";
 import {
   assertTerminalEvidenceDirectory,
   captureFileHandleIdentity,
   ensureTerminalEvidenceDirectory,
-  readBoundedRegularFile
+  readBoundedRegularFile,
 } from "@agent-teams/repository-mutation/node";
 import {
   ensureFoundationStateDirectory,
-  syncFoundationStateDirectoryStrictly
+  syncFoundationStateDirectoryStrictly,
 } from "./node-foundation-state-directory.js";
 
 interface CleanupTransitionOperations {
@@ -43,7 +38,7 @@ const nodeOperations: CleanupTransitionOperations = {
   randomToken: randomUUID,
   readBoundedRegularFile,
   rename,
-  syncStateDirectory: syncFoundationStateDirectoryStrictly
+  syncStateDirectory: syncFoundationStateDirectoryStrictly,
 };
 
 const markerBytes = Buffer.from("foundation cleanup transition\n", "utf8");
@@ -51,7 +46,7 @@ const markerBytes = Buffer.from("foundation cleanup transition\n", "utf8");
 async function createMarker(
   path: string,
   stateDirectory: string,
-  operations: CleanupTransitionOperations
+  operations: CleanupTransitionOperations,
 ): Promise<PortablePathIdentity> {
   const handle = await operations.open(path, "wx", 0o600);
   try {
@@ -68,12 +63,9 @@ async function createMarker(
 async function assertMarkerAuthority(
   path: string,
   identity: PortablePathIdentity,
-  operations: CleanupTransitionOperations
+  operations: CleanupTransitionOperations,
 ): Promise<void> {
-  const observed = await operations.readBoundedRegularFile(
-    path,
-    markerBytes.byteLength
-  );
+  const observed = await operations.readBoundedRegularFile(path, markerBytes.byteLength);
   if (
     observed.outcome !== "read" ||
     !observed.bytes.equals(markerBytes) ||
@@ -88,7 +80,7 @@ async function assertMarkerAuthority(
 export function createNodeFoundationCleanupTransition(
   consumerRoot: string,
   token: string,
-  operationOverrides?: Partial<CleanupTransitionOperations>
+  operationOverrides?: Partial<CleanupTransitionOperations>,
 ): OwnedTemporaryCleanupTransitionPort {
   if (!/^[a-f0-9]{64}$/u.test(token)) {
     throw new TypeError("Cleanup transition token must be a SHA-256 hex digest.");
@@ -99,7 +91,7 @@ export function createNodeFoundationCleanupTransition(
       const stateDirectory = await operations.ensureStateDirectory(consumerRoot);
       const marker = join(
         stateDirectory,
-        `${FOUNDATION_TRANSACTION_CLEANUP_RESIDUE_PREFIX}${token}`
+        `${FOUNDATION_TRANSACTION_CLEANUP_RESIDUE_PREFIX}${token}`,
       );
       const identity = await createMarker(marker, stateDirectory, operations);
       return {
@@ -107,7 +99,7 @@ export function createNodeFoundationCleanupTransition(
           await assertMarkerAuthority(marker, identity, operations);
           const retirementDirectory = join(
             stateDirectory,
-            `${FOUNDATION_TRANSACTION_CLEANUP_RESIDUE_PREFIX}${token}.retired.${operations.randomToken()}`
+            `${FOUNDATION_TRANSACTION_CLEANUP_RESIDUE_PREFIX}${token}.retired.${operations.randomToken()}`,
           );
           await operations.mkdir(retirementDirectory, { mode: 0o700 });
           await operations.syncStateDirectory(stateDirectory);
@@ -119,25 +111,18 @@ export function createNodeFoundationCleanupTransition(
           await assertMarkerAuthority(retiredMarker, identity, operations);
           await operations.beforeLogicalRetirement(retiredMarker);
           await assertMarkerAuthority(retiredMarker, identity, operations);
-          const terminalRoot = join(
-            stateDirectory,
-            "foundation-cleanup-retired-evidence"
-          );
-          const terminalAuthority = await ensureTerminalEvidenceDirectory(
-            terminalRoot,
-            { mkdir: operations.mkdir }
-          );
+          const terminalRoot = join(stateDirectory, "foundation-cleanup-retired-evidence");
+          const terminalAuthority = await ensureTerminalEvidenceDirectory(terminalRoot, {
+            mkdir: operations.mkdir,
+          });
           await operations.syncStateDirectory(stateDirectory);
-          const terminalDirectory = join(
-            terminalRoot,
-            operations.randomToken()
-          );
+          const terminalDirectory = join(terminalRoot, operations.randomToken());
           await assertTerminalEvidenceDirectory(terminalAuthority);
           await operations.rename(retirementDirectory, terminalDirectory);
           await operations.syncStateDirectory(terminalRoot);
           await operations.syncStateDirectory(stateDirectory);
-        }
+        },
       };
-    }
+    },
   };
 }

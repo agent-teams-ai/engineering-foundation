@@ -57,8 +57,17 @@ export type DocsInitBarrier = DocsInitOperationActive | DocsInitRecoveryRequired
 export type DocsInitApplyResult = DocsInitExecution | DocsInitBarrier;
 
 export type DocsInitRecovery =
-  | Readonly<{ readonly kind: "init"; readonly operation: "recover"; readonly writeState: "unchanged" }>
-  | Readonly<{ readonly kind: "init"; readonly operation: "recover"; readonly writeState: "blocked"; readonly message: string }>
+  | Readonly<{
+      readonly kind: "init";
+      readonly operation: "recover";
+      readonly writeState: "unchanged";
+    }>
+  | Readonly<{
+      readonly kind: "init";
+      readonly operation: "recover";
+      readonly writeState: "blocked";
+      readonly message: string;
+    }>
   | DocsInitOperationActive
   | Readonly<{
       readonly kind: "init";

@@ -16,10 +16,21 @@ async function fixture(t) {
   t.after(() => rm(repositoryRoot, { recursive: true, force: true }));
   const write = async (path, value) => {
     await mkdir(dirname(join(repositoryRoot, path)), { recursive: true });
-    await writeFile(join(repositoryRoot, path), typeof value === "string" ? value : JSON.stringify(value));
+    await writeFile(
+      join(repositoryRoot, path),
+      typeof value === "string" ? value : JSON.stringify(value),
+    );
   };
-  const paths = ["package.json", ".oxlintrc.type-aware.json", "architecture/foundation/feature-modules.json", "architecture/foundation/suppression-governance.yaml", "sgconfig.yml"];
-  for (const path of paths) {await write(path, await readFile(join(repositoryPath, path), "utf8"));}
+  const paths = [
+    "package.json",
+    ".oxlintrc.type-aware.json",
+    "architecture/foundation/feature-modules.json",
+    "architecture/foundation/suppression-governance.yaml",
+    "sgconfig.yml",
+  ];
+  for (const path of paths) {
+    await write(path, await readFile(join(repositoryPath, path), "utf8"));
+  }
   const typed = await readJson(".oxlintrc.type-aware.json");
   typed.extends = typed.extends.map((path) => resolve(repositoryPath, path));
   await write(".oxlintrc.type-aware.json", typed);
@@ -31,19 +42,40 @@ async function fixture(t) {
     const path = `architecture/ast-grep/rules/no-ambient-${name}.yml`;
     const bytes = await readFile(join(repositoryPath, path), "utf8");
     await write(path, bytes);
-    for (const ignored of YAML.parse(bytes).ignores ?? []) {await write(ignored, "export const observed = 1;\n");}
+    for (const ignored of YAML.parse(bytes).ignores ?? []) {
+      await write(ignored, "export const observed = 1;\n");
+    }
   }
   const check = () => checkProductionQuality({ repositoryRoot });
   return { repositoryRoot, write, check };
 }
-async function runProductionTypedLint({ repositoryRoot = repositoryPath, inventory = PUBLISHABLE_PACKAGES, selectionOnly = false, stdio = "pipe" } = {}) {
-  const cli = JSON.parse(await readFile(join(repositoryPath, "node_modules/oxlint/package.json"), "utf8"));
+async function runProductionTypedLint({
+  repositoryRoot = repositoryPath,
+  inventory = PUBLISHABLE_PACKAGES,
+  selectionOnly = false,
+  stdio = "pipe",
+} = {}) {
+  const cli = JSON.parse(
+    await readFile(join(repositoryPath, "node_modules/oxlint/package.json"), "utf8"),
+  );
   const bin = typeof cli.bin === "string" ? cli.bin : cli.bin.oxlint;
-  const result = spawnSync(process.execPath, [join(repositoryPath, "node_modules/oxlint", bin),
-    "--config", ".oxlintrc.type-aware.json", "--deny-warnings", "--disable-nested-config", "--no-ignore",
-    ...(selectionOnly ? ["--debug", "files"] : []), ...inventory.map(({ root }) => `${root}/src`)
-  ], { cwd: repositoryRoot, encoding: "utf8", maxBuffer: 8 * 1024 * 1024, stdio });
-  if (result.error) {throw result.error;}
+  const result = spawnSync(
+    process.execPath,
+    [
+      join(repositoryPath, "node_modules/oxlint", bin),
+      "--config",
+      ".oxlintrc.type-aware.json",
+      "--deny-warnings",
+      "--disable-nested-config",
+      "--no-ignore",
+      ...(selectionOnly ? ["--debug", "files"] : []),
+      ...inventory.map(({ root }) => `${root}/src`),
+    ],
+    { cwd: repositoryRoot, encoding: "utf8", maxBuffer: 8 * 1024 * 1024, stdio },
+  );
+  if (result.error) {
+    throw result.error;
+  }
   return result;
 }
 test("covers all six packages from the existing inventory", async (t) => {
@@ -53,37 +85,85 @@ test("covers all six packages from the existing inventory", async (t) => {
   assert.equal(result.packages, PUBLISHABLE_PACKAGES.length);
 });
 for (const [label, mutate, code] of [
-  ["seventh uncatalogued production package", (f) => f.write("packages/new/package.json", { name: "@fixture/new", version: "1.0.0" }), "package-inventory"],
-  ["uncatalogued private production package", (f) => f.write("packages/private/package.json", { name: "@fixture/private", private: true }), "package-inventory"],
-  ["single-package ambient scope", async (f) => {
-    const path = "architecture/ast-grep/rules/no-ambient-clock.yml";
-    const rule = YAML.parse(await readFile(join(repositoryPath, path), "utf8"));
-    rule.files = ["packages/engineering-foundation/src/**/*.ts"];
-    await f.write(path, YAML.stringify(rule));
-  }, "ambient-coverage"],
-  ["broad infrastructure exception", async (f) => {
-    const path = "architecture/ast-grep/rules/no-ambient-clock.yml";
-    const rule = YAML.parse(await readFile(join(repositoryPath, path), "utf8"));
-    rule.ignores = ["packages/*/src/**/adapters/**"];
-    await f.write(path, YAML.stringify(rule));
-  }, "ambient-exception"]
-]) {test(`rejects ${label}`, async (t) => {
-  const f = await fixture(t);
-  await mutate(f);
-  const result = await f.check();
-  assert.ok(result.problems.some((problem) => problem.code === code), JSON.stringify(result));
-});}
+  [
+    "seventh uncatalogued production package",
+    (f) => f.write("packages/new/package.json", { name: "@fixture/new", version: "1.0.0" }),
+    "package-inventory",
+  ],
+  [
+    "uncatalogued private production package",
+    (f) => f.write("packages/private/package.json", { name: "@fixture/private", private: true }),
+    "package-inventory",
+  ],
+  [
+    "single-package ambient scope",
+    async (f) => {
+      const path = "architecture/ast-grep/rules/no-ambient-clock.yml";
+      const rule = YAML.parse(await readFile(join(repositoryPath, path), "utf8"));
+      rule.files = ["packages/engineering-foundation/src/**/*.ts"];
+      await f.write(path, YAML.stringify(rule));
+    },
+    "ambient-coverage",
+  ],
+  [
+    "broad infrastructure exception",
+    async (f) => {
+      const path = "architecture/ast-grep/rules/no-ambient-clock.yml";
+      const rule = YAML.parse(await readFile(join(repositoryPath, path), "utf8"));
+      rule.ignores = ["packages/*/src/**/adapters/**"];
+      await f.write(path, YAML.stringify(rule));
+    },
+    "ambient-exception",
+  ],
+]) {
+  test(`rejects ${label}`, async (t) => {
+    const f = await fixture(t);
+    await mutate(f);
+    const result = await f.check();
+    assert.ok(
+      result.problems.some((problem) => problem.code === code),
+      JSON.stringify(result),
+    );
+  });
+}
 
 test("original typed command misses a real unsafe fixture outside Foundation; expanded scope finds it", async (t) => {
   const f = await fixture(t);
-  await symlink(join(repositoryPath, "node_modules"), join(f.repositoryRoot, "node_modules"), "junction");
+  await symlink(
+    join(repositoryPath, "node_modules"),
+    join(f.repositoryRoot, "node_modules"),
+    "junction",
+  );
   const bin = (await readJson("node_modules/oxlint/package.json")).bin.oxlint;
-  await f.write("tsconfig.json", { compilerOptions: { strict: true, target: "ESNext", module: "NodeNext", moduleResolution: "NodeNext" }, include: ["packages/**/*.ts"] });
-  await f.write("packages/docs-protocol/src/index.ts", "declare const unsafe: any;\nexport const result: number = unsafe;\n");
+  await f.write("tsconfig.json", {
+    compilerOptions: {
+      strict: true,
+      target: "ESNext",
+      module: "NodeNext",
+      moduleResolution: "NodeNext",
+    },
+    include: ["packages/**/*.ts"],
+  });
+  await f.write(
+    "packages/docs-protocol/src/index.ts",
+    "declare const unsafe: any;\nexport const result: number = unsafe;\n",
+  );
   const config = await readJson(".oxlintrc.type-aware.json");
   config.extends = config.extends.map((path) => resolve(repositoryPath, path));
   await f.write("typed.json", config);
-  const run = (roots) => spawnSync(process.execPath, [join(repositoryPath, "node_modules/oxlint", bin), "--config", "typed.json", "--deny-warnings", "--disable-nested-config", ...roots], { cwd: f.repositoryRoot, encoding: "utf8" });
+  const run = (roots) =>
+    spawnSync(
+      process.execPath,
+      [
+        join(repositoryPath, "node_modules/oxlint", bin),
+        "--config",
+        "typed.json",
+        "--deny-warnings",
+        "--disable-nested-config",
+        ...roots,
+      ],
+      { cwd: f.repositoryRoot, encoding: "utf8" },
+    );
   // Exact source scope read from originalBase 588a50d package.json, not checkpoint.
   const baseline = run(["packages/engineering-foundation/src"]);
   assert.equal(baseline.status, 0, baseline.stdout + baseline.stderr);
@@ -94,17 +174,38 @@ test("original typed command misses a real unsafe fixture outside Foundation; ex
 
 test("actual ast-grep scan rejects all ambient operations in every production package", async (t) => {
   const f = await fixture(t);
-  for (const { root } of PUBLISHABLE_PACKAGES) {await f.write(`${root}/src/index.ts`, "export const now = Date.now();\nexport const value = Math.random();\nexport const env = process.env.TEST;\nsetTimeout(() => {}, 1);\n");}
-  const run = () => spawnSync(process.execPath, [join(repositoryPath, "scripts/run-ast-grep.mjs"), "scan", "--config", "sgconfig.yml", "--json=compact"], { cwd: f.repositoryRoot, encoding: "utf8" });
+  for (const { root } of PUBLISHABLE_PACKAGES) {
+    await f.write(
+      `${root}/src/index.ts`,
+      "export const now = Date.now();\nexport const value = Math.random();\nexport const env = process.env.TEST;\nsetTimeout(() => {}, 1);\n",
+    );
+  }
+  const run = () =>
+    spawnSync(
+      process.execPath,
+      [
+        join(repositoryPath, "scripts/run-ast-grep.mjs"),
+        "scan",
+        "--config",
+        "sgconfig.yml",
+        "--json=compact",
+      ],
+      { cwd: f.repositoryRoot, encoding: "utf8" },
+    );
   // The original rules named only Foundation; demonstrate the real missing scope.
   for (const name of ruleNames) {
     const path = `architecture/ast-grep/rules/no-ambient-${name}.yml`;
     const rule = YAML.parse(await readFile(join(repositoryPath, path), "utf8"));
-    await f.write(path, YAML.stringify({ ...rule, files: ["packages/engineering-foundation/src/**/*.ts"] }));
+    await f.write(
+      path,
+      YAML.stringify({ ...rule, files: ["packages/engineering-foundation/src/**/*.ts"] }),
+    );
   }
   const baseline = run();
   assert.equal(baseline.status, 1, baseline.stderr);
-  const oldPaths = new Set(JSON.parse(baseline.stdout).map((entry) => entry.file.replaceAll("\\", "/")));
+  const oldPaths = new Set(
+    JSON.parse(baseline.stdout).map((entry) => entry.file.replaceAll("\\", "/")),
+  );
   assert.deepEqual([...oldPaths], ["packages/engineering-foundation/src/index.ts"]);
   for (const name of ruleNames) {
     const path = `architecture/ast-grep/rules/no-ambient-${name}.yml`;
@@ -114,20 +215,33 @@ test("actual ast-grep scan rejects all ambient operations in every production pa
   assert.equal(current.status, 1, current.stderr);
   const diagnostics = JSON.parse(current.stdout);
   for (const { root } of PUBLISHABLE_PACKAGES) {
-    assert.equal(diagnostics.filter((entry) => entry.file.replaceAll("\\", "/") === `${root}/src/index.ts`).length, 4);
+    assert.equal(
+      diagnostics.filter((entry) => entry.file.replaceAll("\\", "/") === `${root}/src/index.ts`)
+        .length,
+      4,
+    );
   }
 });
 
 for (const extension of ["mts", "cts", "mjs", "cjs", "d.mts", "d.cts"]) {
   test(`quality scope discovers .${extension} and requires explicit language adoption`, async (t) => {
-    const f = await fixture(t); await f.write(`packages/docs-protocol/src/added.${extension}`, "export const value = 1;");
-    assert.ok((await f.check()).problems.some(({ code, message }) => code === "source-language" && message.includes(`added.${extension}`)));
+    const f = await fixture(t);
+    await f.write(`packages/docs-protocol/src/added.${extension}`, "export const value = 1;");
+    assert.ok(
+      (await f.check()).problems.some(
+        ({ code, message }) => code === "source-language" && message.includes(`added.${extension}`),
+      ),
+    );
   });
 }
 for (const entry of ["check", "check:fast", "quality:scope:check"]) {
   test(`quality scope rejects successful bypass in ${entry}`, async (t) => {
-    const f = await fixture(t), pkg = await readJson("package.json");
-    pkg.scripts[entry] = entry === "quality:scope:check" ? "echo scripts/check-production-quality.mjs" : "true || pnpm quality:scope:check";
+    const f = await fixture(t),
+      pkg = await readJson("package.json");
+    pkg.scripts[entry] =
+      entry === "quality:scope:check"
+        ? "echo scripts/check-production-quality.mjs"
+        : "true || pnpm quality:scope:check";
     await f.write("package.json", pkg);
     assert.ok((await f.check()).problems.some(({ code }) => code === "scope-command"));
   });
@@ -135,8 +249,20 @@ for (const entry of ["check", "check:fast", "quality:scope:check"]) {
 
 test("actual production invocation analyzes unsafe source despite eslintignore and nested ignores", async (t) => {
   const f = await fixture(t);
-  await symlink(join(repositoryPath, "node_modules"), join(f.repositoryRoot, "node_modules"), "junction");
-  await f.write("tsconfig.json", { compilerOptions: { strict: true, target: "ESNext", module: "NodeNext", moduleResolution: "NodeNext" }, include: ["packages/**/*.ts"] });
+  await symlink(
+    join(repositoryPath, "node_modules"),
+    join(f.repositoryRoot, "node_modules"),
+    "junction",
+  );
+  await f.write("tsconfig.json", {
+    compilerOptions: {
+      strict: true,
+      target: "ESNext",
+      module: "NodeNext",
+      moduleResolution: "NodeNext",
+    },
+    include: ["packages/**/*.ts"],
+  });
   const path = "packages/docs-protocol/src/unsafe.ts";
   await f.write(path, "declare const unsafe: any; export const value: number = unsafe;");
   const run = () => runProductionTypedLint({ repositoryRoot: f.repositoryRoot });
@@ -156,10 +282,27 @@ test("actual production invocation analyzes unsafe source despite eslintignore a
 });
 test("inherited ignores follow actual Oxlint semantics and cannot silently omit unsafe source", async (t) => {
   const f = await fixture(t);
-  await symlink(join(repositoryPath, "node_modules"), join(f.repositoryRoot, "node_modules"), "junction");
-  await f.write("tsconfig.json", { compilerOptions: { strict: true, target: "ESNext", module: "NodeNext", moduleResolution: "NodeNext" }, include: ["packages/**/*.ts"] });
-  await f.write("packages/docs-protocol/src/index.ts", "declare const unsafe: any; export const value: number = unsafe;");
-  const config = JSON.parse(await readFile(join(f.repositoryRoot, ".oxlintrc.type-aware.json"), "utf8"));
+  await symlink(
+    join(repositoryPath, "node_modules"),
+    join(f.repositoryRoot, "node_modules"),
+    "junction",
+  );
+  await f.write("tsconfig.json", {
+    compilerOptions: {
+      strict: true,
+      target: "ESNext",
+      module: "NodeNext",
+      moduleResolution: "NodeNext",
+    },
+    include: ["packages/**/*.ts"],
+  });
+  await f.write(
+    "packages/docs-protocol/src/index.ts",
+    "declare const unsafe: any; export const value: number = unsafe;",
+  );
+  const config = JSON.parse(
+    await readFile(join(f.repositoryRoot, ".oxlintrc.type-aware.json"), "utf8"),
+  );
   await f.write("inherited.json", { ignorePatterns: ["packages/docs-protocol/src/**"] });
   config.extends.push("./inherited.json");
   await f.write(".oxlintrc.type-aware.json", config);
@@ -171,22 +314,50 @@ test("inherited ignores follow actual Oxlint semantics and cannot silently omit 
   assert.match(actual.stdout + actual.stderr, /no-unsafe-assignment/u);
 });
 for (const script of ["lint:typed", "architecture:patterns"]) {
-  for (const mode of ["disconnect", "echo", "short-circuit", "mask", "wrong-arguments", "missing"]) {
+  for (const mode of [
+    "disconnect",
+    "echo",
+    "short-circuit",
+    "mask",
+    "wrong-arguments",
+    "missing",
+  ]) {
     test(`full quality gate rejects ${script}: ${mode}`, async (t) => {
-      const f = await fixture(t), pkg = await readJson("package.json"), terminal = pkg.scripts[script];
+      const f = await fixture(t),
+        pkg = await readJson("package.json"),
+        terminal = pkg.scripts[script];
       const before = JSON.stringify(pkg.scripts);
       if (mode === "disconnect") {
-        if (script === "lint:typed") {pkg.scripts.lint = "node tools/repository-command.mts script lint:fast";}
-        else {pkg.scripts.check = pkg.scripts.check.replace(" && node tools/repository-command.mts script architecture:patterns", "");}
-      } else if (mode === "missing") {delete pkg.scripts[script];}
-      else {pkg.scripts[script] = ({ echo: `echo ${terminal}`, "short-circuit": `true || ${terminal}`, mask: `${terminal} || true`, "wrong-arguments": `${terminal} --help` })[mode];}
-      assert.notEqual(JSON.stringify(pkg.scripts), before, `${script}: ${mode} must mutate the current command`);
+        if (script === "lint:typed") {
+          pkg.scripts.lint = "node tools/repository-command.mts script lint:fast";
+        } else {
+          pkg.scripts.check = pkg.scripts.check.replace(
+            " && node tools/repository-command.mts script architecture:patterns",
+            "",
+          );
+        }
+      } else if (mode === "missing") {
+        delete pkg.scripts[script];
+      } else {
+        pkg.scripts[script] = {
+          echo: `echo ${terminal}`,
+          "short-circuit": `true || ${terminal}`,
+          mask: `${terminal} || true`,
+          "wrong-arguments": `${terminal} --help`,
+        }[mode];
+      }
+      assert.notEqual(
+        JSON.stringify(pkg.scripts),
+        before,
+        `${script}: ${mode} must mutate the current command`,
+      );
       await f.write("package.json", pkg);
       assert.ok((await f.check()).problems.some(({ code }) => code === "quality-command"));
     });
   }
   test(`full quality gate rejects a literal failing prerequisite for ${script}`, async (t) => {
-    const f = await fixture(t), pkg = await readJson("package.json");
+    const f = await fixture(t),
+      pkg = await readJson("package.json");
     pkg.scripts[script] = `false && ${pkg.scripts[script]}`;
     await f.write("package.json", pkg);
     assert.ok((await f.check()).problems.some(({ code }) => code === "quality-command"));

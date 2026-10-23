@@ -1,12 +1,18 @@
-import type { AttachResult, FoundationDevOnlyStatus, FoundationStatus, FoundationLocalModeServiceOptions } from "./api.js";
+import type {
+  AttachResult,
+  FoundationDevOnlyStatus,
+  FoundationStatus,
+  FoundationLocalModeServiceOptions,
+} from "./api.js";
 import { createNodeLocalPackageLifecyclePorts } from "../composition/local-mode-ports.js";
 import { NodeLocalPackageLifecycle } from "./node.js";
 
-export { inspectFoundationDevOnly, inspectFoundationRegistryProvenance } from "./adapters/node/consumer-inspection.js";
-export { isExactVersion } from "./api.js";
 export {
-  inspectFoundationMode
-} from "../composition/local-mode-inspection.js";
+  inspectFoundationDevOnly,
+  inspectFoundationRegistryProvenance,
+} from "./adapters/node/consumer-inspection.js";
+export { isExactVersion } from "./api.js";
+export { inspectFoundationMode } from "../composition/local-mode-inspection.js";
 /**
  * @deprecated Qualification-only concrete adapter. Import from
  * `@agent-teams/repository-mutation/qualification` and keep
@@ -21,7 +27,7 @@ export {
   LOCAL_OPERATION_LOCK,
   LOCAL_REGISTRY_BACKUP,
   LOCAL_STATE_DIRECTORY,
-  LOCAL_STATE_FILE
+  LOCAL_STATE_FILE,
 } from "./application/model.js";
 export type {
   AttachResult,
@@ -35,7 +41,7 @@ export type {
   ProcessRequest,
   ProcessResult,
   ProcessRunner,
-  RegistryProvenanceInspection
+  RegistryProvenanceInspection,
 } from "./application/model.js";
 
 /** Supported public constructor; concrete dependencies are selected only here. */
@@ -43,7 +49,10 @@ export class FoundationLocalModeService {
   readonly #lifecycle: NodeLocalPackageLifecycle;
 
   constructor(options: FoundationLocalModeServiceOptions) {
-    this.#lifecycle = new NodeLocalPackageLifecycle({ ports: createNodeLocalPackageLifecyclePorts(options.runner), now: options.now });
+    this.#lifecycle = new NodeLocalPackageLifecycle({
+      ports: createNodeLocalPackageLifecyclePorts(options.runner),
+      now: options.now,
+    });
   }
 
   async status(consumerPath: string): Promise<FoundationStatus> {

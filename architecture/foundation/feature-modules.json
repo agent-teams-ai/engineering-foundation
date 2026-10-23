@@ -207,6 +207,10 @@
           "decision": "docs/decisions/0050-exact-json-primitive-admission.md",
           "consumers": [
             {
+              "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/managed-attempt-support.ts",
+              "owner": "docs-protocol-agent-teams/consumer-integration"
+            },
+            {
               "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-runtime-attempt.ts",
               "owner": "docs-protocol-agent-teams/consumer-integration"
             },
@@ -414,7 +418,7 @@
               "owner": "docs-protocol-agent-teams/consumer-integration"
             },
             {
-              "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-runtime-process.ts",
+              "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/managed-probe-support.ts",
               "owner": "docs-protocol-agent-teams/consumer-integration"
             },
             {
@@ -454,15 +458,11 @@
             },
             {
               "role": "adapters",
-              "roots": [
-                "packages/repository-mutation/src/repository-mutation/adapters"
-              ]
+              "roots": ["packages/repository-mutation/src/repository-mutation/adapters"]
             },
             {
               "role": "composition",
-              "roots": [
-                "packages/repository-mutation/src/repository-mutation/composition"
-              ]
+              "roots": ["packages/repository-mutation/src/repository-mutation/composition"]
             }
           ],
           "testRoots": [
@@ -485,25 +485,20 @@
             },
             {
               "role": "adapters",
-              "roots": [
-                "packages/repository-mutation/src/transaction-coordination/adapters"
-              ]
+              "roots": ["packages/repository-mutation/src/transaction-coordination/adapters"]
             },
             {
               "role": "composition",
-              "roots": [
-                "packages/repository-mutation/src/transaction-coordination/composition"
-              ]
+              "roots": ["packages/repository-mutation/src/transaction-coordination/composition"]
             }
           ],
           "testRoots": [
-            "packages/repository-mutation/tests/mutation-lease.test.mjs"
+            "packages/repository-mutation/tests/mutation-lease.test.mjs",
+            "packages/repository-mutation/tests/lease-fixture.ts"
           ]
         }
       ],
-      "testRoots": [
-        "packages/repository-mutation/tests"
-      ]
+      "testRoots": ["packages/repository-mutation/tests"]
     },
     {
       "id": "document-authoring",
@@ -607,21 +602,15 @@
             },
             {
               "role": "adapters",
-              "roots": [
-                "packages/document-authoring/src/document-authoring/adapters"
-              ]
+              "roots": ["packages/document-authoring/src/document-authoring/adapters"]
             },
             {
               "role": "composition",
-              "roots": [
-                "packages/document-authoring/src/document-authoring/module.ts"
-              ]
+              "roots": ["packages/document-authoring/src/document-authoring/module.ts"]
             },
             {
               "role": "testing",
-              "roots": [
-                "packages/document-authoring/src/document-authoring/testing"
-              ]
+              "roots": ["packages/document-authoring/src/document-authoring/testing"]
             }
           ],
           "testRoots": [
@@ -643,25 +632,17 @@
             },
             {
               "role": "adapters",
-              "roots": [
-                "packages/document-authoring/src/documentation-observation/adapters"
-              ]
+              "roots": ["packages/document-authoring/src/documentation-observation/adapters"]
             },
             {
               "role": "composition",
-              "roots": [
-                "packages/document-authoring/src/documentation-observation/module.ts"
-              ]
+              "roots": ["packages/document-authoring/src/documentation-observation/module.ts"]
             }
           ],
-          "testRoots": [
-            "tests/documentation-filesystem-reliability.test.mjs"
-          ]
+          "testRoots": ["tests/documentation-filesystem-reliability.test.mjs"]
         }
       ],
-      "testRoots": [
-        "packages/document-authoring/tests"
-      ]
+      "testRoots": ["packages/document-authoring/tests"]
     },
     {
       "id": "docs-protocol",
@@ -703,9 +684,7 @@
             },
             {
               "role": "adapters",
-              "roots": [
-                "packages/docs-protocol/src/features/portable-documentation/adapters"
-              ]
+              "roots": ["packages/docs-protocol/src/features/portable-documentation/adapters"]
             },
             {
               "role": "composition",
@@ -742,9 +721,7 @@
             },
             {
               "role": "adapters",
-              "roots": [
-                "packages/docs-protocol/src/features/portable-bootstrap/adapters"
-              ]
+              "roots": ["packages/docs-protocol/src/features/portable-bootstrap/adapters"]
             },
             {
               "role": "composition",
@@ -755,9 +732,7 @@
               ]
             }
           ],
-          "testRoots": [
-            "packages/docs-protocol/tests/community-bootstrap.test.mjs"
-          ]
+          "testRoots": ["packages/docs-protocol/tests/community-bootstrap.test.mjs"]
         },
         {
           "id": "docs-command",
@@ -765,21 +740,15 @@
           "layers": [
             {
               "role": "application",
-              "roots": [
-                "packages/docs-protocol/src/features/docs-command/application"
-              ]
+              "roots": ["packages/docs-protocol/src/features/docs-command/application"]
             },
             {
               "role": "contracts",
-              "roots": [
-                "packages/docs-protocol/src/features/docs-command/contracts"
-              ]
+              "roots": ["packages/docs-protocol/src/features/docs-command/contracts"]
             },
             {
               "role": "adapters",
-              "roots": [
-                "packages/docs-protocol/src/features/docs-command/adapters"
-              ]
+              "roots": ["packages/docs-protocol/src/features/docs-command/adapters"]
             },
             {
               "role": "composition",
@@ -802,21 +771,15 @@
           "layers": [
             {
               "role": "application",
-              "roots": [
-                "packages/docs-protocol/src/features/qualification/application"
-              ]
+              "roots": ["packages/docs-protocol/src/features/qualification/application"]
             },
             {
               "role": "adapters",
-              "roots": [
-                "packages/docs-protocol/src/features/qualification/adapters"
-              ]
+              "roots": ["packages/docs-protocol/src/features/qualification/adapters"]
             },
             {
               "role": "composition",
-              "roots": [
-                "packages/docs-protocol/src/features/qualification/index.ts"
-              ]
+              "roots": ["packages/docs-protocol/src/features/qualification/index.ts"]
             }
           ],
           "testRoots": [
@@ -825,9 +788,7 @@
           ]
         }
       ],
-      "testRoots": [
-        "packages/docs-protocol/tests"
-      ]
+      "testRoots": ["packages/docs-protocol/tests"]
     },
     {
       "id": "docs-protocol-agent-teams",
@@ -878,9 +839,7 @@
             },
             {
               "role": "adapters",
-              "roots": [
-                "packages/docs-protocol-agent-teams/src/consumer-integration/adapters"
-              ]
+              "roots": ["packages/docs-protocol-agent-teams/src/consumer-integration/adapters"]
             },
             {
               "role": "composition",
@@ -931,9 +890,7 @@
             },
             {
               "role": "adapters",
-              "roots": [
-                "packages/docs-protocol-agent-teams/src/qualification/adapters"
-              ]
+              "roots": ["packages/docs-protocol-agent-teams/src/qualification/adapters"]
             }
           ],
           "testRoots": [
@@ -948,9 +905,7 @@
           ]
         }
       ],
-      "testRoots": [
-        "packages/docs-protocol-agent-teams/tests"
-      ]
+      "testRoots": ["packages/docs-protocol-agent-teams/tests"]
     },
     {
       "id": "docs-protocol-mcp",
@@ -959,9 +914,7 @@
       "sourceRoot": "packages/docs-protocol-mcp/src",
       "role": "integration",
       "preferredFeatureRoot": "packages/docs-protocol-mcp/src/features",
-      "publicEntrypoints": [
-        "packages/docs-protocol-mcp/src/index.ts"
-      ],
+      "publicEntrypoints": ["packages/docs-protocol-mcp/src/index.ts"],
       "moduleAssembly": [
         "packages/docs-protocol-mcp/src/index.ts",
         "packages/docs-protocol-mcp/src/cli.ts"
@@ -975,15 +928,11 @@
           "layers": [
             {
               "role": "application",
-              "roots": [
-                "packages/docs-protocol-mcp/src/read-only-docs/application"
-              ]
+              "roots": ["packages/docs-protocol-mcp/src/read-only-docs/application"]
             },
             {
               "role": "adapters",
-              "roots": [
-                "packages/docs-protocol-mcp/src/read-only-docs/adapters"
-              ]
+              "roots": ["packages/docs-protocol-mcp/src/read-only-docs/adapters"]
             },
             {
               "role": "composition",
@@ -995,13 +944,12 @@
           ],
           "testRoots": [
             "packages/docs-protocol-mcp/tests/tools.test.mjs",
-            "packages/docs-protocol-mcp/tests/mcp-e2e.test.mjs"
+            "packages/docs-protocol-mcp/tests/mcp-e2e.test.mjs",
+            "packages/docs-protocol-mcp/tests/diagnostic-tools-cases.ts"
           ]
         }
       ],
-      "testRoots": [
-        "packages/docs-protocol-mcp/tests"
-      ]
+      "testRoots": ["packages/docs-protocol-mcp/tests"]
     },
     {
       "id": "engineering-foundation",
@@ -1279,9 +1227,7 @@
             },
             {
               "role": "adapters",
-              "roots": [
-                "packages/engineering-foundation/src/local-mode/adapters"
-              ]
+              "roots": ["packages/engineering-foundation/src/local-mode/adapters"]
             },
             {
               "role": "composition",
@@ -1291,10 +1237,7 @@
               ]
             }
           ],
-          "testRoots": [
-            "tests/local-mode.test.mjs",
-            "tests/local-mode-bun.test.ts"
-          ]
+          "testRoots": ["tests/local-mode.test.mjs", "tests/local-mode-bun.test.ts"]
         },
         {
           "id": "process-execution",
@@ -1320,9 +1263,7 @@
             },
             {
               "role": "composition",
-              "roots": [
-                "packages/engineering-foundation/src/process-execution/module.ts"
-              ]
+              "roots": ["packages/engineering-foundation/src/process-execution/module.ts"]
             }
           ],
           "testRoots": [
@@ -1349,21 +1290,15 @@
             },
             {
               "role": "adapters",
-              "roots": [
-                "packages/engineering-foundation/src/scaffolding/adapters"
-              ]
+              "roots": ["packages/engineering-foundation/src/scaffolding/adapters"]
             },
             {
               "role": "composition",
-              "roots": [
-                "packages/engineering-foundation/src/scaffolding/composition"
-              ]
+              "roots": ["packages/engineering-foundation/src/scaffolding/composition"]
             },
             {
               "role": "testing",
-              "roots": [
-                "packages/engineering-foundation/src/scaffolding/testing"
-              ]
+              "roots": ["packages/engineering-foundation/src/scaffolding/testing"]
             }
           ],
           "testRoots": [
@@ -1386,9 +1321,7 @@
             },
             {
               "role": "adapters",
-              "roots": [
-                "packages/engineering-foundation/src/source-inventory/adapters"
-              ]
+              "roots": ["packages/engineering-foundation/src/source-inventory/adapters"]
             },
             {
               "role": "composition",
@@ -1398,9 +1331,7 @@
               ]
             }
           ],
-          "testRoots": [
-            "tests/source-dependency-graph.test.mjs"
-          ]
+          "testRoots": ["tests/source-dependency-graph.test.mjs"]
         },
         {
           "id": "transaction-coordination",
@@ -1417,9 +1348,7 @@
             },
             {
               "role": "adapters",
-              "roots": [
-                "packages/engineering-foundation/src/transaction-coordination/adapters"
-              ]
+              "roots": ["packages/engineering-foundation/src/transaction-coordination/adapters"]
             },
             {
               "role": "composition",
@@ -1447,20 +1376,14 @@
             },
             {
               "role": "adapters",
-              "roots": [
-                "packages/engineering-foundation/src/workspace-inventory/adapters"
-              ]
+              "roots": ["packages/engineering-foundation/src/workspace-inventory/adapters"]
             },
             {
               "role": "composition",
-              "roots": [
-                "packages/engineering-foundation/src/workspace-inventory/module.ts"
-              ]
+              "roots": ["packages/engineering-foundation/src/workspace-inventory/module.ts"]
             }
           ],
-          "testRoots": [
-            "tests/source-dependency-workspace-discovery.test.mjs"
-          ]
+          "testRoots": ["tests/source-dependency-workspace-discovery.test.mjs"]
         },
         {
           "id": "contract-json-schema-releases",
@@ -1488,9 +1411,7 @@
               ]
             }
           ],
-          "testRoots": [
-            "tests/contract-json-schema-releases.test.mjs"
-          ]
+          "testRoots": ["tests/contract-json-schema-releases.test.mjs"]
         },
         {
           "id": "contract-protobuf-evolution",
@@ -1524,9 +1445,7 @@
               ]
             }
           ],
-          "testRoots": [
-            "tests/contract-protobuf-evolution.test.mjs"
-          ]
+          "testRoots": ["tests/contract-protobuf-evolution.test.mjs"]
         },
         {
           "id": "documentation-local-references",
@@ -1553,9 +1472,7 @@
               ]
             }
           ],
-          "testRoots": [
-            "tests/documentation-local-references.test.mjs"
-          ]
+          "testRoots": ["tests/documentation-local-references.test.mjs"]
         },
         {
           "id": "executable-specifications",
@@ -1583,9 +1500,7 @@
               ]
             }
           ],
-          "testRoots": [
-            "tests/executable-specifications.test.mjs"
-          ]
+          "testRoots": ["tests/executable-specifications.test.mjs"]
         },
         {
           "id": "governance-architecture-decisions",
@@ -1613,9 +1528,7 @@
               ]
             }
           ],
-          "testRoots": [
-            "tests/documentation-architecture-decisions.test.mjs"
-          ]
+          "testRoots": ["tests/documentation-architecture-decisions.test.mjs"]
         },
         {
           "id": "property-testing-standard",
@@ -1629,9 +1542,7 @@
               ]
             }
           ],
-          "testRoots": [
-            "tests/property-testing-standard.test.mjs"
-          ]
+          "testRoots": ["tests/property-testing-standard.test.mjs"]
         },
         {
           "id": "public-api-compatibility",
@@ -1678,9 +1589,17 @@
             "tests/public-api-growth-authority.test.mjs",
             "packages/engineering-foundation/tests/public-api-native-extraction.test.ts",
             "packages/engineering-foundation/tests/public-api-native-projection.test.ts",
+            "packages/engineering-foundation/tests/public-api-native-spelling-cases.ts",
             "tests/public-api-growth-metadata-root.test.mjs",
             "tests/public-api-growth-promotion-authority.test.mjs",
-            "packages/engineering-foundation/tests/public-api-native-transition.test.ts"
+            "packages/engineering-foundation/tests/public-api-native-transition.test.ts",
+            "packages/engineering-foundation/tests/public-api-artifact-release-cases.ts",
+            "packages/engineering-foundation/tests/public-api-artifact-captured-byte-cases.ts",
+            "packages/engineering-foundation/tests/public-api-audit-binding-cases.ts",
+            "packages/engineering-foundation/tests/public-api-audit-environment-cases.ts",
+            "packages/engineering-foundation/tests/public-api-audit-history-cases.ts",
+            "packages/engineering-foundation/tests/public-api-audit-baseline-bound-cases.ts",
+            "packages/engineering-foundation/tests/public-api-audit-command-fixture.ts"
           ]
         },
         {
@@ -1848,9 +1767,7 @@
               ]
             }
           ],
-          "testRoots": [
-            "tests/capability-policy.test.mjs"
-          ]
+          "testRoots": ["tests/capability-policy.test.mjs"]
         },
         {
           "id": "findings-baseline",
@@ -1908,7 +1825,8 @@
             }
           ],
           "testRoots": [
-            "tests/capability.test.mjs"
+            "tests/capability.test.mjs",
+            "packages/engineering-foundation/tests/workspace-dependency-alias-normalization-cases.ts"
           ]
         },
         {
@@ -1925,9 +1843,7 @@
             },
             {
               "role": "adapters",
-              "roots": [
-                "packages/engineering-foundation/src/features/command-host/adapters"
-              ]
+              "roots": ["packages/engineering-foundation/src/features/command-host/adapters"]
             },
             {
               "role": "composition",
@@ -1988,20 +1904,14 @@
             },
             {
               "role": "adapters",
-              "roots": [
-                "packages/engineering-foundation/src/features/foundation-check/adapters"
-              ]
+              "roots": ["packages/engineering-foundation/src/features/foundation-check/adapters"]
             },
             {
               "role": "composition",
-              "roots": [
-                "packages/engineering-foundation/src/features/foundation-check/module.ts"
-              ]
+              "roots": ["packages/engineering-foundation/src/features/foundation-check/module.ts"]
             }
           ],
-          "testRoots": [
-            "tests/capability.test.mjs"
-          ]
+          "testRoots": ["tests/capability.test.mjs"]
         },
         {
           "id": "validation-reporting",
@@ -2018,10 +1928,7 @@
               ]
             }
           ],
-          "testRoots": [
-            "tests/capability.test.mjs",
-            "tests/process-failure-reporting.test.mts"
-          ]
+          "testRoots": ["tests/capability.test.mjs", "tests/process-failure-reporting.test.mts"]
         },
         {
           "id": "quality-coverage",
@@ -2043,15 +1950,10 @@
               ]
             }
           ],
-          "testRoots": [
-            "tests/features/quality-coverage"
-          ]
+          "testRoots": ["tests/features/quality-coverage"]
         }
       ],
-      "testRoots": [
-        "tests",
-        "packages/engineering-foundation/tests"
-      ]
+      "testRoots": ["tests", "packages/engineering-foundation/tests"]
     },
     {
       "id": "ci-input-proof",
@@ -2060,12 +1962,8 @@
       "sourceRoot": "packages/ci-input-proof/src",
       "role": "platform",
       "preferredFeatureRoot": "packages/ci-input-proof/src/features",
-      "publicEntrypoints": [
-        "packages/ci-input-proof/src/index.ts"
-      ],
-      "moduleAssembly": [
-        "packages/ci-input-proof/src/index.ts"
-      ],
+      "publicEntrypoints": ["packages/ci-input-proof/src/index.ts"],
+      "moduleAssembly": ["packages/ci-input-proof/src/index.ts"],
       "generatedRoots": [],
       "exceptions": [],
       "features": [
@@ -2075,9 +1973,7 @@
           "layers": [
             {
               "role": "application",
-              "roots": [
-                "packages/ci-input-proof/src/features/input-comparison/application"
-              ]
+              "roots": ["packages/ci-input-proof/src/features/input-comparison/application"]
             }
           ],
           "testRoots": [
@@ -2117,14 +2013,10 @@
           "layers": [
             {
               "role": "domain",
-              "roots": [
-                "packages/feature-module-standard/src/features/feature-model/domain"
-              ]
+              "roots": ["packages/feature-module-standard/src/features/feature-model/domain"]
             }
           ],
-          "testRoots": [
-            "tests/features/feature-module-standard/module-check.test.mts"
-          ]
+          "testRoots": ["tests/features/feature-module-standard/module-check.test.mts"]
         },
         {
           "id": "feature-layout",
@@ -2132,14 +2024,10 @@
           "layers": [
             {
               "role": "application",
-              "roots": [
-                "packages/feature-module-standard/src/features/feature-layout/application"
-              ]
+              "roots": ["packages/feature-module-standard/src/features/feature-layout/application"]
             }
           ],
-          "testRoots": [
-            "tests/features/feature-module-standard/layout.test.mts"
-          ]
+          "testRoots": ["tests/features/feature-module-standard/layout.test.mts"]
         },
         {
           "id": "feature-dependencies",
@@ -2152,9 +2040,7 @@
               ]
             }
           ],
-          "testRoots": [
-            "tests/features/feature-module-standard/dependencies.test.mts"
-          ]
+          "testRoots": ["tests/features/feature-module-standard/dependencies.test.mts"]
         },
         {
           "id": "module-check",
@@ -2162,14 +2048,10 @@
           "layers": [
             {
               "role": "application",
-              "roots": [
-                "packages/feature-module-standard/src/features/module-check/application"
-              ]
+              "roots": ["packages/feature-module-standard/src/features/module-check/application"]
             }
           ],
-          "testRoots": [
-            "tests/features/feature-module-standard/module-check.test.mts"
-          ]
+          "testRoots": ["tests/features/feature-module-standard/module-check.test.mts"]
         },
         {
           "id": "conformance-fixtures",
@@ -2182,9 +2064,7 @@
               ]
             }
           ],
-          "testRoots": [
-            "tests/features/feature-module-standard/conformance.test.mts"
-          ]
+          "testRoots": ["tests/features/feature-module-standard/conformance.test.mts"]
         },
         {
           "id": "node-runner",
@@ -2192,20 +2072,14 @@
           "layers": [
             {
               "role": "application",
-              "roots": [
-                "packages/feature-module-standard/src/features/node-runner/application"
-              ]
+              "roots": ["packages/feature-module-standard/src/features/node-runner/application"]
             },
             {
               "role": "composition",
-              "roots": [
-                "packages/feature-module-standard/src/features/node-runner/composition"
-              ]
+              "roots": ["packages/feature-module-standard/src/features/node-runner/composition"]
             }
           ],
-          "testRoots": [
-            "tests/features/feature-module-standard/node-runner.test.mts"
-          ]
+          "testRoots": ["tests/features/feature-module-standard/node-runner.test.mts"]
         }
       ],
       "testRoots": [
@@ -2223,9 +2097,7 @@
       "sourceRoot": "packages/stack-toolchain/src",
       "role": "platform",
       "preferredFeatureRoot": "packages/stack-toolchain/src/features",
-      "publicEntrypoints": [
-        "packages/stack-toolchain/src/index.ts"
-      ],
+      "publicEntrypoints": ["packages/stack-toolchain/src/index.ts"],
       "moduleAssembly": [
         "packages/stack-toolchain/src/index.ts",
         "packages/stack-toolchain/src/cli.ts"
@@ -2307,7 +2179,8 @@
             {
               "role": "testing",
               "roots": [
-                "packages/release-checks/src/features/candidate-checking/conformance.ts"
+                "packages/release-checks/src/features/candidate-checking/conformance.ts",
+                "packages/release-checks/src/features/candidate-checking/conformance-inputs.ts"
               ]
             }
           ],
@@ -2323,13 +2196,7 @@
       ]
     }
   ],
-  "productionRoots": [
-    "packages"
-  ],
+  "productionRoots": ["packages"],
   "applicationRoots": [],
-  "excludedRoots": [
-    "spikes",
-    "scripts",
-    "tests"
-  ]
+  "excludedRoots": ["spikes", "scripts", "tests"]
 }

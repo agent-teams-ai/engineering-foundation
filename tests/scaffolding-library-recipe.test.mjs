@@ -11,21 +11,16 @@ import { parse, stringify } from "yaml";
 
 import {
   applyFilesystemScaffold,
-  planScaffoldFromFile
+  planScaffoldFromFile,
 } from "../packages/engineering-foundation/dist/scaffolding/index.js";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
-const fixtureRoot = join(
-  repositoryRoot,
-  "tests",
-  "fixtures",
-  "scaffolding-library-consumer"
-);
+const fixtureRoot = join(repositoryRoot, "tests", "fixtures", "scaffolding-library-consumer");
 const requireFromTest = createRequire(import.meta.url);
 const typescriptCliPath = join(
   dirname(requireFromTest.resolve("typescript/package.json")),
   "bin",
-  "tsc"
+  "tsc",
 );
 
 const cases = [
@@ -36,7 +31,7 @@ const cases = [
     packageName: "alpha-library",
     role: "synthetic-alpha",
     ownerDocument: "OWNER-ALPHA",
-    tsconfigBase: "../../tsconfig.json"
+    tsconfigBase: "../../tsconfig.json",
   },
   {
     intent: "intents/create-beta.yaml",
@@ -45,7 +40,7 @@ const cases = [
     packageName: "@fixture/beta-library",
     role: "synthetic.beta",
     ownerDocument: "OWNER-BETA",
-    tsconfigBase: "../../../../tsconfig.json"
+    tsconfigBase: "../../../../tsconfig.json",
   },
   {
     intent: "intents/create-gamma.yaml",
@@ -54,8 +49,8 @@ const cases = [
     packageName: "@another/gamma-library",
     role: "synthetic/gamma",
     ownerDocument: "OWNER-GAMMA",
-    tsconfigBase: "../../tsconfig.json"
-  }
+    tsconfigBase: "../../tsconfig.json",
+  },
 ];
 
 async function createConsumer() {
@@ -68,7 +63,7 @@ async function plan(root, intent, configPath) {
   return planScaffoldFromFile({
     consumerRoot: root,
     intentPath: intent,
-    ...(configPath === undefined ? {} : { configPath })
+    ...(configPath === undefined ? {} : { configPath }),
   });
 }
 
@@ -87,22 +82,23 @@ function expectedManifest(entry) {
     scripts: {
       build: "tsc --project tsconfig.json --pretty false",
       check: "pnpm run clean && pnpm run typecheck && pnpm run build && pnpm run test",
-      clean: "node -e \"const fs=require('node:fs'); for (const path of ['dist','.cache']) fs.rmSync(path, { recursive: true, force: true })\"",
+      clean:
+        "node -e \"const fs=require('node:fs'); for (const path of ['dist','.cache']) fs.rmSync(path, { recursive: true, force: true })\"",
       prepack: "pnpm run clean && pnpm run build",
       test: "node --test --test-concurrency=1",
-      typecheck: "tsc --project tsconfig.json --noEmit --pretty false"
+      typecheck: "tsc --project tsconfig.json --noEmit --pretty false",
     },
     agentTeamsArchitecture: {
       role: entry.role,
-      ownerDocument: entry.ownerDocument
+      ownerDocument: entry.ownerDocument,
     },
     files: ["dist"],
     exports: {
       ".": {
         types: "./dist/index.d.ts",
-        import: "./dist/index.js"
-      }
-    }
+        import: "./dist/index.js",
+      },
+    },
   };
 }
 
@@ -116,14 +112,9 @@ function expectedTsconfig(entry) {
       noEmit: false,
       outDir: "dist",
       rootDir: "src",
-      tsBuildInfoFile: ".cache/tsconfig.tsbuildinfo"
+      tsBuildInfoFile: ".cache/tsconfig.tsbuildinfo",
     },
-    include: [
-      "src/**/*.ts",
-      "src/**/*.tsx",
-      "src/**/*.mts",
-      "src/**/*.cts"
-    ]
+    include: ["src/**/*.ts", "src/**/*.tsx", "src/**/*.mts", "src/**/*.cts"],
   };
 }
 
@@ -138,19 +129,19 @@ test("renders one generic library boundary across consumer-owned roles, paths, a
       assert.equal(first.authorityEvidence.ownerDocument.id, entry.ownerDocument);
       assert.equal(
         operationSource(first, "/package.json"),
-        `${JSON.stringify(expectedManifest(entry), null, 2)}\n`
+        `${JSON.stringify(expectedManifest(entry), null, 2)}\n`,
       );
       assert.deepEqual(
         JSON.parse(operationSource(first, "/package.json")),
-        expectedManifest(entry)
+        expectedManifest(entry),
       );
       assert.equal(
         operationSource(first, "/tsconfig.json"),
-        `${JSON.stringify(expectedTsconfig(entry), null, 2)}\n`
+        `${JSON.stringify(expectedTsconfig(entry), null, 2)}\n`,
       );
       assert.deepEqual(
         JSON.parse(operationSource(first, "/tsconfig.json")),
-        expectedTsconfig(entry)
+        expectedTsconfig(entry),
       );
       assert.equal(operationSource(first, "/src/index.ts"), "export {};\n");
 
@@ -159,7 +150,7 @@ test("renders one generic library boundary across consumer-owned roles, paths, a
       assert.equal((await applyFilesystemScaffold(root, first)).outcome, "already-applied");
       assert.equal(
         await readFile(join(root, entry.path, "package.json"), "utf8"),
-        operationSource(first, "/package.json")
+        operationSource(first, "/package.json"),
       );
       const typecheck = spawnSync(
         process.execPath,
@@ -168,9 +159,9 @@ test("renders one generic library boundary across consumer-owned roles, paths, a
           "--project",
           join(root, entry.path, "tsconfig.json"),
           "--pretty",
-          "false"
+          "false",
         ],
-        { encoding: "utf8" }
+        { encoding: "utf8" },
       );
       assert.equal(typecheck.status, 0, `${typecheck.stdout}${typecheck.stderr}`);
     } finally {
@@ -186,41 +177,24 @@ test("keeps role admission and recipe parameters closed in the consumer composit
     await writeFile(
       intentPath,
       "schemaVersion: 1\ncompositionId: library-boundary\ntargetRef: synthetic.alpha\nrecipeParameters:\n  application: true\n",
-      "utf8"
+      "utf8",
     );
-    await assert.rejects(
-      plan(root, "intents/invalid-parameters.yaml"),
-      /additional properties/u
-    );
+    await assert.rejects(plan(root, "intents/invalid-parameters.yaml"), /additional properties/u);
 
     const configPath = join(root, "architecture", "foundation", "scaffolding.yaml");
     const source = await readFile(configPath, "utf8");
     const configuration = parse(source);
     const fixedParameterConfiguration = structuredClone(configuration);
     fixedParameterConfiguration.compositions[0].fixedRecipeParameters = {
-      application: true
+      application: true,
     };
-    await writeFile(
-      configPath,
-      stringify(fixedParameterConfiguration),
-      "utf8"
-    );
+    await writeFile(configPath, stringify(fixedParameterConfiguration), "utf8");
     await assert.rejects(plan(root, cases[0].intent), /additional properties/u);
 
     const roleConfiguration = structuredClone(configuration);
-    roleConfiguration.compositions[0].targetRoles = [
-      "synthetic.beta",
-      "synthetic/gamma"
-    ];
-    await writeFile(
-      configPath,
-      stringify(roleConfiguration),
-      "utf8"
-    );
-    await assert.rejects(
-      plan(root, cases[0].intent),
-      /is not admitted by composition/u
-    );
+    roleConfiguration.compositions[0].targetRoles = ["synthetic.beta", "synthetic/gamma"];
+    await writeFile(configPath, stringify(roleConfiguration), "utf8");
+    await assert.rejects(plan(root, cases[0].intent), /is not admitted by composition/u);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

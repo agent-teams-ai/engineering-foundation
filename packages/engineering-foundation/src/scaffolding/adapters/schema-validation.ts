@@ -10,5 +10,5 @@ export type ScaffoldSchemaValidator = (
     | "scaffold-recovery-journal/v1"
     | "foundation-transaction-envelope/v2",
   input: unknown,
-  phase: string
+  phase: string,
 ) => Promise<void>;

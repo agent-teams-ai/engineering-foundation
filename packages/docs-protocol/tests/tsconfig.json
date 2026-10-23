@@ -1,0 +1,7 @@
+{
+  "extends": "../../../tsconfig.ci-tooling.json",
+  "compilerOptions": {
+    "noUncheckedIndexedAccess": true
+  },
+  "include": ["support/**/*.ts"]
+}

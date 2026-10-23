@@ -12,8 +12,7 @@ const CHECKOUT_SHA = "1111111111111111111111111111111111111111";
 const DEPENDENCY_REVIEW_SHA = "2222222222222222222222222222222222222222";
 const SBOM_SHA = "3333333333333333333333333333333333333333";
 const EXTERNAL_REUSABLE_WORKFLOW_SHA = "4444444444444444444444444444444444444444";
-const EXTERNAL_REUSABLE_WORKFLOW =
-  `example/reusable/.github/workflows/verify.yml@${EXTERNAL_REUSABLE_WORKFLOW_SHA}`;
+const EXTERNAL_REUSABLE_WORKFLOW = `example/reusable/.github/workflows/verify.yml@${EXTERNAL_REUSABLE_WORKFLOW_SHA}`;
 
 function dependencyReviewConfig(additionalAllowedUses = []) {
   return [
@@ -337,11 +336,10 @@ test("rejects a same-job run step that overrides Dependency Review failure", asy
 });
 
 test("rejects a status-function bypass in an intermediate needs job", async () => {
-  const workflow = locallyProtectedWorkflow()
-    .replace(
-      "  execute:\n    needs: dependency-review",
-      "  bridge:\n    needs: dependency-review\n    if: always()\n    runs-on: ubuntu-24.04\n    steps: []\n  execute:\n    needs: bridge",
-    );
+  const workflow = locallyProtectedWorkflow().replace(
+    "  execute:\n    needs: dependency-review",
+    "  bridge:\n    needs: dependency-review\n    if: always()\n    runs-on: ubuntu-24.04\n    steps: []\n  execute:\n    needs: bridge",
+  );
   await withConsumer(
     { additionalWorkflows: { ".github/workflows/intermediate.yml": workflow } },
     async (consumerRoot) => {
@@ -396,7 +394,9 @@ test("rejects every pull-request route that can execute before review", async (t
     {
       name: "pull-request-target workflow",
       options: {
-        additionalWorkflows: { ".github/workflows/secondary.yml": secondWorkflow("pull_request_target") },
+        additionalWorkflows: {
+          ".github/workflows/secondary.yml": secondWorkflow("pull_request_target"),
+        },
       },
       path: ".github/workflows/secondary.yml",
       execution: "run-step",

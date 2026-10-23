@@ -1,4 +1,7 @@
-import { configurationInputError as inputError, assertConfigurationRepositoryPath } from "../../../application/configuration-input.js";
+import {
+  configurationInputError as inputError,
+  assertConfigurationRepositoryPath,
+} from "../../../application/configuration-input.js";
 import type {
   ApprovedBreakingChange,
   PublicApiCompatibilityConfigSchemaVersion,
@@ -6,15 +9,14 @@ import type {
   PublicApiEntrypointPolicy,
   PublicApiNonTypeExportKind,
   PublicApiNonTypeExportPolicy,
-  PublicApiPackagePolicy
+  PublicApiPackagePolicy,
 } from "../../../application/model/public-api.js";
 import {
   compareCanonicalReferences,
-  publicApiBaselineAnchorPath
+  publicApiBaselineAnchorPath,
 } from "../../../application/model/public-api.js";
 
-const ACCEPTED_DECISION_BASELINE_PATH =
-  "architecture/decisions/accepted-decisions.json" as const;
+const ACCEPTED_DECISION_BASELINE_PATH = "architecture/decisions/accepted-decisions.json" as const;
 const ADR_ID = /^ADR-\d{4}$/u;
 
 function record(value: unknown, field: string): Record<string, unknown> {
@@ -52,8 +54,9 @@ function normalizedExportPath(value: unknown, field: string): string {
   const segments = output.startsWith("./") ? output.slice(2).split("/") : [];
   if (
     segments.length === 0 ||
-    segments.some((segment) =>
-      segment.length === 0 || segment === "." || segment === ".." || segment.includes("\\")
+    segments.some(
+      (segment) =>
+        segment.length === 0 || segment === "." || segment === ".." || segment.includes("\\"),
     )
   ) {
     inputError(`${field} must be . or a normalized package export subpath.`);
@@ -80,7 +83,7 @@ function acceptedDecisionBaselinePath(value: unknown): string {
   const repositoryPath = path(value, "acceptedDecisionBaselinePath");
   if (repositoryPath !== ACCEPTED_DECISION_BASELINE_PATH) {
     inputError(
-      `acceptedDecisionBaselinePath must use the stable ${ACCEPTED_DECISION_BASELINE_PATH} anchor.`
+      `acceptedDecisionBaselinePath must use the stable ${ACCEPTED_DECISION_BASELINE_PATH} anchor.`,
     );
   }
   return repositoryPath;
@@ -98,11 +101,7 @@ function pathInside(candidate: string, root: string): boolean {
   return candidate === root || candidate.startsWith(`${root}/`);
 }
 
-function mapApproval(
-  value: unknown,
-  packageIndex: number,
-  index: number
-): ApprovedBreakingChange {
+function mapApproval(value: unknown, packageIndex: number, index: number): ApprovedBreakingChange {
   const field = `packages[${packageIndex}].approvedBreakingChanges[${index}]`;
   const approval = record(value, field);
   const decisionId = string(approval["decisionId"], `${field}.decisionId`);
@@ -111,13 +110,13 @@ function mapApproval(
   }
   return Object.freeze({
     fingerprint: string(approval["fingerprint"], `${field}.fingerprint`),
-    decisionId: decisionId as `ADR-${string}`
+    decisionId: decisionId as `ADR-${string}`,
   });
 }
 
 function mapEntrypoints(
   value: unknown,
-  packageIndex: number
+  packageIndex: number,
 ): readonly PublicApiEntrypointPolicy[] {
   const field = `packages[${packageIndex}].entrypoints`;
   if (!Array.isArray(value)) {
@@ -132,19 +131,17 @@ function mapEntrypoints(
           exportPath: typedExportPath(input["exportPath"], `${entrypointField}.exportPath`),
           declarationEntryPoint: path(
             input["declarationEntryPoint"],
-            `${entrypointField}.declarationEntryPoint`
-          )
+            `${entrypointField}.declarationEntryPoint`,
+          ),
         });
       })
-      .toSorted((left, right) =>
-        compareCanonicalReferences(left.exportPath, right.exportPath)
-      )
+      .toSorted((left, right) => compareCanonicalReferences(left.exportPath, right.exportPath)),
   );
 }
 
 function mapNonTypeExports(
   value: unknown,
-  packageIndex: number
+  packageIndex: number,
 ): readonly PublicApiNonTypeExportPolicy[] {
   const field = `packages[${packageIndex}].nonTypeExports`;
   if (!Array.isArray(value)) {
@@ -157,19 +154,14 @@ function mapNonTypeExports(
         const input = record(entrypoint, entrypointField);
         return Object.freeze({
           exportPath: normalizedExportPath(input["exportPath"], `${entrypointField}.exportPath`),
-          kind: nonTypeExportKind(input["kind"], `${entrypointField}.kind`)
+          kind: nonTypeExportKind(input["kind"], `${entrypointField}.kind`),
         });
       })
-      .toSorted((left, right) =>
-        compareCanonicalReferences(left.exportPath, right.exportPath)
-      )
+      .toSorted((left, right) => compareCanonicalReferences(left.exportPath, right.exportPath)),
   );
 }
 
-function mapPackage(
-  value: unknown,
-  index: number
-): PublicApiPackagePolicy {
+function mapPackage(value: unknown, index: number): PublicApiPackagePolicy {
   const field = `packages[${index}]`;
   const input = record(value, field);
   const packageRoot = path(input["packageRoot"], `${field}.packageRoot`);
@@ -193,17 +185,15 @@ function mapPackage(
     packageRoot,
     manifestPath,
     tsconfigPath,
-    releasedBaselinePath: path(input["releasedBaselinePath"], `${field}.releasedBaselinePath`)
+    releasedBaselinePath: path(input["releasedBaselinePath"], `${field}.releasedBaselinePath`),
   };
   return Object.freeze({
     ...common,
     entrypoints,
     nonTypeExports,
     approvedBreakingChanges: Object.freeze(
-      approvals.map((approval, approvalIndex) =>
-        mapApproval(approval, index, approvalIndex)
-      )
-    )
+      approvals.map((approval, approvalIndex) => mapApproval(approval, index, approvalIndex)),
+    ),
   });
 }
 
@@ -217,9 +207,7 @@ function validatePolicy(policy: PublicApiCompatibilityPolicy): void {
     names.add(packagePolicy.packageName);
     const expectedAnchor = publicApiBaselineAnchorPath(packagePolicy.packageName);
     if (packagePolicy.releasedBaselinePath !== expectedAnchor) {
-      inputError(
-        `Released baseline path must use the stable package anchor: ${expectedAnchor}.`
-      );
+      inputError(`Released baseline path must use the stable package anchor: ${expectedAnchor}.`);
     }
     if (baselines.has(packagePolicy.releasedBaselinePath)) {
       inputError(`Released baseline path is duplicated: ${packagePolicy.releasedBaselinePath}.`);
@@ -236,7 +224,7 @@ function validatePolicy(policy: PublicApiCompatibilityPolicy): void {
     for (const entrypoint of packagePolicy.entrypoints) {
       if (exportPaths.has(entrypoint.exportPath)) {
         inputError(
-          `Package export path is duplicated: ${packagePolicy.packageName}:${entrypoint.exportPath}.`
+          `Package export path is duplicated: ${packagePolicy.packageName}:${entrypoint.exportPath}.`,
         );
       }
       exportPaths.add(entrypoint.exportPath);
@@ -244,7 +232,7 @@ function validatePolicy(policy: PublicApiCompatibilityPolicy): void {
     for (const nonTypeExport of packagePolicy.nonTypeExports) {
       if (exportPaths.has(nonTypeExport.exportPath)) {
         inputError(
-          `Package export path is declared as both typed and non-type: ${packagePolicy.packageName}:${nonTypeExport.exportPath}.`
+          `Package export path is declared as both typed and non-type: ${packagePolicy.packageName}:${nonTypeExport.exportPath}.`,
         );
       }
       exportPaths.add(nonTypeExport.exportPath);
@@ -276,20 +264,19 @@ export function parseCapabilityConfig(root: Record<string, unknown>): PublicApiC
   const common = {
     changesetDirectory: path(root["changesetDirectory"], "changesetDirectory"),
     packages: Object.freeze(
-      packages.map((packagePolicy, index) => mapPackage(packagePolicy, index))
-    )
+      packages.map((packagePolicy, index) => mapPackage(packagePolicy, index)),
+    ),
   };
   const hasBreakingApprovals = common.packages.some(
-    (packagePolicy) => packagePolicy.approvedBreakingChanges.length > 0
+    (packagePolicy) => packagePolicy.approvedBreakingChanges.length > 0,
   );
   const policy: PublicApiCompatibilityPolicy = Object.freeze({
     schemaVersion: 1,
     acceptedDecisionBaselinePath:
-      decisionBaselinePath ??
-      inputError("schemaVersion 1 requires acceptedDecisionBaselinePath."),
+      decisionBaselinePath ?? inputError("schemaVersion 1 requires acceptedDecisionBaselinePath."),
     ...(governancePath === undefined ? {} : { governanceConfigPath: governancePath }),
     changesetDirectory: common.changesetDirectory,
-    packages: common.packages
+    packages: common.packages,
   });
   if (hasBreakingApprovals && policy.governanceConfigPath === undefined) {
     inputError("governanceConfigPath is required when breaking approvals are declared.");

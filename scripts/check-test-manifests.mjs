@@ -3,13 +3,18 @@ import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { PUBLISHABLE_PACKAGES } from "./publishable-packages.mjs";
-import { validateNodeTestContract } from "../packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/inbound/node-test-execution/runner.ts";
+import { validateNodeTestContract } from "../packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/inbound/node-test-execution/contract-validation.ts";
 
 const scriptRoot = dirname(fileURLToPath(import.meta.url));
 export const repositoryRoot = dirname(scriptRoot);
 const shardManifestPath = join(repositoryRoot, "tests", "manifests", "test-shards.v1.json");
 const coverageManifestPath = join(repositoryRoot, "tests", "manifests", "coverage.v1.json");
-const mandatoryContractPath = join(repositoryRoot, "architecture", "foundation", "node-test-execution.json");
+const mandatoryContractPath = join(
+  repositoryRoot,
+  "architecture",
+  "foundation",
+  "node-test-execution.json",
+);
 const portablePackageRoot = /^packages\/[a-z0-9][a-z0-9.-]*$/u;
 const portableTestFilename = /^[a-z0-9][a-z0-9.-]*\.test\.(?:mjs|mts|ts)$/u;
 const windowsReservedTestName = /^(?:aux|con|nul|prn|com[1-9]|lpt[1-9])(?:\.|$)/iu;
@@ -29,8 +34,9 @@ const linuxManagedTests = Object.freeze([
 ]);
 
 export function validateManagedTestPlatforms(manifest) {
-  const actual = manifest.tests.filter((path) =>
-    path.startsWith("packages/docs-protocol-agent-teams/tests/managed-runtime-")).toSorted();
+  const actual = manifest.tests
+    .filter((path) => path.startsWith("packages/docs-protocol-agent-teams/tests/managed-runtime-"))
+    .toSorted();
   if (actual.join("\0") !== linuxManagedTests.join("\0")) {
     fail("managed runtime suite inventory requires an explicit platform policy review");
   }
@@ -46,14 +52,21 @@ export function validateRepositoryShardPins(manifest) {
   }
 }
 
-export function selectTestPathsForPlatform(manifest, files, platform = process.platform,
-  architecture = process.arch) {
+export function selectTestPathsForPlatform(
+  manifest,
+  files,
+  platform = process.platform,
+  architecture = process.arch,
+) {
   validateManagedTestPlatforms(manifest);
   if (!["linux", "win32", "darwin"].includes(platform)) {
     fail(`unsupported test platform: ${platform}`);
   }
-  if (files.length === 0 || new Set(files).size !== files.length ||
-      files.some((path) => !manifest.tests.includes(path))) {
+  if (
+    files.length === 0 ||
+    new Set(files).size !== files.length ||
+    files.some((path) => !manifest.tests.includes(path))
+  ) {
     fail("platform selection requires unique inventoried test paths");
   }
   const managedHost = platform === "linux" && architecture === "x64";
@@ -62,16 +75,25 @@ export function selectTestPathsForPlatform(manifest, files, platform = process.p
     fail("platform selection cannot dispatch an empty qualification");
   }
   const routed = files.filter((path) => !selected.includes(path));
-  process.stdout.write(`Test platform ${platform}/${architecture}: inventory=${manifest.testCount}, requested=${files.length}, selected=${selected.length}; Linux x64 qualification only=[${routed.join(", ")}]\n`);
+  process.stdout.write(
+    `Test platform ${platform}/${architecture}: inventory=${manifest.testCount}, requested=${files.length}, selected=${selected.length}; Linux x64 qualification only=[${routed.join(", ")}]\n`,
+  );
   return Object.freeze(selected);
 }
 
 function validTestRelativePath(path) {
   const segments = path.split("/");
-  if (segments.length === 1) { return portableTestFilename.test(path); }
-  return segments.length === 3 && segments[0] === "features" &&
-    /^[a-z0-9][a-z0-9-]*$/u.test(segments[1]) && !windowsReservedTestName.test(segments[1]) &&
-    portableTestFilename.test(segments[2]) && !windowsReservedTestName.test(segments[2]);
+  if (segments.length === 1) {
+    return portableTestFilename.test(path);
+  }
+  return (
+    segments.length === 3 &&
+    segments[0] === "features" &&
+    /^[a-z0-9][a-z0-9-]*$/u.test(segments[1]) &&
+    !windowsReservedTestName.test(segments[1]) &&
+    portableTestFilename.test(segments[2]) &&
+    !windowsReservedTestName.test(segments[2])
+  );
 }
 
 function packageRootsForPackages(packages) {
@@ -120,9 +142,10 @@ function compareDirectoryEntries(left, right) {
 }
 
 function validatePath(path, label, allowedTestRoots) {
-  const relativeRoot = typeof path === "string"
-    ? allowedTestRoots.find((candidate) => path.startsWith(`${candidate}/`))
-    : undefined;
+  const relativeRoot =
+    typeof path === "string"
+      ? allowedTestRoots.find((candidate) => path.startsWith(`${candidate}/`))
+      : undefined;
   const filename = relativeRoot === undefined ? undefined : path.slice(relativeRoot.length + 1);
   if (filename === undefined || !validTestRelativePath(filename)) {
     fail(`${label} must be a portable top-level test path: ${String(path)}`);
@@ -131,8 +154,9 @@ function validatePath(path, label, allowedTestRoots) {
     fail(`${label} uses a Windows-reserved filename: ${path}`);
   }
   const absolute = resolve(repositoryRoot, ...path.split("/"));
-  const allowedRoots = allowedTestRoots.map((root) =>
-    `${resolve(repositoryRoot, ...root.split("/"))}${sep}`);
+  const allowedRoots = allowedTestRoots.map(
+    (root) => `${resolve(repositoryRoot, ...root.split("/"))}${sep}`,
+  );
   if (!allowedRoots.some((root) => absolute.startsWith(root))) {
     fail(`${label} escapes the allowed test directories: ${path}`);
   }
@@ -176,7 +200,10 @@ function validateCoverageAdditionalTests(value, shardIds, allowedTestRoots) {
 
 function validateCoverageProjection(coverageManifest, packages) {
   const packageRoots = packageRootsForPackages(packages);
-  for (const [key, extension] of [["include", "js"], ["exclude", "d.ts"]]) {
+  for (const [key, extension] of [
+    ["include", "js"],
+    ["exclude", "d.ts"],
+  ]) {
     const actual = coverageManifest[key];
     if (!Array.isArray(actual) || actual.length === 0) {
       fail(`coverage ${key} must be a non-empty array`);
@@ -199,14 +226,20 @@ function validateCoverageProjection(coverageManifest, packages) {
       const orderDiffers = missing.length === 0 && unexpected.length === 0;
       fail(
         `coverage ${key} must exactly project publishable package roots in canonical order; ` +
-        `missing=[${missing.join(", ")}], unexpected=[${unexpected.join(", ")}]` +
-        (orderDiffers ? ", order differs" : ""),
+          `missing=[${missing.join(", ")}], unexpected=[${unexpected.join(", ")}]` +
+          (orderDiffers ? ", order differs" : ""),
       );
     }
   }
 }
 
-function validateCoverageManifest(coverageManifest, testPaths, shardIds, packages, allowedTestRoots) {
+function validateCoverageManifest(
+  coverageManifest,
+  testPaths,
+  shardIds,
+  packages,
+  allowedTestRoots,
+) {
   assertExactKeys(
     coverageManifest,
     [
@@ -226,7 +259,10 @@ function validateCoverageManifest(coverageManifest, testPaths, shardIds, package
     fail("unsupported coverage schemaVersion");
   }
   assertExactKeys(coverageManifest.tool, ["name", "version"], "coverage tool");
-  if (coverageManifest.tool.name !== "c8" || !/^\d+\.\d+\.\d+$/u.test(coverageManifest.tool.version)) {
+  if (
+    coverageManifest.tool.name !== "c8" ||
+    !/^\d+\.\d+\.\d+$/u.test(coverageManifest.tool.version)
+  ) {
     fail("coverage tool must pin an exact c8 version");
   }
   if (coverageManifest.processBootstrap !== "scripts/coverage-process-bootstrap.mjs") {
@@ -316,7 +352,9 @@ export function validateTestManifestData({
     const testSet = new Set(testPaths);
     const missing = sortedTests.filter((path) => !assignedSet.has(path));
     const extra = sortedAssigned.filter((path) => !testSet.has(path));
-    fail(`shard union differs from test files; missing=[${missing.join(", ")}], extra=[${extra.join(", ")}]`);
+    fail(
+      `shard union differs from test files; missing=[${missing.join(", ")}], extra=[${extra.join(", ")}]`,
+    );
   }
 
   return Object.freeze({
@@ -328,7 +366,9 @@ export function validateTestManifestData({
       ]),
     ),
     coverageTests: Object.freeze([...coverageManifest.legacyTests]),
-    shards: new Map(shardManifest.shards.map((shard) => [shard.id, Object.freeze([...shard.tests])])),
+    shards: new Map(
+      shardManifest.shards.map((shard) => [shard.id, Object.freeze([...shard.tests])]),
+    ),
     tests: Object.freeze([...testPaths]),
     testCount: testPaths.length,
   });
@@ -340,7 +380,9 @@ async function readJson(path) {
 
 export function validateMandatoryShardSelection(contract, manifest) {
   const { required } = validateNodeTestContract(contract);
-  const shardByFile = new Map([...manifest.shards].flatMap(([id, files]) => files.map((file) => [file, id])));
+  const shardByFile = new Map(
+    [...manifest.shards].flatMap(([id, files]) => files.map((file) => [file, id])),
+  );
   for (const item of required.values()) {
     if (linuxManagedTests.includes(item.file)) {
       fail(`mandatory identity needs a reviewed platform contract: ${item.file}`);
@@ -404,8 +446,11 @@ export async function validateTestManifests() {
   return result;
 }
 
-const invokedPath = process.argv[1] === undefined ? undefined : pathToFileURL(resolve(process.argv[1])).href;
+const invokedPath =
+  process.argv[1] === undefined ? undefined : pathToFileURL(resolve(process.argv[1])).href;
 if (invokedPath === import.meta.url) {
   const result = await validateTestManifests();
-  process.stdout.write(`Validated ${result.testCount} tests across ${result.shards.size} shards.\n`);
+  process.stdout.write(
+    `Validated ${result.testCount} tests across ${result.shards.size} shards.\n`,
+  );
 }

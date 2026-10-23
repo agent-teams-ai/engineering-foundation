@@ -8,9 +8,12 @@ export function parseStableVersion(version) {
 
 export function parseRcVersion(version) {
   const match = rcVersionPattern.exec(version);
-  return match === null ? undefined : {
-    core: match.slice(1, 4).map(BigInt), iteration: BigInt(match[4]),
-  };
+  return match === null
+    ? undefined
+    : {
+        core: match.slice(1, 4).map(BigInt),
+        iteration: BigInt(match[4]),
+      };
 }
 
 export function compareVersionCore(left, right) {

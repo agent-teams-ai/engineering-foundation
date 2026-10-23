@@ -28,10 +28,7 @@ export type ArchitectureDecisionBaselineExpectedState =
       readonly revision: string;
     };
 
-export type ArchitectureDecisionBaselineWriteResult =
-  | "created"
-  | "unchanged"
-  | "updated";
+export type ArchitectureDecisionBaselineWriteResult = "created" | "unchanged" | "updated";
 
 export interface ArchitectureDecisionBaselineRepository {
   read(input: {

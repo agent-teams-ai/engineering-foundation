@@ -2,10 +2,24 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { REGISTRY_OBSERVATION_ATTEMPTS, tarballIntegrity } from "../scripts/release-publish-ordered.mjs";
-import { assertNpmVersion, publishNpmArtifact, runTimedAudit } from "../scripts/release-publish-ordered-runtime.mjs";
+import {
+  REGISTRY_OBSERVATION_ATTEMPTS,
+  tarballIntegrity,
+} from "../scripts/release-publish-ordered.mjs";
+import {
+  assertNpmVersion,
+  publishNpmArtifact,
+  runTimedAudit,
+} from "../scripts/release-publish-ordered-runtime.mjs";
 import { PUBLISHABLE_PACKAGES } from "../scripts/publishable-packages.mjs";
-import { foundation, harness, present, RELEASE_TIMESTAMPS, run, source } from "./support/release-publish-ordered-fixtures.mjs";
+import {
+  foundation,
+  harness,
+  present,
+  RELEASE_TIMESTAMPS,
+  run,
+  source,
+} from "./support/release-publish-ordered-fixtures.mjs";
 
 test("ordered publishing requires the pinned npm version", () => {
   assert.doesNotThrow(() => assertNpmVersion("11.19.0"));
@@ -16,9 +30,15 @@ test("ordered publishing requires the pinned npm version", () => {
 });
 
 test("ordered publisher rejects an npm mismatch before packing", () => {
-  const result = spawnSync(process.execPath, [
-    fileURLToPath(new URL("./support/release-runtime-probe.mjs", import.meta.url)), "wrong-npm", "lf",
-  ], { encoding: "utf8", timeout: 30_000 });
+  const result = spawnSync(
+    process.execPath,
+    [
+      fileURLToPath(new URL("./support/release-runtime-probe.mjs", import.meta.url)),
+      "wrong-npm",
+      "lf",
+    ],
+    { encoding: "utf8", timeout: 30_000 },
+  );
   assert.ifError(result.error);
   assert.equal(result.status, 0, result.stdout + result.stderr);
   const evidence = JSON.parse(result.stdout.trim().split("\n").at(-1));
@@ -28,9 +48,15 @@ test("ordered publisher rejects an npm mismatch before packing", () => {
 
 for (const stage of ["metadata", "tarball", "attestation"]) {
   test(`visibility deadline aborts an awaited ${stage} body without another publish`, () => {
-    const result = spawnSync(process.execPath, [
-      fileURLToPath(new URL("./support/release-runtime-probe.mjs", import.meta.url)), `${stage}-body-abort`, "lf",
-    ], { encoding: "utf8", timeout: 30_000 });
+    const result = spawnSync(
+      process.execPath,
+      [
+        fileURLToPath(new URL("./support/release-runtime-probe.mjs", import.meta.url)),
+        `${stage}-body-abort`,
+        "lf",
+      ],
+      { encoding: "utf8", timeout: 30_000 },
+    );
     assert.ifError(result.error);
     assert.equal(result.status, 0, result.stdout + result.stderr);
     assert.doesNotMatch(result.stdout + result.stderr, /credential-secret/u);
@@ -41,7 +67,10 @@ for (const stage of ["metadata", "tarball", "attestation"]) {
 for (const [outcome, result] of [
   ["nonzero", { status: 1, stderr: "npm error code E503\nBearer credential-secret" }],
   ["not-started", { status: 1, stderr: "npm error code ENEEDAUTH\ncredential-secret" }],
-  ["unknown", { status: null, error: Object.assign(new Error("credential-secret"), { code: "ETIMEDOUT" }) }],
+  [
+    "unknown",
+    { status: null, error: Object.assign(new Error("credential-secret"), { code: "ETIMEDOUT" }) },
+  ],
 ]) {
   test(`lifecycle records distinguish ${outcome} without raw npm output`, async () => {
     const runtime = harness();
@@ -51,11 +80,16 @@ for (const [outcome, result] of [
       attempts += 1;
       publishNpmArtifact(value, tag, { spawn: () => result });
     };
-    await assert.rejects(run(runtime, { reportProgress: record => records.push(record) }));
+    await assert.rejects(run(runtime, { reportProgress: (record) => records.push(record) }));
     assert.equal(attempts, 1);
-    assert.ok(records.some(record => record.stage === "npm-publish" && record.status === outcome));
+    assert.ok(
+      records.some((record) => record.stage === "npm-publish" && record.status === outcome),
+    );
     assert.doesNotMatch(JSON.stringify(records), /credential-secret|Bearer/u);
-    assert.equal(runtime.calls.some(call => /^(signature|release):/u.test(call)), false);
+    assert.equal(
+      runtime.calls.some((call) => /^(signature|release):/u.test(call)),
+      false,
+    );
   });
 }
 
@@ -70,22 +104,45 @@ for (const [scenario, expectedSignatures] of [
   ["attestation-e404-persistent-final-auth-timeout", REGISTRY_OBSERVATION_ATTEMPTS],
   ["attestation-empty-then-valid", PUBLISHABLE_PACKAGES.length + 1],
   ["attestation-empty-persistent", REGISTRY_OBSERVATION_ATTEMPTS],
-  ...["malformed-json", "malformed-evidence", "malformed-bundles", "invalid", "missing-signature",
-    "ambiguous-target", "ambiguous-bundles", "partial", "wrong-source", "wrong-sri"]
-    .map(reason => [`attestation-${reason}`, 1]),
+  ...[
+    "malformed-json",
+    "malformed-evidence",
+    "malformed-bundles",
+    "invalid",
+    "missing-signature",
+    "ambiguous-target",
+    "ambiguous-bundles",
+    "partial",
+    "wrong-source",
+    "wrong-sri",
+  ].map((reason) => [`attestation-${reason}`, 1]),
 ]) {
   test(`npm attestation verification handles ${scenario} without another publish`, () => {
-    const result = spawnSync(process.execPath, [
-      fileURLToPath(new URL("./support/release-runtime-probe.mjs", import.meta.url)), scenario, "lf",
-    ], { encoding: "utf8", timeout: 30_000 });
+    const result = spawnSync(
+      process.execPath,
+      [
+        fileURLToPath(new URL("./support/release-runtime-probe.mjs", import.meta.url)),
+        scenario,
+        "lf",
+      ],
+      { encoding: "utf8", timeout: 30_000 },
+    );
     assert.ifError(result.error);
     assert.equal(result.status, 0, result.stdout + result.stderr);
     const evidence = JSON.parse(result.stdout.trim().split("\n").at(-1));
-    assert.equal(evidence.events.filter((event) => event.operation === "signature").length, expectedSignatures);
-    assert.equal(evidence.events.filter((event) => event.operation === "publish-attempt").length,
-      scenario.endsWith("-then-valid") ? PUBLISHABLE_PACKAGES.length : 1);
-    assert.ok(evidence.events.filter(event => event.operation === "signature")
-      .every(event => event.preferOnline === true));
+    assert.equal(
+      evidence.events.filter((event) => event.operation === "signature").length,
+      expectedSignatures,
+    );
+    assert.equal(
+      evidence.events.filter((event) => event.operation === "publish-attempt").length,
+      scenario.endsWith("-then-valid") ? PUBLISHABLE_PACKAGES.length : 1,
+    );
+    assert.ok(
+      evidence.events
+        .filter((event) => event.operation === "signature")
+        .every((event) => event.preferOnline === true),
+    );
     assert.doesNotMatch(result.stdout + result.stderr, /credential-secret/u);
   });
 }
@@ -93,9 +150,14 @@ for (const [scenario, expectedSignatures] of [
 // A child that traps SIGTERM must still be killed at the audit timeout.
 test("timed audit forcibly terminates a child that ignores SIGTERM", () => {
   const started = performance.now();
-  const result = runTimedAudit(process.execPath, ["-e",
-    "process.on('SIGTERM', () => {}); process.stdout.write('ready'); setInterval(() => {}, 1000);",
-  ], { timeout: 2_000 });
+  const result = runTimedAudit(
+    process.execPath,
+    [
+      "-e",
+      "process.on('SIGTERM', () => {}); process.stdout.write('ready'); setInterval(() => {}, 1000);",
+    ],
+    { timeout: 2_000 },
+  );
   assert.equal(result.stdout, "ready");
   assert.equal(result.error?.code, "ETIMEDOUT");
   assert.equal(result.signal, "SIGKILL");
@@ -110,19 +172,30 @@ for (const code of ["ENEEDAUTH", "EUSAGE", "EPRIVATE", "ENOENT", "EACCES"]) {
     runtime.publish = async (value, tag) => {
       runtime.calls.push(`publish:${value.name}:${tag}`);
       inspectionsAtPublish = runtime.calls.filter((call) => call.startsWith("inspect:")).length;
-      publishNpmArtifact(value, tag, { spawn: () => ["ENOENT", "EACCES"].includes(code)
-        ? { error: Object.assign(new Error("secret"), { code }), pid: 0, status: null }
-        : { status: 1, stderr: `npm error code ${code}\nnpm error secret` } });
+      publishNpmArtifact(value, tag, {
+        spawn: () =>
+          ["ENOENT", "EACCES"].includes(code)
+            ? { error: Object.assign(new Error("secret"), { code }), pid: 0, status: null }
+            : { status: 1, stderr: `npm error code ${code}\nnpm error secret` },
+      });
     };
-    await assert.rejects(run(runtime, { reportPublishFailure: (message) => diagnostics.push(message) }),
+    await assert.rejects(
+      run(runtime, { reportPublishFailure: (message) => diagnostics.push(message) }),
       (error) => {
         assert.match(error.message, new RegExp(`${code}.*publication did not start`, "u"));
         assert.doesNotMatch(error.message, /secret/u);
         return true;
-      });
-    assert.equal(runtime.calls.filter((call) => call.startsWith("inspect:")).length, inspectionsAtPublish);
+      },
+    );
+    assert.equal(
+      runtime.calls.filter((call) => call.startsWith("inspect:")).length,
+      inspectionsAtPublish,
+    );
     assert.equal(runtime.calls.filter((call) => call.startsWith("publish:")).length, 1);
-    assert.equal(runtime.calls.some((call) => /^(?:signature|release):/u.test(call)), false);
+    assert.equal(
+      runtime.calls.some((call) => /^(?:signature|release):/u.test(call)),
+      false,
+    );
     assert.equal(diagnostics.length, 1);
   });
 }
@@ -145,15 +218,26 @@ for (const result of [
       inspectionsAtPublish = runtime.calls.filter((call) => call.startsWith("inspect:")).length;
       publishNpmArtifact(value, tag, { spawn: () => result });
     };
-    await assert.rejects(run(runtime, { reportPublishFailure: (message) => diagnostics.push(message) }),
+    await assert.rejects(
+      run(runtime, { reportPublishFailure: (message) => diagnostics.push(message) }),
       (error) => {
-        assert.match(error.message, /remained absent.*initial publish failure: npm publish failed/u);
+        assert.match(
+          error.message,
+          /remained absent.*initial publish failure: npm publish failed/u,
+        );
         assert.doesNotMatch(error.message, /secret/u);
         return true;
-      });
-    assert.equal(runtime.calls.filter((call) => call.startsWith("inspect:")).length, inspectionsAtPublish + 2);
+      },
+    );
+    assert.equal(
+      runtime.calls.filter((call) => call.startsWith("inspect:")).length,
+      inspectionsAtPublish + 2,
+    );
     assert.equal(runtime.calls.filter((call) => call.startsWith("publish:")).length, 1);
-    assert.equal(runtime.calls.some((call) => /^(?:signature|release):/u.test(call)), false);
+    assert.equal(
+      runtime.calls.some((call) => /^(?:signature|release):/u.test(call)),
+      false,
+    );
     assert.equal(diagnostics.length, 1);
   });
 }
@@ -164,10 +248,14 @@ test("lost npm response logs sanitized failure and still verifies accepted artif
   const diagnostics = [];
   runtime.publish = async (value, tag) => {
     await originalPublish(value, tag);
-    publishNpmArtifact(value, tag, { spawn: () => ({ status: 1,
-      stderr: "npm error code ECONNRESET\nAuthorization: Bearer secret\nhttps://user:password@example.test/?token=secret",
-      stdout: "secret",
-    }) });
+    publishNpmArtifact(value, tag, {
+      spawn: () => ({
+        status: 1,
+        stderr:
+          "npm error code ECONNRESET\nAuthorization: Bearer secret\nhttps://user:password@example.test/?token=secret",
+        stdout: "secret",
+      }),
+    });
   };
   await run(runtime, { reportPublishFailure: (message) => diagnostics.push(message) });
   assert.equal(diagnostics.length, 10);
@@ -180,20 +268,32 @@ test("lost npm response logs sanitized failure and still verifies accepted artif
 
 test("npm adapter preserves exact invocation and accepts zero exit", () => {
   const value = { ...foundation, archivePath: "/tmp/qualified.tgz" };
-  publishNpmArtifact(value, "latest", { cwd: "/tmp", spawn: (command, args, options) => {
-    assert.equal(command, "npm");
-    assert.deepEqual(args, [
-      "publish", "/tmp/qualified.tgz", "--access", "public", "--tag", "latest",
-      "--provenance", "--ignore-scripts", "--registry=https://registry.npmjs.org/",
-    ]);
-    assert.equal(options.cwd, "/tmp");
-    return { status: 0, stdout: "ignored", stderr: "" };
-  } });
+  publishNpmArtifact(value, "latest", {
+    cwd: "/tmp",
+    spawn: (command, args, options) => {
+      assert.equal(command, "npm");
+      assert.deepEqual(args, [
+        "publish",
+        "/tmp/qualified.tgz",
+        "--access",
+        "public",
+        "--tag",
+        "latest",
+        "--provenance",
+        "--ignore-scripts",
+        "--registry=https://registry.npmjs.org/",
+      ]);
+      assert.equal(options.cwd, "/tmp");
+      return { status: 0, stdout: "ignored", stderr: "" };
+    },
+  });
 });
 
 test("unclassified exceptions reconcile without leaking raw exception text", async () => {
   const runtime = harness();
-  runtime.publish = async () => { throw new Error("credential-secret"); };
+  runtime.publish = async () => {
+    throw new Error("credential-secret");
+  };
   await assert.rejects(run(runtime), (error) => {
     assert.match(error.message, /remained absent.*initial publish failure.*unclassified/u);
     assert.doesNotMatch(error.message, /credential-secret/u);
@@ -207,19 +307,28 @@ test("ambiguous publication still rejects conflicting registry bytes with initia
     const state = present(value, RELEASE_TIMESTAMPS.get(value.name), tag);
     state.integrity = tarballIntegrity(Buffer.from("conflicting bytes"));
     runtime.states.set(value.name, state);
-    publishNpmArtifact(value, tag, { spawn: () => ({ status: 1, stderr: "npm error code ECONNRESET" }) });
+    publishNpmArtifact(value, tag, {
+      spawn: () => ({ status: 1, stderr: "npm error code ECONNRESET" }),
+    });
   };
   await assert.rejects(run(runtime), /different tarball SRI.*initial publish failure.*ECONNRESET/u);
-  assert.equal(runtime.calls.some((call) => /^(?:signature|release):/u.test(call)), false);
+  assert.equal(
+    runtime.calls.some((call) => /^(?:signature|release):/u.test(call)),
+    false,
+  );
 });
 
 for (const lazy of [false, true]) {
   test(`signature fixture resolves and clones present state (lazy=${lazy})`, async () => {
     const snapshot = present(foundation, RELEASE_TIMESTAMPS.get(foundation.name));
-    const runtime = harness({ [foundation.name]: lazy ? async (value) => {
-      assert.equal(value, foundation);
-      return snapshot;
-    } : snapshot });
+    const runtime = harness({
+      [foundation.name]: lazy
+        ? async (value) => {
+            assert.equal(value, foundation);
+            return snapshot;
+          }
+        : snapshot,
+    });
     assert.deepEqual(await runtime.inspect(foundation), snapshot);
     const provenance = await runtime.verifySignature(foundation);
     assert.deepEqual(provenance, snapshot.provenance);
@@ -230,30 +339,54 @@ for (const lazy of [false, true]) {
       const runtime = harness({ [foundation.name]: lazy ? async () => state : state });
       await assert.rejects(runtime.verifySignature(foundation), (error) => {
         assert.equal(error.constructor, Error);
-        assert.equal(error.message, `Signature verification requires a present snapshot for ${foundation.name}.`);
+        assert.equal(
+          error.message,
+          `Signature verification requires a present snapshot for ${foundation.name}.`,
+        );
         return true;
       });
     });
   }
 }
 
-for (const rejection of [undefined, null, { message: 42 }, {},
-  new Error("Ordered release refused: ancestry lookup failed")]) {
+for (const rejection of [
+  undefined,
+  null,
+  { message: 42 },
+  {},
+  new Error("Ordered release refused: ancestry lookup failed"),
+]) {
   test(`ancestry rejection retains initial publish diagnostic: ${rejection instanceof Error ? rejection.message : JSON.stringify(rejection)}`, async () => {
     const runtime = harness();
     const originalPublish = runtime.publish;
     runtime.publish = async (value, tag) => {
       await originalPublish(value, tag);
-      publishNpmArtifact(value, tag, { spawn: () => ({ status: 1, stderr: "npm error code ECONNRESET" }) });
+      publishNpmArtifact(value, tag, {
+        spawn: () => ({ status: 1, stderr: "npm error code ECONNRESET" }),
+      });
     };
-    await assert.rejects(run(runtime, {
-      source: { ...source, isTrustedCommit: async () => { throw rejection; } },
-    }), {
-      name: "Error",
-      message: `Ordered release refused: ${rejection instanceof Error
-        ? "ancestry lookup failed" : "registry observation failed with an unclassified error"}; initial publish failure: npm publish failed; code=ECONNRESET; exit=1; signal=none-or-unknown; raw output omitted`,
-    });
+    await assert.rejects(
+      run(runtime, {
+        source: {
+          ...source,
+          isTrustedCommit: async () => {
+            throw rejection;
+          },
+        },
+      }),
+      {
+        name: "Error",
+        message: `Ordered release refused: ${
+          rejection instanceof Error
+            ? "ancestry lookup failed"
+            : "registry observation failed with an unclassified error"
+        }; initial publish failure: npm publish failed; code=ECONNRESET; exit=1; signal=none-or-unknown; raw output omitted`,
+      },
+    );
     assert.equal(runtime.calls.filter((call) => call.startsWith("publish:")).length, 1);
-    assert.equal(runtime.calls.some((call) => /^(?:signature|release):/u.test(call)), false);
+    assert.equal(
+      runtime.calls.some((call) => /^(?:signature|release):/u.test(call)),
+      false,
+    );
   });
 }

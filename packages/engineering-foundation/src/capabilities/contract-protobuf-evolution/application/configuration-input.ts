@@ -7,7 +7,7 @@ export function configurationInputError(message: string): never {
     code: "PROTOBUF_EVOLUTION_CONFIG_INVALID",
     message,
     phase: "protobuf-evolution-config",
-    retryable: false
+    retryable: false,
   });
 }
 export function assertConfigurationRepositoryPath(path: string): void {

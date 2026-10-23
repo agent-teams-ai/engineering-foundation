@@ -1,7 +1,7 @@
 import type {
   NormalizedQualityGatePolicy,
   NormalizedQualityGateProfile,
-  QualityGateTask
+  QualityGateTask,
 } from "../model/quality-gate.js";
 
 export class QualityGateGraphError extends Error {
@@ -36,7 +36,7 @@ function assertAcyclic(profile: NormalizedQualityGateProfile): void {
       const cycleStart = path.indexOf(id);
       const cycle = [...path.slice(cycleStart), id];
       throw new QualityGateGraphError(
-        `Profile ${profile.id} contains a dependency cycle: ${cycle.join(" -> ")}.`
+        `Profile ${profile.id} contains a dependency cycle: ${cycle.join(" -> ")}.`,
       );
     }
     if (visited.has(id)) {
@@ -66,7 +66,7 @@ export function validateQualityGatePolicy(policy: NormalizedQualityGatePolicy): 
     const duplicateTask = duplicate(taskIds);
     if (duplicateTask !== undefined) {
       throw new QualityGateGraphError(
-        `Profile ${profile.id} contains duplicate task ID: ${duplicateTask}.`
+        `Profile ${profile.id} contains duplicate task ID: ${duplicateTask}.`,
       );
     }
     const known = new Set(taskIds);
@@ -74,12 +74,12 @@ export function validateQualityGatePolicy(policy: NormalizedQualityGatePolicy): 
       for (const dependency of dependencies(task)) {
         if (dependency === task.id) {
           throw new QualityGateGraphError(
-            `Profile ${profile.id} task ${task.id} cannot depend on itself.`
+            `Profile ${profile.id} task ${task.id} cannot depend on itself.`,
           );
         }
         if (!known.has(dependency)) {
           throw new QualityGateGraphError(
-            `Profile ${profile.id} task ${task.id} references unknown task ${dependency}.`
+            `Profile ${profile.id} task ${task.id} references unknown task ${dependency}.`,
           );
         }
       }
@@ -87,7 +87,7 @@ export function validateQualityGatePolicy(policy: NormalizedQualityGatePolicy): 
       const overlap = task.after.find((dependency) => needs.has(dependency));
       if (overlap !== undefined) {
         throw new QualityGateGraphError(
-          `Profile ${profile.id} task ${task.id} declares ${overlap} in both needs and after.`
+          `Profile ${profile.id} task ${task.id} declares ${overlap} in both needs and after.`,
         );
       }
     }

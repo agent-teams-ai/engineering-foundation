@@ -1,14 +1,10 @@
-import type {
-  ConsumerIntegrationExecutionV1
-} from "../model/consumer-integration-execution.js";
+import type { ConsumerIntegrationExecutionV1 } from "../model/consumer-integration-execution.js";
 import type {
   ConsumerAssetCatalogReader,
   ConsumerIntegrationInputReader,
-  ConsumerIntegrationTransactionPort
+  ConsumerIntegrationTransactionPort,
 } from "../ports/consumer-integration-lifecycle.js";
-import type {
-  ConsumerIntegrationPlanningPorts
-} from "../ports/consumer-integration-planners.js";
+import type { ConsumerIntegrationPlanningPorts } from "../ports/consumer-integration-planners.js";
 import { compileConsumerIntegration } from "./plan-consumer-integration.js";
 import type { ConsumerIntegrationIssue } from "../../domain/model.js";
 
@@ -24,43 +20,48 @@ async function compile(
   options: {
     readonly consumerRoot: string;
     readonly integrationProfilePath?: string;
-  }
+  },
 ) {
   const input = await ports.input.read(options);
-  const compiled = compileConsumerIntegration({
-    desired: input.desired,
-    snapshot: input.snapshot,
-    assetCatalog: await ports.assets.read()
-  }, ports.planning);
+  const compiled = compileConsumerIntegration(
+    {
+      desired: input.desired,
+      snapshot: input.snapshot,
+      assetCatalog: await ports.assets.read(),
+    },
+    ports.planning,
+  );
   return {
     root: input.root,
-    ...compiled
+    ...compiled,
   };
 }
 
 async function recoveryIssue(
   transaction: ConsumerIntegrationTransactionPort,
-  consumerRoot: string
+  consumerRoot: string,
 ): Promise<ConsumerIntegrationIssue | undefined> {
   const inspection = await transaction.inspect({ consumerRoot });
-  if (inspection.state === "idle") {return undefined;}
+  if (inspection.state === "idle") {
+    return undefined;
+  }
   return Object.freeze({
     code: inspection.code,
     severity: "error",
     subject: "foundation-transaction",
-    message: inspection.message
+    message: inspection.message,
   });
 }
 
 function blockedExecution(
   command: ConsumerIntegrationExecutionV1["command"],
-  issue: ConsumerIntegrationIssue
+  issue: ConsumerIntegrationIssue,
 ): ConsumerIntegrationExecutionV1 {
   return Object.freeze({
     schemaVersion: 1,
     command,
     outcome: "blocked",
-    issues: Object.freeze([issue])
+    issues: Object.freeze([issue]),
   });
 }
 
@@ -71,14 +72,16 @@ export function createConsumerIntegrationUseCases(ports: ConsumerIntegrationLife
       readonly integrationProfilePath?: string;
     }): Promise<ConsumerIntegrationExecutionV1> {
       const issue = await recoveryIssue(ports.transaction, options.consumerRoot);
-      if (issue !== undefined) {return blockedExecution("consumer.check", issue);}
+      if (issue !== undefined) {
+        return blockedExecution("consumer.check", issue);
+      }
       const { plan } = await compile(ports, options);
       return Object.freeze({
         schemaVersion: 1,
         command: "consumer.check",
         outcome: plan.outcome,
         issues: plan.issues,
-        plan
+        plan,
       });
     },
 
@@ -88,20 +91,24 @@ export function createConsumerIntegrationUseCases(ports: ConsumerIntegrationLife
       readonly to: string;
     }): Promise<ConsumerIntegrationExecutionV1> {
       const issue = await recoveryIssue(ports.transaction, options.consumerRoot);
-      if (issue !== undefined) {return blockedExecution("consumer.plan", issue);}
+      if (issue !== undefined) {
+        return blockedExecution("consumer.plan", issue);
+      }
       const { plan } = await compile(ports, options);
       if (plan.cohortId !== options.to) {
         return Object.freeze({
           schemaVersion: 1,
           command: "consumer.plan",
           outcome: "blocked",
-          issues: Object.freeze([{
-            code: "DOCS_CONSUMER_TARGET_COHORT_MISMATCH",
-            severity: "error" as const,
-            subject: options.to,
-            message: `Integration profile selects ${plan.cohortId}, not requested cohort ${options.to}.`
-          }]),
-          plan
+          issues: Object.freeze([
+            {
+              code: "DOCS_CONSUMER_TARGET_COHORT_MISMATCH",
+              severity: "error" as const,
+              subject: options.to,
+              message: `Integration profile selects ${plan.cohortId}, not requested cohort ${options.to}.`,
+            },
+          ]),
+          plan,
         });
       }
       return Object.freeze({
@@ -109,7 +116,7 @@ export function createConsumerIntegrationUseCases(ports: ConsumerIntegrationLife
         command: "consumer.plan",
         outcome: plan.outcome,
         issues: plan.issues,
-        plan
+        plan,
       });
     },
 
@@ -119,20 +126,24 @@ export function createConsumerIntegrationUseCases(ports: ConsumerIntegrationLife
       readonly integrationProfilePath?: string;
     }): Promise<ConsumerIntegrationExecutionV1> {
       const issue = await recoveryIssue(ports.transaction, options.consumerRoot);
-      if (issue !== undefined) {return blockedExecution("consumer.apply", issue);}
+      if (issue !== undefined) {
+        return blockedExecution("consumer.apply", issue);
+      }
       const { root, plan, mutationPlan } = await compile(ports, options);
       if (plan.planDigest !== options.expect) {
         return Object.freeze({
           schemaVersion: 1,
           command: "consumer.apply",
           outcome: "blocked",
-          issues: Object.freeze([{
-            code: "DOCS_CONSUMER_STALE_PLAN",
-            severity: "error" as const,
-            subject: "--expect",
-            message: `Expected ${options.expect}, but fresh Plan digest is ${plan.planDigest}.`
-          }]),
-          plan
+          issues: Object.freeze([
+            {
+              code: "DOCS_CONSUMER_STALE_PLAN",
+              severity: "error" as const,
+              subject: "--expect",
+              message: `Expected ${options.expect}, but fresh Plan digest is ${plan.planDigest}.`,
+            },
+          ]),
+          plan,
         });
       }
       if (plan.outcome === "blocked" || mutationPlan === undefined) {
@@ -141,12 +152,12 @@ export function createConsumerIntegrationUseCases(ports: ConsumerIntegrationLife
           command: "consumer.apply",
           outcome: "blocked",
           issues: plan.issues,
-          plan
+          plan,
         });
       }
       const receipt = await ports.transaction.apply({
         consumerRoot: root,
-        plan: mutationPlan
+        plan: mutationPlan,
       });
       const after = await compile(ports, options);
       if (after.plan.outcome !== "current") {
@@ -158,7 +169,7 @@ export function createConsumerIntegrationUseCases(ports: ConsumerIntegrationLife
         outcome: receipt.outcome === "applied" ? "applied" : "current",
         issues: Object.freeze([]),
         plan: after.plan,
-        receipt
+        receipt,
       });
     },
 
@@ -166,15 +177,15 @@ export function createConsumerIntegrationUseCases(ports: ConsumerIntegrationLife
       readonly consumerRoot: string;
     }): Promise<ConsumerIntegrationExecutionV1> {
       const receipt = await ports.transaction.recover({
-        consumerRoot: options.consumerRoot
+        consumerRoot: options.consumerRoot,
       });
       return Object.freeze({
         schemaVersion: 1,
         command: "consumer.recover",
         outcome: "recovered",
         issues: Object.freeze([]),
-        receipt
+        receipt,
       });
-    }
+    },
   });
 }

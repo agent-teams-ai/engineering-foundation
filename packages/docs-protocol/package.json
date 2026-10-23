@@ -2,24 +2,19 @@
   "name": "@agent-teams/docs-protocol",
   "version": "0.6.5",
   "description": "Deterministic documentation authoring and agent-context protocol for any repository.",
+  "homepage": "https://github.com/agent-teams-ai/engineering-foundation#readme",
+  "bugs": {
+    "url": "https://github.com/agent-teams-ai/engineering-foundation/issues"
+  },
   "license": "Apache-2.0",
-  "type": "module",
-  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agent-teams-ai/engineering-foundation.git",
+    "directory": "packages/docs-protocol"
+  },
   "bin": {
     "agent-teams-docs": "./dist/cli.js",
     "docs-protocol": "./dist/cli.js"
-  },
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    },
-    "./qualification": {
-      "types": "./dist/qualification/index.d.ts",
-      "import": "./dist/qualification/index.js"
-    },
-    "./schemas/*": "./schemas/*",
-    "./package.json": "./package.json"
   },
   "files": [
     "dist",
@@ -34,27 +29,28 @@
     "CHANGELOG.md",
     "LICENSE"
   ],
-  "scripts": {
-    "build": "tsc --build tsconfig.json --pretty false",
-    "test": "pnpm build && node --test tests/*.test.mjs"
-  },
-  "engines": {
-    "node": "^24.18.0 || ^26.0.0",
-    "pnpm": ">=11.17.0 <12"
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./qualification": {
+      "types": "./dist/qualification/index.d.ts",
+      "import": "./dist/qualification/index.js"
+    },
+    "./schemas/*": "./schemas/*",
+    "./package.json": "./package.json"
   },
   "publishConfig": {
     "access": "public",
     "provenance": true,
     "registry": "https://registry.npmjs.org/"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/agent-teams-ai/engineering-foundation.git",
-    "directory": "packages/docs-protocol"
-  },
-  "homepage": "https://github.com/agent-teams-ai/engineering-foundation#readme",
-  "bugs": {
-    "url": "https://github.com/agent-teams-ai/engineering-foundation/issues"
+  "scripts": {
+    "build": "tsc --build tsconfig.json --pretty false",
+    "test": "pnpm build && node --test tests/*.test.mjs"
   },
   "dependencies": {
     "@agent-teams/document-authoring": "workspace:*",
@@ -67,5 +63,9 @@
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:"
+  },
+  "engines": {
+    "node": "^24.18.0 || ^26.0.0",
+    "pnpm": ">=11.17.0 <12"
   }
 }

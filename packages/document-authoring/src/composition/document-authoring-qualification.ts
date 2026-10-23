@@ -1,27 +1,36 @@
 import type {
   DocumentAuthoringCrashQualificationResult,
   DocumentTransactionEnvelope,
-  RunDocumentAuthoringCrashQualificationRequest
+  RunDocumentAuthoringCrashQualificationRequest,
 } from "../document-authoring/testing/api.js";
 import { createDocumentAuthoringQualification } from "../document-authoring/testing/api.js";
-import { createNodeDocumentAuthority, documentSchemaValidator } from "../document-authoring/module.js";
-import { FilesystemMarkdownRepository, readContainedRegularFile, readMarkdownSyntax } from "../documentation-observation/module.js";
+import {
+  createNodeDocumentAuthority,
+  documentSchemaValidator,
+} from "../document-authoring/module.js";
+import {
+  FilesystemMarkdownRepository,
+  readContainedRegularFile,
+  readMarkdownSyntax,
+} from "../documentation-observation/module.js";
 
 const qualification = createDocumentAuthoringQualification({
   authority: createNodeDocumentAuthority({
     repository: new FilesystemMarkdownRepository(),
     readFile: readContainedRegularFile,
-    syntax: readMarkdownSyntax
+    syntax: readMarkdownSyntax,
   }),
-  schema: documentSchemaValidator
+  schema: documentSchemaValidator,
 });
 
 export function runDocumentAuthoringCrashQualification(
-  request: RunDocumentAuthoringCrashQualificationRequest
+  request: RunDocumentAuthoringCrashQualificationRequest,
 ): Promise<DocumentAuthoringCrashQualificationResult> {
   return qualification.runDocumentAuthoringCrashQualification(request);
 }
 
-export function assertDocumentTransactionEnvelope(value: unknown): Promise<DocumentTransactionEnvelope> {
+export function assertDocumentTransactionEnvelope(
+  value: unknown,
+): Promise<DocumentTransactionEnvelope> {
   return qualification.assertDocumentTransactionEnvelope(value);
 }

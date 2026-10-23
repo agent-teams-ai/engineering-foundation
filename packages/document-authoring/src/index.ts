@@ -1,4 +1,8 @@
-export { projectReferencedDocuments, DocumentCatalogError, DocumentPlanningError } from "./document-authoring/api.js";
+export {
+  projectReferencedDocuments,
+  DocumentCatalogError,
+  DocumentPlanningError,
+} from "./document-authoring/api.js";
 export type {
   DocumentAuthoringSchemaId,
   DocumentAuthorityDigest,
@@ -79,9 +83,14 @@ export type {
   PlanDocumentationDocumentRequestContract,
   PlanDocumentationDocumentRequestV2,
   DocumentCatalogErrorCode,
-  DocumentPlanningErrorCode
+  DocumentPlanningErrorCode,
 } from "./document-authoring/api.js";
-export { readDocumentAuthoringSchema, inspectDocumentTransactionV1, inspectDocumentTransactionV2, planDocumentParentMaterializationV2 } from "./document-authoring/module.js";
+export {
+  readDocumentAuthoringSchema,
+  inspectDocumentTransactionV1,
+  inspectDocumentTransactionV2,
+  planDocumentParentMaterializationV2,
+} from "./document-authoring/module.js";
 export {
   buildDocumentationCatalog,
   buildDocumentationCatalogV2,
@@ -95,5 +104,5 @@ export {
   recoverDocumentationTransactionV2,
   describeDocumentAuthoringProfileV2,
   describeDocumentAuthoringProfileV3,
-  inspectDocumentAuthoringEnvironmentV1
+  inspectDocumentAuthoringEnvironmentV1,
 } from "./composition/node-document-authoring.js";

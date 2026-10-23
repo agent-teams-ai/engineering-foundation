@@ -1,8 +1,17 @@
 import { Visitor, type BindingPattern, type Expression, type Node, type Program } from "oxc-parser";
 
 import {
-  builtinOrigin, childNodes, hasRuntimeModuleSyntax, memberOrigin, patternBindings, propertyName, unwrapExpression,
-  type BindingInput, type LexicalBinding, type LexicalScope, type LoaderOrigin
+  builtinOrigin,
+  childNodes,
+  hasRuntimeModuleSyntax,
+  memberOrigin,
+  patternBindings,
+  propertyName,
+  unwrapExpression,
+  type BindingInput,
+  type LexicalBinding,
+  type LexicalScope,
+  type LoaderOrigin,
 } from "./loader-syntax.js";
 
 /** Collect declarations before observing calls: lexical shadowing includes hoisting and TDZ. */
@@ -12,21 +21,30 @@ export class LoaderLexicalScopes {
 
   constructor(program: Program, path: string) {
     for (const [name, kind] of [
-      ["require", "loader"], ["module", "commonjs-module"], ["process", "process"]
+      ["require", "loader"],
+      ["module", "commonjs-module"],
+      ["process", "process"],
     ] as const) {
       this.#program.bindings.set(name, { declaredOrigin: { kind }, inputs: [], mutable: false });
     }
     // Only CommonJS wrapper parameters survive source-level var redeclarations.
     // Script syntax alone cannot decide the package's execution mode.
     const varInitialBindings = new Map<string, LexicalBinding>();
-    const possibleWrapper = program.sourceType !== "module" ||
+    const possibleWrapper =
+      program.sourceType !== "module" ||
       (!/\.m[jt]s$/u.test(path) && !hasRuntimeModuleSyntax(program));
     if (possibleWrapper && !/\.d\.[cm]?ts$/u.test(path)) {
       for (const name of ["require", "module"]) {
         const origin = this.#program.bindings.get(name)?.declaredOrigin;
         if (origin !== undefined) {
-          varInitialBindings.set(name, { inputs: [], mutable: false,
-            declaredOrigin: { ...origin, ...(program.sourceType === "commonjs" ? {} : { opaque: true }) } });
+          varInitialBindings.set(name, {
+            inputs: [],
+            mutable: false,
+            declaredOrigin: {
+              ...origin,
+              ...(program.sourceType === "commonjs" ? {} : { opaque: true }),
+            },
+          });
         }
       }
     }
@@ -39,7 +57,11 @@ export class LoaderLexicalScopes {
   }
 
   resolve(name: string, scope: LexicalScope): LexicalBinding | undefined {
-    for (let current: LexicalScope | undefined = scope; current !== undefined; current = current.parent) {
+    for (
+      let current: LexicalScope | undefined = scope;
+      current !== undefined;
+      current = current.parent
+    ) {
       const binding = current.bindings.get(name);
       if (binding !== undefined) {
         return binding;
@@ -64,7 +86,7 @@ export class LoaderLexicalScopes {
     scope.bindings.set(name, {
       inputs: input === undefined ? [] : [input],
       ...(origin === undefined ? {} : { declaredOrigin: origin }),
-      mutable: false
+      mutable: false,
     });
   }
 
@@ -96,11 +118,24 @@ export class LoaderLexicalScopes {
     }
   }
 
-  #collectFunction(node: Extract<Node, {
-    type: "FunctionDeclaration" | "FunctionExpression" | "TSDeclareFunction" |
-      "TSEmptyBodyFunctionExpression" | "ArrowFunctionExpression"
-  }>, scope: LexicalScope): void {
-    if ((node.type === "FunctionDeclaration" || node.type === "TSDeclareFunction") && node.id !== null) {
+  #collectFunction(
+    node: Extract<
+      Node,
+      {
+        type:
+          | "FunctionDeclaration"
+          | "FunctionExpression"
+          | "TSDeclareFunction"
+          | "TSEmptyBodyFunctionExpression"
+          | "ArrowFunctionExpression";
+      }
+    >,
+    scope: LexicalScope,
+  ): void {
+    if (
+      (node.type === "FunctionDeclaration" || node.type === "TSDeclareFunction") &&
+      node.id !== null
+    ) {
       this.#declare(scope, node.id.name);
       const binding = scope.bindings.get(node.id.name);
       if (node.type === "FunctionDeclaration" && binding?.initialBinding !== undefined) {
@@ -128,8 +163,12 @@ export class LoaderLexicalScopes {
     }
     for (const child of childNodes(node)) {
       // Body var declarations do not shadow expressions evaluated in default parameters.
-      this.#collect(child, child.type === "BlockStatement"
-        ? { ...this.#childScope(parameters, "function"), varInitialBindings } : parameters);
+      this.#collect(
+        child,
+        child.type === "BlockStatement"
+          ? { ...this.#childScope(parameters, "function"), varInitialBindings }
+          : parameters,
+      );
     }
   }
 
@@ -164,8 +203,13 @@ export class LoaderLexicalScopes {
       }
       return scope;
     }
-    if (node.type === "BlockStatement" || node.type === "ForStatement" ||
-        node.type === "ForInStatement" || node.type === "ForOfStatement" || node.type === "CatchClause") {
+    if (
+      node.type === "BlockStatement" ||
+      node.type === "ForStatement" ||
+      node.type === "ForInStatement" ||
+      node.type === "ForOfStatement" ||
+      node.type === "CatchClause"
+    ) {
       const scope = this.#childScope(parent, "block");
       if (node.type === "CatchClause" && node.param !== null) {
         this.#declarePattern(scope, node.param);
@@ -191,16 +235,22 @@ export class LoaderLexicalScopes {
         this.#declarePattern(target, declaration.id, declaration.init ?? undefined);
       }
     } else if (node.type === "TSImportEqualsDeclaration" && node.importKind !== "type") {
-      const origin = node.moduleReference.type === "TSExternalModuleReference"
-        ? builtinOrigin(node.moduleReference.expression.value) : undefined;
+      const origin =
+        node.moduleReference.type === "TSExternalModuleReference"
+          ? builtinOrigin(node.moduleReference.expression.value)
+          : undefined;
       this.#declare(scope, node.id.name, undefined, origin);
     }
   }
 
   #collect(node: Node, parent: LexicalScope): void {
-    if (node.type === "FunctionDeclaration" || node.type === "FunctionExpression" ||
-        node.type === "TSDeclareFunction" || node.type === "TSEmptyBodyFunctionExpression" ||
-        node.type === "ArrowFunctionExpression") {
+    if (
+      node.type === "FunctionDeclaration" ||
+      node.type === "FunctionExpression" ||
+      node.type === "TSDeclareFunction" ||
+      node.type === "TSEmptyBodyFunctionExpression" ||
+      node.type === "ArrowFunctionExpression"
+    ) {
       this.#collectFunction(node, parent);
       return;
     }
@@ -271,14 +321,24 @@ export class LoaderLexicalScopes {
       return;
     }
     if (target.type === "Property") {
-      this.#markTarget(target.value, scope, input === undefined ? undefined : {
-        ...input, properties: [...input.properties, propertyName(target.key, target.computed) ?? "<computed>"]
-      });
+      this.#markTarget(
+        target.value,
+        scope,
+        input === undefined
+          ? undefined
+          : {
+              ...input,
+              properties: [
+                ...input.properties,
+                propertyName(target.key, target.computed) ?? "<computed>",
+              ],
+            },
+      );
       return;
     }
     // Array/rest projections cannot select a known namespace member.
-    const projected = target.type === "ArrayPattern" || target.type === "RestElement"
-      ? undefined : input;
+    const projected =
+      target.type === "ArrayPattern" || target.type === "RestElement" ? undefined : input;
     for (const child of childNodes(target)) {
       this.#markTarget(child, scope, projected);
     }
@@ -286,8 +346,10 @@ export class LoaderLexicalScopes {
 
   #markMutations(program: Program): void {
     const markIteration = (node: Extract<Node, { type: "ForInStatement" | "ForOfStatement" }>) => {
-      const targets = node.left.type === "VariableDeclaration"
-        ? node.left.declarations.map((declaration) => declaration.id) : [node.left];
+      const targets =
+        node.left.type === "VariableDeclaration"
+          ? node.left.declarations.map((declaration) => declaration.id)
+          : [node.left];
       for (const target of targets) {
         this.#markTarget(target, this.scope(node));
       }
@@ -305,7 +367,7 @@ export class LoaderLexicalScopes {
         }
       },
       ForInStatement: markIteration,
-      ForOfStatement: markIteration
+      ForOfStatement: markIteration,
     }).visit(program);
   }
 }

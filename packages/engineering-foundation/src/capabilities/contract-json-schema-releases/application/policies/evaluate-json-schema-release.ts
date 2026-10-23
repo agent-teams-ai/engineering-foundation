@@ -5,12 +5,9 @@ import type {
   JsonSchemaConsumerEvidence,
   JsonSchemaInspection,
   JsonSchemaReleasePolicy,
-  JsonSchemaDigest
+  JsonSchemaDigest,
 } from "../model/json-schema-release.js";
-import {
-  JSON_SCHEMA_RELEASE_RULES,
-  type JsonSchemaReleaseRuleMetadata
-} from "../rules.js";
+import { JSON_SCHEMA_RELEASE_RULES, type JsonSchemaReleaseRuleMetadata } from "../rules.js";
 
 const SHA256_DIGEST = /^sha256:[a-f0-9]{64}$/u;
 const CONTRACT_ID = /^[a-z][a-z0-9.-]{1,119}$/u;
@@ -33,7 +30,7 @@ function inputError(message: string): never {
     code: "JSON_SCHEMA_RELEASE_EVIDENCE_INVALID",
     message,
     phase: "json-schema-release-evidence",
-    retryable: false
+    retryable: false,
   });
 }
 
@@ -52,7 +49,7 @@ function diagnostic(input: {
     relatedLocations: [],
     evidence: input.evidence ?? [],
     remediation: input.rule.remediation,
-    requiresArchitectureReview: input.rule.requiresArchitectureReview
+    requiresArchitectureReview: input.rule.requiresArchitectureReview,
   };
 }
 
@@ -64,7 +61,7 @@ function assertDigest(value: unknown, field: string): asserts value is JsonSchem
 
 function assertConsumerEvidenceObject(
   candidate: unknown,
-  item: string
+  item: string,
 ): asserts candidate is Record<string, unknown> {
   if (typeof candidate !== "object" || candidate === null || Array.isArray(candidate)) {
     inputError(`${item} must be an object.`);
@@ -94,7 +91,7 @@ function assertConsumerEvidenceIdentity(value: Record<string, unknown>, item: st
 function assertConsumerEvidenceOutcome(
   outcome: unknown,
   item: string,
-  requirePassingEvidence: boolean
+  requirePassingEvidence: boolean,
 ): void {
   if (outcome !== "passed" && outcome !== "failed") {
     inputError(`${item}.outcome is invalid.`);
@@ -107,7 +104,7 @@ function assertConsumerEvidenceOutcome(
 function assertConsumerEvidenceItem(
   candidate: unknown,
   item: string,
-  requirePassingEvidence: boolean
+  requirePassingEvidence: boolean,
 ): string {
   assertConsumerEvidenceObject(candidate, item);
   const consumerId = assertConsumerEvidenceIdentity(candidate, item);
@@ -121,7 +118,7 @@ function assertConsumerEvidenceItem(
 function assertConsumerEvidence(
   values: unknown,
   field: string,
-  requirePassingEvidence = false
+  requirePassingEvidence = false,
 ): void {
   if (!Array.isArray(values) || values.length > 10_000) {
     inputError(`${field} exceeds the supported consumer evidence limit.`);
@@ -131,7 +128,7 @@ function assertConsumerEvidence(
     const consumerId = assertConsumerEvidenceItem(
       candidate,
       `${field}[${index}]`,
-      requirePassingEvidence
+      requirePassingEvidence,
     );
     if (ids.has(consumerId)) {
       inputError(`${field} has duplicate consumer evidence: ${consumerId}.`);
@@ -148,10 +145,14 @@ function assertPolicy(policy: JsonSchemaReleasePolicy, observation: JsonSchemaIn
     inputError("Released JSON Schema evidence has an unsupported schema version.");
   }
   if (!isPublishedContractVersion(policy.publicContractVersion)) {
-    inputError("Current JSON Schema publicContractVersion must be exact SemVer without build metadata.");
+    inputError(
+      "Current JSON Schema publicContractVersion must be exact SemVer without build metadata.",
+    );
   }
   if (!isPublishedContractVersion(policy.released.publicContractVersion)) {
-    inputError("Released JSON Schema publicContractVersion must be exact SemVer without build metadata.");
+    inputError(
+      "Released JSON Schema publicContractVersion must be exact SemVer without build metadata.",
+    );
   }
   assertDigest(policy.released.schemaSetDigest, "released.schemaSetDigest");
   assertDigest(policy.released.fixtureCorpusDigest, "released.fixtureCorpusDigest");
@@ -168,7 +169,7 @@ function assertPolicy(policy: JsonSchemaReleasePolicy, observation: JsonSchemaIn
       consumer.fixtureCorpusDigest !== policy.released.fixtureCorpusDigest
     ) {
       inputError(
-        `Released consumer evidence must bind ${consumer.consumerId} to the exact released contract evidence.`
+        `Released consumer evidence must bind ${consumer.consumerId} to the exact released contract evidence.`,
       );
     }
     releasedConsumerIds.add(consumer.consumerId);
@@ -176,7 +177,7 @@ function assertPolicy(policy: JsonSchemaReleasePolicy, observation: JsonSchemaIn
   for (const consumer of policy.currentConsumerEvidence) {
     if (!releasedConsumerIds.has(consumer.consumerId)) {
       inputError(
-        `Current consumer evidence is not declared by released support policy: ${consumer.consumerId}.`
+        `Current consumer evidence is not declared by released support policy: ${consumer.consumerId}.`,
       );
     }
   }
@@ -203,14 +204,14 @@ function assertPolicy(policy: JsonSchemaReleasePolicy, observation: JsonSchemaIn
 
 function matchingCurrentEvidence(
   consumer: JsonSchemaConsumerEvidence,
-  current: readonly JsonSchemaConsumerEvidence[]
+  current: readonly JsonSchemaConsumerEvidence[],
 ): JsonSchemaConsumerEvidence | undefined {
   return current.find((candidate) => candidate.consumerId === consumer.consumerId);
 }
 
 export function evaluateJsonSchemaRelease(
   policy: JsonSchemaReleasePolicy,
-  observation: JsonSchemaInspection
+  observation: JsonSchemaInspection,
 ): readonly FoundationDiagnostic[] {
   assertPolicy(policy, observation);
   const diagnostics: FoundationDiagnostic[] = [];
@@ -220,8 +221,8 @@ export function evaluateJsonSchemaRelease(
       diagnostic({
         rule: JSON_SCHEMA_RELEASE_RULES.publicVersionRegressed,
         subject,
-        message: `Current public contract version ${policy.publicContractVersion} is older than released ${policy.released.publicContractVersion}.`
-      })
+        message: `Current public contract version ${policy.publicContractVersion} is older than released ${policy.released.publicContractVersion}.`,
+      }),
     );
   }
   if (
@@ -233,14 +234,15 @@ export function evaluateJsonSchemaRelease(
       diagnostic({
         rule: JSON_SCHEMA_RELEASE_RULES.immutableVersionMutated,
         subject,
-        message: "Current schema or fixture corpus digest differs from released evidence for the same public contract version.",
+        message:
+          "Current schema or fixture corpus digest differs from released evidence for the same public contract version.",
         evidence: [
           { kind: "released-schema-digest", value: policy.released.schemaSetDigest },
           { kind: "current-schema-digest", value: observation.schemaSetDigest },
           { kind: "released-fixture-corpus", value: policy.released.fixtureCorpusDigest },
-          { kind: "current-fixture-corpus", value: observation.fixtureCorpusDigest }
-        ]
-      })
+          { kind: "current-fixture-corpus", value: observation.fixtureCorpusDigest },
+        ],
+      }),
     );
   }
   for (const fixture of observation.fixtureResults) {
@@ -249,13 +251,13 @@ export function evaluateJsonSchemaRelease(
         diagnostic({
           rule: JSON_SCHEMA_RELEASE_RULES.fixtureExpectationFailed,
           subject: fixture.id,
-          message: `Fixture ${fixture.id} did not produce its declared ${fixture.expectation} result.`
-        })
+          message: `Fixture ${fixture.id} did not produce its declared ${fixture.expectation} result.`,
+        }),
       );
     }
   }
   for (const required of policy.released.supportedConsumers.toSorted((left, right) =>
-    compareStrings(left.consumerId, right.consumerId)
+    compareStrings(left.consumerId, right.consumerId),
   )) {
     const current = matchingCurrentEvidence(required, policy.currentConsumerEvidence);
     if (
@@ -270,8 +272,8 @@ export function evaluateJsonSchemaRelease(
         diagnostic({
           rule: JSON_SCHEMA_RELEASE_RULES.consumerEvidenceIncomplete,
           subject: required.consumerId,
-          message: `Supported consumer ${required.consumerId} has no passing evidence for the current contract version and fixture corpus.`
-        })
+          message: `Supported consumer ${required.consumerId} has no passing evidence for the current contract version and fixture corpus.`,
+        }),
       );
     }
   }

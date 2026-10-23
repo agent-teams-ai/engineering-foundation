@@ -1,10 +1,11 @@
 import { compareBinaryStrings } from "../../../../binary-string-comparator.js";
-import { assertNotCancelled,CapabilityInputError } from "../../../../features/validation-reporting/api.js";
+import {
+  assertNotCancelled,
+  CapabilityInputError,
+} from "../../../../features/validation-reporting/api.js";
 import type { SourceFileSnapshot } from "../model/source-file-snapshot.js";
 import type { WorkspaceInventory } from "../../../../workspace-inventory/api.js";
-import {
-  normalizeRepositoryPath
-} from "../model/repository-path.js";
+import { normalizeRepositoryPath } from "../model/repository-path.js";
 import type {
   ClassifiedSourceFile,
   ObservedSourceDependencyEdge,
@@ -14,7 +15,7 @@ import type {
   ObservedUnresolvedRuntimeReference,
   ResolvedSourceDependency,
   SourceDependencyEdgeMode,
-  SourceDependencyKind
+  SourceDependencyKind,
 } from "../model/source-workspace.js";
 import type { SourceDependencyResolver } from "../ports/source-dependency-resolver.js";
 
@@ -36,10 +37,13 @@ export interface BuildObservedSourceGraphInput {
   readonly classifiedFiles: readonly ClassifiedSourceFile[];
   readonly resolver: SourceDependencyResolver;
   readonly signal?: AbortSignal;
-  readonly workspacePackageRootIdentities?: ReadonlyMap<string, {
-    readonly device: string;
-    readonly inode: string;
-  }>;
+  readonly workspacePackageRootIdentities?: ReadonlyMap<
+    string,
+    {
+      readonly device: string;
+      readonly inode: string;
+    }
+  >;
 }
 
 function inputError(code: string, message: string): never {
@@ -47,7 +51,7 @@ function inputError(code: string, message: string): never {
     code,
     message,
     phase: "observed-source-graph",
-    retryable: false
+    retryable: false,
   });
 }
 
@@ -67,15 +71,13 @@ function edgeMode(kind: SourceDependencyKind): SourceDependencyEdgeMode {
   }
 }
 
-function normalizedSourcePaths(
-  files: readonly SourceFileSnapshot[]
-): readonly string[] {
+function normalizedSourcePaths(files: readonly SourceFileSnapshot[]): readonly string[] {
   const paths = files.map((file) => normalizeRepositoryPath(file.path)).toSorted();
   for (let index = 1; index < paths.length; index += 1) {
     if (paths[index] === paths[index - 1]) {
       inputError(
         "OBSERVED_SOURCE_GRAPH_DUPLICATE_PATH",
-        `Observed source paths normalize to the same repository path: ${paths[index]}.`
+        `Observed source paths normalize to the same repository path: ${paths[index]}.`,
       );
     }
   }
@@ -85,7 +87,7 @@ function normalizedSourcePaths(
 function normalizedClassifiedFile(file: ClassifiedSourceFile): ClassifiedSourceFile {
   return {
     ...file,
-    path: normalizeRepositoryPath(file.path)
+    path: normalizeRepositoryPath(file.path),
   };
 }
 
@@ -115,7 +117,7 @@ function resolutionKey(resolution: ObservedSourceDependencyResolution): string {
 
 function compareEdges(
   left: ObservedSourceDependencyEdge,
-  right: ObservedSourceDependencyEdge
+  right: ObservedSourceDependencyEdge,
 ): number {
   return (
     compareBinaryStrings(left.fromPath, right.fromPath) ||
@@ -131,7 +133,7 @@ function compareEdges(
 function normalizeResolution(
   resolved: ResolvedSourceDependency,
   governedFilePaths: ReadonlySet<string>,
-  nodesByPath: ReadonlyMap<string, ObservedSourceNode>
+  nodesByPath: ReadonlyMap<string, ObservedSourceNode>,
 ): ObservedSourceDependencyResolution {
   switch (resolved.kind) {
     case "builtin":
@@ -140,14 +142,14 @@ function normalizeResolution(
       return Object.freeze({
         kind: resolved.kind,
         packageName: resolved.packageName,
-        declaration: resolved.declaration
+        declaration: resolved.declaration,
       });
     case "local-file": {
       const path = normalizeRepositoryPath(resolved.path);
       if (!governedFilePaths.has(path)) {
         return Object.freeze({
           kind: "unresolved",
-          reason: "resolver returned a local target outside governed source inventory"
+          reason: "resolver returned a local target outside governed source inventory",
         });
       }
       const targetNode = nodesByPath.get(path);
@@ -157,7 +159,7 @@ function normalizeResolution(
       ) {
         return Object.freeze({
           kind: "unresolved",
-          reason: "resolver returned a local target with a mismatched workspace package"
+          reason: "resolver returned a local target with a mismatched workspace package",
         });
       }
       return Object.freeze({
@@ -165,7 +167,7 @@ function normalizeResolution(
         path,
         workspacePackageName: resolved.workspacePackage.name,
         workspacePackageManifestPath: resolved.workspacePackage.manifestPath,
-        targetBoundaryId: targetNode?.boundaryId ?? null
+        targetBoundaryId: targetNode?.boundaryId ?? null,
       });
     }
     case "generated-output-candidate":
@@ -173,7 +175,7 @@ function normalizeResolution(
         kind: resolved.kind,
         path: normalizeRepositoryPath(resolved.path),
         workspacePackageName: resolved.workspacePackage.name,
-        workspacePackageManifestPath: resolved.workspacePackage.manifestPath
+        workspacePackageManifestPath: resolved.workspacePackage.manifestPath,
       });
     case "self-workspace-package":
       return Object.freeze({
@@ -181,7 +183,7 @@ function normalizeResolution(
         workspacePackageName: resolved.workspacePackage.name,
         workspacePackageManifestPath: resolved.workspacePackage.manifestPath,
         exported: resolved.exported,
-        subpath: resolved.subpath
+        subpath: resolved.subpath,
       });
     case "unsupported":
     case "unresolved":
@@ -193,7 +195,7 @@ function normalizeResolution(
         workspacePackageManifestPath: resolved.workspacePackage.manifestPath,
         declaration: resolved.declaration,
         exported: resolved.exported,
-        subpath: resolved.subpath
+        subpath: resolved.subpath,
       });
   }
 }
@@ -203,7 +205,7 @@ function createNode(file: ClassifiedSourceFile): ObservedSourceNode {
     path: file.path,
     boundaryId: file.boundary.id,
     workspacePackageName: file.workspacePackage.name,
-    workspacePackageManifestPath: file.workspacePackage.manifestPath
+    workspacePackageManifestPath: file.workspacePackage.manifestPath,
   });
 }
 
@@ -212,7 +214,7 @@ function createNode(file: ClassifiedSourceFile): ObservedSourceNode {
  * graph and do not invoke the parser or resolver again.
  */
 export function buildObservedSourceGraph(
-  input: BuildObservedSourceGraphInput
+  input: BuildObservedSourceGraphInput,
 ): ObservedSourceGraph {
   const sourcePaths = normalizedSourcePaths(input.allSourceFiles);
   const governedFilePaths = new Set(sourcePaths);
@@ -227,13 +229,13 @@ export function buildObservedSourceGraph(
     if (!governedFilePaths.has(file.path)) {
       inputError(
         "OBSERVED_SOURCE_GRAPH_CLASSIFICATION_OUTSIDE_INVENTORY",
-        `Classified source is absent from governed source inventory: ${file.path}.`
+        `Classified source is absent from governed source inventory: ${file.path}.`,
       );
     }
     if (nodesByPath.has(file.path)) {
       inputError(
         "OBSERVED_SOURCE_GRAPH_DUPLICATE_CLASSIFICATION",
-        `Source has more than one architecture classification: ${file.path}.`
+        `Source has more than one architecture classification: ${file.path}.`,
       );
     }
     const node = createNode(file);
@@ -251,12 +253,12 @@ export function buildObservedSourceGraph(
     if (node === undefined) {
       inputError(
         "OBSERVED_SOURCE_GRAPH_NODE_MISSING",
-        `Classified source graph node is missing: ${file.path}.`
+        `Classified source graph node is missing: ${file.path}.`,
       );
     }
     if (file.parsed.parseErrorCount > 0) {
       parseFailures.push(
-        Object.freeze({ path: file.path, parseErrorCount: file.parsed.parseErrorCount })
+        Object.freeze({ path: file.path, parseErrorCount: file.parsed.parseErrorCount }),
       );
       continue;
     }
@@ -267,14 +269,14 @@ export function buildObservedSourceGraph(
           boundaryId: node.boundaryId,
           kind: unresolved.kind,
           start: unresolved.start,
-          end: unresolved.end
-        })
+          end: unresolved.end,
+        }),
       );
     }
     for (const reference of file.parsed.references) {
       assertNotCancelled(input.signal);
       const workspacePackageRootIdentity = input.workspacePackageRootIdentities?.get(
-        file.workspacePackage.manifestPath
+        file.workspacePackage.manifestPath,
       );
       edges.push(
         Object.freeze({
@@ -301,7 +303,7 @@ export function buildObservedSourceGraph(
                 ? {}
                 : {
                     governedWorkspacePackageManifestPaths:
-                      input.governedWorkspacePackageManifestPaths
+                      input.governedWorkspacePackageManifestPaths,
                   }),
               inventory: input.inventory,
               ...(input.packageTypeScopes === undefined
@@ -310,12 +312,12 @@ export function buildObservedSourceGraph(
               reference,
               ...(workspacePackageRootIdentity === undefined
                 ? {}
-                : { workspacePackageRootIdentity })
+                : { workspacePackageRootIdentity }),
             }),
             governedFilePaths,
-            nodesByPath
-          )
-        })
+            nodesByPath,
+          ),
+        }),
       );
     }
   }
@@ -328,11 +330,11 @@ export function buildObservedSourceGraph(
       parseFailures.toSorted(
         (left, right) =>
           compareBinaryStrings(left.path, right.path) ||
-          left.parseErrorCount - right.parseErrorCount
-      )
+          left.parseErrorCount - right.parseErrorCount,
+      ),
     ),
     unclassifiedSourcePaths: Object.freeze(
-      sourcePaths.filter((path) => !classifiedPaths.has(path))
+      sourcePaths.filter((path) => !classifiedPaths.has(path)),
     ),
     unresolvedRuntimeReferences: Object.freeze(
       unresolvedRuntimeReferences.toSorted(
@@ -340,8 +342,8 @@ export function buildObservedSourceGraph(
           compareBinaryStrings(left.path, right.path) ||
           left.start - right.start ||
           compareBinaryStrings(left.kind, right.kind) ||
-          left.end - right.end
-      )
-    )
+          left.end - right.end,
+      ),
+    ),
   });
 }

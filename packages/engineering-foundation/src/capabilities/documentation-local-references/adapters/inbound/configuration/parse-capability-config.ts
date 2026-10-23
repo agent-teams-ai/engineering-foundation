@@ -1,7 +1,9 @@
 import type { DocumentationLocalReferencesPolicy } from "../../../application/model/documentation-local-references.js";
-import { configurationInputError as inputError, assertConfigRepositoryRelativePath } from "../../../application/configuration-input.js";
+import {
+  configurationInputError as inputError,
+  assertConfigRepositoryRelativePath,
+} from "../../../application/configuration-input.js";
 import { CAPABILITY_CONFIG_SCHEMA_VERSION } from "../../../contract/config.js";
-
 
 function record(value: unknown, field: string): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -56,6 +58,6 @@ export function parseCapabilityConfig(input: unknown): DocumentationLocalReferen
   }
   return Object.freeze({
     anchorProfile,
-    markdownRoots: Object.freeze([...markdownRoots].toSorted())
+    markdownRoots: Object.freeze([...markdownRoots].toSorted()),
   });
 }

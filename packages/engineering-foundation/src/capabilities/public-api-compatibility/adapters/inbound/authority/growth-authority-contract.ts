@@ -9,7 +9,7 @@ export type {
   GrowthAuthoritySource,
   GrowthAuthorityReceipt,
   GrowthAuthorityRequest,
-  GrowthPromotionPlan
+  GrowthPromotionPlan,
 } from "../../../application/model/growth-authority.js";
 
 /** ReviewRouter supplies this executable transport from trusted composition.
@@ -29,5 +29,5 @@ export type {
   GrowthDigest,
   GrowthInvocation,
   GrowthResolutionStep,
-  GrowthSurfaceObservation
+  GrowthSurfaceObservation,
 } from "../../../application/model/growth-observation.js";

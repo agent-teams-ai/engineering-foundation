@@ -1,9 +1,6 @@
 type NodeScaffoldJournalMutation = "create" | "remove" | "replace";
 
-type NodeScaffoldJournalEvidence =
-  | "candidate"
-  | "previous"
-  | "retired";
+type NodeScaffoldJournalEvidence = "candidate" | "previous" | "retired";
 
 type NodeScaffoldJournalStoreFaultPoint =
   | {
@@ -60,5 +57,5 @@ type NodeScaffoldJournalStoreFaultPoint =
     };
 
 export type NodeScaffoldJournalStoreFaultInjector = (
-  point: NodeScaffoldJournalStoreFaultPoint
+  point: NodeScaffoldJournalStoreFaultPoint,
 ) => Promise<void> | void;

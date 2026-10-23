@@ -2,19 +2,19 @@ export { runScaffoldCrashQualification } from "../composition/scaffolding-qualif
 export type {
   ScaffoldQualificationPhase,
   ScaffoldQualificationPoint,
-  ScaffoldQualificationPhaseCallback
+  ScaffoldQualificationPhaseCallback,
 } from "./testing/api.js";
 // Canonical type closure of the qualification input and result.
 export type {
   ConfiguredDefinition,
-  DefinitionRef
+  DefinitionRef,
 } from "./application/model/scaffold-compilation.js";
 export type {
   JsonObject,
   JsonPrimitive,
   JsonValue,
   RepositoryPath,
-  Sha256Digest
+  Sha256Digest,
 } from "./application/model/scaffold-values.js";
 export type {
   MaterializeFileOperation,
@@ -33,5 +33,5 @@ export type {
   ScaffoldReceipt,
   ScaffoldReceiptCommon,
   ScaffoldSatisfiedOperationReceipt,
-  ScaffoldTarget
+  ScaffoldTarget,
 } from "./contract/scaffold-contract.js";

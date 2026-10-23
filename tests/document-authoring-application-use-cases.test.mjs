@@ -1,4 +1,7 @@
-import { currentDocumentContractFixture, fixtureKernelArtifact } from "./support/current-document-contract-fixture.mjs";
+import {
+  currentDocumentContractFixture,
+  fixtureKernelArtifact,
+} from "./support/current-document-contract-fixture.mjs";
 import { assertSchema } from "../packages/document-authoring/dist/document-authoring/adapters/node/schema-catalog.js";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -10,18 +13,25 @@ import { recoverDocumentTransaction as recoverDocumentTransactionWithSchema } fr
 import { documentTemporaryPath } from "../packages/document-authoring/dist/document-authoring/application/policies/document-temporary-path.js";
 import { createDocumentTransactionEnvelope as createDocumentTransactionEnvelopeWithSchema } from "../packages/document-authoring/dist/document-authoring/application/policies/document-transaction-envelope-policy.js";
 
-const historicalFixture = JSON.parse(await readFile(fileURLToPath(
-  new URL("fixtures/document-authoring-contracts/valid-v1.json", import.meta.url)
-), "utf8"));
+const historicalFixture = JSON.parse(
+  await readFile(
+    fileURLToPath(new URL("fixtures/document-authoring-contracts/valid-v1.json", import.meta.url)),
+    "utf8",
+  ),
+);
 
 const fixture = currentDocumentContractFixture(historicalFixture);
 
 const identity = Object.freeze({
-  adapter: "node-filesystem", birthtimeNs: "3", dev: "1", ino: "2", version: 1
+  adapter: "node-filesystem",
+  birthtimeNs: "3",
+  dev: "1",
+  ino: "2",
+  version: 1,
 });
 const journalAuthority = Object.freeze({
   authorityDigest: `sha256:${"1".repeat(64)}`,
-  identity
+  identity,
 });
 
 function harness(options = {}) {
@@ -37,31 +47,35 @@ function harness(options = {}) {
     compiler: fixture.plan.compiler,
     kernelArtifact: fixtureKernelArtifact,
     contractValidator: {
-      async validatePlan(input) { events.push("validate"); return structuredClone(input); }
+      async validatePlan(input) {
+        events.push("validate");
+        return structuredClone(input);
+      },
     },
     coordinator: {
       async acquire() {
         events.push("acquire");
         return {
           status: { state: coordinatorState },
-          async release(value) { releases.push(value); }
+          async release(value) {
+            releases.push(value);
+          },
         };
       },
       async inspect() {
-        return envelope === undefined
-          ? { state: "idle" }
-          : { state: "recoverable" };
-      }
+        return envelope === undefined ? { state: "idle" } : { state: "recoverable" };
+      },
     },
     authority: {
-      async assess({ plan }) { events.push("authority"); return { state: "current", plan }; }
+      async assess({ plan }) {
+        events.push("authority");
+        return { state: "current", plan };
+      },
     },
     fileState: {
       async classifyDestination() {
         events.push(`destination:${destination}`);
-        return destination === "exact"
-          ? { state: "exact", identity }
-          : { state: destination };
+        return destination === "exact" ? { state: "exact", identity } : { state: destination };
       },
       async classifyDerivedTemporary() {
         return temporary === undefined
@@ -69,30 +83,41 @@ function harness(options = {}) {
           : { state: "present", path: temporary.path, identity: temporary.identity };
       },
       async classifyTemporary() {
-        return temporary === undefined
-          ? { state: "absent" }
-          : { state: "owned-exact", temporary };
-      }
+        return temporary === undefined ? { state: "absent" } : { state: "owned-exact", temporary };
+      },
     },
     journal: {
-      async create(value) { recordedArtifacts.push(value.kernelArtifact); envelope = value; journalIdentity = journalAuthority; events.push("journal:create"); return journalAuthority; },
-      async read() { return envelope === undefined ? undefined : { authority: journalIdentity, envelope }; },
+      async create(value) {
+        recordedArtifacts.push(value.kernelArtifact);
+        envelope = value;
+        journalIdentity = journalAuthority;
+        events.push("journal:create");
+        return journalAuthority;
+      },
+      async read() {
+        return envelope === undefined ? undefined : { authority: journalIdentity, envelope };
+      },
       async stabilizeForReconciliation() {
         events.push("journal:stabilize");
         return envelope === undefined ? undefined : { authority: journalIdentity, envelope };
       },
-      async remove(expected) { assert.deepEqual(expected, journalIdentity); envelope = undefined; journalIdentity = undefined; events.push("journal:remove"); },
+      async remove(expected) {
+        assert.deepEqual(expected, journalIdentity);
+        envelope = undefined;
+        journalIdentity = undefined;
+        events.push("journal:remove");
+      },
       async replace({ envelope: value, expectedAuthority }) {
         assert.deepEqual(expectedAuthority, journalIdentity);
         recordedArtifacts.push(value.kernelArtifact);
         envelope = value;
         journalIdentity = {
           authorityDigest: `sha256:${"2".repeat(64)}`,
-          identity: { ...identity, ino: String(Number(identity.ino) + 1) }
+          identity: { ...identity, ino: String(Number(identity.ino) + 1) },
         };
         events.push(`journal:${value.state}`);
         return journalIdentity;
-      }
+      },
     },
     publisher: {
       async prepare({ plan }) {
@@ -100,28 +125,52 @@ function harness(options = {}) {
         temporary = {
           path: documentTemporaryPath(plan.destination, plan.planDigest),
           digest: plan.output.digest,
-          identity
+          identity,
         };
         return temporary;
       },
-      async publishPrepared() { events.push("publish"); destination = "exact"; return { outcome: "published", publicationIdentity: identity, identityEvidence: "owned-temporary" }; },
-      async completePublication() { return { publicationIdentity: identity }; },
-      async removeOwnedTemporary() { events.push("temporary:remove"); temporary = undefined; }
-    }
+      async publishPrepared() {
+        events.push("publish");
+        destination = "exact";
+        return {
+          outcome: "published",
+          publicationIdentity: identity,
+          identityEvidence: "owned-temporary",
+        };
+      },
+      async completePublication() {
+        return { publicationIdentity: identity };
+      },
+      async removeOwnedTemporary() {
+        events.push("temporary:remove");
+        temporary = undefined;
+      },
+    },
   };
   return {
-    dependencies, events, releases, recordedArtifacts,
-    seedJournal(value) { envelope = value; journalIdentity = journalAuthority; },
-    setCoordinatorState(value) { coordinatorState = value; },
-    setDestination(value) { destination = value; },
-    state: () => ({ destination, envelope, temporary })
+    dependencies,
+    events,
+    releases,
+    recordedArtifacts,
+    seedJournal(value) {
+      envelope = value;
+      journalIdentity = journalAuthority;
+    },
+    setCoordinatorState(value) {
+      coordinatorState = value;
+    },
+    setDestination(value) {
+      destination = value;
+    },
+    state: () => ({ destination, envelope, temporary }),
   };
 }
 
 test("apply validates before coordination and completes PREPARED-PUBLISHING-PUBLISHED", async () => {
   const subject = harness();
   const receipt = await applyDocumentPlan(subject.dependencies, {
-    consumerRoot: "/fixture", plan: fixture.plan
+    consumerRoot: "/fixture",
+    plan: fixture.plan,
   });
   assert.equal(receipt.outcome, "applied");
   assert.equal(subject.events[0], "validate");
@@ -135,7 +184,8 @@ test("apply validates before coordination and completes PREPARED-PUBLISHING-PUBL
 test("exact preexisting output is journaled and verified without publication", async () => {
   const subject = harness({ destination: "exact" });
   const receipt = await applyDocumentPlan(subject.dependencies, {
-    consumerRoot: "/fixture", plan: fixture.plan
+    consumerRoot: "/fixture",
+    plan: fixture.plan,
   });
   assert.equal(receipt.outcome, "already-applied");
   assert.equal(subject.events.includes("publish"), false);
@@ -148,11 +198,13 @@ test("cancellation before publication reports cancelled only after durable clean
   const subject = harness();
   subject.dependencies.publisher.prepare = async () => {
     subject.events.push("prepare");
-    const error = new Error("cancelled"); error.name = "AbortError";
+    const error = new Error("cancelled");
+    error.name = "AbortError";
     throw error;
   };
   const receipt = await applyDocumentPlan(subject.dependencies, {
-    consumerRoot: "/fixture", plan: fixture.plan
+    consumerRoot: "/fixture",
+    plan: fixture.plan,
   });
   assert.equal(receipt.outcome, "cancelled");
   assert.equal(subject.state().envelope, undefined);
@@ -172,11 +224,13 @@ for (const finalState of ["exact", "conflict"]) {
       return classify();
     };
     subject.dependencies.publisher.prepare = async () => {
-      const error = new Error("cancelled"); error.name = "AbortError";
+      const error = new Error("cancelled");
+      error.name = "AbortError";
       throw error;
     };
     const receipt = await applyDocumentPlan(subject.dependencies, {
-      consumerRoot: "/fixture", plan: fixture.plan
+      consumerRoot: "/fixture",
+      plan: fixture.plan,
     });
     assert.equal(receipt.outcome, "rejected");
     assert.equal(receipt.commit.publication, "none");
@@ -193,18 +247,17 @@ test("cancellation reports manual recovery when the final destination cannot be 
       ? { state: "unverifiable", reason: "injected final lstat failure" }
       : classify();
   subject.dependencies.publisher.prepare = async () => {
-    const error = new Error("cancelled"); error.name = "AbortError";
+    const error = new Error("cancelled");
+    error.name = "AbortError";
     throw error;
   };
   const receipt = await applyDocumentPlan(subject.dependencies, {
-    consumerRoot: "/fixture", plan: fixture.plan
+    consumerRoot: "/fixture",
+    plan: fixture.plan,
   });
   assert.equal(receipt.outcome, "manual-recovery-required");
   assert.equal(receipt.commit.state, "manual-recovery-required");
-  assert.equal(
-    receipt.diagnostics[0].ruleId,
-    "document.transaction.cleanup-unproven"
-  );
+  assert.equal(receipt.diagnostics[0].ruleId, "document.transaction.cleanup-unproven");
   assert.equal(subject.state().envelope, undefined);
   assert.deepEqual(subject.releases, [{ retainTransactionBarrier: true }]);
 });
@@ -216,26 +269,26 @@ for (const temporaryState of ["conflict", "unverifiable"]) {
       const prepared = {
         path: documentTemporaryPath(plan.destination, plan.planDigest),
         digest: plan.output.digest,
-        identity
+        identity,
       };
       subject.dependencies.fileState.classifyDerivedTemporary = async () => ({
-        state: "present", path: prepared.path, identity
+        state: "present",
+        path: prepared.path,
+        identity,
       });
       subject.dependencies.fileState.classifyTemporary = async () => ({
         state: temporaryState,
-        reason: `injected ${temporaryState} temporary`
+        reason: `injected ${temporaryState} temporary`,
       });
       throw new Error("prepare failed after leaving temporary evidence");
     };
     const receipt = await applyDocumentPlan(subject.dependencies, {
-      consumerRoot: "/fixture", plan: fixture.plan
+      consumerRoot: "/fixture",
+      plan: fixture.plan,
     });
     assert.equal(receipt.outcome, "manual-recovery-required");
     assert.equal(receipt.commit.recoverability, "preserved-for-recovery");
-    assert.equal(
-      receipt.diagnostics[0].ruleId,
-      "document.transaction.cleanup-unproven"
-    );
+    assert.equal(receipt.diagnostics[0].ruleId, "document.transaction.cleanup-unproven");
     assert.deepEqual(subject.releases, [{ retainTransactionBarrier: true }]);
   });
 }
@@ -245,7 +298,9 @@ test("pre-aborted apply validates Plan then returns cancelled without lock or fi
   const controller = new AbortController();
   controller.abort(new Error("cancel before apply"));
   const receipt = await applyDocumentPlan(subject.dependencies, {
-    consumerRoot: "/fixture", plan: fixture.plan, signal: controller.signal
+    consumerRoot: "/fixture",
+    plan: fixture.plan,
+    signal: controller.signal,
   });
   assert.equal(receipt.outcome, "cancelled");
   assert.deepEqual(subject.events, ["validate"]);
@@ -260,7 +315,9 @@ test("abort swallowed by authority adapter is rechecked and reported as cancelle
     return { state: "unverifiable", reason: "adapter masked cancellation" };
   };
   const receipt = await applyDocumentPlan(subject.dependencies, {
-    consumerRoot: "/fixture", plan: fixture.plan, signal: controller.signal
+    consumerRoot: "/fixture",
+    plan: fixture.plan,
+    signal: controller.signal,
   });
   assert.equal(receipt.outcome, "cancelled");
   assert.equal(subject.events.includes("journal:create"), false);
@@ -277,7 +334,9 @@ test("abort after durable PREPARED removes journal before reporting cancelled", 
     return result;
   };
   const receipt = await applyDocumentPlan(subject.dependencies, {
-    consumerRoot: "/fixture", plan: fixture.plan, signal: controller.signal
+    consumerRoot: "/fixture",
+    plan: fixture.plan,
+    signal: controller.signal,
   });
   assert.equal(receipt.outcome, "cancelled");
   assert.equal(subject.state().envelope, undefined);
@@ -295,7 +354,9 @@ test("abort after temp preparation but before PUBLISHING cleans temp and journal
     return result;
   };
   const receipt = await applyDocumentPlan(subject.dependencies, {
-    consumerRoot: "/fixture", plan: fixture.plan, signal: controller.signal
+    consumerRoot: "/fixture",
+    plan: fixture.plan,
+    signal: controller.signal,
   });
   assert.equal(receipt.outcome, "cancelled");
   assert.equal(subject.state().temporary, undefined);
@@ -307,11 +368,13 @@ test("ambiguous publication preserves transaction evidence and masks cancellatio
   const subject = harness();
   subject.dependencies.publisher.publishPrepared = async () => {
     subject.events.push("publish");
-    const error = new Error("caller aborted during link"); error.name = "AbortError";
+    const error = new Error("caller aborted during link");
+    error.name = "AbortError";
     throw error;
   };
   const receipt = await applyDocumentPlan(subject.dependencies, {
-    consumerRoot: "/fixture", plan: fixture.plan
+    consumerRoot: "/fixture",
+    plan: fixture.plan,
   });
   assert.equal(receipt.outcome, "recovery-required");
   assert.equal(subject.state().envelope.state, "PUBLISHING");
@@ -326,7 +389,8 @@ test("failed PREPARED to PUBLISHING CAS cleans exact prepublication evidence", a
     throw new Error("journal CAS failed");
   };
   const receipt = await applyDocumentPlan(subject.dependencies, {
-    consumerRoot: "/fixture", plan: fixture.plan
+    consumerRoot: "/fixture",
+    plan: fixture.plan,
   });
   assert.equal(receipt.outcome, "failed-before-publication");
   assert.equal(subject.state().temporary, undefined);
@@ -344,7 +408,8 @@ test("journal create transition residue prevents a false terminal failure Receip
     throw new Error("incomplete journal transition evidence");
   };
   const receipt = await applyDocumentPlan(subject.dependencies, {
-    consumerRoot: "/fixture", plan: fixture.plan
+    consumerRoot: "/fixture",
+    plan: fixture.plan,
   });
   assert.equal(receipt.outcome, "manual-recovery-required");
   assert.deepEqual(subject.releases, [{ retainTransactionBarrier: true }]);
@@ -358,7 +423,8 @@ test("journal create that commits then throws is reconciled and continued", asyn
     throw new Error("lost create acknowledgement");
   };
   const receipt = await applyDocumentPlan(subject.dependencies, {
-    consumerRoot: "/fixture", plan: fixture.plan
+    consumerRoot: "/fixture",
+    plan: fixture.plan,
   });
   assert.equal(receipt.outcome, "applied");
   assert.equal(subject.events.filter((event) => event === "journal:create").length, 1);
@@ -378,7 +444,8 @@ test("PUBLISHING replacement that commits then throws preserves temp and continu
     return result;
   };
   const receipt = await applyDocumentPlan(subject.dependencies, {
-    consumerRoot: "/fixture", plan: fixture.plan
+    consumerRoot: "/fixture",
+    plan: fixture.plan,
   });
   assert.equal(receipt.outcome, "applied");
   assert.equal(subject.events.includes("publish"), true);
@@ -396,7 +463,8 @@ test("PUBLISHED replacement that commits then throws is reconciled and finalized
     return result;
   };
   const receipt = await applyDocumentPlan(subject.dependencies, {
-    consumerRoot: "/fixture", plan: fixture.plan
+    consumerRoot: "/fixture",
+    plan: fixture.plan,
   });
   assert.equal(receipt.outcome, "applied");
   assert.equal(subject.state().envelope, undefined);
@@ -410,7 +478,8 @@ test("final journal removal that commits then throws is reconciled as success", 
     throw new Error("lost removal acknowledgement");
   };
   const receipt = await applyDocumentPlan(subject.dependencies, {
-    consumerRoot: "/fixture", plan: fixture.plan
+    consumerRoot: "/fixture",
+    plan: fixture.plan,
   });
   assert.equal(receipt.outcome, "applied");
   assert.equal(subject.state().envelope, undefined);
@@ -431,7 +500,8 @@ test("unverifiable journal replacement returns manual receipt and preserves temp
     throw new Error("transition residue cannot be classified");
   };
   const receipt = await applyDocumentPlan(subject.dependencies, {
-    consumerRoot: "/fixture", plan: fixture.plan
+    consumerRoot: "/fixture",
+    plan: fixture.plan,
   });
   assert.equal(receipt.outcome, "manual-recovery-required");
   assert.notEqual(subject.state().temporary, undefined);
@@ -446,10 +516,11 @@ test("same-identity already-satisfied publication remains manual under ADR-0024"
     return { outcome: "already-satisfied", publicationIdentity: identity };
   };
   subject.dependencies.publisher.completePublication = async () => ({
-    publicationIdentity: identity
+    publicationIdentity: identity,
   });
   const receipt = await applyDocumentPlan(subject.dependencies, {
-    consumerRoot: "/fixture", plan: fixture.plan
+    consumerRoot: "/fixture",
+    plan: fixture.plan,
   });
   assert.equal(receipt.outcome, "manual-recovery-required");
   assert.equal(subject.state().envelope.state, "PUBLISHING");
@@ -462,11 +533,12 @@ test("different-identity already-satisfied publication requires manual recovery"
     subject.setDestination("exact");
     return {
       outcome: "already-satisfied",
-      publicationIdentity: { ...identity, ino: "999" }
+      publicationIdentity: { ...identity, ino: "999" },
     };
   };
   const receipt = await applyDocumentPlan(subject.dependencies, {
-    consumerRoot: "/fixture", plan: fixture.plan
+    consumerRoot: "/fixture",
+    plan: fixture.plan,
   });
   assert.equal(receipt.outcome, "manual-recovery-required");
   assert.notEqual(subject.state().temporary, undefined);
@@ -477,7 +549,9 @@ test("recovery preserves primary failure when lease release also fails", async (
   subject.setCoordinatorState("idle");
   subject.dependencies.coordinator.acquire = async () => ({
     status: { state: "idle" },
-    async release() { throw new Error("release failed"); }
+    async release() {
+      throw new Error("release failed");
+    },
   });
   await assert.rejects(
     recoverDocumentTransaction(subject.dependencies, { consumerRoot: "/fixture" }),
@@ -487,7 +561,7 @@ test("recovery preserves primary failure when lease release also fails", async (
       assert.match(error.errors[1].message, /release failed/u);
       assert.equal(error.cause, error.errors[0]);
       return true;
-    }
+    },
   );
 });
 
@@ -501,11 +575,14 @@ test("apply preserves journal failure when lease release also fails", async () =
   };
   subject.dependencies.coordinator.acquire = async () => ({
     status: { state: "idle" },
-    async release() { throw new Error("release failed"); }
+    async release() {
+      throw new Error("release failed");
+    },
   });
   await assert.rejects(
     applyDocumentPlan(subject.dependencies, {
-      consumerRoot: "/fixture", plan: fixture.plan
+      consumerRoot: "/fixture",
+      plan: fixture.plan,
     }),
     (error) => {
       assert.ok(error instanceof AggregateError);
@@ -516,7 +593,7 @@ test("apply preserves journal failure when lease release also fails", async () =
       assert.match(error.errors[1].message, /release failed/u);
       assert.equal(error.cause, primary);
       return true;
-    }
+    },
   );
 });
 
@@ -530,29 +607,26 @@ test("apply preserves body, cleanup, and lease release failures", async () => {
   };
   subject.dependencies.coordinator.acquire = async () => ({
     status: { state: "idle" },
-    async release() { throw new Error("release failed"); }
+    async release() {
+      throw new Error("release failed");
+    },
   });
   await assert.rejects(
     applyDocumentPlan(subject.dependencies, {
-      consumerRoot: "/fixture", plan: fixture.plan
+      consumerRoot: "/fixture",
+      plan: fixture.plan,
     }),
     (error) => {
       assert.ok(error instanceof AggregateError);
       const applyAndCleanup = error.errors[0];
       assert.ok(applyAndCleanup instanceof AggregateError);
       assert.match(applyAndCleanup.errors[0].message, /body failed/u);
-      assert.match(
-        applyAndCleanup.errors[1].message,
-        /Journal removal reported failure/u
-      );
-      assert.match(
-        applyAndCleanup.errors[1].cause.message,
-        /cleanup journal removal failed/u
-      );
+      assert.match(applyAndCleanup.errors[1].message, /Journal removal reported failure/u);
+      assert.match(applyAndCleanup.errors[1].cause.message, /cleanup journal removal failed/u);
       assert.match(error.errors[1].message, /release failed/u);
       assert.equal(error.cause, applyAndCleanup);
       return true;
-    }
+    },
   );
 });
 
@@ -562,13 +636,18 @@ test("recovery resumes an exact bound PUBLISHING temporary", async () => {
     throw new Error("crash before link");
   };
   const interrupted = await applyDocumentPlan(subject.dependencies, {
-    consumerRoot: "/fixture", plan: fixture.plan
+    consumerRoot: "/fixture",
+    plan: fixture.plan,
   });
   assert.equal(interrupted.outcome, "recovery-required");
   subject.setCoordinatorState("recoverable");
   subject.dependencies.publisher.publishPrepared = async () => {
     subject.events.push("recovery:publish");
-    return { outcome: "published", publicationIdentity: identity, identityEvidence: "owned-temporary" };
+    return {
+      outcome: "published",
+      publicationIdentity: identity,
+      identityEvidence: "owned-temporary",
+    };
   };
   // In-memory destination classification follows the successful link.
   const originalPublish = subject.dependencies.publisher.publishPrepared;
@@ -578,7 +657,7 @@ test("recovery resumes an exact bound PUBLISHING temporary", async () => {
     return result;
   };
   const recovered = await recoverDocumentTransaction(subject.dependencies, {
-    consumerRoot: "/fixture"
+    consumerRoot: "/fixture",
   });
   assert.equal(recovered.outcome, "applied");
   assert.equal(subject.state().envelope, undefined);
@@ -590,7 +669,8 @@ async function interruptedPublishingHarness() {
     throw new Error("crash before link");
   };
   const interrupted = await applyDocumentPlan(subject.dependencies, {
-    consumerRoot: "/fixture", plan: fixture.plan
+    consumerRoot: "/fixture",
+    plan: fixture.plan,
   });
   assert.equal(interrupted.outcome, "recovery-required");
   assert.equal(subject.state().envelope.state, "PUBLISHING");
@@ -610,15 +690,13 @@ test("recovery preserves abort swallowed during filesystem observation", async (
   };
   await assert.rejects(
     recoverDocumentTransaction(subject.dependencies, {
-      consumerRoot: "/fixture", signal: controller.signal
+      consumerRoot: "/fixture",
+      signal: controller.signal,
     }),
-    (error) => error === abort
+    (error) => error === abort,
   );
   assert.equal(subject.events.includes("recovery:publish"), false);
-  assert.equal(
-    subject.events.filter((event) => event === "authority").length,
-    authorityCount
-  );
+  assert.equal(subject.events.filter((event) => event === "authority").length, authorityCount);
   assert.equal(subject.state().envelope.state, "PUBLISHING");
   assert.notEqual(subject.state().temporary, undefined);
   assert.deepEqual(subject.releases.at(-1), { retainTransactionBarrier: true });
@@ -635,9 +713,10 @@ test("recovery preserves abort swallowed during authority replay", async () => {
   };
   await assert.rejects(
     recoverDocumentTransaction(subject.dependencies, {
-      consumerRoot: "/fixture", signal: controller.signal
+      consumerRoot: "/fixture",
+      signal: controller.signal,
     }),
-    (error) => error === abort
+    (error) => error === abort,
   );
   assert.equal(subject.events.includes("recovery:publish"), false);
   assert.equal(subject.state().envelope.state, "PUBLISHING");
@@ -651,26 +730,26 @@ async function publishedEnvelope(publicationIdentity = identity) {
     adapterContractVersion: 1,
     foundation: {
       buildIdentity: fixture.plan.compiler.buildIdentity,
-      version: fixture.plan.compiler.version
+      version: fixture.plan.compiler.version,
     },
     journal: {
       destination: { path: fixture.plan.destination, state: "published" },
       plan: fixture.plan,
       publicationIdentity,
-      schemaVersion: 2
+      schemaVersion: 2,
     },
     operationKind: "document-authoring",
     payloadKind: "document-authoring-journal/v2",
     recoveryHandler: { contractVersion: 2, id: "document-authoring" },
     schemaVersion: 3,
-    state: "PUBLISHED"
+    state: "PUBLISHED",
   });
 }
 
 for (const scenario of [
   { name: "missing", destination: "absent" },
   { name: "changed bytes", destination: "conflict" },
-  { name: "identity drift", destination: "exact", drift: true }
+  { name: "identity drift", destination: "exact", drift: true },
 ]) {
   test(`PUBLISHED ${scenario.name} is manual before authority replay`, async () => {
     const subject = harness({ destination: scenario.destination });
@@ -679,11 +758,11 @@ for (const scenario of [
     if (scenario.drift === true) {
       subject.dependencies.fileState.classifyDestination = async () => ({
         state: "exact",
-        identity: { ...identity, ino: "999" }
+        identity: { ...identity, ino: "999" },
       });
     }
     const receipt = await recoverDocumentTransaction(subject.dependencies, {
-      consumerRoot: "/fixture"
+      consumerRoot: "/fixture",
     });
     assert.equal(receipt.outcome, "manual-recovery-required");
     assert.equal(subject.events.includes("authority"), false);
@@ -692,12 +771,20 @@ for (const scenario of [
   });
 }
 
-function createDocumentTransactionEnvelope(...args) { return createDocumentTransactionEnvelopeWithSchema({ assertSchema }, ...args); }
+function createDocumentTransactionEnvelope(...args) {
+  return createDocumentTransactionEnvelopeWithSchema({ assertSchema }, ...args);
+}
 
-function applyDocumentPlan(dependencies, request) { return applyDocumentPlanWithSchema({ ...dependencies, schema: { assertSchema } }, request); }
+function applyDocumentPlan(dependencies, request) {
+  return applyDocumentPlanWithSchema({ ...dependencies, schema: { assertSchema } }, request);
+}
 
-function recoverDocumentTransaction(dependencies, request) { return recoverDocumentTransactionWithSchema({ ...dependencies, schema: { assertSchema } }, request); }
-
+function recoverDocumentTransaction(dependencies, request) {
+  return recoverDocumentTransactionWithSchema(
+    { ...dependencies, schema: { assertSchema } },
+    request,
+  );
+}
 
 test("recovery rechecks actual stored artifacts after lease admission before effects", async () => {
   for (const coordinate of ["compiler", "kernelArtifact"]) {
@@ -711,14 +798,15 @@ test("recovery rechecks actual stored artifacts after lease admission before eff
       envelope.kernelArtifact.buildIdentity = `sha256:${"f".repeat(64)}`;
     }
     subject.seedJournal(envelope);
-    await assert.rejects(recoverDocumentTransaction(subject.dependencies, { consumerRoot: "/fixture" }),
-      /exact recorded Authoring and Mutation artifacts/u);
+    await assert.rejects(
+      recoverDocumentTransaction(subject.dependencies, { consumerRoot: "/fixture" }),
+      /exact recorded Authoring and Mutation artifacts/u,
+    );
     assert.deepEqual(subject.events, ["acquire"]);
     assert.deepEqual(subject.state().envelope, envelope);
     assert.deepEqual(subject.releases, [{ retainTransactionBarrier: true }]);
   }
 });
-
 
 test("every file transition preserves the kernel captured at PREPARED", async () => {
   const subject = harness();
@@ -727,7 +815,13 @@ test("every file transition preserves the kernel captured at PREPARED", async ()
       subject.dependencies.kernelArtifact = { ...fixtureKernelArtifact, version: "9.9.9" };
     }
   };
-  const receipt = await applyDocumentPlan(subject.dependencies, { consumerRoot: "/fixture", plan: fixture.plan });
+  const receipt = await applyDocumentPlan(subject.dependencies, {
+    consumerRoot: "/fixture",
+    plan: fixture.plan,
+  });
   assert.equal(receipt.outcome, "applied");
-  assert.deepEqual(subject.recordedArtifacts, Array.from({ length: 3 }, () => fixtureKernelArtifact));
+  assert.deepEqual(
+    subject.recordedArtifacts,
+    Array.from({ length: 3 }, () => fixtureKernelArtifact),
+  );
 });

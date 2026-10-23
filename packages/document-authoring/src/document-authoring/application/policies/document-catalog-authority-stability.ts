@@ -12,16 +12,13 @@ export interface CatalogAuthoritySnapshot {
   readonly sidecar?: DocumentMetadataSidecarSnapshot;
 }
 
-function sameEvidence(
-  left: DocumentAuthorityEvidence,
-  right: DocumentAuthorityEvidence
-): boolean {
+function sameEvidence(left: DocumentAuthorityEvidence, right: DocumentAuthorityEvidence): boolean {
   return left.path === right.path && left.digest === right.digest && left.size === right.size;
 }
 
 export function assertCatalogAuthorityStable(
   before: CatalogAuthoritySnapshot,
-  after: CatalogAuthoritySnapshot
+  after: CatalogAuthoritySnapshot,
 ): void {
   if (
     !sameEvidence(before.metadata.evidence, after.metadata.evidence) ||
@@ -34,7 +31,7 @@ export function assertCatalogAuthorityStable(
   ) {
     throw new DocumentCatalogError(
       "DOCUMENT_CATALOG_AUTHORITY_CHANGED",
-      "Document catalog authority changed while the repository was observed."
+      "Document catalog authority changed while the repository was observed.",
     );
   }
 }

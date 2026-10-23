@@ -1,31 +1,70 @@
+import { registerRootExportConditionTests } from "./source-root-export-condition-cases.ts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { join, normalize } from "node:path";
 import { sourceConfigPath } from "./helpers/source-dependency-v2-fixture.mjs";
 import { opendir, readdir, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import {
-  assertV3Problem, assertV3Rule, checkV3, inspectV3Topology, saveV3Policy,
-  v3Boundary, withV3Fixture, writeV3File,
+  assertV3Problem,
+  assertV3Rule,
+  checkV3,
+  inspectV3Topology,
+  saveV3Policy,
+  v3Boundary,
+  withV3Fixture,
+  writeV3File,
 } from "./helpers/source-dependency-v3-fixture.mjs";
 
-for (const rootOnly of [true, false]) {
-  test(`v3 public CLI admits ${rootOnly ? "root-only" : "mixed nested"} source ownership`, async () => {
-    await withV3Fixture((root) => checkV3(root), { rootOnly });
-  });
-}
-
 for (const [name, mutate] of [
-  ["unknown key", (policy) => { policy.rootScopes = []; }],
-  ["missing selectors", (policy) => { delete policy.packageRoots; }],
-  ["missing workspace", (policy) => { delete policy.workspace; }],
-  ["empty selectors without opt-in", (policy) => {
-    policy.packageRoots = [];
-    delete policy.rootPackage;
-  }],
-  ["duplicate selectors", (policy) => { policy.packageRoots.push("packages"); }],
-  ["dot governed root", (policy) => { policy.governedRoots[0] = "."; }],
-  ["dot boundary root", (policy) => { policy.boundaries[0].roots = ["."]; }],
-  ["dot entrypoint", (policy) => { policy.boundaries[0].entrypoints = ["."]; }],
+  [
+    "unknown key",
+    (policy) => {
+      policy.rootScopes = [];
+    },
+  ],
+  [
+    "missing selectors",
+    (policy) => {
+      delete policy.packageRoots;
+    },
+  ],
+  [
+    "missing workspace",
+    (policy) => {
+      delete policy.workspace;
+    },
+  ],
+  [
+    "empty selectors without opt-in",
+    (policy) => {
+      policy.packageRoots = [];
+      delete policy.rootPackage;
+    },
+  ],
+  [
+    "duplicate selectors",
+    (policy) => {
+      policy.packageRoots.push("packages");
+    },
+  ],
+  [
+    "dot governed root",
+    (policy) => {
+      policy.governedRoots[0] = ".";
+    },
+  ],
+  [
+    "dot boundary root",
+    (policy) => {
+      policy.boundaries[0].roots = ["."];
+    },
+  ],
+  [
+    "dot entrypoint",
+    (policy) => {
+      policy.boundaries[0].entrypoints = ["."];
+    },
+  ],
 ]) {
   test(`v3 closed schema refuses ${name}`, async () => {
     await withV3Fixture(async (root, policy) => {
@@ -40,7 +79,10 @@ for (const [name, mutate] of [
 test("v3 duplicate YAML keys cannot override root authority", async () => {
   await withV3Fixture(async (root) => {
     checkV3(root);
-    await writeFile(sourceConfigPath(root), "schemaVersion: 3\nrootPackage: true\nrootPackage: false\n");
+    await writeFile(
+      sourceConfigPath(root),
+      "schemaVersion: 3\nrootPackage: true\nrootPackage: false\n",
+    );
     const report = checkV3(root, "invalid-input", 2);
     assert.equal(report.problem.code, "YAML_INVALID");
     assert.equal(report.problem.phase, "source-architecture-config");
@@ -55,8 +97,11 @@ for (const type of ["module", "commonjs"]) {
       await writeV3File(root, `${scope}/index.ts`, "export {};\n");
       policy.packageRoots.push("packages/domain");
       await saveV3Policy(root, policy);
-      await writeV3File(root, "pnpm-workspace.yaml",
-        `packages:\n  - packages/*\n  - packages/contexts/*\n  - ${scope}\n`);
+      await writeV3File(
+        root,
+        "pnpm-workspace.yaml",
+        `packages:\n  - packages/*\n  - packages/contexts/*\n  - ${scope}\n`,
+      );
       checkV3(root);
       await writeV3File(root, `${scope}/index.ts`, 'import "node:fs";\n');
       assertV3Rule(root, "forbidden-builtin-dependency", `${scope}/index.ts`);
@@ -113,8 +158,12 @@ for (const owner of ["tooling/task", "packages/domain"]) {
             await writeV3File(root, path, 'import "node:fs";\n');
           }
           const report = assertV3Rule(root, "forbidden-builtin-dependency", paths[0]);
-          assert.deepEqual(report.diagnostics.filter(({ ruleId }) =>
-            ruleId.endsWith(".forbidden-builtin-dependency")).map(({ location }) => location.path), paths);
+          assert.deepEqual(
+            report.diagnostics
+              .filter(({ ruleId }) => ruleId.endsWith(".forbidden-builtin-dependency"))
+              .map(({ location }) => location.path),
+            paths,
+          );
         });
       });
     }
@@ -122,11 +171,20 @@ for (const owner of ["tooling/task", "packages/domain"]) {
 }
 
 for (const fields of [
-  { name: "@fixture/fence" }, { dependencies: {} }, { devDependencies: {} },
-  { optionalDependencies: {} }, { peerDependencies: {} }, { exports: null },
-  { scripts: {} }, { imports: {} }, { main: "index.js" }, { version: "1.0.0" },
-  { packageManager: "pnpm@11.20.0" }, { bundleDependencies: [] },
-  { bundledDependencies: [] }, { unknown: true },
+  { name: "@fixture/fence" },
+  { dependencies: {} },
+  { devDependencies: {} },
+  { optionalDependencies: {} },
+  { peerDependencies: {} },
+  { exports: null },
+  { scripts: {} },
+  { imports: {} },
+  { main: "index.js" },
+  { version: "1.0.0" },
+  { packageManager: "pnpm@11.20.0" },
+  { bundleDependencies: [] },
+  { bundledDependencies: [] },
+  { unknown: true },
 ]) {
   test(`v3 marker plus ${Object.keys(fields)[0]} is an ownership fence`, async () => {
     await withV3Fixture(async (root) => {
@@ -140,7 +198,11 @@ for (const fields of [
   });
 }
 
-for (const path of ["tooling/package.json", "tooling/task/package.json", "tooling/task/src/package.json"]) {
+for (const path of [
+  "tooling/package.json",
+  "tooling/task/package.json",
+  "tooling/task/src/package.json",
+]) {
   test(`v3 ancestor authority fences root scope at ${path}`, async () => {
     await withV3Fixture(async (root) => {
       checkV3(root);
@@ -172,8 +234,11 @@ for (const path of ["packages/new", "packages/contexts/new"]) {
     test(`v3 discovers excluded ${sourceBearing ? "source-bearing" : "manifest-only"} ${path}`, async () => {
       await withV3Fixture(async (root) => {
         checkV3(root);
-        await writeV3File(root, "pnpm-workspace.yaml",
-          `packages:\n  - packages/*\n  - packages/contexts/*\n  - '!${path}'\n`);
+        await writeV3File(
+          root,
+          "pnpm-workspace.yaml",
+          `packages:\n  - packages/*\n  - packages/contexts/*\n  - '!${path}'\n`,
+        );
         await writeV3File(root, `${path}/package.json`, { name: "@fixture/new", private: true });
         if (sourceBearing) {
           await writeV3File(root, `${path}/index.ts`, "export {};\n");
@@ -205,7 +270,11 @@ test("v3 recommended overlapping selection preserves nested direct-child meaning
     assert.deepEqual(checkV3(root), positive);
     policy.packageRoots = ["packages"];
     await saveV3Policy(root, policy);
-    assertV3Problem(root, "WORKSPACE_PACKAGE_OUTSIDE_PACKAGE_ROOTS", "packages/contexts/supply/package.json");
+    assertV3Problem(
+      root,
+      "WORKSPACE_PACKAGE_OUTSIDE_PACKAGE_ROOTS",
+      "packages/contexts/supply/package.json",
+    );
   });
 });
 
@@ -244,7 +313,11 @@ test("v3 root package dependency declarations and allowlists are independent", a
     assertV3Rule(root, "forbidden-package-dependency", path);
     boundary.allow.packages = ["@fixture/domain"];
     await saveV3Policy(root, policy);
-    await writeV3File(root, "package.json", { name: "@fixture/root", private: true, type: "module" });
+    await writeV3File(root, "package.json", {
+      name: "@fixture/root",
+      private: true,
+      type: "module",
+    });
     assertV3Rule(root, "undeclared-workspace-dependency", path);
   });
 });
@@ -288,7 +361,9 @@ for (const [owner, importer, specifier] of [
   for (const type of ["module", "commonjs"]) {
     test(`v3 ${owner} development output keeps stable ${type} marker and refuses package authority`, async () => {
       await withV3Fixture(async (root, policy) => {
-        const boundary = policy.boundaries.find(({ entrypoints }) => entrypoints.includes(importer));
+        const boundary = policy.boundaries.find(({ entrypoints }) =>
+          entrypoints.includes(importer),
+        );
         boundary.dependencyMode = "development";
         await saveV3Policy(root, policy);
         const outputRoot = owner === "." ? "dist/scoped" : `${owner}/dist/scoped`;
@@ -322,7 +397,11 @@ test("v3 root boundaries preserve entrypoints, runtime separation and type cycle
     await writeV3File(root, "tooling/other/package.json", { type: "module" });
     await writeV3File(root, "tooling/other/src/index.ts", "export type Value = string;\n");
     await writeV3File(root, "tooling/other/src/private.ts", "export type Value = string;\n");
-    await writeV3File(root, "tooling/task/src/index.ts", 'import type { Value } from "../../other/src/index.js";\n');
+    await writeV3File(
+      root,
+      "tooling/task/src/index.ts",
+      'import type { Value } from "../../other/src/index.js";\n',
+    );
     await saveV3Policy(root, policy);
     checkV3(root);
     first.allow.boundaries = [];
@@ -330,15 +409,31 @@ test("v3 root boundaries preserve entrypoints, runtime separation and type cycle
     assertV3Rule(root, "forbidden-boundary-dependency", "tooling/task/src/index.ts");
     first.allow.boundaries = [second.id];
     await saveV3Policy(root, policy);
-    await writeV3File(root, "tooling/task/src/index.ts", 'import type { Value } from "../../other/src/private.js";\n');
+    await writeV3File(
+      root,
+      "tooling/task/src/index.ts",
+      'import type { Value } from "../../other/src/private.js";\n',
+    );
     assertV3Rule(root, "cross-boundary-local-import-not-entrypoint", "tooling/task/src/index.ts");
-    await writeV3File(root, "tooling/task/src/index.ts", 'export type { Value } from "../../other/src/index.js";\n');
-    await writeV3File(root, "tooling/other/src/index.ts", 'export type { Value } from "../../task/src/index.js";\n');
+    await writeV3File(
+      root,
+      "tooling/task/src/index.ts",
+      'export type { Value } from "../../other/src/index.js";\n',
+    );
+    await writeV3File(
+      root,
+      "tooling/other/src/index.ts",
+      'export type { Value } from "../../task/src/index.js";\n',
+    );
     assertV3Rule(root, "boundary-type-only-cycle", "tooling/other/src/index.ts");
     await writeV3File(root, "tooling/other/src/index.ts", "export type Value = string;\n");
     second.dependencyMode = "development";
     await saveV3Policy(root, policy);
-    assertV3Rule(root, "runtime-boundary-imports-development-boundary", "tooling/task/src/index.ts");
+    assertV3Rule(
+      root,
+      "runtime-boundary-imports-development-boundary",
+      "tooling/task/src/index.ts",
+    );
   });
 });
 
@@ -351,7 +446,9 @@ for (const owner of ["tooling/task", "packages/domain"]) {
       const name = owner === "tooling/task" ? "@fixture/root" : "@fixture/domain";
       await writeV3File(root, `${owner}/src/scoped/package.json`, { type: "module" });
       await writeV3File(root, manifestPath, {
-        name, type: "module", devDependencies: { "fixture-slot": "npm:fixture-target@1.0.0" },
+        name,
+        type: "module",
+        devDependencies: { "fixture-slot": "npm:fixture-target@1.0.0" },
       });
       boundary.allow.packages = ["fixture-slot", "fixture-target"];
       boundary.dependencyMode = "development";
@@ -380,10 +477,14 @@ test("v3 root mixed-mode exports require exact runtime boundary ownership", asyn
     policy.boundaries[0].allow.packages = ["@fixture/root"];
     await writeV3File(root, "tooling/tests/index.ts", "export {};\n");
     await writeV3File(root, "package.json", {
-      name: "@fixture/root", type: "module", exports: { "./task": "./dist/task.js" },
+      name: "@fixture/root",
+      type: "module",
+      exports: { "./task": "./dist/task.js" },
     });
     await writeV3File(root, "packages/domain/package.json", {
-      name: "@fixture/domain", type: "module", dependencies: { "@fixture/root": "workspace:*" },
+      name: "@fixture/domain",
+      type: "module",
+      dependencies: { "@fixture/root": "workspace:*" },
     });
     const importer = "packages/domain/src/index.ts";
     await writeV3File(root, importer, 'import "@fixture/root/task";\n');
@@ -405,56 +506,6 @@ test("v3 root mixed-mode exports require exact runtime boundary ownership", asyn
     assertV3Problem(root, "SCHEMA_INVALID");
   });
 });
-
-test("v3 nearest pure marker controls static TypeScript export conditions", async () => {
-  await withV3Fixture(async (root, policy) => {
-    const importer = "tooling/task/src/scoped/index.ts";
-    policy.boundaries.at(-1).allow.packages = ["@fixture/domain"];
-    await saveV3Policy(root, policy);
-    await writeV3File(root, "packages/domain/package.json", {
-      name: "@fixture/domain", type: "module",
-      exports: { ".": { import: null, require: "./dist/index.cjs" } },
-    });
-    await writeV3File(root, importer, 'import value from "@fixture/domain";\nexport { value };\n');
-    await writeV3File(root, "tooling/task/src/scoped/package.json", { type: "commonjs" });
-    checkV3(root);
-    await writeV3File(root, "tooling/task/src/scoped/package.json", { type: "module" });
-    assertV3Rule(root, "package-subpath-not-exported", importer);
-  });
-});
-
-for (const [name, mutate] of [
-  ["case-equivalent selectors", (policy) => { policy.packageRoots.push("Packages"); }],
-  ["overlapping governed roots", (policy) => { policy.governedRoots.push("tooling/task"); }],
-  ["overlapping boundary roots", (policy) => { policy.boundaries.at(-1).roots.push("tooling/task/src/nested"); }],
-]) {
-  test(`v3 selection overlap does not authorize ${name}`, async () => {
-    await withV3Fixture(async (root, policy) => {
-      checkV3(root);
-      mutate(policy);
-      await saveV3Policy(root, policy);
-      assertV3Problem(root, name === "overlapping boundary roots"
-        ? "SOURCE_BOUNDARY_AMBIGUOUS" : "SOURCE_ARCHITECTURE_CONFIG_INVALID");
-    });
-  });
-}
-
-for (const specifier of [
-  "../../../dist/con.js", "../../../dist/index.js:payload", "../../../dist/../secret.js",
-  "../../../dist/%69ndex.js", "../../../dist/cafe\u0301.js", "../../../dist//index.js",
-]) {
-  test(`v3 root development output refuses noncanonical ${specifier}`, async () => {
-    await withV3Fixture(async (root, policy) => {
-      const importer = "tooling/task/src/index.ts";
-      policy.boundaries.at(-1).dependencyMode = "development";
-      await saveV3Policy(root, policy);
-      await writeV3File(root, importer, 'import "../../../dist/index.js";\n');
-      checkV3(root);
-      await writeV3File(root, importer, `import ${JSON.stringify(specifier)};\n`);
-      assertV3Rule(root, "unresolved-local-import", importer);
-    });
-  });
-}
 
 test("v3 one boundary cannot span the selected root and child package", async () => {
   await withV3Fixture(async (root, policy) => {
@@ -492,19 +543,33 @@ for (const [name, files, code] of [
       let observed = false;
       // The scanner contract covers enumerated names. NTFS streams and names
       // folded by the host filesystem cannot supply these directory entries.
-      await assert.rejects(() => inspectV3Topology(root, {
-        fileSystem: { async opendir(path) {
-          const entries = [];
-          for await (const entry of await opendir(path)) { entries.push(entry); }
-          if (normalize(path) === normalize(directory)) {
-            observed = true;
-            const source = entries.find((entry) => entry.name === "index.ts");
-            assert.ok(source);
-            entries.push(...files.map((file) => Object.assign(Object.create(source), { name: file })));
-          }
-          return { async *[Symbol.asyncIterator]() { yield* entries; } };
-        } },
-      }), (error) => error?.problem?.code === code);
+      await assert.rejects(
+        () =>
+          inspectV3Topology(root, {
+            fileSystem: {
+              async opendir(path) {
+                const entries = [];
+                for await (const entry of await opendir(path)) {
+                  entries.push(entry);
+                }
+                if (normalize(path) === normalize(directory)) {
+                  observed = true;
+                  const source = entries.find((entry) => entry.name === "index.ts");
+                  assert.ok(source);
+                  entries.push(
+                    ...files.map((file) => Object.assign(Object.create(source), { name: file })),
+                  );
+                }
+                return {
+                  async *[Symbol.asyncIterator]() {
+                    yield* entries;
+                  },
+                };
+              },
+            },
+          }),
+        (error) => error?.problem?.code === code,
+      );
       assert.equal(observed, true, "the intended root source directory must be observed");
 
       // Retain the public CLI / real-filesystem assertion whenever the exact
@@ -515,14 +580,18 @@ for (const [name, files, code] of [
             flag: code === "SOURCE_PATH_CASE_COLLISION" ? "wx" : "w",
           });
         } catch (error) {
-          if (error.code !== "EEXIST" || code !== "SOURCE_PATH_CASE_COLLISION") { throw error; }
+          if (error.code !== "EEXIST" || code !== "SOURCE_PATH_CASE_COLLISION") {
+            throw error;
+          }
         }
       }
       const names = await readdir(directory);
       if (["index.ts", ...files].every((file) => names.includes(file))) {
         assertV3Problem(root, code);
       } else {
-        t.diagnostic("Host cannot enumerate the exact fixture names; scanner-port rejection asserted above.");
+        t.diagnostic(
+          "Host cannot enumerate the exact fixture names; scanner-port rejection asserted above.",
+        );
       }
     });
   });
@@ -564,11 +633,15 @@ for (const typeOnly of [false, true]) {
   test(`v3 marker-owned root and child retain ${typeOnly ? "type-only" : "runtime"} package cycles`, async () => {
     await withV3Fixture(async (root, policy) => {
       await writeV3File(root, "package.json", {
-        name: "@fixture/root", type: "module", exports: { ".": "./tooling/task/src/index.ts" },
+        name: "@fixture/root",
+        type: "module",
+        exports: { ".": "./tooling/task/src/index.ts" },
         dependencies: { "@fixture/domain": "workspace:*" },
       });
       await writeV3File(root, "packages/domain/package.json", {
-        name: "@fixture/domain", type: "module", exports: { ".": "./src/index.ts" },
+        name: "@fixture/domain",
+        type: "module",
+        exports: { ".": "./src/index.ts" },
         dependencies: { "@fixture/root": "workspace:*" },
       });
       policy.boundaries[0].allow.packages = ["@fixture/root"];
@@ -577,15 +650,20 @@ for (const typeOnly of [false, true]) {
       await writeV3File(root, "packages/domain/src/package.json", { type: "module" });
       await saveV3Policy(root, policy);
       checkV3(root);
-      const statement = (name) => typeOnly ? `export type { Value } from "${name}";\n`
-        : `import "${name}";\n`;
+      const statement = (name) =>
+        typeOnly ? `export type { Value } from "${name}";\n` : `import "${name}";\n`;
       await writeV3File(root, "tooling/task/src/index.ts", statement("@fixture/domain"));
       checkV3(root);
       await writeV3File(root, "packages/domain/src/index.ts", statement("@fixture/root"));
       const report = checkV3(root, "violations");
-      assert.ok(report.diagnostics.some(({ ruleId }) => ruleId ===
-        `architecture.source-dependencies.package-${typeOnly ? "type-only" : "runtime"}-cycle`),
-      JSON.stringify(report));
+      assert.ok(
+        report.diagnostics.some(
+          ({ ruleId }) =>
+            ruleId ===
+            `architecture.source-dependencies.package-${typeOnly ? "type-only" : "runtime"}-cycle`,
+        ),
+        JSON.stringify(report),
+      );
     });
   });
 }
@@ -593,7 +671,9 @@ for (const typeOnly of [false, true]) {
 test("v3 root cannot borrow a child's external declarations", async () => {
   await withV3Fixture(async (root, policy) => {
     await writeV3File(root, "packages/domain/package.json", {
-      name: "@fixture/domain", type: "module", dependencies: { "fixture-external": "1.0.0" },
+      name: "@fixture/domain",
+      type: "module",
+      dependencies: { "fixture-external": "1.0.0" },
     });
     policy.boundaries.at(-1).allow.packages = ["fixture-external"];
     await saveV3Policy(root, policy);
@@ -610,7 +690,9 @@ test("v3 root export claims cannot contradict observed source or authorize self 
     policy.boundaries.push(other);
     await writeV3File(root, "tooling/other/src/index.ts", "export {};\n");
     await writeV3File(root, "package.json", {
-      name: "@fixture/root", type: "module", exports: { "./task": "./tooling/task/src/index.ts" },
+      name: "@fixture/root",
+      type: "module",
+      exports: { "./task": "./tooling/task/src/index.ts" },
     });
     policy.boundaries[2].packageExports = ["./task"];
     await saveV3Policy(root, policy);
@@ -656,39 +738,75 @@ async function declaredDevelopmentFixture(callback) {
     target.dependencyMode = "development";
     source.allow.boundaries = [target.id];
     await saveV3Policy(root, policy);
-    await writeV3File(root, "packages/domain/src/index.ts",
-      'import "../../../tooling/task/src/index.js";\n');
+    await writeV3File(
+      root,
+      "packages/domain/src/index.ts",
+      'import "../../../tooling/task/src/index.js";\n',
+    );
     await callback(root, policy, source, target);
   });
 }
 
 test("v3 admits only the explicitly allowed repository development entrypoint", async () => {
-  await declaredDevelopmentFixture(async (root) => { checkV3(root); });
+  await declaredDevelopmentFixture(async (root) => {
+    checkV3(root);
+  });
 });
 
 for (const [name, mutate] of [
-  ["runtime source", async (_root, _policy, source) => { source.dependencyMode = "runtime"; }],
-  ["runtime target", async (_root, _policy, _source, target) => { target.dependencyMode = "runtime"; }],
-  ["absent allowed boundary", async (_root, _policy, source) => { source.allow.boundaries = []; }],
-  ["undeclared exact entrypoint", async (_root, _policy, _source, target) => { target.entrypoints = []; }],
-  ["unknown target boundary", async (root, _policy, _source, target) => {
-    target.roots = ["tooling/task/src/index.ts"];
-    await writeV3File(root, "tooling/task/src/unknown.ts", "export {};\n");
-    await writeV3File(root, "packages/domain/src/index.ts",
-      'import "../../../tooling/task/src/unknown.js";\n');
-  }],
-  ["another private package owner", async (root, policy, _source, target) => {
-    // Identical target path and allowed identity, but a real child manifest
-    // fences the repository owner. Path names never confer root authority.
-    await writeV3File(root, "tooling/task/package.json", {
-      name: "@fixture/private-tooling", private: true, type: "module",
-    });
-    policy.packageRoots.push("tooling/task");
-    policy.governedRoots.push("root-tests");
-    policy.boundaries.push(v3Boundary("root.tests", "root-tests"));
-    await writeV3File(root, "root-tests/index.ts", "export {};\n");
-    target.dependencyMode = "development";
-  }],
+  [
+    "runtime source",
+    async (_root, _policy, source) => {
+      source.dependencyMode = "runtime";
+    },
+  ],
+  [
+    "runtime target",
+    async (_root, _policy, _source, target) => {
+      target.dependencyMode = "runtime";
+    },
+  ],
+  [
+    "absent allowed boundary",
+    async (_root, _policy, source) => {
+      source.allow.boundaries = [];
+    },
+  ],
+  [
+    "undeclared exact entrypoint",
+    async (_root, _policy, _source, target) => {
+      target.entrypoints = [];
+    },
+  ],
+  [
+    "unknown target boundary",
+    async (root, _policy, _source, target) => {
+      target.roots = ["tooling/task/src/index.ts"];
+      await writeV3File(root, "tooling/task/src/unknown.ts", "export {};\n");
+      await writeV3File(
+        root,
+        "packages/domain/src/index.ts",
+        'import "../../../tooling/task/src/unknown.js";\n',
+      );
+    },
+  ],
+  [
+    "another private package owner",
+    async (root, policy, _source, target) => {
+      // Identical target path and allowed identity, but a real child manifest
+      // fences the repository owner. Path names never confer root authority.
+      await writeV3File(root, "tooling/task/package.json", {
+        name: "@fixture/private-tooling",
+        private: true,
+        type: "module",
+      });
+      policy.packageRoots.push("tooling/task");
+      policy.governedRoots.push("root-tests");
+      policy.boundaries.push(v3Boundary("root.tests", "root-tests"));
+      await writeV3File(root, "root-tests/index.ts", "export {};\n");
+      target.dependencyMode = "development";
+    },
+  ],
 ]) {
   test(`v3 declared development admission rejects ${name}`, async () => {
     await declaredDevelopmentFixture(async (root, policy, source, target) => {
@@ -710,18 +828,21 @@ test("v3 development admission retains reverse direction and downstream boundary
     await saveV3Policy(root, policy);
     // The admitted entrypoint is still observed and cannot reach a forbidden
     // boundary. There is no early successful aggregate return.
-    await writeV3File(root, "tooling/task/src/index.ts",
-      'import "../../runtime/index.js";\n');
+    await writeV3File(root, "tooling/task/src/index.ts", 'import "../../runtime/index.js";\n');
     assertV3Rule(root, "forbidden-boundary-dependency", "tooling/task/src/index.ts");
     await writeV3File(root, "tooling/task/src/index.ts", "export {};\n");
-    await writeV3File(root, "tooling/runtime/index.ts",
-      'import "../task/src/index.js";\n');
+    await writeV3File(root, "tooling/runtime/index.ts", 'import "../task/src/index.js";\n');
     assertV3Rule(root, "runtime-boundary-imports-development-boundary", "tooling/runtime/index.ts");
     await writeV3File(root, "tooling/runtime/index.ts", "export {};\n");
     target.allow.boundaries = [source.id];
     await saveV3Policy(root, policy);
-    await writeV3File(root, "tooling/task/src/index.ts",
-      'import "../../../packages/domain/src/index.js";\n');
+    await writeV3File(
+      root,
+      "tooling/task/src/index.ts",
+      'import "../../../packages/domain/src/index.js";\n',
+    );
     assertV3Rule(root, "cross-package-relative-import", "tooling/task/src/index.ts");
   });
 });
+
+registerRootExportConditionTests();

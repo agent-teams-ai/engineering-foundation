@@ -21,7 +21,12 @@ export interface AuditDiagnostic {
 export interface AuditReference {
   readonly text: string;
   readonly canonicalReference: string | null;
-  readonly resolution: "local" | "same-subject-dependency" | "verified-external-library" | "unresolved" | "ambiguous";
+  readonly resolution:
+    | "local"
+    | "same-subject-dependency"
+    | "verified-external-library"
+    | "unresolved"
+    | "ambiguous";
   readonly target?: AuditIdentity;
   readonly library?: { readonly symbol: string; readonly declarations: readonly string[] };
 }
@@ -68,5 +73,10 @@ export interface AuditObservation {
   readonly storedSurface?: PublicApiSnapshot;
 }
 export function auditIdentityKey(identity: AuditIdentity): string {
-  return JSON.stringify([identity.subject, identity.packageName, identity.exportPath, identity.canonicalReference]);
+  return JSON.stringify([
+    identity.subject,
+    identity.packageName,
+    identity.exportPath,
+    identity.canonicalReference,
+  ]);
 }

@@ -1,18 +1,27 @@
 import { createDocumentInputFailure } from "../../application/policies/document-input-failure.js";
 import { isAlias, isMap, isNode, isPair, parseDocument, visit } from "yaml";
 
-
-function invalid(code: "YAML_INVALID" | "YAML_FEATURE_PROHIBITED", message: string, phase: string): never {
+function invalid(
+  code: "YAML_INVALID" | "YAML_FEATURE_PROHIBITED",
+  message: string,
+  phase: string,
+): never {
   throw createDocumentInputFailure(code, message, phase);
 }
 
 export function parseStrictYamlSource(source: string, phase: string): unknown {
   const document = parseDocument(source, {
-    customTags: [], merge: false, schema: "core", uniqueKeys: true
+    customTags: [],
+    merge: false,
+    schema: "core",
+    uniqueKeys: true,
   });
   if (document.errors.length > 0 || document.warnings.length > 0) {
     const problem = [...document.errors, ...document.warnings]
-      .slice(0, 8).map((error) => error.message).join("; ").slice(0, 1000);
+      .slice(0, 8)
+      .map((error) => error.message)
+      .join("; ")
+      .slice(0, 1000);
     invalid("YAML_INVALID", problem || "YAML input is invalid.", phase);
   }
   let forbidden: string | undefined;

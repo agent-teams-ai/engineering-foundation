@@ -1,17 +1,17 @@
 import {
   compareBinaryStrings,
-  compareBinaryStringSequences
+  compareBinaryStringSequences,
 } from "../../../../binary-string-comparator.js";
-import type { DiagnosticEvidence, FoundationDiagnostic } from "../../../../features/validation-reporting/api.js";
+import type {
+  DiagnosticEvidence,
+  FoundationDiagnostic,
+} from "../../../../features/validation-reporting/api.js";
 import type {
   ObservedSourceDependencyEdge,
   ObservedSourceGraph,
-  SourceDependencyEdgeMode
+  SourceDependencyEdgeMode,
 } from "../model/source-workspace.js";
-import {
-  SOURCE_DEPENDENCY_RULES,
-  type SourceDependencyRuleMetadata
-} from "../rules.js";
+import { SOURCE_DEPENDENCY_RULES, type SourceDependencyRuleMetadata } from "../rules.js";
 
 type CycleScope = "boundary" | "package";
 
@@ -45,11 +45,10 @@ function diagnostic(input: {
     subject: input.subject,
     message: input.message,
     location: { path: input.path },
-    relatedLocations:
-      input.relatedPath === null ? [] : [{ path: input.relatedPath }],
+    relatedLocations: input.relatedPath === null ? [] : [{ path: input.relatedPath }],
     evidence: input.evidence,
     remediation: input.rule.remediation,
-    requiresArchitectureReview: input.rule.requiresArchitectureReview
+    requiresArchitectureReview: input.rule.requiresArchitectureReview,
   };
 }
 
@@ -66,7 +65,7 @@ function compareLogicalEdges(left: LogicalEdge, right: LogicalEdge): number {
 function logicalEdges(
   graph: ObservedSourceGraph,
   scope: CycleScope,
-  mode: SourceDependencyEdgeMode
+  mode: SourceDependencyEdgeMode,
 ): readonly LogicalEdge[] {
   const candidates: LogicalEdge[] = [];
   for (const edge of graph.edges) {
@@ -93,7 +92,7 @@ function logicalEdges(
 
 function logicalEdge(
   edge: ObservedSourceDependencyEdge,
-  scope: CycleScope
+  scope: CycleScope,
 ): LogicalEdge | undefined {
   if (scope === "boundary") {
     if (edge.resolution.kind !== "local-file") {
@@ -107,7 +106,7 @@ function logicalEdge(
       mode: edge.mode,
       to: edge.resolution.targetBoundaryId,
       sourcePath: edge.fromPath,
-      targetPath: edge.resolution.path
+      targetPath: edge.resolution.path,
     };
   }
 
@@ -118,7 +117,7 @@ function logicalEdge(
         mode: edge.mode,
         to: edge.resolution.workspacePackageName,
         sourcePath: edge.fromPath,
-        targetPath: edge.resolution.path
+        targetPath: edge.resolution.path,
       };
     case "workspace-package":
       return {
@@ -126,7 +125,7 @@ function logicalEdge(
         mode: edge.mode,
         to: edge.resolution.workspacePackageName,
         sourcePath: edge.fromPath,
-        targetPath: null
+        targetPath: null,
       };
     case "builtin":
     case "external-package":
@@ -151,14 +150,14 @@ function adjacency(edges: readonly LogicalEdge[]): ReadonlyMap<string, readonly 
   return new Map(
     [...output.entries()].map(([node, outgoing]) => [
       node,
-      Object.freeze(outgoing.toSorted(compareLogicalEdges))
-    ])
+      Object.freeze(outgoing.toSorted(compareLogicalEdges)),
+    ]),
   );
 }
 
 /** Components with more than one node, members and components in binary order. */
 export function stronglyConnectedComponents(
-  graph: ReadonlyMap<string, readonly { readonly to: string }[]>
+  graph: ReadonlyMap<string, readonly { readonly to: string }[]>,
 ): readonly (readonly string[])[] {
   interface TraversalFrame {
     readonly node: string;
@@ -205,10 +204,7 @@ export function stronglyConnectedComponents(
     }
   }
   const reverseAdjacency = new Map(
-    [...reversed.entries()].map(([node, predecessors]) => [
-      node,
-      predecessors.toSorted()
-    ])
+    [...reversed.entries()].map(([node, predecessors]) => [node, predecessors.toSorted()]),
   );
 
   const components: string[][] = [];
@@ -237,9 +233,7 @@ export function stronglyConnectedComponents(
       components.push(component.toSorted());
     }
   }
-  return Object.freeze(
-    components.toSorted(compareBinaryStringSequences)
-  );
+  return Object.freeze(components.toSorted(compareBinaryStringSequences));
 }
 
 function shortestPath(
@@ -247,7 +241,7 @@ function shortestPath(
   target: string,
   members: ReadonlySet<string>,
   graph: ReadonlyMap<string, readonly LogicalEdge[]>,
-  requiredMode?: SourceDependencyEdgeMode
+  requiredMode?: SourceDependencyEdgeMode,
 ): readonly LogicalEdge[] | undefined {
   const queue = [start];
   const previous = new Map<string, LogicalEdge>();
@@ -279,7 +273,7 @@ function shortestPath(
 function reconstructPath(
   previous: ReadonlyMap<string, LogicalEdge>,
   start: string,
-  target: string
+  target: string,
 ): readonly LogicalEdge[] | undefined {
   const path: LogicalEdge[] = [];
   let cursor = target;
@@ -297,28 +291,25 @@ function reconstructPath(
 function canonicalWitness(
   members: readonly string[],
   graph: ReadonlyMap<string, readonly LogicalEdge[]>,
-  mode: SourceDependencyEdgeMode
+  mode: SourceDependencyEdgeMode,
 ): readonly LogicalEdge[] | undefined {
   if (members.length === 0) {
     return undefined;
   }
   const memberSet = new Set(members);
-  const candidateEdges = mode === "runtime"
-    ? members.flatMap((member) =>
-        (graph.get(member) ?? []).filter(
-          (edge) => edge.mode === "runtime" && memberSet.has(edge.to)
-        )
-      ).toSorted(compareLogicalEdges)
-    : graph.get(members[0] ?? "") ?? [];
+  const candidateEdges =
+    mode === "runtime"
+      ? members
+          .flatMap((member) =>
+            (graph.get(member) ?? []).filter(
+              (edge) => edge.mode === "runtime" && memberSet.has(edge.to),
+            ),
+          )
+          .toSorted(compareLogicalEdges)
+      : (graph.get(members[0] ?? "") ?? []);
   if (mode === "runtime") {
     for (const firstEdge of candidateEdges) {
-      const returnPath = shortestPath(
-        firstEdge.to,
-        firstEdge.from,
-        memberSet,
-        graph,
-        "runtime"
-      );
+      const returnPath = shortestPath(firstEdge.to, firstEdge.from, memberSet, graph, "runtime");
       if (returnPath !== undefined) {
         return Object.freeze([firstEdge, ...returnPath]);
       }
@@ -345,29 +336,25 @@ function boundedList(values: readonly string[], maxItems: number): string {
   return [
     ...values.slice(0, headCount),
     `...(+${values.length - maxItems})`,
-    ...values.slice(-tailCount)
+    ...values.slice(-tailCount),
   ].join(", ");
 }
 
 function boundedWitness(edges: readonly LogicalEdge[]): string {
   const nodes = [edges[0]?.from, ...edges.map((edge) => edge.to)].filter(
-    (node): node is string => node !== undefined
+    (node): node is string => node !== undefined,
   );
   if (nodes.length <= MAX_EVIDENCE_WITNESS_NODES) {
     return nodes.join(" -> ");
   }
   const headCount = Math.ceil(MAX_EVIDENCE_WITNESS_NODES / 2);
   const tailCount = Math.floor(MAX_EVIDENCE_WITNESS_NODES / 2);
-  return [
-    ...nodes.slice(0, headCount),
-    "...",
-    ...nodes.slice(-tailCount)
-  ].join(" -> ");
+  return [...nodes.slice(0, headCount), "...", ...nodes.slice(-tailCount)].join(" -> ");
 }
 
 function cycleEvidence(
   graph: ReadonlyMap<string, readonly LogicalEdge[]>,
-  mode: SourceDependencyEdgeMode
+  mode: SourceDependencyEdgeMode,
 ): readonly CycleEvidence[] {
   const cycles: CycleEvidence[] = [];
   for (const members of stronglyConnectedComponents(graph)) {
@@ -377,16 +364,11 @@ function cycleEvidence(
     }
   }
   return Object.freeze(
-    cycles.toSorted((left, right) =>
-      compareBinaryStringSequences(left.members, right.members)
-    )
+    cycles.toSorted((left, right) => compareBinaryStringSequences(left.members, right.members)),
   );
 }
 
-function ruleFor(
-  scope: CycleScope,
-  mode: SourceDependencyEdgeMode
-): SourceDependencyRuleMetadata {
+function ruleFor(scope: CycleScope, mode: SourceDependencyEdgeMode): SourceDependencyRuleMetadata {
   if (scope === "boundary") {
     return mode === "runtime"
       ? SOURCE_DEPENDENCY_RULES.boundaryRuntimeCycle
@@ -398,7 +380,7 @@ function ruleFor(
 }
 
 export function evaluateSourceDependencyCycles(
-  graph: ObservedSourceGraph
+  graph: ObservedSourceGraph,
 ): readonly FoundationDiagnostic[] {
   const diagnostics: FoundationDiagnostic[] = [];
   for (const scope of ["boundary", "package"] as const) {
@@ -423,9 +405,9 @@ export function evaluateSourceDependencyCycles(
               { kind: "cycle-members", value: boundedList(cycle.members, MAX_EVIDENCE_MEMBERS) },
               { kind: "cycle-size", value: String(cycle.members.length) },
               { kind: "cycle-witness", value: boundedWitness(cycle.witness) },
-              { kind: "cycle-witness-edge-count", value: String(cycle.witness.length) }
-            ]
-          })
+              { kind: "cycle-witness-edge-count", value: String(cycle.witness.length) },
+            ],
+          }),
         );
       }
     }

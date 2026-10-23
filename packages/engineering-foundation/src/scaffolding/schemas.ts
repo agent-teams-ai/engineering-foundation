@@ -6,9 +6,9 @@ export const SCAFFOLDING_SCHEMA_IDS = [
   "scaffold-receipt/v1",
   "scaffold-recovery-journal/v1",
   "scaffold-target-catalog/v1",
-  "scaffolding-config/v1"
+  "scaffolding-config/v1",
 ] as const;
 
 export const SCAFFOLD_SCHEMA_DEPENDENCIES = {
-  "scaffold-recovery-journal/v1": ["scaffold-plan/v1"]
+  "scaffold-recovery-journal/v1": ["scaffold-plan/v1"],
 } as const;

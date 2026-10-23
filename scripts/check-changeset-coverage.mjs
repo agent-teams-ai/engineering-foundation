@@ -24,18 +24,14 @@ export function exactCommitSha(value, label = "base revision") {
 export async function checkChangesetCoverage({ baseRevision, cwd = process.cwd() }) {
   const base = exactCommitSha(baseRevision);
   try {
-    return await execFileAsync(
-      process.execPath,
-      [changesetsCli, "status", `--since=${base}`],
-      {
-        cwd,
-        encoding: "utf8",
-        env: { ...process.env, FORCE_COLOR: "0", NO_COLOR: "1" },
-        maxBuffer: 1024 * 1024,
-        timeout: 60_000,
-        windowsHide: true,
-      },
-    );
+    return await execFileAsync(process.execPath, [changesetsCli, "status", `--since=${base}`], {
+      cwd,
+      encoding: "utf8",
+      env: { ...process.env, FORCE_COLOR: "0", NO_COLOR: "1" },
+      maxBuffer: 1024 * 1024,
+      timeout: 60_000,
+      windowsHide: true,
+    });
   } catch (error) {
     const details = [error?.stdout, error?.stderr]
       .filter((value) => typeof value === "string" && value.trim().length > 0)
@@ -51,8 +47,7 @@ export async function checkChangesetCoverage({ baseRevision, cwd = process.cwd()
 }
 
 async function main() {
-  const baseRevision =
-    argumentValue("--base") ?? process.env.FOUNDATION_CHANGESET_BASE_SHA;
+  const baseRevision = argumentValue("--base") ?? process.env.FOUNDATION_CHANGESET_BASE_SHA;
   const result = await checkChangesetCoverage({ baseRevision });
   process.stdout.write(result.stdout);
   process.stderr.write(result.stderr);

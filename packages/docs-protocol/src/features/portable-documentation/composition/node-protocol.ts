@@ -7,5 +7,12 @@ import { NodeDocumentAuthoringPort } from "../adapters/outbound/document-authori
 import { NodeDocsProfileReader } from "../adapters/outbound/node-profile-reader.js";
 
 export function createNodeDocsProtocol() {
-  return new DocsProtocol({ adoption: new NodeDocsAdoptionInspector(), anchors: new NodeCodeAnchorMatcher(), foundation: new NodeDocumentAuthoringPort(), profiles: new NodeDocsProfileReader(), compiledOutput: new YamlCompiledOutputReader(), searchIndex: createCommunityMiniSearchIndex() });
+  return new DocsProtocol({
+    adoption: new NodeDocsAdoptionInspector(),
+    anchors: new NodeCodeAnchorMatcher(),
+    foundation: new NodeDocumentAuthoringPort(),
+    profiles: new NodeDocsProfileReader(),
+    compiledOutput: new YamlCompiledOutputReader(),
+    searchIndex: createCommunityMiniSearchIndex(),
+  });
 }

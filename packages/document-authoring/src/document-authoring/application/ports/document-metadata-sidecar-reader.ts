@@ -1,6 +1,6 @@
 import type {
   DocumentAuthorityEvidence,
-  DocumentMetadataObject
+  DocumentMetadataObject,
 } from "../model/document-catalog.js";
 
 export interface DocumentMetadataSidecarSnapshot {

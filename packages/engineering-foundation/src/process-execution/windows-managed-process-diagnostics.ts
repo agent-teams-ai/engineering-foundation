@@ -26,7 +26,7 @@ function copyBytes(bytes: Uint8Array): Buffer {
 /** Retains only a sliding copy of the latest Windows protocol suffix. */
 export function appendWrapperStderr(
   diagnostics: WrapperStderrDiagnostics,
-  chunk: Uint8Array
+  chunk: Uint8Array,
 ): void {
   const source = byteView(chunk);
   if (source.length === 0) {
@@ -35,9 +35,9 @@ export function appendWrapperStderr(
   if (source.length >= MAXIMUM_WRAPPER_STDERR_DIAGNOSTIC_BYTES) {
     diagnostics.chunks.splice(0);
     diagnostics.bytes = 0;
-    const suffix = copyBytes(source.subarray(
-      source.length - MAXIMUM_WRAPPER_STDERR_DIAGNOSTIC_BYTES
-    ));
+    const suffix = copyBytes(
+      source.subarray(source.length - MAXIMUM_WRAPPER_STDERR_DIAGNOSTIC_BYTES),
+    );
     diagnostics.chunks.push(suffix);
     diagnostics.bytes = suffix.length;
     return;
@@ -68,7 +68,7 @@ export function appendWrapperStderr(
 /** Forwards each observed chunk exactly once while retaining its bounded suffix. */
 export async function* observeWrapperStderr(
   source: AsyncIterable<Uint8Array>,
-  diagnostics: WrapperStderrDiagnostics
+  diagnostics: WrapperStderrDiagnostics,
 ): AsyncIterable<Uint8Array> {
   for await (const chunk of source) {
     appendWrapperStderr(diagnostics, chunk);
@@ -80,18 +80,16 @@ const WINDOWS_CONTAINMENT_FAILURE_MESSAGES = [
   ["invalid-confirmation", "Windows Job Object wrapper sent an invalid containment confirmation."],
   [
     "wrapper-exited-before-confirmation",
-    "Windows Job Object wrapper exited before it confirmed process containment."
+    "Windows Job Object wrapper exited before it confirmed process containment.",
   ],
-  ["wrapper-confirmation-timeout", "Windows Job Object wrapper did not confirm containment within "],
-  ["wrapper-exit-timeout", "Windows Job Object wrapper did not exit within "]
+  [
+    "wrapper-confirmation-timeout",
+    "Windows Job Object wrapper did not confirm containment within ",
+  ],
+  ["wrapper-exit-timeout", "Windows Job Object wrapper did not exit within "],
 ] as const;
 
-const WINDOWS_CONTAINMENT_FILESYSTEM_CODES = new Set([
-  "EACCES",
-  "EBUSY",
-  "EISDIR",
-  "EPERM"
-]);
+const WINDOWS_CONTAINMENT_FILESYSTEM_CODES = new Set(["EACCES", "EBUSY", "EISDIR", "EPERM"]);
 
 function candidateFailureReason(candidate: unknown): string | undefined {
   try {
@@ -112,11 +110,7 @@ function candidateFailureReason(candidate: unknown): string | undefined {
   }
 }
 
-function enqueueRelatedFailures(
-  candidate: unknown,
-  pending: unknown[],
-  maximum: number
-): void {
+function enqueueRelatedFailures(candidate: unknown, pending: unknown[], maximum: number): void {
   try {
     if (candidate instanceof AggregateError && Array.isArray(candidate.errors)) {
       const limit = Math.min(candidate.errors.length, maximum);
@@ -148,7 +142,7 @@ function windowsContainmentFailureReason(error: unknown): string {
     enqueueRelatedFailures(
       candidate,
       pending,
-      Math.max(0, MAXIMUM_DIAGNOSTIC_ERROR_NODES - seen.size - pending.length)
+      Math.max(0, MAXIMUM_DIAGNOSTIC_ERROR_NODES - seen.size - pending.length),
     );
   }
   return "unknown";
@@ -171,7 +165,7 @@ function boundedWrapperStderrSuffix(chunks: readonly Buffer[]): string {
 
 function finalWrapperFailurePhase(stderr: string): string {
   const matches = stderr.matchAll(
-    /(?:^|\r?\n)Windows Job Object runner failed \[phase=(helper-source-read|helper-compile|helper-load|bootstrap-request|managed-run)\]:/gu
+    /(?:^|\r?\n)Windows Job Object runner failed \[phase=(helper-source-read|helper-compile|helper-load|bootstrap-request|managed-run)\]:/gu,
   );
   let phase = "unreported";
   for (const match of matches) {
@@ -183,7 +177,7 @@ function finalWrapperFailurePhase(stderr: string): string {
 export function describeManagedProcessCleanupFailure(
   error: unknown,
   wrapperStderr: readonly Buffer[],
-  windows: boolean
+  windows: boolean,
 ): string {
   if (!windows) {
     return "could not clean up its process tree after exit.";
@@ -200,7 +194,7 @@ export function managedProcessCleanupFailure(
   request: ProcessRequest,
   error: unknown,
   wrapperStderr: readonly Buffer[],
-  windows: boolean
+  windows: boolean,
 ): ReturnType<typeof processCleanupFailure> {
   const description = describeManagedProcessCleanupFailure(error, wrapperStderr, windows);
   return processCleanupFailure(request, description, error, windows);

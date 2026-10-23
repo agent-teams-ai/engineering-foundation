@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseStrictJson as mutationParse, StrictJsonError as MutationStrictJsonError } from "../packages/repository-mutation/dist/serialization.js";
+import {
+  parseStrictJson as mutationParse,
+  StrictJsonError as MutationStrictJsonError,
+} from "../packages/repository-mutation/dist/serialization.js";
 import { parseStrictJson, StrictJsonError } from "../packages/repository-mutation/dist/index.js";
 
 test("strict JSON rejects comments, trailing commas, and duplicate keys at any depth", () => {
@@ -25,15 +28,18 @@ test("strict JSON preserves public error identity and precise failure classifica
     ['{"a":1} trailing', "syntax"],
     ['"unterminated', "syntax"],
     ["[1,]", "syntax"],
-    ["\u00a0{}", "syntax"]
+    ["\u00a0{}", "syntax"],
   ]) {
-    assert.throws(() => parseStrictJson(source), (error) => {
-      assert.ok(error instanceof StrictJsonError);
-      assert.equal(error.failure, failure);
-      assert.equal(error.name, "StrictJsonError");
-      assert.equal(error.message, `Strict JSON parsing failed: ${failure}.`);
-      return true;
-    });
+    assert.throws(
+      () => parseStrictJson(source),
+      (error) => {
+        assert.ok(error instanceof StrictJsonError);
+        assert.equal(error.failure, failure);
+        assert.equal(error.name, "StrictJsonError");
+        assert.equal(error.message, `Strict JSON parsing failed: ${failure}.`);
+        return true;
+      },
+    );
   }
 });
 
@@ -42,7 +48,10 @@ test("strict JSON keeps cursor and key sets local to each object and invocation"
     assert.throws(() => parseStrictJson('{"a":1,"a":2}'), StrictJsonError);
     const value = '[{"a":1},{"a":2,"nested":{"a":3}}]';
     assert.deepEqual(parseStrictJson(value), JSON.parse(value));
-    assert.deepEqual(parseStrictJson(' {"__proto__":null,"constructor":true} '), JSON.parse('{"__proto__":null,"constructor":true}'));
+    assert.deepEqual(
+      parseStrictJson(' {"__proto__":null,"constructor":true} '),
+      JSON.parse('{"__proto__":null,"constructor":true}'),
+    );
     assert.equal(parseStrictJson('"\\uD800"'), "\ud800");
   }
 });

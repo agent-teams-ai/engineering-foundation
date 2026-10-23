@@ -31,20 +31,14 @@ test("binds every Receipt outcome to its exact commit observation", () => {
     recoverability: "not-required",
   };
   assert.throws(
-    () =>
-      assertDocumentReceiptDigest(
-        withReceiptDigest(appliedNotPublished),
-        fixture.plan,
-      ),
+    () => assertDocumentReceiptDigest(withReceiptDigest(appliedNotPublished), fixture.plan),
     /outcome and commit/u,
   );
 
   const alreadyAppliedPublished = clone(fixture.receipt);
   alreadyAppliedPublished.outcome = "already-applied";
   alreadyAppliedPublished.commit.publication = "published";
-  assert.throws(() =>
-    assertDocumentReceiptDigest(withReceiptDigest(alreadyAppliedPublished)),
-  );
+  assert.throws(() => assertDocumentReceiptDigest(withReceiptDigest(alreadyAppliedPublished)));
 
   const notPublishedOutcome = clone(fixture.receipt);
   notPublishedOutcome.outcome = "rejected";
@@ -55,9 +49,7 @@ test("binds every Receipt outcome to its exact commit observation", () => {
     atomicity: "single-file-atomic-create",
     recoverability: "not-required",
   };
-  assert.throws(() =>
-    assertDocumentReceiptDigest(withReceiptDigest(notPublishedOutcome)),
-  );
+  assert.throws(() => assertDocumentReceiptDigest(withReceiptDigest(notPublishedOutcome)));
 });
 
 test("does not permit cross-outcome or incoherent recovery observations", () => {
@@ -70,9 +62,7 @@ test("does not permit cross-outcome or incoherent recovery observations", () => 
     atomicity: "single-file-atomic-create",
     recoverability: "not-required",
   };
-  assert.throws(() =>
-    assertDocumentReceiptDigest(withReceiptDigest(recoveryWithoutPreservation)),
-  );
+  assert.throws(() => assertDocumentReceiptDigest(withReceiptDigest(recoveryWithoutPreservation)));
 
   const crossOutcomeRecovery = clone(recoveryWithoutPreservation);
   crossOutcomeRecovery.commit = {
@@ -81,9 +71,7 @@ test("does not permit cross-outcome or incoherent recovery observations", () => 
     atomicity: "not-applicable",
     recoverability: "preserved-for-recovery",
   };
-  assert.throws(() =>
-    assertDocumentReceiptDigest(withReceiptDigest(crossOutcomeRecovery)),
-  );
+  assert.throws(() => assertDocumentReceiptDigest(withReceiptDigest(crossOutcomeRecovery)));
 
   const publishedWithoutAtomicCreate = clone(recoveryWithoutPreservation);
   publishedWithoutAtomicCreate.commit = {
@@ -92,7 +80,5 @@ test("does not permit cross-outcome or incoherent recovery observations", () => 
     atomicity: "not-applicable",
     recoverability: "preserved-for-recovery",
   };
-  assert.throws(() =>
-    assertDocumentReceiptDigest(withReceiptDigest(publishedWithoutAtomicCreate)),
-  );
+  assert.throws(() => assertDocumentReceiptDigest(withReceiptDigest(publishedWithoutAtomicCreate)));
 });

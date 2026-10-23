@@ -1,7 +1,4 @@
-import type {
-  PublicApiArtifactSnapshot,
-  PublicApiPackagePolicy
-} from "../model/public-api.js";
+import type { PublicApiArtifactSnapshot, PublicApiPackagePolicy } from "../model/public-api.js";
 
 interface JsonSchemaSetInspection {
   readonly schemaSetDigest: `sha256:${string}`;
@@ -24,6 +21,6 @@ export interface PackageArtifactInventory {
   inspect(
     consumerRoot: string,
     policies: readonly PublicApiPackagePolicy[],
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ): Promise<readonly PublicApiArtifactSnapshot[]>;
 }

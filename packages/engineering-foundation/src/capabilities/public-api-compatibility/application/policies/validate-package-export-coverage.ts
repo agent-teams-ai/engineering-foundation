@@ -2,7 +2,7 @@ import { wildcardExpression } from "./compare-package-artifact-inventory.js";
 import {
   compareCanonicalReferences,
   type PublicApiNonTypeExportKind,
-  type PublicApiPackagePolicy
+  type PublicApiPackagePolicy,
 } from "../model/public-api.js";
 
 export interface ObservedPackageExport {
@@ -38,11 +38,11 @@ function normalizedExportPath(value: string, field: string): string {
     segments.length === 0 ||
     segments.some(
       (segment) =>
-        segment.length === 0 || segment === "." || segment === ".." || segment.includes("\\")
+        segment.length === 0 || segment === "." || segment === ".." || segment.includes("\\"),
     )
   ) {
     throw new PackageExportCoverageError(
-      `${field} must be . or a normalized package export subpath.`
+      `${field} must be . or a normalized package export subpath.`,
     );
   }
   return value;
@@ -69,24 +69,32 @@ function stringTargets(value: unknown, output: string[]): void {
 // The artifact model has one target and no condition availability dimension.
 // Admit only shapes whose every branch provides that target for any condition set.
 function unconditionalWildcardTarget(value: unknown, exportPath: string): string {
-  if (typeof value === "string") { return value; }
+  if (typeof value === "string") {
+    return value;
+  }
   let branches: readonly unknown[] = [];
   if (Array.isArray(value)) {
     branches = value;
   } else if (typeof value === "object" && value !== null) {
     const conditions = value as Readonly<Record<string, unknown>>;
-    if (Object.hasOwn(conditions, "default") &&
-        Object.keys(conditions).every((key) => !key.startsWith(".") && !/^(?:0|[1-9][0-9]*)$/u.test(key))) {
+    if (
+      Object.hasOwn(conditions, "default") &&
+      Object.keys(conditions).every(
+        (key) => !key.startsWith(".") && !/^(?:0|[1-9][0-9]*)$/u.test(key),
+      )
+    ) {
       branches = Object.values(conditions);
     }
   }
   if (branches.length > 0) {
     const targets = branches.map((branch) => unconditionalWildcardTarget(branch, exportPath));
     const target = targets[0];
-    if (target !== undefined && targets.every((candidate) => candidate === target)) { return target; }
+    if (target !== undefined && targets.every((candidate) => candidate === target)) {
+      return target;
+    }
   }
   throw new PackageExportCoverageError(
-    `Wildcard export ${exportPath} has unsupported conditional or array availability; require one unconditional target.`
+    `Wildcard export ${exportPath} has unsupported conditional or array availability; require one unconditional target.`,
   );
 }
 
@@ -100,9 +108,7 @@ function typeTargets(value: unknown, output: string[]): void {
   if (typeof value !== "object" || value === null) {
     return;
   }
-  for (const [condition, candidate] of Object.entries(
-    value as Readonly<Record<string, unknown>>
-  )) {
+  for (const [condition, candidate] of Object.entries(value as Readonly<Record<string, unknown>>)) {
     if (condition === "types" || condition.startsWith("types@")) {
       stringTargets(candidate, output);
     } else {
@@ -130,7 +136,7 @@ function declaredTypeTarget(input: {
     !DECLARATION_FILE.test(target)
   ) {
     throw new PackageExportCoverageError(
-      `Typed export ${input.exportPath} has an unsupported declaration target: ${target}.`
+      `Typed export ${input.exportPath} has an unsupported declaration target: ${target}.`,
     );
   }
   return `${input.packageRoot}/${target.slice(2)}`;
@@ -156,13 +162,13 @@ function resolveExportTargets(input: {
   if (exportPath.includes("*")) {
     if (typeCandidates.length > 0) {
       throw new PackageExportCoverageError(
-        `Typed wildcard export ${exportPath} is unsupported; enumerate its concrete subpaths.`
+        `Typed wildcard export ${exportPath} is unsupported; enumerate its concrete subpaths.`,
       );
     }
     const wildcardTarget = unconditionalWildcardTarget(input.target, exportPath);
     if (!wildcardTarget.startsWith("./")) {
       throw new PackageExportCoverageError(
-        `Wildcard export ${exportPath} must resolve to exactly one package-relative wildcard target.`
+        `Wildcard export ${exportPath} must resolve to exactly one package-relative wildcard target.`,
       );
     }
     wildcardExpression(exportPath.slice(2));
@@ -170,12 +176,12 @@ function resolveExportTargets(input: {
     return Object.freeze({
       exportPath,
       kind: "wildcard",
-      targetPattern: wildcardTarget.slice(2)
+      targetPattern: wildcardTarget.slice(2),
     });
   }
   if (typeCandidates.length > 1) {
     throw new PackageExportCoverageError(
-      `Typed export ${exportPath} has multiple declaration targets.`
+      `Typed export ${exportPath} has multiple declaration targets.`,
     );
   }
   const typeTarget = typeCandidates[0];
@@ -187,19 +193,19 @@ function resolveExportTargets(input: {
         exportPath,
         packageTypesFallback,
         packageRoot: input.packageRoot,
-        target: typeTarget
-      })
+        target: typeTarget,
+      }),
     });
   }
   const targets = [...new Set(strings)].toSorted(compareCanonicalReferences);
   if (targets.length === 0) {
     throw new PackageExportCoverageError(
-      `Export ${exportPath} does not resolve to a supported target.`
+      `Export ${exportPath} does not resolve to a supported target.`,
     );
   }
   return Object.freeze({
     exportPath,
-    kind: targets.every((target) => DATA_FILE.test(target)) ? "data" : "runtime"
+    kind: targets.every((target) => DATA_FILE.test(target)) ? "data" : "runtime",
   });
 }
 
@@ -218,13 +224,11 @@ function packageExportEntries(value: unknown): readonly (readonly [string, unkno
   }
   if (subpathKeys.length !== keys.length) {
     throw new PackageExportCoverageError(
-      "package.json exports cannot mix subpath keys with conditional keys."
+      "package.json exports cannot mix subpath keys with conditional keys.",
     );
   }
   return Object.freeze(
-    subpathKeys
-      .toSorted(compareCanonicalReferences)
-      .map((key) => [key, exports[key]] as const)
+    subpathKeys.toSorted(compareCanonicalReferences).map((key) => [key, exports[key]] as const),
   );
 }
 
@@ -235,7 +239,7 @@ function observedExports(input: {
   const manifest = record(input.manifest, "package manifest");
   if (!("exports" in manifest)) {
     throw new PackageExportCoverageError(
-      `Package ${input.policy.packageName} must declare package.json exports.`
+      `Package ${input.policy.packageName} must declare package.json exports.`,
     );
   }
   const packageTypes = manifest["types"] ?? manifest["typings"];
@@ -245,16 +249,13 @@ function observedExports(input: {
         exportPath,
         packageRoot: input.policy.packageRoot,
         packageTypes,
-        target
-      })
+        target,
+      }),
     )
-    .toSorted((left, right) =>
-      compareCanonicalReferences(left.exportPath, right.exportPath)
-    );
+    .toSorted((left, right) => compareCanonicalReferences(left.exportPath, right.exportPath));
   if (
     exports.some(
-      (entrypoint, index) =>
-        index > 0 && exports[index - 1]?.exportPath === entrypoint.exportPath
+      (entrypoint, index) => index > 0 && exports[index - 1]?.exportPath === entrypoint.exportPath,
     )
   ) {
     throw new PackageExportCoverageError("package.json exports contains duplicate export paths.");
@@ -271,30 +272,30 @@ export function observedPackageExports(input: {
 
 function mapByPath<T extends { readonly exportPath: string }>(
   entries: readonly T[],
-  kind: string
+  kind: string,
 ): ReadonlyMap<string, T> {
   const output = new Map<string, T>();
   for (const entry of entries) {
     if (output.has(entry.exportPath)) {
-      throw new PackageExportCoverageError(`${kind} contains duplicate export path ${entry.exportPath}.`);
+      throw new PackageExportCoverageError(
+        `${kind} contains duplicate export path ${entry.exportPath}.`,
+      );
     }
     output.set(entry.exportPath, entry);
   }
   return output;
 }
 
-function mismatch(
-  kind: string,
-  expected: ReadonlySet<string>,
-  actual: ReadonlySet<string>
-): void {
-  const missing = [...expected].filter((value) => !actual.has(value)).toSorted(compareCanonicalReferences);
+function mismatch(kind: string, expected: ReadonlySet<string>, actual: ReadonlySet<string>): void {
+  const missing = [...expected]
+    .filter((value) => !actual.has(value))
+    .toSorted(compareCanonicalReferences);
   const unexpected = [...actual]
     .filter((value) => !expected.has(value))
     .toSorted(compareCanonicalReferences);
   if (missing.length > 0 || unexpected.length > 0) {
     throw new PackageExportCoverageError(
-      `${kind} does not exactly cover package.json exports. Missing: ${missing.join(", ") || "none"}. Unexpected: ${unexpected.join(", ") || "none"}.`
+      `${kind} does not exactly cover package.json exports. Missing: ${missing.join(", ") || "none"}. Unexpected: ${unexpected.join(", ") || "none"}.`,
     );
   }
 }
@@ -314,26 +315,23 @@ export function assertPackageExportCoverage(input: {
   const observed = observedExports(input);
   const observedTyped = mapByPath(
     observed.filter((entry) => entry.kind === "typed"),
-    "package.json typed exports"
+    "package.json typed exports",
   );
   const observedNonType = mapByPath(
     observed.filter((entry) => entry.kind !== "typed"),
-    "package.json non-type exports"
+    "package.json non-type exports",
   );
   const configuredTyped = mapByPath(input.policy.entrypoints, "configured typed exports");
-  const configuredNonType = mapByPath(
-    input.policy.nonTypeExports,
-    "configured non-type exports"
-  );
+  const configuredNonType = mapByPath(input.policy.nonTypeExports, "configured non-type exports");
   mismatch(
     "Typed export configuration",
     new Set(observedTyped.keys()),
-    new Set(configuredTyped.keys())
+    new Set(configuredTyped.keys()),
   );
   mismatch(
     "Non-type export configuration",
     new Set(observedNonType.keys()),
-    new Set(configuredNonType.keys())
+    new Set(configuredNonType.keys()),
   );
   for (const [exportPath, observedEntrypoint] of observedTyped) {
     const configured = configuredTyped.get(exportPath);
@@ -342,7 +340,7 @@ export function assertPackageExportCoverage(input: {
       configured.declarationEntryPoint !== observedEntrypoint.declarationEntryPoint
     ) {
       throw new PackageExportCoverageError(
-        `Typed export ${exportPath} must use declaration entry point ${observedEntrypoint.declarationEntryPoint}.`
+        `Typed export ${exportPath} must use declaration entry point ${observedEntrypoint.declarationEntryPoint}.`,
       );
     }
   }
@@ -350,7 +348,7 @@ export function assertPackageExportCoverage(input: {
     const configured = configuredNonType.get(exportPath);
     if (configured === undefined || configured.kind !== observedExport.kind) {
       throw new PackageExportCoverageError(
-        `Non-type export ${exportPath} must be classified as ${observedExport.kind}.`
+        `Non-type export ${exportPath} must be classified as ${observedExport.kind}.`,
       );
     }
   }

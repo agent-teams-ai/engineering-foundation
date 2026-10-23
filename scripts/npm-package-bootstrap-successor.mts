@@ -22,7 +22,9 @@ function assertExactKeys(
   label: string,
 ): asserts value is Record<string, unknown> {
   if (
-    typeof value !== "object" || value === null || Array.isArray(value) ||
+    typeof value !== "object" ||
+    value === null ||
+    Array.isArray(value) ||
     Object.keys(value).toSorted().join("\0") !== [...expected].toSorted().join("\0")
   ) {
     fail(`${label} has an unexpected inventory shape.`);

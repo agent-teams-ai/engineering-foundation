@@ -1,9 +1,20 @@
+import { registerWindowsCleanupDiagnosticCases } from "./windows-cleanup-diagnostic-cases.ts";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
 import { createHash } from "node:crypto";
 import { readFileSync, renameSync, writeFileSync } from "node:fs";
-import { cp, copyFile, mkdir, mkdtemp, open, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import {
+  cp,
+  copyFile,
+  mkdir,
+  mkdtemp,
+  open,
+  readFile,
+  readdir,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { performance } from "node:perf_hooks";
 import { join } from "node:path";
@@ -11,21 +22,16 @@ import { setTimeout as delay } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 import test from "node:test";
 
-import { foundationCommandFailure } from "../packages/engineering-foundation/dist/features/command-host/adapters/inbound/cli/command-error.js";
-import {
-  describeManagedProcessCleanupFailure,
-  managedProcessCleanupFailure
-} from "../packages/engineering-foundation/dist/process-execution/windows-managed-process-diagnostics.js";
 import {
   requestWindowsManagedProcessTermination,
   spawnWindowsManagedProcess as spawnWindowsManagedProcessWithoutEnvironment,
-  waitForWindowsManagedProcessContainment
+  waitForWindowsManagedProcessContainment,
 } from "../packages/engineering-foundation/dist/process-execution/windows-managed-process.js";
 
 function spawnWindowsManagedProcess(request) {
   return spawnWindowsManagedProcessWithoutEnvironment({
     environment: process.env,
-    ...request
+    ...request,
   });
 }
 
@@ -35,171 +41,14 @@ const READY_TIMEOUT_MS = 30_000;
 const POLL_INTERVAL_MS = 10;
 const WINDOWS_CONTROL_ROOT_PREFIX = "agent-teams-foundation-process-";
 
-// A one-shot EBUSY or EPERM turns red with single-attempt cleanup, including
-// after a delayed wrapper exit. Persistent EBUSY turns red for unbounded
-// retries or a forgotten root. EACCES turns red if a permanent error is retried.
-for (const [failureCode, failures, expectedAttempts, expectedRootExists] of [
-  ["EBUSY", 1, 2, false],
-  ["EPERM", 1, 2, false],
-  ["ENOTEMPTY", 1, 2, false],
-  ["EBUSY", 100, 4, true],
-  ["EACCES", 100, 1, true]
-]) {
-  for (const path of ["immediate", "deferred"]) {
-    test(`bounds ${path} Windows control-root cleanup after ${String(failures)} ${failureCode} failure(s)`, () => {
-      const source = `
-        import fs from "node:fs";
-        import childProcess from "node:child_process";
-        import { EventEmitter } from "node:events";
-        import { syncBuiltinESMExports } from "node:module";
-        const remove = fs.rmSync;
-        const spawn = childProcess.spawn;
-        let attempts = 0;
-        let controlRoot;
-        let child;
-        fs.rmSync = (path, options) => {
-          controlRoot = path;
-          attempts += 1;
-          if (attempts <= ${String(failures)}) {
-            throw Object.assign(new Error("injected cleanup failure"), { code: ${JSON.stringify(failureCode)} });
-          }
-          return remove(path, options);
-        };
-        if (${JSON.stringify(path)} === "deferred") {
-          childProcess.spawn = () => {
-            child = new EventEmitter();
-            child.stdin = null;
-            child.exitCode = null;
-            child.signalCode = null;
-            child.pid = 123;
-            child.kill = () => true;
-            return child;
-          };
-        }
-        syncBuiltinESMExports();
-        const { spawnWindowsManagedProcess } = await import(
-          "./packages/engineering-foundation/dist/process-execution/windows-managed-process.js"
-        );
-        try {
-          spawnWindowsManagedProcess({
-            command: process.execPath,
-            args: [],
-            cwd: process.cwd(),
-            launcherEnvironment: { SystemRoot: ${JSON.stringify(path === "immediate" ? "relative-system-root" : "C:\\Windows")} }
-          });
-          throw new Error("expected launch failure");
-        } catch (error) {
-          if (!String(error).includes(${JSON.stringify(path === "immediate" ? "SystemRoot must be an absolute Windows path" : "did not expose its bootstrap input")})) {
-            throw error;
-          }
-        }
-        if (child) {
-          child.exitCode = 0;
-          child.emit("exit", 0, null);
-        }
-        fs.rmSync = remove;
-        childProcess.spawn = spawn;
-        syncBuiltinESMExports();
-        const rootExists = fs.existsSync(controlRoot);
-        if (rootExists) remove(controlRoot, { force: true, recursive: true });
-        process.stdout.write(JSON.stringify({ attempts, rootExists }));
-      `;
-      const result = spawnSync(process.execPath, ["--input-type=module", "-e", source], {
-        cwd: process.cwd(),
-        encoding: "utf8",
-        timeout: 10_000
-      });
-      assert.equal(result.status, 0, result.stderr);
-      assert.deepEqual(JSON.parse(result.stdout), {
-        attempts: expectedAttempts,
-        rootExists: expectedRootExists
-      });
-    });
-  }
-}
-
-test("reports bounded Windows cleanup diagnostics without exposing wrapper output", () => {
-  const timeout = new Error(
-    "Windows Job Object wrapper did not confirm containment within 30000 ms."
-  );
-  const diagnostic = describeManagedProcessCleanupFailure(
-    new AggregateError([new Error("outer cleanup failure"), timeout], "cleanup failed"),
-    [Buffer.from([
-      "private child output",
-      "Windows Job Object runner failed [phase=managed-run]: private failure detail"
-    ].join("\n"))],
-    true
-  );
-  assert.equal(
-    diagnostic,
-    "could not clean up its process tree after exit. [windows-containment=wrapper-confirmation-timeout;wrapper-phase=managed-run]"
-  );
-  assert.doesNotMatch(diagnostic, /private/u);
-});
-
-test("classifies allowlisted Windows confirmation read codes only", () => {
-  const busy = Object.assign(new Error("private control path"), { code: "EBUSY" });
-  assert.equal(
-    describeManagedProcessCleanupFailure(busy, [Buffer.from("arbitrary output")], true),
-    "could not clean up its process tree after exit. [windows-containment=confirmation-read-EBUSY;wrapper-phase=unreported]"
-  );
-  const privateCode = Object.assign(new Error("private failure"), { code: "SECRET" });
-  assert.equal(
-    describeManagedProcessCleanupFailure(privateCode, [Buffer.from("private output")], true),
-    "could not clean up its process tree after exit. [windows-containment=unknown;wrapper-phase=unreported]"
-  );
-  assert.equal(
-    describeManagedProcessCleanupFailure(privateCode, [Buffer.from("private output")], false),
-    "could not clean up its process tree after exit."
-  );
-});
-
-test("bounds hostile cleanup diagnostics and selects the final wrapper phase", () => {
-  const cycle = new AggregateError([], "cycle");
-  cycle.errors.push(cycle);
-  Object.defineProperty(cycle, "cause", {
-    get() {
-      throw new Error("private throwing cause");
-    }
-  });
-  const throwingErrors = new AggregateError([], "private aggregate");
-  Object.defineProperty(throwingErrors, "errors", {
-    get() {
-      throw new Error("private throwing errors");
-    }
-  });
-  assert.equal(
-    describeManagedProcessCleanupFailure(
-      new AggregateError([cycle, throwingErrors], "private root"),
-      [Buffer.from([
-        "Windows Job Object runner failed [phase=helper-compile]: child spoof",
-        "Windows Job Object runner failed [phase=managed-run]: wrapper failure"
-      ].join("\n"))],
-      true
-    ),
-    "could not clean up its process tree after exit. [windows-containment=unknown;wrapper-phase=managed-run]"
-  );
-});
-
-test("preserves bounded Windows cleanup diagnostics in the command envelope", () => {
-  const cleanupFailure = managedProcessCleanupFailure(
-    { command: "private-command".repeat(100), args: [], cwd: process.cwd() },
-    new Error("Windows Job Object wrapper exited before it confirmed process containment."),
-    [],
-    true
-  );
-  const failure = foundationCommandFailure(cleanupFailure);
-  assert.equal(failure.envelope.error.message.length, 1000);
-  assert.match(
-    failure.envelope.error.message,
-    /^could not clean up its process tree after exit\. \[windows-containment=wrapper-exited-before-confirmation;wrapper-phase=unreported\]/u
-  );
-});
+registerWindowsCleanupDiagnosticCases();
 
 async function windowsControlRoots() {
-  return new Set((await readdir(tmpdir(), { withFileTypes: true }))
-    .filter((entry) => entry.isDirectory() && entry.name.startsWith(WINDOWS_CONTROL_ROOT_PREFIX))
-    .map((entry) => entry.name));
+  return new Set(
+    (await readdir(tmpdir(), { withFileTypes: true }))
+      .filter((entry) => entry.isDirectory() && entry.name.startsWith(WINDOWS_CONTROL_ROOT_PREFIX))
+      .map((entry) => entry.name),
+  );
 }
 
 async function waitForNewWindowsControlRoot(previousRoots) {
@@ -220,7 +69,7 @@ async function assertNoNewWindowsControlRoots(previousRoots) {
   const currentRoots = await windowsControlRoots();
   assert.deepEqual(
     [...currentRoots].filter((root) => !previousRoots.has(root)),
-    []
+    [],
   );
 }
 
@@ -264,25 +113,49 @@ async function waitForJsonFile(path) {
 
 // Cooperative TEST readiness only; corrupt production-control fixtures stay raw.
 function publishReadyJson(path, value, io = { writeFileSync, renameSync }) {
-  const temporary = `${path}.pending`; io.writeFileSync(temporary, JSON.stringify(value), { flag: "wx", encoding: "utf8", mode: 0o600 });
+  const temporary = `${path}.pending`;
+  io.writeFileSync(temporary, JSON.stringify(value), { flag: "wx", encoding: "utf8", mode: 0o600 });
   io.renameSync(temporary, path);
 }
 const readyJsonPublisher = `const { writeFileSync, renameSync } = require("node:fs");\n${publishReadyJson.toString()}`;
 const readyPidSource = `${readyJsonPublisher}\npublishReadyJson(process.argv[1], { pid: process.pid }); setInterval(() => {}, 1000)`;
 
 test("publishes complete cooperative readiness JSON before exposing its final path", async () => {
-  const root = await mkdtemp(join(tmpdir(), "foundation ready publication ")), path = join(root, "ready.json"), expected = { pid: process.pid };
+  const root = await mkdtemp(join(tmpdir(), "foundation ready publication ")),
+    path = join(root, "ready.json"),
+    expected = { pid: process.pid };
   try {
-    let renames = 0; publishReadyJson(path, expected, { writeFileSync, renameSync: (source, target) => {
-      renames++; assert.equal(source, `${path}.pending`); assert.equal(target, path);
-      assert.deepEqual(JSON.parse(readFileSync(source, "utf8")), expected); assert.throws(() => readFileSync(target), { code: "ENOENT" });
-      renameSync(source, target);
-    } });
-    assert.equal(renames, 1); assert.deepEqual(await waitForJsonFile(path), expected);
-    await rm(path); const writer = spawnSync(process.execPath, ["--eval", `${readyJsonPublisher}\npublishReadyJson(process.argv[1], ${JSON.stringify(expected)});`, path], { timeout: 10_000, encoding: "utf8" });
-    assert.equal(writer.status, 0, writer.stderr); assert.deepEqual(await waitForJsonFile(path), expected);
-    await writeFile(path, ""); await assert.rejects(waitForJsonFile(path), SyntaxError);
-  } finally { await rm(root, { force: true, recursive: true }); }
+    let renames = 0;
+    publishReadyJson(path, expected, {
+      writeFileSync,
+      renameSync: (source, target) => {
+        renames++;
+        assert.equal(source, `${path}.pending`);
+        assert.equal(target, path);
+        assert.deepEqual(JSON.parse(readFileSync(source, "utf8")), expected);
+        assert.throws(() => readFileSync(target), { code: "ENOENT" });
+        renameSync(source, target);
+      },
+    });
+    assert.equal(renames, 1);
+    assert.deepEqual(await waitForJsonFile(path), expected);
+    await rm(path);
+    const writer = spawnSync(
+      process.execPath,
+      [
+        "--eval",
+        `${readyJsonPublisher}\npublishReadyJson(process.argv[1], ${JSON.stringify(expected)});`,
+        path,
+      ],
+      { timeout: 10_000, encoding: "utf8" },
+    );
+    assert.equal(writer.status, 0, writer.stderr);
+    assert.deepEqual(await waitForJsonFile(path), expected);
+    await writeFile(path, "");
+    await assert.rejects(waitForJsonFile(path), SyntaxError);
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
 });
 
 async function writeNewFileExclusive(path, contents) {
@@ -315,43 +188,71 @@ windowsTest(
       await mkdir(helperRoot, { recursive: true });
       await Promise.all([
         copyFile(
-          new URL("../packages/engineering-foundation/assets/windows-managed-process/bootstrap.ps1", import.meta.url),
-          bootstrapPath
+          new URL(
+            "../packages/engineering-foundation/assets/windows-managed-process/bootstrap.ps1",
+            import.meta.url,
+          ),
+          bootstrapPath,
         ),
         copyFile(
-          new URL("../packages/engineering-foundation/assets/windows-managed-process/WindowsManagedProcess.cs", import.meta.url),
-          helperPath
-        )
+          new URL(
+            "../packages/engineering-foundation/assets/windows-managed-process/WindowsManagedProcess.cs",
+            import.meta.url,
+          ),
+          helperPath,
+        ),
       ]);
       const actualBootstrap = (await readFile(bootstrapPath, "utf8")).replaceAll("\r\n", "\n");
-      assert.equal(createHash("sha256").update(actualBootstrap).digest("hex"),
-        "ab3abf73c5d389625db11666c063b4cd295f42b0236d20f33bd14ba9bf3a3be9");
+      assert.equal(
+        createHash("sha256").update(actualBootstrap).digest("hex"),
+        "ab3abf73c5d389625db11666c063b4cd295f42b0236d20f33bd14ba9bf3a3be9",
+      );
       const legacyBootstrap = actualBootstrap.replace(
         '[System.IO.Path]::Combine($PSScriptRoot, "WindowsManagedProcess.cs"))))',
-        'Join-Path $PSScriptRoot "WindowsManagedProcess.cs")))');
-      assert.equal(createHash("sha256").update(legacyBootstrap).digest("hex"),
-        "f2e7d1abb795d45635a7bb1a4715eb440256c20a4409e0963b48dca64e6a0fe9");
+        'Join-Path $PSScriptRoot "WindowsManagedProcess.cs")))',
+      );
+      assert.equal(
+        createHash("sha256").update(legacyBootstrap).digest("hex"),
+        "f2e7d1abb795d45635a7bb1a4715eb440256c20a4409e0963b48dca64e6a0fe9",
+      );
       const unqualifiedBootstrap = actualBootstrap.replace(
-        "Microsoft.PowerShell.Utility\\Add-Type", "Add-Type");
-      assert.equal(createHash("sha256").update(unqualifiedBootstrap).digest("hex"),
-        "7373da6764e631c222eefb42d56967e5adc5e4cc905ea229b18d30da56e4d3b7");
+        "Microsoft.PowerShell.Utility\\Add-Type",
+        "Add-Type",
+      );
+      assert.equal(
+        createHash("sha256").update(unqualifiedBootstrap).digest("hex"),
+        "7373da6764e631c222eefb42d56967e5adc5e4cc905ea229b18d30da56e4d3b7",
+      );
       const systemRoot = Object.entries(process.env).find(
-        ([name]) => name.toLowerCase() === "systemroot"
+        ([name]) => name.toLowerCase() === "systemroot",
       )?.[1];
       assert.equal(typeof systemRoot, "string");
       async function rejectSchemaWithBlockedCmdlets(source) {
         // Same fixed installed asset and real C# helper, with only a TEST cmdlet trap.
-        await writeFile(bootstrapPath,
+        await writeFile(
+          bootstrapPath,
           'function Join-Path { throw "TEST helper lookup must not invoke Join-Path." }\n' +
-          'function Add-Type { throw "TEST helper compilation must use module-qualified Add-Type." }\n' + source);
+            'function Add-Type { throw "TEST helper compilation must use module-qualified Add-Type." }\n' +
+            source,
+        );
         const child = spawn(
           join(systemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
-          ["-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", bootstrapPath],
-          { cwd: helperRoot, stdio: ["pipe", "pipe", "pipe"], windowsHide: true }
+          [
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            bootstrapPath,
+          ],
+          { cwd: helperRoot, stdio: ["pipe", "pipe", "pipe"], windowsHide: true },
         );
         let stderr = "";
         child.stderr.setEncoding("utf8");
-        child.stderr.on("data", (chunk) => { stderr += chunk; });
+        child.stderr.on("data", (chunk) => {
+          stderr += chunk;
+        });
         const closed = once(child, "close");
         child.stdin.end(JSON.stringify({ schemaVersion: 0 }));
         const [exitCode] = await once(child, "exit");
@@ -364,14 +265,17 @@ windowsTest(
       assert.match(rejectedLegacy, /TEST helper lookup must not invoke Join-Path/u);
       const rejectedUnqualified = await rejectSchemaWithBlockedCmdlets(unqualifiedBootstrap);
       assert.match(rejectedUnqualified, /\[phase=helper-compile\]/u);
-      assert.match(rejectedUnqualified, /TEST helper compilation must use module-qualified Add-Type/u);
+      assert.match(
+        rejectedUnqualified,
+        /TEST helper compilation must use module-qualified Add-Type/u,
+      );
       const acceptedCurrent = await rejectSchemaWithBlockedCmdlets(actualBootstrap);
       assert.match(acceptedCurrent, /\[phase=bootstrap-request\]/u);
       assert.doesNotMatch(acceptedCurrent, /\[phase=helper-(?:source-read|compile)\]/u);
     } finally {
       await rm(root, { force: true, recursive: true });
     }
-  }
+  },
 );
 
 windowsTest(
@@ -394,20 +298,20 @@ windowsTest(
       "PowerShell $&;|<>(){}[]`^",
       "unicode-雪",
       "emoji-😀",
-      "x".repeat(20_000)
+      "x".repeat(20_000),
     ];
     const source = [
       'const { writeFileSync } = require("node:fs");',
       "writeFileSync(process.argv[1], JSON.stringify({",
       "  cwd: process.cwd(), args: process.argv.slice(2)",
-      '}), "utf8");'
+      '}), "utf8");',
     ].join("\n");
 
     try {
       const child = spawnWindowsManagedProcess({
         command: commandPath,
         args: ["-e", source, outputPath, ...expectedArguments],
-        cwd
+        cwd,
       });
       let stderr = "";
       child.stderr?.setEncoding("utf8");
@@ -424,7 +328,7 @@ windowsTest(
     } finally {
       await rm(root, { force: true, recursive: true });
     }
-  }
+  },
 );
 
 windowsTest(
@@ -441,21 +345,17 @@ windowsTest(
       installedRoot,
       "dist",
       "process-execution",
-      "windows-managed-process.js"
+      "windows-managed-process.js",
     );
     let child;
     try {
       await mkdir(installedRoot, { recursive: true });
       await writeFile(join(installedRoot, "package.json"), '{"type":"module"}\n');
-      await cp(
-        join(sourcePackage, "dist"),
-        join(installedRoot, "dist"),
-        { recursive: true }
-      );
+      await cp(join(sourcePackage, "dist"), join(installedRoot, "dist"), { recursive: true });
       await cp(
         join(sourcePackage, "assets", "windows-managed-process"),
         join(installedRoot, "assets", "windows-managed-process"),
-        { recursive: true }
+        { recursive: true },
       );
       assert.ok(installedAdapter.length > 260);
       const installed = await import(
@@ -465,14 +365,18 @@ windowsTest(
         command: process.execPath,
         args: ["-e", "process.stdout.write('deep-ok')"],
         cwd: root,
-        environment: process.env
+        environment: process.env,
       });
       let stderr = "";
       let stdout = "";
       child.stderr?.setEncoding("utf8");
       child.stdout?.setEncoding("utf8");
-      child.stderr?.on("data", (chunk) => { stderr += chunk; });
-      child.stdout?.on("data", (chunk) => { stdout += chunk; });
+      child.stderr?.on("data", (chunk) => {
+        stderr += chunk;
+      });
+      child.stdout?.on("data", (chunk) => {
+        stdout += chunk;
+      });
       const closed = once(child, "close");
       const [exitCode] = await once(child, "exit");
       await installed.waitForWindowsManagedProcessContainment(child);
@@ -487,7 +391,7 @@ windowsTest(
       }
       await rm(root, { force: true, recursive: true });
     }
-  }
+  },
 );
 
 windowsTest(
@@ -498,7 +402,7 @@ windowsTest(
     const child = spawnWindowsManagedProcess({
       command: process.execPath,
       args: ["x".repeat(32_767)],
-      cwd: process.cwd()
+      cwd: process.cwd(),
     });
     let stderr = "";
     child.stderr?.setEncoding("utf8");
@@ -510,162 +414,144 @@ windowsTest(
     assert.match(stderr, /Managed command could not be started:/u);
     await waitForWindowsManagedProcessContainment(child);
     await assertNoNewWindowsControlRoots(previousRoots);
-  }
+  },
 );
 
-windowsTest("rejects a non-absolute SystemRoot without leaking controls", { timeout: TEST_TIMEOUT_MS }, async () => {
-  const previousRoots = await windowsControlRoots();
-  assert.throws(
-    () => spawnWindowsManagedProcess({
-      command: process.execPath,
-      args: [],
-      cwd: process.cwd(),
-      launcherEnvironment: { ...process.env, SystemRoot: "relative-system-root" }
-    }),
-    /SystemRoot must be an absolute Windows path/u
-  );
-  await assertNoNewWindowsControlRoots(previousRoots);
-});
-
-windowsTest("uses absolute SystemRoot PowerShell despite cwd and early PATH decoys", { timeout: TEST_TIMEOUT_MS }, async () => {
-  const root = await mkdtemp(join(tmpdir(), "foundation Windows PowerShell resolution "));
-  const cwd = join(root, "cwd");
-  const earlyPath = join(root, "early-path");
-  const outputPath = join(root, "managed-command-ran.txt");
-  await mkdir(cwd);
-  await mkdir(earlyPath);
-  await copyFile(process.execPath, join(cwd, "powershell.exe"));
-  await copyFile(process.execPath, join(earlyPath, "powershell.exe"));
-  const environment = { ...process.env };
-  for (const key of Object.keys(environment)) {
-    if (key.toLowerCase() === "path") {
-      delete environment[key];
-    }
-  }
-  environment.Path = `${earlyPath};${process.env.Path ?? process.env.PATH ?? ""}`;
-
-  try {
-    const child = spawnWindowsManagedProcess({
-      launcherEnvironment: environment,
-      command: process.execPath,
-      args: ["-e", `require('node:fs').writeFileSync(${JSON.stringify(outputPath)}, 'managed')`],
-      cwd,
-      environment: { FOUNDATION_EXACT_CHILD_ENVIRONMENT: "1" }
-    });
-    let stderr = "";
-    child.stderr?.setEncoding("utf8");
-    child.stderr?.on("data", (chunk) => {
-      stderr += chunk;
-    });
-    const [exitCode] = await once(child, "exit");
-    assert.equal(exitCode, 0, stderr);
-    await waitForWindowsManagedProcessContainment(child);
-    assert.equal(await readFile(outputPath, "utf8"), "managed");
-  } finally {
-    await rm(root, { force: true, recursive: true });
-  }
-});
-
-windowsTest("preserves a real nonzero managed-process result", { timeout: TEST_TIMEOUT_MS }, async () => {
-  const root = await mkdtemp(join(tmpdir(), "foundation Windows nonzero exit "));
-  try {
-    const child = spawnWindowsManagedProcess({
-      command: process.execPath,
-      args: ["-e", "process.exit(23)"],
-      cwd: root
-    });
-    const [exitCode] = await once(child, "exit");
-    assert.equal(exitCode, 23);
-    await waitForWindowsManagedProcessContainment(child);
-    assert.equal(child.exitCode, 23);
-  } finally {
-    await rm(root, { force: true, recursive: true });
-  }
-});
-
-windowsTest("terminates and awaits every descendant in the assigned Job Object", { timeout: TEST_TIMEOUT_MS }, async () => {
-  const root = await mkdtemp(join(tmpdir(), "foundation Windows job "));
-  const descendantPath = join(root, "descendant.json");
-  let child;
-  const source = [
-    'const { spawn } = require("node:child_process");',
-    readyJsonPublisher,
-    'const descendant = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"],',
-    '  { stdio: "ignore", windowsHide: true });',
-    'publishReadyJson(process.argv[1], { pid: descendant.pid });',
-    "setInterval(() => {}, 1000);"
-  ].join("\n");
-
-  try {
-    child = spawnWindowsManagedProcess({
-      command: process.execPath,
-      args: ["-e", source, descendantPath],
-      cwd: root
-    });
-    const descendant = await waitForJsonFile(descendantPath);
-
-    await requestWindowsManagedProcessTermination(child);
-    if (child.exitCode === null && child.signalCode === null) {
-      await once(child, "exit");
-    }
-    assert.equal(child.exitCode, 0);
+windowsTest(
+  "rejects a non-absolute SystemRoot without leaking controls",
+  { timeout: TEST_TIMEOUT_MS },
+  async () => {
+    const previousRoots = await windowsControlRoots();
     assert.throws(
-      () => process.kill(descendant.pid, 0),
-      (error) => error instanceof Error && "code" in error && error.code === "ESRCH"
+      () =>
+        spawnWindowsManagedProcess({
+          command: process.execPath,
+          args: [],
+          cwd: process.cwd(),
+          launcherEnvironment: { ...process.env, SystemRoot: "relative-system-root" },
+        }),
+      /SystemRoot must be an absolute Windows path/u,
     );
-  } finally {
-    if (child?.exitCode === null && child.signalCode === null) {
-      try {
-        await requestWindowsManagedProcessTermination(child);
-      } catch {
-        child.kill("SIGKILL");
+    await assertNoNewWindowsControlRoots(previousRoots);
+  },
+);
+
+windowsTest(
+  "uses absolute SystemRoot PowerShell despite cwd and early PATH decoys",
+  { timeout: TEST_TIMEOUT_MS },
+  async () => {
+    const root = await mkdtemp(join(tmpdir(), "foundation Windows PowerShell resolution "));
+    const cwd = join(root, "cwd");
+    const earlyPath = join(root, "early-path");
+    const outputPath = join(root, "managed-command-ran.txt");
+    await mkdir(cwd);
+    await mkdir(earlyPath);
+    await copyFile(process.execPath, join(cwd, "powershell.exe"));
+    await copyFile(process.execPath, join(earlyPath, "powershell.exe"));
+    const environment = { ...process.env };
+    for (const key of Object.keys(environment)) {
+      if (key.toLowerCase() === "path") {
+        delete environment[key];
       }
     }
-    await rm(root, { force: true, recursive: true });
-  }
-});
+    environment.Path = `${earlyPath};${process.env.Path ?? process.env.PATH ?? ""}`;
 
-windowsTest("marker write failure forces wrapper termination without leaking controls", { timeout: TEST_TIMEOUT_MS }, async () => {
-  const previousRoots = await windowsControlRoots();
-  const root = await mkdtemp(join(tmpdir(), "foundation Windows marker failure "));
-  const startedPath = join(root, "started.json");
-  let child;
-  let managedPid;
-  try {
-    child = spawnWindowsManagedProcess({
-      command: process.execPath,
-      args: ["-e", readyPidSource, startedPath],
-      cwd: root
-    });
-    const controlRoot = await waitForNewWindowsControlRoot(previousRoots);
-    ({ pid: managedPid } = await waitForJsonFile(startedPath));
-    await mkdir(join(controlRoot, "cancel"));
-    await assert.rejects(
-      requestWindowsManagedProcessTermination(child),
-      (error) => error instanceof Error &&
-        "code" in error &&
-        (error.code === "EISDIR" || error.code === "EPERM")
-    );
-    assert.ok(child.exitCode !== null || child.signalCode !== null);
-    await waitForProcessExit(managedPid);
-    await assertNoNewWindowsControlRoots(previousRoots);
-  } finally {
-    if (child?.exitCode === null && child.signalCode === null) {
-      const exit = once(child, "exit");
-      child.kill("SIGKILL");
-      await exit;
+    try {
+      const child = spawnWindowsManagedProcess({
+        launcherEnvironment: environment,
+        command: process.execPath,
+        args: ["-e", `require('node:fs').writeFileSync(${JSON.stringify(outputPath)}, 'managed')`],
+        cwd,
+        environment: { FOUNDATION_EXACT_CHILD_ENVIRONMENT: "1" },
+      });
+      let stderr = "";
+      child.stderr?.setEncoding("utf8");
+      child.stderr?.on("data", (chunk) => {
+        stderr += chunk;
+      });
+      const [exitCode] = await once(child, "exit");
+      assert.equal(exitCode, 0, stderr);
+      await waitForWindowsManagedProcessContainment(child);
+      assert.equal(await readFile(outputPath, "utf8"), "managed");
+    } finally {
+      await rm(root, { force: true, recursive: true });
     }
-    if (managedPid !== undefined && processExists(managedPid)) {
-      process.kill(managedPid, "SIGKILL");
-    }
-    await rm(root, { force: true, recursive: true });
-  }
-});
+  },
+);
 
-for (const confirmationFailure of ["invalid", "read"]) {
-  windowsTest(`confirmation ${confirmationFailure} failure forces wrapper termination without leaking controls`, { timeout: TEST_TIMEOUT_MS }, async () => {
+windowsTest(
+  "preserves a real nonzero managed-process result",
+  { timeout: TEST_TIMEOUT_MS },
+  async () => {
+    const root = await mkdtemp(join(tmpdir(), "foundation Windows nonzero exit "));
+    try {
+      const child = spawnWindowsManagedProcess({
+        command: process.execPath,
+        args: ["-e", "process.exit(23)"],
+        cwd: root,
+      });
+      const [exitCode] = await once(child, "exit");
+      assert.equal(exitCode, 23);
+      await waitForWindowsManagedProcessContainment(child);
+      assert.equal(child.exitCode, 23);
+    } finally {
+      await rm(root, { force: true, recursive: true });
+    }
+  },
+);
+
+windowsTest(
+  "terminates and awaits every descendant in the assigned Job Object",
+  { timeout: TEST_TIMEOUT_MS },
+  async () => {
+    const root = await mkdtemp(join(tmpdir(), "foundation Windows job "));
+    const descendantPath = join(root, "descendant.json");
+    let child;
+    const source = [
+      'const { spawn } = require("node:child_process");',
+      readyJsonPublisher,
+      'const descendant = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"],',
+      '  { stdio: "ignore", windowsHide: true });',
+      "publishReadyJson(process.argv[1], { pid: descendant.pid });",
+      "setInterval(() => {}, 1000);",
+    ].join("\n");
+
+    try {
+      child = spawnWindowsManagedProcess({
+        command: process.execPath,
+        args: ["-e", source, descendantPath],
+        cwd: root,
+      });
+      const descendant = await waitForJsonFile(descendantPath);
+
+      await requestWindowsManagedProcessTermination(child);
+      if (child.exitCode === null && child.signalCode === null) {
+        await once(child, "exit");
+      }
+      assert.equal(child.exitCode, 0);
+      assert.throws(
+        () => process.kill(descendant.pid, 0),
+        (error) => error instanceof Error && "code" in error && error.code === "ESRCH",
+      );
+    } finally {
+      if (child?.exitCode === null && child.signalCode === null) {
+        try {
+          await requestWindowsManagedProcessTermination(child);
+        } catch {
+          child.kill("SIGKILL");
+        }
+      }
+      await rm(root, { force: true, recursive: true });
+    }
+  },
+);
+
+windowsTest(
+  "marker write failure forces wrapper termination without leaking controls",
+  { timeout: TEST_TIMEOUT_MS },
+  async () => {
     const previousRoots = await windowsControlRoots();
-    const root = await mkdtemp(join(tmpdir(), `foundation Windows ${confirmationFailure} failure `));
+    const root = await mkdtemp(join(tmpdir(), "foundation Windows marker failure "));
     const startedPath = join(root, "started.json");
     let child;
     let managedPid;
@@ -673,18 +559,17 @@ for (const confirmationFailure of ["invalid", "read"]) {
       child = spawnWindowsManagedProcess({
         command: process.execPath,
         args: ["-e", readyPidSource, startedPath],
-        cwd: root
+        cwd: root,
       });
       const controlRoot = await waitForNewWindowsControlRoot(previousRoots);
       ({ pid: managedPid } = await waitForJsonFile(startedPath));
-      if (confirmationFailure === "invalid") {
-        await writeNewFileExclusive(join(controlRoot, "contained"), "INVALID");
-      } else {
-        await mkdir(join(controlRoot, "contained"));
-      }
+      await mkdir(join(controlRoot, "cancel"));
       await assert.rejects(
-        waitForWindowsManagedProcessContainment(child),
-        confirmationFailure === "invalid" ? /invalid containment confirmation/u : /EISDIR|illegal operation/u
+        requestWindowsManagedProcessTermination(child),
+        (error) =>
+          error instanceof Error &&
+          "code" in error &&
+          (error.code === "EISDIR" || error.code === "EPERM"),
       );
       assert.ok(child.exitCode !== null || child.signalCode !== null);
       await waitForProcessExit(managedPid);
@@ -700,143 +585,198 @@ for (const confirmationFailure of ["invalid", "read"]) {
       }
       await rm(root, { force: true, recursive: true });
     }
-  });
+  },
+);
+
+for (const confirmationFailure of ["invalid", "read"]) {
+  windowsTest(
+    `confirmation ${confirmationFailure} failure forces wrapper termination without leaking controls`,
+    { timeout: TEST_TIMEOUT_MS },
+    async () => {
+      const previousRoots = await windowsControlRoots();
+      const root = await mkdtemp(
+        join(tmpdir(), `foundation Windows ${confirmationFailure} failure `),
+      );
+      const startedPath = join(root, "started.json");
+      let child;
+      let managedPid;
+      try {
+        child = spawnWindowsManagedProcess({
+          command: process.execPath,
+          args: ["-e", readyPidSource, startedPath],
+          cwd: root,
+        });
+        const controlRoot = await waitForNewWindowsControlRoot(previousRoots);
+        ({ pid: managedPid } = await waitForJsonFile(startedPath));
+        if (confirmationFailure === "invalid") {
+          await writeNewFileExclusive(join(controlRoot, "contained"), "INVALID");
+        } else {
+          await mkdir(join(controlRoot, "contained"));
+        }
+        await assert.rejects(
+          waitForWindowsManagedProcessContainment(child),
+          confirmationFailure === "invalid"
+            ? /invalid containment confirmation/u
+            : /EISDIR|illegal operation/u,
+        );
+        assert.ok(child.exitCode !== null || child.signalCode !== null);
+        await waitForProcessExit(managedPid);
+        await assertNoNewWindowsControlRoots(previousRoots);
+      } finally {
+        if (child?.exitCode === null && child.signalCode === null) {
+          const exit = once(child, "exit");
+          child.kill("SIGKILL");
+          await exit;
+        }
+        if (managedPid !== undefined && processExists(managedPid)) {
+          process.kill(managedPid, "SIGKILL");
+        }
+        await rm(root, { force: true, recursive: true });
+      }
+    },
+  );
 }
 
-windowsTest("retains controls and both errors when forced wrapper cleanup fails", { timeout: TEST_TIMEOUT_MS }, async () => {
-  const previousRoots = await windowsControlRoots();
-  const root = await mkdtemp(join(tmpdir(), "foundation Windows cleanup failure "));
-  const startedPath = join(root, "started.json");
-  const cleanupError = new Error("synthetic wrapper termination failure");
-  let child;
-  let controlRoot;
-  let managedPid;
-  let realKill;
-  try {
-    child = spawnWindowsManagedProcess({
-      command: process.execPath,
-      args: ["-e", readyPidSource, startedPath],
-      cwd: root
-    });
-    controlRoot = await waitForNewWindowsControlRoot(previousRoots);
-    ({ pid: managedPid } = await waitForJsonFile(startedPath));
-    await writeNewFileExclusive(join(controlRoot, "contained"), "INVALID");
-    realKill = child.kill.bind(child);
-    child.kill = () => {
-      throw cleanupError;
-    };
-    await assert.rejects(
-      waitForWindowsManagedProcessContainment(child),
-      (error) => {
+windowsTest(
+  "retains controls and both errors when forced wrapper cleanup fails",
+  { timeout: TEST_TIMEOUT_MS },
+  async () => {
+    const previousRoots = await windowsControlRoots();
+    const root = await mkdtemp(join(tmpdir(), "foundation Windows cleanup failure "));
+    const startedPath = join(root, "started.json");
+    const cleanupError = new Error("synthetic wrapper termination failure");
+    let child;
+    let controlRoot;
+    let managedPid;
+    let realKill;
+    try {
+      child = spawnWindowsManagedProcess({
+        command: process.execPath,
+        args: ["-e", readyPidSource, startedPath],
+        cwd: root,
+      });
+      controlRoot = await waitForNewWindowsControlRoot(previousRoots);
+      ({ pid: managedPid } = await waitForJsonFile(startedPath));
+      await writeNewFileExclusive(join(controlRoot, "contained"), "INVALID");
+      realKill = child.kill.bind(child);
+      child.kill = () => {
+        throw cleanupError;
+      };
+      await assert.rejects(waitForWindowsManagedProcessContainment(child), (error) => {
         assert.ok(error instanceof AggregateError);
         assert.match(String(error.errors[0]), /invalid containment confirmation/u);
         assert.equal(error.errors[1], cleanupError);
         assert.match(String(error.errors[2]), /did not exit within 5000 ms/u);
         assert.equal(error.cause, error.errors[2]);
         return true;
+      });
+      assert.notEqual(child.pid, undefined);
+      assert.ok(processExists(child.pid));
+      assert.ok((await windowsControlRoots()).has(controlRoot.slice(tmpdir().length + 1)));
+    } finally {
+      if (child !== undefined && realKill !== undefined) {
+        child.kill = realKill;
       }
-    );
-    assert.notEqual(child.pid, undefined);
-    assert.ok(processExists(child.pid));
-    assert.ok((await windowsControlRoots()).has(controlRoot.slice(tmpdir().length + 1)));
-  } finally {
-    if (child !== undefined && realKill !== undefined) {
-      child.kill = realKill;
+      if (child?.exitCode === null && child.signalCode === null) {
+        const exit = once(child, "exit");
+        child.kill("SIGKILL");
+        await exit;
+      }
+      if (managedPid !== undefined) {
+        await waitForProcessExit(managedPid);
+      }
+      await assertNoNewWindowsControlRoots(previousRoots);
+      await rm(root, { force: true, recursive: true });
     }
-    if (child?.exitCode === null && child.signalCode === null) {
-      const exit = once(child, "exit");
-      child.kill("SIGKILL");
-      await exit;
-    }
-    if (managedPid !== undefined) {
-      await waitForProcessExit(managedPid);
-    }
-    await assertNoNewWindowsControlRoots(previousRoots);
-    await rm(root, { force: true, recursive: true });
-  }
-});
+  },
+);
 
-windowsTest("does not fabricate cleanup failure when kill returns false as the wrapper exits", { timeout: TEST_TIMEOUT_MS }, async () => {
-  const previousRoots = await windowsControlRoots();
-  const root = await mkdtemp(join(tmpdir(), "foundation Windows false kill race "));
-  const startedPath = join(root, "started.json");
-  let child;
-  let managedPid;
-  let realKill;
-  try {
-    child = spawnWindowsManagedProcess({
-      command: process.execPath,
-      args: ["-e", readyPidSource, startedPath],
-      cwd: root
-    });
-    const controlRoot = await waitForNewWindowsControlRoot(previousRoots);
-    ({ pid: managedPid } = await waitForJsonFile(startedPath));
-    await writeNewFileExclusive(join(controlRoot, "contained"), "INVALID");
-    realKill = child.kill.bind(child);
-    child.kill = (signal) => {
-      assert.equal(realKill(signal), true);
-      return false;
-    };
-    await assert.rejects(
-      waitForWindowsManagedProcessContainment(child),
-      (error) => {
+windowsTest(
+  "does not fabricate cleanup failure when kill returns false as the wrapper exits",
+  { timeout: TEST_TIMEOUT_MS },
+  async () => {
+    const previousRoots = await windowsControlRoots();
+    const root = await mkdtemp(join(tmpdir(), "foundation Windows false kill race "));
+    const startedPath = join(root, "started.json");
+    let child;
+    let managedPid;
+    let realKill;
+    try {
+      child = spawnWindowsManagedProcess({
+        command: process.execPath,
+        args: ["-e", readyPidSource, startedPath],
+        cwd: root,
+      });
+      const controlRoot = await waitForNewWindowsControlRoot(previousRoots);
+      ({ pid: managedPid } = await waitForJsonFile(startedPath));
+      await writeNewFileExclusive(join(controlRoot, "contained"), "INVALID");
+      realKill = child.kill.bind(child);
+      child.kill = (signal) => {
+        assert.equal(realKill(signal), true);
+        return false;
+      };
+      await assert.rejects(waitForWindowsManagedProcessContainment(child), (error) => {
         assert.ok(error instanceof Error);
         assert.equal(error instanceof AggregateError, false);
         assert.match(error.message, /invalid containment confirmation/u);
         assert.doesNotMatch(error.message, /could not be terminated/u);
         return true;
+      });
+      assert.ok(child.exitCode !== null || child.signalCode !== null);
+      await waitForProcessExit(managedPid);
+      await assertNoNewWindowsControlRoots(previousRoots);
+    } finally {
+      if (child !== undefined && realKill !== undefined) {
+        child.kill = realKill;
       }
-    );
-    assert.ok(child.exitCode !== null || child.signalCode !== null);
-    await waitForProcessExit(managedPid);
-    await assertNoNewWindowsControlRoots(previousRoots);
-  } finally {
-    if (child !== undefined && realKill !== undefined) {
-      child.kill = realKill;
+      if (child?.exitCode === null && child.signalCode === null) {
+        const exit = once(child, "exit");
+        child.kill("SIGKILL");
+        await exit;
+      }
+      if (managedPid !== undefined && processExists(managedPid)) {
+        process.kill(managedPid, "SIGKILL");
+      }
+      await rm(root, { force: true, recursive: true });
     }
-    if (child?.exitCode === null && child.signalCode === null) {
-      const exit = once(child, "exit");
-      child.kill("SIGKILL");
-      await exit;
-    }
-    if (managedPid !== undefined && processExists(managedPid)) {
-      process.kill(managedPid, "SIGKILL");
-    }
-    await rm(root, { force: true, recursive: true });
-  }
-});
+  },
+);
 
-windowsTest("forces and awaits the wrapper after containment confirmation times out", { timeout: TEST_TIMEOUT_MS }, async () => {
-  const previousRoots = await windowsControlRoots();
-  const root = await mkdtemp(join(tmpdir(), "foundation Windows timeout "));
-  const startedPath = join(root, "started.json");
-  let child;
-  let managedPid;
+windowsTest(
+  "forces and awaits the wrapper after containment confirmation times out",
+  { timeout: TEST_TIMEOUT_MS },
+  async () => {
+    const previousRoots = await windowsControlRoots();
+    const root = await mkdtemp(join(tmpdir(), "foundation Windows timeout "));
+    const startedPath = join(root, "started.json");
+    let child;
+    let managedPid;
 
-  try {
-    child = spawnWindowsManagedProcess({
-      command: process.execPath,
-      args: ["-e", readyPidSource, startedPath],
-      cwd: root
-    });
-    ({ pid: managedPid } = await waitForJsonFile(startedPath));
+    try {
+      child = spawnWindowsManagedProcess({
+        command: process.execPath,
+        args: ["-e", readyPidSource, startedPath],
+        cwd: root,
+      });
+      ({ pid: managedPid } = await waitForJsonFile(startedPath));
 
-    await assert.rejects(
-      waitForWindowsManagedProcessContainment(child, 20),
-      /did not confirm containment within 20 ms/u
-    );
-    assert.ok(child.exitCode !== null || child.signalCode !== null);
-    await waitForProcessExit(managedPid);
-    await assertNoNewWindowsControlRoots(previousRoots);
-  } finally {
-    if (child?.exitCode === null && child.signalCode === null) {
-      const exit = once(child, "exit");
-      child.kill("SIGKILL");
-      await exit;
+      await assert.rejects(
+        waitForWindowsManagedProcessContainment(child, 20),
+        /did not confirm containment within 20 ms/u,
+      );
+      assert.ok(child.exitCode !== null || child.signalCode !== null);
+      await waitForProcessExit(managedPid);
+      await assertNoNewWindowsControlRoots(previousRoots);
+    } finally {
+      if (child?.exitCode === null && child.signalCode === null) {
+        const exit = once(child, "exit");
+        child.kill("SIGKILL");
+        await exit;
+      }
+      if (managedPid !== undefined && processExists(managedPid)) {
+        process.kill(managedPid, "SIGKILL");
+      }
+      await rm(root, { force: true, recursive: true });
     }
-    if (managedPid !== undefined && processExists(managedPid)) {
-      process.kill(managedPid, "SIGKILL");
-    }
-    await rm(root, { force: true, recursive: true });
-  }
-});
+  },
+);

@@ -1,19 +1,28 @@
-import { createHash } from "node:crypto";
+import {
+  sha256,
+  fetchJson,
+  writeConsumer,
+  assertInstalledRootManifests,
+  assertNpmLockCoordinates,
+  assertPnpmLockCoordinates,
+  packInventory,
+} from "./public-managed-registry-canary-installation.ts";
+export {
+  assertNpmLockCoordinates,
+  assertPnpmLockCoordinates,
+} from "./public-managed-registry-canary-installation.ts";
 import { spawnSync } from "node:child_process";
-import { mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { Ajv2020 } from "ajv/dist/2020.js";
-import { parse as parseYaml } from "yaml";
 
 import { fetchBoundedCentralAuthorityResponse } from "./bounded-central-authority-response.mjs";
 import { runCommand, runNpmCommand } from "./pack-test-support.mjs";
 import {
   assertPortableCoreClosure,
-  assertSafeTarballInventory,
-  assertTarballEntryTypes,
   assertCanaryReceiptDigest,
   assertRegistryObservations,
   finalizeCanaryReceipt,
@@ -22,7 +31,10 @@ import {
   parseCanaryInputs,
   publicationClosureDecision,
 } from "./public-managed-registry-canary-policy.mjs";
-import { observeSupportingMcp, qualifySupportingMcp } from "./public-managed-registry-canary-mcp.mjs";
+import {
+  observeSupportingMcp,
+  qualifySupportingMcp,
+} from "./public-managed-registry-canary-mcp.mjs";
 import { observeQualificationRuntime } from "./public-managed-registry-canary-runtime-policy.mts";
 import {
   assertCanonicalManagedState,
@@ -35,11 +47,22 @@ import { verifiedProvenanceFromNpmAudit } from "./release-publish-ordered-runtim
 
 const repositoryRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const receiptSchemaPaths = Object.freeze({
-  1: join(repositoryRoot, "architecture", "foundation", "schemas", "public-managed-registry-canary-receipt-v1.schema.json"),
-  2: join(repositoryRoot, "architecture", "foundation", "schemas", "public-managed-registry-canary-receipt-v2.schema.json"),
+  1: join(
+    repositoryRoot,
+    "architecture",
+    "foundation",
+    "schemas",
+    "public-managed-registry-canary-receipt-v1.schema.json",
+  ),
+  2: join(
+    repositoryRoot,
+    "architecture",
+    "foundation",
+    "schemas",
+    "public-managed-registry-canary-receipt-v2.schema.json",
+  ),
 });
 const commandTimeout = 240_000;
-const FORBIDDEN_MCP = "@agent-teams/docs-protocol-mcp";
 const qualificationHost = Object.freeze({
   parseJson: (value) => JSON.parse(value),
   readSchema: async (path) => JSON.parse(await readFile(path, "utf8")),
@@ -52,19 +75,6 @@ export {
   assertQualificationReceiptDigest,
 };
 
-function sha256(bytes) { return `sha256:${createHash("sha256").update(bytes).digest("hex")}`; }
-
-async function fetchJson(url, fetcher = globalThis.fetch) {
-  const response = await fetcher(url, {
-    headers: { accept: "application/json" },
-    signal: AbortSignal.timeout(15_000),
-  });
-  if (!response.ok) {
-    throw new Error(`Public npm observation failed with HTTP ${response.status} for ${url}.`);
-  }
-  return await response.json();
-}
-
 export async function observeCentralCohortAuthority(
   input,
   { fetcher = globalThis.fetch, ...options } = {},
@@ -76,103 +86,77 @@ export async function observeCentralCohortAuthority(
 }
 
 async function observeCoordinates(authority) {
-  return Object.fromEntries(await Promise.all(authority.coordinates.map(async (coordinate) => {
-    const packument = await fetchJson(new URL(encodeURIComponent(coordinate.name), authority.registry));
-    const exact = packument?.versions?.[coordinate.version];
-    return [coordinate.name, {
-      integrity: exact?.dist?.integrity,
-      latest: packument?.["dist-tags"]?.latest,
-      version: exact?.version,
-    }];
-  })));
-}
-
-async function writeConsumer(root, authority, name) {
-  await mkdir(root, { recursive: true });
-  await writeFile(join(root, ".npmrc"), [
-    `registry=${authority.registry}`,
-    `@agent-teams:registry=${authority.registry}`,
-    "audit=false",
-    "fund=false",
-    "provenance=false",
-    "",
-  ].join("\n"), "utf8");
-  await writeFile(join(root, "package.json"), `${JSON.stringify({
-    name,
-    private: true,
-    type: "module",
-    devDependencies: Object.fromEntries(authority.roots.map(({ name: packageName, version }) => [packageName, version])),
-  }, null, 2)}\n`, "utf8");
-}
-
-async function assertInstalledRootManifests(root, authority) {
-  for (const coordinate of authority.roots) {
-    const manifest = JSON.parse(await readFile(join(root, "node_modules", ...coordinate.name.split("/"), "package.json"), "utf8"));
-    if (manifest.name !== coordinate.name || manifest.version !== coordinate.version) {
-      throw new Error(`Disposable install resolved unexpected identity for ${coordinate.name}.`);
-    }
-  }
-}
-
-function assertNoMcpClosure(lock, manager) {
-  if (JSON.stringify(lock).includes(FORBIDDEN_MCP)) {
-    throw new Error(`${manager} resolved forbidden Docs Protocol MCP closure.`);
-  }
-}
-
-export function assertNpmLockCoordinates(lockfileBytes, authority) {
-  const lock = JSON.parse(lockfileBytes.toString("utf8"));
-  assertNoMcpClosure(lock, "npm");
-  for (const coordinate of authority.coordinates) {
-    const suffix = `node_modules/${coordinate.name}`;
-    const matches = Object.entries(lock.packages ?? {}).filter(([path]) =>
-      path === suffix || path.endsWith(`/${suffix}`));
-    if (matches.length === 0 || matches.some(([, entry]) =>
-      entry.version !== coordinate.version || entry.integrity !== coordinate.integrity)) {
-      throw new Error(`npm lock evidence differs for ${coordinate.name}.`);
-    }
-  }
-}
-
-export function assertPnpmLockCoordinates(lockfileBytes, authority) {
-  const lock = parseYaml(lockfileBytes.toString("utf8"));
-  assertNoMcpClosure(lock, "pnpm");
-  for (const coordinate of authority.coordinates) {
-    const locator = `${coordinate.name}@${coordinate.version}`;
-    const matches = Object.entries(lock.packages ?? {}).filter(([key]) =>
-      key === locator || key.startsWith(`${locator}(`));
-    if (matches.length === 0 || matches.some(([, entry]) =>
-      entry?.resolution?.integrity !== coordinate.integrity)) {
-      throw new Error(`pnpm lock evidence differs for ${coordinate.name}.`);
-    }
-  }
+  return Object.fromEntries(
+    await Promise.all(
+      authority.coordinates.map(async (coordinate) => {
+        const packument = await fetchJson(
+          new URL(encodeURIComponent(coordinate.name), authority.registry),
+        );
+        const exact = packument?.versions?.[coordinate.version];
+        return [
+          coordinate.name,
+          {
+            integrity: exact?.dist?.integrity,
+            latest: packument?.["dist-tags"]?.latest,
+            version: exact?.version,
+          },
+        ];
+      }),
+    ),
+  );
 }
 
 async function installConsumer(root, authority, manager, runtimeObservation) {
-  if (authority.cohort.schemaVersion === 3 && manager === "pnpm" &&
-      (runtimeObservation === undefined ||
-       runtimeObservation.nodeVersion !== "26.11.1" ||
-       runtimeObservation.pnpmVersion !== "11.20.0" ||
-       runtimeObservation.platform !== "linux" ||
-       runtimeObservation.architecture !== "x64")) {
+  if (
+    authority.cohort.schemaVersion === 3 &&
+    manager === "pnpm" &&
+    (runtimeObservation === undefined ||
+      runtimeObservation.nodeVersion !== "26.11.1" ||
+      runtimeObservation.pnpmVersion !== "11.20.0" ||
+      runtimeObservation.platform !== "linux" ||
+      runtimeObservation.architecture !== "x64")
+  ) {
     throw new Error("Pre-install runtime observation is not the exact qualified tuple.");
   }
-  const boundRuntimeObservation = authority.cohort.schemaVersion === 3 && manager === "pnpm"
-    ? runtimeObservation
-    : undefined;
+  const boundRuntimeObservation =
+    authority.cohort.schemaVersion === 3 && manager === "pnpm" ? runtimeObservation : undefined;
   await writeConsumer(root, authority, `public-managed-canary-${manager}`);
   if (manager === "npm") {
-    await runNpmCommand([
-      "install", "--ignore-scripts", "--no-audit", "--no-fund", "--package-lock=true",
-      "--registry", authority.registry, "--userconfig", join(root, ".npmrc"),
-    ], root, { timeoutMs: commandTimeout });
+    await runNpmCommand(
+      [
+        "install",
+        "--ignore-scripts",
+        "--no-audit",
+        "--no-fund",
+        "--package-lock=true",
+        "--registry",
+        authority.registry,
+        "--userconfig",
+        join(root, ".npmrc"),
+      ],
+      root,
+      { timeoutMs: commandTimeout },
+    );
   } else {
-    await runCommand("pnpm", [
-      "install", "--ignore-scripts", "--frozen-lockfile=false", "--registry", authority.registry,
-      `--config.userconfig=${join(root, ".npmrc")}`, "--store-dir", join(root, ".pnpm-store"),
-    ], root, { timeoutMs: commandTimeout });
+    await runCommand(
+      "pnpm",
+      [
+        "install",
+        "--ignore-scripts",
+        "--frozen-lockfile=false",
+        "--registry",
+        authority.registry,
+        `--config.userconfig=${join(root, ".npmrc")}`,
+        "--store-dir",
+        join(root, ".pnpm-store"),
+      ],
+      root,
+      { timeoutMs: commandTimeout },
+    );
   }
-  const lockfile = await readFile(join(root, manager === "npm" ? "package-lock.json" : "pnpm-lock.yaml"));
+  const lockfile = await readFile(
+    join(root, manager === "npm" ? "package-lock.json" : "pnpm-lock.yaml"),
+  );
   const lockfileBytes = Buffer.from(lockfile);
   const lockfileDigest = sha256(lockfileBytes);
   if (manager === "npm") {
@@ -182,13 +166,20 @@ async function installConsumer(root, authority, manager, runtimeObservation) {
   }
   await assertInstalledRootManifests(root, authority);
   for (const coordinate of authority.roots) {
-    await runCommand(process.execPath, ["--input-type=module", "--eval", `await import(${JSON.stringify(coordinate.name)});`], root, {
-      timeoutMs: commandTimeout,
-    });
+    await runCommand(
+      process.execPath,
+      ["--input-type=module", "--eval", `await import(${JSON.stringify(coordinate.name)});`],
+      root,
+      {
+        timeoutMs: commandTimeout,
+      },
+    );
   }
   return Object.freeze({
     lockfileBytes,
-    ...(boundRuntimeObservation === undefined ? {} : { runtimeObservation: boundRuntimeObservation }),
+    ...(boundRuntimeObservation === undefined
+      ? {}
+      : { runtimeObservation: boundRuntimeObservation }),
     receipt: Object.freeze({
       fivePackageLockValidated: true,
       lockfileDigest,
@@ -200,18 +191,32 @@ async function installConsumer(root, authority, manager, runtimeObservation) {
 }
 
 async function npmSignatureEvidence(root, authority) {
-  const result = await runNpmCommand([
-    "audit", "signatures", "--json", "--include-attestations", "--registry", authority.registry,
-    "--userconfig", join(root, ".npmrc"),
-  ], root, { timeoutMs: commandTimeout });
+  const result = await runNpmCommand(
+    [
+      "audit",
+      "signatures",
+      "--json",
+      "--include-attestations",
+      "--registry",
+      authority.registry,
+      "--userconfig",
+      join(root, ".npmrc"),
+    ],
+    root,
+    { timeoutMs: commandTimeout },
+  );
   return JSON.parse(result.stdout);
 }
 
 function assertProvenanceAncestor(provenanceCommit, expectedCommit, packageName) {
-  const result = spawnSync("git", ["merge-base", "--is-ancestor", provenanceCommit, expectedCommit], {
-    cwd: repositoryRoot,
-    encoding: "utf8",
-  });
+  const result = spawnSync(
+    "git",
+    ["merge-base", "--is-ancestor", provenanceCommit, expectedCommit],
+    {
+      cwd: repositoryRoot,
+      encoding: "utf8",
+    },
+  );
   if (result.error !== undefined) {
     throw result.error;
   }
@@ -221,50 +226,44 @@ function assertProvenanceAncestor(provenanceCommit, expectedCommit, packageName)
   return true;
 }
 
-async function packInventory(root, coordinate, authority) {
-  const destination = join(root, "packs", coordinate.name.replaceAll("/", "-").replace("@", ""));
-  await mkdir(destination, { recursive: true });
-  const result = await runNpmCommand([
-    "pack", `${coordinate.name}@${coordinate.version}`, "--json", "--ignore-scripts",
-    "--pack-destination", destination, "--registry", authority.registry,
-    "--userconfig", join(root, ".npmrc"),
-  ], root, { timeoutMs: commandTimeout });
-  const report = JSON.parse(result.stdout);
-  const item = Array.isArray(report) ? report[0] : report;
-  if (item?.name !== coordinate.name || item.version !== coordinate.version || item.integrity !== coordinate.integrity) {
-    throw new Error(`npm pack identity differs from authority for ${coordinate.name}.`);
-  }
-  const archives = (await readdir(destination)).filter((name) => name.endsWith(".tgz"));
-  if (archives.length !== 1) {
-    throw new Error(`npm pack did not create one bounded archive for ${coordinate.name}.`);
-  }
-  const archivePath = join(destination, archives[0]);
-  const listed = await runCommand("tar", ["-tzf", archivePath], root, { timeoutMs: commandTimeout });
-  const entries = listed.stdout.trim().split("\n").filter(Boolean);
-  assertSafeTarballInventory(entries, coordinate.name);
-  const verbose = await runCommand("tar", ["-tvzf", archivePath], root, { timeoutMs: commandTimeout });
-  assertTarballEntryTypes(verbose.stdout, coordinate.name);
-  const contents = coordinate.name === "@agent-teams/docs-protocol"
-    ? (await runCommand("tar", ["-xOzf", archivePath], root, { timeoutMs: commandTimeout })).stdout
-    : "";
-  return Object.freeze({ contents, entries, report: item });
-}
-
 async function portableNegative(root, authority, docsInventory) {
-  const coordinate = authority.coordinates.find(({ name }) => name === "@agent-teams/docs-protocol");
+  const coordinate = authority.coordinates.find(
+    ({ name }) => name === "@agent-teams/docs-protocol",
+  );
   const portableRoot = join(root, "portable-only");
   await mkdir(portableRoot, { recursive: true });
   await writeFile(join(portableRoot, ".npmrc"), await readFile(join(root, ".npmrc")));
-  await writeFile(join(portableRoot, "package.json"), `${JSON.stringify({
-    name: "public-portable-negative",
-    private: true,
-    devDependencies: { [coordinate.name]: coordinate.version },
-  }, null, 2)}\n`);
-  await runNpmCommand([
-    "install", "--ignore-scripts", "--no-audit", "--no-fund", "--package-lock=true",
-    "--registry", authority.registry, "--userconfig", join(portableRoot, ".npmrc"),
-  ], portableRoot, { timeoutMs: commandTimeout });
-  const tree = JSON.parse((await runNpmCommand(["ls", "--all", "--json"], portableRoot, { timeoutMs: commandTimeout })).stdout);
+  await writeFile(
+    join(portableRoot, "package.json"),
+    `${JSON.stringify(
+      {
+        name: "public-portable-negative",
+        private: true,
+        devDependencies: { [coordinate.name]: coordinate.version },
+      },
+      null,
+      2,
+    )}\n`,
+  );
+  await runNpmCommand(
+    [
+      "install",
+      "--ignore-scripts",
+      "--no-audit",
+      "--no-fund",
+      "--package-lock=true",
+      "--registry",
+      authority.registry,
+      "--userconfig",
+      join(portableRoot, ".npmrc"),
+    ],
+    portableRoot,
+    { timeoutMs: commandTimeout },
+  );
+  const tree = JSON.parse(
+    (await runNpmCommand(["ls", "--all", "--json"], portableRoot, { timeoutMs: commandTimeout }))
+      .stdout,
+  );
   const pending = [tree];
   const names = new Set();
   while (pending.length > 0) {
@@ -277,9 +276,18 @@ async function portableNegative(root, authority, docsInventory) {
   if (names.has("@agent-teams/docs-protocol-agent-teams")) {
     throw new Error("Portable-only install resolved the managed adapter.");
   }
-  const manifest = JSON.parse(await readFile(join(portableRoot, "node_modules", "@agent-teams", "docs-protocol", "package.json"), "utf8"));
+  const manifest = JSON.parse(
+    await readFile(
+      join(portableRoot, "node_modules", "@agent-teams", "docs-protocol", "package.json"),
+      "utf8",
+    ),
+  );
   return Object.freeze({
-    ...assertPortableCoreClosure({ contents: docsInventory.contents, dependencies: manifest.dependencies, entries: docsInventory.entries }),
+    ...assertPortableCoreClosure({
+      contents: docsInventory.contents,
+      dependencies: manifest.dependencies,
+      entries: docsInventory.entries,
+    }),
     lockfileDigest: sha256(await readFile(join(portableRoot, "package-lock.json"))),
   });
 }
@@ -297,26 +305,30 @@ async function validateReceipt(receipt) {
 }
 
 export async function runPublicManagedRegistryCanary({ authority, outputPath, repository, run }) {
-  const temporaryRoot = await realpath(await mkdtemp(join(tmpdir(), "public-managed-registry-canary-")));
+  const temporaryRoot = await realpath(
+    await mkdtemp(join(tmpdir(), "public-managed-registry-canary-")),
+  );
   try {
-    const [observations, supportingMcpCoordinateValue] = await Promise.all(
-      [observeCoordinates(authority), observeSupportingMcp(authority)],
-    );
+    const [observations, supportingMcpCoordinateValue] = await Promise.all([
+      observeCoordinates(authority),
+      observeSupportingMcp(authority),
+    ]);
     const closure = publicationClosureDecision(authority, observations);
     if (closure.status !== "ready") {
       throw new Error(`Public package graph is incomplete: ${closure.missing.join(", ")}.`);
     }
     assertRegistryObservations(authority, observations);
 
-    const runtimeObservation = authority.cohort.schemaVersion === 3
-      ? observeQualificationRuntime()
-      : undefined;
+    const runtimeObservation =
+      authority.cohort.schemaVersion === 3 ? observeQualificationRuntime() : undefined;
     const npmRoot = join(temporaryRoot, "npm-three-root");
     const pnpmRoot = join(temporaryRoot, "pnpm-three-root");
     const npmInstall = await installConsumer(npmRoot, authority, "npm", runtimeObservation);
     const pnpmInstall = await installConsumer(pnpmRoot, authority, "pnpm", runtimeObservation);
     const supportingReleasePrecondition = await qualifySupportingMcp(
-      join(temporaryRoot, "npm-supporting-mcp"), authority, supportingMcpCoordinateValue,
+      join(temporaryRoot, "npm-supporting-mcp"),
+      authority,
+      supportingMcpCoordinateValue,
     );
     const signatureEvidence = await npmSignatureEvidence(npmRoot, authority);
     const inventories = new Map();
@@ -324,46 +336,67 @@ export async function runPublicManagedRegistryCanary({ authority, outputPath, re
     for (const coordinate of authority.coordinates) {
       const inventory = await packInventory(npmRoot, coordinate, authority);
       inventories.set(coordinate.name, inventory);
-      const provenance = verifiedProvenanceFromNpmAudit(signatureEvidence, coordinate, authority.source);
-      packages.push(Object.freeze({
-        integrity: coordinate.integrity,
-        latest: observations[coordinate.name].latest,
-        name: coordinate.name,
-        provenanceAncestorOfExpectedCommit: assertProvenanceAncestor(provenance.commit, authority.expectedCommit, coordinate.name),
-        provenanceCommit: provenance.commit,
-        tarballEntries: inventory.entries.length,
-        version: coordinate.version,
-      }));
-    }
-    const portable = await portableNegative(npmRoot, authority, inventories.get("@agent-teams/docs-protocol"));
-    const observedPackages = Object.fromEntries(authority.coordinates.map(({ key, name }) => [key, {
-      integrity: observations[name].integrity,
-      version: observations[name].version,
-    }]));
-    const qualification = authority.cohort.schemaVersion === 3
-      ? await managedQualificationCohortV3(
-        pnpmRoot,
-        authority,
-        repository,
-        { observedPackages, lockfileEvidence: pnpmInstall },
-        qualificationHost,
-      )
-      : await managedQualificationCohortV2(
-        pnpmRoot,
-        authority,
-        repository,
-        { observedPackages, lockfileEvidence: pnpmInstall },
-        qualificationHost,
+      const provenance = verifiedProvenanceFromNpmAudit(
+        signatureEvidence,
+        coordinate,
+        authority.source,
       );
+      packages.push(
+        Object.freeze({
+          integrity: coordinate.integrity,
+          latest: observations[coordinate.name].latest,
+          name: coordinate.name,
+          provenanceAncestorOfExpectedCommit: assertProvenanceAncestor(
+            provenance.commit,
+            authority.expectedCommit,
+            coordinate.name,
+          ),
+          provenanceCommit: provenance.commit,
+          tarballEntries: inventory.entries.length,
+          version: coordinate.version,
+        }),
+      );
+    }
+    const portable = await portableNegative(
+      npmRoot,
+      authority,
+      inventories.get("@agent-teams/docs-protocol"),
+    );
+    const observedPackages = Object.fromEntries(
+      authority.coordinates.map(({ key, name }) => [
+        key,
+        {
+          integrity: observations[name].integrity,
+          version: observations[name].version,
+        },
+      ]),
+    );
+    const qualification =
+      authority.cohort.schemaVersion === 3
+        ? await managedQualificationCohortV3(
+            pnpmRoot,
+            authority,
+            repository,
+            { observedPackages, lockfileEvidence: pnpmInstall },
+            qualificationHost,
+          )
+        : await managedQualificationCohortV2(
+            pnpmRoot,
+            authority,
+            repository,
+            { observedPackages, lockfileEvidence: pnpmInstall },
+            qualificationHost,
+          );
     const hostile = [
       ...hostilePolicyMatrix(authority),
       { id: "tarball-inventory", mode: "installed-execution", outcome: "passed" },
       { id: "portable-managed-denylist", mode: "installed-execution", outcome: "passed" },
       { id: "qualification-v3", mode: "installed-execution", outcome: "passed" },
       {
-        id: authority.cohort.schemaVersion === 3
-          ? "managed-state-v3-schema"
-          : "managed-state-v2-schema",
+        id:
+          authority.cohort.schemaVersion === 3
+            ? "managed-state-v3-schema"
+            : "managed-state-v2-schema",
         mode: "installed-execution",
         outcome: "passed",
       },
@@ -389,15 +422,23 @@ export async function runPublicManagedRegistryCanary({ authority, outputPath, re
       managedQualification: qualification,
       hostile,
     });
-    const releasePackageNames = [...packages.map(({ name }) => name), supportingReleasePrecondition.package.name];
-    if (new Set(releasePackageNames).size !== releasePackageNames.length ||
-        new Set(hostile.map(({ id }) => id)).size !== hostile.length) {
+    const releasePackageNames = [
+      ...packages.map(({ name }) => name),
+      supportingReleasePrecondition.package.name,
+    ];
+    if (
+      new Set(releasePackageNames).size !== releasePackageNames.length ||
+      new Set(hostile.map(({ id }) => id)).size !== hostile.length
+    ) {
       throw new Error("Canary receipt evidence contains duplicate identities.");
     }
     await validateReceipt(receipt);
     assertCanaryReceiptDigest(receipt);
     await mkdir(dirname(outputPath), { recursive: true });
-    await writeFile(outputPath, `${JSON.stringify(receipt, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
+    await writeFile(outputPath, `${JSON.stringify(receipt, null, 2)}\n`, {
+      encoding: "utf8",
+      mode: 0o600,
+    });
     return receipt;
   } finally {
     await rm(temporaryRoot, { force: true, recursive: true });
@@ -410,17 +451,32 @@ async function main() {
     cohortId: process.env.PUBLIC_CANARY_COHORT_ID,
     expectedCommit: process.env.PUBLIC_CANARY_EXPECTED_COMMIT,
   });
-  const outputPath = resolve(process.env.PUBLIC_CANARY_RECEIPT_PATH ?? "public-managed-registry-canary-receipt.json");
-  const runId = Number(process.env.GITHUB_RUN_ID), runAttempt = Number(process.env.GITHUB_RUN_ATTEMPT);
-  if (!Number.isSafeInteger(runId) || runId < 1 || !Number.isSafeInteger(runAttempt) || runAttempt < 1) {
+  const outputPath = resolve(
+    process.env.PUBLIC_CANARY_RECEIPT_PATH ?? "public-managed-registry-canary-receipt.json",
+  );
+  const runId = Number(process.env.GITHUB_RUN_ID),
+    runAttempt = Number(process.env.GITHUB_RUN_ATTEMPT);
+  if (
+    !Number.isSafeInteger(runId) ||
+    runId < 1 ||
+    !Number.isSafeInteger(runAttempt) ||
+    runAttempt < 1
+  ) {
     throw new Error("Public canary requires exact GitHub run identity.");
   }
-  const repositoryId = process.env.GITHUB_REPOSITORY_ID, repositoryName = process.env.GITHUB_REPOSITORY;
-  if (!/^[1-9][0-9]*$/u.test(repositoryId ?? "") ||
-      !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(repositoryName ?? "")) {
+  const repositoryId = process.env.GITHUB_REPOSITORY_ID,
+    repositoryName = process.env.GITHUB_REPOSITORY;
+  if (
+    !/^[1-9][0-9]*$/u.test(repositoryId ?? "") ||
+    !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(repositoryName ?? "")
+  ) {
     throw new Error("Public canary requires actual GitHub repository identity.");
   }
-  const repository = Object.freeze({ provider: "github", id: repositoryId, nameWithOwner: repositoryName });
+  const repository = Object.freeze({
+    provider: "github",
+    id: repositoryId,
+    nameWithOwner: repositoryName,
+  });
   const authority = await observeCentralCohortAuthority({ inputs, repository });
   const receipt = await runPublicManagedRegistryCanary({
     authority,
@@ -434,8 +490,14 @@ async function main() {
     },
   });
   const releasePackageCount = receipt.packages.length + 1;
-  if (releasePackageCount !== 6) { throw new Error("Public canary receipt does not contain exactly six release package identities."); }
-  process.stdout.write(`Public managed registry canary PASS: 6 exact release packages (5 Cohort + supporting MCP), receipt ${receipt.receiptDigest}.\n`);
+  if (releasePackageCount !== 6) {
+    throw new Error(
+      "Public canary receipt does not contain exactly six release package identities.",
+    );
+  }
+  process.stdout.write(
+    `Public managed registry canary PASS: 6 exact release packages (5 Cohort + supporting MCP), receipt ${receipt.receiptDigest}.\n`,
+  );
 }
 
 if (process.argv[1] !== undefined && import.meta.filename === process.argv[1]) {

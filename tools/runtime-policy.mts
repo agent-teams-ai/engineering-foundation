@@ -34,7 +34,7 @@ export interface BunRootProjection {
 function scalar(value: string): string {
   const trimmed = value.trim();
   if (
-    (trimmed.startsWith("\"") && trimmed.endsWith("\"")) ||
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
     (trimmed.startsWith("'") && trimmed.endsWith("'"))
   ) {
     return trimmed.slice(1, -1);
@@ -46,7 +46,7 @@ function scalar(value: string): string {
 function mapAtIndent(
   lines: readonly string[],
   start: number,
-  parentIndent: number
+  parentIndent: number,
 ): { readonly value: Readonly<Record<string, string>>; readonly next: number } {
   const value: Record<string, string> = {};
   let index = start;
@@ -73,8 +73,11 @@ function mapAtIndent(
 function nestedMapsAtIndent(
   lines: readonly string[],
   start: number,
-  parentIndent: number
-): { readonly value: Readonly<Record<string, Readonly<Record<string, string>>>>; readonly next: number } {
+  parentIndent: number,
+): {
+  readonly value: Readonly<Record<string, Readonly<Record<string, string>>>>;
+  readonly next: number;
+} {
   const value: Record<string, Record<string, string>> = {};
   let index = start;
   while (index < lines.length) {
@@ -96,10 +99,10 @@ function nestedMapsAtIndent(
     index = parsed.next;
   }
   return {
-    value: Object.freeze(Object.fromEntries(
-      Object.entries(value).map(([key, entry]) => [key, Object.freeze(entry)])
-    )),
-    next: index
+    value: Object.freeze(
+      Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, Object.freeze(entry)])),
+    ),
+    next: index,
   };
 }
 
@@ -165,7 +168,10 @@ export function parsePnpmWorkspaceAuthority(source: string): BunRootProjection {
       index = parsed.next;
       continue;
     }
-    while (index < lines.length && (lines[index] ?? "").length !== (lines[index] ?? "").trimStart().length) {
+    while (
+      index < lines.length &&
+      (lines[index] ?? "").length !== (lines[index] ?? "").trimStart().length
+    ) {
       index += 1;
     }
   }
@@ -173,14 +179,16 @@ export function parsePnpmWorkspaceAuthority(source: string): BunRootProjection {
     workspaces: Object.freeze(packages),
     catalog,
     catalogs,
-    overrides
+    overrides,
   });
 }
 
 export async function readRepositoryRuntimePolicy(
-  root: string = repositoryRoot
+  root: string = repositoryRoot,
 ): Promise<RepositoryRuntimePolicy> {
-  const value = JSON.parse(await readFile(resolve(root, "architecture/foundation/repository-runtime.json"), "utf8")) as {
+  const value = JSON.parse(
+    await readFile(resolve(root, "architecture/foundation/repository-runtime.json"), "utf8"),
+  ) as {
     readonly schemaVersion?: unknown;
     readonly defaultProfile?: unknown;
     readonly toolchain?: {
@@ -201,10 +209,12 @@ export async function readRepositoryRuntimePolicy(
   return value as RepositoryRuntimePolicy;
 }
 
-export async function assertBunRootProjection(root: string = repositoryRoot): Promise<BunRootProjection> {
+export async function assertBunRootProjection(
+  root: string = repositoryRoot,
+): Promise<BunRootProjection> {
   const [manifestSource, workspaceSource] = await Promise.all([
     readFile(resolve(root, "package.json"), "utf8"),
-    readFile(resolve(root, "pnpm-workspace.yaml"), "utf8")
+    readFile(resolve(root, "pnpm-workspace.yaml"), "utf8"),
   ]);
   const manifest = JSON.parse(manifestSource) as Record<string, unknown>;
   const projection = parsePnpmWorkspaceAuthority(workspaceSource);
@@ -212,7 +222,7 @@ export async function assertBunRootProjection(root: string = repositoryRoot): Pr
   const expected = {
     packages: projection.workspaces,
     catalog: projection.catalog,
-    catalogs: projection.catalogs
+    catalogs: projection.catalogs,
   };
   for (const field of ["packages", "catalog", "catalogs"] as const) {
     if (JSON.stringify(workspaces?.[field]) !== JSON.stringify(expected[field])) {
@@ -236,8 +246,10 @@ export function projectNodeAgentWorkflowPolicy(source: string): string {
   const versions = [...source.matchAll(/^schemaVersion:[^\n]*$/gmu)];
   const managers = [...source.matchAll(/^packageManager:[^\n]*$/gmu)];
   if (
-    versions.length !== 1 || versions[0]?.[0].trimEnd() !== "schemaVersion: 2" ||
-    managers.length !== 1 || managers[0]?.[0].trimEnd() !== "packageManager: bun"
+    versions.length !== 1 ||
+    versions[0]?.[0].trimEnd() !== "schemaVersion: 2" ||
+    managers.length !== 1 ||
+    managers[0]?.[0].trimEnd() !== "packageManager: bun"
   ) {
     throw new Error("Node projection requires the exact repository v2 Bun workflow policy.");
   }
@@ -247,7 +259,10 @@ export function projectNodeAgentWorkflowPolicy(source: string): string {
 export async function assertNodeAgentWorkflowPolicyProjection(
   root: string,
   sourceRoot: string,
-  evidence: { readonly originalWorkflowPolicySha256: string; readonly derivedWorkflowPolicySha256: string }
+  evidence: {
+    readonly originalWorkflowPolicySha256: string;
+    readonly derivedWorkflowPolicySha256: string;
+  },
 ): Promise<void> {
   const path = "architecture/foundation/repository-agent-workflow.yaml";
   const original = await readFile(resolve(sourceRoot, path), "utf8");
@@ -264,38 +279,60 @@ export async function assertNodeAgentWorkflowPolicyProjection(
 // Recognizes this repository's complete ASCII policy format, not consumer YAML.
 function isCanonicalDependencyDeclarationsPolicy(source: string): boolean {
   const normalized = source.replaceAll("\r\n", "\n");
-  if (/[^\n -~]/u.test(normalized)) { return false; }
+  if (/[^\n -~]/u.test(normalized)) {
+    return false;
+  }
   const lines = normalized.split("\n").filter((line) => !/^ *(?:#.*)?$/u.test(line));
   const headers = [
-    "schemaVersion: 2", "packageManager:", "  kind: bun", "  workspaceManifest: pnpm-workspace.yaml",
-    "policies:", "  externalDependencies: catalog", "  catalogVersions: exact", "  internalDependencies: workspace-protocol"
+    "schemaVersion: 2",
+    "packageManager:",
+    "  kind: bun",
+    "  workspaceManifest: pnpm-workspace.yaml",
+    "policies:",
+    "  externalDependencies: catalog",
+    "  catalogVersions: exact",
+    "  internalDependencies: workspace-protocol",
   ];
-  if (headers.some((line, index) => lines[index] !== line)) { return false; }
-  const packageItem = /^    - (?:"(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*"|[a-z0-9][a-z0-9._-]*)$/u;
+  if (headers.some((line, index) => lines[index] !== line)) {
+    return false;
+  }
+  const packageItem =
+    /^    - (?:"(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*"|[a-z0-9][a-z0-9._-]*)$/u;
   let index = headers.length;
   for (const [field, item] of [
     ["reservedScopes", /^    - "@[a-z0-9][a-z0-9._-]*\/"$/u],
     ["developmentOnlyPackages", packageItem],
-    ["exactRegistryDevelopmentOnlyPackages", packageItem]
+    ["exactRegistryDevelopmentOnlyPackages", packageItem],
   ] as const) {
-    if (lines[index] === `  ${field}: []`) { index += 1; continue; }
-    if (lines[index] !== `  ${field}:`) { return false; }
+    if (lines[index] === `  ${field}: []`) {
+      index += 1;
+      continue;
+    }
+    if (lines[index] !== `  ${field}:`) {
+      return false;
+    }
     index += 1;
     const values = new Set<string>();
     while (item.test(lines[index] ?? "")) {
       const value = (lines[index] ?? "").slice(6).replaceAll('"', "");
-      if (values.has(value)) { return false; }
+      if (values.has(value)) {
+        return false;
+      }
       values.add(value);
       index += 1;
     }
-    if (values.size === 0) { return false; }
+    if (values.size === 0) {
+      return false;
+    }
   }
   return index === lines.length;
 }
 
 export function projectNodeDependencyDeclarationsPolicy(source: string): string {
   if (!isCanonicalDependencyDeclarationsPolicy(source)) {
-    throw new Error("Node projection requires the exact repository v2 Bun dependency declaration policy.");
+    throw new Error(
+      "Node projection requires the exact repository v2 Bun dependency declaration policy.",
+    );
   }
   return source.replace(/^  kind: bun(?=\r?$)/mu, "  kind: pnpm");
 }
@@ -303,16 +340,23 @@ export function projectNodeDependencyDeclarationsPolicy(source: string): string 
 export async function assertNodeDependencyDeclarationsPolicyProjection(
   root: string,
   sourceRoot: string,
-  evidence: { readonly originalDependencyDeclarationsPolicySha256: string; readonly derivedDependencyDeclarationsPolicySha256: string }
+  evidence: {
+    readonly originalDependencyDeclarationsPolicySha256: string;
+    readonly derivedDependencyDeclarationsPolicySha256: string;
+  },
 ): Promise<void> {
   const path = "architecture/foundation/dependency-declarations.yaml";
   const original = await readFile(resolve(sourceRoot, path), "utf8");
   const derived = await readFile(resolve(root, path), "utf8");
   if (
     derived !== projectNodeDependencyDeclarationsPolicy(original) ||
-    createHash("sha256").update(original).digest("hex") !== evidence.originalDependencyDeclarationsPolicySha256 ||
-    createHash("sha256").update(derived).digest("hex") !== evidence.derivedDependencyDeclarationsPolicySha256
+    createHash("sha256").update(original).digest("hex") !==
+      evidence.originalDependencyDeclarationsPolicySha256 ||
+    createHash("sha256").update(derived).digest("hex") !==
+      evidence.derivedDependencyDeclarationsPolicySha256
   ) {
-    throw new Error("Node profile dependency declaration policy projection or digest evidence is stale.");
+    throw new Error(
+      "Node profile dependency declaration policy projection or digest evidence is stale.",
+    );
   }
 }

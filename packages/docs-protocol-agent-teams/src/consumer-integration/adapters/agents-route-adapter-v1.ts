@@ -6,31 +6,34 @@ import {
   type ConsumerIntegrationDigest,
   type ConsumerIntegrationFileObservation,
   type AgentsRoutePlanV1,
-  type AgentsRoutePlannerV1
+  type AgentsRoutePlannerV1,
 } from "../application-api.js";
 
 export type { AgentsRoutePlanV1 } from "../application-api.js";
 
-function conflict(
-  currentDigest: ConsumerIntegrationDigest,
-  message: string
-): AgentsRoutePlanV1 {
+function conflict(currentDigest: ConsumerIntegrationDigest, message: string): AgentsRoutePlanV1 {
   return {
     state: "conflict",
     currentDigest,
     expectedDigest: currentDigest,
-    issues: [{
-      code: "DOCS_CONSUMER_AGENTS_ROUTE_CONFLICT",
-      severity: "error",
-      subject: "AGENTS.md",
-      message
-    }]
+    issues: [
+      {
+        code: "DOCS_CONSUMER_AGENTS_ROUTE_CONFLICT",
+        severity: "error",
+        subject: "AGENTS.md",
+        message,
+      },
+    ],
   };
 }
 
 function decodeAgentsSource(bytes: Uint8Array): string {
   const source = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-  if (source.includes("\u0000") || source.startsWith("\uFEFF") || source.normalize("NFC") !== source) {
+  if (
+    source.includes("\u0000") ||
+    source.startsWith("\uFEFF") ||
+    source.normalize("NFC") !== source
+  ) {
     throw new TypeError("AGENTS.md must be NFC UTF-8 text without BOM or NUL bytes.");
   }
   if (source.includes("\r\n") && source.replaceAll("\r\n", "").includes("\n")) {
@@ -52,7 +55,7 @@ export function planAgentsRouteV1(input: {
       currentDigest: empty,
       expectedDigest: digestBytes(postimage),
       postimage,
-      issues: []
+      issues: [],
     };
   }
   const bytes = Buffer.from(input.observation.bytes);
@@ -63,7 +66,7 @@ export function planAgentsRouteV1(input: {
   } catch (error) {
     return conflict(
       currentDigest,
-      error instanceof Error ? error.message : "AGENTS.md must be valid UTF-8 text."
+      error instanceof Error ? error.message : "AGENTS.md must be valid UTF-8 text.",
     );
   }
   const eol = source.includes("\r\n") ? "\r\n" : "\n";
@@ -79,23 +82,37 @@ export function planAgentsRouteV1(input: {
       return conflict(currentDigest, "The managed documentation route block is malformed.");
     }
     const currentBlock = normalized.slice(begin, end);
-    if (currentBlock !== targetBlock &&
-      digestBytes(Buffer.from(currentBlock, "utf8")) !== input.knownPriorRouteDigest) {
-      return conflict(currentDigest, "The managed documentation route block contains unknown local changes.");
+    if (
+      currentBlock !== targetBlock &&
+      digestBytes(Buffer.from(currentBlock, "utf8")) !== input.knownPriorRouteDigest
+    ) {
+      return conflict(
+        currentDigest,
+        "The managed documentation route block contains unknown local changes.",
+      );
     }
     next = `${normalized.slice(0, begin)}${targetBlock}${normalized.slice(end)}`;
   } else if (beginCount !== 0 || endCount !== 0) {
-    return conflict(currentDigest, "AGENTS.md contains duplicate or incomplete managed route markers.");
+    return conflict(
+      currentDigest,
+      "AGENTS.md contains duplicate or incomplete managed route markers.",
+    );
   } else {
     const legacy = `Use [${input.skillPath}](${input.skillPath}) for documentation.`;
     const legacyCount = normalized.split(legacy).length - 1;
-    const mentions = normalized.split("\n").filter((line) => line.includes("docs-authoring/SKILL.md"));
+    const mentions = normalized
+      .split("\n")
+      .filter((line) => line.includes("docs-authoring/SKILL.md"));
     if (legacyCount === 1 && mentions.length === 1) {
       next = normalized.replace(legacy, targetBlock);
     } else if (mentions.length > 0) {
       return conflict(currentDigest, "AGENTS.md contains an unknown documentation Skill route.");
     } else {
-      const separator = normalized.endsWith("\n\n") ? "" : normalized.endsWith("\n") ? "\n" : "\n\n";
+      const separator = normalized.endsWith("\n\n")
+        ? ""
+        : normalized.endsWith("\n")
+          ? "\n"
+          : "\n\n";
       next = `${normalized}${separator}${targetBlock}\n`;
     }
   }
@@ -109,10 +126,10 @@ export function planAgentsRouteV1(input: {
     currentDigest,
     expectedDigest,
     postimage,
-    issues: []
+    issues: [],
   };
 }
 
 export const agentsRoutePlannerV1: AgentsRoutePlannerV1 = Object.freeze({
-  plan: planAgentsRouteV1
+  plan: planAgentsRouteV1,
 });

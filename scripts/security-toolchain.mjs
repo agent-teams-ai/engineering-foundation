@@ -10,7 +10,7 @@ import {
   rename,
   rmdir,
   unlink,
-  writeFile
+  writeFile,
 } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, isAbsolute, join, resolve as resolvePath } from "node:path";
@@ -24,7 +24,7 @@ import {
   SecurityToolchainError,
   selectAquaArtifact,
   verifyAquaArchiveChecksum,
-  verifyAquaExecutableChecksum
+  verifyAquaExecutableChecksum,
 } from "./security-toolchain-artifact.mjs";
 
 const execFileAsync = promisify(execFile);
@@ -37,19 +37,14 @@ const LOCK_RETRY_MS = 100;
 const VERSION_TIMEOUT_MS = 10_000;
 
 function isErrorCode(error, code) {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    error.code === code
-  );
+  return typeof error === "object" && error !== null && "code" in error && error.code === code;
 }
 
 function absoluteDirectory(path, label) {
   if (typeof path !== "string" || path.length === 0 || !isAbsolute(path)) {
     throw new SecurityToolchainError(
       "SECURITY_TOOLCHAIN_INVALID_CACHE_PATH",
-      label + " must be an absolute path."
+      label + " must be an absolute path.",
     );
   }
   return resolvePath(path);
@@ -59,20 +54,20 @@ export function resolveToolchainCacheDirectory({
   cacheDirectory,
   environment = process.env,
   homeDirectory = homedir(),
-  platform = process.platform
+  platform = process.platform,
 } = {}) {
   if (cacheDirectory !== undefined) {
     return absoluteDirectory(cacheDirectory, "Security toolchain cache directory");
   }
   const configuredDirectory = environment.FOUNDATION_SECURITY_TOOLCHAIN_CACHE_DIR;
   if (configuredDirectory !== undefined) {
-    return absoluteDirectory(
-      configuredDirectory,
-      "FOUNDATION_SECURITY_TOOLCHAIN_CACHE_DIR"
-    );
+    return absoluteDirectory(configuredDirectory, "FOUNDATION_SECURITY_TOOLCHAIN_CACHE_DIR");
   }
   if (platform === "linux" && environment.XDG_CACHE_HOME !== undefined) {
-    return join(absoluteDirectory(environment.XDG_CACHE_HOME, "XDG_CACHE_HOME"), CACHE_DIRECTORY_NAME);
+    return join(
+      absoluteDirectory(environment.XDG_CACHE_HOME, "XDG_CACHE_HOME"),
+      CACHE_DIRECTORY_NAME,
+    );
   }
   const cacheParent =
     platform === "darwin"
@@ -87,7 +82,7 @@ async function ensurePrivateDirectory(path) {
   if (!status.isDirectory() || status.isSymbolicLink()) {
     throw new SecurityToolchainError(
       "SECURITY_TOOLCHAIN_UNSAFE_CACHE_PATH",
-      "Security toolchain cache path is not a regular directory: " + path + "."
+      "Security toolchain cache path is not a regular directory: " + path + ".",
     );
   }
   if (process.platform !== "win32") {
@@ -97,10 +92,8 @@ async function ensurePrivateDirectory(path) {
 
 function outputHasPinnedAquaVersion(output) {
   return new RegExp(
-    "(?:^|[^0-9A-Za-z.+-])(?:v)?" +
-      AQUA_VERSION.replaceAll(".", "\\.") +
-      "(?:$|[^0-9A-Za-z.+-])",
-    "u"
+    "(?:^|[^0-9A-Za-z.+-])(?:v)?" + AQUA_VERSION.replaceAll(".", "\\.") + "(?:$|[^0-9A-Za-z.+-])",
+    "u",
   ).test(output);
 }
 
@@ -109,7 +102,7 @@ async function reportsPinnedAquaVersion(executable, { timeoutMs = VERSION_TIMEOU
     const { stderr, stdout } = await execFileAsync(executable, ["--version"], {
       encoding: "utf8",
       timeout: timeoutMs,
-      windowsHide: true
+      windowsHide: true,
     });
     return outputHasPinnedAquaVersion(stdout + stderr);
   } catch {
@@ -155,7 +148,7 @@ async function removeCachedExecutable(path) {
     if (!status.isFile() && !status.isSymbolicLink()) {
       throw new SecurityToolchainError(
         "SECURITY_TOOLCHAIN_UNSAFE_CACHE_PATH",
-        "Cached Aqua executable path is not a file: " + path + "."
+        "Cached Aqua executable path is not a file: " + path + ".",
       );
     }
     await unlink(path);
@@ -228,7 +221,7 @@ async function discardStaleLock(lockPath, staleAfterMs) {
   if (!status.isDirectory() || status.isSymbolicLink()) {
     throw new SecurityToolchainError(
       "SECURITY_TOOLCHAIN_UNSAFE_LOCK_PATH",
-      "Security toolchain lock path is not a regular directory: " + lockPath + "."
+      "Security toolchain lock path is not a regular directory: " + lockPath + ".",
     );
   }
   if (Date.now() - status.mtimeMs < staleAfterMs) {
@@ -294,11 +287,7 @@ async function releaseBootstrapLock(lockPath, owner) {
 
 async function acquireLock(
   lockPath,
-  {
-    retryMs = LOCK_RETRY_MS,
-    staleAfterMs = LOCK_STALE_AFTER_MS,
-    timeoutMs = LOCK_TIMEOUT_MS
-  } = {}
+  { retryMs = LOCK_RETRY_MS, staleAfterMs = LOCK_STALE_AFTER_MS, timeoutMs = LOCK_TIMEOUT_MS } = {},
 ) {
   const owner = randomUUID();
   const ownerPath = join(lockPath, "owner");
@@ -315,15 +304,11 @@ async function acquireLock(
       continue;
     }
     try {
-      await writeFile(
-        ownerPath,
-        JSON.stringify({ processId: process.pid, token: owner }),
-        {
-          encoding: "utf8",
-          flag: "wx",
-          mode: 0o600
-        }
-      );
+      await writeFile(ownerPath, JSON.stringify({ processId: process.pid, token: owner }), {
+        encoding: "utf8",
+        flag: "wx",
+        mode: 0o600,
+      });
     } catch (error) {
       await unlink(ownerPath).catch(() => {});
       await rmdir(lockPath).catch(() => {});
@@ -333,7 +318,7 @@ async function acquireLock(
   }
   throw new SecurityToolchainError(
     "SECURITY_TOOLCHAIN_LOCK_TIMEOUT",
-    "Timed out waiting for the pinned Aqua bootstrap lock."
+    "Timed out waiting for the pinned Aqua bootstrap lock.",
   );
 }
 
@@ -344,7 +329,7 @@ async function installPinnedAqua({
   downloadTimeoutMs,
   executable,
   extract,
-  validateAqua
+  validateAqua,
 }) {
   const stageDirectory = await mkdtemp(join(cacheDirectory, ".aqua-stage-"));
   const stagedExecutable = join(stageDirectory, "aqua");
@@ -357,7 +342,7 @@ async function installPinnedAqua({
     if (!(await validateAqua(stagedExecutable))) {
       throw new SecurityToolchainError(
         "SECURITY_TOOLCHAIN_INVALID_BINARY",
-        "Downloaded Aqua does not report pinned version " + AQUA_VERSION + "."
+        "Downloaded Aqua does not report pinned version " + AQUA_VERSION + ".",
       );
     }
     await ensurePrivateDirectory(dirname(executable));
@@ -367,7 +352,7 @@ async function installPinnedAqua({
       await removeCachedExecutable(executable);
       throw new SecurityToolchainError(
         "SECURITY_TOOLCHAIN_INVALID_BINARY",
-        "Installed Aqua does not report pinned version " + AQUA_VERSION + "."
+        "Installed Aqua does not report pinned version " + AQUA_VERSION + ".",
       );
     }
   } finally {
@@ -383,7 +368,7 @@ export async function ensurePinnedAqua(options = {}) {
     cacheDirectory: options.cacheDirectory,
     environment: options.environment,
     homeDirectory: options.homeDirectory,
-    platform
+    platform,
   });
   const validateAqua = options.validateAqua ?? reportsPinnedAquaVersion;
   const download = options.download ?? downloadAquaArtifact;
@@ -393,7 +378,7 @@ export async function ensurePinnedAqua(options = {}) {
     cacheDirectory,
     "aqua",
     "v" + AQUA_VERSION,
-    platform + "-" + architecture
+    platform + "-" + architecture,
   );
   const executable = join(installationDirectory, "aqua");
   if (await isUsableCachedAqua(executable, artifact, validateAqua)) {
@@ -402,7 +387,7 @@ export async function ensurePinnedAqua(options = {}) {
   await ensurePrivateDirectory(join(cacheDirectory, "locks"));
   const unlockAqua = await acquireLock(
     join(cacheDirectory, "locks", "aqua-v" + AQUA_VERSION + "-" + platform + "-" + architecture),
-    options.lock
+    options.lock,
   );
   try {
     if (!(await isUsableCachedAqua(executable, artifact, validateAqua))) {
@@ -413,7 +398,7 @@ export async function ensurePinnedAqua(options = {}) {
         downloadTimeoutMs: options.downloadTimeoutMs ?? DOWNLOAD_TIMEOUT_MS,
         executable,
         extract,
-        validateAqua
+        validateAqua,
       });
     }
     return { cacheDirectory, executable };
@@ -428,15 +413,15 @@ function executeAqua(executable, arguments_, { cwd, environment }) {
       cwd,
       env: environment,
       stdio: "inherit",
-      windowsHide: true
+      windowsHide: true,
     });
     child.once("error", (error) => {
       reject(
         new SecurityToolchainError(
           "SECURITY_TOOLCHAIN_COMMAND_FAILED",
           "Unable to run pinned Aqua.",
-          { cause: error }
-        )
+          { cause: error },
+        ),
       );
     });
     child.once("exit", (status, signal) => {
@@ -449,8 +434,8 @@ function executeAqua(executable, arguments_, { cwd, environment }) {
           "SECURITY_TOOLCHAIN_COMMAND_FAILED",
           "Pinned Aqua command failed" +
             (signal === null ? " with exit code " + String(status) : " from signal " + signal) +
-            "."
-        )
+            ".",
+        ),
       );
     });
   });
@@ -465,11 +450,11 @@ export async function runWorkflowSecurityTools(options = {}) {
     ...options.environment,
     AQUA_ENFORCE_CHECKSUM: "true",
     AQUA_ENFORCE_REQUIRE_CHECKSUM: "true",
-    AQUA_ROOT_DIR: aquaRootDirectory
+    AQUA_ROOT_DIR: aquaRootDirectory,
   };
   const executionOptions = {
     cwd: options.cwd ?? process.cwd(),
-    environment
+    environment,
   };
   await executeAqua(bootstrap.executable, ["exec", "--", "actionlint"], executionOptions);
   await executeAqua(
@@ -488,18 +473,15 @@ export async function runWorkflowSecurityTools(options = {}) {
       "medium",
       "--min-confidence",
       "medium",
-      "."
+      ".",
     ],
-    executionOptions
+    executionOptions,
   );
 }
 
 function isEntrypoint() {
   const invokedPath = process.argv[1];
-  return (
-    invokedPath !== undefined &&
-    fileURLToPath(import.meta.url) === resolvePath(invokedPath)
-  );
+  return invokedPath !== undefined && fileURLToPath(import.meta.url) === resolvePath(invokedPath);
 }
 
 if (isEntrypoint()) {

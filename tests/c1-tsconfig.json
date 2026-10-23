@@ -1,9 +1,22 @@
 {
   "compilerOptions": {
-    "target": "ES2024", "module": "NodeNext", "moduleResolution": "NodeNext",
-    "types": ["node"], "strict": true, "noUncheckedIndexedAccess": true,
-    "exactOptionalPropertyTypes": true, "skipLibCheck": false, "noEmit": true,
-    "allowImportingTsExtensions": true, "verbatimModuleSyntax": true
+    "target": "ES2024",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": ["node"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "skipLibCheck": false,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true
   },
-  "files": ["c1-test-support.mts", "c1-agent-workflow-coverage.test.mts", "c1-agent-workflow-rejection.test.mts", "c1-agent-workflow-configuration.test.mts", "c1-agent-workflow-cli.test.mts"]
+  "files": [
+    "c1-test-support.mts",
+    "c1-agent-workflow-coverage.test.mts",
+    "c1-agent-workflow-rejection.test.mts",
+    "c1-agent-workflow-configuration.test.mts",
+    "c1-agent-workflow-cli.test.mts"
+  ]
 }

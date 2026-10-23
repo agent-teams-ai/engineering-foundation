@@ -5,17 +5,17 @@ import {
   assertSourceFileByteLimit,
   assertSourceTopologyActive as assertNotCancelled,
   rejectSourceFileRead,
-  sourceTopologyInputError as inputError
+  sourceTopologyInputError as inputError,
 } from "../../../api.js";
 import type { SourceFileSnapshot } from "../../../application/model/source-file-snapshot.js";
 import { portablePathIsInside } from "../../../application/model/repository-path.js";
 import {
   sourceWorkspaceDiscoveryLimits,
-  type SourceWorkspaceDiscoveryLimits
+  type SourceWorkspaceDiscoveryLimits,
 } from "./selected-package-source-discovery.js";
 import {
   assertSafeRepositoryPath,
-  type SourceWorkspaceFileSystem
+  type SourceWorkspaceFileSystem,
 } from "./source-workspace-filesystem.js";
 
 export async function readGovernedSourceFiles(
@@ -27,18 +27,20 @@ export async function readGovernedSourceFiles(
     readonly consumedBytes?: number;
     readonly limits?: Partial<SourceWorkspaceDiscoveryLimits>;
     readonly signal?: AbortSignal;
-  }
+  },
 ): Promise<readonly SourceFileSnapshot[]> {
   const operations = options.fileSystem;
   const limits = sourceWorkspaceDiscoveryLimits(options.limits);
   const selectedPaths = sourcePaths
-    .filter((path) =>
-      governedRoots.some((root) => portablePathIsInside(path, root))
-    )
+    .filter((path) => governedRoots.some((root) => portablePathIsInside(path, root)))
     .toSorted(compareBinaryStrings);
   const snapshots: SourceFileSnapshot[] = [];
   let totalBytes = options.consumedBytes ?? 0;
-  if (!Number.isSafeInteger(totalBytes) || totalBytes < 0 || totalBytes > limits.maxTotalSourceBytes) {
+  if (
+    !Number.isSafeInteger(totalBytes) ||
+    totalBytes < 0 ||
+    totalBytes > limits.maxTotalSourceBytes
+  ) {
     throw new TypeError("Consumed source workspace bytes must fit the validated total byte limit.");
   }
   for (const path of selectedPaths) {
@@ -50,7 +52,7 @@ export async function readGovernedSourceFiles(
       bytes = await operations.readContainedFile({
         candidate,
         maxBytes: limits.maxSourceFileBytes,
-        root: canonicalConsumerRoot
+        root: canonicalConsumerRoot,
       });
     } catch (error) {
       rejectSourceFileRead(error, path);
@@ -60,7 +62,7 @@ export async function readGovernedSourceFiles(
     if (totalBytes > limits.maxTotalSourceBytes - bytes.byteLength) {
       inputError(
         "SOURCE_TOTAL_BYTES_EXCEEDED",
-        `Selected workspace sources exceed ${limits.maxTotalSourceBytes} total bytes.`
+        `Selected workspace sources exceed ${limits.maxTotalSourceBytes} total bytes.`,
       );
     }
     totalBytes += bytes.byteLength;

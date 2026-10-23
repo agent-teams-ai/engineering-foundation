@@ -10,31 +10,22 @@ import type {
   ScaffoldRenderingOperation,
   ScaffoldRenderingResolution,
   ScaffoldRenderingTarget,
-  ScaffoldFileContribution
+  ScaffoldFileContribution,
 } from "../application/model/scaffold-compilation.js";
-import type {
-  JsonObject,
-  JsonValue,
-  Sha256Digest
-} from "../application/model/scaffold-values.js";
+import type { JsonObject, JsonValue, Sha256Digest } from "../application/model/scaffold-values.js";
 import { ScaffoldError } from "../scaffold-error.js";
-import {
-  canonicalJson,
-  sha256Bytes,
-  sha256Json,
-  sha256Text
-} from "./canonical-json.js";
+import { canonicalJson, sha256Bytes, sha256Json, sha256Text } from "./canonical-json.js";
 import {
   ScaffoldDefinitionRegistry,
   type ScaffoldDefinition,
   type ScaffoldDefinitionContext,
-  type ScaffoldFacetDefinition
+  type ScaffoldFacetDefinition,
 } from "./definition-registry.js";
 import {
   MAX_SCAFFOLD_FILE_BYTES,
   MAX_SCAFFOLD_ID_LENGTH,
   MAX_SCAFFOLD_OPERATIONS,
-  MAX_SCAFFOLD_TOTAL_BYTES
+  MAX_SCAFFOLD_TOTAL_BYTES,
 } from "./limits.js";
 
 function refKey(ref: DefinitionRef): string {
@@ -45,19 +36,12 @@ function compareStrings(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
-function assertUnique<T>(
-  values: readonly T[],
-  key: (value: T) => string,
-  subject: string
-): void {
+function assertUnique<T>(values: readonly T[], key: (value: T) => string, subject: string): void {
   const seen = new Set<string>();
   for (const value of values) {
     const identity = key(value);
     if (seen.has(identity)) {
-      throw new ScaffoldError(
-        "SCAFFOLD_INPUT_INVALID",
-        `Duplicate ${subject}: ${identity}.`
-      );
+      throw new ScaffoldError("SCAFFOLD_INPUT_INVALID", `Duplicate ${subject}: ${identity}.`);
     }
     seen.add(identity);
   }
@@ -66,7 +50,7 @@ function assertUnique<T>(
 function findExactlyOne<T>(
   values: readonly T[],
   predicate: (value: T) => boolean,
-  missingMessage: string
+  missingMessage: string,
 ): T {
   const matches = values.filter(predicate);
   if (matches.length !== 1) {
@@ -77,18 +61,15 @@ function findExactlyOne<T>(
 
 function mergeRecipeParameters(
   composition: ScaffoldRenderingComposition,
-  explicit: JsonObject
+  explicit: JsonObject,
 ): JsonObject {
   const fixed = composition.fixedRecipeParameters ?? {};
   for (const [key, value] of Object.entries(explicit)) {
     const fixedValue = fixed[key];
-    if (
-      fixedValue !== undefined &&
-      canonicalJson(value) !== canonicalJson(fixedValue)
-    ) {
+    if (fixedValue !== undefined && canonicalJson(value) !== canonicalJson(fixedValue)) {
       throw new ScaffoldError(
         "SCAFFOLD_INPUT_INVALID",
-        `Recipe parameter ${key} is fixed by composition ${composition.id}.`
+        `Recipe parameter ${key} is fixed by composition ${composition.id}.`,
       );
     }
   }
@@ -96,12 +77,12 @@ function mergeRecipeParameters(
     ...composition.recipe.parameters,
     ...composition.defaultRecipeParameters,
     ...explicit,
-    ...fixed
+    ...fixed,
   });
 }
 
 function collectPolicies(
-  sources: readonly (readonly ConfiguredDefinition[])[]
+  sources: readonly (readonly ConfiguredDefinition[])[],
 ): readonly ConfiguredDefinition[] {
   const policies = new Map<string, ConfiguredDefinition>();
   for (const source of sources) {
@@ -110,12 +91,11 @@ function collectPolicies(
       const existing = policies.get(key);
       if (
         existing !== undefined &&
-        canonicalJson(existing.parameters ?? {}) !==
-          canonicalJson(configured.parameters ?? {})
+        canonicalJson(existing.parameters ?? {}) !== canonicalJson(configured.parameters ?? {})
       ) {
         throw new ScaffoldError(
           "SCAFFOLD_INPUT_INVALID",
-          `Required Policy parameters conflict: ${key}.`
+          `Required Policy parameters conflict: ${key}.`,
         );
       }
       policies.set(key, configured);
@@ -123,29 +103,23 @@ function collectPolicies(
   }
   return Object.freeze(
     [...policies.values()].toSorted((left, right) =>
-      compareStrings(refKey(left.ref), refKey(right.ref))
-    )
+      compareStrings(refKey(left.ref), refKey(right.ref)),
+    ),
   );
 }
 
 function selectFacets(
   registry: ScaffoldDefinitionRegistry,
   composition: ScaffoldRenderingComposition,
-  explicit: readonly ConfiguredDefinition[] | undefined
+  explicit: readonly ConfiguredDefinition[] | undefined,
 ): readonly {
   readonly definition: ScaffoldFacetDefinition;
   readonly parameters: JsonObject;
 }[] {
   const fixed = composition.facets?.fixed ?? [];
   const selected = explicit ?? composition.facets?.default ?? [];
-  const allowed = new Set(
-    (composition.facets?.allowed ?? []).map((ref) => refKey(ref))
-  );
-  assertUnique(
-    composition.facets?.allowed ?? [],
-    (ref) => refKey(ref),
-    "allowed Facet"
-  );
+  const allowed = new Set((composition.facets?.allowed ?? []).map((ref) => refKey(ref)));
+  assertUnique(composition.facets?.allowed ?? [], (ref) => refKey(ref), "allowed Facet");
   assertUnique(fixed, ({ ref }) => refKey(ref), "fixed Facet");
   assertUnique(selected, ({ ref }) => refKey(ref), "selected Facet");
 
@@ -155,13 +129,13 @@ function selectFacets(
     if (fixedKeys.has(key)) {
       throw new ScaffoldError(
         "SCAFFOLD_INPUT_INVALID",
-        `Fixed Facet cannot be selected again: ${key}.`
+        `Fixed Facet cannot be selected again: ${key}.`,
       );
     }
     if (!allowed.has(key)) {
       throw new ScaffoldError(
         "SCAFFOLD_INPUT_INVALID",
-        `Facet is not allowed by composition ${composition.id}: ${key}.`
+        `Facet is not allowed by composition ${composition.id}: ${key}.`,
       );
     }
   }
@@ -174,17 +148,15 @@ function selectFacets(
       return Object.freeze({ definition, parameters });
     })
     .toSorted((left, right) =>
-      compareStrings(refKey(left.definition.ref), refKey(right.definition.ref))
+      compareStrings(refKey(left.definition.ref), refKey(right.definition.ref)),
     );
-  const selectedKeys = new Set(
-    resolved.map(({ definition }) => refKey(definition.ref))
-  );
+  const selectedKeys = new Set(resolved.map(({ definition }) => refKey(definition.ref)));
   for (const { definition } of resolved) {
     for (const required of definition.requires) {
       if (!selectedKeys.has(refKey(required))) {
         throw new ScaffoldError(
           "SCAFFOLD_INPUT_INVALID",
-          `Facet ${refKey(definition.ref)} requires ${refKey(required)}.`
+          `Facet ${refKey(definition.ref)} requires ${refKey(required)}.`,
         );
       }
     }
@@ -192,7 +164,7 @@ function selectFacets(
       if (selectedKeys.has(refKey(conflict))) {
         throw new ScaffoldError(
           "SCAFFOLD_INPUT_INVALID",
-          `Facet ${refKey(definition.ref)} conflicts with ${refKey(conflict)}.`
+          `Facet ${refKey(definition.ref)} conflicts with ${refKey(conflict)}.`,
         );
       }
     }
@@ -202,45 +174,40 @@ function selectFacets(
 
 function assertContributionPath(
   target: ScaffoldRenderingTarget,
-  contribution: ScaffoldFileContribution
+  contribution: ScaffoldFileContribution,
 ): void {
   if (
     target.path.includes("\\") ||
-    target.path.split("/").some((segment) =>
-      segment === "" || segment === "." || segment === ".."
-    )
+    target.path.split("/").some((segment) => segment === "" || segment === "." || segment === "..")
   ) {
     throw new ScaffoldError(
       "SCAFFOLD_PLAN_INVALID",
-      `Target path must be normalized: ${target.path}.`
+      `Target path must be normalized: ${target.path}.`,
     );
   }
   const targetPrefix = `${target.path}/`;
   if (
     !contribution.path.startsWith(targetPrefix) ||
     contribution.path.includes("\\") ||
-    contribution.path.split("/").some((segment) =>
-      segment === "" || segment === "." || segment === ".."
-    )
+    contribution.path
+      .split("/")
+      .some((segment) => segment === "" || segment === "." || segment === "..")
   ) {
     throw new ScaffoldError(
       "SCAFFOLD_PLAN_INVALID",
-      `Definition output escapes target ${target.id}: ${contribution.path}.`
+      `Definition output escapes target ${target.id}: ${contribution.path}.`,
     );
   }
 }
 
 function operationsFromContributions(
   target: ScaffoldRenderingTarget,
-  contributions: readonly ScaffoldFileContribution[]
+  contributions: readonly ScaffoldFileContribution[],
 ): readonly ScaffoldRenderingOperation[] {
-  if (
-    contributions.length === 0 ||
-    contributions.length > MAX_SCAFFOLD_OPERATIONS
-  ) {
+  if (contributions.length === 0 || contributions.length > MAX_SCAFFOLD_OPERATIONS) {
     throw new ScaffoldError(
       "SCAFFOLD_PLAN_INVALID",
-      "A scaffolding Plan must contain a bounded non-empty operation set."
+      "A scaffolding Plan must contain a bounded non-empty operation set.",
     );
   }
   assertUnique(contributions, ({ path }) => path, "output path");
@@ -251,7 +218,7 @@ function operationsFromContributions(
     if (bytes.byteLength > MAX_SCAFFOLD_FILE_BYTES) {
       throw new ScaffoldError(
         "SCAFFOLD_PLAN_INVALID",
-        `Generated file exceeds ${MAX_SCAFFOLD_FILE_BYTES} bytes: ${contribution.path}.`
+        `Generated file exceeds ${MAX_SCAFFOLD_FILE_BYTES} bytes: ${contribution.path}.`,
       );
     }
     totalBytes += bytes.byteLength;
@@ -269,25 +236,23 @@ function operationsFromContributions(
         size: bytes.byteLength,
         mode: "0644" as const,
         mediaType: contribution.mediaType,
-        contentBase64: bytes.toString("base64")
+        contentBase64: bytes.toString("base64"),
       }),
-      causes: Object.freeze([...contribution.causes].toSorted(compareStrings))
+      causes: Object.freeze([...contribution.causes].toSorted(compareStrings)),
     });
   });
   if (totalBytes > MAX_SCAFFOLD_TOTAL_BYTES) {
     throw new ScaffoldError(
       "SCAFFOLD_PLAN_INVALID",
-      `Generated output exceeds ${MAX_SCAFFOLD_TOTAL_BYTES} bytes.`
+      `Generated output exceeds ${MAX_SCAFFOLD_TOTAL_BYTES} bytes.`,
     );
   }
-  return Object.freeze(
-    operations.toSorted((left, right) => compareStrings(left.path, right.path))
-  );
+  return Object.freeze(operations.toSorted((left, right) => compareStrings(left.path, right.path)));
 }
 
 function definitionEvidence(
   registry: ScaffoldDefinitionRegistry,
-  definitions: readonly ScaffoldDefinition[]
+  definitions: readonly ScaffoldDefinition[],
 ): readonly ScaffoldRenderingDefinitionEvidence[] {
   return Object.freeze(
     definitions
@@ -295,21 +260,19 @@ function definitionEvidence(
         Object.freeze({
           kind: definition.kind,
           ref: definition.ref,
-          contractDigest: registry.digest(definition)
-        })
+          contractDigest: registry.digest(definition),
+        }),
       )
       .toSorted((left, right) => {
         const kindOrder = compareStrings(left.kind, right.kind);
-        return kindOrder === 0
-          ? compareStrings(refKey(left.ref), refKey(right.ref))
-          : kindOrder;
-      })
+        return kindOrder === 0 ? compareStrings(refKey(left.ref), refKey(right.ref)) : kindOrder;
+      }),
   );
 }
 
 export function resolveScaffoldRenderingSelection<
   TComposition extends ScaffoldRenderingComposition,
-  TTarget extends ScaffoldRenderingTarget
+  TTarget extends ScaffoldRenderingTarget,
 >(input: {
   readonly compositions: readonly TComposition[];
   readonly targets: readonly TTarget[];
@@ -322,32 +285,24 @@ export function resolveScaffoldRenderingSelection<
   assertUnique(input.compositions, ({ id }) => id, "Composition ID");
   assertUnique(input.targets, ({ id }) => id, "target ID");
   assertUnique(input.targets, ({ path }) => path, "target path");
-  assertUnique(
-    input.targets,
-    ({ path }) => path.toLowerCase(),
-    "case-folded target path"
-  );
-  assertUnique(
-    input.targets,
-    ({ packageName }) => packageName,
-    "target package name"
-  );
+  assertUnique(input.targets, ({ path }) => path.toLowerCase(), "case-folded target path");
+  assertUnique(input.targets, ({ packageName }) => packageName, "target package name");
   assertUnique(input.authorityReadPaths, (path) => path, "authority read path");
   const composition = findExactlyOne(
     input.compositions,
     ({ id }) => id === input.intent.compositionId,
-    `Composition must exist exactly once: ${input.intent.compositionId}.`
+    `Composition must exist exactly once: ${input.intent.compositionId}.`,
   );
   const target = findExactlyOne(
     input.targets,
     ({ id }) => id === input.intent.targetRef,
-    `Scaffold target must exist exactly once: ${input.intent.targetRef}.`
+    `Scaffold target must exist exactly once: ${input.intent.targetRef}.`,
   );
   assertUnique(composition.targetRoles, (role) => role, "target role");
   if (!composition.targetRoles.includes(target.role)) {
     throw new ScaffoldError(
       "SCAFFOLD_INPUT_INVALID",
-      `Target role ${target.role} is not admitted by composition ${composition.id}.`
+      `Target role ${target.role} is not admitted by composition ${composition.id}.`,
     );
   }
   return { composition, target };
@@ -374,13 +329,13 @@ export interface ScaffoldRenderingResult {
 
 function assertFacetCompatibility(
   facets: readonly { readonly definition: ScaffoldFacetDefinition }[],
-  recipeId: string
+  recipeId: string,
 ): void {
   for (const { definition } of facets) {
     if (!definition.allowedRecipeIds.includes(recipeId)) {
       throw new ScaffoldError(
         "SCAFFOLD_INPUT_INVALID",
-        `Facet ${refKey(definition.ref)} is incompatible with Recipe ${recipeId}.`
+        `Facet ${refKey(definition.ref)} is incompatible with Recipe ${recipeId}.`,
       );
     }
   }
@@ -388,32 +343,26 @@ function assertFacetCompatibility(
 
 export function compileScaffoldRendering(
   input: ScaffoldRenderingInput,
-  registry: ScaffoldDefinitionRegistry
+  registry: ScaffoldDefinitionRegistry,
 ): ScaffoldRenderingResult {
   const { composition, target } = input;
   assertUnique(composition.targetRoles, (role) => role, "target role");
   if (!composition.targetRoles.includes(target.role)) {
     throw new ScaffoldError(
       "SCAFFOLD_INPUT_INVALID",
-      `Target role ${target.role} is not admitted by composition ${composition.id}.`
+      `Target role ${target.role} is not admitted by composition ${composition.id}.`,
     );
   }
-  const profile = registry.resolve(
-    composition.scaffoldProfile.ref,
-    "scaffold-profile"
-  );
+  const profile = registry.resolve(composition.scaffoldProfile.ref, "scaffold-profile");
   const recipe = registry.resolve(composition.recipe.ref, "recipe");
   const profileParameters = composition.scaffoldProfile.parameters ?? {};
-  const recipeParameters = mergeRecipeParameters(
-    composition,
-    input.intent.recipeParameters ?? {}
-  );
+  const recipeParameters = mergeRecipeParameters(composition, input.intent.recipeParameters ?? {});
   registry.validateParameters(profile, profileParameters);
   registry.validateParameters(recipe, recipeParameters);
   if (!profile.allowedRecipeIds.includes(recipe.ref.id)) {
     throw new ScaffoldError(
       "SCAFFOLD_INPUT_INVALID",
-      `Recipe ${refKey(recipe.ref)} is incompatible with the selected Profile or target role.`
+      `Recipe ${refKey(recipe.ref)} is incompatible with the selected Profile or target role.`,
     );
   }
 
@@ -427,14 +376,14 @@ export function compileScaffoldRendering(
       : { verifiedOwnerDocumentId: input.verifiedOwnerDocumentId }),
     profileParameters,
     recipeParameters,
-    facetParameters: Object.freeze({})
+    facetParameters: Object.freeze({}),
   });
   registry.assertRecipeRequirements(recipe, profile.ref.id, baseContext);
   const policyConfigurations = collectPolicies([
     profile.requiredPolicies,
     recipe.requiredPolicies,
     ...facets.map(({ definition }) => definition.requiredPolicies),
-    composition.policies
+    composition.policies,
   ]);
   const policies = policyConfigurations.map((configured) => {
     const definition = registry.resolve(configured.ref, "policy");
@@ -443,17 +392,15 @@ export function compileScaffoldRendering(
     definition.evaluate(baseContext, parameters);
     return definition;
   });
-  const contributions: ScaffoldFileContribution[] = [
-    ...recipe.compile(baseContext)
-  ];
+  const contributions: ScaffoldFileContribution[] = [...recipe.compile(baseContext)];
   for (const facet of facets) {
     contributions.push(
       ...facet.definition.compile(
         Object.freeze({
           ...baseContext,
-          facetParameters: facet.parameters
-        })
-      )
+          facetParameters: facet.parameters,
+        }),
+      ),
     );
   }
   const operations = operationsFromContributions(target, contributions);
@@ -461,7 +408,7 @@ export function compileScaffoldRendering(
     profile,
     recipe,
     ...facets.map(({ definition }) => definition),
-    ...policies
+    ...policies,
   ]);
   const normalizedIntent = JSON.parse(
     canonicalJson({
@@ -475,15 +422,15 @@ export function compileScaffoldRendering(
         ? {}
         : {
             facets: [...input.intent.facets].toSorted((left, right) =>
-              compareStrings(refKey(left.ref), refKey(right.ref))
-            )
-          })
-    } as unknown as JsonValue)
+              compareStrings(refKey(left.ref), refKey(right.ref)),
+            ),
+          }),
+    } as unknown as JsonValue),
   ) as ScaffoldRenderingIntent;
   return Object.freeze({
     compiler: Object.freeze({
       id: "@agent-teams/engineering-foundation" as const,
-      version: input.foundationVersion
+      version: input.foundationVersion,
     }),
     intent: normalizedIntent,
     intentDigest: sha256Json(normalizedIntent as unknown as JsonValue),
@@ -492,7 +439,7 @@ export function compileScaffoldRendering(
       scaffoldProfile: profile.ref,
       recipe: recipe.ref,
       facets: Object.freeze(facets.map(({ definition }) => definition.ref)),
-      policies: Object.freeze(policies.map(({ ref }) => ref))
+      policies: Object.freeze(policies.map(({ ref }) => ref)),
     }),
     definitions,
     resolved: Object.freeze({
@@ -500,20 +447,20 @@ export function compileScaffoldRendering(
       recipeParameters,
       facets: Object.freeze(
         facets.map(({ definition, parameters }) =>
-          Object.freeze({ ref: definition.ref, parameters })
-        )
+          Object.freeze({ ref: definition.ref, parameters }),
+        ),
       ),
       policies: Object.freeze(
         policyConfigurations.map((configured) =>
           Object.freeze({
             ref: configured.ref,
             parameters: configured.parameters ?? {},
-            outcome: "passed" as const
-          })
-        )
-      )
+            outcome: "passed" as const,
+          }),
+        ),
+      ),
     }),
     operations,
-    diagnostics: Object.freeze([])
+    diagnostics: Object.freeze([]),
   });
 }

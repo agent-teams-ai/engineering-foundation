@@ -3,9 +3,7 @@ import type { QualityGateRunReport } from "../../../application/model/quality-ga
 export type QualityGateOperatorCancellation = "interrupt" | "terminate";
 
 export interface QualityGateCancellationSource {
-  subscribe(
-    onCancellation: (cancellation: QualityGateOperatorCancellation) => void
-  ): () => void;
+  subscribe(onCancellation: (cancellation: QualityGateOperatorCancellation) => void): () => void;
 }
 
 export interface QualityGateCliProjection {
@@ -14,15 +12,13 @@ export interface QualityGateCliProjection {
   readonly stdout: string;
 }
 
-function cancellationExitCode(
-  cancellation: QualityGateOperatorCancellation
-): 130 | 143 {
+function cancellationExitCode(cancellation: QualityGateOperatorCancellation): 130 | 143 {
   return cancellation === "terminate" ? 143 : 130;
 }
 
 function exitCodeForQualityGateRun(
   report: QualityGateRunReport,
-  cancellation: QualityGateOperatorCancellation | undefined
+  cancellation: QualityGateOperatorCancellation | undefined,
 ): number {
   if (cancellation !== undefined && report.outcome !== "failed") {
     return cancellationExitCode(cancellation);
@@ -45,14 +41,12 @@ function renderQualityGateRunReport(report: QualityGateRunReport): string {
   const lines = [
     `Quality gate profile: ${report.profileId}`,
     `Outcome: ${report.outcome}`,
-    `Duration: ${report.durationMs}ms`
+    `Duration: ${report.durationMs}ms`,
   ];
   for (const task of report.tasks) {
     const exit = task.exitCode === null ? "" : ` exit=${task.exitCode}`;
     const signal = task.signal === null ? "" : ` signal=${task.signal}`;
-    lines.push(
-      `- ${task.id}: ${task.outcome} (${task.durationMs}ms)${exit}${signal}`
-    );
+    lines.push(`- ${task.id}: ${task.outcome} (${task.durationMs}ms)${exit}${signal}`);
     if (task.failureTail.length > 0) {
       lines.push(task.failureTail);
     }
@@ -63,27 +57,26 @@ function renderQualityGateRunReport(report: QualityGateRunReport): string {
 export function projectQualityGateSetupCancellation(
   format: "json" | "text",
   cancellation: QualityGateOperatorCancellation,
-  canonicalFailureJson: string
+  canonicalFailureJson: string,
 ): QualityGateCliProjection {
   return Object.freeze({
     exitCode: cancellationExitCode(cancellation),
     stderr: format === "text" ? "Quality gate execution was cancelled.\n" : "",
-    stdout: format === "json"
-      ? `${canonicalFailureJson}\n`
-      : ""
+    stdout: format === "json" ? `${canonicalFailureJson}\n` : "",
   });
 }
 
 export function projectQualityGateRun(
   report: QualityGateRunReport,
   format: "json" | "text",
-  cancellation: QualityGateOperatorCancellation | undefined
+  cancellation: QualityGateOperatorCancellation | undefined,
 ): QualityGateCliProjection {
   return Object.freeze({
     exitCode: exitCodeForQualityGateRun(report, cancellation),
     stderr: "",
-    stdout: format === "json"
-      ? `${JSON.stringify(report, null, 2)}\n`
-      : renderQualityGateRunReport(report)
+    stdout:
+      format === "json"
+        ? `${JSON.stringify(report, null, 2)}\n`
+        : renderQualityGateRunReport(report),
   });
 }

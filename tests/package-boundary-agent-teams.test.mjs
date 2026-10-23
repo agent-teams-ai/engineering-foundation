@@ -14,10 +14,12 @@ const docsProtocolAgentTeamsName = "@agent-teams/docs-protocol-agent-teams";
 const docsProtocolName = "@agent-teams/docs-protocol";
 
 test("Agent Teams consumer integration is absent from Core and owned by its adapter", async () => {
-  const policy = parseYaml(await readFile(join(
-    repositoryRoot,
-    "architecture/foundation/source-dependencies.yaml",
-  ), "utf8"));
+  const policy = parseYaml(
+    await readFile(
+      join(repositoryRoot, "architecture/foundation/source-dependencies.yaml"),
+      "utf8",
+    ),
+  );
   const coreBoundaries = policy.boundaries.filter((boundary) =>
     boundary.roots.some((root) => root.startsWith("packages/docs-protocol/src/")),
   );
@@ -40,41 +42,62 @@ test("Agent Teams consumer integration is absent from Core and owned by its adap
   assert.deepEqual(adapterBoundary, {
     id: "docs-protocol-agent-teams.adapters",
     roots: [
-      "agents-route-adapter-v1.ts", "bounded-repository-topology.ts",
-      "cohort-v2-authority-validator.ts", "cohort-v3-authority-projector.ts",
+      "agents-route-adapter-v1.ts",
+      "bounded-repository-topology.ts",
+      "cohort-v2-authority-validator.ts",
+      "cohort-v3-authority-projector.ts",
       "consumer-integration-node-error.ts",
-      "consumer-integration-schema-validator.ts", "consumer-upgrade-file-projectors.ts",
-      "foundation-known-file-transaction.ts", "github-cohort-authority-reader.ts",
-      "managed-qualification-input.ts", "node-consumer-clock.ts",
-      "node-consumer-environment.ts", "node-consumer-integration-repository.ts",
-      "node-consumer-repository-files.ts", "node-consumer-restoration-evidence.ts",
-      "node-consumer-restoration-finalization.ts", "node-consumer-restoration-lock.ts",
-      "node-consumer-restoration-scope.ts", "node-consumer-restoration-selection.ts",
-      "node-consumer-restoration.ts", "node-consumer-target-lockfile.ts",
-      "node-consumer-upgrade-archive.ts", "node-consumer-upgrade-sandbox.ts",
-      "node-consumer-upgrade-source-proof.ts", "node-consumer-upgrade-target.ts",
-      "node-managed-runtime-attempt.ts", "node-managed-runtime-install.ts",
+      "consumer-integration-schema-validator.ts",
+      "consumer-upgrade-file-projectors.ts",
+      "foundation-known-file-transaction.ts",
+      "github-cohort-authority-reader.ts",
+      "managed-qualification-input.ts",
+      "node-consumer-clock.ts",
+      "node-consumer-environment.ts",
+      "node-consumer-integration-repository.ts",
+      "node-consumer-repository-files.ts",
+      "node-consumer-restoration-evidence.ts",
+      "node-consumer-restoration-finalization.ts",
+      "node-consumer-restoration-lock.ts",
+      "node-consumer-restoration-scope.ts",
+      "node-consumer-restoration-selection.ts",
+      "node-consumer-restoration.ts",
+      "node-consumer-target-lockfile.ts",
+      "node-consumer-upgrade-archive.ts",
+      "node-consumer-upgrade-sandbox.ts",
+      "node-consumer-upgrade-source-proof.ts",
+      "node-consumer-upgrade-target.ts",
+      "node-managed-runtime-attempt.ts",
+      "node-managed-runtime-install.ts",
       "node-managed-runtime-archive.ts",
-      "node-managed-runtime-identity.ts", "node-managed-runtime-process.ts",
-      "node-managed-runtime.ts", "package-consumer-asset-catalog.ts",
-      "pnpm-lockfile-policy-v1.ts", "pnpm-lockfile-validator-v1.ts",
-      "pnpm-lockfile-validator-v2.ts", "pnpm-manifest-adapter-v1.ts",
-      "pnpm-manifest-adapter-v2.ts", "pnpm-manifest-planner.ts",
-      "pnpm-runtime-closure-v1.ts", "pnpm-runtime-closure-v2.ts",
-      "strict-json-record.ts", "unselected-cohort-v3-loader.ts",
-      "unselected-managed-profile-v4-loader.ts", "inbound",
+      "node-managed-runtime-identity.ts",
+      "node-managed-runtime-process.ts",
+      "managed-runtime-scope-support.ts",
+      "managed-probe-support.ts",
+      "managed-probe-operation.ts",
+      "managed-install-support.ts",
+      "managed-attempt-support.ts",
+      "consumer-upgrade-sandbox-support.ts",
+      "consumer-upgrade-projector-support.ts",
+      "cohort-authority-fetch.ts",
+      "node-managed-runtime.ts",
+      "package-consumer-asset-catalog.ts",
+      "pnpm-lockfile-policy-v1.ts",
+      "pnpm-lockfile-validator-v1.ts",
+      "pnpm-lockfile-validator-v2.ts",
+      "pnpm-manifest-adapter-v1.ts",
+      "pnpm-manifest-adapter-v2.ts",
+      "pnpm-manifest-planner.ts",
+      "pnpm-runtime-closure-v1.ts",
+      "pnpm-runtime-closure-v2.ts",
+      "strict-json-record.ts",
+      "unselected-cohort-v3-loader.ts",
+      "unselected-managed-profile-v4-loader.ts",
+      "inbound",
     ].map((name) => `${adapterRoot}/${name}`),
     allow: {
-      boundaries: [
-        "docs-protocol-agent-teams.application",
-      ],
-      packages: [
-        repositoryMutationName,
-        "ajv",
-        "jsonc-parser",
-        "yaml",
-        docsProtocolName,
-      ],
+      boundaries: ["docs-protocol-agent-teams.application"],
+      packages: [repositoryMutationName, "ajv", "jsonc-parser", "yaml", docsProtocolName],
       builtins: [
         "node:child_process",
         "node:crypto",
@@ -89,65 +112,87 @@ test("Agent Teams consumer integration is absent from Core and owned by its adap
       runtimeReferences: [],
     },
     entrypoints: [
-      "agents-route-adapter-v1.ts", "cohort-v3-authority-projector.ts",
+      "agents-route-adapter-v1.ts",
+      "cohort-v3-authority-projector.ts",
       "consumer-integration-schema-validator.ts",
-      "consumer-upgrade-file-projectors.ts", "foundation-known-file-transaction.ts",
-      "github-cohort-authority-reader.ts", "inbound/consumer-integration-cli.ts",
-      "inbound/managed-cli.ts", "managed-qualification-input.ts",
+      "consumer-upgrade-file-projectors.ts",
+      "foundation-known-file-transaction.ts",
+      "github-cohort-authority-reader.ts",
+      "inbound/consumer-integration-cli.ts",
+      "inbound/managed-cli.ts",
+      "managed-qualification-input.ts",
       "node-consumer-integration-repository.ts",
-      "node-consumer-restoration.ts", "node-consumer-restoration-finalization.ts",
-      "node-consumer-upgrade-sandbox.ts", "node-consumer-upgrade-target.ts",
+      "node-consumer-restoration.ts",
+      "node-consumer-restoration-finalization.ts",
+      "node-consumer-upgrade-sandbox.ts",
+      "node-consumer-upgrade-target.ts",
       "package-consumer-asset-catalog.ts",
-      "pnpm-lockfile-validator-v1.ts", "pnpm-lockfile-validator-v2.ts",
-      "pnpm-manifest-adapter-v1.ts", "pnpm-manifest-adapter-v2.ts",
-      "pnpm-manifest-planner.ts", "pnpm-runtime-closure-v1.ts",
+      "pnpm-lockfile-validator-v1.ts",
+      "pnpm-lockfile-validator-v2.ts",
+      "pnpm-manifest-adapter-v1.ts",
+      "pnpm-manifest-adapter-v2.ts",
+      "pnpm-manifest-planner.ts",
+      "pnpm-runtime-closure-v1.ts",
       "pnpm-runtime-closure-v2.ts",
-      "unselected-cohort-v3-loader.ts", "node-managed-runtime.ts", "node-managed-runtime-identity.ts",
+      "unselected-cohort-v3-loader.ts",
+      "node-managed-runtime.ts",
+      "node-managed-runtime-identity.ts",
       "node-managed-runtime-process.ts",
-      "node-managed-runtime-attempt.ts", "node-managed-runtime-install.ts",
+      "node-managed-runtime-attempt.ts",
+      "node-managed-runtime-install.ts",
       "node-managed-runtime-archive.ts",
     ].map((name) => `${adapterRoot}/${name}`),
   });
   const qualificationAdapterRoot = "packages/docs-protocol-agent-teams/src/qualification/adapters";
-  assert.deepEqual(policy.boundaries.find(
-    ({ id }) => id === "docs-protocol-agent-teams.qualification.adapters",
-  ), {
-    id: "docs-protocol-agent-teams.qualification.adapters",
-    roots: [qualificationAdapterRoot],
-    allow: {
-      boundaries: ["docs-protocol-agent-teams.qualification.application"],
-      packages: [docsProtocolName, "ajv", "jsonc-parser", "yaml"],
-      builtins: [
-        "node:child_process",
-        "node:crypto", "node:fs", "node:fs/promises", "node:os", "node:path",
-        "node:url", "node:util", "node:zlib",
-      ],
-      runtimeReferences: [],
+  assert.deepEqual(
+    policy.boundaries.find(({ id }) => id === "docs-protocol-agent-teams.qualification.adapters"),
+    {
+      id: "docs-protocol-agent-teams.qualification.adapters",
+      roots: [qualificationAdapterRoot],
+      allow: {
+        boundaries: ["docs-protocol-agent-teams.qualification.application"],
+        packages: [docsProtocolName, "ajv", "jsonc-parser", "yaml"],
+        builtins: [
+          "node:child_process",
+          "node:crypto",
+          "node:fs",
+          "node:fs/promises",
+          "node:os",
+          "node:path",
+          "node:url",
+          "node:util",
+          "node:zlib",
+        ],
+        runtimeReferences: [],
+      },
+      entrypoints: [
+        "inbound/qualification-cli.ts",
+        "outbound/node-managed-qualification.ts",
+        "outbound/node-qualification-api-factory.ts",
+        "outbound/node-qualification-runtime.ts",
+        "outbound/restoration-lock-graph.ts",
+        "outbound/restoration-lock-inputs.ts",
+      ].map((name) => `${qualificationAdapterRoot}/${name}`),
     },
-    entrypoints: [
-      "inbound/qualification-cli.ts", "outbound/node-managed-qualification.ts",
-      "outbound/node-qualification-api-factory.ts", "outbound/node-qualification-runtime.ts",
-      "outbound/restoration-lock-graph.ts", "outbound/restoration-lock-inputs.ts",
-    ].map((name) => `${qualificationAdapterRoot}/${name}`),
-  });
-  assert.deepEqual(policy.boundaries.find(
-    ({ id }) => id === "docs-protocol-agent-teams.managed-runtime-probe",
-  ), {
-    id: "docs-protocol-agent-teams.managed-runtime-probe",
-    roots: [`${adapterRoot}/managed-runtime-probe.ts`],
-    allow: {
-      boundaries: [],
-      packages: [],
-      builtins: ["node:fs"],
-      runtimeReferences: ["dynamic"],
+  );
+  assert.deepEqual(
+    policy.boundaries.find(({ id }) => id === "docs-protocol-agent-teams.managed-runtime-probe"),
+    {
+      id: "docs-protocol-agent-teams.managed-runtime-probe",
+      roots: [`${adapterRoot}/managed-runtime-probe.ts`],
+      allow: {
+        boundaries: [],
+        packages: [],
+        builtins: ["node:fs"],
+        runtimeReferences: ["dynamic"],
+      },
+      entrypoints: [],
     },
-    entrypoints: [],
-  });
+  );
 
-  const applicationSources = await sourceFiles(join(
-    repositoryRoot,
-    "packages/docs-protocol-agent-teams/src/consumer-integration/application",
-  ));
+  const applicationSources = await sourceFiles(
+    join(repositoryRoot, "packages/docs-protocol-agent-teams/src/consumer-integration/application"),
+  );
   for (const path of applicationSources) {
     const source = await readFile(path, "utf8");
     assert.doesNotMatch(source, /(?:^|\/)adapters(?:\/|$)/u, path);

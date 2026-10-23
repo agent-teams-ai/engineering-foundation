@@ -26,9 +26,15 @@ function containedPath(root: string, directory: string, value: string, allowRoot
 }
 
 function strings(value: unknown): readonly string[] {
-  if (typeof value === "string") { return [value]; }
-  if (Array.isArray(value)) { return value.flatMap(strings); }
-  if (typeof value === "object" && value !== null) { return Object.values(value).flatMap(strings); }
+  if (typeof value === "string") {
+    return [value];
+  }
+  if (Array.isArray(value)) {
+    return value.flatMap(strings);
+  }
+  if (typeof value === "object" && value !== null) {
+    return Object.values(value).flatMap(strings);
+  }
   return [];
 }
 
@@ -38,7 +44,9 @@ function metadataPaths(root: string, path: string, bytes: Buffer): readonly stri
   const directory = dirname(path);
   const paths = [join(directory, "tsdoc-metadata.json")];
   if (manifest["tsdocMetadata"] !== undefined) {
-    if (typeof manifest["tsdocMetadata"] !== "string") { throw new Error("Unsupported tsdocMetadata path."); }
+    if (typeof manifest["tsdocMetadata"] !== "string") {
+      throw new Error("Unsupported tsdocMetadata path.");
+    }
     paths.push(containedPath(root, directory, manifest["tsdocMetadata"]));
   }
   for (const field of ["exports", "typesVersions", "types", "typings", "main"]) {
@@ -51,15 +59,22 @@ function metadataPaths(root: string, path: string, bytes: Buffer): readonly stri
 
 function mappedSources(root: string, path: string, bytes: Buffer): readonly string[] {
   const map = JSON.parse(bytes.toString("utf8")) as Record<string, unknown>;
-  if (map["version"] !== 3 || map["sections"] !== undefined || !Array.isArray(map["sources"]) ||
-      (map["sourceRoot"] !== undefined && typeof map["sourceRoot"] !== "string")) {
+  if (
+    map["version"] !== 3 ||
+    map["sections"] !== undefined ||
+    !Array.isArray(map["sources"]) ||
+    (map["sourceRoot"] !== undefined && typeof map["sourceRoot"] !== "string")
+  ) {
     throw new Error("Unsupported declaration source-map structure.");
   }
   const sourceRoot = map["sourceRoot"] ?? "";
   return map["sources"].map((source: unknown) => {
-    if (typeof source !== "string") { throw new Error("Unsupported mapped source path."); }
+    if (typeof source !== "string") {
+      throw new Error("Unsupported mapped source path.");
+    }
     // Validate both components before joining: join would hide an absolute source.
-    const base = sourceRoot === "" ? dirname(path) : containedPath(root, dirname(path), sourceRoot, true);
+    const base =
+      sourceRoot === "" ? dirname(path) : containedPath(root, dirname(path), sourceRoot, true);
     return containedPath(root, base, source);
   });
 }
@@ -72,16 +87,24 @@ async function present(root: string, path: string): Promise<boolean> {
     cursor = join(cursor, part);
     try {
       const stat = await lstat(cursor);
-      if (stat.isSymbolicLink()) { throw new Error(`Audit symlink unsupported: ${path}.`); }
+      if (stat.isSymbolicLink()) {
+        throw new Error(`Audit symlink unsupported: ${path}.`);
+      }
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") { return false; }
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+        return false;
+      }
       throw error;
     }
   }
   return true;
 }
 
-export async function stagePublicApiAudit(root: string, allowed: ReadonlyMap<string, string>, stageRoot: string): Promise<AuditInputStage> {
+export async function stagePublicApiAudit(
+  root: string,
+  allowed: ReadonlyMap<string, string>,
+  stageRoot: string,
+): Promise<AuditInputStage> {
   // Claim a fresh namespace before doing any I/O on its behalf. In particular,
   // a second producer cannot reuse a published stage (also enforced on Windows).
   allowed = new Map(allowed);
@@ -93,19 +116,29 @@ export async function stagePublicApiAudit(root: string, allowed: ReadonlyMap<str
     await auditInputPath(root, relative(root, path).split(sep).join("/"));
     const content = await readFile(path);
     byteCount += content.length;
-    if (byteCount > AUDIT_MAX_BYTES) { throw new Error("Audit staging byte budget exhausted."); }
-    if (auditDigest(content) !== digest) { throw new Error("Audit staging input digest mismatch."); }
+    if (byteCount > AUDIT_MAX_BYTES) {
+      throw new Error("Audit staging byte budget exhausted.");
+    }
+    if (auditDigest(content) !== digest) {
+      throw new Error("Audit staging input digest mismatch.");
+    }
     bytes.set(path, content);
   }
   const dependencies = new Set<string>();
   for (const [path, content] of bytes) {
-    if (/\.d\.[cm]?ts$/u.test(path)) { dependencies.add(`${path}.map`); }
+    if (/\.d\.[cm]?ts$/u.test(path)) {
+      dependencies.add(`${path}.map`);
+    }
     if (basename(path) === "package.json") {
-      for (const dependency of metadataPaths(root, path, content)) { dependencies.add(dependency); }
+      for (const dependency of metadataPaths(root, path, content)) {
+        dependencies.add(dependency);
+      }
     }
     if (/\.d\.[cm]?ts\.map$/u.test(path)) {
       for (const dependency of mappedSources(root, path, content)) {
-        if (!allowed.has(dependency)) { throw new Error(`Undeclared mapped source: ${dependency}.`); }
+        if (!allowed.has(dependency)) {
+          throw new Error(`Undeclared mapped source: ${dependency}.`);
+        }
         dependencies.add(dependency);
       }
     }
@@ -113,7 +146,9 @@ export async function stagePublicApiAudit(root: string, allowed: ReadonlyMap<str
   for (const path of dependencies) {
     const exists = await present(root, path);
     observed.set(path, exists);
-    if (exists && !allowed.has(path)) { throw new Error(`Undeclared SDK input: ${path}.`); }
+    if (exists && !allowed.has(path)) {
+      throw new Error(`Undeclared SDK input: ${path}.`);
+    }
   }
   const files = new Map<string, string>();
   const directories = new Set<string>([stageRoot]);
@@ -121,27 +156,44 @@ export async function stagePublicApiAudit(root: string, allowed: ReadonlyMap<str
     const destination = join(stageRoot, relative(root, path));
     await mkdir(dirname(destination), { recursive: true });
     let directory = dirname(destination);
-    while (directory !== stageRoot) { directories.add(directory); directory = dirname(directory); }
+    while (directory !== stageRoot) {
+      directories.add(directory);
+      directory = dirname(directory);
+    }
     await writeFile(destination, content, { flag: "wx", mode: 0o400 });
     files.set(destination, auditDigest(content));
   }
-  for (const directory of directories) { await chmod(directory, 0o500); }
+  for (const directory of directories) {
+    await chmod(directory, 0o500);
+  }
   let released = false;
-  return { root: stageRoot, files,
+  return {
+    root: stageRoot,
+    files,
     release: async () => {
       released = true;
-      for (const directory of directories) { await chmod(directory, 0o700); }
+      for (const directory of directories) {
+        await chmod(directory, 0o700);
+      }
     },
     revalidate: async () => {
-    if (released) { throw new Error("Audit stage has been released."); }
-    for (const [path, expected] of observed) {
-      if (await present(root, path) !== expected || await present(stageRoot, join(stageRoot, relative(root, path))) !== expected) {
-        throw new Error("SDK input presence changed during observation.");
+      if (released) {
+        throw new Error("Audit stage has been released.");
       }
-    }
-    for (const [path, digest] of allowed) {
-      await auditInputPath(root, relative(root, path).split(sep).join("/"));
-      if (auditDigest(await readFile(path)) !== digest) { throw new Error("Audit input changed during observation."); }
-    }
-  } };
+      for (const [path, expected] of observed) {
+        if (
+          (await present(root, path)) !== expected ||
+          (await present(stageRoot, join(stageRoot, relative(root, path)))) !== expected
+        ) {
+          throw new Error("SDK input presence changed during observation.");
+        }
+      }
+      for (const [path, digest] of allowed) {
+        await auditInputPath(root, relative(root, path).split(sep).join("/"));
+        if (auditDigest(await readFile(path)) !== digest) {
+          throw new Error("Audit input changed during observation.");
+        }
+      }
+    },
+  };
 }

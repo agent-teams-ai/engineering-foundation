@@ -2,11 +2,9 @@ import { isDocumentInputFailure } from "../../../application/policies/document-i
 import { DocumentAuthoringError } from "../../../application/model/errors.js";
 import type {
   DocumentDescriptor,
-  DocumentationCatalogDiagnostic
+  DocumentationCatalogDiagnostic,
 } from "../../../application/model/document-catalog.js";
-import type {
-  DocumentFindResult
-} from "../../../application/model/document-find.js";
+import type { DocumentFindResult } from "../../../application/model/document-find.js";
 import { DocumentCatalogError } from "../../../application/model/document-catalog-error.js";
 
 const MAXIMUM_DOCUMENTS = 2_048;
@@ -45,34 +43,32 @@ export interface DocumentFindCommandResult {
 
 function diagnostic(
   source: DocumentationCatalogDiagnostic,
-  phase: CommandDiagnostic["phase"]
+  phase: CommandDiagnostic["phase"],
 ): CommandDiagnostic {
   return Object.freeze({
     message: source.message.slice(0, 1_000),
     phase,
     ruleId: source.ruleId,
     severity: source.severity,
-    subject: source.subject.slice(0, 512)
+    subject: source.subject.slice(0, 512),
   });
 }
 
 function boundDiagnostics(
-  sources: readonly DocumentationCatalogDiagnostic[]
+  sources: readonly DocumentationCatalogDiagnostic[],
 ): readonly CommandDiagnostic[] {
   if (sources.length <= MAXIMUM_DIAGNOSTICS) {
     return Object.freeze(sources.map((source) => diagnostic(source, "query")));
   }
   return Object.freeze([
-    ...sources
-      .slice(0, MAXIMUM_DIAGNOSTICS - 1)
-      .map((source) => diagnostic(source, "query")),
+    ...sources.slice(0, MAXIMUM_DIAGNOSTICS - 1).map((source) => diagnostic(source, "query")),
     Object.freeze({
       message: `Catalog returned ${sources.length} diagnostics; JSON output includes the first ${MAXIMUM_DIAGNOSTICS - 1}.`,
       phase: "query" as const,
       ruleId: "document.query.diagnostics-truncated",
       severity: "warning" as const,
-      subject: "document.query"
-    })
+      subject: "document.query",
+    }),
   ]);
 }
 
@@ -90,18 +86,13 @@ function envelope(input: {
     result: Object.freeze({
       kind: "find",
       matches: input.matches ?? 0,
-      documents: Object.freeze([...(input.documents ?? [])])
-    })
+      documents: Object.freeze([...(input.documents ?? [])]),
+    }),
   });
 }
 
-export function documentFindFailure(
-  error: unknown
-): DocumentFindCommandResult {
-  if (
-    isDocumentInputFailure(error) &&
-    error.problem.code === "EXECUTION_CANCELLED"
-  ) {
+export function documentFindFailure(error: unknown): DocumentFindCommandResult {
+  if (isDocumentInputFailure(error) && error.problem.code === "EXECUTION_CANCELLED") {
     return Object.freeze({
       envelope: envelope({
         diagnostics: [
@@ -110,12 +101,12 @@ export function documentFindFailure(
             phase: "query",
             ruleId: "document.query.cancelled",
             severity: "error",
-            subject: "document.query"
-          })
+            subject: "document.query",
+          }),
         ],
-        outcome: "cancelled"
+        outcome: "cancelled",
       }),
-      exitCode: 130
+      exitCode: 130,
     });
   }
   if (isDocumentInputFailure(error)) {
@@ -127,12 +118,12 @@ export function documentFindFailure(
             phase: "input",
             ruleId: "document.query.invalid-input",
             severity: "error",
-            subject: "document.query"
-          })
+            subject: "document.query",
+          }),
         ],
-        outcome: "invalid-input"
+        outcome: "invalid-input",
       }),
-      exitCode: 2
+      exitCode: 2,
     });
   }
   if (error instanceof DocumentCatalogError) {
@@ -147,12 +138,12 @@ export function documentFindFailure(
               ? "document.query.authority-stale"
               : "document.query.invalid-input",
             severity: "error",
-            subject: "document.query"
-          })
+            subject: "document.query",
+          }),
         ],
-        outcome: authorityStale ? "authority-stale" : "invalid-input"
+        outcome: authorityStale ? "authority-stale" : "invalid-input",
       }),
-      exitCode: authorityStale ? 1 : 2
+      exitCode: authorityStale ? 1 : 2,
     });
   }
   if (error instanceof DocumentAuthoringError) {
@@ -164,45 +155,40 @@ export function documentFindFailure(
             phase: "input",
             ruleId: "document.query.invalid-input",
             severity: "error",
-            subject: "document.query"
-          })
+            subject: "document.query",
+          }),
         ],
-        outcome: "invalid-input"
+        outcome: "invalid-input",
       }),
-      exitCode: 2
+      exitCode: 2,
     });
   }
   return Object.freeze({
     envelope: envelope({
       diagnostics: [
         Object.freeze({
-          message: (error instanceof Error ? error.message : String(error)).slice(
-            0,
-            1_000
-          ),
+          message: (error instanceof Error ? error.message : String(error)).slice(0, 1_000),
           phase: "query",
           ruleId: "document.query.execution-failure",
           severity: "error",
-          subject: "document.query"
-        })
+          subject: "document.query",
+        }),
       ],
-      outcome: "execution-failure"
+      outcome: "execution-failure",
     }),
-    exitCode: 3
+    exitCode: 3,
   });
 }
 
-export function documentFindSuccess(
-  result: DocumentFindResult
-): DocumentFindCommandResult {
+export function documentFindSuccess(result: DocumentFindResult): DocumentFindCommandResult {
   const partial = result.catalogStatus === "partial";
   return Object.freeze({
     envelope: envelope({
       diagnostics: boundDiagnostics(result.diagnostics),
       documents: result.documents.slice(0, MAXIMUM_DOCUMENTS),
       matches: result.matches,
-      outcome: partial ? "partial" : "success"
+      outcome: partial ? "partial" : "success",
     }),
-    exitCode: partial ? 1 : 0
+    exitCode: partial ? 1 : 0,
   });
 }

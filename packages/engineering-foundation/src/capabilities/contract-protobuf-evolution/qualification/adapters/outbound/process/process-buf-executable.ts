@@ -1,12 +1,15 @@
 import { realpath, stat } from "node:fs/promises";
 import { isAbsolute } from "node:path";
 
-import { CapabilityInputError,assertNotCancelled } from "../../../../../../features/validation-reporting/api.js";
+import {
+  CapabilityInputError,
+  assertNotCancelled,
+} from "../../../../../../features/validation-reporting/api.js";
 import type { BufProcessExecutor } from "../../../ports/process-executor.js";
 import type {
   BufExecutable,
   BufExecutionResult,
-  BufInvocation
+  BufInvocation,
 } from "../../../ports/buf-executable.js";
 
 const MAX_ARGUMENTS = 128;
@@ -24,12 +27,15 @@ function hasControlCharacter(value: string): boolean {
 }
 
 function inputError(code: string, message: string, cause?: unknown): never {
-  throw new CapabilityInputError({
-    code,
-    message,
-    phase: "protobuf-buf-process",
-    retryable: false
-  }, cause === undefined ? undefined : { cause });
+  throw new CapabilityInputError(
+    {
+      code,
+      message,
+      phase: "protobuf-buf-process",
+      retryable: false,
+    },
+    cause === undefined ? undefined : { cause },
+  );
 }
 
 function assertArgument(value: unknown, index: number): asserts value is string {
@@ -47,7 +53,7 @@ async function executablePath(path: unknown): Promise<string> {
     inputError("BUF_EXECUTABLE_PATH_INVALID", "Buf executable path must be absolute.");
   }
   const canonical = await realpath(path).catch(() =>
-    inputError("BUF_EXECUTABLE_UNAVAILABLE", "Pinned Buf executable is unavailable.")
+    inputError("BUF_EXECUTABLE_UNAVAILABLE", "Pinned Buf executable is unavailable."),
   );
   const metadata = await stat(canonical);
   if (!metadata.isFile()) {
@@ -61,7 +67,7 @@ async function workingDirectory(path: unknown): Promise<string> {
     inputError("BUF_WORKING_DIRECTORY_INVALID", "Buf working directory must be absolute.");
   }
   const canonical = await realpath(path).catch(() =>
-    inputError("BUF_WORKING_DIRECTORY_UNAVAILABLE", "Buf working directory is unavailable.")
+    inputError("BUF_WORKING_DIRECTORY_UNAVAILABLE", "Buf working directory is unavailable."),
   );
   const metadata = await stat(canonical);
   if (!metadata.isDirectory()) {
@@ -72,15 +78,20 @@ async function workingDirectory(path: unknown): Promise<string> {
 
 async function execute(
   executor: BufProcessExecutor,
-  request: { readonly command: string; readonly args: readonly string[];
-    readonly cwd: string; readonly timeoutMs: number; readonly signal?: AbortSignal }
+  request: {
+    readonly command: string;
+    readonly args: readonly string[];
+    readonly cwd: string;
+    readonly timeoutMs: number;
+    readonly signal?: AbortSignal;
+  },
 ): Promise<BufExecutionResult> {
   try {
     const result = await executor.run(request);
     return {
       exitCode: result.exitCode,
       stdout: result.stdout,
-      stderr: result.stderr
+      stderr: result.stderr,
     };
   } catch (error) {
     if (request.signal?.aborted === true) {
@@ -89,7 +100,7 @@ async function execute(
     inputError(
       "BUF_EXECUTION_UNAVAILABLE",
       `Pinned Buf execution failed or exceeded its ${String(request.timeoutMs)}ms deadline.`,
-      error
+      error,
     );
   }
 }
@@ -97,14 +108,14 @@ async function execute(
 export class ProcessBufExecutable implements BufExecutable {
   readonly #timeoutMs: number;
 
-  constructor(private readonly executor: BufProcessExecutor, timeoutMs = DEFAULT_BUF_PROCESS_TIMEOUT_MS) {
+  constructor(
+    private readonly executor: BufProcessExecutor,
+    timeoutMs = DEFAULT_BUF_PROCESS_TIMEOUT_MS,
+  ) {
     this.#timeoutMs = timeoutMs;
   }
 
-  async run(
-    invocation: BufInvocation,
-    signal?: AbortSignal
-  ): Promise<BufExecutionResult> {
+  async run(invocation: BufInvocation, signal?: AbortSignal): Promise<BufExecutionResult> {
     assertNotCancelled(signal);
     if (!Array.isArray(invocation.arguments) || invocation.arguments.length > MAX_ARGUMENTS) {
       inputError("BUF_ARGUMENTS_INVALID", "Buf invocation has too many arguments.");
@@ -112,12 +123,15 @@ export class ProcessBufExecutable implements BufExecutable {
     invocation.arguments.forEach(assertArgument);
     const [command, cwd] = await Promise.all([
       executablePath(invocation.executablePath),
-      workingDirectory(invocation.workingDirectory)
+      workingDirectory(invocation.workingDirectory),
     ]);
     assertNotCancelled(signal);
     return execute(this.executor, {
-      command, args: invocation.arguments, cwd, timeoutMs: this.#timeoutMs,
-      ...(signal === undefined ? {} : { signal })
+      command,
+      args: invocation.arguments,
+      cwd,
+      timeoutMs: this.#timeoutMs,
+      ...(signal === undefined ? {} : { signal }),
     });
   }
 }

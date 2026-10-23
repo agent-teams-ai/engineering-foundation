@@ -4,15 +4,18 @@ import type {
   DocumentCatalogCollection,
   DocumentIdentityStrategy,
   DocumentPlacementStrategy,
-  DocumentPlanningProfileSnapshot
+  DocumentPlanningProfileSnapshot,
 } from "../../application/model/document-planning.js";
 import type { DocumentPlanningProfileReader } from "../../application/ports/document-planning-profile-reader.js";
 import { DocumentCatalogError } from "../../application/model/document-catalog-error.js";
 import { DocumentPlanningError } from "../../application/model/document-planning-error.js";
-import { InvalidDocumentAuthoringProfileError, resolvedArtifactOwnerIds, resolvedProfileMetadataSidecar, type ValidatedDocumentAuthoringProfileVersioned } from "../../application/model/validated-document-authoring-profile.js";
 import {
-  loadValidatedDocumentAuthoringProfileV2} from "./load-validated-document-authoring-profile-v2.js";
-
+  InvalidDocumentAuthoringProfileError,
+  resolvedArtifactOwnerIds,
+  resolvedProfileMetadataSidecar,
+  type ValidatedDocumentAuthoringProfileVersioned,
+} from "../../application/model/validated-document-authoring-profile.js";
+import { loadValidatedDocumentAuthoringProfileV2 } from "./load-validated-document-authoring-profile-v2.js";
 
 function freezeIdentity(identity: DocumentIdentityStrategy): DocumentIdentityStrategy {
   return identity.format === "qualified"
@@ -20,8 +23,8 @@ function freezeIdentity(identity: DocumentIdentityStrategy): DocumentIdentityStr
         ...identity,
         grammar: Object.freeze({
           ...identity.grammar,
-          prefixSegments: Object.freeze([...identity.grammar.prefixSegments])
-        })
+          prefixSegments: Object.freeze([...identity.grammar.prefixSegments]),
+        }),
       })
     : Object.freeze({ ...identity });
 }
@@ -31,16 +34,14 @@ function freezePlacement(placement: DocumentPlacementStrategy): DocumentPlacemen
     ? Object.freeze({
         ...placement,
         allowedRoots: Object.freeze([...placement.allowedRoots]),
-        requiredSegmentsInOrder: Object.freeze([
-          ...placement.requiredSegmentsInOrder
-        ])
+        requiredSegmentsInOrder: Object.freeze([...placement.requiredSegmentsInOrder]),
       })
     : Object.freeze({ ...placement });
 }
 
 function freezeArtifactType(
   artifactType: ValidatedDocumentAuthoringProfileVersioned["authoring"]["artifactTypes"][number],
-  profile: ValidatedDocumentAuthoringProfileVersioned
+  profile: ValidatedDocumentAuthoringProfileVersioned,
 ): DocumentArtifactType {
   const allowedOwnerIds = resolvedArtifactOwnerIds(profile, artifactType);
   return Object.freeze({
@@ -52,15 +53,13 @@ function freezeArtifactType(
     identity: freezeIdentity(artifactType.identity),
     placement: freezePlacement(artifactType.placement),
     reachability: Object.freeze({
-      ...(artifactType.reachability ?? { kind: "not-required" })
+      ...(artifactType.reachability ?? { kind: "not-required" }),
     }),
-    template: Object.freeze({ ...artifactType.template })
+    template: Object.freeze({ ...artifactType.template }),
   });
 }
 
-function freezeCollection(
-  collection: DocumentCatalogCollection
-): DocumentCatalogCollection {
+function freezeCollection(collection: DocumentCatalogCollection): DocumentCatalogCollection {
   return collection.kind === "frontmatter-readme"
     ? Object.freeze({ ...collection, roots: Object.freeze([...collection.roots]) })
     : Object.freeze({ ...collection });
@@ -70,12 +69,11 @@ function invalidProfile(error: InvalidDocumentAuthoringProfileError): never {
   throw new DocumentPlanningError(
     "DOCUMENT_PLANNING_INPUT_INVALID",
     `Document authoring profile is invalid: ${error.message}`,
-    { cause: error }
+    { cause: error },
   );
 }
 
-export class NodeDocumentPlanningProfileReader
-implements DocumentPlanningProfileReader {
+export class NodeDocumentPlanningProfileReader implements DocumentPlanningProfileReader {
   constructor(private readonly readFile: DocumentFileReader) {}
   async read(request: {
     readonly consumerRoot: string;
@@ -85,27 +83,25 @@ implements DocumentPlanningProfileReader {
     try {
       const { evidence, profile } = await loadValidatedDocumentAuthoringProfileV2(
         this.readFile,
-        request
+        request,
       );
       const metadataSidecar = resolvedProfileMetadataSidecar(profile);
       return Object.freeze({
         artifactTypes: Object.freeze(
-          profile.authoring.artifactTypes.map((artifactType) => freezeArtifactType(artifactType, profile))
+          profile.authoring.artifactTypes.map((artifactType) =>
+            freezeArtifactType(artifactType, profile),
+          ),
         ),
-        collections: Object.freeze(
-          profile.catalog.collections.map(freezeCollection)
-        ),
+        collections: Object.freeze(profile.catalog.collections.map(freezeCollection)),
         evidence,
-        excludedPrefixes: Object.freeze([
-          ...(profile.catalog.excludedPrefixes ?? [])
-        ]),
+        excludedPrefixes: Object.freeze([...(profile.catalog.excludedPrefixes ?? [])]),
         metadataSchemaPath: profile.catalog.metadataSchemaPath,
         ...(metadataSidecar === undefined
           ? {}
           : { metadataSidecar: Object.freeze({ ...metadataSidecar }) }),
         ownerCatalog: Object.freeze({ ...profile.catalog.ownerCatalog }),
         projectId: profile.projectId,
-        schemaVersion: profile.schemaVersion
+        schemaVersion: profile.schemaVersion,
       });
     } catch (error) {
       if (error instanceof InvalidDocumentAuthoringProfileError) {
@@ -117,7 +113,7 @@ implements DocumentPlanningProfileReader {
             ? "DOCUMENT_PLANNING_INPUT_INVALID"
             : "DOCUMENT_PLANNING_AUTHORITY_UNAVAILABLE",
           `Document authoring profile cannot be loaded: ${error.message}`,
-          { cause: error }
+          { cause: error },
         );
       }
       throw error;

@@ -14,7 +14,7 @@ export interface WorkspaceYamlObservation {
     consumerRoot: string,
     repositoryPath: string,
     phase: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ) => Promise<unknown>;
 }
 
@@ -23,6 +23,6 @@ export interface PackageManifestSnapshotReader {
     consumerRoot: string,
     paths: readonly string[],
     catalogs: readonly CatalogEntry[],
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ) => Promise<readonly WorkspacePackage[]>;
 }

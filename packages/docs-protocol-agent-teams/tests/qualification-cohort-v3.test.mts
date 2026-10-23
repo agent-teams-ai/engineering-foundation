@@ -8,20 +8,12 @@ import test from "node:test";
 
 import { Ajv2020 } from "ajv/dist/2020.js";
 
-import {
-  createDocsProtocolQualificationV3
-} from "../dist/qualification/application-api.js";
-import { parsePackedManagedRuntimePolicy } from
-  "../dist/consumer-integration/adapters/unselected-cohort-v3-loader.js";
+import { createDocsProtocolQualificationV3 } from "../dist/qualification/application-api.js";
+import { parsePackedManagedRuntimePolicy } from "../dist/consumer-integration/adapters/unselected-cohort-v3-loader.js";
 import { runDocsProtocolQualificationV3 } from "../dist/qualification/index.js";
-import { createNodeDocsProtocolQualificationRuntimeObserver } from
-  "../dist/qualification/adapters/outbound/node-qualification-runtime.js";
-import type {
-  DocsProtocolQualificationRuntimeObservation
-} from "../dist/qualification/application/model/v3-contract.js";
-import type {
-  PackedManagedRuntimePolicy
-} from "../dist/consumer-integration/application/policies/qualified-docs-cohort-v3.js";
+import { createNodeDocsProtocolQualificationRuntimeObserver } from "../dist/qualification/adapters/outbound/node-qualification-runtime.js";
+import type { DocsProtocolQualificationRuntimeObservation } from "../dist/qualification/application/model/v3-contract.js";
+import type { PackedManagedRuntimePolicy } from "../dist/consumer-integration/application/policies/qualified-docs-cohort-v3.js";
 import {
   createRequestFixture,
   exactRuntime,
@@ -32,7 +24,7 @@ import {
   qualification,
   request,
   receiptDigest,
-  type PackedRuntimePolicyFixture
+  type PackedRuntimePolicyFixture,
 } from "./qualification-cohort-v3-fixtures.mts";
 
 test("Gen3 valid observation and lock closure emits the exact namespace receipt", async () => {
@@ -45,24 +37,32 @@ test("Gen3 valid observation and lock closure emits the exact namespace receipt"
   assert.equal(receipt.namespace, "docs-protocol-cohort-v3-qualification-receipt/v1");
   assert.equal(receipt.profileSchemaVersion, 4);
   assert.equal(receipt.cohort.schemaVersion, 3);
-  assert.deepEqual(receipt.packages.map(({ key }) => key), [
-    "repositoryMutation",
-    "documentAuthoring",
-    "docsProtocol",
-    "docsProtocolAgentTeams",
-    "engineeringFoundation"
-  ]);
+  assert.deepEqual(
+    receipt.packages.map(({ key }) => key),
+    [
+      "repositoryMutation",
+      "documentAuthoring",
+      "docsProtocol",
+      "docsProtocolAgentTeams",
+      "engineeringFoundation",
+    ],
+  );
   assert.equal(receipt.schemas.qualificationReceipt, 1);
   assert.equal(receipt.runtime.runtimeClosure.domain, "agent-teams.docs-runtime-closure/v2");
   assert.equal(receipt.receiptDigest, receiptDigest(receipt));
   assert.notEqual(
     receipt.receiptDigest,
-    receiptDigest({ ...receipt, namespace: "docs-protocol-cohort-v3-qualification-receipt/v2" })
+    receiptDigest({ ...receipt, namespace: "docs-protocol-cohort-v3-qualification-receipt/v2" }),
   );
-  const schema = JSON.parse(await readFile(
-    new URL("../schemas/docs-protocol-cohort-v3-qualification-receipt/v1.schema.json", import.meta.url),
-    "utf8"
-  ));
+  const schema = JSON.parse(
+    await readFile(
+      new URL(
+        "../schemas/docs-protocol-cohort-v3-qualification-receipt/v1.schema.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
   const validate = new Ajv2020({ allErrors: true, strict: true }).compile(schema);
   assert.equal(validate(receipt), true, JSON.stringify(validate.errors));
 });
@@ -70,7 +70,7 @@ test("Gen3 valid observation and lock closure emits the exact namespace receipt"
 test("public runDocsProtocolQualificationV3 observes the actual process without a blanket skip", async () => {
   const [schemaInput, assetInput] = await Promise.all([
     readFile(new URL("../schemas/managed-runtime-policy/v1.schema.json", import.meta.url), "utf8"),
-    readFile(new URL("../assets/runtime-policy.v1.json", import.meta.url), "utf8")
+    readFile(new URL("../assets/runtime-policy.v1.json", import.meta.url), "utf8"),
   ]);
   const parsedPolicy = parsePackedManagedRuntimePolicy(schemaInput, assetInput);
   assert.match(parsedPolicy.sourceDigest, /^sha256:[0-9a-f]{64}$/u);
@@ -79,7 +79,7 @@ test("public runDocsProtocolQualificationV3 observes the actual process without 
   const privateActualQualification = createDocsProtocolQualificationV3(
     observeLockfile,
     () => exactRuntime,
-    () => actualPolicy
+    () => actualPolicy,
   );
   const observeCurrent = createNodeDocsProtocolQualificationRuntimeObserver();
   let observed: DocsProtocolQualificationRuntimeObservation;
@@ -92,11 +92,12 @@ test("public runDocsProtocolQualificationV3 observes the actual process without 
     assert.match(String(error), /could not observe the resolved pnpm executable/u);
     assert.throws(
       () => runDocsProtocolQualificationV3(publicRequest),
-      /could not observe the resolved pnpm executable/u
+      /could not observe the resolved pnpm executable/u,
     );
     return;
   }
-  const isExactRuntime = observed.nodeVersion === exactRuntime.nodeVersion &&
+  const isExactRuntime =
+    observed.nodeVersion === exactRuntime.nodeVersion &&
     observed.pnpmVersion === exactRuntime.pnpmVersion &&
     observed.platform === exactRuntime.platform &&
     observed.architecture === exactRuntime.architecture;
@@ -113,26 +114,36 @@ test("public runDocsProtocolQualificationV3 observes the actual process without 
     assert.equal(publicReceipt.namespace, "docs-protocol-cohort-v3-qualification-receipt/v1");
     assert.equal(publicReceipt.receiptDigest, privateReceipt.receiptDigest);
   } else {
-    assert.throws(
-      () => runDocsProtocolQualificationV3(publicRequest),
-      {
-        name: "Error",
-        message: "Qualification Cohort v3 observed Node runtime mismatch."
-      }
-    );
+    assert.throws(() => runDocsProtocolQualificationV3(publicRequest), {
+      name: "Error",
+      message: "Qualification Cohort v3 observed Node runtime mismatch.",
+    });
   }
 });
 
-test("real process observer reflects the current process and fake injection remains distinct", async t => {
+test("real process observer reflects the current process and fake injection remains distinct", async (t) => {
   const root = await mkdtemp(join(tmpdir(), "qualification-bun-cwd-"));
   t.after(() => rm(root, { recursive: true, force: true }));
-  const manifest = JSON.stringify({ name: "qualification-bun-cwd", private: true, packageManager: "bun@1.4.3" });
+  const manifest = JSON.stringify({
+    name: "qualification-bun-cwd",
+    private: true,
+    packageManager: "bun@1.4.3",
+  });
   await writeFile(join(root, "package.json"), manifest);
-  const entry = new URL("../dist/qualification/adapters/outbound/node-qualification-runtime.js", import.meta.url).href;
-  const probe = spawnSync(process.execPath, ["--input-type=module", "--eval",
-    `import { createNodeDocsProtocolQualificationRuntimeObserver } from ${JSON.stringify(entry)};
-     process.stdout.write(JSON.stringify(createNodeDocsProtocolQualificationRuntimeObserver()()));`
-  ], { cwd: root, encoding: "utf8", timeout: 15_000 });
+  const entry = new URL(
+    "../dist/qualification/adapters/outbound/node-qualification-runtime.js",
+    import.meta.url,
+  ).href;
+  const probe = spawnSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "--eval",
+      `import { createNodeDocsProtocolQualificationRuntimeObserver } from ${JSON.stringify(entry)};
+     process.stdout.write(JSON.stringify(createNodeDocsProtocolQualificationRuntimeObserver()()));`,
+    ],
+    { cwd: root, encoding: "utf8", timeout: 15_000 },
+  );
   assert.equal(probe.error, undefined);
   assert.equal(probe.status, 0, probe.stdout + probe.stderr);
   assert.equal(probe.signal, null);
@@ -141,9 +152,12 @@ test("real process observer reflects the current process and fake injection rema
   assert.equal(child.nodeVersion, process.versions.node);
   assert.equal(child.platform, process.platform);
   assert.equal(child.architecture, process.arch);
-  assert.equal(child.pnpmVersion,
+  assert.equal(
+    child.pnpmVersion,
     process.versions.node === "26.11.1" && process.platform === "linux" && process.arch === "x64"
-      ? exactRuntime.pnpmVersion : undefined);
+      ? exactRuntime.pnpmVersion
+      : undefined,
+  );
   assert.equal(await readFile(join(root, "package.json"), "utf8"), manifest);
   assert.deepEqual(await readdir(root), ["package.json"]);
 
@@ -162,7 +176,11 @@ test("real process observer reflects the current process and fake injection rema
     fakeCalls++;
     return fakeRuntime;
   };
-  const injected = createDocsProtocolQualificationV3(observeLockfile, fakeObserver, observePackedPolicy);
+  const injected = createDocsProtocolQualificationV3(
+    observeLockfile,
+    fakeObserver,
+    observePackedPolicy,
+  );
   injected(request);
   assert.equal(fakeCalls, 1);
   assert.notStrictEqual(fakeRuntime, observed);
@@ -178,21 +196,18 @@ test("packed policy thunk is lazy and generation-4-only", () => {
   const lazyQualification = createDocsProtocolQualificationV3(
     observeLockfile,
     () => exactRuntime,
-    countingPolicy
+    countingPolicy,
   );
   const malformed = structuredClone(request);
   Reflect.deleteProperty(malformed.evidence, "cohort");
-  assert.throws(
-    () => lazyQualification(malformed),
-    /evidence is invalid or incomplete/u
-  );
+  assert.throws(() => lazyQualification(malformed), /evidence is invalid or incomplete/u);
   assert.equal(policyCalls, 0);
   const legacyShaped = structuredClone(request);
   Object.defineProperty(legacyShaped.profile, "schemaVersion", {
     value: 3,
     enumerable: true,
     configurable: true,
-    writable: true
+    writable: true,
   });
   assert.throws(() => lazyQualification(legacyShaped), /invalid or unsupported/u);
   assert.equal(policyCalls, 0);
@@ -216,71 +231,56 @@ test("Gen3 rejects accessor, hidden and nonplain evidence before callbacks", () 
     () => {
       policyCalls++;
       return observePackedPolicy();
-    }
+    },
   );
 
   const accessorRequest = createRequestFixture(policy);
   Object.defineProperty(accessorRequest.evidence.runtime, "selectedLane", {
     get: () => "node-26-managed-qualified",
     enumerable: true,
-    configurable: true
+    configurable: true,
   });
-  assert.throws(
-    () => guarded(accessorRequest),
-    {
-      name: "TypeError",
-      message: "Consumer input must not contain accessors or hidden properties."
-    }
-  );
+  assert.throws(() => guarded(accessorRequest), {
+    name: "TypeError",
+    message: "Consumer input must not contain accessors or hidden properties.",
+  });
 
   const hiddenRequest = createRequestFixture(policy);
   Object.defineProperty(hiddenRequest.evidence, "hidden", {
     value: true,
     enumerable: false,
     configurable: true,
-    writable: true
+    writable: true,
   });
-  assert.throws(
-    () => guarded(hiddenRequest),
-    {
-      name: "TypeError",
-      message: "Consumer input must not contain accessors or hidden properties."
-    }
-  );
+  assert.throws(() => guarded(hiddenRequest), {
+    name: "TypeError",
+    message: "Consumer input must not contain accessors or hidden properties.",
+  });
 
   const symbolRequest = createRequestFixture(policy);
   Object.defineProperty(symbolRequest.evidence, Symbol("hidden"), {
     value: true,
     enumerable: true,
     configurable: true,
-    writable: true
+    writable: true,
   });
-  assert.throws(
-    () => guarded(symbolRequest),
-    {
-      name: "TypeError",
-      message: "Consumer input must not contain symbol properties."
-    }
-  );
+  assert.throws(() => guarded(symbolRequest), {
+    name: "TypeError",
+    message: "Consumer input must not contain symbol properties.",
+  });
 
   const nonPlainRequest = createRequestFixture(policy);
   Object.setPrototypeOf(nonPlainRequest.evidence, {});
-  assert.throws(
-    () => guarded(nonPlainRequest),
-    {
-      name: "TypeError",
-      message: "Consumer input must use plain JSON objects and arrays."
-    }
-  );
+  assert.throws(() => guarded(nonPlainRequest), {
+    name: "TypeError",
+    message: "Consumer input must use plain JSON objects and arrays.",
+  });
 
   const proxyRequest = new Proxy(createRequestFixture(policy), {});
-  assert.throws(
-    () => guarded(proxyRequest),
-    {
-      name: "TypeError",
-      message: "Qualification request must be stable plain JSON data with lockfile bytes."
-    }
-  );
+  assert.throws(() => guarded(proxyRequest), {
+    name: "TypeError",
+    message: "Qualification request must be stable plain JSON data with lockfile bytes.",
+  });
   let rootGetterCalls = 0;
   const accessorRootRequest = createRequestFixture(policy);
   Object.defineProperty(accessorRootRequest, "profile", {
@@ -289,15 +289,12 @@ test("Gen3 rejects accessor, hidden and nonplain evidence before callbacks", () 
       return accessorRootRequest.profile;
     },
     enumerable: true,
-    configurable: true
+    configurable: true,
   });
-  assert.throws(
-    () => guarded(accessorRootRequest),
-    {
-      name: "TypeError",
-      message: "Qualification request must be stable plain JSON data with lockfile bytes."
-    }
-  );
+  assert.throws(() => guarded(accessorRootRequest), {
+    name: "TypeError",
+    message: "Qualification request must be stable plain JSON data with lockfile bytes.",
+  });
   assert.equal(rootGetterCalls, 0);
   assert.deepEqual([lockfileCalls, runtimeCalls, policyCalls], [0, 0, 0]);
 });
@@ -315,29 +312,26 @@ test("observer mutation cannot change the admitted request used by the receipt",
       }
       assert.equal(
         Reflect.set(observedEvidence.runtime, "selectedLane", "node-24-production-default"),
-        false
+        false,
       );
-      assert.equal(
-        Reflect.set(observedEvidence.policy, "sourceDigest", changedDigest),
-        false
-      );
+      assert.equal(Reflect.set(observedEvidence.policy, "sourceDigest", changedDigest), false);
       assert.notStrictEqual(observedRequest.lockfileBytes, mutableRequest.lockfileBytes);
       assert.deepEqual(observedRequest.lockfileBytes, expectedBytes);
       const observation = observeLockfile(observedRequest);
       assert.equal(
         Reflect.set(mutableRequest.evidence.runtime, "selectedLane", "node-24-production-default"),
-        true
+        true,
       );
       assert.equal(
         Reflect.set(mutableRequest.evidence.policy, "sourceDigest", changedDigest),
-        true
+        true,
       );
       mutableRequest.lockfileBytes.fill(0);
       assert.deepEqual(observedRequest.lockfileBytes, expectedBytes);
       return observation;
     },
     () => exactRuntime,
-    observePackedPolicy
+    observePackedPolicy,
   );
 
   assert.deepEqual(mutationQualification(mutableRequest), expected);
@@ -361,30 +355,24 @@ test("native backing bounds reject SharedArrayBuffer and oversized ordinary buff
     () => {
       policyCalls++;
       return observePackedPolicy();
-    }
+    },
   );
   const sharedRequest = {
     ...createRequestFixture(policy),
-    lockfileBytes: new Uint8Array(new SharedArrayBuffer(1))
+    lockfileBytes: new Uint8Array(new SharedArrayBuffer(1)),
   };
   const oversizedRequest = {
     ...createRequestFixture(policy),
-    lockfileBytes: new Uint8Array(new ArrayBuffer(33 * 1024 * 1024), 0, 1)
+    lockfileBytes: new Uint8Array(new ArrayBuffer(33 * 1024 * 1024), 0, 1),
   };
-  assert.throws(
-    () => guarded(sharedRequest),
-    {
-      name: "TypeError",
-      message: "Qualification v3 lockfile must contain 1..33554432 bytes."
-    }
-  );
-  assert.throws(
-    () => guarded(oversizedRequest),
-    {
-      name: "TypeError",
-      message: "Qualification v3 lockfile must contain 1..33554432 bytes."
-    }
-  );
+  assert.throws(() => guarded(sharedRequest), {
+    name: "TypeError",
+    message: "Qualification v3 lockfile must contain 1..33554432 bytes.",
+  });
+  assert.throws(() => guarded(oversizedRequest), {
+    name: "TypeError",
+    message: "Qualification v3 lockfile must contain 1..33554432 bytes.",
+  });
   assert.deepEqual([lockfileCalls, runtimeCalls, policyCalls], [0, 0, 0]);
 
   const ordinaryRequest = createRequestFixture(policy);
@@ -398,26 +386,38 @@ test("real process observer refuses caller-spoofed runtime and declared profile 
     value: "26.10.0",
     enumerable: true,
     configurable: true,
-    writable: true
+    writable: true,
   });
   assert.throws(() => qualification(spoofed), /runtime evidence mismatch/u);
-  const wrongObserver = createDocsProtocolQualificationV3(observeLockfile, () => ({
-    nodeVersion: "26.10.0",
-    platform: "linux",
-    architecture: "x64"
-  }), observePackedPolicy);
+  const wrongObserver = createDocsProtocolQualificationV3(
+    observeLockfile,
+    () => ({
+      nodeVersion: "26.10.0",
+      platform: "linux",
+      architecture: "x64",
+    }),
+    observePackedPolicy,
+  );
   assert.throws(() => wrongObserver(request), /observed Node runtime mismatch/u);
-  const wrongPlatform = createDocsProtocolQualificationV3(observeLockfile, () => ({
-    nodeVersion: "26.11.1",
-    platform: "macos",
-    architecture: "x64"
-  }), observePackedPolicy);
+  const wrongPlatform = createDocsProtocolQualificationV3(
+    observeLockfile,
+    () => ({
+      nodeVersion: "26.11.1",
+      platform: "macos",
+      architecture: "x64",
+    }),
+    observePackedPolicy,
+  );
   assert.throws(() => wrongPlatform(request), /observed Node runtime mismatch/u);
-  const missingPnpm = createDocsProtocolQualificationV3(observeLockfile, () => ({
-    nodeVersion: "26.11.1",
-    platform: "linux",
-    architecture: "x64"
-  }), observePackedPolicy);
+  const missingPnpm = createDocsProtocolQualificationV3(
+    observeLockfile,
+    () => ({
+      nodeVersion: "26.11.1",
+      platform: "linux",
+      architecture: "x64",
+    }),
+    observePackedPolicy,
+  );
   assert.throws(() => missingPnpm(request), /observed Node runtime mismatch/u);
 });
 
@@ -427,7 +427,7 @@ test("Gen3 rejects mixed generations, schemas and package coordinates", () => {
     value: 2,
     enumerable: true,
     configurable: true,
-    writable: true
+    writable: true,
   });
   assert.throws(() => qualification(wrongGeneration), /invalid or unsupported/u);
   const wrongSchema = structuredClone(request);
@@ -435,7 +435,7 @@ test("Gen3 rejects mixed generations, schemas and package coordinates", () => {
     value: 2,
     enumerable: true,
     configurable: true,
-    writable: true
+    writable: true,
   });
   assert.throws(() => qualification(wrongSchema), /schema bindings 4\/3\/1/u);
   const wrongPackage = structuredClone(request);
@@ -443,7 +443,7 @@ test("Gen3 rejects mixed generations, schemas and package coordinates", () => {
     value: "0.5.1",
     enumerable: true,
     configurable: true,
-    writable: true
+    writable: true,
   });
   assert.throws(() => qualification(wrongPackage), /version mismatch/u);
   const wrongCoordinate = structuredClone(request);
@@ -451,24 +451,21 @@ test("Gen3 rejects mixed generations, schemas and package coordinates", () => {
     value: "0.5.1",
     enumerable: true,
     configurable: true,
-    writable: true
+    writable: true,
   });
-  assert.throws(
-    () => qualification(wrongCoordinate),
-    {
-      name: "ConsumerIntegrationNodeError",
-      message: "@agent-teams/docs-protocol importer evidence must select exact cohort version 0.5.1."
-    }
-  );
+  assert.throws(() => qualification(wrongCoordinate), {
+    name: "ConsumerIntegrationNodeError",
+    message: "@agent-teams/docs-protocol importer evidence must select exact cohort version 0.5.1.",
+  });
 });
 
 test("legacy receipt v3 bytes and digest are independent of the new namespace schema", async () => {
   const bytes = await readFile(
-    new URL("../schemas/docs-protocol-qualification-receipt/v3.schema.json", import.meta.url)
+    new URL("../schemas/docs-protocol-qualification-receipt/v3.schema.json", import.meta.url),
   );
   assert.equal(
     createHash("sha256").update(bytes).digest("hex"),
-    "cc8e8fb12c461bbce4922dec9996a42a79bbab010395c4f60821a6d588e738fe"
+    "cc8e8fb12c461bbce4922dec9996a42a79bbab010395c4f60821a6d588e738fe",
   );
   const schema = JSON.parse(bytes.toString("utf8"));
   assert.equal(schema.$id, "https://agent-teams.ai/schemas/docs-protocol-qualification-receipt/v3");

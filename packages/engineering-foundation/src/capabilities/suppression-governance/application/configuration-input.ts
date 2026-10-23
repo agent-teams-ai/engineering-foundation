@@ -6,10 +6,9 @@ export function configurationInputError(message: string): never {
     code: "SUPPRESSION_GOVERNANCE_CONFIG_INVALID",
     message,
     phase: "suppression-governance-config",
-    retryable: false
+    retryable: false,
   });
 }
-
 
 export function assertConfigRepositoryRelativePath(path: string): void {
   assertRepositoryRelativePath(path, "suppression-governance-config");

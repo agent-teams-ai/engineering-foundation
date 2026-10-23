@@ -5,15 +5,6 @@ import { isAbsolute, join, resolve as resolvePath } from "node:path";
 import type { DocumentPlanV2 } from "../application/model/document-planning.js";
 import { applyNodeDocumentationPlan } from "../adapters/node/node-document-writing.js";
 
-
-
-
-
-
-
-
-
-
 const FIXTURE_MARKER = ".agent-teams-document-authoring-qualification-fixture.json";
 const MAX_FIXTURE_MARKER_BYTES = 4 * 1024;
 
@@ -23,7 +14,7 @@ export type DocumentAuthoringQualificationCrashPoint =
 
 const CRASH_POINTS: ReadonlySet<DocumentAuthoringQualificationCrashPoint> = new Set([
   "after-publishing-journal-durable",
-  "after-published-journal-durable"
+  "after-published-journal-durable",
 ]);
 
 export interface RunDocumentAuthoringCrashQualificationRequest {
@@ -46,23 +37,24 @@ interface QualificationFixtureMarker {
 
 function isClosedFixtureMarker(
   value: unknown,
-  canonicalRoot: string
+  canonicalRoot: string,
 ): value is QualificationFixtureMarker {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
     return false;
   }
   const candidate = value as Record<string, unknown>;
-  return Object.keys(candidate).toSorted().join("\0") ===
+  return (
+    Object.keys(candidate).toSorted().join("\0") ===
       ["consumerRoot", "kind", "schemaVersion"].toSorted().join("\0") &&
     candidate["schemaVersion"] === 1 &&
-    candidate["kind"] ===
-      "agent-teams-document-authoring-qualification-fixture" &&
-    candidate["consumerRoot"] === canonicalRoot;
+    candidate["kind"] === "agent-teams-document-authoring-qualification-fixture" &&
+    candidate["consumerRoot"] === canonicalRoot
+  );
 }
 
 function sameIdentity(
   left: { readonly dev: bigint; readonly ino: bigint },
-  right: { readonly dev: bigint; readonly ino: bigint }
+  right: { readonly dev: bigint; readonly ino: bigint },
 ): boolean {
   return left.dev === right.dev && left.ino === right.ino;
 }
@@ -72,7 +64,9 @@ async function readAtMost(handle: FileHandle, maximumBytes: number): Promise<Buf
   let total = 0;
   while (total <= maximumBytes) {
     const { bytesRead } = await handle.read(bytes, total, bytes.byteLength - total, null);
-    if (bytesRead === 0) {return bytes.subarray(0, total);}
+    if (bytesRead === 0) {
+      return bytes.subarray(0, total);
+    }
     total += bytesRead;
   }
   return undefined;
@@ -86,23 +80,23 @@ async function readFixtureMarker(path: string): Promise<unknown> {
     const metadata = await handle.stat({ bigint: true });
     if (metadata.isSymbolicLink() || !metadata.isFile()) {
       throw new TypeError(
-        "Document authoring crash qualification requires a real regular fixture marker."
+        "Document authoring crash qualification requires a real regular fixture marker.",
       );
     }
     if (metadata.nlink !== 1n) {
       throw new TypeError(
-        "Document authoring crash qualification fixture marker must not be hard linked."
+        "Document authoring crash qualification fixture marker must not be hard linked.",
       );
     }
     if (metadata.size > BigInt(MAX_FIXTURE_MARKER_BYTES)) {
       throw new TypeError(
-        `Document authoring crash qualification fixture marker exceeds ${MAX_FIXTURE_MARKER_BYTES} bytes.`
+        `Document authoring crash qualification fixture marker exceeds ${MAX_FIXTURE_MARKER_BYTES} bytes.`,
       );
     }
     const physical = await realpath(path);
     if (physical !== path) {
       throw new TypeError(
-        "Document authoring crash qualification fixture marker must not traverse symlinks."
+        "Document authoring crash qualification fixture marker must not traverse symlinks.",
       );
     }
     const pathHandle = await open(physical, constants.O_RDONLY | noFollow | nonBlocking);
@@ -110,7 +104,7 @@ async function readFixtureMarker(path: string): Promise<unknown> {
       const pathMetadata = await pathHandle.stat({ bigint: true });
       if (!pathMetadata.isFile() || !sameIdentity(metadata, pathMetadata)) {
         throw new TypeError(
-          "Document authoring crash qualification fixture marker identity changed before its bounded read."
+          "Document authoring crash qualification fixture marker identity changed before its bounded read.",
         );
       }
     } finally {
@@ -119,13 +113,18 @@ async function readFixtureMarker(path: string): Promise<unknown> {
     const bytes = await readAtMost(handle, MAX_FIXTURE_MARKER_BYTES);
     if (bytes === undefined) {
       throw new TypeError(
-        `Document authoring crash qualification fixture marker exceeds ${MAX_FIXTURE_MARKER_BYTES} bytes.`
+        `Document authoring crash qualification fixture marker exceeds ${MAX_FIXTURE_MARKER_BYTES} bytes.`,
       );
     }
     const after = await handle.stat({ bigint: true });
-    if (!sameIdentity(metadata, after) || after.size !== metadata.size || after.mtimeNs !== metadata.mtimeNs || after.size !== BigInt(bytes.byteLength)) {
+    if (
+      !sameIdentity(metadata, after) ||
+      after.size !== metadata.size ||
+      after.mtimeNs !== metadata.mtimeNs ||
+      after.size !== BigInt(bytes.byteLength)
+    ) {
       throw new TypeError(
-        "Document authoring crash qualification fixture marker changed during its bounded read."
+        "Document authoring crash qualification fixture marker changed during its bounded read.",
       );
     }
     return JSON.parse(bytes.toString("utf8"));
@@ -137,38 +136,38 @@ async function readFixtureMarker(path: string): Promise<unknown> {
 async function assertOwnedDisposableFixture(consumerRoot: string): Promise<string> {
   if (!isAbsolute(consumerRoot) || resolvePath(consumerRoot) !== consumerRoot) {
     throw new TypeError(
-      "Document authoring crash qualification requires an absolute normalized consumerRoot."
+      "Document authoring crash qualification requires an absolute normalized consumerRoot.",
     );
   }
   const rootMetadata = await lstat(consumerRoot);
   if (rootMetadata.isSymbolicLink() || !rootMetadata.isDirectory()) {
     throw new TypeError(
-      "Document authoring crash qualification requires a real consumer directory."
+      "Document authoring crash qualification requires a real consumer directory.",
     );
   }
   const canonicalRoot = await realpath(consumerRoot);
   if (canonicalRoot !== consumerRoot) {
     throw new TypeError(
-      "Document authoring crash qualification consumerRoot must be canonical and cannot traverse symlinks."
+      "Document authoring crash qualification consumerRoot must be canonical and cannot traverse symlinks.",
     );
   }
   const markerPath = join(canonicalRoot, FIXTURE_MARKER);
   const marker = await readFixtureMarker(markerPath);
   if (!isClosedFixtureMarker(marker, canonicalRoot)) {
     throw new TypeError(
-      "Document authoring crash qualification requires its exact closed fixture ownership marker."
+      "Document authoring crash qualification requires its exact closed fixture ownership marker.",
     );
   }
   return canonicalRoot;
 }
 
 async function signalCheckpoint(
-  crashPoint: DocumentAuthoringQualificationCrashPoint
+  crashPoint: DocumentAuthoringQualificationCrashPoint,
 ): Promise<void> {
   const line = `${JSON.stringify({
     schemaVersion: 1,
     event: "document-authoring-qualification-crash-point",
-    crashPoint
+    crashPoint,
   })}\n`;
   await new Promise<void>((resolve, reject) => {
     process.stdout.write(line, (error) => {
@@ -187,32 +186,28 @@ async function signalCheckpoint(
  * by the qualification harness.
  */
 export function createDocumentAuthoringCrashQualification(authority: DocumentAuthorityRecompiler) {
-return async function runDocumentAuthoringCrashQualification(
-  request: RunDocumentAuthoringCrashQualificationRequest
-): Promise<DocumentAuthoringCrashQualificationResult> {
-  if (!CRASH_POINTS.has(request.crashPoint)) {
-    throw new TypeError(
-      "Document authoring crash qualification requires a supported closed crashPoint."
-    );
-  }
-  const consumerRoot = await assertOwnedDisposableFixture(request.consumerRoot);
-  await applyNodeDocumentationPlan(
-    { consumerRoot, plan: request.plan },
-    authority,
-    {
+  return async function runDocumentAuthoringCrashQualification(
+    request: RunDocumentAuthoringCrashQualificationRequest,
+  ): Promise<DocumentAuthoringCrashQualificationResult> {
+    if (!CRASH_POINTS.has(request.crashPoint)) {
+      throw new TypeError(
+        "Document authoring crash qualification requires a supported closed crashPoint.",
+      );
+    }
+    const consumerRoot = await assertOwnedDisposableFixture(request.consumerRoot);
+    await applyNodeDocumentationPlan({ consumerRoot, plan: request.plan }, authority, {
       faultInjector: async (point) => {
         if (point.phase !== request.crashPoint) {
           return;
         }
         await signalCheckpoint(request.crashPoint);
         await new Promise<never>(() => {});
-      }
-    }
-  );
-  return {
-    schemaVersion: 1,
-    crashPoint: request.crashPoint,
-    state: "apply-completed-before-crash-point"
+      },
+    });
+    return {
+      schemaVersion: 1,
+      crashPoint: request.crashPoint,
+      state: "apply-completed-before-crash-point",
+    };
   };
-}
 }

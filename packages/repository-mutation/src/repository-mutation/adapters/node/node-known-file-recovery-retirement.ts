@@ -3,18 +3,25 @@ import { lstat, mkdir, opendir, rename, rmdir, unlink } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 
 import type { KnownFileTransactionPlanV1 } from "../../application/model/known-file-transaction.js";
-import { type KnownFileTransactionJournalV1, deserializeKnownFileIdentity, serializeKnownFileIdentity } from "../../application/model/known-file-transaction-journal.js";
-
+import {
+  type KnownFileTransactionJournalV1,
+  deserializeKnownFileIdentity,
+  serializeKnownFileIdentity,
+} from "../../application/model/known-file-transaction-journal.js";
 
 import { syncDirectoryStrictly } from "./node-directory-durability.js";
-import { knownFileErrorCode, knownFileTemporaryName, sameKnownFileIdentity } from "./node-known-file-transaction-filesystem.js";
+import {
+  knownFileErrorCode,
+  knownFileTemporaryName,
+  sameKnownFileIdentity,
+} from "./node-known-file-transaction-filesystem.js";
 import { KnownFileTransactionError } from "../../application/model/known-file-transaction-error.js";
 import type { NodeKnownFileTransactionJournalStore } from "./node-known-file-transaction-journal-store.js";
 import {
   type KnownFileRecoveryFaultInjector,
   persistRecoveryJournal,
   replaceRecoveryOperation,
-  type StoredRecoveryJournal
+  type StoredRecoveryJournal,
 } from "./node-known-file-recovery-state.js";
 
 type RecoveryJournalOperation = KnownFileTransactionJournalV1["operations"][number];
@@ -43,16 +50,18 @@ interface RetirementPaths {
 async function retirementDirectoryIsEmpty(path: string): Promise<boolean> {
   const directory = await opendir(path);
   try {
-    return await directory.read() === null;
+    return (await directory.read()) === null;
   } finally {
     await directory.close();
   }
 }
 
 function clearOperationRetirement(
-  operation: KnownFileTransactionJournalV1["operations"][number]
+  operation: KnownFileTransactionJournalV1["operations"][number],
 ): KnownFileTransactionJournalV1["operations"][number] {
-  if (operation.retirement === undefined) {return operation;}
+  if (operation.retirement === undefined) {
+    return operation;
+  }
   const { retirement: _retirement, ...cleared } = operation;
   return Object.freeze(cleared);
 }
@@ -67,90 +76,134 @@ function retirementPath(options: {
   const leaf = basename(options.operation.path);
   const directory = join(
     options.parent,
-    `.${leaf}.agent-teams.retire.${options.planDigest.slice(7, 23)}.${options.operationIndex}.${options.kind}`
+    `.${leaf}.agent-teams.retire.${options.planDigest.slice(7, 23)}.${options.operationIndex}.${options.kind}`,
   );
-  const source = options.kind === "destination"
-    ? join(options.parent, leaf)
-    : options.kind === "temporary"
-      ? join(options.parent, knownFileTemporaryName(
-        options.operation.path,
-        options.planDigest,
-        options.operationIndex
-      ))
-      : join(options.parent, `.${leaf}.agent-teams.rollback.${options.operationIndex}.tmp`);
+  const source =
+    options.kind === "destination"
+      ? join(options.parent, leaf)
+      : options.kind === "temporary"
+        ? join(
+            options.parent,
+            knownFileTemporaryName(
+              options.operation.path,
+              options.planDigest,
+              options.operationIndex,
+            ),
+          )
+        : join(options.parent, `.${leaf}.agent-teams.rollback.${options.operationIndex}.tmp`);
   return { captured: join(directory, "captured"), directory, source };
 }
 
-async function createRetirementAuthority(coordination: Pick<KnownFileCoordination, "pathMatchesRegularFileIdentity">,
-  { options, operation, parent, paths, journalOperation }: { readonly options: RetirementExecutionOptions; readonly operation: KnownFileTransactionPlanV1["operations"][number]; readonly parent: string; readonly paths: RetirementPaths; readonly journalOperation: RecoveryJournalOperationWithIdentity }
+async function createRetirementAuthority(
+  coordination: Pick<KnownFileCoordination, "pathMatchesRegularFileIdentity">,
+  {
+    options,
+    operation,
+    parent,
+    paths,
+    journalOperation,
+  }: {
+    readonly options: RetirementExecutionOptions;
+    readonly operation: KnownFileTransactionPlanV1["operations"][number];
+    readonly parent: string;
+    readonly paths: RetirementPaths;
+    readonly journalOperation: RecoveryJournalOperationWithIdentity;
+  },
 ): Promise<RecoveryJournalOperationWithIdentity> {
-  if (await coordination.pathMatchesRegularFileIdentity(paths.source, options.expectedIdentity) !== "match") {
+  if (
+    (await coordination.pathMatchesRegularFileIdentity(paths.source, options.expectedIdentity)) !==
+    "match"
+  ) {
     throw new KnownFileTransactionError(
       "KNOWN_FILE_RECOVERY_CONFLICT",
-      `Identity-bound recovery path changed before retirement: ${operation.path}.`
+      `Identity-bound recovery path changed before retirement: ${operation.path}.`,
     );
   }
-  const directory = await mkdir(paths.directory, { mode: 0o700 }).then(() =>
-    lstat(paths.directory, { bigint: true })
-  ).catch((error: unknown) => {
-    throw new KnownFileTransactionError(
-      "KNOWN_FILE_RECOVERY_CONFLICT",
-      `Retirement directory could not be exclusively created: ${operation.path}.`,
-      { cause: error }
-    );
-  });
+  const directory = await mkdir(paths.directory, { mode: 0o700 })
+    .then(() => lstat(paths.directory, { bigint: true }))
+    .catch((error: unknown) => {
+      throw new KnownFileTransactionError(
+        "KNOWN_FILE_RECOVERY_CONFLICT",
+        `Retirement directory could not be exclusively created: ${operation.path}.`,
+        { cause: error },
+      );
+    });
   await syncDirectoryStrictly(parent);
   const durableDirectory = await lstat(paths.directory, { bigint: true }).catch(
     (error: unknown) => {
       throw new KnownFileTransactionError(
         "KNOWN_FILE_RECOVERY_CONFLICT",
         `Retirement directory disappeared before durable identity binding: ${operation.path}.`,
-        { cause: error }
+        { cause: error },
       );
-    }
+    },
   );
-  if (!durableDirectory.isDirectory() || durableDirectory.isSymbolicLink() ||
+  if (
+    !durableDirectory.isDirectory() ||
+    durableDirectory.isSymbolicLink() ||
     durableDirectory.birthtimeNs !== directory.birthtimeNs ||
-    durableDirectory.dev !== directory.dev || durableDirectory.ino !== directory.ino) {
+    durableDirectory.dev !== directory.dev ||
+    durableDirectory.ino !== directory.ino
+  ) {
     throw new KnownFileTransactionError(
       "KNOWN_FILE_RECOVERY_CONFLICT",
-      `Retirement directory changed before durable identity binding: ${operation.path}.`
+      `Retirement directory changed before durable identity binding: ${operation.path}.`,
     );
   }
   const retirement = Object.freeze({
     kind: options.kind,
     state: "ready" as const,
     directoryIdentity: serializeKnownFileIdentity(directory),
-    pathIdentity: serializeKnownFileIdentity(options.expectedIdentity)
+    pathIdentity: serializeKnownFileIdentity(options.expectedIdentity),
   });
   const updated = Object.freeze({ ...journalOperation, retirement });
   await persistRecoveryJournal(
     options.store,
     options.stored,
-    replaceRecoveryOperation(options.stored.envelope.payload, options.operationIndex, updated)
+    replaceRecoveryOperation(options.stored.envelope.payload, options.operationIndex, updated),
   );
   await options.faultInjector?.({
     phase: "after-retirement-directory-bound",
     operationIndex: options.operationIndex,
-    path: operation.path
+    path: operation.path,
   });
   return updated;
 }
 
-async function reconcileRetirementDirectory(coordination: Pick<KnownFileCoordination, "pathMatchesRegularFileIdentity">,
-  { options, operation, paths, journalOperation, retirement }: { readonly options: RetirementExecutionOptions; readonly operation: KnownFileTransactionPlanV1["operations"][number]; readonly paths: RetirementPaths; readonly journalOperation: RecoveryJournalOperationWithIdentity; readonly retirement: RecoveryRetirement }
+async function reconcileRetirementDirectory(
+  coordination: Pick<KnownFileCoordination, "pathMatchesRegularFileIdentity">,
+  {
+    options,
+    operation,
+    paths,
+    journalOperation,
+    retirement,
+  }: {
+    readonly options: RetirementExecutionOptions;
+    readonly operation: KnownFileTransactionPlanV1["operations"][number];
+    readonly paths: RetirementPaths;
+    readonly journalOperation: RecoveryJournalOperationWithIdentity;
+    readonly retirement: RecoveryRetirement;
+  },
 ): Promise<"continue" | "complete"> {
   const expectedDirectory = deserializeKnownFileIdentity(retirement.directoryIdentity);
   const directory = await lstat(paths.directory, { bigint: true }).catch((error: unknown) => {
-    if (knownFileErrorCode(error) === "ENOENT") {return null;}
+    if (knownFileErrorCode(error) === "ENOENT") {
+      return null;
+    }
     throw error;
   });
   if (directory === null) {
-    if (retirement.state !== "unlink-authorized" ||
-      await coordination.pathMatchesRegularFileIdentity(paths.source, options.expectedIdentity) === "match") {
+    if (
+      retirement.state !== "unlink-authorized" ||
+      (await coordination.pathMatchesRegularFileIdentity(
+        paths.source,
+        options.expectedIdentity,
+      )) === "match"
+    ) {
       throw new KnownFileTransactionError(
         "KNOWN_FILE_RECOVERY_CONFLICT",
-        `Journal-bound retirement directory disappeared: ${operation.path}.`
+        `Journal-bound retirement directory disappeared: ${operation.path}.`,
       );
     }
     await persistRecoveryJournal(
@@ -159,23 +212,28 @@ async function reconcileRetirementDirectory(coordination: Pick<KnownFileCoordina
       replaceRecoveryOperation(
         options.stored.envelope.payload,
         options.operationIndex,
-        clearOperationRetirement(journalOperation)
-      )
+        clearOperationRetirement(journalOperation),
+      ),
     );
     return "complete";
   }
-  if (!directory.isDirectory() || directory.isSymbolicLink() ||
+  if (
+    !directory.isDirectory() ||
+    directory.isSymbolicLink() ||
     directory.birthtimeNs !== expectedDirectory.birthtimeNs ||
-    directory.dev !== expectedDirectory.dev || directory.ino !== expectedDirectory.ino) {
+    directory.dev !== expectedDirectory.dev ||
+    directory.ino !== expectedDirectory.ino
+  ) {
     throw new KnownFileTransactionError(
       "KNOWN_FILE_RECOVERY_CONFLICT",
-      `Journal-bound retirement directory changed: ${operation.path}.`
+      `Journal-bound retirement directory changed: ${operation.path}.`,
     );
   }
   return "continue";
 }
 
-async function captureRetirementPath(coordination: Pick<KnownFileCoordination, "pathMatchesRegularFileIdentity">,
+async function captureRetirementPath(
+  coordination: Pick<KnownFileCoordination, "pathMatchesRegularFileIdentity">,
   options: RetirementExecutionOptions,
   context: {
     readonly operation: KnownFileTransactionPlanV1["operations"][number];
@@ -183,12 +241,20 @@ async function captureRetirementPath(coordination: Pick<KnownFileCoordination, "
     readonly paths: RetirementPaths;
     readonly journalOperation: RecoveryJournalOperationWithIdentity;
     readonly retirement: RecoveryRetirement;
-  }
+  },
 ): Promise<RecoveryJournalOperationWithIdentity> {
   const { journalOperation, operation, parent, paths, retirement } = context;
-  if (retirement.state !== "ready") {return journalOperation;}
-  const capturedMatch = await coordination.pathMatchesRegularFileIdentity(paths.captured, options.expectedIdentity);
-  const sourceMatch = await coordination.pathMatchesRegularFileIdentity(paths.source, options.expectedIdentity);
+  if (retirement.state !== "ready") {
+    return journalOperation;
+  }
+  const capturedMatch = await coordination.pathMatchesRegularFileIdentity(
+    paths.captured,
+    options.expectedIdentity,
+  );
+  const sourceMatch = await coordination.pathMatchesRegularFileIdentity(
+    paths.source,
+    options.expectedIdentity,
+  );
   if (capturedMatch === "missing" && sourceMatch === "match") {
     await rename(paths.source, paths.captured);
     await syncDirectoryStrictly(paths.directory);
@@ -196,74 +262,98 @@ async function captureRetirementPath(coordination: Pick<KnownFileCoordination, "
   } else if (capturedMatch !== "match" || sourceMatch === "match") {
     throw new KnownFileTransactionError(
       "KNOWN_FILE_RECOVERY_CONFLICT",
-      `Journal-bound retirement capture is ambiguous: ${operation.path}.`
+      `Journal-bound retirement capture is ambiguous: ${operation.path}.`,
     );
   }
   const updated = Object.freeze({
     ...journalOperation,
-    retirement: Object.freeze({ ...retirement, state: "captured" as const })
+    retirement: Object.freeze({ ...retirement, state: "captured" as const }),
   });
   await persistRecoveryJournal(
     options.store,
     options.stored,
-    replaceRecoveryOperation(options.stored.envelope.payload, options.operationIndex, updated)
+    replaceRecoveryOperation(options.stored.envelope.payload, options.operationIndex, updated),
   );
   await options.faultInjector?.({
     phase: "after-retirement-captured",
     operationIndex: options.operationIndex,
-    path: operation.path
+    path: operation.path,
   });
   return updated;
 }
 
-async function authorizeRetirementUnlink(coordination: Pick<KnownFileCoordination, "pathMatchesRegularFileIdentity">,
+async function authorizeRetirementUnlink(
+  coordination: Pick<KnownFileCoordination, "pathMatchesRegularFileIdentity">,
   options: RetirementExecutionOptions,
   operation: KnownFileTransactionPlanV1["operations"][number],
   paths: RetirementPaths,
-  journalOperation: RecoveryJournalOperationWithIdentity
+  journalOperation: RecoveryJournalOperationWithIdentity,
 ): Promise<RecoveryJournalOperationWithIdentity> {
   const retirement = journalOperation.retirement!;
-  if (retirement.state !== "captured") {return journalOperation;}
-  if (await coordination.pathMatchesRegularFileIdentity(paths.captured, options.expectedIdentity) !== "match") {
+  if (retirement.state !== "captured") {
+    return journalOperation;
+  }
+  if (
+    (await coordination.pathMatchesRegularFileIdentity(
+      paths.captured,
+      options.expectedIdentity,
+    )) !== "match"
+  ) {
     throw new KnownFileTransactionError(
       "KNOWN_FILE_RECOVERY_CONFLICT",
-      `Journal-bound retired bytes changed: ${operation.path}.`
+      `Journal-bound retired bytes changed: ${operation.path}.`,
     );
   }
   const updated = Object.freeze({
     ...journalOperation,
-    retirement: Object.freeze({ ...retirement, state: "unlink-authorized" as const })
+    retirement: Object.freeze({ ...retirement, state: "unlink-authorized" as const }),
   });
   await persistRecoveryJournal(
     options.store,
     options.stored,
-    replaceRecoveryOperation(options.stored.envelope.payload, options.operationIndex, updated)
+    replaceRecoveryOperation(options.stored.envelope.payload, options.operationIndex, updated),
   );
   await options.faultInjector?.({
     phase: "after-retirement-unlink-authorized",
     operationIndex: options.operationIndex,
-    path: operation.path
+    path: operation.path,
   });
   return updated;
 }
 
-async function removeRetirementEvidence(coordination: Pick<KnownFileCoordination, "pathMatchesRegularFileIdentity">,
-  { options, operation, parent, paths, journalOperation }: { readonly options: RetirementExecutionOptions; readonly operation: KnownFileTransactionPlanV1["operations"][number]; readonly parent: string; readonly paths: RetirementPaths; readonly journalOperation: RecoveryJournalOperationWithIdentity }
+async function removeRetirementEvidence(
+  coordination: Pick<KnownFileCoordination, "pathMatchesRegularFileIdentity">,
+  {
+    options,
+    operation,
+    parent,
+    paths,
+    journalOperation,
+  }: {
+    readonly options: RetirementExecutionOptions;
+    readonly operation: KnownFileTransactionPlanV1["operations"][number];
+    readonly parent: string;
+    readonly paths: RetirementPaths;
+    readonly journalOperation: RecoveryJournalOperationWithIdentity;
+  },
 ): Promise<void> {
-  const captured = await coordination.pathMatchesRegularFileIdentity(paths.captured, options.expectedIdentity);
+  const captured = await coordination.pathMatchesRegularFileIdentity(
+    paths.captured,
+    options.expectedIdentity,
+  );
   if (captured === "match") {
     await unlink(paths.captured);
     await syncDirectoryStrictly(paths.directory);
   } else if (captured !== "missing") {
     throw new KnownFileTransactionError(
       "KNOWN_FILE_RECOVERY_CONFLICT",
-      `Authorized retirement capture became foreign: ${operation.path}.`
+      `Authorized retirement capture became foreign: ${operation.path}.`,
     );
   }
   if (!(await retirementDirectoryIsEmpty(paths.directory))) {
     throw new KnownFileTransactionError(
       "KNOWN_FILE_RECOVERY_CONFLICT",
-      `Retirement directory contains foreign evidence: ${operation.path}.`
+      `Retirement directory contains foreign evidence: ${operation.path}.`,
     );
   }
   await rmdir(paths.directory);
@@ -274,12 +364,15 @@ async function removeRetirementEvidence(coordination: Pick<KnownFileCoordination
     replaceRecoveryOperation(
       options.stored.envelope.payload,
       options.operationIndex,
-      clearOperationRetirement(journalOperation)
-    )
+      clearOperationRetirement(journalOperation),
+    ),
   );
 }
 
-export async function retireJournalBoundPath(coordination: Pick<KnownFileCoordination, "pathMatchesRegularFileIdentity">, options: RetirementExecutionOptions): Promise<void> {
+export async function retireJournalBoundPath(
+  coordination: Pick<KnownFileCoordination, "pathMatchesRegularFileIdentity">,
+  options: RetirementExecutionOptions,
+): Promise<void> {
   const operation = options.stored.envelope.payload.plan.operations[options.operationIndex]!;
   const parent = dirname(join(options.root, ...operation.path.split("/")));
   const paths = retirementPath({
@@ -287,37 +380,68 @@ export async function retireJournalBoundPath(coordination: Pick<KnownFileCoordin
     operation,
     operationIndex: options.operationIndex,
     parent,
-    planDigest: options.stored.envelope.payload.plan.planDigest
+    planDigest: options.stored.envelope.payload.plan.planDigest,
   });
   const initial = options.stored.envelope.payload.operations[options.operationIndex]!;
   if (!("temporaryIdentity" in initial)) {
     throw new KnownFileTransactionError(
       "KNOWN_FILE_JOURNAL_INVALID",
-      `Retirement requires durable operation identity: ${operation.path}.`
+      `Retirement requires durable operation identity: ${operation.path}.`,
     );
   }
   let journalOperation = initial;
   if (journalOperation.retirement === undefined) {
-    journalOperation = await createRetirementAuthority(coordination,
-      { options: options, operation: operation, parent: parent, paths: paths, journalOperation: journalOperation }
-    );
+    journalOperation = await createRetirementAuthority(coordination, {
+      options: options,
+      operation: operation,
+      parent: parent,
+      paths: paths,
+      journalOperation: journalOperation,
+    });
   }
   const retirement = journalOperation.retirement!;
-  if (retirement.kind !== options.kind ||
-    !sameKnownFileIdentity(deserializeKnownFileIdentity(retirement.pathIdentity), options.expectedIdentity)) {
+  if (
+    retirement.kind !== options.kind ||
+    !sameKnownFileIdentity(
+      deserializeKnownFileIdentity(retirement.pathIdentity),
+      options.expectedIdentity,
+    )
+  ) {
     throw new KnownFileTransactionError(
       "KNOWN_FILE_RECOVERY_CONFLICT",
-      `Retirement authority does not match the requested path: ${operation.path}.`
+      `Retirement authority does not match the requested path: ${operation.path}.`,
     );
   }
-  if (await reconcileRetirementDirectory(coordination,
-    { options: options, operation: operation, paths: paths, journalOperation: journalOperation, retirement: retirement }
-  ) === "complete") {return;}
-  journalOperation = await captureRetirementPath(coordination,
-    options, { journalOperation, operation, parent, paths, retirement }
+  if (
+    (await reconcileRetirementDirectory(coordination, {
+      options: options,
+      operation: operation,
+      paths: paths,
+      journalOperation: journalOperation,
+      retirement: retirement,
+    })) === "complete"
+  ) {
+    return;
+  }
+  journalOperation = await captureRetirementPath(coordination, options, {
+    journalOperation,
+    operation,
+    parent,
+    paths,
+    retirement,
+  });
+  journalOperation = await authorizeRetirementUnlink(
+    coordination,
+    options,
+    operation,
+    paths,
+    journalOperation,
   );
-  journalOperation = await authorizeRetirementUnlink(coordination,
-    options, operation, paths, journalOperation
-  );
-  await removeRetirementEvidence(coordination, { options: options, operation: operation, parent: parent, paths: paths, journalOperation: journalOperation });
+  await removeRetirementEvidence(coordination, {
+    options: options,
+    operation: operation,
+    parent: parent,
+    paths: paths,
+    journalOperation: journalOperation,
+  });
 }

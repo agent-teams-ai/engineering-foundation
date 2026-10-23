@@ -8,13 +8,14 @@ import { setTimeout as delay } from "node:timers/promises";
 
 import { Ajv2020 } from "ajv/dist/2020.js";
 
-import {
-  createQualityGateCommand,
-} from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/api.js";
+import { createQualityGateCommand } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/api.js";
 import { NodeSignalQualityGateCancellationSource } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/adapters/inbound/cli/node-signal-cancellation-source.js";
 import { runQualityGateProfile } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/application/use-cases/run-quality-gate-profile.js";
 import { PnpmQualityGateScriptExecutor } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/adapters/outbound/pnpm/pnpm-package-script-executor.js";
-import { CapabilityInputError,FoundationError } from "../packages/engineering-foundation/dist/features/validation-reporting/api.js";
+import {
+  CapabilityInputError,
+  FoundationError,
+} from "../packages/engineering-foundation/dist/features/validation-reporting/api.js";
 import { parseArguments } from "../packages/engineering-foundation/dist/features/command-host/adapters/inbound/cli/cli-arguments.js";
 import { foundationCommandFailureJson } from "../packages/engineering-foundation/dist/features/command-host/module.js";
 import { createQualityGateCliCommand } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/adapters/inbound/cli/quality-gate-cli-command.js";
@@ -29,12 +30,14 @@ import {
 
 function policy() {
   return {
-    profiles: [{
-      packageManager: "pnpm",
-      concurrency: 1,
-      id: "verify",
-      tasks: [{ after: [], id: "slow", needs: [] }],
-    }],
+    profiles: [
+      {
+        packageManager: "pnpm",
+        concurrency: 1,
+        id: "verify",
+        tasks: [{ after: [], id: "slow", needs: [] }],
+      },
+    ],
   };
 }
 
@@ -73,12 +76,14 @@ function startCapturedEntrypoint(start) {
 function cancelledDuringSetup(signal) {
   return new Promise((_resolve, reject) => {
     const cancel = () => {
-      reject(new CapabilityInputError({
-        code: "EXECUTION_CANCELLED",
-        message: "Quality gate execution was cancelled.",
-        phase: "foundation-config",
-        retryable: false,
-      }));
+      reject(
+        new CapabilityInputError({
+          code: "EXECUTION_CANCELLED",
+          message: "Quality gate execution was cancelled.",
+          phase: "foundation-config",
+          retryable: false,
+        }),
+      );
     };
     if (signal.aborted) {
       cancel();
@@ -89,10 +94,15 @@ function cancelledDuringSetup(signal) {
 }
 
 test("entrypoint retains config-load SIGTERM through canonical JSON and concise text projection", async () => {
-  const commandErrorSchema = JSON.parse(await readFile(new URL(
-    "../packages/engineering-foundation/schemas/foundation-command-error/v1.schema.json",
-    import.meta.url,
-  ), "utf8"));
+  const commandErrorSchema = JSON.parse(
+    await readFile(
+      new URL(
+        "../packages/engineering-foundation/schemas/foundation-command-error/v1.schema.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
   const validateCommandError = new Ajv2020({ strict: true }).compile(commandErrorSchema);
   const baseline = {
     SIGINT: process.listenerCount("SIGINT"),
@@ -101,7 +111,9 @@ test("entrypoint retains config-load SIGTERM through canonical JSON and concise 
   for (const format of ["json", "text"]) {
     let configLoadStarted;
     let observedSignal;
-    const started = new Promise((resolve) => { configLoadStarted = resolve; });
+    const started = new Promise((resolve) => {
+      configLoadStarted = resolve;
+    });
     const entrypoint = createQualityGateCliCommand({
       failureJson: foundationCommandFailureJson,
       cancellationSource: new NodeSignalQualityGateCancellationSource(),
@@ -117,7 +129,13 @@ test("entrypoint retains config-load SIGTERM through canonical JSON and concise 
       },
     });
     const parsed = parseArguments([
-      "gate", "run", "verify", "--consumer", "/fixture", "--format", format,
+      "gate",
+      "run",
+      "verify",
+      "--consumer",
+      "/fixture",
+      "--format",
+      format,
     ]);
     const captured = startCapturedEntrypoint(() => entrypoint(parsed, {}));
     await started;
@@ -160,7 +178,9 @@ test("entrypoint keeps an observed output-limit failure above concurrent cancell
   const cancellationSource = createControlledQgrCancellationSource();
   let configSignal;
   let executionStarted;
-  const started = new Promise((resolve) => { executionStarted = resolve; });
+  const started = new Promise((resolve) => {
+    executionStarted = resolve;
+  });
   const command = createQualityGateCommand({
     catalogReader: {
       async read(_consumerRoot, signal) {
@@ -188,22 +208,30 @@ test("entrypoint keeps an observed output-limit failure above concurrent cancell
     },
   });
   const entrypoint = createQualityGateCliCommand({
-      failureJson: foundationCommandFailureJson,
+    failureJson: foundationCommandFailureJson,
     cancellationSource,
     commandFactory: () => command,
     async foundationConfigLoader(_consumerRoot, signal) {
       configSignal = signal;
       return {
-        declaredCapabilities: [{
-          configPath: "architecture/foundation/quality-gates.yaml",
-          id: "quality.gate-runner",
-        }],
+        declaredCapabilities: [
+          {
+            configPath: "architecture/foundation/quality-gates.yaml",
+            id: "quality.gate-runner",
+          },
+        ],
         projectId: "fixture",
       };
     },
   });
   const parsed = parseArguments([
-    "gate", "run", "verify", "--consumer", "/fixture", "--format", "json",
+    "gate",
+    "run",
+    "verify",
+    "--consumer",
+    "/fixture",
+    "--format",
+    "json",
   ]);
   const captured = startCapturedEntrypoint(() => entrypoint(parsed, {}));
   await started;
@@ -218,24 +246,25 @@ test("entrypoint keeps an observed output-limit failure above concurrent cancell
   assert.equal(report.tasks[0].outcome, "failed");
   assert.equal(report.tasks[0].exitCode, null);
   assert.match(report.tasks[0].failureTail, /stdout output limit/u);
-  assert.throws(
-    () => cancellationSource.cancel("interrupt"),
-    /without an active subscriber/u,
-  );
+  assert.throws(() => cancellationSource.cancel("interrupt"), /without an active subscriber/u);
 });
 
 test("late cancellation retains an already observed passing task", async () => {
   const controller = new AbortController();
-  const report = await runQualityGateProfile({
-    consumerRoot: "/fixture",
-    profile: policy().profiles[0],
-    signal: controller.signal,
-  }, {
-    async run() {
-      controller.abort("late cancellation");
-      return { exitCode: 0, signal: null, stderr: "", stdout: "" };
+  const report = await runQualityGateProfile(
+    {
+      consumerRoot: "/fixture",
+      profile: policy().profiles[0],
+      signal: controller.signal,
     },
-  }, { nowMs: () => 1 });
+    {
+      async run() {
+        controller.abort("late cancellation");
+        return { exitCode: 0, signal: null, stderr: "", stdout: "" };
+      },
+    },
+    { nowMs: () => 1 },
+  );
 
   assert.equal(report.outcome, "cancelled");
   assert.deepEqual(report.tasks[0], {
@@ -249,10 +278,13 @@ test("late cancellation retains an already observed passing task", async () => {
 });
 
 test("QGR binds one immutable exact child environment in the pnpm adapter", async () => {
-  const publicProcessDeclarations = await readFile(new URL(
-    "../packages/engineering-foundation/dist/process-execution/application/process.d.ts",
-    import.meta.url,
-  ), "utf8");
+  const publicProcessDeclarations = await readFile(
+    new URL(
+      "../packages/engineering-foundation/dist/process-execution/application/process.d.ts",
+      import.meta.url,
+    ),
+    "utf8",
+  );
   const processRequestDeclaration = publicProcessDeclarations.match(
     /export interface ProcessRequest \{(?<body>[\s\S]*?)\n\}/u,
   );
@@ -266,30 +298,41 @@ test("QGR binds one immutable exact child environment in the pnpm adapter", asyn
   });
   let releasePolicy;
   let policyStarted;
-  const policyReady = new Promise((resolve) => { policyStarted = resolve; });
+  const policyReady = new Promise((resolve) => {
+    policyStarted = resolve;
+  });
   const command = createQualityGateCommand({
-    catalogReader: { async read() { return { scripts: { slow: "node slow.cjs" } }; } },
-    clock: { nowMs: () => 0 },
-    executor: new PnpmQualityGateScriptExecutor({
-      childEnvironment,
-      nodeExecutablePath: process.execPath,
-      npmExecPath: fileURLToPath(import.meta.url),
-    }, {
-      async run(request) {
-        assert.equal(Object.isFrozen(request.environment), true);
-        assert.deepEqual(request.environment, {
-          AGENT_TEAMS_FOUNDATION_QUALITY_GATE_ACTIVE: "verify",
-          FOUNDATION_ENV_TEST: "before",
-        });
-        assert.throws(() => {
-          request.environment.FOUNDATION_ENV_TEST = "changed";
-        }, TypeError);
-        return { exitCode: 0, signal: null, stderr: "", stdout: "" };
+    catalogReader: {
+      async read() {
+        return { scripts: { slow: "node slow.cjs" } };
       },
-    }),
+    },
+    clock: { nowMs: () => 0 },
+    executor: new PnpmQualityGateScriptExecutor(
+      {
+        childEnvironment,
+        nodeExecutablePath: process.execPath,
+        npmExecPath: fileURLToPath(import.meta.url),
+      },
+      {
+        async run(request) {
+          assert.equal(Object.isFrozen(request.environment), true);
+          assert.deepEqual(request.environment, {
+            AGENT_TEAMS_FOUNDATION_QUALITY_GATE_ACTIVE: "verify",
+            FOUNDATION_ENV_TEST: "before",
+          });
+          assert.throws(() => {
+            request.environment.FOUNDATION_ENV_TEST = "changed";
+          }, TypeError);
+          return { exitCode: 0, signal: null, stderr: "", stdout: "" };
+        },
+      },
+    ),
     async policyLoader() {
       policyStarted();
-      await new Promise((resolve) => { releasePolicy = resolve; });
+      await new Promise((resolve) => {
+        releasePolicy = resolve;
+      });
       return policy();
     },
   });
@@ -316,107 +359,140 @@ test("QGR application contracts contain no Node process environment transport", 
     "../packages/engineering-foundation/src/capabilities/quality-gate-runner/application/",
     import.meta.url,
   );
-  const sources = await Promise.all([
-    "ports/package-script-executor.ts",
-    "use-cases/run-quality-gate-profile.ts",
-  ].map((path) => readFile(new URL(path, applicationRoot), "utf8")));
+  const sources = await Promise.all(
+    ["ports/package-script-executor.ts", "use-cases/run-quality-gate-profile.ts"].map((path) =>
+      readFile(new URL(path, applicationRoot), "utf8"),
+    ),
+  );
   for (const source of sources) {
     assert.doesNotMatch(source, /NodeJS\.ProcessEnv|environment\??:/u);
   }
 });
 
 test("QGR setup cancellation delegates its JSON envelope to the canonical Foundation failure mapper", async () => {
-  const projectionSource = await readFile(new URL(
-    "../packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/inbound/cli/quality-gate-cli.ts",
-    import.meta.url,
-  ), "utf8");
-  const commandSource = await readFile(new URL(
-    "../packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/inbound/cli/quality-gate-cli-command.ts",
-    import.meta.url,
-  ), "utf8");
+  const projectionSource = await readFile(
+    new URL(
+      "../packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/inbound/cli/quality-gate-cli.ts",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const commandSource = await readFile(
+    new URL(
+      "../packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/inbound/cli/quality-gate-cli-command.ts",
+      import.meta.url,
+    ),
+    "utf8",
+  );
   assert.doesNotMatch(projectionSource, /schemaVersion|EXECUTION_CANCELLED/u);
   assert.match(commandSource, /failureJson\(error\)/u);
-  const compositionSource = await readFile(new URL(
-    "../packages/engineering-foundation/src/features/command-host/composition/node-command-host.ts", import.meta.url,
-  ), "utf8");
+  const compositionSource = await readFile(
+    new URL(
+      "../packages/engineering-foundation/src/features/command-host/composition/node-command-host.ts",
+      import.meta.url,
+    ),
+    "utf8",
+  );
   assert.match(compositionSource, /failureJson: foundationCommandFailureJson/u);
 });
 
-test("real SIGINT cancellation projects canonical JSON and exits 130", {
-  skip: process.platform === "win32",
-  timeout: 15_000,
-}, async () => {
-  const root = await mkdtemp(join(tmpdir(), "foundation-quality-gate-real-sigint-"));
-  const readyPath = join(root, "ready.txt");
-  let execution;
-  try {
-    await mkdir(join(root, "architecture", "foundation"), { recursive: true });
-    const fixturePnpm = join(root, "fixture-pnpm.cjs");
-    await writeFile(join(root, "package.json"), `${JSON.stringify({
-      name: "qgr-real-sigint",
-      private: true,
-      scripts: { slow: "fixture" },
-    })}\n`, "utf8");
-    await writeFile(join(root, "foundation.config.yaml"), `schemaVersion: 1
+test(
+  "real SIGINT cancellation projects canonical JSON and exits 130",
+  {
+    skip: process.platform === "win32",
+    timeout: 15_000,
+  },
+  async () => {
+    const root = await mkdtemp(join(tmpdir(), "foundation-quality-gate-real-sigint-"));
+    const readyPath = join(root, "ready.txt");
+    let execution;
+    try {
+      await mkdir(join(root, "architecture", "foundation"), { recursive: true });
+      const fixturePnpm = join(root, "fixture-pnpm.cjs");
+      await writeFile(
+        join(root, "package.json"),
+        `${JSON.stringify({
+          name: "qgr-real-sigint",
+          private: true,
+          scripts: { slow: "fixture" },
+        })}\n`,
+        "utf8",
+      );
+      await writeFile(
+        join(root, "foundation.config.yaml"),
+        `schemaVersion: 1
 project:
   id: qgr-real-sigint
 capabilities:
   quality.gate-runner:
     configPath: architecture/foundation/quality-gates.yaml
-`, "utf8");
-    await writeFile(join(root, "architecture", "foundation", "quality-gates.yaml"), `schemaVersion: 1
+`,
+        "utf8",
+      );
+      await writeFile(
+        join(root, "architecture", "foundation", "quality-gates.yaml"),
+        `schemaVersion: 1
 packageManager: pnpm
 profiles:
   - id: verify
     concurrency: 1
     tasks:
       - id: slow
-`, "utf8");
-    await writeFile(fixturePnpm, `const { writeFileSync } = require("node:fs");
+`,
+        "utf8",
+      );
+      await writeFile(
+        fixturePnpm,
+        `const { writeFileSync } = require("node:fs");
 if (process.argv.slice(2).join(" ") !== "run slow") throw new Error("Unexpected pnpm invocation");
 if (process.env.AGENT_TEAMS_FOUNDATION_QUALITY_GATE_ACTIVE !== "verify") throw new Error("Missing recursion marker");
 writeFileSync(${JSON.stringify(readyPath)}, "ready", { flag: "wx" });
 setInterval(() => {}, 60_000);
-`, "utf8");
-    const cliPath = join(process.cwd(), "packages", "engineering-foundation", "dist", "cli.js");
-    execution = startBoundedCli(cliPath, [
-      "gate", "run", "verify", "--consumer", root, "--format", "json",
-    ], {
-      deferWatchdogUntilReady: true,
-      env: { ...process.env, npm_execpath: fixturePnpm },
-    });
-    await waitForFixtureEffect(readyPath, execution);
-    assert.equal(execution.command.kill("SIGINT"), true);
-    const result = await execution.result;
-    assert.deepEqual({ code: result.status, signal: result.signal }, { code: 130, signal: null });
-    assert.equal(result.stderr, "");
-    const report = JSON.parse(result.stdout);
-    assert.equal(report.outcome, "cancelled");
-    assert.equal(report.tasks[0].outcome, "cancelled");
-  } finally {
-    await cleanupSyntheticFixture({ executions: [execution], roots: [root] });
-  }
-});
+`,
+        "utf8",
+      );
+      const cliPath = join(process.cwd(), "packages", "engineering-foundation", "dist", "cli.js");
+      execution = startBoundedCli(
+        cliPath,
+        ["gate", "run", "verify", "--consumer", root, "--format", "json"],
+        {
+          deferWatchdogUntilReady: true,
+          env: { ...process.env, npm_execpath: fixturePnpm },
+        },
+      );
+      await waitForFixtureEffect(readyPath, execution);
+      assert.equal(execution.command.kill("SIGINT"), true);
+      const result = await execution.result;
+      assert.deepEqual({ code: result.status, signal: result.signal }, { code: 130, signal: null });
+      assert.equal(result.stderr, "");
+      const report = JSON.parse(result.stdout);
+      assert.equal(report.outcome, "cancelled");
+      assert.equal(report.tasks[0].outcome, "cancelled");
+    } finally {
+      await cleanupSyntheticFixture({ executions: [execution], roots: [root] });
+    }
+  },
+);
 
 test("partial concurrent-boundary setup closes every created server before rethrowing", async () => {
   const setupFailure = new Error("injected boundary setup failure");
   const created = [];
   let setupCalls = 0;
   await assert.rejects(
-    createSyntheticFixtureBoundaries([
-      { expectedRoles: ["first"] },
-      { expectedRoles: ["second"] },
-    ], {
-      async createBoundary(options) {
-        setupCalls += 1;
-        if (setupCalls > 1) {
-          throw setupFailure;
-        }
-        const boundary = await createSyntheticFixtureBoundary(options);
-        created.push(boundary);
-        return boundary;
+    createSyntheticFixtureBoundaries(
+      [{ expectedRoles: ["first"] }, { expectedRoles: ["second"] }],
+      {
+        async createBoundary(options) {
+          setupCalls += 1;
+          if (setupCalls > 1) {
+            throw setupFailure;
+          }
+          const boundary = await createSyntheticFixtureBoundary(options);
+          created.push(boundary);
+          return boundary;
+        },
       },
-    }),
+    ),
     (error) => {
       assert.equal(error, setupFailure);
       assert.deepEqual(error.setupCleanupFailures, []);
@@ -427,23 +503,32 @@ test("partial concurrent-boundary setup closes every created server before rethr
   assert.equal(created[0].isServerListening(), false);
 });
 
-test("POSIX watchdog kills a stubborn descendant tree before fixture root cleanup", {
-  skip: process.platform === "win32",
-  timeout: 15_000,
-}, async () => {
-  const root = await mkdtemp(join(tmpdir(), "foundation-quality-gate-stubborn-watchdog-"));
-  const fixture = join(root, "stubborn-parent.cjs");
-  const pidPath = join(root, "descendant-pid.json");
-  let descendantPid;
-  let execution;
-  try {
-    const descendantFixture = join(root, "stubborn-descendant.cjs");
-    await writeFile(descendantFixture, `process.on("SIGTERM", () => {});
+test(
+  "POSIX watchdog kills a stubborn descendant tree before fixture root cleanup",
+  {
+    skip: process.platform === "win32",
+    timeout: 15_000,
+  },
+  async () => {
+    const root = await mkdtemp(join(tmpdir(), "foundation-quality-gate-stubborn-watchdog-"));
+    const fixture = join(root, "stubborn-parent.cjs");
+    const pidPath = join(root, "descendant-pid.json");
+    let descendantPid;
+    let execution;
+    try {
+      const descendantFixture = join(root, "stubborn-descendant.cjs");
+      await writeFile(
+        descendantFixture,
+        `process.on("SIGTERM", () => {});
 if (process.send === undefined) throw new Error("Detached descendant IPC is unavailable.");
 process.send("ready");
 setInterval(() => {}, 60000);
-`, "utf8");
-    await writeFile(fixture, `const { spawn } = require("node:child_process");
+`,
+        "utf8",
+      );
+      await writeFile(
+        fixture,
+        `const { spawn } = require("node:child_process");
 const { writeFileSync } = require("node:fs");
 process.on("SIGTERM", () => {});
 const child = spawn(process.execPath, [${JSON.stringify(descendantFixture)}], {
@@ -456,83 +541,115 @@ child.once("message", (message) => {
   child.disconnect();
 });
 setInterval(() => {}, 60000);
-`, "utf8");
-    execution = startBoundedCli(fixture, [], {
-      cleanupDeadlineMs: 5_000,
-      deferWatchdogUntilReady: true,
-      shutdownGraceMs: 2_000,
-      watchdogMs: 1_000,
-    });
-    const completion = execution.result.then(
-      (result) => ({ result }),
-      (error) => ({ error }),
-    );
-    const readinessDeadline = Date.now() + 5_000;
-    while (descendantPid === undefined && Date.now() < readinessDeadline) {
-      try {
-        descendantPid = JSON.parse(await readFile(pidPath, "utf8")).pid;
-      } catch (error) {
-        if (error?.code !== "ENOENT") {
-          throw error;
+`,
+        "utf8",
+      );
+      execution = startBoundedCli(fixture, [], {
+        cleanupDeadlineMs: 5_000,
+        deferWatchdogUntilReady: true,
+        shutdownGraceMs: 2_000,
+        watchdogMs: 1_000,
+      });
+      const completion = execution.result.then(
+        (result) => ({ result }),
+        (error) => ({ error }),
+      );
+      const readinessDeadline = Date.now() + 5_000;
+      while (descendantPid === undefined && Date.now() < readinessDeadline) {
+        try {
+          descendantPid = JSON.parse(await readFile(pidPath, "utf8")).pid;
+        } catch (error) {
+          if (error?.code !== "ENOENT") {
+            throw error;
+          }
+          await delay(10);
         }
-        await delay(10);
       }
-    }
-    assert.equal(Number.isSafeInteger(descendantPid), true);
-    execution.manageProcessGroup(descendantPid);
-    execution.armWatchdog();
-    const { error: watchdogError, result } = await completion;
-    assert.equal(result, undefined, "stubborn fixture should reach the watchdog");
-    assert.match(watchdogError.message, /watchdog expired/u);
-    assert.deepEqual(await watchdogError.cleanup, []);
-    execution = undefined;
-    assert.throws(
-      () => process.kill(-descendantPid, 0),
-      (error) => error?.code === "ESRCH",
-    );
-    await cleanupSyntheticFixture({ roots: [root] });
-    await assert.rejects(readFile(root, "utf8"), (error) => error?.code === "ENOENT");
-  } finally {
-    if (descendantPid !== undefined) {
-      try {
-        process.kill(-descendantPid, "SIGKILL");
-      } catch {
-        // The contained descendant already exited.
+      assert.equal(Number.isSafeInteger(descendantPid), true);
+      execution.manageProcessGroup(descendantPid);
+      execution.armWatchdog();
+      const { error: watchdogError, result } = await completion;
+      assert.equal(result, undefined, "stubborn fixture should reach the watchdog");
+      assert.match(watchdogError.message, /watchdog expired/u);
+      assert.deepEqual(await watchdogError.cleanup, []);
+      execution = undefined;
+      assert.throws(
+        () => process.kill(-descendantPid, 0),
+        (error) => error?.code === "ESRCH",
+      );
+      await cleanupSyntheticFixture({ roots: [root] });
+      await assert.rejects(readFile(root, "utf8"), (error) => error?.code === "ENOENT");
+    } finally {
+      if (descendantPid !== undefined) {
+        try {
+          process.kill(-descendantPid, "SIGKILL");
+        } catch {
+          // The contained descendant already exited.
+        }
       }
+      await cleanupSyntheticFixture({ executions: [execution], roots: [root] });
     }
-    await cleanupSyntheticFixture({ executions: [execution], roots: [root] });
-  }
-});
+  },
+);
 
 test("Windows watchdog contract retains Job Object ownership and awaits descendants", async () => {
-  const [
-    cleanupSource,
-    nodeAdapterSource,
-    managedLauncherSource,
-    windowsManagedProcessSource,
-  ] = await Promise.all([
-    readFile(join(process.cwd(), "tests", "support", "quality-gate-runner-cleanup.mjs"), "utf8"),
-    readFile(join(process.cwd(), "packages", "engineering-foundation", "src", "process-execution", "node-process-runner.ts"), "utf8"),
-    readFile(join(process.cwd(), "packages", "engineering-foundation", "src", "process-execution", "windows-managed-process.ts"), "utf8"),
-    readFile(join(process.cwd(), "packages", "engineering-foundation", "assets", "windows-managed-process", "WindowsManagedProcess.cs"), "utf8"),
-  ]);
+  const [cleanupSource, nodeAdapterSource, managedLauncherSource, windowsManagedProcessSource] =
+    await Promise.all([
+      readFile(join(process.cwd(), "tests", "support", "quality-gate-runner-cleanup.mjs"), "utf8"),
+      readFile(
+        join(
+          process.cwd(),
+          "packages",
+          "engineering-foundation",
+          "src",
+          "process-execution",
+          "node-process-runner.ts",
+        ),
+        "utf8",
+      ),
+      readFile(
+        join(
+          process.cwd(),
+          "packages",
+          "engineering-foundation",
+          "src",
+          "process-execution",
+          "windows-managed-process.ts",
+        ),
+        "utf8",
+      ),
+      readFile(
+        join(
+          process.cwd(),
+          "packages",
+          "engineering-foundation",
+          "assets",
+          "windows-managed-process",
+          "WindowsManagedProcess.cs",
+        ),
+        "utf8",
+      ),
+    ]);
   assert.match(cleanupSource, /spawnNodeManagedProcess/u);
   assert.match(cleanupSource, /terminateNodeManagedProcess/u);
   assert.match(cleanupSource, /terminatePosixProcessGroup/u);
   assert.match(
     nodeAdapterSource,
-    /export function spawnNodeManagedProcess\(\s*request: NodeManagedProcessRequest,\s*retain\?: NodeRetain\s*\): ChildProcess/u
+    /export function spawnNodeManagedProcess\(\s*request: NodeManagedProcessRequest,\s*retain\?: NodeRetain,?\s*\): ChildProcess/u,
   );
   assert.match(
     nodeAdapterSource,
-    /const acquire: NodeAcquireHook = \(request, retain\) => \{\s*acquiredChild = spawnNodeManagedProcess\(windowsRequest\(request, context\), retain\);/u
+    /const acquire: NodeAcquireHook = \(request, retain\) => \{\s*acquiredChild = spawnNodeManagedProcess\(windowsRequest\(request, context\), retain\);/u,
   );
   const spawnStart = nodeAdapterSource.indexOf("export function spawnNodeManagedProcess(");
   assert.ok(spawnStart >= 0);
-  const windowsBranch = nodeAdapterSource.indexOf("if (process.platform === \"win32\") {", spawnStart);
+  const windowsBranch = nodeAdapterSource.indexOf(
+    'if (process.platform === "win32") {',
+    spawnStart,
+  );
   const windowsRetainRoute = nodeAdapterSource.indexOf(
     "return spawnWindowsManagedProcess(request, retain);",
-    windowsBranch
+    windowsBranch,
   );
   const posixSpawn = nodeAdapterSource.indexOf("const child = spawn(", windowsRetainRoute);
   const posixRetain = nodeAdapterSource.indexOf("retain?.(child);", posixSpawn);
@@ -543,11 +660,13 @@ test("Windows watchdog contract retains Job Object ownership and awaits descenda
 
   assert.match(
     managedLauncherSource,
-    /export function spawnWindowsManagedProcess\(\s*request: WindowsManagedProcessRequest,\s*retain\?: WindowsManagedProcessRetain\s*\): ChildProcess/u
+    /export function spawnWindowsManagedProcess\(\s*request: WindowsManagedProcessRequest,\s*retain\?: WindowsManagedProcessRetain,?\s*\): ChildProcess/u,
   );
-  const controlOwnership = managedLauncherSource.indexOf("windowsProcessControls.set(child, control);");
+  const controlOwnership = managedLauncherSource.indexOf(
+    "windowsProcessControls.set(child, control);",
+  );
   const retainedChild = managedLauncherSource.indexOf("retain?.(child);", controlOwnership);
-  const postRetentionSetup = managedLauncherSource.indexOf("child.once(\"error\"", retainedChild);
+  const postRetentionSetup = managedLauncherSource.indexOf('child.once("error"', retainedChild);
   assert.ok(controlOwnership >= 0);
   assert.ok(controlOwnership < retainedChild);
   assert.ok(retainedChild < postRetentionSetup);
@@ -556,23 +675,29 @@ test("Windows watchdog contract retains Job Object ownership and awaits descenda
   assert.match(windowsManagedProcessSource, /JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE/u);
   assert.match(
     windowsManagedProcessSource,
-    /limits\.BasicLimitInformation\.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE/u
+    /limits\.BasicLimitInformation\.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE/u,
   );
   const jobListAssignment = windowsManagedProcessSource.indexOf("PROC_THREAD_ATTRIBUTE_JOB_LIST,");
-  const processCreation = windowsManagedProcessSource.indexOf("if (!CreateProcess(", jobListAssignment);
-  const assignedAfterCreation = windowsManagedProcessSource.indexOf("assigned = true;", processCreation);
+  const processCreation = windowsManagedProcessSource.indexOf(
+    "if (!CreateProcess(",
+    jobListAssignment,
+  );
+  const assignedAfterCreation = windowsManagedProcessSource.indexOf(
+    "assigned = true;",
+    processCreation,
+  );
   assert.ok(jobListAssignment >= 0);
   assert.ok(jobListAssignment < processCreation);
   assert.ok(processCreation < assignedAfterCreation);
   assert.match(windowsManagedProcessSource, /TerminateRemainingProcessesAndWait\(job\)/u);
   const assignedJobTermination = windowsManagedProcessSource.slice(
     windowsManagedProcessSource.indexOf("private static void TerminateRemainingProcessesAndWait"),
-    windowsManagedProcessSource.indexOf("private static void ConfirmContainment")
+    windowsManagedProcessSource.indexOf("private static void ConfirmContainment"),
   );
   assert.match(assignedJobTermination, /TerminateJobObject\(job, 1\)/u);
   assert.match(assignedJobTermination, /while \(ActiveProcessCount\(job\) > 0\)/u);
   assert.match(
     windowsManagedProcessSource,
-    /TerminateRemainingProcessesAndWait\(job\);\s*ConfirmContainment\(confirmationPath\)/u
+    /TerminateRemainingProcessesAndWait\(job\);\s*ConfirmContainment\(confirmationPath\)/u,
   );
 });

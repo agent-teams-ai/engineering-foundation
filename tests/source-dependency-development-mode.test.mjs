@@ -1,5 +1,15 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, readdir, rename, rm, stat, symlink, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rename,
+  rm,
+  stat,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -13,19 +23,22 @@ import {
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const foundationPackageRoot = join(repositoryRoot, "packages", "engineering-foundation");
-const distRoot = process.env.FOUNDATION_DIST_ROOT ?? join(
-  foundationPackageRoot,
-  "dist",
-);
+const distRoot = process.env.FOUNDATION_DIST_ROOT ?? join(foundationPackageRoot, "dist");
 const [{ evaluateSourceDependencies }, { NodeSourceDependencyResolver }] = await Promise.all([
   import(
     pathToFileURL(
-      join(distRoot, "capabilities/source-dependencies/application/policies/evaluate-source-dependencies.js"),
+      join(
+        distRoot,
+        "capabilities/source-dependencies/application/policies/evaluate-source-dependencies.js",
+      ),
     ).href
   ),
   import(
     pathToFileURL(
-      join(distRoot, "capabilities/source-dependencies/adapters/outbound/node/node-source-dependency-resolver.js"),
+      join(
+        distRoot,
+        "capabilities/source-dependencies/adapters/outbound/node/node-source-dependency-resolver.js",
+      ),
     ).href
   ),
 ]);
@@ -175,7 +188,8 @@ function v2WorkspacePackageDiagnostics(sourceBoundary, targetBoundaries, options
   const targetName = "@fixture/target";
   const importedSubpath = options.subpath ?? ".";
   const observedEdge = workspacePackageEdge(sourceBoundary, targetName, options.mode);
-  observedEdge.specifier = importedSubpath === "." ? targetName : `${targetName}${importedSubpath.slice(1)}`;
+  observedEdge.specifier =
+    importedSubpath === "." ? targetName : `${targetName}${importedSubpath.slice(1)}`;
   observedEdge.resolution.subpath = importedSubpath;
   return evaluateSourceDependencies({
     policy: {
@@ -203,7 +217,9 @@ function v2WorkspacePackageDiagnostics(sourceBoundary, targetBoundaries, options
 
 test("runtime boundary rejects a runtime import from devDependencies", () => {
   assert.deepEqual(
-    ruleIds(diagnostics(boundary("runtime", ["fixture-tool"]), [edge("fixture-tool", "development")])),
+    ruleIds(
+      diagnostics(boundary("runtime", ["fixture-tool"]), [edge("fixture-tool", "development")]),
+    ),
     ["architecture.source-dependencies.runtime-import-from-development-dependency"],
   );
 });
@@ -243,8 +259,7 @@ test("runtime boundary cannot import an allowed development boundary", () => {
   assert.equal(
     ruleIds(observed).filter(
       (ruleId) =>
-        ruleId ===
-        "architecture.source-dependencies.runtime-boundary-imports-development-boundary",
+        ruleId === "architecture.source-dependencies.runtime-boundary-imports-development-boundary",
     ).length,
     1,
   );
@@ -260,8 +275,7 @@ test("runtime source cannot reach a development boundary through a runtime wrapp
   );
   const blocked = observed.filter(
     ({ ruleId }) =>
-      ruleId ===
-      "architecture.source-dependencies.runtime-boundary-imports-development-boundary",
+      ruleId === "architecture.source-dependencies.runtime-boundary-imports-development-boundary",
   );
   assert.equal(blocked.length, 1);
   assert.equal(blocked[0].subject, "wrapper->specification");
@@ -314,22 +328,30 @@ test("v2 mixed packages require exact runtime export-boundary authority", () => 
   source.allowedPackages = ["@fixture/target"];
   const runtime = localBoundary("target-runtime", "runtime", []);
   const development = localBoundary("target-development", "development", []);
-  const rootRuntimeAuthority = new Map([
-    ["@fixture/target", new Map([[".", runtime.id]])],
-  ]);
+  const rootRuntimeAuthority = new Map([["@fixture/target", new Map([[".", runtime.id]])]]);
   assert.deepEqual(
     v2WorkspacePackageDiagnostics(source, [runtime, development], {
       authority: rootRuntimeAuthority,
     }),
     [],
   );
-  assert.deepEqual(ruleIds(v2WorkspacePackageDiagnostics(source, [runtime, development], {
-    authority: new Map([["@fixture/target", new Map([[".", development.id]])]]),
-  })), ["architecture.source-dependencies.runtime-boundary-imports-development-workspace-package"]);
-  assert.deepEqual(ruleIds(v2WorkspacePackageDiagnostics(source, [runtime, development], {
-    authority: rootRuntimeAuthority,
-    subpath: "./qualification",
-  })), ["architecture.source-dependencies.runtime-boundary-imports-development-workspace-package"]);
+  assert.deepEqual(
+    ruleIds(
+      v2WorkspacePackageDiagnostics(source, [runtime, development], {
+        authority: new Map([["@fixture/target", new Map([[".", development.id]])]]),
+      }),
+    ),
+    ["architecture.source-dependencies.runtime-boundary-imports-development-workspace-package"],
+  );
+  assert.deepEqual(
+    ruleIds(
+      v2WorkspacePackageDiagnostics(source, [runtime, development], {
+        authority: rootRuntimeAuthority,
+        subpath: "./qualification",
+      }),
+    ),
+    ["architecture.source-dependencies.runtime-boundary-imports-development-workspace-package"],
+  );
 });
 
 test("v2 admits only structured same-package development output candidates", () => {
@@ -351,35 +373,48 @@ test("v2 admits only structured same-package development output candidates", () 
     unclassifiedSourcePaths: [],
     unresolvedRuntimeReferences: [],
   };
-  assert.deepEqual(evaluateSourceDependencies({
-    policy: {
-      schemaVersion: 2,
-      workspaceManifestPath: "pnpm-workspace.yaml",
-      packageRoots: ["packages"],
-      governedRoots: ["packages"],
-      boundaries: [sourceBoundary],
-    },
-    graph,
-  }), []);
-  assert.deepEqual(ruleIds(evaluateSourceDependencies({
-    policy: {
-      schemaVersion: 2,
-      workspaceManifestPath: "pnpm-workspace.yaml",
-      packageRoots: ["packages"],
-      governedRoots: ["packages"],
-      boundaries: [{ ...sourceBoundary, dependencyMode: "runtime" }],
-    },
-    graph,
-  })), ["architecture.source-dependencies.unresolved-local-import"]);
-  assert.deepEqual(ruleIds(evaluateSourceDependencies({
-    policy: {
-      schemaVersion: 1,
-      workspaceManifestPath: "pnpm-workspace.yaml",
-      governedRoots: ["packages"],
-      boundaries: [sourceBoundary],
-    },
-    graph,
-  })), ["architecture.source-dependencies.unresolved-local-import"]);
+  assert.deepEqual(
+    evaluateSourceDependencies({
+      policy: {
+        schemaVersion: 2,
+        workspaceManifestPath: "pnpm-workspace.yaml",
+        packageRoots: ["packages"],
+        governedRoots: ["packages"],
+        boundaries: [sourceBoundary],
+      },
+      graph,
+    }),
+    [],
+  );
+  assert.deepEqual(
+    ruleIds(
+      evaluateSourceDependencies({
+        policy: {
+          schemaVersion: 2,
+          workspaceManifestPath: "pnpm-workspace.yaml",
+          packageRoots: ["packages"],
+          governedRoots: ["packages"],
+          boundaries: [{ ...sourceBoundary, dependencyMode: "runtime" }],
+        },
+        graph,
+      }),
+    ),
+    ["architecture.source-dependencies.unresolved-local-import"],
+  );
+  assert.deepEqual(
+    ruleIds(
+      evaluateSourceDependencies({
+        policy: {
+          schemaVersion: 1,
+          workspaceManifestPath: "pnpm-workspace.yaml",
+          governedRoots: ["packages"],
+          boundaries: [sourceBoundary],
+        },
+        graph,
+      }),
+    ),
+    ["architecture.source-dependencies.unresolved-local-import"],
+  );
 });
 
 test("generated output candidates require canonical same-package dist literals", async () => {
@@ -393,20 +428,21 @@ test("generated output candidates require canonical same-package dist literals",
     exportSurface: { explicit: false, entries: [] },
   };
   const resolver = new NodeSourceDependencyResolver();
-  const resolve = (specifier, extra = {}) => resolver.resolve({
-    consumerRoot,
-    ...extra,
-    file: {
-      path: "packages/app/src/index.ts",
-      workspacePackage,
-      boundary: boundary("development", []),
-      parsed: { parseErrorCount: 0, references: [], unresolved: [] },
-      bytes: Buffer.from(""),
-    },
-    governedFilePaths: new Set(["packages/app/src/index.ts"]),
-    inventory: { catalogs: [], packages: [workspacePackage] },
-    reference: { kind: "static", specifier, start: 0, end: specifier.length },
-  });
+  const resolve = (specifier, extra = {}) =>
+    resolver.resolve({
+      consumerRoot,
+      ...extra,
+      file: {
+        path: "packages/app/src/index.ts",
+        workspacePackage,
+        boundary: boundary("development", []),
+        parsed: { parseErrorCount: 0, references: [], unresolved: [] },
+        bytes: Buffer.from(""),
+      },
+      governedFilePaths: new Set(["packages/app/src/index.ts"]),
+      inventory: { catalogs: [], packages: [workspacePackage] },
+      reference: { kind: "static", specifier, start: 0, end: specifier.length },
+    });
   try {
     await mkdir(join(consumerRoot, "packages", "app"), { recursive: true });
     assert.equal(resolve("../dist/index.js").kind, "generated-output-candidate");
@@ -416,7 +452,10 @@ test("generated output candidates require canonical same-package dist literals",
       inode: String(originalConsumerRoot.ino),
     };
     const originalPackageRoot = await stat(join(consumerRoot, "packages", "app"), { bigint: true });
-    const originalIdentity = { device: String(originalPackageRoot.dev), inode: String(originalPackageRoot.ino) };
+    const originalIdentity = {
+      device: String(originalPackageRoot.dev),
+      inode: String(originalPackageRoot.ino),
+    };
     assert.equal(
       resolve("../dist/index.js", {
         consumerRootIdentity: originalRootIdentity,
@@ -428,14 +467,20 @@ test("generated output candidates require canonical same-package dist literals",
       resolve("../dist/index.js", { workspacePackageRootIdentity: originalIdentity }).kind,
       "generated-output-candidate",
     );
-    await rename(join(consumerRoot, "packages", "app"), join(consumerRoot, "packages", "app-original"));
+    await rename(
+      join(consumerRoot, "packages", "app"),
+      join(consumerRoot, "packages", "app-original"),
+    );
     await mkdir(join(consumerRoot, "packages", "app"));
     assert.notEqual(
       resolve("../dist/index.js", { workspacePackageRootIdentity: originalIdentity }).kind,
       "generated-output-candidate",
     );
     await rm(join(consumerRoot, "packages", "app"), { recursive: true });
-    await rename(join(consumerRoot, "packages", "app-original"), join(consumerRoot, "packages", "app"));
+    await rename(
+      join(consumerRoot, "packages", "app-original"),
+      join(consumerRoot, "packages", "app"),
+    );
     assert.notEqual(
       resolve("../dist/index.js", {
         consumerRootIdentity: { device: "replaced", inode: "ancestor" },
@@ -453,7 +498,7 @@ test("generated output candidates require canonical same-package dist literals",
       "../dist/bad<.js",
       "../dist/bad>.js",
       "../dist/bad|.js",
-      "../dist/bad\".js",
+      '../dist/bad".js',
       "../dist/cafe\u0301.js",
       "..\\dist\\index.js",
       "../dist//index.js",
@@ -468,10 +513,7 @@ test("generated output candidates require canonical same-package dist literals",
     await rm(join(consumerRoot, "packages", "app", "dist"));
     await mkdir(join(consumerRoot, "packages", "app", "dist"));
     await symlink(tmpdir(), join(consumerRoot, "packages", "app", "dist", "nested"), "dir");
-    assert.notEqual(
-      resolve("../dist/nested/index.js").kind,
-      "generated-output-candidate",
-    );
+    assert.notEqual(resolve("../dist/nested/index.js").kind, "generated-output-candidate");
   } finally {
     await rm(consumerRoot, { recursive: true, force: true });
   }
@@ -484,8 +526,16 @@ test("v2 package-name imports require governed root topology", async () => {
     appManifest.dependencies = { "@fixture/repository-v2": "^1.0.0" };
     await Promise.all([
       writeFile(appManifestPath, `${JSON.stringify(appManifest, null, 2)}\n`, "utf8"),
-      writeFile(join(consumerRoot, "pnpm-workspace.yaml"), 'packages:\n  - "packages/*"\nlinkWorkspacePackages: true\n', "utf8"),
-      writeFile(join(consumerRoot, "packages", "app", "src", "index.ts"), 'import root from "@fixture/repository-v2";\nexport { root };\n', "utf8"),
+      writeFile(
+        join(consumerRoot, "pnpm-workspace.yaml"),
+        'packages:\n  - "packages/*"\nlinkWorkspacePackages: true\n',
+        "utf8",
+      ),
+      writeFile(
+        join(consumerRoot, "packages", "app", "src", "index.ts"),
+        'import root from "@fixture/repository-v2";\nexport { root };\n',
+        "utf8",
+      ),
     ]);
     const configPath = sourceConfigPath(consumerRoot);
     const config = await readFile(configPath, "utf8");
@@ -507,14 +557,24 @@ test("v2 honors workspace packages intentionally rooted below dist or coverage",
       const toolRoot = join(consumerRoot, "packages", collection);
       await mkdir(join(toolRoot, "src"), { recursive: true });
       await Promise.all([
-        writeFile(join(toolRoot, "package.json"), `${JSON.stringify({ name: `@fixture/${collection}-tool`, version: "0.0.0", private: true, type: "module" })}\n`, "utf8"),
+        writeFile(
+          join(toolRoot, "package.json"),
+          `${JSON.stringify({ name: `@fixture/${collection}-tool`, version: "0.0.0", private: true, type: "module" })}\n`,
+          "utf8",
+        ),
         writeFile(join(toolRoot, "src", "index.ts"), "export const value = 1;\n", "utf8"),
       ]);
       const configPath = sourceConfigPath(consumerRoot);
       const config = await readFile(configPath, "utf8");
-      await writeFile(configPath, config
-        .replace("governedRoots:\n", `governedRoots:\n  - packages/${collection}/src\n`)
-        .concat(`  - id: ${collection}.tool\n    roots:\n      - packages/${collection}/src\n    entrypoints:\n      - packages/${collection}/src/index.ts\n    allow:\n      boundaries: []\n      packages: []\n      builtins: []\n      runtimeReferences: []\n`), "utf8");
+      await writeFile(
+        configPath,
+        config
+          .replace("governedRoots:\n", `governedRoots:\n  - packages/${collection}/src\n`)
+          .concat(
+            `  - id: ${collection}.tool\n    roots:\n      - packages/${collection}/src\n    entrypoints:\n      - packages/${collection}/src/index.ts\n    allow:\n      boundaries: []\n      packages: []\n      builtins: []\n      runtimeReferences: []\n`,
+          ),
+        "utf8",
+      );
       assert.equal((await runSourceCapability(consumerRoot)).outcome, "passed");
     });
   }
@@ -531,7 +591,10 @@ test("v2 rejects portable directory aliases across manifest and source trees", a
       ),
       writeFile(join(consumerRoot, "pnpm-workspace.yaml"), 'packages:\n  - "Packages/*"\n', "utf8"),
     ]);
-    assert.equal((await runSourceCapability(consumerRoot)).problem?.code, "PACKAGE_PATH_CASE_COLLISION");
+    assert.equal(
+      (await runSourceCapability(consumerRoot)).problem?.code,
+      "PACKAGE_PATH_CASE_COLLISION",
+    );
   });
   await withCopiedFixture("v2-valid", async (consumerRoot) => {
     const sourceRoot = join(consumerRoot, "packages", "app", "src");
@@ -543,39 +606,83 @@ test("v2 rejects portable directory aliases across manifest and source trees", a
     if (!entries.includes("caf\u00e9") || !entries.includes("cafe\u0301")) {
       return;
     }
-    assert.equal((await runSourceCapability(consumerRoot)).problem?.code, "SOURCE_PATH_CASE_COLLISION");
+    assert.equal(
+      (await runSourceCapability(consumerRoot)).problem?.code,
+      "SOURCE_PATH_CASE_COLLISION",
+    );
   });
 });
 
-
 test("resolver recognizes prefix-only node builtins without hiding ordinary package declarations", () => {
   const workspacePackage = {
-    name: "@fixture/app", rootPath: "packages/app", manifestPath: "packages/app/package.json",
+    name: "@fixture/app",
+    rootPath: "packages/app",
+    manifestPath: "packages/app/package.json",
     dependencies: [
-      { dependencyName: "test", targetPackageName: "test", section: "devDependencies", specifier: "1.0.0", effectiveSpecifier: "1.0.0", provenance: { kind: "manifest" } },
-      { dependencyName: "ordinary-tool", targetPackageName: "ordinary-tool", section: "dependencies", specifier: "1.0.0", effectiveSpecifier: "1.0.0", provenance: { kind: "manifest" } }
+      {
+        dependencyName: "test",
+        targetPackageName: "test",
+        section: "devDependencies",
+        specifier: "1.0.0",
+        effectiveSpecifier: "1.0.0",
+        provenance: { kind: "manifest" },
+      },
+      {
+        dependencyName: "ordinary-tool",
+        targetPackageName: "ordinary-tool",
+        section: "dependencies",
+        specifier: "1.0.0",
+        effectiveSpecifier: "1.0.0",
+        provenance: { kind: "manifest" },
+      },
     ],
-    bundledDependencies: [], exportSurface: { explicit: false, entries: [] }
+    bundledDependencies: [],
+    exportSurface: { explicit: false, entries: [] },
   };
   const resolver = new NodeSourceDependencyResolver();
   const resolve = (specifier, dependencies = workspacePackage.dependencies) => {
     const importer = { ...workspacePackage, dependencies };
     return resolver.resolve({
-      consumerRoot: repositoryRoot, enforceWorkspaceBindings: true,
-      file: { path: "packages/app/src/index.ts", workspacePackage: importer, boundary: boundary("development", []), parsed: { parseErrorCount: 0, references: [], unresolved: [] } },
-      governedFilePaths: new Set(), inventory: { catalogs: [], packages: [importer] },
-      reference: { kind: "static", specifier, start: 0, end: specifier.length }
+      consumerRoot: repositoryRoot,
+      enforceWorkspaceBindings: true,
+      file: {
+        path: "packages/app/src/index.ts",
+        workspacePackage: importer,
+        boundary: boundary("development", []),
+        parsed: { parseErrorCount: 0, references: [], unresolved: [] },
+      },
+      governedFilePaths: new Set(),
+      inventory: { catalogs: [], packages: [importer] },
+      reference: { kind: "static", specifier, start: 0, end: specifier.length },
     });
   };
   for (const specifier of ["node:test", "node:fs", "fs"]) {
-    assert.deepEqual(resolve(specifier), { kind: "builtin", specifier: specifier === "fs" ? "node:fs" : specifier });
+    assert.deepEqual(resolve(specifier), {
+      kind: "builtin",
+      specifier: specifier === "fs" ? "node:fs" : specifier,
+    });
   }
   for (const specifier of ["node:madeup", "node:unknown"]) {
-    assert.deepEqual(resolve(specifier), { kind: "unsupported", reason: "unsupported package or URL specifier" });
+    assert.deepEqual(resolve(specifier), {
+      kind: "unsupported",
+      reason: "unsupported package or URL specifier",
+    });
   }
   for (const specifier of ["test", "test/reporters"]) {
-    assert.deepEqual(resolve(specifier), { kind: "external-package", packageName: "test", declaration: "development" });
-    assert.deepEqual(resolve(specifier, []), { kind: "external-package", packageName: "test", declaration: "undeclared" });
+    assert.deepEqual(resolve(specifier), {
+      kind: "external-package",
+      packageName: "test",
+      declaration: "development",
+    });
+    assert.deepEqual(resolve(specifier, []), {
+      kind: "external-package",
+      packageName: "test",
+      declaration: "undeclared",
+    });
   }
-  assert.deepEqual(resolve("ordinary-tool"), { kind: "external-package", packageName: "ordinary-tool", declaration: "runtime" });
+  assert.deepEqual(resolve("ordinary-tool"), {
+    kind: "external-package",
+    packageName: "ordinary-tool",
+    declaration: "runtime",
+  });
 });

@@ -1,10 +1,14 @@
 schemaVersion: 2
-workspace: {kind: pnpm, manifest: pnpm-workspace.yaml}
+workspace: { kind: pnpm, manifest: pnpm-workspace.yaml }
 packageRoots: [packages]
 governedRoots: [packages/stock/src]
 boundaries:
   - id: stock.availability.domain
-    roots: [packages/stock/src/features/availability/domain, packages/stock/src/features/availability/domain.ts]
+    roots:
+      [
+        packages/stock/src/features/availability/domain,
+        packages/stock/src/features/availability/domain.ts,
+      ]
     entrypoints: [packages/stock/src/features/availability/domain.ts]
     allow:
       boundaries: []
@@ -12,7 +16,11 @@ boundaries:
       builtins: []
       runtimeReferences: []
   - id: stock.availability.application
-    roots: [packages/stock/src/features/availability/application, packages/stock/src/features/availability/application.ts]
+    roots:
+      [
+        packages/stock/src/features/availability/application,
+        packages/stock/src/features/availability/application.ts,
+      ]
     entrypoints: [packages/stock/src/features/availability/application.ts]
     allow:
       boundaries: [stock.availability.domain]

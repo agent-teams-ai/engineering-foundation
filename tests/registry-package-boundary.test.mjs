@@ -1,30 +1,35 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { cp, mkdir, mkdtemp, readFile, realpath, rename, rm, symlink, writeFile } from "node:fs/promises";
+import {
+  cp,
+  mkdir,
+  mkdtemp,
+  readFile,
+  realpath,
+  rename,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { test } from "node:test";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
 import {
   readInstalledPortableDocsSkill,
-  readInstalledManagedDocsSkill
+  readInstalledManagedDocsSkill,
 } from "../scripts/registry-installed-docs-skill.mjs";
-import {
-  isCanonicalPathInside,
-  isSameCanonicalPath
-} from "../scripts/registry-package-paths.mjs";
+import { isCanonicalPathInside, isSameCanonicalPath } from "../scripts/registry-package-paths.mjs";
 import {
   assertWindowsDocsApplyRecovery,
   assertWindowsDocsRecoveryInspection,
-  verifyWindowsDocsRecoveryQualification
+  verifyWindowsDocsRecoveryQualification,
 } from "../scripts/registry-document-authoring-policy.mjs";
 import {
   runWindowsDocsBin,
-  writeDocsProtocolProfileFixture
+  writeDocsProtocolProfileFixture,
 } from "../scripts/registry-document-authoring-e2e.mjs";
-import {
-  NodeDocsProfileReader
-} from "../packages/docs-protocol/dist/features/portable-documentation/adapters/outbound/node-profile-reader.js";
+import { NodeDocsProfileReader } from "../packages/docs-protocol/dist/features/portable-documentation/adapters/outbound/node-profile-reader.js";
 import { docsCheckV2, docsContextV1 } from "../packages/docs-protocol/dist/index.js";
 import { canonicalDocsScripts } from "../packages/docs-protocol-agent-teams/dist/index.js";
 
@@ -35,88 +40,172 @@ async function docsBinFixture(context) {
   const docsRoot = join(root, "node_modules", "@agent-teams", "docs-protocol");
   await mkdir(join(docsRoot, "dist"), { recursive: true });
   await mkdir(join(root, "node_modules", ".bin"));
-  await writeFile(join(docsRoot, "package.json"), JSON.stringify({
-    name: "@agent-teams/docs-protocol", type: "module", bin: { "agent-teams-docs": "./dist/cli.js" }
-  }));
-  await writeFile(join(docsRoot, "dist", "cli.js"), 'process.stdout.write(JSON.stringify(process.argv.slice(2)));\n');
+  await writeFile(
+    join(docsRoot, "package.json"),
+    JSON.stringify({
+      name: "@agent-teams/docs-protocol",
+      type: "module",
+      bin: { "agent-teams-docs": "./dist/cli.js" },
+    }),
+  );
+  await writeFile(
+    join(docsRoot, "dist", "cli.js"),
+    "process.stdout.write(JSON.stringify(process.argv.slice(2)));\n",
+  );
   return { root, docsRoot };
 }
 
 test("Windows docs dispatch preserves hostile argument bytes through the installed Node CLI", async (context) => {
   const { root, docsRoot } = await docsBinFixture(context);
-  const args = ["new", "--title", 'quotes " & echo INJECTED | more > marker < input ^ %PATH% !value!',
-    "--summary", "Unicode Ω and spaces", "", "trailing\\", "line\nbreak"];
+  const args = [
+    "new",
+    "--title",
+    'quotes " & echo INJECTED | more > marker < input ^ %PATH% !value!',
+    "--summary",
+    "Unicode Ω and spaces",
+    "",
+    "trailing\\",
+    "line\nbreak",
+  ];
   const result = await runWindowsDocsBin(root, args);
   assert.equal(result.stderr, "");
   assert.deepEqual(JSON.parse(result.stdout), args);
   const calls = [];
-  await runWindowsDocsBin(root, args, async (...call) => { calls.push(call); });
-  assert.deepEqual(calls, [[process.execPath,
-    [await realpath(join(docsRoot, "dist", "cli.js")), ...args], root, { timeoutMs: 120_000 }]]);
+  await runWindowsDocsBin(root, args, async (...call) => {
+    calls.push(call);
+  });
+  assert.deepEqual(calls, [
+    [
+      process.execPath,
+      [await realpath(join(docsRoot, "dist", "cli.js")), ...args],
+      root,
+      { timeoutMs: 120_000 },
+    ],
+  ]);
 });
 
 test("Windows docs shim qualification dispatches only the fixed public info command", async (context) => {
   const { root } = await docsBinFixture(context);
-  const args = ["info", "--consumer", ".", "--profile", "architecture/foundation/docs-protocol.yaml", "--json"];
+  const args = [
+    "info",
+    "--consumer",
+    ".",
+    "--profile",
+    "architecture/foundation/docs-protocol.yaml",
+    "--json",
+  ];
   const calls = [];
-  const execute = async (...call) => { calls.push(call); return { stdout: "shim output", stderr: "" }; };
-  assert.deepEqual(await runWindowsDocsBin(root, args, execute), { stdout: "shim output", stderr: "" });
-  assert.deepEqual(calls[0], [process.env.ComSpec ?? "cmd.exe", ["/d", "/s", "/c",
-    ".\\node_modules\\.bin\\agent-teams-docs.cmd info --consumer . --profile architecture/foundation/docs-protocol.yaml --json"
-  ], root, { timeoutMs: 120_000 }]);
+  const execute = async (...call) => {
+    calls.push(call);
+    return { stdout: "shim output", stderr: "" };
+  };
+  assert.deepEqual(await runWindowsDocsBin(root, args, execute), {
+    stdout: "shim output",
+    stderr: "",
+  });
+  assert.deepEqual(calls[0], [
+    process.env.ComSpec ?? "cmd.exe",
+    [
+      "/d",
+      "/s",
+      "/c",
+      ".\\node_modules\\.bin\\agent-teams-docs.cmd info --consumer . --profile architecture/foundation/docs-protocol.yaml --json",
+    ],
+    root,
+    { timeoutMs: 120_000 },
+  ]);
   await runWindowsDocsBin(root, [...args, "& echo INJECTED"], execute);
   assert.equal(calls[1][0], process.execPath);
 });
 
 test("Windows docs dispatch refuses changed manifest bindings and missing CLI files", async (context) => {
   const { root, docsRoot } = await docsBinFixture(context);
-  const execute = () => assert.fail(`Invalid installed CLI at ${docsRoot} must not launch a process.`);
+  const execute = () =>
+    assert.fail(`Invalid installed CLI at ${docsRoot} must not launch a process.`);
   for (const manifest of [
     { name: "@other/docs", bin: { "agent-teams-docs": "./dist/cli.js" } },
     { name: "@agent-teams/docs-protocol", bin: { "agent-teams-docs": "../outside.js" } },
-    { name: "@agent-teams/docs-protocol", bin: {} }
+    { name: "@agent-teams/docs-protocol", bin: {} },
   ]) {
     await writeFile(join(docsRoot, "package.json"), JSON.stringify(manifest));
-    await assert.rejects(runWindowsDocsBin(root, ["find", "text"], execute), /declare its public Node CLI/u);
+    await assert.rejects(
+      runWindowsDocsBin(root, ["find", "text"], execute),
+      /declare its public Node CLI/u,
+    );
   }
-  await writeFile(join(docsRoot, "package.json"), JSON.stringify({
-    name: "@agent-teams/docs-protocol", bin: { "agent-teams-docs": "./dist/cli.js" }
-  }));
+  await writeFile(
+    join(docsRoot, "package.json"),
+    JSON.stringify({
+      name: "@agent-teams/docs-protocol",
+      bin: { "agent-teams-docs": "./dist/cli.js" },
+    }),
+  );
   await rm(join(docsRoot, "dist", "cli.js"));
   await assert.rejects(runWindowsDocsBin(root, ["find", "text"], execute), /ENOENT/u);
 });
 
-test("Windows docs qualification executes the installed shim and refuses missing or broken shims", {
-  skip: process.platform !== "win32"
-}, async (context) => {
-  const { root } = await docsBinFixture(context);
-  const args = ["info", "--consumer", ".", "--profile", "architecture/foundation/docs-protocol.yaml", "--json"];
-  const shim = join(root, "node_modules", ".bin", "agent-teams-docs.cmd");
-  await assert.rejects(runWindowsDocsBin(root, args));
-  await writeFile(shim, `@"${process.execPath}" "%~dp0..\\@agent-teams\\docs-protocol\\dist\\cli.js" %*\r\n`);
-  const result = await runWindowsDocsBin(root, args);
-  assert.equal(result.stderr, "");
-  assert.deepEqual(JSON.parse(result.stdout), args);
-  await writeFile(shim, "@exit /b 37\r\n");
-  await assert.rejects(runWindowsDocsBin(root, args), (error) => error.code === 37);
-});
+test(
+  "Windows docs qualification executes the installed shim and refuses missing or broken shims",
+  {
+    skip: process.platform !== "win32",
+  },
+  async (context) => {
+    const { root } = await docsBinFixture(context);
+    const args = [
+      "info",
+      "--consumer",
+      ".",
+      "--profile",
+      "architecture/foundation/docs-protocol.yaml",
+      "--json",
+    ];
+    const shim = join(root, "node_modules", ".bin", "agent-teams-docs.cmd");
+    await assert.rejects(runWindowsDocsBin(root, args));
+    await writeFile(
+      shim,
+      `@"${process.execPath}" "%~dp0..\\@agent-teams\\docs-protocol\\dist\\cli.js" %*\r\n`,
+    );
+    const result = await runWindowsDocsBin(root, args);
+    assert.equal(result.stderr, "");
+    assert.deepEqual(JSON.parse(result.stdout), args);
+    await writeFile(shim, "@exit /b 37\r\n");
+    await assert.rejects(runWindowsDocsBin(root, args), (error) => error.code === 37);
+  },
+);
 
 test("managed canonical Skill supports portable adoption and bounded context with a custom profile", async () => {
   const root = await mkdtemp(join(tmpdir(), "managed-portable-adoption-"));
   const profilePath = "config/custom-docs.yaml";
   try {
-    await cp(new URL("../packages/docs-protocol/tests/fixtures/portable-qualification/", import.meta.url), root, { recursive: true });
+    await cp(
+      new URL("../packages/docs-protocol/tests/fixtures/portable-qualification/", import.meta.url),
+      root,
+      { recursive: true },
+    );
     await mkdir(join(root, "config"));
     await rename(join(root, "docs.config.yaml"), join(root, profilePath));
-    const skill = await readFile(new URL("../packages/docs-protocol-agent-teams/skills/docs/SKILL.md", import.meta.url));
+    const skill = await readFile(
+      new URL("../packages/docs-protocol-agent-teams/skills/docs/SKILL.md", import.meta.url),
+    );
     await writeFile(join(root, ".agents/skills/docs-authoring/SKILL.md"), skill);
     const scripts = canonicalDocsScripts(profilePath);
-    assert.equal(scripts["docs:context"], undefined, "context must not expand historical managed script ownership");
-    assert.equal(scripts["docs:info"], `agent-teams-docs info --consumer . --profile ${profilePath}`);
+    assert.equal(
+      scripts["docs:context"],
+      undefined,
+      "context must not expand historical managed script ownership",
+    );
+    assert.equal(
+      scripts["docs:info"],
+      `agent-teams-docs info --consumer . --profile ${profilePath}`,
+    );
     const check = await docsCheckV2({ consumerRoot: root, profilePath });
     assert.equal(check.envelope.outcome, "success", JSON.stringify(check.envelope.diagnostics));
-    const context = await docsContextV1({ consumerRoot: root, profilePath, query: {},
-      limits: { maxDocuments: 1, maxBytes: 4096 } });
+    const context = await docsContextV1({
+      consumerRoot: root,
+      profilePath,
+      query: {},
+      limits: { maxDocuments: 1, maxBytes: 4096 },
+    });
     assert.equal(context.envelope.outcome, "success", JSON.stringify(context.envelope.diagnostics));
     assert.deepEqual(context.envelope.result.limits, { maxDocuments: 1, maxBytes: 4096 });
     assert.ok(context.envelope.result.includedDocuments > 0);
@@ -134,17 +223,17 @@ test("registry Docs Profile fixture satisfies the current portable profile polic
 
   const profile = await new NodeDocsProfileReader().read({
     consumerRoot,
-    profilePath: "architecture/foundation/docs-protocol.yaml"
+    profilePath: "architecture/foundation/docs-protocol.yaml",
   });
   assert.equal(profile.schemaVersion, 3);
   assert.deepEqual(profile.agentWorkflow, {
     adoption: "portable-v1",
-    skillPath: ".agents/skills/docs-authoring/SKILL.md"
+    skillPath: ".agents/skills/docs-authoring/SKILL.md",
   });
   assert.equal(profile.foundationProfile.schemaVersion, 3);
   assert.equal(
     profile.foundationProfile.metadataSidecarPolicy,
-    "foundation-profile-v3-strict-merge"
+    "foundation-profile-v3-strict-merge",
   );
 });
 
@@ -159,18 +248,19 @@ test("canonical package boundaries use platform path semantics", () => {
   assert.equal(isCanonicalPathInside(root, join(root, "..", "docs-protocol")), false);
 });
 
-test("canonical package identity follows Windows drive and casing semantics", {
-  skip: process.platform !== "win32"
-}, () => {
-  assert.equal(
-    isSameCanonicalPath("C:\\Registry\\Foundation", "c:\\registry\\foundation"),
-    true
-  );
-  assert.equal(
-    isCanonicalPathInside("C:\\Registry\\Foundation", "c:\\registry\\foundation\\dist\\index.js"),
-    true
-  );
-});
+test(
+  "canonical package identity follows Windows drive and casing semantics",
+  {
+    skip: process.platform !== "win32",
+  },
+  () => {
+    assert.equal(isSameCanonicalPath("C:\\Registry\\Foundation", "c:\\registry\\foundation"), true);
+    assert.equal(
+      isCanonicalPathInside("C:\\Registry\\Foundation", "c:\\registry\\foundation\\dist\\index.js"),
+      true,
+    );
+  },
+);
 
 test("physical package containment rejects a link that resolves outside", async (context) => {
   const temporaryRoot = await mkdtemp(join(tmpdir(), "registry-package-boundary-"));
@@ -179,30 +269,47 @@ test("physical package containment rejects a link that resolves outside", async 
   const outsideRoot = join(temporaryRoot, "outside");
   await Promise.all([mkdir(packageRoot), mkdir(outsideRoot)]);
   const linkedQualification = join(packageRoot, "qualification");
-  await symlink(outsideRoot, linkedQualification, process.platform === "win32" ? "junction" : "dir");
+  await symlink(
+    outsideRoot,
+    linkedQualification,
+    process.platform === "win32" ? "junction" : "dir",
+  );
 
-  assert.equal(isCanonicalPathInside(
-    await realpath(packageRoot), await realpath(linkedQualification)
-  ), false);
+  assert.equal(
+    isCanonicalPathInside(await realpath(packageRoot), await realpath(linkedQualification)),
+    false,
+  );
 });
 
 test("portable Skill resolves from the qualified installed Docs Protocol root", async (context) => {
   const temporaryRoot = await mkdtemp(join(tmpdir(), "registry-installed-docs-skill-"));
   context.after(() => rm(temporaryRoot, { force: true, recursive: true }));
-  const installedRoot = join(temporaryRoot, "nested", "node_modules", "@agent-teams", "docs-protocol");
+  const installedRoot = join(
+    temporaryRoot,
+    "nested",
+    "node_modules",
+    "@agent-teams",
+    "docs-protocol",
+  );
   await mkdir(join(installedRoot, "dist", "qualification"), { recursive: true });
-  await writeFile(join(installedRoot, "package.json"), `${JSON.stringify({
-    name: "@agent-teams/docs-protocol",
-    type: "module",
-    exports: { "./qualification": { import: "./dist/qualification/index.js" } }
-  })}\n`, "utf8");
-  await writeFile(join(installedRoot, "dist", "qualification", "index.js"),
+  await writeFile(
+    join(installedRoot, "package.json"),
+    `${JSON.stringify({
+      name: "@agent-teams/docs-protocol",
+      type: "module",
+      exports: { "./qualification": { import: "./dist/qualification/index.js" } },
+    })}\n`,
+    "utf8",
+  );
+  await writeFile(
+    join(installedRoot, "dist", "qualification", "index.js"),
     "export const portableQualificationSkill = () => Buffer.from('# installed portable skill\\n');\n",
-    "utf8");
+    "utf8",
+  );
 
   assert.equal(
     (await readInstalledPortableDocsSkill(installedRoot)).toString("utf8"),
-    "# installed portable skill\n"
+    "# installed portable skill\n",
   );
 });
 
@@ -211,14 +318,20 @@ test("managed Skill uses installed catalog bytes and rejects changed authority",
   context.after(() => rm(root, { force: true, recursive: true }));
   await mkdir(join(root, "skills", "docs"), { recursive: true });
   await mkdir(join(root, "assets"));
-  await writeFile(join(root, "package.json"), JSON.stringify({ name: "@agent-teams/docs-protocol-agent-teams" }));
+  await writeFile(
+    join(root, "package.json"),
+    JSON.stringify({ name: "@agent-teams/docs-protocol-agent-teams" }),
+  );
   const skillPath = join(root, "skills", "docs", "SKILL.md");
   const skill = "# Installed managed Skill\n";
   await writeFile(skillPath, skill);
-  await writeFile(join(root, "assets", "catalog.json"), JSON.stringify({
-    skillPath: "skills/docs/SKILL.md",
-    skillDigest: `sha256:${createHash("sha256").update(skill).digest("hex")}`
-  }));
+  await writeFile(
+    join(root, "assets", "catalog.json"),
+    JSON.stringify({
+      skillPath: "skills/docs/SKILL.md",
+      skillDigest: `sha256:${createHash("sha256").update(skill).digest("hex")}`,
+    }),
+  );
   assert.equal((await readInstalledManagedDocsSkill(root)).toString("utf8"), skill);
   await writeFile(skillPath, `${skill}changed\n`);
   await assert.rejects(readInstalledManagedDocsSkill(root), /differs from its published catalog/u);
@@ -229,17 +342,24 @@ test("portable Skill rejects an installed qualification export outside its packa
   context.after(() => rm(temporaryRoot, { force: true, recursive: true }));
   const installedRoot = join(temporaryRoot, "docs-protocol");
   await mkdir(installedRoot);
-  await writeFile(join(temporaryRoot, "outside.js"),
-    "export const portableQualificationSkill = () => Buffer.from('outside');\n", "utf8");
-  await writeFile(join(installedRoot, "package.json"), `${JSON.stringify({
-    name: "@agent-teams/docs-protocol",
-    type: "module",
-    exports: { "./qualification": { import: "./../outside.js" } }
-  })}\n`, "utf8");
+  await writeFile(
+    join(temporaryRoot, "outside.js"),
+    "export const portableQualificationSkill = () => Buffer.from('outside');\n",
+    "utf8",
+  );
+  await writeFile(
+    join(installedRoot, "package.json"),
+    `${JSON.stringify({
+      name: "@agent-teams/docs-protocol",
+      type: "module",
+      exports: { "./qualification": { import: "./../outside.js" } },
+    })}\n`,
+    "utf8",
+  );
 
   await assert.rejects(
     readInstalledPortableDocsSkill(installedRoot),
-    /qualification export escapes its package root/u
+    /qualification export escapes its package root/u,
   );
 });
 
@@ -261,18 +381,18 @@ function windowsRecoveryApply() {
         commit: {
           state: "manual-recovery-required",
           publication: "none",
-          recoverability: "preserved-for-recovery"
+          recoverability: "preserved-for-recovery",
         },
-        directoryMaterialization: { state: "preserved-unknown" }
-      }
-    }
+        directoryMaterialization: { state: "preserved-unknown" },
+      },
+    },
   };
 }
 
 function windowsRecoveryInspection() {
   const transaction = {
     state: "manual-recovery-required",
-    reason: "journal-transition-residue"
+    reason: "journal-transition-residue",
   };
   return {
     doctor: {
@@ -280,41 +400,50 @@ function windowsRecoveryInspection() {
       outcome: "recovery-required",
       result: {
         environment: { filesystem: { strictDirectoryDurability: "platform-unsupported" } },
-        transaction
-      }
+        transaction,
+      },
     },
     recover: {
       command: "docs.recover",
       outcome: "recovery-required",
-      result: { transactionState: "manual-required", writeState: "unknown", transaction }
-    }
+      result: { transactionState: "manual-required", writeState: "unknown", transaction },
+    },
   };
 }
 
 test("Windows registry qualification accepts only unchanged manual recovery apply", () => {
   const applied = windowsRecoveryApply();
-  assert.doesNotThrow(() => assertWindowsDocsApplyRecovery(
-    applied, applied.result.documentPath
-  ));
-  assert.throws(() => assertWindowsDocsApplyRecovery({
-    ...applied,
-    result: {
-      ...applied.result,
-      receipt: {
-        ...applied.result.receipt,
-        commit: { ...applied.result.receipt.commit, publication: "published" }
-      }
-    }
-  }, applied.result.documentPath), /strict durability recovery contract/u);
+  assert.doesNotThrow(() => assertWindowsDocsApplyRecovery(applied, applied.result.documentPath));
+  assert.throws(
+    () =>
+      assertWindowsDocsApplyRecovery(
+        {
+          ...applied,
+          result: {
+            ...applied.result,
+            receipt: {
+              ...applied.result.receipt,
+              commit: { ...applied.result.receipt.commit, publication: "published" },
+            },
+          },
+        },
+        applied.result.documentPath,
+      ),
+    /strict durability recovery contract/u,
+  );
 });
 
 test("Windows registry qualification requires matching doctor and recover inspection", () => {
   const { doctor, recover } = windowsRecoveryInspection();
   assert.doesNotThrow(() => assertWindowsDocsRecoveryInspection(doctor, recover));
-  assert.throws(() => assertWindowsDocsRecoveryInspection(doctor, {
-    ...recover,
-    result: { ...recover.result, transactionState: "recovered" }
-  }), /manual recovery classification/u);
+  assert.throws(
+    () =>
+      assertWindowsDocsRecoveryInspection(doctor, {
+        ...recover,
+        result: { ...recover.result, transactionState: "recovered" },
+      }),
+    /manual recovery classification/u,
+  );
 });
 
 async function runWindowsEvidenceScenario(context, mutateAfterInspection, prepareTransition) {
@@ -334,8 +463,7 @@ async function runWindowsEvidenceScenario(context, mutateAfterInspection, prepar
       commands.push({ args, exitCode });
       if (args[0] === "new") {
         const stateRoot = join(consumerRoot, ".agent-teams-local");
-        const transitionPath = join(stateRoot,
-          "scaffolding-transaction.json.document-transition");
+        const transitionPath = join(stateRoot, "scaffolding-transaction.json.document-transition");
         await mkdir(stateRoot);
         await writeFile(join(stateRoot, "foundation-operation.lock"), "", "utf8");
         if (prepareTransition === undefined) {
@@ -350,50 +478,72 @@ async function runWindowsEvidenceScenario(context, mutateAfterInspection, prepar
       }
       await mutateAfterInspection?.({
         stateRoot: join(consumerRoot, ".agent-teams-local"),
-        transitionPath: join(consumerRoot, ".agent-teams-local",
-          "scaffolding-transaction.json.document-transition")
+        transitionPath: join(
+          consumerRoot,
+          ".agent-teams-local",
+          "scaffolding-transaction.json.document-transition",
+        ),
       });
       return recover;
-    }
+    },
   });
   return { catalogRoot, commands };
 }
 
 test("Windows registry qualification inspects preserved evidence without mutation", async (context) => {
   const { catalogRoot, commands } = await runWindowsEvidenceScenario(context);
-  assert.deepEqual(commands.map(({ args, exitCode }) => [args[0], exitCode]), [
-    ["new", 1], ["doctor", 1], ["recover", 1]
-  ]);
+  assert.deepEqual(
+    commands.map(({ args, exitCode }) => [args[0], exitCode]),
+    [
+      ["new", 1],
+      ["doctor", 1],
+      ["recover", 1],
+    ],
+  );
   assert.equal(await readFile(join(catalogRoot, "README.md"), "utf8"), "# Catalog\n");
 });
 
 test("Windows registry qualification rejects corrupted transition evidence", async (context) => {
-  await assert.rejects(runWindowsEvidenceScenario(context, async ({ transitionPath }) => {
-    await writeFile(transitionPath, "corrupted", "utf8");
-  }), /transition evidence bytes changed/u);
+  await assert.rejects(
+    runWindowsEvidenceScenario(context, async ({ transitionPath }) => {
+      await writeFile(transitionPath, "corrupted", "utf8");
+    }),
+    /transition evidence bytes changed/u,
+  );
 });
 
 test("Windows registry qualification rejects byte-identical transition replacement", async (context) => {
-  await assert.rejects(runWindowsEvidenceScenario(context, async ({ stateRoot, transitionPath }) => {
-    const replacement = join(stateRoot, "replacement-transition");
-    await writeFile(replacement, "evidence", "utf8");
-    await rm(transitionPath);
-    await rename(replacement, transitionPath);
-  }), /file identity changed/u);
+  await assert.rejects(
+    runWindowsEvidenceScenario(context, async ({ stateRoot, transitionPath }) => {
+      const replacement = join(stateRoot, "replacement-transition");
+      await writeFile(replacement, "evidence", "utf8");
+      await rm(transitionPath);
+      await rename(replacement, transitionPath);
+    }),
+    /file identity changed/u,
+  );
 });
 
 test("Windows registry qualification rejects extra recovery state entries", async (context) => {
-  await assert.rejects(runWindowsEvidenceScenario(context, async ({ stateRoot }) => {
-    await writeFile(join(stateRoot, "unexpected-residue"), "unexpected", "utf8");
-  }), /unexpected entry census/u);
+  await assert.rejects(
+    runWindowsEvidenceScenario(context, async ({ stateRoot }) => {
+      await writeFile(join(stateRoot, "unexpected-residue"), "unexpected", "utf8");
+    }),
+    /unexpected entry census/u,
+  );
 });
 
 const symlinkEvidenceTest = process.platform === "win32" ? test.skip : test;
-symlinkEvidenceTest("Windows registry qualification rejects symlink transition evidence", async (context) => {
-  await assert.rejects(runWindowsEvidenceScenario(context, undefined,
-    async ({ consumerRoot, transitionPath }) => {
-      const target = join(consumerRoot, "outside-transition-evidence");
-      await writeFile(target, "evidence", "utf8");
-      await symlink(target, transitionPath);
-    }), /not a regular physical file/u);
-});
+symlinkEvidenceTest(
+  "Windows registry qualification rejects symlink transition evidence",
+  async (context) => {
+    await assert.rejects(
+      runWindowsEvidenceScenario(context, undefined, async ({ consumerRoot, transitionPath }) => {
+        const target = join(consumerRoot, "outside-transition-evidence");
+        await writeFile(target, "evidence", "utf8");
+        await symlink(target, transitionPath);
+      }),
+      /not a regular physical file/u,
+    );
+  },
+);

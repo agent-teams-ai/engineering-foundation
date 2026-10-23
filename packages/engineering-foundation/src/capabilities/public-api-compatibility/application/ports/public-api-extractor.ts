@@ -1,13 +1,10 @@
-import type {
-  PublicApiPackagePolicy,
-  PublicApiSnapshot
-} from "../model/public-api.js";
+import type { PublicApiPackagePolicy, PublicApiSnapshot } from "../model/public-api.js";
 
 export interface PublicApiExtractor {
   extract(
     consumerRoot: string,
     policy: PublicApiPackagePolicy,
     packageVersion: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ): Promise<PublicApiSnapshot>;
 }

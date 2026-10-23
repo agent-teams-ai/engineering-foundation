@@ -2,13 +2,10 @@ import {
   canonicalJson as canonicalRepositoryMutationJson,
   sha256Bytes as sha256RepositoryMutationBytes,
   sha256Json as sha256RepositoryMutationJson,
-  sha256Text as sha256RepositoryMutationText
+  sha256Text as sha256RepositoryMutationText,
 } from "@agent-teams/repository-mutation/serialization";
 
-import type {
-  JsonValue,
-  Sha256Digest
-} from "../application/model/scaffold-values.js";
+import type { JsonValue, Sha256Digest } from "../application/model/scaffold-values.js";
 import { ScaffoldError } from "../scaffold-error.js";
 
 function mapCanonicalFailure<T>(operation: () => T): T {
@@ -19,7 +16,7 @@ function mapCanonicalFailure<T>(operation: () => T): T {
       "SCAFFOLD_INPUT_INVALID",
       "Scaffolding JSON does not satisfy the canonical Repository Mutation primitive.",
       [],
-      { cause: error }
+      { cause: error },
     );
   }
 }

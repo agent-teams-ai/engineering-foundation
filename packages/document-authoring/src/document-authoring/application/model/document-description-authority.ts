@@ -1,4 +1,7 @@
-import type { ValidatedDocumentAuthoringProfileV2, ValidatedDocumentAuthoringProfileV3 } from "./validated-document-authoring-profile.js";
+import type {
+  ValidatedDocumentAuthoringProfileV2,
+  ValidatedDocumentAuthoringProfileV3,
+} from "./validated-document-authoring-profile.js";
 import type { DocumentAuthorityEvidence } from "./document-catalog.js";
 import type { MetadataSchemaSnapshot } from "../ports/metadata-instance-validator.js";
 import type { OwnerMembershipSnapshot } from "../ports/owner-membership-reader.js";

@@ -1,13 +1,14 @@
-import { currentDocumentContractFixture, fixtureKernelArtifact } from "./support/current-document-contract-fixture.mjs";
+import {
+  currentDocumentContractFixture,
+  fixtureKernelArtifact,
+} from "./support/current-document-contract-fixture.mjs";
 import { assertSchema } from "../packages/document-authoring/dist/document-authoring/adapters/node/schema-catalog.js";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import {
-  createDocumentReceipt as createDocumentReceiptWithSchema,
-} from "../packages/document-authoring/dist/document-authoring/application/policies/document-receipt-policy.js";
+import { createDocumentReceipt as createDocumentReceiptWithSchema } from "../packages/document-authoring/dist/document-authoring/application/policies/document-receipt-policy.js";
 import {
   assertDocumentTransactionEnvelope as assertDocumentTransactionEnvelopeWithSchema,
   createDocumentTransactionEnvelope as createDocumentTransactionEnvelopeWithSchema,
@@ -80,16 +81,22 @@ test("rejects envelope tampering and cross-state lifecycle aliases", async () =>
     /digest/u,
   );
   await assert.rejects(
-      createDocumentTransactionEnvelope({
-        ...preparedBody(),
-        state: "PUBLISHING",
-      }),
+    createDocumentTransactionEnvelope({
+      ...preparedBody(),
+      state: "PUBLISHING",
+    }),
     /closed versioned schema|lifecycle|temporary/u,
   );
 });
 
-function createDocumentReceipt(...args) { return createDocumentReceiptWithSchema({ assertSchema }, ...args); }
+function createDocumentReceipt(...args) {
+  return createDocumentReceiptWithSchema({ assertSchema }, ...args);
+}
 
-function createDocumentTransactionEnvelope(...args) { return createDocumentTransactionEnvelopeWithSchema({ assertSchema }, ...args); }
+function createDocumentTransactionEnvelope(...args) {
+  return createDocumentTransactionEnvelopeWithSchema({ assertSchema }, ...args);
+}
 
-function assertDocumentTransactionEnvelope(...args) { return assertDocumentTransactionEnvelopeWithSchema({ assertSchema }, ...args); }
+function assertDocumentTransactionEnvelope(...args) {
+  return assertDocumentTransactionEnvelopeWithSchema({ assertSchema }, ...args);
+}

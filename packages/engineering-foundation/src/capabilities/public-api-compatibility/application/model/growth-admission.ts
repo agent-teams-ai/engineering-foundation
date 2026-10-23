@@ -36,32 +36,39 @@ export interface GrowthDecision {
   readonly lifecycle:
     | { readonly kind: "ordinary" }
     | {
-      readonly kind: "shim" | "deprecation" | "removal";
-      readonly replacement: string;
-      readonly migration: string;
-      readonly removalConditions: string;
-    };
+        readonly kind: "shim" | "deprecation" | "removal";
+        readonly replacement: string;
+        readonly migration: string;
+        readonly removalConditions: string;
+      };
 }
 
 export type GrowthComparison =
   | {
-    readonly status: "complete";
-    readonly before: GrowthDigest;
-    readonly after: GrowthDigest;
-    readonly transitions: readonly GrowthTransition[];
-  }
+      readonly status: "complete";
+      readonly before: GrowthDigest;
+      readonly after: GrowthDigest;
+      readonly transitions: readonly GrowthTransition[];
+    }
   | {
-    readonly status: "incomplete";
-    readonly reasons: readonly string[];
-    readonly findings: readonly GrowthTransition[];
-  };
+      readonly status: "incomplete";
+      readonly reasons: readonly string[];
+      readonly findings: readonly GrowthTransition[];
+    };
 
 export interface GrowthAdmissionDiagnostic {
-  readonly code: "growth-decision-malformed" | "growth-decision-duplicate"
-    | "growth-decision-stale" | "growth-decision-coordinate-mismatch"
-    | "growth-decision-fingerprint-mismatch" | "growth-transition-unadmitted"
-    | "growth-decision-overlap" | "growth-owner-evidence-unavailable"
-    | "growth-decision-budget-exhausted" | "growth-comparison-incomplete" | "growth-compatibility-rejected";
+  readonly code:
+    | "growth-decision-malformed"
+    | "growth-decision-duplicate"
+    | "growth-decision-stale"
+    | "growth-decision-coordinate-mismatch"
+    | "growth-decision-fingerprint-mismatch"
+    | "growth-transition-unadmitted"
+    | "growth-decision-overlap"
+    | "growth-owner-evidence-unavailable"
+    | "growth-decision-budget-exhausted"
+    | "growth-comparison-incomplete"
+    | "growth-compatibility-rejected";
   readonly subject: string;
   readonly remediation: string;
 }

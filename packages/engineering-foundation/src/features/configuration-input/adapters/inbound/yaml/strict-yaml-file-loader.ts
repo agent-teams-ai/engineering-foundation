@@ -1,12 +1,15 @@
 import { realpath, stat } from "node:fs/promises";
 import { resolve } from "node:path";
 
-import { assertConfigurationRelativePath, rejectConfigurationObservation } from "../../../application/configuration-file-observation-policy.js";
+import {
+  assertConfigurationRelativePath,
+  rejectConfigurationObservation,
+} from "../../../application/configuration-file-observation-policy.js";
 import {
   assertConfigurationReadActive,
   rejectConfigurationRoot,
   rejectNonDirectoryConfigurationRoot,
-  MAX_CONFIG_BYTES
+  MAX_CONFIG_BYTES,
 } from "../../../application/configuration-file-problem.js";
 import type { ConfigurationFileReader } from "../../../application/ports/configuration-file-reader.js";
 import { parseStrictYamlSource } from "./strict-yaml-parser.js";
@@ -30,7 +33,7 @@ export function createStrictYamlFileLoader(reader: ConfigurationFileReader) {
     consumerRoot: string,
     repositoryPath: string,
     phase: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ): Promise<unknown> {
     assertConfigurationReadActive(signal);
     assertConfigurationRelativePath(repositoryPath, phase);
@@ -40,7 +43,7 @@ export function createStrictYamlFileLoader(reader: ConfigurationFileReader) {
       bytes = await reader.read({
         candidate: resolve(root, repositoryPath),
         maxBytes: MAX_CONFIG_BYTES,
-        root
+        root,
       });
     } catch (error) {
       rejectConfigurationObservation(error, repositoryPath, phase);

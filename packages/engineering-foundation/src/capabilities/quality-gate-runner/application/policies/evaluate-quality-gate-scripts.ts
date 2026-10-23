@@ -1,8 +1,5 @@
 import type { FoundationDiagnostic } from "../../../../features/validation-reporting/api.js";
-import type {
-  PackageScriptCatalog,
-  QualityGatePolicyInput
-} from "../model/quality-gate.js";
+import type { PackageScriptCatalog, QualityGatePolicyInput } from "../model/quality-gate.js";
 
 const PACKAGE_SCRIPT_REFERENCE =
   /(?:^|[;&|()]|\s)(?:pnpm|npm|bun)\s+(?:run(?:-script)?\s+)?([A-Za-z0-9][A-Za-z0-9:._-]*)/gu;
@@ -21,7 +18,7 @@ function scriptReferences(command: string): readonly string[] {
 function reachesRunner(
   scriptId: string,
   catalog: PackageScriptCatalog,
-  visiting = new Set<string>()
+  visiting = new Set<string>(),
 ): boolean {
   if (visiting.has(scriptId)) {
     return false;
@@ -39,9 +36,7 @@ function reachesRunner(
   }
   const next = new Set(visiting);
   next.add(scriptId);
-  return scriptReferences(command).some((reference) =>
-    reachesRunner(reference, catalog, next)
-  );
+  return scriptReferences(command).some((reference) => reachesRunner(reference, catalog, next));
 }
 
 function diagnostic(input: {
@@ -60,32 +55,38 @@ function diagnostic(input: {
     remediation: input.ruleId.endsWith("missing")
       ? "Add the package script or remove it from every quality gate profile."
       : "Remove the direct or indirect quality gate runner invocation from this script.",
-    requiresArchitectureReview: false
+    requiresArchitectureReview: false,
   });
 }
 
 export function evaluateQualityGateScripts(
   policy: QualityGatePolicyInput,
-  catalog: PackageScriptCatalog
+  catalog: PackageScriptCatalog,
 ): readonly FoundationDiagnostic[] {
-  const scriptIds = [...new Set(
-    policy.profiles.flatMap(({ tasks }) => tasks.map(({ id }) => id))
-  )].toSorted();
-  return Object.freeze(scriptIds.flatMap((scriptId) => {
-    if (catalog.scripts[scriptId] === undefined) {
-      return [diagnostic({
-        ruleId: "quality.gate-runner.script-missing",
-        scriptId,
-        message: `Quality gate task ${scriptId} is not an existing root package.json script.`
-      })];
-    }
-    if (reachesRunner(scriptId, catalog)) {
-      return [diagnostic({
-        ruleId: "quality.gate-runner.script-recursive",
-        scriptId,
-        message: `Quality gate task ${scriptId} directly or indirectly invokes the gate runner.`
-      })];
-    }
-    return [];
-  }));
+  const scriptIds = [
+    ...new Set(policy.profiles.flatMap(({ tasks }) => tasks.map(({ id }) => id))),
+  ].toSorted();
+  return Object.freeze(
+    scriptIds.flatMap((scriptId) => {
+      if (catalog.scripts[scriptId] === undefined) {
+        return [
+          diagnostic({
+            ruleId: "quality.gate-runner.script-missing",
+            scriptId,
+            message: `Quality gate task ${scriptId} is not an existing root package.json script.`,
+          }),
+        ];
+      }
+      if (reachesRunner(scriptId, catalog)) {
+        return [
+          diagnostic({
+            ruleId: "quality.gate-runner.script-recursive",
+            scriptId,
+            message: `Quality gate task ${scriptId} directly or indirectly invokes the gate runner.`,
+          }),
+        ];
+      }
+      return [];
+    }),
+  );
 }

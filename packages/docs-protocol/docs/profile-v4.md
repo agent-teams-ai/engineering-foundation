@@ -7,14 +7,14 @@ and release-owned baselines are unchanged. Publication qualification is separate
 
 ## Identity and compatibility
 
-| Surface | Decision |
-| --- | --- |
-| Portable profile v3 | Preserve `$id` `https://agent-teams.ai/schemas/docs-protocol-profile/v3`, discriminator `schemaVersion: 3`, closed schema bytes, reader output and legacy vocabulary. |
-| Portable profile v4 | New `$id` `https://agent-teams.ai/schemas/docs-protocol-profile/v4`, discriminator `schemaVersion: 4`; require `relations.blockers`. No implicit generation selection. |
-| Authoring profile | Continue referencing Document Authoring profile v3 and `foundation-profile-v3-strict-merge`. |
-| Protocol, command envelopes, Plans, Receipts, journals | Retain all existing wire identities and byte/digest rules. A protocol profile is not a transaction format. |
-| Existing Node callers | `DocsNewRequest.expectedPlanDigest` is optional and source-compatible. `DocsProtocolProfileV3` stays unchanged. New `DocsProtocolProfileV4` is an additive type export. `DocsNewResultV2` now truthfully includes the existing empty wire error result; callers relying on a required `kind` without checking the result must narrow first. |
-| Existing wire readers | V3-only readers reject v4. V4 is **not wire-compatible** with them. The new reader accepts both explicitly selected generations; no dual writer or automatic migration. |
+| Surface                                                | Decision                                                                                                                                                                                                                                                                                                                                    |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Portable profile v3                                    | Preserve `$id` `https://agent-teams.ai/schemas/docs-protocol-profile/v3`, discriminator `schemaVersion: 3`, closed schema bytes, reader output and legacy vocabulary.                                                                                                                                                                       |
+| Portable profile v4                                    | New `$id` `https://agent-teams.ai/schemas/docs-protocol-profile/v4`, discriminator `schemaVersion: 4`; require `relations.blockers`. No implicit generation selection.                                                                                                                                                                      |
+| Authoring profile                                      | Continue referencing Document Authoring profile v3 and `foundation-profile-v3-strict-merge`.                                                                                                                                                                                                                                                |
+| Protocol, command envelopes, Plans, Receipts, journals | Retain all existing wire identities and byte/digest rules. A protocol profile is not a transaction format.                                                                                                                                                                                                                                  |
+| Existing Node callers                                  | `DocsNewRequest.expectedPlanDigest` is optional and source-compatible. `DocsProtocolProfileV3` stays unchanged. New `DocsProtocolProfileV4` is an additive type export. `DocsNewResultV2` now truthfully includes the existing empty wire error result; callers relying on a required `kind` without checking the result must narrow first. |
+| Existing wire readers                                  | V3-only readers reject v4. V4 is **not wire-compatible** with them. The new reader accepts both explicitly selected generations; no dual writer or automatic migration.                                                                                                                                                                     |
 
 Frozen schema and profile bytes plus original-parser outputs/diagnostics live in
 `../tests/fixtures/profile-v3-frozen`. Provenance records the audited original
@@ -26,7 +26,7 @@ Registry artifact/SRI baseline promotion remains release-owner work.
 
 ```yaml
 schemaVersion: 4
-protocol: {id: agent-teams.docs-protocol, version: 1}
+protocol: { id: agent-teams.docs-protocol, version: 1 }
 foundationProfile:
   path: .docs-protocol/document-authoring.yaml
   schemaVersion: 3

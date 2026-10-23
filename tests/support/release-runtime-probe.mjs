@@ -1,66 +1,92 @@
-import assert from 'node:assert/strict';
-import childProcess from 'node:child_process';
-import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
-import { readFile as readSourceFile } from 'node:fs/promises';
-import { registerHooks, syncBuiltinESMExports } from 'node:module';
-import { join } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { createProbeAttestations } from "./release-probe-attestations.ts";
+import { makeProbeArchive } from "./release-probe-archive.ts";
+import assert from "node:assert/strict";
+import childProcess from "node:child_process";
+import { readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { readFile as readSourceFile } from "node:fs/promises";
+import { registerHooks, syncBuiltinESMExports } from "node:module";
+import { join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { REGISTRY_OBSERVATION_ATTEMPTS, REGISTRY_OBSERVATION_RETRY_MILLISECONDS,
-  REGISTRY_VISIBILITY_TIMEOUT_MILLISECONDS } from '../../scripts/release-publish-ordered.mjs';
+import {
+  REGISTRY_OBSERVATION_ATTEMPTS,
+  REGISTRY_OBSERVATION_RETRY_MILLISECONDS,
+  REGISTRY_VISIBILITY_TIMEOUT_MILLISECONDS,
+} from "../../scripts/release-publish-ordered.mjs";
 
 const scenario = process.argv[2];
-const changelogEol = process.argv[3] ?? 'lf';
-assert.ok(['lf', 'crlf'].includes(changelogEol));
+const changelogEol = process.argv[3] ?? "lf";
+assert.ok(["lf", "crlf"].includes(changelogEol));
 globalThis.readProbeFile = async (path, options) => {
   const value = await readSourceFile(path, options);
-  if (typeof value !== 'string' || !String(path).endsWith('CHANGELOG.md')) { return value; }
-  const info = packages.find(entry => String(path) === join(sourceRoot, entry.changelogPath));
+  if (typeof value !== "string" || !String(path).endsWith("CHANGELOG.md")) {
+    return value;
+  }
+  const info = packages.find((entry) => String(path) === join(sourceRoot, entry.changelogPath));
   assert.ok(info);
-  const heading = scenario === 'notes-level-three' ? '###' : '##';
-  const version = scenario === 'notes-prefix' ? `${info.version}.1` : info.version;
-  const body = scenario === 'notes-empty' ? '' : '\n### Minor Changes\n\nNew notes\n\n';
+  const heading = scenario === "notes-level-three" ? "###" : "##";
+  const version = scenario === "notes-prefix" ? `${info.version}.1` : info.version;
+  const body = scenario === "notes-empty" ? "" : "\n### Minor Changes\n\nNew notes\n\n";
   // Model Changesets' staged release only in this child. The source package's
   // unreleased changelog must remain unreleased outside the intercepted read.
-  const stagedNotes = ['@agent-teams/ci-input-proof', '@agent-teams/release-checks', '@agent-teams/feature-module-standard', 'stack-toolchain'].includes(info.name)
-    ? `# Staged package\n\n## ${info.version}\n\n### Minor Changes\n\nStaged TEST release notes.\n` : value;
-  const notes = scenario.startsWith('notes-')
-    ? `# package\n\n${heading} ${version}\n${body}## 0.0.0\n\nOld notes\n` : stagedNotes;
-  return notes.replace(/\r?\n/gu, changelogEol === 'crlf' ? '\r\n' : '\n');
+  const stagedNotes = [
+    "@agent-teams/ci-input-proof",
+    "@agent-teams/release-checks",
+    "@agent-teams/feature-module-standard",
+    "stack-toolchain",
+  ].includes(info.name)
+    ? `# Staged package\n\n## ${info.version}\n\n### Minor Changes\n\nStaged TEST release notes.\n`
+    : value;
+  const notes = scenario.startsWith("notes-")
+    ? `# package\n\n${heading} ${version}\n${body}## 0.0.0\n\nOld notes\n`
+    : stagedNotes;
+  return notes.replace(/\r?\n/gu, changelogEol === "crlf" ? "\r\n" : "\n");
 };
 
-const sourceRoot = fileURLToPath(new URL('../../', import.meta.url));
-const sourceCommit = '7095f55898da253ba81f6329f2b9ca27da712406';
-const advancedCommit = 'b'.repeat(40);
-Object.assign(process.env, { GITHUB_SHA: sourceCommit, GITHUB_REF: 'refs/heads/main', GITHUB_REPOSITORY: 'fixture/release-probe' });
+const sourceRoot = fileURLToPath(new URL("../../", import.meta.url));
+const sourceCommit = "7095f55898da253ba81f6329f2b9ca27da712406";
+const advancedCommit = "b".repeat(40);
+Object.assign(process.env, {
+  GITHUB_SHA: sourceCommit,
+  GITHUB_REF: "refs/heads/main",
+  GITHUB_REPOSITORY: "fixture/release-probe",
+});
 const originalSpawn = childProcess.spawnSync;
-const { PUBLISHABLE_PACKAGES, PUBLISHABLE_PACKAGE_DEPENDENCIES } = await import(pathToFileURL(join(sourceRoot, 'scripts/publishable-packages.mjs')));
-const { qualifiedArchive } = await import(pathToFileURL(join(sourceRoot, 'tests/pack-publishable-artifacts-support.mjs')));
-const packages = PUBLISHABLE_PACKAGES.map(entry => ({ ...entry, ...JSON.parse(readFileSync(join(sourceRoot, entry.manifestPath))) }));
-const versions = new Map(packages.map(info => [info.name, info.version]));
+const { PUBLISHABLE_PACKAGES } = await import(
+  pathToFileURL(join(sourceRoot, "scripts/publishable-packages.mjs"))
+);
+const packages = PUBLISHABLE_PACKAGES.map((entry) => ({
+  ...entry,
+  ...JSON.parse(readFileSync(join(sourceRoot, entry.manifestPath))),
+}));
+const versions = new Map(packages.map((info) => [info.name, info.version]));
 const expectedPublications = [
-  '@agent-teams/ci-input-proof',
-  '@agent-teams/release-checks',
-  '@agent-teams/repository-mutation',
-  '@agent-teams/document-authoring',
-  '@agent-teams/docs-protocol',
-  '@agent-teams/docs-protocol-agent-teams',
-  '@agent-teams/docs-protocol-mcp',
-  '@agent-teams/engineering-foundation',
-  '@agent-teams/feature-module-standard',
-  'stack-toolchain',
+  "@agent-teams/ci-input-proof",
+  "@agent-teams/release-checks",
+  "@agent-teams/repository-mutation",
+  "@agent-teams/document-authoring",
+  "@agent-teams/docs-protocol",
+  "@agent-teams/docs-protocol-agent-teams",
+  "@agent-teams/docs-protocol-mcp",
+  "@agent-teams/engineering-foundation",
+  "@agent-teams/feature-module-standard",
+  "stack-toolchain",
 ];
 // This helper runs in a disposable child: all external effects are stubbed before
 // importing the actual runtime. Real archive readers, tar, and release policy stay active.
 const originalTimeout = globalThis.setTimeout;
 let acceleratedNow = 0;
-const bodyAbort = ['metadata-body-abort', 'tarball-body-abort', 'attestation-body-abort'].includes(scenario);
-const virtualTime = scenario.startsWith('attestation-e404-persistent') ||
-  scenario.startsWith('attestation-empty-') || scenario === 'ambiguous-absent' || bodyAbort;
+const bodyAbort = ["metadata-body-abort", "tarball-body-abort", "attestation-body-abort"].includes(
+  scenario,
+);
+const virtualTime =
+  scenario.startsWith("attestation-e404-persistent") ||
+  scenario.startsWith("attestation-empty-") ||
+  scenario === "ambiguous-absent" ||
+  bodyAbort;
 const observationControllers = [];
 if (bodyAbort) {
-  AbortSignal.timeout = milliseconds => {
+  AbortSignal.timeout = (milliseconds) => {
     const controller = new AbortController();
     observationControllers.push({ controller, milliseconds });
     return controller.signal;
@@ -74,169 +100,196 @@ globalThis.setTimeout = (callback, milliseconds, ...args) => {
   if (virtualTime && milliseconds === REGISTRY_OBSERVATION_RETRY_MILLISECONDS) {
     acceleratedNow += milliseconds;
   }
-  return originalTimeout(callback, milliseconds === REGISTRY_OBSERVATION_RETRY_MILLISECONDS ? 0 : milliseconds, ...args);
+  return originalTimeout(
+    callback,
+    milliseconds === REGISTRY_OBSERVATION_RETRY_MILLISECONDS ? 0 : milliseconds,
+    ...args,
+  );
 };
-registerHooks({ resolve(specifier, context, next) {
-  const fromRuntime = context.parentURL === pathToFileURL(join(sourceRoot, 'scripts/release-publish-ordered-runtime.mjs')).href;
-  const stubs = {
-    'node:fs/promises': `export {mkdtemp, rm, writeFile} from 'node:fs/promises';
+registerHooks({
+  resolve(specifier, context, next) {
+    const fromRuntime =
+      context.parentURL ===
+      pathToFileURL(join(sourceRoot, "scripts/release-publish-ordered-runtime.mjs")).href;
+    const stubs = {
+      "node:fs/promises": `export {mkdtemp, rm, writeFile} from 'node:fs/promises';
 export const readFile = (...args) => globalThis.readProbeFile(...args);`,
-    './pack-publishable-artifacts.mjs': 'export const packPublishableArtifacts = input => globalThis.releaseProbe.pack(input);',
-    './github-release-reconciliation.mjs': `export const GITHUB_RECONCILIATION_ATTEMPTS = 1;
+      "./pack-publishable-artifacts.mjs":
+        "export const packPublishableArtifacts = input => globalThis.releaseProbe.pack(input);",
+      "./github-release-reconciliation.mjs": `export const GITHUB_RECONCILIATION_ATTEMPTS = 1;
 export const GITHUB_RECONCILIATION_RETRY_MILLISECONDS = 0;
 export const githubJson = args => globalThis.releaseProbe.github(args);
 export const reconcileGithubTagRelease = (...args) => globalThis.releaseProbe.reconcile(...args);`,
-  };
-  if (fromRuntime && Object.hasOwn(stubs, specifier)) {
-    return { url: 'data:text/javascript,' + encodeURIComponent(stubs[specifier]), shortCircuit: true };
-  }
-  return next(specifier, context);
-} });
+    };
+    if (fromRuntime && Object.hasOwn(stubs, specifier)) {
+      return {
+        url: "data:text/javascript," + encodeURIComponent(stubs[specifier]),
+        shortCircuit: true,
+      };
+    }
+    return next(specifier, context);
+  },
+});
 
-const ok = stdout => ({ status: 0, stdout, stderr: '' });
+const ok = (stdout) => ({ status: 0, stdout, stderr: "" });
 
-function begin() {
-  const events = [];
-  const archiveByName = new Map();
-  const published = new Set();
+function begin(events = [], archiveByName = new Map(), published = new Set()) {
   let liveMain = sourceCommit;
   let installed;
-  const makeArchive = (info, destination) => {
-    mkdirSync(destination, { recursive: true });
-    const manifest = { name: info.name, version: info.version,
-      dependencies: Object.fromEntries(PUBLISHABLE_PACKAGE_DEPENDENCIES[info.name].map(name => [name, versions.get(name)])) };
-    const bytes = qualifiedArchive(manifest);
-    const archivePath = join(destination, `${info.name.replace(/^@/u, '').replace('/', '-')}-${info.version}.tgz`);
-    writeFileSync(archivePath, bytes, { mode: 0o444 });
-    const archive = { archivePath, sha256: createHash('sha256').update(bytes).digest('hex'),
-      packageName: info.name, packageVersion: info.version, manifest, bytes,
-      integrity: `sha512-${createHash('sha512').update(bytes).digest('base64')}` };
-    archiveByName.set(info.name, archive);
-    return archive;
-  };
-  const statement = name => ({ _type: 'https://in-toto.io/Statement/v1', predicateType: 'https://slsa.dev/provenance/v1',
-    subject: [{ name: `pkg:npm/${name.startsWith('@') ? `%40${name.slice(1)}` : name}@${versions.get(name)}`, digest: { sha512: createHash('sha512').update(archiveByName.get(name).bytes).digest('hex') } }],
-    predicate: { buildDefinition: { externalParameters: { workflow: { ref: 'refs/heads/main', repository: 'https://github.com/fixture/release-probe', path: '.github/workflows/release.yml' } },
-      resolvedDependencies: [{ uri: 'git+https://github.com/fixture/release-probe@refs/heads/main', digest: { gitCommit: sourceCommit } }] } } });
-  const bundle = name => ({ predicateType: 'https://slsa.dev/provenance/v1', bundle: { dsseEnvelope: {
-    payloadType: 'application/vnd.in-toto+json', payload: Buffer.from(JSON.stringify(statement(name))).toString('base64') } } });
+  const { bundle, auditResult } = createProbeAttestations({
+    scenario,
+    sourceCommit,
+    versions,
+    archiveByName,
+    firstPackageName: packages[0].name,
+    events,
+  });
   globalThis.releaseProbe = {
     pack: async ({ temporaryRoot }) => {
-      events.push({ operation: 'qualified-pack' });
-      return Object.freeze(Object.fromEntries(packages.map(info => [info.name, Object.freeze(makeArchive(info, temporaryRoot))])));
+      events.push({ operation: "qualified-pack" });
+      return Object.freeze(
+        Object.fromEntries(
+          packages.map((info) => [
+            info.name,
+            Object.freeze(makeProbeArchive(info, temporaryRoot, versions, archiveByName)),
+          ]),
+        ),
+      );
     },
-    github: args => {
+    github: (args) => {
       assert.match(args[0], /git\/ref\/heads\/main$/u);
-      events.push({ operation: 'authorize', liveMain });
-      if (scenario === 'prerequisite-secret' && events.filter(event => event.operation === 'authorize').length === 2) {
-        throw new Error('provider credential-secret');
+      events.push({ operation: "authorize", liveMain });
+      if (
+        scenario === "prerequisite-secret" &&
+        events.filter((event) => event.operation === "authorize").length === 2
+      ) {
+        throw new Error("provider credential-secret");
       }
-      const result = { object: { sha: liveMain, type: 'commit' }, ref: 'refs/heads/main' };
-      if (scenario === 'advance-after-authorization' && liveMain === sourceCommit) {
+      const result = { object: { sha: liveMain, type: "commit" }, ref: "refs/heads/main" };
+      if (scenario === "advance-after-authorization" && liveMain === sourceCommit) {
         queueMicrotask(() => {
           liveMain = advancedCommit;
-          events.push({ operation: 'main-advanced' });
+          events.push({ operation: "main-advanced" });
         });
       }
-      if (scenario === 'digest-mismatch' && !events.some(event => event.operation === 'archive-replaced')) {
+      if (
+        scenario === "digest-mismatch" &&
+        !events.some((event) => event.operation === "archive-replaced")
+      ) {
         const archive = archiveByName.get(packages[0].name);
         unlinkSync(archive.archivePath);
-        writeFileSync(archive.archivePath, 'changed qualified archive');
-        events.push({ operation: 'archive-replaced', archivePath: archive.archivePath });
+        writeFileSync(archive.archivePath, "changed qualified archive");
+        events.push({ operation: "archive-replaced", archivePath: archive.archivePath });
       }
       return result;
     },
-    reconcile: release => { events.push({ operation: 'reconcile', body: release.body }); },
-  };
-  const auditResult = () => {
-    const evidence = { invalid: [], missing: [], verified: [{
-    name: installed, version: versions.get(installed), attestations: { provenance: { predicateType: 'https://slsa.dev/provenance/v1' } },
-    attestationBundles: [bundle(installed), { predicateType: 'https://github.com/npm/attestation/tree/main/specs/publish/v0.1' }],
-    }] };
-    if (installed === packages[0].name) {
-      const entry = evidence.verified[0];
-      if (scenario === 'attestation-empty-persistent' ||
-          (scenario === 'attestation-empty-then-valid' && events.filter(event => event.operation === 'signature').length === 1)) {
-        evidence.verified = [];
-      }
-      if (scenario === 'attestation-malformed-json') { return ok('credential-secret'); }
-      if (scenario === 'attestation-malformed-evidence') { evidence.verified = {}; }
-      if (scenario === 'attestation-malformed-bundles') { entry.attestationBundles = {}; }
-      if (scenario === 'attestation-invalid') { evidence.invalid = [{ message: 'credential-secret' }]; }
-      if (scenario === 'attestation-missing-signature') { evidence.missing = [{ message: 'credential-secret' }]; }
-      if (scenario === 'attestation-ambiguous-target') { evidence.verified.push(entry); }
-      if (scenario === 'attestation-ambiguous-bundles') { entry.attestationBundles.push(entry.attestationBundles[0]); }
-      if (scenario === 'attestation-partial') { entry.attestationBundles.pop(); }
-      if (['attestation-wrong-source', 'attestation-wrong-sri'].includes(scenario)) {
-        const payload = statement(installed);
-        if (scenario === 'attestation-wrong-source') { payload.predicate.buildDefinition.externalParameters.workflow.repository = 'https://github.com/other/repository'; }
-        else { payload.subject[0].digest.sha512 = '0'.repeat(128); }
-        entry.attestationBundles[0].bundle.dsseEnvelope.payload = Buffer.from(JSON.stringify(payload)).toString('base64');
-      }
-    }
-    return ok(JSON.stringify(evidence));
+    reconcile: (release) => {
+      events.push({ operation: "reconcile", body: release.body });
+    },
   };
   childProcess.spawnSync = (command, args, options = {}) => {
-    if (command === 'tar') { return originalSpawn(command, args, options); }
-    if (command === 'git' && args[0] === 'merge-base') { return ok(''); }
-    if (command === 'npm' && args[0] === '--version') {
-      return ok(scenario === 'wrong-npm' ? '11.16.0\n' : '11.19.0\n');
+    if (command === "tar") {
+      return originalSpawn(command, args, options);
     }
-    if (command === 'npm' && args[0] === 'publish') {
+    if (command === "git" && args[0] === "merge-base") {
+      return ok("");
+    }
+    if (command === "npm" && args[0] === "--version") {
+      return ok(scenario === "wrong-npm" ? "11.16.0\n" : "11.19.0\n");
+    }
+    if (command === "npm" && args[0] === "publish") {
       // Record entry before assertions: release reconciliation catches their errors.
-      events.push({ operation: 'publish-attempt', archivePath: args[1], liveMain });
-      const archive = [...archiveByName.values()].find(entry => entry.archivePath === args[1]);
+      events.push({ operation: "publish-attempt", archivePath: args[1], liveMain });
+      const archive = [...archiveByName.values()].find((entry) => entry.archivePath === args[1]);
       assert.ok(archive);
       assert.deepEqual(readFileSync(args[1]), archive.bytes);
-      assert.ok(args.includes('--provenance') && args.includes('--ignore-scripts'));
+      assert.ok(args.includes("--provenance") && args.includes("--ignore-scripts"));
       assert.equal(options.cwd, sourceRoot);
-      events.push({ operation: 'publish-suppressed', name: archive.packageName, liveMain });
-      if (scenario !== 'ambiguous-absent') { published.add(archive.packageName); }
-      if (scenario === 'ambiguous-absent' || scenario === 'lost-response') {
-        return { status: 1, stderr: 'npm error code ECONNRESET\ncredential-secret', stdout: 'credential-secret' };
+      events.push({ operation: "publish-suppressed", name: archive.packageName, liveMain });
+      if (scenario !== "ambiguous-absent") {
+        published.add(archive.packageName);
       }
-      return ok('');
+      if (scenario === "ambiguous-absent" || scenario === "lost-response") {
+        return {
+          status: 1,
+          stderr: "npm error code ECONNRESET\ncredential-secret",
+          stdout: "credential-secret",
+        };
+      }
+      return ok("");
     }
-    if (command === 'npm' && args[0] === 'install') {
-      installed = packages.find(info => args.at(-1) === `${info.name}@${info.version}`)?.name;
+    if (command === "npm" && args[0] === "install") {
+      installed = packages.find((info) => args.at(-1) === `${info.name}@${info.version}`)?.name;
       assert.ok(installed);
-      return ok('');
+      return ok("");
     }
-    if (command === 'npm' && args[0] === 'audit') {
-      events.push({ operation: 'signature', name: installed, preferOnline: args.includes('--prefer-online') });
-      if (['attestation-e404-persistent-final-timeout', 'attestation-e404-persistent-final-auth-timeout'].includes(scenario) &&
-          events.filter(event => event.operation === 'signature').length === REGISTRY_OBSERVATION_ATTEMPTS) {
+    if (command === "npm" && args[0] === "audit") {
+      events.push({
+        operation: "signature",
+        name: installed,
+        preferOnline: args.includes("--prefer-online"),
+      });
+      if (
+        [
+          "attestation-e404-persistent-final-timeout",
+          "attestation-e404-persistent-final-auth-timeout",
+        ].includes(scenario) &&
+        events.filter((event) => event.operation === "signature").length ===
+          REGISTRY_OBSERVATION_ATTEMPTS
+      ) {
         assert.equal(options.timeout, 1);
-        return { status: null, error: Object.assign(new Error('secret'), { code: 'ETIMEDOUT' }),
-          stderr: scenario.endsWith('auth-timeout') ? 'npm error code E401\ncredential-secret' : '' };
+        return {
+          status: null,
+          error: Object.assign(new Error("secret"), { code: "ETIMEDOUT" }),
+          stderr: scenario.endsWith("auth-timeout") ? "npm error code E401\ncredential-secret" : "",
+        };
       }
-      if (installed === packages[0].name &&
-          (scenario.startsWith('attestation-e404-persistent') ||
-            events.filter(event => event.operation === 'signature').length === 1) &&
-          ['attestation-e404-then-valid', 'attestation-auth-failure',
-            'attestation-other-e404', 'attestation-e404-persistent',
-            'attestation-e404-persistent-final-timeout',
-            'attestation-e404-persistent-final-auth-timeout'].includes(scenario)) {
-        const endpoint = scenario === 'attestation-other-e404'
-          ? 'https://registry.npmjs.org/unrelated'
-          : `https://registry.npmjs.org/-/npm/v1/attestations/${encodeURIComponent(installed)}@${versions.get(installed)}`;
-        const code = scenario === 'attestation-auth-failure' ? 'E401' : 'E404';
-        return { status: 1, stdout: 'credential-secret',
-          stderr: `npm error code ${code}\nnpm error 404 Not Found - GET ${endpoint} - credential-secret` };
+      if (
+        installed === packages[0].name &&
+        (scenario.startsWith("attestation-e404-persistent") ||
+          events.filter((event) => event.operation === "signature").length === 1) &&
+        [
+          "attestation-e404-then-valid",
+          "attestation-auth-failure",
+          "attestation-other-e404",
+          "attestation-e404-persistent",
+          "attestation-e404-persistent-final-timeout",
+          "attestation-e404-persistent-final-auth-timeout",
+        ].includes(scenario)
+      ) {
+        const endpoint =
+          scenario === "attestation-other-e404"
+            ? "https://registry.npmjs.org/unrelated"
+            : `https://registry.npmjs.org/-/npm/v1/attestations/${encodeURIComponent(installed)}@${versions.get(installed)}`;
+        const code = scenario === "attestation-auth-failure" ? "E401" : "E404";
+        return {
+          status: 1,
+          stdout: "credential-secret",
+          stderr: `npm error code ${code}\nnpm error 404 Not Found - GET ${endpoint} - credential-secret`,
+        };
       }
-      return auditResult(); }
+      return auditResult(installed);
+    }
     throw new Error(`Unexpected suppressed subprocess: ${command} ${args[0]}`);
   };
   syncBuiltinESMExports();
   const readBody = async (stage, signal, value) => {
-    if (!bodyAbort || scenario !== `${stage}-body-abort`) { return value; }
-    const shared = observationControllers.find(entry => entry.milliseconds === REGISTRY_VISIBILITY_TIMEOUT_MILLISECONDS);
-    assert.ok(shared, 'post-publication body must have an overall visibility signal');
+    if (!bodyAbort || scenario !== `${stage}-body-abort`) {
+      return value;
+    }
+    const shared = observationControllers.find(
+      (entry) => entry.milliseconds === REGISTRY_VISIBILITY_TIMEOUT_MILLISECONDS,
+    );
+    assert.ok(shared, "post-publication body must have an overall visibility signal");
     return await new Promise((resolve, reject) => {
-      signal.addEventListener('abort', () => {
-        events.push({ operation: 'body-aborted', stage });
-        reject(new Error('provider credential-secret'));
-      }, { once: true });
+      signal.addEventListener(
+        "abort",
+        () => {
+          events.push({ operation: "body-aborted", stage });
+          reject(new Error("provider credential-secret"));
+        },
+        { once: true },
+      );
       acceleratedNow += REGISTRY_VISIBILITY_TIMEOUT_MILLISECONDS;
       shared.controller.abort();
       assert.equal(signal.aborted, true);
@@ -244,132 +297,253 @@ function begin() {
   };
   globalThis.fetch = async (raw, options) => {
     const url = new URL(raw);
-    assert.equal(url.hostname, 'registry.npmjs.org');
+    assert.equal(url.hostname, "registry.npmjs.org");
     const decoded = decodeURIComponent(url.pathname.slice(1));
-    if (decoded.startsWith('fixture-tarball/')) {
-      const name = decoded.slice('fixture-tarball/'.length);
-      return { ok: true, arrayBuffer: async () => readBody('tarball', options.signal, archiveByName.get(name).bytes) };
+    if (decoded.startsWith("fixture-tarball/")) {
+      const name = decoded.slice("fixture-tarball/".length);
+      return {
+        ok: true,
+        arrayBuffer: async () => readBody("tarball", options.signal, archiveByName.get(name).bytes),
+      };
     }
-    if (decoded.startsWith('-/npm/v1/attestations/')) {
-      const name = packages.find(info => decoded.endsWith(`${info.name}@${info.version}`))?.name;
+    if (decoded.startsWith("-/npm/v1/attestations/")) {
+      const name = packages.find((info) => decoded.endsWith(`${info.name}@${info.version}`))?.name;
       assert.ok(name);
-      return { ok: true, json: async () => readBody('attestation', options.signal, { attestations: [bundle(name)] }) };
+      return {
+        ok: true,
+        json: async () => readBody("attestation", options.signal, { attestations: [bundle(name)] }),
+      };
     }
     const archive = archiveByName.get(decoded);
     assert.ok(archive, decoded);
-    events.push({ operation: 'inspect', name: decoded });
-    if (!published.has(decoded)) { return { status: 404, ok: false }; }
-    return { status: 200, ok: true, json: async () => readBody('metadata', options.signal, { versions: { [versions.get(decoded)]: {
-      dist: { integrity: archive.integrity, tarball: `https://registry.npmjs.org/fixture-tarball/${encodeURIComponent(decoded)}` } } },
-      time: { [versions.get(decoded)]: '2026-09-06T00:00:00Z' }, 'dist-tags': { latest: versions.get(decoded) } }) };
+    events.push({ operation: "inspect", name: decoded });
+    if (!published.has(decoded)) {
+      return { status: 404, ok: false };
+    }
+    return {
+      status: 200,
+      ok: true,
+      json: async () =>
+        readBody("metadata", options.signal, {
+          versions: {
+            [versions.get(decoded)]: {
+              dist: {
+                integrity: archive.integrity,
+                tarball: `https://registry.npmjs.org/fixture-tarball/${encodeURIComponent(decoded)}`,
+              },
+            },
+          },
+          time: { [versions.get(decoded)]: "2026-09-06T00:00:00Z" },
+          "dist-tags": { latest: versions.get(decoded) },
+        }),
+    };
   };
   return events;
 }
 
-assert.ok(['valid-wave', 'wrong-npm', 'advance-after-authorization', 'digest-mismatch',
-  'notes-exact', 'notes-prefix', 'notes-level-three', 'notes-empty',
-  'prerequisite-secret', 'ambiguous-absent', 'lost-response',
-  'metadata-body-abort', 'tarball-body-abort', 'attestation-body-abort',
-  'attestation-e404-then-valid', 'attestation-auth-failure',
-  'attestation-other-e404', 'attestation-e404-persistent',
-  'attestation-e404-persistent-final-timeout',
-  'attestation-e404-persistent-final-auth-timeout',
-  'attestation-empty-then-valid', 'attestation-empty-persistent',
-  'attestation-malformed-json', 'attestation-malformed-evidence', 'attestation-malformed-bundles',
-  'attestation-invalid', 'attestation-missing-signature', 'attestation-ambiguous-target',
-  'attestation-ambiguous-bundles', 'attestation-partial', 'attestation-wrong-source',
-  'attestation-wrong-sri'].includes(scenario));
+assert.ok(
+  [
+    "valid-wave",
+    "wrong-npm",
+    "advance-after-authorization",
+    "digest-mismatch",
+    "notes-exact",
+    "notes-prefix",
+    "notes-level-three",
+    "notes-empty",
+    "prerequisite-secret",
+    "ambiguous-absent",
+    "lost-response",
+    "metadata-body-abort",
+    "tarball-body-abort",
+    "attestation-body-abort",
+    "attestation-e404-then-valid",
+    "attestation-auth-failure",
+    "attestation-other-e404",
+    "attestation-e404-persistent",
+    "attestation-e404-persistent-final-timeout",
+    "attestation-e404-persistent-final-auth-timeout",
+    "attestation-empty-then-valid",
+    "attestation-empty-persistent",
+    "attestation-malformed-json",
+    "attestation-malformed-evidence",
+    "attestation-malformed-bundles",
+    "attestation-invalid",
+    "attestation-missing-signature",
+    "attestation-ambiguous-target",
+    "attestation-ambiguous-bundles",
+    "attestation-partial",
+    "attestation-wrong-source",
+    "attestation-wrong-sri",
+  ].includes(scenario),
+);
 const events = begin();
-const { publishOrderedRelease } = await import(pathToFileURL(join(sourceRoot, 'scripts/release-publish-ordered-runtime.mjs')));
+const { publishOrderedRelease } = await import(
+  pathToFileURL(join(sourceRoot, "scripts/release-publish-ordered-runtime.mjs"))
+);
 let error;
-try { await publishOrderedRelease({ cwd: sourceRoot, decision: { tag: 'latest' }, state: { packages: { public: packages } } }); }
-catch (caught) { error = caught.message; }
-const attempts = events.filter(event => event.operation === 'publish-attempt');
-const publications = events.filter(event => event.operation === 'publish-suppressed');
-const reconciliations = events.filter(event => event.operation === 'reconcile');
-if (scenario === 'wrong-npm') {
-  assert.equal(error, 'Ordered publishing requires npm 11.19.0, observed 11.16.0.');
+try {
+  await publishOrderedRelease({
+    cwd: sourceRoot,
+    decision: { tag: "latest" },
+    state: { packages: { public: packages } },
+  });
+} catch (caught) {
+  error = caught.message;
+}
+const attempts = events.filter((event) => event.operation === "publish-attempt");
+const publications = events.filter((event) => event.operation === "publish-suppressed");
+const reconciliations = events.filter((event) => event.operation === "reconcile");
+if (scenario === "wrong-npm") {
+  assert.equal(error, "Ordered publishing requires npm 11.19.0, observed 11.16.0.");
   assert.deepEqual(events, []);
-} else if (['valid-wave', 'notes-exact', 'lost-response', 'attestation-e404-then-valid', 'attestation-empty-then-valid'].includes(scenario)) {
+} else if (
+  [
+    "valid-wave",
+    "notes-exact",
+    "lost-response",
+    "attestation-e404-then-valid",
+    "attestation-empty-then-valid",
+  ].includes(scenario)
+) {
   assert.equal(error, undefined);
-  if (scenario === 'notes-exact') {
-    assert.ok(reconciliations.every(event => event.body === '### Minor Changes\n\nNew notes'));
+  if (scenario === "notes-exact") {
+    assert.ok(reconciliations.every((event) => event.body === "### Minor Changes\n\nNew notes"));
   }
   assert.equal(attempts.length, expectedPublications.length);
   assert.equal(publications.length, expectedPublications.length);
   assert.equal(reconciliations.length, expectedPublications.length);
-  assert.equal(events.filter(event => event.operation === 'signature').length,
-    expectedPublications.length + (scenario.endsWith('-then-valid') ? 1 : 0));
-  assert.deepEqual(publications.map(item => item.name), expectedPublications);
-  assert.ok(publications.every(item => item.liveMain === sourceCommit));
+  assert.equal(
+    events.filter((event) => event.operation === "signature").length,
+    expectedPublications.length + (scenario.endsWith("-then-valid") ? 1 : 0),
+  );
+  assert.deepEqual(
+    publications.map((item) => item.name),
+    expectedPublications,
+  );
+  assert.ok(publications.every((item) => item.liveMain === sourceCommit));
   assert.ok(events.lastIndexOf(publications.at(-1)) < events.indexOf(reconciliations[0]));
-} else if (scenario.startsWith('notes-')) {
-  assert.match(error, scenario === 'notes-empty' ? /Changelog entry for .* is empty\./u : /Changelog has no exact .* release entry\./u);
-  assert.deepEqual(events, [{ operation: 'qualified-pack' }]);
+} else if (scenario.startsWith("notes-")) {
+  assert.match(
+    error,
+    scenario === "notes-empty"
+      ? /Changelog entry for .* is empty\./u
+      : /Changelog has no exact .* release entry\./u,
+  );
+  assert.deepEqual(events, [{ operation: "qualified-pack" }]);
   assert.equal(attempts.length, 0);
   assert.equal(publications.length, 0);
   assert.equal(reconciliations.length, 0);
 } else if (bodyAbort) {
   assert.match(error, /registry result remained unknown; visibility deadline exceeded/u);
-  assert.equal(events.filter(event => event.operation === 'body-aborted').length, 1);
+  assert.equal(events.filter((event) => event.operation === "body-aborted").length, 1);
   assert.equal(attempts.length, 1);
   assert.equal(reconciliations.length, 0);
-  assert.equal(events.filter(event => event.operation === 'signature').length, 0);
+  assert.equal(events.filter((event) => event.operation === "signature").length, 0);
   assert.doesNotMatch(error, /credential-secret/u);
-} else if (scenario === 'ambiguous-absent') {
+} else if (scenario === "ambiguous-absent") {
   assert.equal(attempts.length, 1);
   assert.equal(publications.length, 1);
   assert.equal(reconciliations.length, 0);
-  assert.equal(events.filter(event => event.operation === 'signature').length, 0);
-  assert.equal(events.slice(events.indexOf(attempts[0]) + 1).filter(event => event.operation === 'inspect').length,
-    REGISTRY_VISIBILITY_TIMEOUT_MILLISECONDS / REGISTRY_OBSERVATION_RETRY_MILLISECONDS);
-  assert.equal(error, `Ordered release refused: ${packages[0].name}@${packages[0].version} registry result remained absent; visibility deadline exceeded; initial publish failure: npm publish failed; code=ECONNRESET; exit=1; signal=none-or-unknown; raw output omitted`);
+  assert.equal(events.filter((event) => event.operation === "signature").length, 0);
+  assert.equal(
+    events.slice(events.indexOf(attempts[0]) + 1).filter((event) => event.operation === "inspect")
+      .length,
+    REGISTRY_VISIBILITY_TIMEOUT_MILLISECONDS / REGISTRY_OBSERVATION_RETRY_MILLISECONDS,
+  );
+  assert.equal(
+    error,
+    `Ordered release refused: ${packages[0].name}@${packages[0].version} registry result remained absent; visibility deadline exceeded; initial publish failure: npm publish failed; code=ECONNRESET; exit=1; signal=none-or-unknown; raw output omitted`,
+  );
   assert.doesNotMatch(error, /publication did not start|credential-secret/u);
-} else if (scenario === 'attestation-empty-persistent') {
-  assert.equal(error, 'npm signature audit failed; code=attestations-not-yet-verified; raw output omitted.');
-  assert.equal(events.filter(event => event.operation === 'signature').length, REGISTRY_OBSERVATION_ATTEMPTS);
+} else if (scenario === "attestation-empty-persistent") {
+  assert.equal(
+    error,
+    "npm signature audit failed; code=attestations-not-yet-verified; raw output omitted.",
+  );
+  assert.equal(
+    events.filter((event) => event.operation === "signature").length,
+    REGISTRY_OBSERVATION_ATTEMPTS,
+  );
   assert.equal(acceleratedNow, 360_000);
   assert.equal(attempts.length, 1);
   assert.equal(reconciliations.length, 0);
-} else if (['attestation-malformed-json', 'attestation-malformed-evidence', 'attestation-malformed-bundles',
-  'attestation-invalid', 'attestation-missing-signature', 'attestation-ambiguous-target',
-  'attestation-ambiguous-bundles', 'attestation-partial', 'attestation-wrong-source',
-  'attestation-wrong-sri'].includes(scenario)) {
-  assert.match(error, /^npm (?:signature audit|audit did not cryptographically verify|verified provenance is not bound)/u);
-  assert.equal(events.filter(event => event.operation === 'signature').length, 1);
+} else if (
+  [
+    "attestation-malformed-json",
+    "attestation-malformed-evidence",
+    "attestation-malformed-bundles",
+    "attestation-invalid",
+    "attestation-missing-signature",
+    "attestation-ambiguous-target",
+    "attestation-ambiguous-bundles",
+    "attestation-partial",
+    "attestation-wrong-source",
+    "attestation-wrong-sri",
+  ].includes(scenario)
+) {
+  assert.match(
+    error,
+    /^npm (?:signature audit|audit did not cryptographically verify|verified provenance is not bound)/u,
+  );
+  assert.equal(events.filter((event) => event.operation === "signature").length, 1);
   assert.equal(attempts.length, 1);
   assert.equal(reconciliations.length, 0);
   assert.doesNotMatch(error, /credential-secret/u);
-} else if (['attestation-auth-failure', 'attestation-other-e404', 'attestation-e404-persistent',
-  'attestation-e404-persistent-final-timeout',
-  'attestation-e404-persistent-final-auth-timeout'].includes(scenario)) {
-  assert.match(error, scenario.startsWith('attestation-e404-persistent') && !scenario.endsWith('auth-timeout')
-    ? /npm signature audit failed; code=E404; raw output omitted/u
-    : /npm signature audit failed; code=unknown-or-non-transient; raw output omitted/u);
+} else if (
+  [
+    "attestation-auth-failure",
+    "attestation-other-e404",
+    "attestation-e404-persistent",
+    "attestation-e404-persistent-final-timeout",
+    "attestation-e404-persistent-final-auth-timeout",
+  ].includes(scenario)
+) {
+  assert.match(
+    error,
+    scenario.startsWith("attestation-e404-persistent") && !scenario.endsWith("auth-timeout")
+      ? /npm signature audit failed; code=E404; raw output omitted/u
+      : /npm signature audit failed; code=unknown-or-non-transient; raw output omitted/u,
+  );
   assert.doesNotMatch(error, /credential-secret/u);
-  assert.equal(events.filter(event => event.operation === 'signature').length,
-    scenario.startsWith('attestation-e404-persistent') ? REGISTRY_OBSERVATION_ATTEMPTS : 1);
+  assert.equal(
+    events.filter((event) => event.operation === "signature").length,
+    scenario.startsWith("attestation-e404-persistent") ? REGISTRY_OBSERVATION_ATTEMPTS : 1,
+  );
   assert.equal(attempts.length, 1);
   assert.equal(reconciliations.length, 0);
 } else {
   assert.equal(attempts.length, 0, JSON.stringify(events));
   assert.equal(publications.length, 0, JSON.stringify(events));
   assert.equal(reconciliations.length, 0);
-  assert.equal(events.filter(event => event.operation === 'signature').length, 0);
-  const authorizationIndex = events.findIndex(event => event.operation === 'authorize');
+  assert.equal(events.filter((event) => event.operation === "signature").length, 0);
+  const authorizationIndex = events.findIndex((event) => event.operation === "authorize");
   assert.ok(authorizationIndex >= 0);
-  assert.equal(events.slice(authorizationIndex).filter(event => event.operation === 'inspect').length, 0);
-  assert.match(error, /initial publish failure: publish prerequisite failed before npm invocation.*; publication did not start$/u);
+  assert.equal(
+    events.slice(authorizationIndex).filter((event) => event.operation === "inspect").length,
+    0,
+  );
+  assert.match(
+    error,
+    /initial publish failure: publish prerequisite failed before npm invocation.*; publication did not start$/u,
+  );
   assert.doesNotMatch(error, /registry result remained|credential-secret/u);
-  if (scenario === 'digest-mismatch') {
-    const replacement = events.find(event => event.operation === 'archive-replaced');
+  if (scenario === "digest-mismatch") {
+    const replacement = events.find((event) => event.operation === "archive-replaced");
     assert.ok(replacement);
-    assert.ok(error.endsWith(`: Verified package archive digest changed: ${replacement.archivePath}.; publication did not start`));
-  } else if (scenario === 'advance-after-authorization') {
-    assert.ok(events.some(event => event.operation === 'main-advanced'));
-    assert.match(error, /Ordered publishing refused because protected main advanced beyond this run\./u);
+    assert.ok(
+      error.endsWith(
+        `: Verified package archive digest changed: ${replacement.archivePath}.; publication did not start`,
+      ),
+    );
+  } else if (scenario === "advance-after-authorization") {
+    assert.ok(events.some((event) => event.operation === "main-advanced"));
+    assert.match(
+      error,
+      /Ordered publishing refused because protected main advanced beyond this run\./u,
+    );
   } else {
     assert.match(error, /before npm invocation; publication did not start$/u);
   }
 }
-process.stdout.write(JSON.stringify({ scenario, error, events }) + '\n');
+process.stdout.write(JSON.stringify({ scenario, error, events }) + "\n");

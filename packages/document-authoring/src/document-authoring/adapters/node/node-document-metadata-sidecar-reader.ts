@@ -1,6 +1,8 @@
-import { isDocumentInputFailure, assertDocumentAuthoringActive } from "../../application/policies/document-input-failure.js";
+import {
+  isDocumentInputFailure,
+  assertDocumentAuthoringActive,
+} from "../../application/policies/document-input-failure.js";
 import type { DocumentFileReader } from "../../application/ports/document-file-reader.js";
-
 
 import { parseStrictYamlSource } from "./strict-yaml.js";
 import { compareBinaryStrings } from "../../../binary-string-comparator.js";
@@ -8,11 +10,11 @@ import type { DocumentMetadataObject } from "../../application/model/document-ca
 import { isDocumentRepositoryPath } from "../../application/policies/document-repository-path.js";
 import {
   CatalogMetadataProjectionError,
-  projectCatalogMetadata
+  projectCatalogMetadata,
 } from "../../application/policies/project-catalog-metadata.js";
 import type {
   DocumentMetadataSidecarReader,
-  DocumentMetadataSidecarSnapshot
+  DocumentMetadataSidecarSnapshot,
 } from "../../application/ports/document-metadata-sidecar-reader.js";
 import { DocumentCatalogError } from "../../application/model/document-catalog-error.js";
 import { readDocumentAuthorityFile } from "./read-document-authority-file.js";
@@ -28,7 +30,7 @@ function invalidSidecar(message: string, cause?: unknown): never {
   throw new DocumentCatalogError(
     "DOCUMENT_CATALOG_INPUT_INVALID",
     `Document metadata sidecar is invalid: ${message}`,
-    cause === undefined ? undefined : { cause }
+    cause === undefined ? undefined : { cause },
   );
 }
 
@@ -49,11 +51,7 @@ function projectDocuments(value: unknown): Readonly<Record<string, DocumentMetad
       invalidSidecar(`document path is not portable Markdown: ${path}.`);
     }
     const descriptor = Object.getOwnPropertyDescriptor(value, path);
-    if (
-      descriptor === undefined ||
-      !("value" in descriptor) ||
-      descriptor.enumerable !== true
-    ) {
+    if (descriptor === undefined || !("value" in descriptor) || descriptor.enumerable !== true) {
       invalidSidecar("documents must contain enumerable own data properties.");
     }
     try {
@@ -89,15 +87,13 @@ function parseSidecar(source: string): Readonly<Record<string, DocumentMetadataO
     input["contract"] !== "foundation.document-metadata-sidecar/v1"
   ) {
     invalidSidecar(
-      "root must contain only contract foundation.document-metadata-sidecar/v1 and documents."
+      "root must contain only contract foundation.document-metadata-sidecar/v1 and documents.",
     );
   }
   return projectDocuments(input["documents"]);
 }
 
-export class NodeDocumentMetadataSidecarReader
-  implements DocumentMetadataSidecarReader
-{
+export class NodeDocumentMetadataSidecarReader implements DocumentMetadataSidecarReader {
   constructor(private readonly readFile: DocumentFileReader) {}
   async read(request: {
     readonly consumerRoot: string;
@@ -108,7 +104,7 @@ export class NodeDocumentMetadataSidecarReader
     const file = await readDocumentAuthorityFile(this.readFile, {
       consumerRoot: request.consumerRoot,
       maxBytes: MAXIMUM_SIDECAR_BYTES,
-      path: request.path
+      path: request.path,
     });
     const documents = parseSidecar(file.source);
     assertDocumentAuthoringActive(request.signal);

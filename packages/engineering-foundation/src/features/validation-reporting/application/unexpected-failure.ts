@@ -38,13 +38,13 @@ const FILESYSTEM_ERROR_CODES = new Set([
   "ENOTDIR",
   "ENOTEMPTY",
   "EPERM",
-  "EROFS"
+  "EROFS",
 ]);
 
 const CONTRACT_ERROR_CODES = new Set([
   "ERR_INVALID_ARG_TYPE",
   "ERR_INVALID_ARG_VALUE",
-  "ERR_OUT_OF_RANGE"
+  "ERR_OUT_OF_RANGE",
 ]);
 
 function stableStringProperty(error: unknown, property: "code" | "name"): string | undefined {
@@ -83,7 +83,7 @@ function isParserFailure(error: unknown, name: string | undefined): boolean {
 function isProcessFailure(
   error: unknown,
   code: string | undefined,
-  name: string | undefined
+  name: string | undefined,
 ): boolean {
   return (
     (safeInstanceOf(error, FoundationError) && code === "PROCESS_FAILED") ||
@@ -106,7 +106,11 @@ function causeKind(error: unknown): UnexpectedFailureCauseKind {
   if (isProcessFailure(error, code, name)) {
     return "process";
   }
-  if (name === "CapabilityInputError" || safeInstanceOf(error, TypeError) || CONTRACT_ERROR_CODES.has(code ?? "")) {
+  if (
+    name === "CapabilityInputError" ||
+    safeInstanceOf(error, TypeError) ||
+    CONTRACT_ERROR_CODES.has(code ?? "")
+  ) {
     return "contract";
   }
   if (name === "AssertionError" || name === "InternalInvariantError" || code === "ERR_ASSERTION") {
@@ -121,27 +125,25 @@ const SAFE_MESSAGES: Readonly<Record<UnexpectedFailureCauseKind, string>> = {
   process: "An unexpected process failure occurred.",
   contract: "An unexpected contract failure occurred.",
   "internal-invariant": "An internal invariant failed unexpectedly.",
-  unknown: "An unexpected failure occurred."
+  unknown: "An unexpected failure occurred.",
 };
 
-const STABLE_CODES: Readonly<Record<UnexpectedFailureCauseKind, UnexpectedFailureProblem["code"]>> = {
-  contract: "UNEXPECTED_CONTRACT_FAILURE",
-  filesystem: "UNEXPECTED_FILESYSTEM_FAILURE",
-  "internal-invariant": "UNEXPECTED_INTERNAL_INVARIANT_FAILURE",
-  parser: "UNEXPECTED_PARSER_FAILURE",
-  process: "UNEXPECTED_PROCESS_FAILURE",
-  unknown: "UNEXPECTED_FAILURE"
-};
+const STABLE_CODES: Readonly<Record<UnexpectedFailureCauseKind, UnexpectedFailureProblem["code"]>> =
+  {
+    contract: "UNEXPECTED_CONTRACT_FAILURE",
+    filesystem: "UNEXPECTED_FILESYSTEM_FAILURE",
+    "internal-invariant": "UNEXPECTED_INTERNAL_INVARIANT_FAILURE",
+    parser: "UNEXPECTED_PARSER_FAILURE",
+    process: "UNEXPECTED_PROCESS_FAILURE",
+    unknown: "UNEXPECTED_FAILURE",
+  };
 
-export function classifyUnexpectedFailure(
-  error: unknown,
-  phase: string
-): UnexpectedFailureProblem {
+export function classifyUnexpectedFailure(error: unknown, phase: string): UnexpectedFailureProblem {
   const kind = causeKind(error);
   return Object.freeze({
     code: STABLE_CODES[kind],
     message: kind === "process" ? processFailureMessage(error) : SAFE_MESSAGES[kind],
     phase,
-    retryable: false
+    retryable: false,
   });
 }

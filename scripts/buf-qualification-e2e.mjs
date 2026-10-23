@@ -14,13 +14,8 @@ const configuredCliPath = process.env.AGENT_TEAMS_FOUNDATION_CLI_PATH;
 if (configuredCliPath !== undefined && !isAbsolute(configuredCliPath)) {
   throw new Error("AGENT_TEAMS_FOUNDATION_CLI_PATH must be absolute when provided.");
 }
-const cliPath = configuredCliPath ?? join(
-  repositoryRoot,
-  "packages",
-  "engineering-foundation",
-  "dist",
-  "cli.js"
-);
+const cliPath =
+  configuredCliPath ?? join(repositoryRoot, "packages", "engineering-foundation", "dist", "cli.js");
 const bufVersion = "1.72.0";
 const commandTimeoutMs = 60_000;
 const toolBootstrapTimeoutMs = 180_000;
@@ -40,11 +35,7 @@ async function run(
   command,
   arguments_,
   cwd,
-  {
-    acceptedExitCodes = [0],
-    environment = process.env,
-    timeoutMs = commandTimeoutMs
-  } = {}
+  { acceptedExitCodes = [0], environment = process.env, timeoutMs = commandTimeoutMs } = {},
 ) {
   try {
     const result = await execFileAsync(command, arguments_, {
@@ -53,7 +44,7 @@ async function run(
       maxBuffer: 16 * 1024 * 1024,
       timeout: timeoutMs,
       windowsHide: true,
-      env: environment
+      env: environment,
     });
     return { exitCode: 0, stdout: result.stdout, stderr: result.stderr };
   } catch (error) {
@@ -62,7 +53,7 @@ async function run(
       return {
         exitCode,
         stdout: typeof error.stdout === "string" ? error.stdout : "",
-        stderr: typeof error.stderr === "string" ? error.stderr : ""
+        stderr: typeof error.stderr === "string" ? error.stderr : "",
       };
     }
     throw error;
@@ -71,7 +62,7 @@ async function run(
 
 async function runCli(root, arguments_, acceptedExitCodes = [0]) {
   return run(process.execPath, [cliPath, ...arguments_], root, {
-    acceptedExitCodes
+    acceptedExitCodes,
   });
 }
 
@@ -84,7 +75,7 @@ function protobufConfig(input) {
       modulePath: "contracts/protobuf",
       bufConfigPath: "buf.yaml",
       releasedDescriptorImagePath: "architecture/contracts/protobuf/control.binpb",
-      evidencePath: "architecture/evidence/protobuf/control.json"
+      evidencePath: "architecture/evidence/protobuf/control.json",
     },
     current: {
       schemaVersion: 1,
@@ -96,9 +87,9 @@ function protobufConfig(input) {
       generatorVersions: [],
       generationDrift: {
         expectedGeneratedOutputDigest: input.generatedOutputDigest,
-        observedGeneratedOutputDigest: input.generatedOutputDigest
-      }
-    }
+        observedGeneratedOutputDigest: input.generatedOutputDigest,
+      },
+    },
   };
 }
 
@@ -106,16 +97,8 @@ async function buildDescriptor(bufExecutable, root, outputPath) {
   await mkdir(dirname(join(root, outputPath)), { recursive: true });
   const result = await run(
     bufExecutable,
-    [
-      "build",
-      "contracts/protobuf",
-      "--config",
-      "buf.yaml",
-      "--disable-symlinks",
-      "-o",
-      outputPath
-    ],
-    root
+    ["build", "contracts/protobuf", "--config", "buf.yaml", "--disable-symlinks", "-o", outputPath],
+    root,
   );
   if (result.stdout !== "" || result.stderr !== "") {
     throw new Error("Pinned Buf build emitted unexpected output.");
@@ -131,7 +114,7 @@ function qualificationArguments(root, bufExecutable, write = false) {
     "--buf-executable",
     bufExecutable,
     ...(write ? ["--write"] : []),
-    "--json"
+    "--json",
   ];
 }
 
@@ -143,7 +126,7 @@ async function resolvePinnedBuf() {
     ...process.env,
     AQUA_ENFORCE_CHECKSUM: "true",
     AQUA_ENFORCE_REQUIRE_CHECKSUM: "true",
-    AQUA_ROOT_DIR: aquaRootDirectory
+    AQUA_ROOT_DIR: aquaRootDirectory,
   };
   const aquaVersion = await run(
     aqua.executable,
@@ -151,20 +134,17 @@ async function resolvePinnedBuf() {
     repositoryRoot,
     {
       environment: aquaEnvironment,
-      timeoutMs: toolBootstrapTimeoutMs
-    }
+      timeoutMs: toolBootstrapTimeoutMs,
+    },
   );
   if (aquaVersion.stdout.trim() !== bufVersion) {
     throw new Error(
-      `Expected Aqua-managed Buf ${bufVersion}, received ${aquaVersion.stdout.trim() || "missing"}.`
+      `Expected Aqua-managed Buf ${bufVersion}, received ${aquaVersion.stdout.trim() || "missing"}.`,
     );
   }
-  const which = await run(
-    aqua.executable,
-    ["which", "buf"],
-    repositoryRoot,
-    { environment: aquaEnvironment }
-  );
+  const which = await run(aqua.executable, ["which", "buf"], repositoryRoot, {
+    environment: aquaEnvironment,
+  });
   const bufExecutable = which.stdout.trim();
   if (bufExecutable.length === 0) {
     throw new Error("Pinned Buf executable was not resolved by Aqua.");
@@ -182,21 +162,21 @@ async function writeInitialFixture(root, bufExecutable) {
   await writeFile(
     join(root, "contracts", "protobuf", "control.proto"),
     'syntax = "proto3";\npackage qualification.v1;\nmessage Control {\n  string original = 1;\n}\n',
-    "utf8"
+    "utf8",
   );
   await writeJson(join(root, "foundation.config.yaml"), {
     schemaVersion: 1,
     project: { id: "buf-qualification-e2e" },
     capabilities: {
       "contract.protobuf-evolution": {
-        configPath: "architecture/foundation/protobuf-evolution.yaml"
-      }
-    }
+        configPath: "architecture/foundation/protobuf-evolution.yaml",
+      },
+    },
   });
   const baselineBytes = await buildDescriptor(
     bufExecutable,
     root,
-    "architecture/contracts/protobuf/control.binpb"
+    "architecture/contracts/protobuf/control.binpb",
   );
   const bufConfigDigest = sha256(bufConfigSource);
   const baselineDigest = sha256(baselineBytes);
@@ -209,7 +189,7 @@ async function writeInitialFixture(root, bufExecutable) {
     bufConfigDigest,
     descriptorImageDigest: baselineDigest,
     generatorVersions: [],
-    generatedOutputDigest
+    generatedOutputDigest,
   });
   await writeJson(
     join(root, "architecture", "foundation", "protobuf-evolution.yaml"),
@@ -217,29 +197,32 @@ async function writeInitialFixture(root, bufExecutable) {
       publicContractVersion: "1.0.0",
       bufConfigDigest,
       descriptorImageDigest: baselineDigest,
-      generatedOutputDigest
-    })
+      generatedOutputDigest,
+    }),
   );
   return bufConfigDigest;
 }
 
 async function assertCompatibleQualification(root, bufExecutable) {
-  const writeCompatible = JSON.parse((await runCli(
-    root,
-    qualificationArguments(root, bufExecutable, true)
-  )).stdout);
+  const writeCompatible = JSON.parse(
+    (await runCli(root, qualificationArguments(root, bufExecutable, true))).stdout,
+  );
   if (writeCompatible.qualification?.status !== "compatible") {
     throw new Error("Real Buf compatible qualification did not pass.");
   }
   await runCli(root, qualificationArguments(root, bufExecutable));
-  const compatibleCheck = JSON.parse((await runCli(root, [
-      "check",
-      "contract.protobuf-evolution",
-      "--consumer",
-      root,
-      "--format",
-      "json"
-  ])).stdout);
+  const compatibleCheck = JSON.parse(
+    (
+      await runCli(root, [
+        "check",
+        "contract.protobuf-evolution",
+        "--consumer",
+        root,
+        "--format",
+        "json",
+      ])
+    ).stdout,
+  );
   if (compatibleCheck.outcome !== "passed") {
     throw new Error("Qualified compatible evidence did not pass the normal capability.");
   }
@@ -249,7 +232,7 @@ async function assertBreakingQualification(root, bufExecutable, bufConfigDigest)
   await writeFile(
     join(root, "contracts", "protobuf", "control.proto"),
     'syntax = "proto3";\npackage qualification.v1;\nmessage Control {\n  string renamed = 1;\n}\n',
-    "utf8"
+    "utf8",
   );
   const candidateBytes = await buildDescriptor(bufExecutable, root, "candidate.binpb");
   await writeJson(
@@ -258,13 +241,12 @@ async function assertBreakingQualification(root, bufExecutable, bufConfigDigest)
       publicContractVersion: "2.0.0",
       bufConfigDigest,
       descriptorImageDigest: sha256(candidateBytes),
-      generatedOutputDigest: sha256("generated-v2")
-    })
+      generatedOutputDigest: sha256("generated-v2"),
+    }),
   );
-  const writeBreaking = JSON.parse((await runCli(
-    root,
-    qualificationArguments(root, bufExecutable, true)
-  )).stdout);
+  const writeBreaking = JSON.parse(
+    (await runCli(root, qualificationArguments(root, bufExecutable, true))).stdout,
+  );
   if (writeBreaking.qualification?.status !== "breaking") {
     throw new Error("Real Buf breaking qualification did not preserve exit code 100 semantics.");
   }
@@ -277,14 +259,15 @@ async function assertBreakingQualification(root, bufExecutable, bufConfigDigest)
   ) {
     throw new Error("Real Buf evidence did not contain normalized FILE findings.");
   }
-  const normalBreakingCheck = JSON.parse((await runCli(root, [
-      "check",
-      "contract.protobuf-evolution",
-      "--consumer",
-      root,
-      "--format",
-      "json"
-  ], [0, 1])).stdout);
+  const normalBreakingCheck = JSON.parse(
+    (
+      await runCli(
+        root,
+        ["check", "contract.protobuf-evolution", "--consumer", root, "--format", "json"],
+        [0, 1],
+      )
+    ).stdout,
+  );
   if (
     normalBreakingCheck.outcome !== "violations" ||
     normalBreakingCheck.capabilities?.[0]?.diagnostics?.[0]?.ruleId !==
@@ -295,14 +278,9 @@ async function assertBreakingQualification(root, bufExecutable, bufConfigDigest)
 
   evidence.result.rawOutputDigest = `sha256:${"f".repeat(64)}`;
   await writeJson(evidencePath, evidence);
-  const fabricated = await runCli(
-    root,
-    qualificationArguments(root, bufExecutable),
-    [0, 2]
-  );
-  const fabricatedError = fabricated.stdout.length === 0
-    ? undefined
-    : JSON.parse(fabricated.stdout);
+  const fabricated = await runCli(root, qualificationArguments(root, bufExecutable), [0, 2]);
+  const fabricatedError =
+    fabricated.stdout.length === 0 ? undefined : JSON.parse(fabricated.stdout);
   if (
     fabricated.exitCode !== 2 ||
     fabricated.stderr !== "" ||

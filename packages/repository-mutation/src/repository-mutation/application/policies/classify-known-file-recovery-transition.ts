@@ -2,8 +2,16 @@ import type { KnownFileDigest } from "../model/known-file-transaction.js";
 import type { KnownFileTransactionEnvelopeV1 } from "../model/known-file-transaction-journal.js";
 
 export interface InstalledKnownFileRecoveryBuild {
-  readonly ownerArtifact: { readonly name: string; readonly buildIdentity: KnownFileDigest; readonly version: string };
-  readonly kernelArtifact: { readonly name: string; readonly buildIdentity: KnownFileDigest; readonly version: string };
+  readonly ownerArtifact: {
+    readonly name: string;
+    readonly buildIdentity: KnownFileDigest;
+    readonly version: string;
+  };
+  readonly kernelArtifact: {
+    readonly name: string;
+    readonly buildIdentity: KnownFileDigest;
+    readonly version: string;
+  };
 }
 
 export type KnownFileRecoveryTransition =
@@ -24,15 +32,23 @@ export function classifyKnownFileRecoveryTransition(input: {
   readonly envelope: KnownFileTransactionEnvelopeV1;
   readonly installedBuild: InstalledKnownFileRecoveryBuild;
 }): KnownFileRecoveryTransition {
-  if (["name", "version", "buildIdentity"].some((field) =>
-    input.envelope.ownerArtifact[field as keyof typeof input.envelope.ownerArtifact] !==
-      input.installedBuild.ownerArtifact[field as keyof typeof input.installedBuild.ownerArtifact] ||
-    input.envelope.kernelArtifact[field as keyof typeof input.envelope.kernelArtifact] !==
-      input.installedBuild.kernelArtifact[field as keyof typeof input.installedBuild.kernelArtifact])) {
+  if (
+    ["name", "version", "buildIdentity"].some(
+      (field) =>
+        input.envelope.ownerArtifact[field as keyof typeof input.envelope.ownerArtifact] !==
+          input.installedBuild.ownerArtifact[
+            field as keyof typeof input.installedBuild.ownerArtifact
+          ] ||
+        input.envelope.kernelArtifact[field as keyof typeof input.envelope.kernelArtifact] !==
+          input.installedBuild.kernelArtifact[
+            field as keyof typeof input.installedBuild.kernelArtifact
+          ],
+    )
+  ) {
     return {
       action: "reject",
       code: "KNOWN_FILE_EXACT_BUILD_REQUIRED",
-      message: "The exact owner and kernel artifacts that created this journal must recover it."
+      message: "The exact owner and kernel artifacts that created this journal must recover it.",
     };
   }
   return input.envelope.state === "COMMITTED"

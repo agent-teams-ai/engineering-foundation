@@ -1,25 +1,26 @@
 import type {
   CatalogEntry,
   DependencyDeclaration,
-  DependencySection
+  DependencySection,
 } from "../model/workspace-inventory.js";
 
-const NPM_PACKAGE_NAME =
-  "(?:@[a-z0-9][a-z0-9._-]*\\/)?[a-z0-9][a-z0-9._-]*";
+const NPM_PACKAGE_NAME = "(?:@[a-z0-9][a-z0-9._-]*\\/)?[a-z0-9][a-z0-9._-]*";
 const NPM_ALIAS = new RegExp(`^npm:(${NPM_PACKAGE_NAME})@(.+)$`, "su");
 // Registry syntax only: this does not resolve ranges or relax exact-pin policy.
-const RANGE_VERSION = /^[v=\s]*(\d+|[xX*])(?:\.(\d+|[xX*])(?:\.(\d+|[xX*])(?:-?[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?)?)?$/u;
+const RANGE_VERSION =
+  /^[v=\s]*(\d+|[xX*])(?:\.(\d+|[xX*])(?:\.(\d+|[xX*])(?:-?[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?)?)?$/u;
 
 function isRangeVersion(value: string): boolean {
   if (value.length > 256) {
     return false;
   }
   const match = RANGE_VERSION.exec(value);
-  return match !== null &&
-    [match[1], match[2], match[3]].every((part) =>
-      part === undefined || /^[xX*]$/u.test(part) ||
-      Number.isSafeInteger(Number(part))
-    );
+  return (
+    match !== null &&
+    [match[1], match[2], match[3]].every(
+      (part) => part === undefined || /^[xX*]$/u.test(part) || Number.isSafeInteger(Number(part)),
+    )
+  );
 }
 
 function isRangeSet(value: string): boolean {
@@ -28,8 +29,8 @@ function isRangeSet(value: string): boolean {
     return hyphen.every(isRangeVersion);
   }
   const comparators = value.replace(/([<>=~^v])\s+/gu, "$1").split(/\s+/u);
-  return comparators.every((part) =>
-    part === "" || isRangeVersion(part.replace(/^(?:[<>]=?|~>?|\^|=)/u, ""))
+  return comparators.every(
+    (part) => part === "" || isRangeVersion(part.replace(/^(?:[<>]=?|~>?|\^|=)/u, "")),
   );
 }
 
@@ -39,17 +40,20 @@ function isRegistrySpecifier(value: string): boolean {
     return false;
   }
   const trimmed = value.trim();
-  return /^[0-9A-Za-z_~!()*'.-]+$/u.test(trimmed) ||
-    trimmed.split("||").every((part) => isRangeSet(part.trim()));
+  return (
+    /^[0-9A-Za-z_~!()*'.-]+$/u.test(trimmed) ||
+    trimmed.split("||").every((part) => isRangeSet(part.trim()))
+  );
 }
 
-export function parseNpmAlias(specifier: string): {
-  readonly targetPackageName: string;
-  readonly versionSpecifier: string;
-} | undefined {
+export function parseNpmAlias(specifier: string):
+  | {
+      readonly targetPackageName: string;
+      readonly versionSpecifier: string;
+    }
+  | undefined {
   const match = NPM_ALIAS.exec(specifier);
-  return match?.[1] !== undefined && match[2] !== undefined &&
-    isRegistrySpecifier(match[2])
+  return match?.[1] !== undefined && match[2] !== undefined && isRegistrySpecifier(match[2])
     ? { targetPackageName: match[1], versionSpecifier: match[2] }
     : undefined;
 }
@@ -75,20 +79,18 @@ function effectiveDeclaration(input: {
   if (catalogName === undefined) {
     return {
       effectiveSpecifier: input.specifier,
-      provenance: Object.freeze({ kind: "manifest" })
+      provenance: Object.freeze({ kind: "manifest" }),
     };
   }
   const catalogs = input.catalogs.filter(
-    (entry) =>
-      entry.catalogName === catalogName &&
-      entry.dependencyName === input.dependencyName
+    (entry) => entry.catalogName === catalogName && entry.dependencyName === input.dependencyName,
   );
   if (catalogs.length > 1) {
     throw new TypeError(`Catalog ${catalogName} declares ${input.dependencyName} more than once.`);
   }
   return {
     effectiveSpecifier: catalogs[0]?.version ?? input.specifier,
-    provenance: Object.freeze({ kind: "catalog", catalogName })
+    provenance: Object.freeze({ kind: "catalog", catalogName }),
   };
 }
 
@@ -114,6 +116,6 @@ export function normalizeDependencyDeclaration(input: {
     ...(effective.effectiveSpecifier.startsWith("npm:") && alias === undefined
       ? { normalizationProblem: "invalid-npm-alias" as const }
       : {}),
-    provenance: effective.provenance
+    provenance: effective.provenance,
   });
 }

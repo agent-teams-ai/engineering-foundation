@@ -11,7 +11,7 @@ weakening the merge gate.
 | Layer | Command | Purpose |
 | --- | --- | --- |
 | Changed | `bun tools/dev.mts check:changed` | Foundation-routed checks for the current Git delta |
-| Fast | `bun tools/dev.mts check:fast` | Terminology contract, fail-closed test manifests, Oxlint syntax/correctness, and pinned TypeScript 7 |
+| Fast | `bun tools/dev.mts check:fast` | Terminology contract, fail-closed test manifests, formatting, Oxlint syntax/correctness, and pinned TypeScript 7 |
 | Terminology | `pnpm docs:terminology:check` | Canonical glossary sections, qualification scopes, and entry-point links |
 | Architecture | `pnpm foundation:check` | All declared deterministic capabilities, including docs and ADR governance |
 | Workflow security | `pnpm security:workflows` | Pinned Actionlint and Zizmor capability qualification for all workflows and local actions |
@@ -566,11 +566,30 @@ model and Oxc updates are reviewed with their coupled evidence.
 
 ## Lint contract
 
+`format:check` runs the installed Stack Toolchain CLI through the source-owned
+repository command catalog on the qualified Node runtime. Both `check` and
+`check:fast` require it before lint. It checks the full configured format scope
+and its exact frozen-artifact exclusions without rewriting files.
+
+Frozen exclusions name individual artifact files, including historical transaction
+envelopes, original portable v3 profiles and historical execution schemas used
+as byte-identity evidence. Preserve their recorded bytes and digest assertions;
+formatting their JSON or YAML changes the evidence. Active TypeScript remains
+in scope. Test fixture transformations must tolerate formatter-owned whitespace
+in mutable input profiles.
+
+The four formatted source directories and two root configuration files use LF
+in Git checkout, including on Windows with `core.autocrlf=true`. Directory rules
+retain automatic binary detection;
+later explicit raw-fixture overrides keep their original bytes. The checkout
+regression checks staged and checked-out bytes, raw and binary preservation,
+and an ungoverned CRLF control. This is repository-owned checkout policy.
+
 Oxlint is the only JavaScript/TypeScript linter until a concrete missing rule
 proves that ESLint is required. The published presets enable correctness,
 suspicious, import, promise, Node, Unicorn, Oxc, and type-aware TypeScript rules.
 
-The repository also publishes opt-in production and test maintainability
+Stack Toolchain publishes opt-in production and test maintainability
 presets. Foundation dogfoods the production profile and applies the documented
 relaxed profile to tests, fixtures, the packed-consumer harness, and spikes.
 Generated and vendored paths are excluded from the five budgets without

@@ -18,7 +18,7 @@ interface GeneratedConsumerRootSnapshot extends GeneratedFilesystemIdentity {
 
 function consumerRootSnapshot(
   consumerRoot: string,
-  expected: GeneratedFilesystemIdentity | undefined
+  expected: GeneratedFilesystemIdentity | undefined,
 ): GeneratedConsumerRootSnapshot | undefined {
   try {
     const canonicalRoot = realpathSync(consumerRoot);
@@ -26,7 +26,7 @@ function consumerRootSnapshot(
     const snapshot = {
       canonicalRoot,
       device: String(metadata.dev),
-      inode: String(metadata.ino)
+      inode: String(metadata.ino),
     };
     return !metadata.isDirectory() ||
       metadata.isSymbolicLink() ||
@@ -42,8 +42,7 @@ function consumerRootSnapshot(
 function consumerRootIsStable(snapshot: GeneratedConsumerRootSnapshot): boolean {
   try {
     const metadata = lstatSync(snapshot.canonicalRoot, { bigint: true });
-    return String(metadata.dev) === snapshot.device &&
-      String(metadata.ino) === snapshot.inode;
+    return String(metadata.dev) === snapshot.device && String(metadata.ino) === snapshot.inode;
   } catch {
     return false;
   }
@@ -52,7 +51,7 @@ function consumerRootIsStable(snapshot: GeneratedConsumerRootSnapshot): boolean 
 function pathSnapshot(
   canonicalRoot: string,
   lexicalPath: string,
-  kind: "directory" | "file"
+  kind: "directory" | "file",
 ): GeneratedPathSnapshot | undefined {
   try {
     const lexical = lstatSync(lexicalPath, { bigint: true });
@@ -79,21 +78,18 @@ function pathSnapshot(
       device: String(lexical.dev),
       inode: String(lexical.ino),
       kind,
-      lexicalPath
+      lexicalPath,
     };
   } catch {
     return undefined;
   }
 }
 
-function pathIsStable(
-  canonicalRoot: string,
-  snapshot: GeneratedPathSnapshot
-): boolean {
+function pathIsStable(canonicalRoot: string, snapshot: GeneratedPathSnapshot): boolean {
   const current = pathSnapshot(canonicalRoot, snapshot.lexicalPath, snapshot.kind);
-  return current !== undefined &&
-    current.device === snapshot.device &&
-    current.inode === snapshot.inode;
+  return (
+    current !== undefined && current.device === snapshot.device && current.inode === snapshot.inode
+  );
 }
 
 function pathRemainsMissing(path: string): boolean {
@@ -107,27 +103,37 @@ function pathRemainsMissing(path: string): boolean {
 
 function snapshotsAreStable(
   root: GeneratedConsumerRootSnapshot,
-  snapshots: readonly GeneratedPathSnapshot[]
+  snapshots: readonly GeneratedPathSnapshot[],
 ): boolean {
-  return consumerRootIsStable(root) &&
-    snapshots.every((snapshot) => pathIsStable(root.canonicalRoot, snapshot));
+  return (
+    consumerRootIsStable(root) &&
+    snapshots.every((snapshot) => pathIsStable(root.canonicalRoot, snapshot))
+  );
 }
 
 function matchesExpectedIdentity(
   actual: GeneratedFilesystemIdentity,
-  expected: GeneratedFilesystemIdentity | undefined
+  expected: GeneratedFilesystemIdentity | undefined,
 ): boolean {
-  return expected === undefined || (actual.device === expected.device && actual.inode === expected.inode);
+  return (
+    expected === undefined || (actual.device === expected.device && actual.inode === expected.inode)
+  );
 }
 
 function observeNestedDirectory(
   packageRoot: string,
   snapshot: GeneratedPathSnapshot,
-  manifests: GeneratedOutputManifestObservations | undefined
+  manifests: GeneratedOutputManifestObservations | undefined,
 ): boolean {
   const relation = relative(packageRoot, snapshot.lexicalPath);
-  return manifests === undefined || snapshot.kind !== "directory" || relation === "" ||
-    relation === ".." || relation.startsWith(`..${sep}`) || manifests.observe(snapshot.lexicalPath);
+  return (
+    manifests === undefined ||
+    snapshot.kind !== "directory" ||
+    relation === "" ||
+    relation === ".." ||
+    relation.startsWith(`..${sep}`) ||
+    manifests.observe(snapshot.lexicalPath)
+  );
 }
 
 export function generatedOutputFilesystemIsSafe(input: {
@@ -150,11 +156,19 @@ export function generatedOutputFilesystemIsSafe(input: {
   if (relation === ".." || relation.startsWith(`..${sep}`)) {
     return false;
   }
-  const manifests = input.enforceManifestFences === true ? new GeneratedOutputManifestObservations(canonicalRoot) : undefined;
+  const manifests =
+    input.enforceManifestFences === true
+      ? new GeneratedOutputManifestObservations(canonicalRoot)
+      : undefined;
   const snapshots: GeneratedPathSnapshot[] = [];
-  const stable = (): boolean => snapshotsAreStable(root, snapshots) &&
-    (manifests?.stable() ?? true) && snapshotsAreStable(root, snapshots);
-  if (absolutePackage === canonicalRoot && !matchesExpectedIdentity(root, input.expectedPackageRootIdentity)) {
+  const stable = (): boolean =>
+    snapshotsAreStable(root, snapshots) &&
+    (manifests?.stable() ?? true) &&
+    snapshotsAreStable(root, snapshots);
+  if (
+    absolutePackage === canonicalRoot &&
+    !matchesExpectedIdentity(root, input.expectedPackageRootIdentity)
+  ) {
     return false;
   }
   let current = canonicalRoot;
@@ -167,19 +181,17 @@ export function generatedOutputFilesystemIsSafe(input: {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
         return false;
       }
-      return stable() &&
-        pathRemainsMissing(current) &&
-        stable() &&
-        pathRemainsMissing(current);
+      return stable() && pathRemainsMissing(current) && stable() && pathRemainsMissing(current);
     }
     const snapshot = pathSnapshot(
       canonicalRoot,
       current,
-      index === targetSegments.length - 1 ? "file" : "directory"
+      index === targetSegments.length - 1 ? "file" : "directory",
     );
     if (
       snapshot === undefined ||
-      (current === absolutePackage && !matchesExpectedIdentity(snapshot, input.expectedPackageRootIdentity))
+      (current === absolutePackage &&
+        !matchesExpectedIdentity(snapshot, input.expectedPackageRootIdentity))
     ) {
       return false;
     }

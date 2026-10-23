@@ -3,7 +3,7 @@ import type {
   ConsumerIntegrationFileObservation,
   ConsumerIntegrationIssue,
   QualifiedDocsCohortBindingV1,
-  QualifiedDocsCohortBindingV2
+  QualifiedDocsCohortBindingV2,
 } from "../../domain/model.js";
 
 export interface AgentsRoutePlanV1 {

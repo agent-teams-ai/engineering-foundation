@@ -27,12 +27,7 @@ export function createDocumentEnvelopeV3(documentContractFixture, state = "PREPA
     plan,
     destination: {
       path: plan.destination,
-      state:
-        state === "PREPARED"
-          ? "pending"
-          : state === "PUBLISHING"
-            ? "publishing"
-            : "published",
+      state: state === "PREPARED" ? "pending" : state === "PUBLISHING" ? "publishing" : "published",
     },
   };
   if (state === "PUBLISHING") {

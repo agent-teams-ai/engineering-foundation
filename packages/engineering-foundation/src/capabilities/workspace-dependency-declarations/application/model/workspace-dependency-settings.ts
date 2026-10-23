@@ -5,4 +5,3 @@ export interface WorkspaceDependencyDeclarationsSettings {
   readonly workspaceManifestPath: "pnpm-workspace.yaml";
   readonly policy: WorkspaceDependencyPolicy;
 }
-

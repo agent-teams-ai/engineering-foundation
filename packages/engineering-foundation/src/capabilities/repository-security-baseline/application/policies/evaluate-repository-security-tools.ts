@@ -1,11 +1,14 @@
-import type { DiagnosticSeverity, FoundationDiagnostic } from "../../../../features/validation-reporting/api.js";
+import type {
+  DiagnosticSeverity,
+  FoundationDiagnostic,
+} from "../../../../features/validation-reporting/api.js";
 import type {
   RepositorySecurityEvidence,
   RepositorySecurityPolicy,
   RepositorySecurityToolEvidence,
   SecurityToolName,
   ToolEvidenceRollout,
-  WorkflowJobEvidence
+  WorkflowJobEvidence,
 } from "../model/repository-security.js";
 import { configuredRepositorySecurityTools } from "../model/repository-security.js";
 import { REPOSITORY_SECURITY_RULES } from "../rules.js";
@@ -21,7 +24,7 @@ function jobMatchesToolRollout(job: WorkflowJobEvidence, rollout: ToolEvidenceRo
 
 function workflowMatchesToolRollout(
   workflow: RepositorySecurityEvidence["workflows"][number],
-  rollout: ToolEvidenceRollout
+  rollout: ToolEvidenceRollout,
 ): boolean {
   return rollout !== "blocking" || workflow.pullRequestCodeChangesCovered;
 }
@@ -29,7 +32,7 @@ function workflowMatchesToolRollout(
 function jobInvokes(
   job: WorkflowJobEvidence,
   invocationUse: string,
-  rollout: ToolEvidenceRollout
+  rollout: ToolEvidenceRollout,
 ): boolean {
   if (job.uses === invocationUse) {
     return true;
@@ -38,7 +41,7 @@ function jobInvokes(
     (step) =>
       step.uses === invocationUse &&
       !step.conditional &&
-      (rollout !== "blocking" || !step.nonBlocking)
+      (rollout !== "blocking" || !step.nonBlocking),
   );
 }
 
@@ -51,7 +54,7 @@ function evaluateToolBinding(input: {
   const { diagnostics, evidence, expected, observedEvidence } = input;
   const severity = severityForRollout(expected.policy.rollout);
   const workflow = evidence.workflows.find(
-    (candidate) => candidate.path === expected.policy.workflowPath
+    (candidate) => candidate.path === expected.policy.workflowPath,
   );
   const job = workflow?.jobs.find((candidate) => candidate.id === expected.policy.jobId);
   if (workflow === undefined || job === undefined) {
@@ -62,8 +65,8 @@ function evaluateToolBinding(input: {
         subject: `${expected.policy.workflowPath}:${expected.policy.jobId}`,
         path: expected.policy.workflowPath,
         message: `Declared ${expected.tool} external gate job is unavailable.`,
-        evidence: [{ kind: "tool", value: expected.tool }]
-      })
+        evidence: [{ kind: "tool", value: expected.tool }],
+      }),
     );
   } else if (
     !workflowMatchesToolRollout(workflow, expected.policy.rollout) ||
@@ -76,8 +79,8 @@ function evaluateToolBinding(input: {
         subject: `${expected.policy.workflowPath}:${expected.policy.jobId}`,
         path: expected.policy.workflowPath,
         message: `Declared ${expected.tool} external gate job does not match ${expected.policy.rollout} rollout.`,
-        evidence: [{ kind: "tool", value: expected.tool }]
-      })
+        evidence: [{ kind: "tool", value: expected.tool }],
+      }),
     );
   } else if (!jobInvokes(job, expected.policy.invocationUse, expected.policy.rollout)) {
     diagnostics.push(
@@ -87,8 +90,8 @@ function evaluateToolBinding(input: {
         subject: `${expected.policy.workflowPath}:${expected.policy.jobId}`,
         path: expected.policy.workflowPath,
         message: `Declared ${expected.tool} external gate job does not invoke its reviewed immutable runner.`,
-        evidence: [{ kind: "invocation-use", value: expected.policy.invocationUse }]
-      })
+        evidence: [{ kind: "invocation-use", value: expected.policy.invocationUse }],
+      }),
     );
   }
   if (observedEvidence === undefined || observedEvidence.kind === "missing") {
@@ -101,9 +104,9 @@ function evaluateToolBinding(input: {
         message: `Required ${expected.tool} ${observedEvidence?.kind === "missing" ? observedEvidence.missing : "evidence"} is unavailable.`,
         evidence: [
           { kind: "evidence-path", value: expected.policy.evidencePath },
-          { kind: "result-path", value: expected.policy.resultPath }
-        ]
-      })
+          { kind: "result-path", value: expected.policy.resultPath },
+        ],
+      }),
     );
     return;
   }
@@ -117,9 +120,9 @@ function evaluateToolBinding(input: {
         message: `${expected.tool} evidence was produced by ${observedEvidence.toolVersion}, not declared version ${expected.policy.version}.`,
         evidence: [
           { kind: "actual-version", value: observedEvidence.toolVersion },
-          { kind: "expected-version", value: expected.policy.version }
-        ]
-      })
+          { kind: "expected-version", value: expected.policy.version },
+        ],
+      }),
     );
   }
   if (
@@ -137,9 +140,9 @@ function evaluateToolBinding(input: {
           { kind: "actual-config-digest", value: observedEvidence.actualConfigDigest },
           { kind: "actual-workflow-digest", value: observedEvidence.actualWorkflowDigest },
           { kind: "reported-config-digest", value: observedEvidence.configDigest },
-          { kind: "reported-workflow-digest", value: observedEvidence.workflowDigest }
-        ]
-      })
+          { kind: "reported-workflow-digest", value: observedEvidence.workflowDigest },
+        ],
+      }),
     );
   }
   if (observedEvidence.resultDigest !== observedEvidence.actualResultDigest) {
@@ -152,9 +155,9 @@ function evaluateToolBinding(input: {
         message: `${expected.tool} result artifact does not match its evidence digest.`,
         evidence: [
           { kind: "actual-result-digest", value: observedEvidence.actualResultDigest },
-          { kind: "reported-result-digest", value: observedEvidence.resultDigest }
-        ]
-      })
+          { kind: "reported-result-digest", value: observedEvidence.resultDigest },
+        ],
+      }),
     );
   }
   if (observedEvidence.outcome === "failed") {
@@ -165,8 +168,8 @@ function evaluateToolBinding(input: {
         subject: expected.tool,
         path: expected.policy.evidencePath,
         message: `${expected.tool} evidence reports a failed tool execution.`,
-        evidence: [{ kind: "result-digest", value: observedEvidence.resultDigest }]
-      })
+        evidence: [{ kind: "result-digest", value: observedEvidence.resultDigest }],
+      }),
     );
   }
 }
@@ -174,10 +177,10 @@ function evaluateToolBinding(input: {
 export function evaluateRepositorySecurityTools(
   policy: RepositorySecurityPolicy,
   evidence: RepositorySecurityEvidence,
-  diagnostics: FoundationDiagnostic[]
+  diagnostics: FoundationDiagnostic[],
 ): void {
   const observed = new Map<SecurityToolName, RepositorySecurityToolEvidence>(
-    evidence.toolEvidence.map((entry) => [entry.tool, entry])
+    evidence.toolEvidence.map((entry) => [entry.tool, entry]),
   );
   for (const expected of configuredRepositorySecurityTools(policy.toolEvidence)) {
     const observedEvidence = observed.get(expected.tool);
@@ -185,7 +188,7 @@ export function evaluateRepositorySecurityTools(
       diagnostics,
       evidence,
       expected,
-      ...(observedEvidence === undefined ? {} : { observedEvidence })
+      ...(observedEvidence === undefined ? {} : { observedEvidence }),
     });
   }
 }

@@ -2,12 +2,10 @@ import type { RepositoryPackageManager } from "../../../process-execution/applic
 import { selectClosedPackageManager } from "../../../process-execution/application/runtime-selection.js";
 import type { PackageScriptRunner } from "../application/ports/changed-workflow.js";
 
-export function createPackageManagerScriptRunner(
-  candidates: {
-    readonly bun?: PackageScriptRunner;
-    readonly pnpm?: PackageScriptRunner;
-  }
-): PackageScriptRunner {
+export function createPackageManagerScriptRunner(candidates: {
+  readonly bun?: PackageScriptRunner;
+  readonly pnpm?: PackageScriptRunner;
+}): PackageScriptRunner {
   return Object.freeze({
     async run(input: {
       readonly packageManager: RepositoryPackageManager;
@@ -16,10 +14,7 @@ export function createPackageManagerScriptRunner(
       readonly paths: readonly string[];
       readonly signal?: AbortSignal;
     }) {
-      return selectClosedPackageManager(
-        input.packageManager,
-        candidates
-      ).run(input);
-    }
+      return selectClosedPackageManager(input.packageManager, candidates).run(input);
+    },
   });
 }

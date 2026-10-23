@@ -2,6 +2,6 @@ export { createScaffoldCrashQualification } from "./scaffold-crash-qualification
 export type {
   ScaffoldQualificationPhase,
   ScaffoldQualificationPoint,
-  ScaffoldQualificationPhaseCallback
+  ScaffoldQualificationPhaseCallback,
 } from "./scaffold-crash-qualification.js";
 export type { ScaffoldPlan, ScaffoldReceipt } from "../contract/scaffold-contract.js";

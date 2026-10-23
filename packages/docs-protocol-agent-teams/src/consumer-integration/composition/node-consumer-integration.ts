@@ -1,5 +1,8 @@
 import { finalizeNodeConsumerRestoration } from "../adapters/node-consumer-restoration-finalization.js";
-import { consumerRestorationRecorder, restoreNodeConsumerIntegration } from "../adapters/node-consumer-restoration.js";
+import {
+  consumerRestorationRecorder,
+  restoreNodeConsumerIntegration,
+} from "../adapters/node-consumer-restoration.js";
 import {
   type ConsumerFinalizationOptions,
   type ConsumerRestorationOptions,
@@ -7,32 +10,26 @@ import {
   type ConsumerIntegrationExecutionV1,
   createConsumerIntegrationUseCases,
   createConsumerUpgradeUseCase,
-  type ConsumerUpgradeExecutionV1
+  type ConsumerUpgradeExecutionV1,
 } from "../application-api.js";
 import { foundationKnownFileTransaction } from "./known-file-transaction.js";
 import { githubCohortAuthorityReader } from "../adapters/github-cohort-authority-reader.js";
+import { nodeConsumerIntegrationInputReader } from "../adapters/node-consumer-integration-repository.js";
+import { packageConsumerAssetCatalogReader } from "../adapters/package-consumer-asset-catalog.js";
 import {
-  nodeConsumerIntegrationInputReader
-} from "../adapters/node-consumer-integration-repository.js";
-import {
-  packageConsumerAssetCatalogReader
-} from "../adapters/package-consumer-asset-catalog.js";
-import { nodeConsumerTargetLockfileReader, nodeConsumerUpgradeSandbox } from "../adapters/node-consumer-upgrade-sandbox.js";
-
-
-
+  nodeConsumerTargetLockfileReader,
+  nodeConsumerUpgradeSandbox,
+} from "../adapters/node-consumer-upgrade-sandbox.js";
 
 import { consumerIntegrationPlanningPorts } from "./consumer-integration-planner.js";
 
-export type {
-  ConsumerIntegrationExecutionV1
-} from "../application-api.js";
+export type { ConsumerIntegrationExecutionV1 } from "../application-api.js";
 
 const useCases = createConsumerIntegrationUseCases({
   assets: packageConsumerAssetCatalogReader,
   input: nodeConsumerIntegrationInputReader,
   planning: consumerIntegrationPlanningPorts,
-  transaction: foundationKnownFileTransaction
+  transaction: foundationKnownFileTransaction,
 });
 
 const upgrade = createConsumerUpgradeUseCase({
@@ -43,7 +40,7 @@ const upgrade = createConsumerUpgradeUseCase({
   input: nodeConsumerIntegrationInputReader,
   planning: consumerIntegrationPlanningPorts,
   sandbox: nodeConsumerUpgradeSandbox,
-  transaction: foundationKnownFileTransaction
+  transaction: foundationKnownFileTransaction,
 });
 
 export function checkConsumerIntegration(options: {
@@ -81,7 +78,9 @@ export async function upgradeConsumerIntegration(options: {
   readonly to: string;
 }): Promise<ConsumerUpgradeExecutionV1> {
   const result = await upgrade(options);
-  if (result.outcome === "prepared" || result.command !== "consumer.upgrade") {throw new TypeError("Explicit preparation is CLI-only.");}
+  if (result.outcome === "prepared" || result.command !== "consumer.upgrade") {
+    throw new TypeError("Explicit preparation is CLI-only.");
+  }
   return { ...result, command: "consumer.upgrade", outcome: result.outcome };
 }
 
@@ -98,9 +97,15 @@ export function upgradeConsumerIntegrationToGeneration(options: {
 }
 
 export function restoreConsumerIntegration(options: ConsumerRestorationOptions) {
-  return restoreNodeConsumerIntegration(options, { authority: githubCohortAuthorityReader, sandbox: nodeConsumerUpgradeSandbox });
+  return restoreNodeConsumerIntegration(options, {
+    authority: githubCohortAuthorityReader,
+    sandbox: nodeConsumerUpgradeSandbox,
+  });
 }
 
 export function finalizeConsumerRestoration(options: ConsumerFinalizationOptions) {
-  return finalizeNodeConsumerRestoration(options, { authority: githubCohortAuthorityReader, sandbox: nodeConsumerUpgradeSandbox });
+  return finalizeNodeConsumerRestoration(options, {
+    authority: githubCohortAuthorityReader,
+    sandbox: nodeConsumerUpgradeSandbox,
+  });
 }

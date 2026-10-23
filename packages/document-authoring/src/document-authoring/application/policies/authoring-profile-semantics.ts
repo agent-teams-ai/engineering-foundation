@@ -71,16 +71,12 @@ function hasCompatibleIdentityPlacement(artifactType: ArtifactTypeSemantics): bo
   return true;
 }
 
-function assertCompatibleReachabilityPlacement(
-  artifactType: ArtifactTypeSemantics
-): void {
+function assertCompatibleReachabilityPlacement(artifactType: ArtifactTypeSemantics): void {
   if (
     artifactType.reachability?.kind === "manual-colocated-index" &&
     artifactType.placement.kind !== "explicit"
   ) {
-    throw new AuthoringProfileSemanticError(
-      "incompatible-reachability-placement"
-    );
+    throw new AuthoringProfileSemanticError("incompatible-reachability-placement");
   }
 }
 
@@ -94,10 +90,7 @@ export function assertAuthoringProfileSemantics(profile: AuthoringProfileSemanti
     types.add(typeIdentity);
 
     const grammar = artifactType.identity?.grammar;
-    if (
-      grammar !== undefined &&
-      grammar.minSuffixSegments > grammar.maxSuffixSegments
-    ) {
+    if (grammar !== undefined && grammar.minSuffixSegments > grammar.maxSuffixSegments) {
       throw new AuthoringProfileSemanticError("invalid-qualified-grammar-range");
     }
 
@@ -106,9 +99,12 @@ export function assertAuthoringProfileSemantics(profile: AuthoringProfileSemanti
       throw new AuthoringProfileSemanticError("incompatible-identity-placement");
     }
     assertCompatibleReachabilityPlacement(artifactType);
-    const roots = placement.kind === "qualified-leaf-index"
-      ? (placement.root === undefined ? [] : [placement.root])
-      : [...(placement.allowedRoots ?? [])];
+    const roots =
+      placement.kind === "qualified-leaf-index"
+        ? placement.root === undefined
+          ? []
+          : [placement.root]
+        : [...(placement.allowedRoots ?? [])];
     const identities = roots.map(portableAsciiIdentity);
     for (const [index, root] of roots.entries()) {
       if (!isDocumentRepositoryPath(root)) {
@@ -136,41 +132,37 @@ export function assertAuthoringProfileSemantics(profile: AuthoringProfileSemanti
 
 export function matchingPlacementRoot(
   repositoryPath: string,
-  allowedRoots: readonly string[]
+  allowedRoots: readonly string[],
 ): string | undefined {
-  const matches = allowedRoots.filter((root) =>
-    isSegmentBoundaryPrefix(root, repositoryPath)
-  );
+  const matches = allowedRoots.filter((root) => isSegmentBoundaryPrefix(root, repositoryPath));
   return matches.length === 1 ? matches[0] : undefined;
 }
 
 export function hasContiguousRequiredSegments(
   repositoryPath: string,
   requiredSegments: readonly string[],
-  matchedRoot?: string
+  matchedRoot?: string,
 ): boolean {
   if (requiredSegments.length === 0) {
     return true;
   }
   const rootIdentity = matchedRoot;
-  if (
-    rootIdentity !== undefined &&
-    !isSegmentBoundaryPrefix(rootIdentity, repositoryPath)
-  ) {
+  if (rootIdentity !== undefined && !isSegmentBoundaryPrefix(rootIdentity, repositoryPath)) {
     return false;
   }
-  const suffix = rootIdentity === undefined
-    ? repositoryPath
-    : repositoryPath.slice(rootIdentity.length).replace(/^\//u, "");
+  const suffix =
+    rootIdentity === undefined
+      ? repositoryPath
+      : repositoryPath.slice(rootIdentity.length).replace(/^\//u, "");
   const segments = suffix.split("/");
   return segments.some((_segment, start) =>
-    requiredSegments.every((segment, offset) => segments[start + offset] === segment)
+    requiredSegments.every((segment, offset) => segments[start + offset] === segment),
   );
 }
 
 export function isRepositoryPathAllowedByPlacement(
   repositoryPath: string,
-  placement: PlacementSemantics
+  placement: PlacementSemantics,
 ): boolean {
   if (!isDocumentRepositoryPath(repositoryPath)) {
     return false;
@@ -185,8 +177,10 @@ export function isRepositoryPathAllowedByPlacement(
       return false;
     }
     const rootSegments = placement.root.split("/");
-    return isSegmentBoundaryPrefix(placement.root, repositoryPath) &&
-      segments.length > rootSegments.length + 1;
+    return (
+      isSegmentBoundaryPrefix(placement.root, repositoryPath) &&
+      segments.length > rootSegments.length + 1
+    );
   }
   if (placement.kind !== "explicit") {
     return false;
@@ -203,10 +197,10 @@ export function isRepositoryPathAllowedByPlacement(
   }
   const suffix = repositoryPath.slice(root.length + 1).split("/");
   const directories = suffix.slice(0, -1);
-  return directories.some((_segment, start) =>
-    start >= placement.minimumSegmentsBeforeRequired! &&
-    directories.length - start - required.length >=
-      placement.minimumSegmentsAfterRequired! &&
-    required.every((segment, offset) => directories[start + offset] === segment)
+  return directories.some(
+    (_segment, start) =>
+      start >= placement.minimumSegmentsBeforeRequired! &&
+      directories.length - start - required.length >= placement.minimumSegmentsAfterRequired! &&
+      required.every((segment, offset) => directories[start + offset] === segment),
   );
 }

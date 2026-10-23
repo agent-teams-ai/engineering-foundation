@@ -1,6 +1,6 @@
 import {
   assertNotCancelled,
-  CapabilityInputError
+  CapabilityInputError,
 } from "../../../documentation-observation/api.js";
 
 export interface DocumentInputFailure extends Error {
@@ -20,7 +20,7 @@ export function isDocumentInputFailure(error: unknown): error is DocumentInputFa
 export function createDocumentInputFailure(
   code: "YAML_INVALID" | "YAML_FEATURE_PROHIBITED" | "SCHEMA_INVALID",
   message: string,
-  phase: string
+  phase: string,
 ): DocumentInputFailure {
   return new CapabilityInputError({ code, message, phase, retryable: false });
 }

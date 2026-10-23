@@ -5,9 +5,7 @@ if (serviceModulePath === undefined || consumerRoot === undefined) {
   throw new Error("service module path and consumer root are required");
 }
 
-const { acquireFoundationOperationLock } = await import(
-  pathToFileURL(serviceModulePath).href
-);
+const { acquireFoundationOperationLock } = await import(pathToFileURL(serviceModulePath).href);
 const release = await acquireFoundationOperationLock(consumerRoot);
 process.stdout.write("READY\n");
 

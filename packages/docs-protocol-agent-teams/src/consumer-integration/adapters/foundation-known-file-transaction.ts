@@ -1,9 +1,7 @@
-import type {
-  ConsumerIntegrationTransactionPort
-} from "../application-api.js";
+import type { ConsumerIntegrationTransactionPort } from "../application-api.js";
 
 export function createFoundationKnownFileTransaction(
-  operations: ConsumerIntegrationTransactionPort
+  operations: ConsumerIntegrationTransactionPort,
 ): ConsumerIntegrationTransactionPort {
   return Object.freeze<ConsumerIntegrationTransactionPort>({
     async inspect(options: { readonly consumerRoot: string }) {
@@ -13,10 +11,14 @@ export function createFoundationKnownFileTransaction(
         : Object.freeze({
             state: "recovery-required" as const,
             code: observation.code,
-            message: observation.message
+            message: observation.message,
           });
     },
-    apply(options) { return operations.apply(options); },
-    recover(options) { return operations.recover(options); }
+    apply(options) {
+      return operations.apply(options);
+    },
+    recover(options) {
+      return operations.recover(options);
+    },
   });
 }

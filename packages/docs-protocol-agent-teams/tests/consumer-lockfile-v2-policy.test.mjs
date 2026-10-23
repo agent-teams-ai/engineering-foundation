@@ -1,20 +1,12 @@
+import { hostileCyclicLockfile, coordinate } from "./consumer-lockfile-cycle-fixture.ts";
 import { registerConsumerTargetLockfileTests } from "./fixtures/target-lockfile/consumer-target-lockfile-cases.mjs";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import { stringify } from "yaml";
 
-import {
-  assertQualifiedPnpmLockfileV2
-} from "../dist/consumer-integration/adapters/pnpm-lockfile-validator-v2.js";
-import {
-  computePnpmRuntimeClosureDigestV2
-} from "../dist/consumer-integration/adapters/pnpm-runtime-closure-v2.js";
-
-const coordinate = Object.freeze({
-  version: "0.1.0",
-  integrity: `sha512-${"A".repeat(86)}==`
-});
+import { assertQualifiedPnpmLockfileV2 } from "../dist/consumer-integration/adapters/pnpm-lockfile-validator-v2.js";
+import { computePnpmRuntimeClosureDigestV2 } from "../dist/consumer-integration/adapters/pnpm-runtime-closure-v2.js";
 
 const desired = Object.freeze({
   cohort: Object.freeze({
@@ -23,10 +15,10 @@ const desired = Object.freeze({
       documentAuthoring: coordinate,
       docsProtocol: coordinate,
       docsProtocolAgentTeams: coordinate,
-      engineeringFoundation: coordinate
+      engineeringFoundation: coordinate,
     }),
-    runtime: Object.freeze({ runtimeClosureDigest: `sha256:${"0".repeat(64)}` })
-  })
+    runtime: Object.freeze({ runtimeClosureDigest: `sha256:${"0".repeat(64)}` }),
+  }),
 });
 
 function assertOverrideRejected(field, selector) {
@@ -39,7 +31,7 @@ ${field}:
     (error) => {
       assert.equal(error?.code, "DOCS_CONSUMER_LOCKFILE_OVERRIDE");
       return true;
-    }
+    },
   );
 }
 
@@ -52,18 +44,24 @@ test("Cohort v2 rejects a document-authoring patch", () => {
 });
 
 function assertLockfileAliasRejected(importerPath, field, target) {
-  const nested = importerPath === "." ? "" : `  '${importerPath}':
+  const nested =
+    importerPath === "."
+      ? ""
+      : `  '${importerPath}':
     ${field}:
       managedAlias:
         specifier: 'npm:${target}@0.1.0'
         version: 'npm:${target}@0.1.0'
 `;
-  const root = importerPath === "." ? `  .:
+  const root =
+    importerPath === "."
+      ? `  .:
     ${field}:
       managedAlias:
         specifier: 'npm:${target}@0.1.0'
         version: 'npm:${target}@0.1.0'
-` : "  .: {}\n";
+`
+      : "  .: {}\n";
   const lockfile = `lockfileVersion: '9.0'
 importers:
 ${root}
@@ -73,20 +71,16 @@ ${nested}`;
     (error) => {
       assert.equal(error?.code, "DOCS_CONSUMER_COHORT_ALIAS_FORBIDDEN");
       return true;
-    }
+    },
   );
 }
 
 test("Cohort v2 rejects npm aliases in root and nested importers", () => {
-  assertLockfileAliasRejected(
-    ".",
-    "devDependencies",
-    "@agent-teams/repository-mutation"
-  );
+  assertLockfileAliasRejected(".", "devDependencies", "@agent-teams/repository-mutation");
   assertLockfileAliasRejected(
     "packages/nested",
     "peerDependencies",
-    "@agent-teams/document-authoring"
+    "@agent-teams/document-authoring",
   );
 });
 
@@ -104,84 +98,25 @@ importers:
     (error) => {
       assert.equal(error?.code, "DOCS_CONSUMER_COHORT_ALIAS_FORBIDDEN");
       return true;
-    }
+    },
   );
 });
-
-function hostileCyclicLockfile() {
-  const packageNames = [
-    "@agent-teams/repository-mutation",
-    "@agent-teams/document-authoring",
-    "@agent-teams/docs-protocol",
-    "@agent-teams/docs-protocol-agent-teams",
-    "@agent-teams/engineering-foundation"
-  ];
-  const dependencies = (entries) => Object.fromEntries(
-    entries.map((name) => [name, coordinate.version])
-  );
-  return {
-    lockfileVersion: "9.0",
-    importers: {
-      ".": {
-        devDependencies: Object.fromEntries([
-          "@agent-teams/docs-protocol",
-          "@agent-teams/docs-protocol-agent-teams",
-          "@agent-teams/engineering-foundation"
-        ].map((name) => [name, {
-          specifier: coordinate.version,
-          version: coordinate.version
-        }]))
-      }
-    },
-    packages: Object.fromEntries(packageNames.map((name) => [
-      `${name}@${coordinate.version}`,
-      { resolution: { integrity: coordinate.integrity } }
-    ])),
-    snapshots: {
-      "@agent-teams/repository-mutation@0.1.0": {
-        dependencies: dependencies(["@agent-teams/docs-protocol"])
-      },
-      "@agent-teams/document-authoring@0.1.0": {
-        dependencies: dependencies(["@agent-teams/repository-mutation"])
-      },
-      "@agent-teams/docs-protocol@0.1.0": {
-        dependencies: dependencies([
-          "@agent-teams/document-authoring",
-          "@agent-teams/repository-mutation"
-        ])
-      },
-      "@agent-teams/docs-protocol-agent-teams@0.1.0": {
-        dependencies: dependencies([
-          "@agent-teams/docs-protocol",
-          "@agent-teams/repository-mutation"
-        ])
-      },
-      "@agent-teams/engineering-foundation@0.1.0": {
-        dependencies: dependencies([
-          "@agent-teams/document-authoring",
-          "@agent-teams/repository-mutation"
-        ])
-      }
-    }
-  };
-}
 
 test("Cohort v2 rejects a digest-bound extra managed edge that creates a cycle", () => {
   const lockfile = hostileCyclicLockfile();
   // V2 now rejects the extra edge during projection, before a digest can be bound.
-  assert.throws(() => computePnpmRuntimeClosureDigestV2(lockfile, desired.cohort),
-    (error) => error?.code === "DOCS_CONSUMER_RUNTIME_CLOSURE_MISMATCH");
+  assert.throws(
+    () => computePnpmRuntimeClosureDigestV2(lockfile, desired.cohort),
+    (error) => error?.code === "DOCS_CONSUMER_RUNTIME_CLOSURE_MISMATCH",
+  );
   const cohort = desired.cohort;
   assert.throws(
-    () => assertQualifiedPnpmLockfileV2(
-      Buffer.from(stringify(lockfile)),
-      { ...desired, cohort }
-    ),
+    () => assertQualifiedPnpmLockfileV2(Buffer.from(stringify(lockfile)), { ...desired, cohort }),
     (error) => {
       assert.equal(error?.code, "DOCS_CONSUMER_COHORT_DEPENDENCY_MISMATCH");
       assert.match(error.message, /forbidden extra Cohort dependency/u);
       return true;
-    }
+    },
   );
 });
 
@@ -194,37 +129,42 @@ test("Cohort v2 rejects a required managed edge represented as optional", () => 
   const cohort = {
     ...desired.cohort,
     runtime: {
-      runtimeClosureDigest: computePnpmRuntimeClosureDigestV2(lockfile, desired.cohort)
-    }
+      runtimeClosureDigest: computePnpmRuntimeClosureDigestV2(lockfile, desired.cohort),
+    },
   };
   assert.throws(
-    () => assertQualifiedPnpmLockfileV2(
-      Buffer.from(stringify(lockfile)),
-      { ...desired, cohort }
-    ),
+    () => assertQualifiedPnpmLockfileV2(Buffer.from(stringify(lockfile)), { ...desired, cohort }),
     (error) => {
       assert.equal(error?.code, "DOCS_CONSUMER_COHORT_DEPENDENCY_MISMATCH");
       assert.match(error.message, /must not optionally depend/u);
       return true;
-    }
+    },
   );
 });
 
 // Independent central authority bytes, retained verbatim; never generated by this producer.
-const accepted = JSON.parse(readFileSync(
-  new URL("./fixtures/runtime-closure-v2-b8a.json", import.meta.url), "utf8"
-));
+const accepted = JSON.parse(
+  readFileSync(new URL("./fixtures/runtime-closure-v2-b8a.json", import.meta.url), "utf8"),
+);
 const acceptedDigest = "sha256:b8a758df4203cba2350c2a44e03bce6177f555b852ae66620cb59c8b35e92a40";
 const oldDigest = "sha256:9b74f2aeeeb8245e360ed1cb3526e8a12198368959afa2120ccdef7fbaabe31d";
 const acceptedCohort = {
-  packages: Object.fromEntries([
-    "repositoryMutation", "documentAuthoring", "docsProtocol",
-    "docsProtocolAgentTeams", "engineeringFoundation"
-  ].map((key, index) => [key, {
-    version: accepted.coordinates[index].version,
-    integrity: accepted.coordinates[index].integrity
-  }])),
-  runtime: { runtimeClosureDigest: acceptedDigest }
+  packages: Object.fromEntries(
+    [
+      "repositoryMutation",
+      "documentAuthoring",
+      "docsProtocol",
+      "docsProtocolAgentTeams",
+      "engineeringFoundation",
+    ].map((key, index) => [
+      key,
+      {
+        version: accepted.coordinates[index].version,
+        integrity: accepted.coordinates[index].integrity,
+      },
+    ]),
+  ),
+  runtime: { runtimeClosureDigest: acceptedDigest },
 };
 const digest = (lock) => computePnpmRuntimeClosureDigestV2(lock, acceptedCohort);
 const closureError = (error) => error?.code === "DOCS_CONSUMER_RUNTIME_CLOSURE_MISMATCH";
@@ -242,14 +182,18 @@ test("V2 matches the independent accepted b8a wire contract", () => {
 function withUnrelatedRequiredRoot() {
   const lock = acceptedLock();
   lock.importers["."].devDependencies["consumer-tool"] = {
-    specifier: "1.0.0", version: "1.0.0"
+    specifier: "1.0.0",
+    version: "1.0.0",
   };
   lock.packages["consumer-tool@1.0.0"] = { resolution: { integrity: coordinate.integrity } };
   lock.snapshots["consumer-tool@1.0.0"] = {
-    dependencies: { "@emnapi/core": "1.11.2", "@emnapi/runtime": "1.11.2" }
+    dependencies: { "@emnapi/core": "1.11.2", "@emnapi/runtime": "1.11.2" },
   };
   for (const locator of [
-    "@emnapi/core@1.11.2", "@emnapi/runtime@1.11.2", "@emnapi/wasi-threads@1.2.2", "tslib@2.8.1"
+    "@emnapi/core@1.11.2",
+    "@emnapi/runtime@1.11.2",
+    "@emnapi/wasi-threads@1.2.2",
+    "tslib@2.8.1",
   ]) {
     delete lock.snapshots[locator].optional;
   }
@@ -260,9 +204,9 @@ test("V2 projects optionality from cohort roots despite unrelated required consu
   const lock = withUnrelatedRequiredRoot();
   const original = structuredClone(lock);
   assert.equal(digest(lock), acceptedDigest);
-  assert.doesNotThrow(() => assertQualifiedPnpmLockfileV2(
-    Buffer.from(stringify(lock)), { cohort: acceptedCohort }
-  ));
+  assert.doesNotThrow(() =>
+    assertQualifiedPnpmLockfileV2(Buffer.from(stringify(lock)), { cohort: acceptedCohort }),
+  );
   assert.deepEqual(lock, original, "projection must never alter the consumer lock");
 });
 
@@ -273,30 +217,37 @@ test("V2 still rejects version, integrity and optional-edge drift with shared re
       lock.snapshots["tslib@2.8.2"] = {};
       lock.snapshots["@emnapi/core@1.11.2"].dependencies.tslib = "2.8.2";
     },
-    (lock) => { lock.packages["tslib@2.8.1"].resolution.integrity = coordinate.integrity; },
+    (lock) => {
+      lock.packages["tslib@2.8.1"].resolution.integrity = coordinate.integrity;
+    },
     (lock) => {
       const parser = lock.snapshots["oxc-parser@0.142.0"];
       parser.dependencies["@oxc-parser/binding-wasm32-wasi"] =
         parser.optionalDependencies["@oxc-parser/binding-wasm32-wasi"];
       delete parser.optionalDependencies["@oxc-parser/binding-wasm32-wasi"];
-    }
+    },
   ];
   for (const mutate of mutations) {
     const lock = withUnrelatedRequiredRoot();
     mutate(lock);
     assert.notEqual(digest(lock), acceptedDigest);
-    assert.throws(() => assertQualifiedPnpmLockfileV2(
-      Buffer.from(stringify(lock)), { cohort: acceptedCohort }
-    ), closureError);
+    assert.throws(
+      () => assertQualifiedPnpmLockfileV2(Buffer.from(stringify(lock)), { cohort: acceptedCohort }),
+      closureError,
+    );
   }
 });
 
 test("V2 validator accepts central b8a and rejects the old V1-style digest", () => {
   const bytes = Buffer.from(stringify(acceptedLock()));
   assert.doesNotThrow(() => assertQualifiedPnpmLockfileV2(bytes, { cohort: acceptedCohort }));
-  assert.throws(() => assertQualifiedPnpmLockfileV2(bytes, {
-    cohort: { ...acceptedCohort, runtime: { runtimeClosureDigest: oldDigest } }
-  }), closureError);
+  assert.throws(
+    () =>
+      assertQualifiedPnpmLockfileV2(bytes, {
+        cohort: { ...acceptedCohort, runtime: { runtimeClosureDigest: oldDigest } },
+      }),
+    closureError,
+  );
 });
 
 function reverseObjects(value) {
@@ -304,8 +255,12 @@ function reverseObjects(value) {
     return value.map(reverseObjects);
   }
   return value !== null && typeof value === "object"
-    ? Object.fromEntries(Object.entries(value).toReversed().map(([key, entry]) =>
-      [key, reverseObjects(entry)])) : value;
+    ? Object.fromEntries(
+        Object.entries(value)
+          .toReversed()
+          .map(([key, entry]) => [key, reverseObjects(entry)]),
+      )
+    : value;
 }
 
 test("V2 ignores unreachable graph entries and object insertion order", () => {
@@ -350,9 +305,15 @@ test("V2 binds reachable SRI, optional edges, raw Node peer contexts and array o
 
 test("V2 fails closed on missing snapshots, malformed SRI and alias resolutions", () => {
   for (const mutate of [
-    (lock) => { delete lock.snapshots[mutationLocator]; },
-    (lock) => { lock.packages[mutationLocator].resolution.integrity = "sha512-invalid"; },
-    (lock) => { lock.snapshots[mutationLocator].dependencies = { bad: "npm:other@1.0.0" }; }
+    (lock) => {
+      delete lock.snapshots[mutationLocator];
+    },
+    (lock) => {
+      lock.packages[mutationLocator].resolution.integrity = "sha512-invalid";
+    },
+    (lock) => {
+      lock.snapshots[mutationLocator].dependencies = { bad: "npm:other@1.0.0" };
+    },
   ]) {
     const lock = acceptedLock();
     mutate(lock);
@@ -385,7 +346,6 @@ test("V2 retains package, dependency depth and serialized evidence bounds", () =
   assert.throws(() => digest(large), /exceeds 2097152 bytes/u);
 });
 
-
 // Central retains every raw peer snapshot of one selected physical coordinate.
 function coexistingPeerLock() {
   const lock = acceptedLock();
@@ -393,8 +353,9 @@ function coexistingPeerLock() {
   lock.packages["peer@1.0.0"] = { resolution: { integrity: coordinate.integrity } };
   lock.snapshots["peer@1.0.0"] = {};
   lock.snapshots[`${mutationLocator}(peer@1.0.0)`] = { optionalDependencies: { peer: "1.0.0" } };
-  lock.snapshots["@agent-teams/docs-protocol@0.5.1"]
-    .dependencies["@agent-teams/repository-mutation"] = "0.1.1(peer@1.0.0)";
+  lock.snapshots["@agent-teams/docs-protocol@0.5.1"].dependencies[
+    "@agent-teams/repository-mutation"
+  ] = "0.1.1(peer@1.0.0)";
   return lock;
 }
 
@@ -402,10 +363,11 @@ test("V2 binds coexisting raw peer snapshots of one managed physical coordinate"
   const coexisting = coexistingPeerLock();
   const coexistingDigest = digest(coexisting);
   assert.notEqual(coexistingDigest, acceptedDigest);
-  assert.doesNotThrow(() => assertQualifiedPnpmLockfileV2(
-    Buffer.from(stringify(coexisting)),
-    { cohort: { ...acceptedCohort, runtime: { runtimeClosureDigest: coexistingDigest } } }
-  ));
+  assert.doesNotThrow(() =>
+    assertQualifiedPnpmLockfileV2(Buffer.from(stringify(coexisting)), {
+      cohort: { ...acceptedCohort, runtime: { runtimeClosureDigest: coexistingDigest } },
+    }),
+  );
   // Neither raw snapshot is dropped: editing either one moves the digest.
   const editedPeer = coexistingPeerLock();
   editedPeer.snapshots[`${mutationLocator}(peer@1.0.0)`].transitivePeerDependencies = ["peer"];
@@ -434,10 +396,11 @@ function coexistingPeerLockOnEdgeSource() {
   lock.snapshots["peer@1.0.0"] = {};
   lock.snapshots[`${authoringLocator}(peer@1.0.0)`] = {
     ...structuredClone(lock.snapshots[authoringLocator]),
-    optionalDependencies: { peer: "1.0.0" }
+    optionalDependencies: { peer: "1.0.0" },
   };
-  lock.snapshots["@agent-teams/engineering-foundation@1.0.1"]
-    .dependencies["@agent-teams/document-authoring"] = "0.2.0(peer@1.0.0)";
+  lock.snapshots["@agent-teams/engineering-foundation@1.0.1"].dependencies[
+    "@agent-teams/document-authoring"
+  ] = "0.2.0(peer@1.0.0)";
   return lock;
 }
 
@@ -448,25 +411,31 @@ test("V2 dedupes a managed edge repeated by coexisting raw peer snapshots of its
   // snapshots re-emit the same documentAuthoring -> repositoryMutation managed edge.
   const coexistingDigest = digest(coexisting);
   assert.notEqual(coexistingDigest, acceptedDigest);
-  assert.doesNotThrow(() => assertQualifiedPnpmLockfileV2(
-    Buffer.from(stringify(coexisting)),
-    { cohort: { ...acceptedCohort, runtime: { runtimeClosureDigest: coexistingDigest } } }
-  ));
+  assert.doesNotThrow(() =>
+    assertQualifiedPnpmLockfileV2(Buffer.from(stringify(coexisting)), {
+      cohort: { ...acceptedCohort, runtime: { runtimeClosureDigest: coexistingDigest } },
+    }),
+  );
   // The edge is still real: dropping it from both raw snapshots must still be detected.
   const noEdge = coexistingPeerLockOnEdgeSource();
-  delete noEdge.snapshots["@agent-teams/document-authoring@0.2.0"].dependencies["@agent-teams/repository-mutation"];
-  delete noEdge.snapshots["@agent-teams/document-authoring@0.2.0(peer@1.0.0)"].dependencies["@agent-teams/repository-mutation"];
+  delete noEdge.snapshots["@agent-teams/document-authoring@0.2.0"].dependencies[
+    "@agent-teams/repository-mutation"
+  ];
+  delete noEdge.snapshots["@agent-teams/document-authoring@0.2.0(peer@1.0.0)"].dependencies[
+    "@agent-teams/repository-mutation"
+  ];
   assert.throws(() => digest(noEdge), closureError);
 });
 
 test("V2 rejects genuinely conflicting managed coordinates before hashing", () => {
   const twoVersions = coexistingPeerLock();
   twoVersions.packages["@agent-teams/repository-mutation@0.1.2"] = {
-    resolution: { integrity: coordinate.integrity }
+    resolution: { integrity: coordinate.integrity },
   };
   twoVersions.snapshots["@agent-teams/repository-mutation@0.1.2"] = {};
-  twoVersions.snapshots["@agent-teams/document-authoring@0.2.0"]
-    .dependencies["@agent-teams/repository-mutation"] = "0.1.2";
+  twoVersions.snapshots["@agent-teams/document-authoring@0.2.0"].dependencies[
+    "@agent-teams/repository-mutation"
+  ] = "0.1.2";
   assert.throws(() => digest(twoVersions), /coordinate differs/u);
   const absent = acceptedLock();
   for (const snapshot of Object.values(absent.snapshots)) {
@@ -486,18 +455,18 @@ test("V2 admits a Node-context-only edge pair and still rejects ambiguous versio
   const pair = acceptedLock();
   pair.packages["peer-leaf@1.0.0"] = {
     resolution: { integrity: coordinate.integrity },
-    peerDependencies: { "@types/node": "*" }
+    peerDependencies: { "@types/node": "*" },
   };
   for (const node of ["24.13.3", "24.13.4"]) {
     pair.packages[`@types/node@${node}`] = { resolution: { integrity: coordinate.integrity } };
     pair.snapshots[`@types/node@${node}`] = {};
     pair.snapshots[`peer-leaf@1.0.0(@types/node@${node})`] = {
-      optionalDependencies: { "@types/node": node }
+      optionalDependencies: { "@types/node": node },
     };
   }
   pair.snapshots[mutationLocator].dependencies = { "peer-leaf": "1.0.0(@types/node@24.13.3)" };
   pair.snapshots[mutationLocator].optionalDependencies = {
-    "peer-leaf": "1.0.0(@types/node@24.13.4)"
+    "peer-leaf": "1.0.0(@types/node@24.13.4)",
   };
   const pairDigest = digest(pair);
   assert.notEqual(pairDigest, acceptedDigest);
@@ -511,7 +480,7 @@ test("V2 admits a Node-context-only edge pair and still rejects ambiguous versio
   conflicting.packages["peer-leaf@2.0.0"] = { resolution: { integrity: coordinate.integrity } };
   conflicting.snapshots["peer-leaf@2.0.0(@types/node@24.13.4)"] = {};
   conflicting.snapshots[mutationLocator].optionalDependencies = {
-    "peer-leaf": "2.0.0(@types/node@24.13.4)"
+    "peer-leaf": "2.0.0(@types/node@24.13.4)",
   };
   assert.throws(() => digest(conflicting), /ambiguous dependency peer-leaf/u);
 });

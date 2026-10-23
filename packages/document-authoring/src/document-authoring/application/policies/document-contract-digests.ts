@@ -1,5 +1,10 @@
 import { compareBinaryStrings } from "../../../binary-string-comparator.js";
-import { canonicalJson, type CanonicalJsonValue, sha256Bytes, sha256Json } from "@agent-teams/repository-mutation/serialization";
+import {
+  canonicalJson,
+  type CanonicalJsonValue,
+  sha256Bytes,
+  sha256Json,
+} from "@agent-teams/repository-mutation/serialization";
 import { documentTemporaryPath } from "./document-temporary-path.js";
 import { documentRepositoryParentPath } from "./document-repository-path.js";
 
@@ -31,13 +36,13 @@ function withoutOwnDigest(value: JsonObject, field: string): JsonObject {
     }
     if (typeof key !== "string") {
       throw new DocumentContractDigestError(
-        "Document digest input must not contain symbolic properties."
+        "Document digest input must not contain symbolic properties.",
       );
     }
     const descriptor = Object.getOwnPropertyDescriptor(snapshot, key);
     if (descriptor === undefined || !("value" in descriptor)) {
       throw new DocumentContractDigestError(
-        "Document digest input must contain only own data properties."
+        "Document digest input must contain only own data properties.",
       );
     }
     result[key] = descriptor.value as CanonicalJsonValue;
@@ -49,13 +54,10 @@ export function documentIntentDigest(intent: JsonObject): Digest {
   return domainDigest(`${DOMAIN_PREFIX}/intent/v1`, intent);
 }
 
-export function documentOwnerMembershipDigest(
-  ownerCatalogDigest: string,
-  ownerId: string
-): Digest {
+export function documentOwnerMembershipDigest(ownerCatalogDigest: string, ownerId: string): Digest {
   return domainDigest(`${DOMAIN_PREFIX}/owner-membership/v1`, {
     ownerCatalogDigest,
-    ownerId
+    ownerId,
   });
 }
 
@@ -65,20 +67,20 @@ export interface DocumentIdentityDigestEntry {
 }
 
 export function documentIdentityProjectionDigest(
-  entries: readonly DocumentIdentityDigestEntry[]
+  entries: readonly DocumentIdentityDigestEntry[],
 ): Digest {
   const snapshot = JSON.parse(
-    canonicalJson(entries as unknown as CanonicalJsonValue)
+    canonicalJson(entries as unknown as CanonicalJsonValue),
   ) as DocumentIdentityDigestEntry[];
   const normalized = snapshot
     .map(({ id, repositoryPath }) => ({ id, repositoryPath }))
     .toSorted(
       (left, right) =>
         compareBinaryStrings(left.id, right.id) ||
-        compareBinaryStrings(left.repositoryPath, right.repositoryPath)
+        compareBinaryStrings(left.repositoryPath, right.repositoryPath),
     );
   return domainDigest(`${DOMAIN_PREFIX}/identity-projection/v1`, {
-    entries: normalized
+    entries: normalized,
   });
 }
 
@@ -92,26 +94,20 @@ export function documentReferencedDocumentDigest(document: {
   };
   return domainDigest(`${DOMAIN_PREFIX}/referenced-document/v1`, {
     id: snapshot.id,
-    path: snapshot.path
+    path: snapshot.path,
   });
 }
 
 export function documentPlanDigest(plan: JsonObject): Digest {
-  const version = plan["schemaVersion"] === 2 && plan["protocolVersion"] === 2
-    ? 2
-    : 1;
-  return domainDigest(
-    `${DOMAIN_PREFIX}/plan/v${version}`,
-    withoutOwnDigest(plan, "planDigest")
-  );
+  const version = plan["schemaVersion"] === 2 && plan["protocolVersion"] === 2 ? 2 : 1;
+  return domainDigest(`${DOMAIN_PREFIX}/plan/v${version}`, withoutOwnDigest(plan, "planDigest"));
 }
 
 export function documentReceiptDigest(receipt: JsonObject): Digest {
-  const version = receipt["schemaVersion"] === 2 &&
-      receipt["protocolVersion"] === 2 ? 2 : 1;
+  const version = receipt["schemaVersion"] === 2 && receipt["protocolVersion"] === 2 ? 2 : 1;
   return domainDigest(
     `${DOMAIN_PREFIX}/receipt/v${version}`,
-    withoutOwnDigest(receipt, "receiptDigest")
+    withoutOwnDigest(receipt, "receiptDigest"),
   );
 }
 
@@ -129,55 +125,58 @@ function validatedRecord(value: unknown, subject: string): JsonObject {
   } catch (error) {
     throw new DocumentContractDigestError(
       `${subject} must use the closed canonical JSON data model.`,
-      { cause: error }
+      { cause: error },
     );
   }
 }
 
-function assertV2ParentMaterialization(
-  plan: JsonObject,
-  expectedParentPath: unknown
-): void {
+function assertV2ParentMaterialization(plan: JsonObject, expectedParentPath: unknown): void {
   const materialization = record(
     plan["parentMaterialization"],
-    "Document Plan parent materialization"
+    "Document Plan parent materialization",
   );
   const missing = materialization["missingDirectories"];
-  if (materialization["policy"] !== "create-missing-real-directories" ||
+  if (
+    materialization["policy"] !== "create-missing-real-directories" ||
     materialization["finalParent"] !== expectedParentPath ||
-    !Array.isArray(missing)) {
+    !Array.isArray(missing)
+  ) {
     throw new DocumentContractDigestError(
-      "Document Plan parent materialization binding is invalid."
+      "Document Plan parent materialization binding is invalid.",
     );
   }
   const anchor = materialization["deepestExistingDirectory"];
   const finalParent = materialization["finalParent"];
-  if (typeof anchor !== "string" ||
+  if (
+    typeof anchor !== "string" ||
     typeof finalParent !== "string" ||
-    !missing.every((entry) => typeof entry === "string")) {
+    !missing.every((entry) => typeof entry === "string")
+  ) {
     throw new DocumentContractDigestError(
-      "Document Plan parent materialization paths are invalid."
+      "Document Plan parent materialization paths are invalid.",
     );
   }
-  const finalSegments = finalParent
-    .split("/").filter((segment) => segment !== ".");
+  const finalSegments = finalParent.split("/").filter((segment) => segment !== ".");
   const anchorSegments = anchor.split("/").filter((segment) => segment !== ".");
-  const expectedMissing = finalSegments.slice(anchorSegments.length).map(
-    (_segment, index) => finalSegments.slice(0, anchorSegments.length + index + 1).join("/")
-  );
-  if (anchorSegments.some((segment, index) => segment !== finalSegments[index]) ||
+  const expectedMissing = finalSegments
+    .slice(anchorSegments.length)
+    .map((_segment, index) => finalSegments.slice(0, anchorSegments.length + index + 1).join("/"));
+  if (
+    anchorSegments.some((segment, index) => segment !== finalSegments[index]) ||
     expectedMissing.length !== missing.length ||
-    expectedMissing.some((entry, index) => entry !== missing[index])) {
-    throw new DocumentContractDigestError(
-      "Document Plan missing directory chain is invalid."
-    );
+    expectedMissing.some((entry, index) => entry !== missing[index])
+  ) {
+    throw new DocumentContractDigestError("Document Plan missing directory chain is invalid.");
   }
 }
 
 function assertPublicationBindings(plan: JsonObject): void {
   const destination = plan["destination"];
   const expectedParent = record(plan["expectedParent"], "Document Plan expected parent");
-  const precondition = record(plan["destinationPrecondition"], "Document Plan destination precondition");
+  const precondition = record(
+    plan["destinationPrecondition"],
+    "Document Plan destination precondition",
+  );
   const capabilities = plan["requiredAdapterCapabilities"];
   const v2 = plan["schemaVersion"] === 2 && plan["protocolVersion"] === 2;
   let hasTemporaryCapacity = false;
@@ -198,19 +197,16 @@ function assertPublicationBindings(plan: JsonObject): void {
     precondition["state"] !== "absent" ||
     !Array.isArray(capabilities) ||
     !capabilities.some((capability) => capability === "create-file-no-replace/v1") ||
-    (v2 && !capabilities.some((capability) =>
-      capability === "create-directories-no-replace/v1")) ||
+    (v2 && !capabilities.some((capability) => capability === "create-directories-no-replace/v1")) ||
     (!v2 && (plan["schemaVersion"] !== 1 || plan["protocolVersion"] !== 1))
   ) {
-    throw new DocumentContractDigestError(
-      "Document Plan publication bindings are invalid."
-    );
+    throw new DocumentContractDigestError("Document Plan publication bindings are invalid.");
   }
   if (v2) {
     assertV2ParentMaterialization(plan, expectedParent["path"]);
   } else if (plan["parentMaterialization"] !== undefined) {
     throw new DocumentContractDigestError(
-      "Document Plan v1 must not contain parent materialization."
+      "Document Plan v1 must not contain parent materialization.",
     );
   }
 }
@@ -225,10 +221,7 @@ function assertIntentDigest(plan: JsonObject): void {
 function assertOwnerMembershipDigest(plan: JsonObject): void {
   const intent = record(plan["intent"], "Document Plan Intent");
   const authority = record(plan["authority"], "Document Plan authority");
-  const ownerCatalog = record(
-    authority["ownerCatalog"],
-    "Document Plan owner catalog authority"
-  );
+  const ownerCatalog = record(authority["ownerCatalog"], "Document Plan owner catalog authority");
   const selectedOwner = record(plan["selectedOwner"], "Document Plan selected owner");
   if (
     typeof ownerCatalog["digest"] !== "string" ||
@@ -238,19 +231,12 @@ function assertOwnerMembershipDigest(plan: JsonObject): void {
     selectedOwner["membershipDigest"] !==
       documentOwnerMembershipDigest(ownerCatalog["digest"], selectedOwner["id"])
   ) {
-    throw new DocumentContractDigestError(
-      "Document Plan owner membership digest is invalid."
-    );
+    throw new DocumentContractDigestError("Document Plan owner membership digest is invalid.");
   }
 }
 
-function hasExactCommit(
-  commit: JsonObject,
-  expected: Readonly<Record<string, string>>
-): boolean {
-  return Object.entries(expected).every(
-    ([field, value]) => commit[field] === value
-  );
+function hasExactCommit(commit: JsonObject, expected: Readonly<Record<string, string>>): boolean {
+  return Object.entries(expected).every(([field, value]) => commit[field] === value);
 }
 
 function isRecoveryCommit(outcome: string, commit: JsonObject): boolean {
@@ -259,9 +245,7 @@ function isRecoveryCommit(outcome: string, commit: JsonObject): boolean {
   return (
     commit["state"] === outcome &&
     ["none", "published", "unknown"].includes(publication as string) &&
-    ["not-applicable", "single-file-atomic-create"].includes(
-      atomicity as string
-    ) &&
+    ["not-applicable", "single-file-atomic-create"].includes(atomicity as string) &&
     (publication !== "published" || atomicity === "single-file-atomic-create") &&
     (publication !== "none" || atomicity === "not-applicable") &&
     commit["recoverability"] === "preserved-for-recovery"
@@ -271,14 +255,12 @@ function isRecoveryCommit(outcome: string, commit: JsonObject): boolean {
 function assertReceiptOutcomeCommit(receipt: JsonObject): void {
   const outcome = receipt["outcome"];
   const commit = record(receipt["commit"], "Document Receipt commit observation");
-  const atomicityField = receipt["schemaVersion"] === 2
-    ? "fileAtomicity"
-    : "atomicity";
+  const atomicityField = receipt["schemaVersion"] === 2 ? "fileAtomicity" : "atomicity";
   const noResultOutcomes = [
     "authority-stale",
     "rejected",
     "failed-before-publication",
-    "cancelled"
+    "cancelled",
   ];
   const recoveryOutcomes = ["recovery-required", "manual-recovery-required"];
   const applied =
@@ -288,7 +270,7 @@ function assertReceiptOutcomeCommit(receipt: JsonObject): void {
       state: "committed",
       publication: "published",
       [atomicityField]: "single-file-atomic-create",
-      recoverability: "not-required"
+      recoverability: "not-required",
     });
   const alreadyApplied =
     outcome === "already-applied" &&
@@ -297,7 +279,7 @@ function assertReceiptOutcomeCommit(receipt: JsonObject): void {
       state: "committed",
       publication: "preexisting-exact",
       [atomicityField]: "not-applicable",
-      recoverability: "not-required"
+      recoverability: "not-required",
     });
   const noResult =
     typeof outcome === "string" &&
@@ -307,7 +289,7 @@ function assertReceiptOutcomeCommit(receipt: JsonObject): void {
       state: "not-published",
       publication: "none",
       [atomicityField]: "not-applicable",
-      recoverability: "not-required"
+      recoverability: "not-required",
     });
   const recovery =
     typeof outcome === "string" &&
@@ -316,7 +298,7 @@ function assertReceiptOutcomeCommit(receipt: JsonObject): void {
     isRecoveryCommit(outcome, commit);
   if (!applied && !alreadyApplied && !noResult && !recovery) {
     throw new DocumentContractDigestError(
-      "Document Receipt outcome and commit observation are incompatible."
+      "Document Receipt outcome and commit observation are incompatible.",
     );
   }
 }
@@ -324,9 +306,7 @@ function assertReceiptOutcomeCommit(receipt: JsonObject): void {
 function assertReferencedDocumentDigests(plan: JsonObject): void {
   const references = plan["referencedDocuments"];
   if (!Array.isArray(references)) {
-    throw new DocumentContractDigestError(
-      "Document Plan referenced documents must be an array."
-    );
+    throw new DocumentContractDigestError("Document Plan referenced documents must be an array.");
   }
   for (const referenceValue of references as readonly CanonicalJsonValue[]) {
     const reference = record(referenceValue, "Document Plan referenced document");
@@ -336,12 +316,10 @@ function assertReferencedDocumentDigests(plan: JsonObject): void {
       reference["projectionDigest"] !==
         documentReferencedDocumentDigest({
           id: reference["id"],
-          path: reference["path"]
+          path: reference["path"],
         })
     ) {
-      throw new DocumentContractDigestError(
-        "Document Plan referenced-document digest is invalid."
-      );
+      throw new DocumentContractDigestError("Document Plan referenced-document digest is invalid.");
     }
   }
 }
@@ -349,9 +327,7 @@ function assertReferencedDocumentDigests(plan: JsonObject): void {
 function assertOutputDigest(plan: JsonObject): void {
   const output = record(plan["output"], "Document Plan output");
   if (typeof output["contentBase64"] !== "string") {
-    throw new DocumentContractDigestError(
-      "Document Plan output content must be canonical Base64."
-    );
+    throw new DocumentContractDigestError("Document Plan output content must be canonical Base64.");
   }
   const bytes = Buffer.from(output["contentBase64"], "base64");
   if (
@@ -362,18 +338,15 @@ function assertOutputDigest(plan: JsonObject): void {
     throw new DocumentContractDigestError("Document Plan output digest is invalid.");
   }
   if (bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
-    throw new DocumentContractDigestError(
-      "Document Plan output must not start with a UTF-8 BOM."
-    );
+    throw new DocumentContractDigestError("Document Plan output must not start with a UTF-8 BOM.");
   }
   let source: string;
   try {
     source = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
   } catch (error) {
-    throw new DocumentContractDigestError(
-      "Document Plan output is not well-formed UTF-8.",
-      { cause: error }
-    );
+    throw new DocumentContractDigestError("Document Plan output is not well-formed UTF-8.", {
+      cause: error,
+    });
   }
   if (
     source.startsWith("\uFEFF") ||
@@ -385,7 +358,7 @@ function assertOutputDigest(plan: JsonObject): void {
     output["mediaType"] !== "text/markdown; charset=utf-8"
   ) {
     throw new DocumentContractDigestError(
-      "Document Plan output violates the canonical Markdown byte contract."
+      "Document Plan output violates the canonical Markdown byte contract.",
     );
   }
 }
@@ -402,10 +375,7 @@ export function assertDocumentPlanDigests(value: unknown): void {
   }
 }
 
-export function assertDocumentReceiptDigest(
-  value: unknown,
-  planValue?: unknown
-): void {
+export function assertDocumentReceiptDigest(value: unknown, planValue?: unknown): void {
   const receipt = validatedRecord(value, "Document Receipt");
   if (receipt["receiptDigest"] !== documentReceiptDigest(receipt)) {
     throw new DocumentContractDigestError("Document Receipt digest is invalid.");
@@ -418,23 +388,25 @@ export function assertDocumentReceiptDigest(
   const plan = validatedRecord(planValue, "Document Plan");
   if ((plan["schemaVersion"] === 2) !== (receipt["schemaVersion"] === 2)) {
     throw new DocumentContractDigestError(
-      "Document Receipt version does not match the referenced Plan."
+      "Document Receipt version does not match the referenced Plan.",
     );
   }
   if (plan["schemaVersion"] === 2) {
     const planMaterialization = record(
       plan["parentMaterialization"],
-      "Document Plan parent materialization"
+      "Document Plan parent materialization",
     );
     const receiptMaterialization = record(
       receipt["directoryMaterialization"],
-      "Document Receipt directory materialization"
+      "Document Receipt directory materialization",
     );
-    if (canonicalJson(receiptMaterialization["plannedDirectories"] as CanonicalJsonValue) !==
-      canonicalJson(planMaterialization["missingDirectories"] as CanonicalJsonValue) ||
-      !Array.isArray(receiptMaterialization["observedCreatedDirectories"])) {
+    if (
+      canonicalJson(receiptMaterialization["plannedDirectories"] as CanonicalJsonValue) !==
+        canonicalJson(planMaterialization["missingDirectories"] as CanonicalJsonValue) ||
+      !Array.isArray(receiptMaterialization["observedCreatedDirectories"])
+    ) {
       throw new DocumentContractDigestError(
-        "Document Receipt directory evidence does not bind the referenced Plan."
+        "Document Receipt directory evidence does not bind the referenced Plan.",
       );
     }
   }
@@ -449,7 +421,7 @@ export function assertDocumentReceiptDigest(
     "recovery-required",
     "manual-recovery-required",
     "failed-before-publication",
-    "cancelled"
+    "cancelled",
   ]);
   if (
     typeof outcome !== "string" ||
@@ -460,7 +432,7 @@ export function assertDocumentReceiptDigest(
     (!hasProvenOutput && receipt["resultDigest"] !== undefined)
   ) {
     throw new DocumentContractDigestError(
-      "Document Receipt result evidence does not bind the referenced Plan."
+      "Document Receipt result evidence does not bind the referenced Plan.",
     );
   }
 }

@@ -6,7 +6,7 @@ export function configurationInputError(message: string): never {
     code: "PUBLIC_API_COMPATIBILITY_CONFIG_INVALID",
     message,
     phase: "public-api-compatibility-config",
-    retryable: false
+    retryable: false,
   });
 }
 

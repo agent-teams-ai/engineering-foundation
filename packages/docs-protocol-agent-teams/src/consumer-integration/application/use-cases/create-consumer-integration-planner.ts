@@ -1,6 +1,6 @@
 import type {
   ConsumerAssetCatalogV1,
-  KnownPriorCohortCatalogEntryV1
+  KnownPriorCohortCatalogEntryV1,
 } from "../policies/consumer-integration-assets.js";
 import type { ConsumerIntegrationPlanningPorts } from "../ports/consumer-integration-planners.js";
 import type {
@@ -9,7 +9,7 @@ import type {
   ConsumerIntegrationDesiredStateV3,
   ConsumerIntegrationPlanV1,
   ConsumerIntegrationSnapshot,
-  ManagedSuccessorProfile
+  ManagedSuccessorProfile,
 } from "../../domain/model.js";
 import { compileConsumerIntegration as compileWithPorts } from "./plan-consumer-integration.js";
 
@@ -26,19 +26,25 @@ export function createConsumerIntegrationPlanner(ports: ConsumerIntegrationPlann
       if (input.assetCatalog !== undefined || input.knownPriorCohorts !== undefined) {
         throw new TypeError("Consumer integration profiles v3/v4 do not accept V1 asset catalogs.");
       }
-      return compileWithPorts({
-        desired,
-        snapshot: input.snapshot
-      }, ports);
+      return compileWithPorts(
+        {
+          desired,
+          snapshot: input.snapshot,
+        },
+        ports,
+      );
     }
-    return compileWithPorts({
-      desired,
-      snapshot: input.snapshot,
-      ...(input.assetCatalog === undefined ? {} : { assetCatalog: input.assetCatalog }),
-      ...(input.knownPriorCohorts === undefined
-        ? {}
-        : { knownPriorCohorts: input.knownPriorCohorts })
-    }, ports);
+    return compileWithPorts(
+      {
+        desired,
+        snapshot: input.snapshot,
+        ...(input.assetCatalog === undefined ? {} : { assetCatalog: input.assetCatalog }),
+        ...(input.knownPriorCohorts === undefined
+          ? {}
+          : { knownPriorCohorts: input.knownPriorCohorts }),
+      },
+      ports,
+    );
   }
 
   function planConsumerIntegration(input: {

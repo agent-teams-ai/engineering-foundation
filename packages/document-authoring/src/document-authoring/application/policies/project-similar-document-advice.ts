@@ -7,15 +7,17 @@ export function projectSimilarDocumentAdvice(
   if (advice.matches.length === 0) {
     return Object.freeze([]);
   }
-  return Object.freeze([Object.freeze({
-    ruleId: "document.new.similar-documents",
-    severity: "info",
-    phase: "planning",
-    subject: "document.new",
-    message: `${advice.matches.length} existing document(s) contain the exact title query. Review them before publishing if they overlap.`,
-    remediation: Object.freeze({
-      commandId: "docs.find",
-      args: Object.freeze({ text: advice.query }),
+  return Object.freeze([
+    Object.freeze({
+      ruleId: "document.new.similar-documents",
+      severity: "info",
+      phase: "planning",
+      subject: "document.new",
+      message: `${advice.matches.length} existing document(s) contain the exact title query. Review them before publishing if they overlap.`,
+      remediation: Object.freeze({
+        commandId: "docs.find",
+        args: Object.freeze({ text: advice.query }),
+      }),
     }),
-  })]);
+  ]);
 }

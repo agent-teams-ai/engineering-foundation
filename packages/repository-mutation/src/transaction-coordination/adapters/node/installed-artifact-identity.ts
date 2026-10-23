@@ -17,7 +17,7 @@ const maximumBuildBytes = 64 * 1024 * 1024;
 const maximumVisitedBuildEntries = 16_384;
 const maximumBuildTreeDepth = 64;
 const repositoryMutationPackageRoot = dirname(
-  fileURLToPath(new URL("../../../../package.json", import.meta.url))
+  fileURLToPath(new URL("../../../../package.json", import.meta.url)),
 );
 
 function comparePortablePaths(left: string, right: string): number {
@@ -32,7 +32,7 @@ async function collectRegularFiles(
   root: string,
   directory: string,
   output: string[],
-  budget: { depth: number; maximumVisited: number; visited: number }
+  budget: { depth: number; maximumVisited: number; visited: number },
 ): Promise<void> {
   if (budget.depth > maximumBuildTreeDepth) {
     throw new Error("Installed artifact tree is too deep.");
@@ -74,7 +74,7 @@ async function collectRegularFiles(
     }
     if (!entry.isFile()) {
       throw new Error(
-        `Installed artifact contains a non-regular entry: ${portableRelativePath(root, path)}.`
+        `Installed artifact contains a non-regular entry: ${portableRelativePath(root, path)}.`,
       );
     }
     output.push(path);
@@ -93,7 +93,7 @@ async function assertRealDirectory(path: string): Promise<void> {
 
 async function buildIdentityFiles(
   declaration: InstalledArtifactClosure,
-  maximumVisited: number
+  maximumVisited: number,
 ): Promise<string[]> {
   const files: string[] = [];
   const budget = { depth: 0, maximumVisited, visited: 0 };
@@ -106,10 +106,7 @@ async function buildIdentityFiles(
   }
   files.push(manifest);
   return files.toSorted((left, right) =>
-    comparePortablePaths(
-      portableRelativePath(root, left),
-      portableRelativePath(root, right)
-    )
+    comparePortablePaths(portableRelativePath(root, left), portableRelativePath(root, right)),
   );
 }
 
@@ -126,12 +123,11 @@ function hashLength(hash: ReturnType<typeof createHash>, length: number): void {
  */
 export async function computeInstalledArtifactBuildIdentity(
   declaration: InstalledArtifactClosure,
-  limits: { readonly maximumVisitedEntries?: number } = {}
+  limits: { readonly maximumVisitedEntries?: number } = {},
 ): Promise<InstalledArtifactDigest> {
   const hash = createHash("sha256");
   let totalBytes = 0;
-  const maximumVisitedEntries =
-    limits.maximumVisitedEntries ?? maximumVisitedBuildEntries;
+  const maximumVisitedEntries = limits.maximumVisitedEntries ?? maximumVisitedBuildEntries;
   if (!Number.isSafeInteger(maximumVisitedEntries) || maximumVisitedEntries <= 0) {
     throw new TypeError("maximumVisitedEntries must be a positive safe integer.");
   }
@@ -140,9 +136,7 @@ export async function computeInstalledArtifactBuildIdentity(
     const relativePath = portableRelativePath(root, path);
     const record = await readBoundedRegularFile(path, maximumBuildFileBytes);
     if (record.outcome !== "read") {
-      throw new Error(
-        `Installed artifact is not a stable bounded regular file: ${relativePath}.`
-      );
+      throw new Error(`Installed artifact is not a stable bounded regular file: ${relativePath}.`);
     }
     totalBytes += record.bytes.byteLength;
     if (totalBytes > maximumBuildBytes) {
@@ -162,7 +156,7 @@ let installedBuildIdentity: Promise<InstalledArtifactDigest> | undefined;
 export function installedRepositoryMutationBuildIdentity(): Promise<InstalledArtifactDigest> {
   installedBuildIdentity ??= computeInstalledArtifactBuildIdentity({
     packageRoot: repositoryMutationPackageRoot,
-    roots: ["dist", "schemas"]
+    roots: ["dist", "schemas"],
   });
   return installedBuildIdentity;
 }

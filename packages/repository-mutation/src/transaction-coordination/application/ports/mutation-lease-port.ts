@@ -5,9 +5,9 @@ interface MutationStateSnapshot {
   readonly commonEvidence: boolean;
 }
 
-type MutationLeaseRelease = (
-  options?: { readonly retainTransactionBarrier?: boolean }
-) => Promise<void>;
+type MutationLeaseRelease = (options?: {
+  readonly retainTransactionBarrier?: boolean;
+}) => Promise<void>;
 
 /** Physical observations and exclusive ownership; no operation Plan policy. */
 export interface MutationLeasePort {

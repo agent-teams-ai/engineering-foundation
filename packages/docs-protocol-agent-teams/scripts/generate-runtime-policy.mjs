@@ -11,12 +11,18 @@ function parseUnambiguousJson(source, label) {
     onObjectBegin: () => objects.push(new Set()),
     onObjectProperty: (key) => {
       const keys = objects.at(-1);
-      if (keys.has(key)) { duplicate = true; }
+      if (keys.has(key)) {
+        duplicate = true;
+      }
       keys.add(key);
     },
-    onObjectEnd: () => { objects.pop(); },
+    onObjectEnd: () => {
+      objects.pop();
+    },
   });
-  if (duplicate) { throw new Error(`${label} contains duplicate decoded JSON keys.`); }
+  if (duplicate) {
+    throw new Error(`${label} contains duplicate decoded JSON keys.`);
+  }
   return JSON.parse(source);
 }
 
@@ -28,7 +34,9 @@ const source = await readFile(policyUrl);
 const policy = parseUnambiguousJson(source.toString("utf8"), "Runtime policy source");
 const schema = parseUnambiguousJson(await readFile(schemaUrl, "utf8"), "Runtime policy schema");
 const validate = new Ajv2020({ strict: true, allErrors: true }).compile(schema);
-if (!validate(policy)) { throw new Error(`Invalid runtime policy source: ${JSON.stringify(validate.errors)}`); }
+if (!validate(policy)) {
+  throw new Error(`Invalid runtime policy source: ${JSON.stringify(validate.errors)}`);
+}
 const digest = (bytes) => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 const projection = {
   schemaVersion: 1,
@@ -51,7 +59,11 @@ const schemaOutput = `${JSON.stringify(assetSchema, null, 2)}\n`;
 if (process.argv.includes("--write")) {
   await writeFile(assetUrl, output);
   await writeFile(assetSchemaUrl, schemaOutput);
-} else if (await readFile(assetUrl, "utf8") !== output ||
-    await readFile(assetSchemaUrl, "utf8") !== schemaOutput) {
-  throw new Error("Packed runtime policy projection or schema is stale. Run pnpm --filter @agent-teams/docs-protocol-agent-teams exec node scripts/generate-runtime-policy.mjs --write.");
+} else if (
+  (await readFile(assetUrl, "utf8")) !== output ||
+  (await readFile(assetSchemaUrl, "utf8")) !== schemaOutput
+) {
+  throw new Error(
+    "Packed runtime policy projection or schema is stale. Run pnpm --filter @agent-teams/docs-protocol-agent-teams exec node scripts/generate-runtime-policy.mjs --write.",
+  );
 }

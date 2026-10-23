@@ -24,7 +24,7 @@ export class AjvScaffoldParameterValidation implements ScaffoldParameterValidati
     if (!validate(input.parameters)) {
       throw new ScaffoldError(
         "SCAFFOLD_INPUT_INVALID",
-        `Invalid parameters for ${input.definitionKey}: ${validationMessage(validate)}`
+        `Invalid parameters for ${input.definitionKey}: ${validationMessage(validate)}`,
       );
     }
   }

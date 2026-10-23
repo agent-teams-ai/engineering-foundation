@@ -6,26 +6,26 @@ import { assertNotCancelled } from "../../../application/policies/cancellation.j
 import type {
   MarkdownDocumentObservation,
   MarkdownObservationIssue,
-  MarkdownRepositoryObservation
+  MarkdownRepositoryObservation,
 } from "../../../application/model/markdown-document.js";
 import type { ObserveMarkdownRepositoryRequest } from "../../../application/ports/markdown-repository.js";
 import {
   FilesystemMarkdownDocumentReader,
   MarkdownSourceInvalidError,
-  MAX_MARKDOWN_BYTES
+  MAX_MARKDOWN_BYTES,
 } from "./filesystem-markdown-document-reader.js";
 import {
   isMissingMarkdownFilesystemError,
   markdownPathTraversesSymbolicLink,
   nodeFilesystemMarkdownOperations,
   throwMarkdownFilesystemUnavailable,
-  type FilesystemMarkdownOperations
+  type FilesystemMarkdownOperations,
 } from "./filesystem-markdown-filesystem.js";
 import {
   createFilesystemMarkdownRepositoryContext,
   isWithinMarkdownRepository,
   markdownRepositoryPath,
-  type FilesystemMarkdownRepositoryContext
+  type FilesystemMarkdownRepositoryContext,
 } from "./filesystem-markdown-paths.js";
 
 const SKIPPED_DIRECTORY_NAMES = new Set([".git", "node_modules"]);
@@ -47,7 +47,7 @@ function resourceLimit(message: string): never {
     code: "DOCUMENTATION_RESOURCE_LIMIT_EXCEEDED",
     message,
     phase: "documentation-observation",
-    retryable: false
+    retryable: false,
   });
 }
 
@@ -65,14 +65,12 @@ function matchesRepositoryPrefix(path: string, prefix: string): boolean {
 }
 
 function isExcludedPath(walk: MarkdownTreeWalkContext, path: string): boolean {
-  return walk.excludedPrefixes.some((prefix) =>
-    matchesRepositoryPrefix(path, prefix)
-  );
+  return walk.excludedPrefixes.some((prefix) => matchesRepositoryPrefix(path, prefix));
 }
 
 function addIssue(
   collector: MarkdownTreeObservationCollector,
-  issue: MarkdownObservationIssue
+  issue: MarkdownObservationIssue,
 ): void {
   if (collector.issues.length >= MAX_MARKDOWN_ISSUES) {
     resourceLimit(`Markdown observation exceeds ${MAX_MARKDOWN_ISSUES} issues.`);
@@ -80,10 +78,7 @@ function addIssue(
   collector.issues.push(issue);
 }
 
-async function walkConfiguredRoot(
-  walk: MarkdownTreeWalkContext,
-  root: string
-): Promise<void> {
+async function walkConfiguredRoot(walk: MarkdownTreeWalkContext, root: string): Promise<void> {
   const { collector, filesystem, repository: context, signal } = walk;
   const absoluteRoot = resolve(context.canonicalRoot, root);
   if (isExcludedPath(walk, root)) {
@@ -93,22 +88,17 @@ async function walkConfiguredRoot(
     addIssue(collector, {
       kind: "symbolic-link",
       message: "Configured Markdown root escapes the consumer repository.",
-      repositoryPath: root
+      repositoryPath: root,
     });
     return;
   }
   if (
-    await markdownPathTraversesSymbolicLink(
-      context.canonicalRoot,
-      absoluteRoot,
-      filesystem,
-      signal
-    )
+    await markdownPathTraversesSymbolicLink(context.canonicalRoot, absoluteRoot, filesystem, signal)
   ) {
     addIssue(collector, {
       kind: "symbolic-link",
       message: "Configured Markdown root traverses a symbolic link.",
-      repositoryPath: root
+      repositoryPath: root,
     });
     return;
   }
@@ -122,7 +112,7 @@ async function walkConfiguredRoot(
       addIssue(collector, {
         kind: "root-missing",
         message: "Configured Markdown root does not exist.",
-        repositoryPath: root
+        repositoryPath: root,
       });
       return;
     }
@@ -133,7 +123,7 @@ async function walkConfiguredRoot(
     addIssue(collector, {
       kind: "symbolic-link",
       message: "Configured Markdown root must not be a symbolic link.",
-      repositoryPath: root
+      repositoryPath: root,
     });
     return;
   }
@@ -141,7 +131,7 @@ async function walkConfiguredRoot(
     addIssue(collector, {
       kind: "root-not-directory",
       message: "Configured Markdown root must be a directory.",
-      repositoryPath: root
+      repositoryPath: root,
     });
     return;
   }
@@ -150,7 +140,7 @@ async function walkConfiguredRoot(
 
 async function inspectDirectoryEntry(
   walk: MarkdownTreeWalkContext,
-  candidate: string
+  candidate: string,
 ): Promise<void> {
   const { collector, filesystem, reader, repository: context, signal } = walk;
   const candidateRepositoryPath = markdownRepositoryPath(context.canonicalRoot, candidate);
@@ -175,7 +165,7 @@ async function inspectDirectoryEntry(
     addIssue(collector, {
       kind: "symbolic-link",
       message: "Markdown source tree must not contain symbolic links.",
-      repositoryPath: candidateRepositoryPath
+      repositoryPath: candidateRepositoryPath,
     });
     return;
   }
@@ -190,7 +180,7 @@ async function inspectDirectoryEntry(
     addIssue(collector, {
       kind: "source-too-large",
       message: `Markdown source exceeds ${MAX_MARKDOWN_BYTES} bytes.`,
-      repositoryPath: candidateRepositoryPath
+      repositoryPath: candidateRepositoryPath,
     });
     return;
   }
@@ -200,7 +190,7 @@ async function inspectDirectoryEntry(
     estimatedDocumentBytes > MAX_MARKDOWN_TOTAL_BYTES
   ) {
     resourceLimit(
-      `Markdown observation exceeds ${MAX_MARKDOWN_DOCUMENTS} documents or ${MAX_MARKDOWN_TOTAL_BYTES} bytes.`
+      `Markdown observation exceeds ${MAX_MARKDOWN_DOCUMENTS} documents or ${MAX_MARKDOWN_TOTAL_BYTES} bytes.`,
     );
   }
 
@@ -212,7 +202,7 @@ async function inspectDirectoryEntry(
       addIssue(collector, {
         kind: "source-invalid",
         message: error.message,
-        repositoryPath: candidateRepositoryPath
+        repositoryPath: candidateRepositoryPath,
       });
       return;
     }
@@ -232,23 +222,19 @@ async function inspectDirectoryEntry(
     addIssue(collector, {
       kind: "source-unreadable",
       message: "Markdown source could not be read.",
-      repositoryPath: candidateRepositoryPath
+      repositoryPath: candidateRepositoryPath,
     });
     return;
   }
-  const nextDocumentBytes =
-    collector.documentBytes + Buffer.byteLength(document.source, "utf8");
+  const nextDocumentBytes = collector.documentBytes + Buffer.byteLength(document.source, "utf8");
   if (nextDocumentBytes > MAX_MARKDOWN_TOTAL_BYTES) {
     resourceLimit(
-      `Markdown observation exceeds ${MAX_MARKDOWN_TOTAL_BYTES} bytes after contained reads.`
+      `Markdown observation exceeds ${MAX_MARKDOWN_TOTAL_BYTES} bytes after contained reads.`,
     );
   }
-  const nextReferenceCount =
-    collector.documentReferences + document.references.length;
+  const nextReferenceCount = collector.documentReferences + document.references.length;
   if (nextReferenceCount > MAX_MARKDOWN_REFERENCES) {
-    resourceLimit(
-      `Markdown observation exceeds ${MAX_MARKDOWN_REFERENCES} references.`
-    );
+    resourceLimit(`Markdown observation exceeds ${MAX_MARKDOWN_REFERENCES} references.`);
   }
   collector.documentBytes = nextDocumentBytes;
   collector.documentReferences = nextReferenceCount;
@@ -259,7 +245,7 @@ async function inspectDirectoryEntry(
 async function walkDirectory(
   walk: MarkdownTreeWalkContext,
   directory: string,
-  configuredRoot?: string
+  configuredRoot?: string,
 ): Promise<void> {
   const { collector, filesystem, signal } = walk;
   assertNotCancelled(signal);
@@ -268,16 +254,13 @@ async function walkDirectory(
       walk.repository.canonicalRoot,
       directory,
       filesystem,
-      signal
+      signal,
     )
   ) {
     addIssue(collector, {
       kind: "symbolic-link",
       message: "Markdown source directory became a symbolic link during observation.",
-      repositoryPath: markdownRepositoryPath(
-        walk.repository.canonicalRoot,
-        directory
-      )
+      repositoryPath: markdownRepositoryPath(walk.repository.canonicalRoot, directory),
     });
     return;
   }
@@ -291,7 +274,7 @@ async function walkDirectory(
         addIssue(collector, {
           kind: "root-missing",
           message: "Configured Markdown root does not exist.",
-          repositoryPath: configuredRoot
+          repositoryPath: configuredRoot,
         });
       }
       return;
@@ -304,28 +287,22 @@ async function walkDirectory(
       walk.repository.canonicalRoot,
       directory,
       filesystem,
-      signal
+      signal,
     )
   ) {
     addIssue(collector, {
       kind: "symbolic-link",
       message: "Markdown source directory changed during observation.",
-      repositoryPath: markdownRepositoryPath(
-        walk.repository.canonicalRoot,
-        directory
-      )
+      repositoryPath: markdownRepositoryPath(walk.repository.canonicalRoot, directory),
     });
     return;
   }
   for (const entry of entries.toSorted((left, right) =>
-    compareBinaryStrings(left.name, right.name)
+    compareBinaryStrings(left.name, right.name),
   )) {
     assertNotCancelled(signal);
     if (!SKIPPED_DIRECTORY_NAMES.has(entry.name)) {
-      await inspectDirectoryEntry(
-        walk,
-        resolve(directory, entry.name)
-      );
+      await inspectDirectoryEntry(walk, resolve(directory, entry.name));
     }
   }
 }
@@ -333,14 +310,14 @@ async function walkDirectory(
 export async function observeFilesystemMarkdownTree(
   request: ObserveMarkdownRepositoryRequest,
   reader: FilesystemMarkdownDocumentReader,
-  filesystem: FilesystemMarkdownOperations = nodeFilesystemMarkdownOperations
+  filesystem: FilesystemMarkdownOperations = nodeFilesystemMarkdownOperations,
 ): Promise<MarkdownRepositoryObservation> {
   assertNotCancelled(request.signal);
   reader.reset();
   const context = await createFilesystemMarkdownRepositoryContext(
     request.consumerRoot,
     filesystem,
-    request.signal
+    request.signal,
   );
   assertNotCancelled(request.signal);
   const collector: MarkdownTreeObservationCollector = {
@@ -348,7 +325,7 @@ export async function observeFilesystemMarkdownTree(
     documentReferences: 0,
     estimatedDocumentBytes: 0,
     documents: new Map(),
-    issues: []
+    issues: [],
   };
   const walk: MarkdownTreeWalkContext = {
     collector,
@@ -356,7 +333,7 @@ export async function observeFilesystemMarkdownTree(
     filesystem,
     reader,
     repository: context,
-    ...(request.signal === undefined ? {} : { signal: request.signal })
+    ...(request.signal === undefined ? {} : { signal: request.signal }),
   };
 
   for (const root of request.roots.toSorted()) {
@@ -365,11 +342,12 @@ export async function observeFilesystemMarkdownTree(
 
   return {
     documents: [...collector.documents.values()].toSorted((left, right) =>
-      compareBinaryStrings(left.repositoryPath, right.repositoryPath)
+      compareBinaryStrings(left.repositoryPath, right.repositoryPath),
     ),
-    issues: collector.issues.toSorted((left, right) =>
-      compareBinaryStrings(left.repositoryPath, right.repositoryPath) ||
-      compareBinaryStrings(left.kind, right.kind)
-    )
+    issues: collector.issues.toSorted(
+      (left, right) =>
+        compareBinaryStrings(left.repositoryPath, right.repositoryPath) ||
+        compareBinaryStrings(left.kind, right.kind),
+    ),
   };
 }

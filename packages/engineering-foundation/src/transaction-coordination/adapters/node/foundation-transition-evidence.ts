@@ -3,7 +3,7 @@ import { opendir } from "node:fs/promises";
 import {
   FOUNDATION_TRANSACTION_CLEANUP_RESIDUE_PREFIX,
   FOUNDATION_TRANSACTION_FILE,
-  FOUNDATION_TRANSACTION_TEMPORARY_FILE
+  FOUNDATION_TRANSACTION_TEMPORARY_FILE,
 } from "../../application/model/foundation-transaction-identity.js";
 import type { InternalFoundationTransactionStatus } from "../../application/model/internal-transaction-status.js";
 import { portableRepositoryPathIdentity } from "@agent-teams/repository-mutation";
@@ -25,31 +25,36 @@ const scaffoldRetired = `${FOUNDATION_TRANSACTION_FILE}.scaffold-retired.`;
  * it and only uses its presence as a fail-closed recovery barrier.
  */
 function isMissing(error: unknown): boolean {
-  return error instanceof Error && "code" in error &&
-    (error as NodeJS.ErrnoException).code === "ENOENT";
+  return (
+    error instanceof Error && "code" in error && (error as NodeJS.ErrnoException).code === "ENOENT"
+  );
 }
 
 function manual(
   reason: "journal-transition-residue" | "orphan-temporary",
-  message: string
+  message: string,
 ): InternalFoundationTransactionStatus {
   return {
     state: "manual-recovery-required",
     reason,
-    diagnostics: [{
-      code: "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED",
-      message
-    }]
+    diagnostics: [
+      {
+        code: "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED",
+        message,
+      },
+    ],
   };
 }
 
 function isTransitionResidue(entry: string): boolean {
-  return entry === documentTransition ||
+  return (
+    entry === documentTransition ||
     entry.startsWith(documentQuarantine) ||
     entry.startsWith(documentRetired) ||
     entry.startsWith(scaffoldQuarantine) ||
     entry.startsWith(scaffoldRetired) ||
-    entry.startsWith(FOUNDATION_TRANSACTION_CLEANUP_RESIDUE_PREFIX);
+    entry.startsWith(FOUNDATION_TRANSACTION_CLEANUP_RESIDUE_PREFIX)
+  );
 }
 
 function isAmbiguousCommonEvidence(entry: string): boolean {
@@ -61,14 +66,18 @@ function isAmbiguousCommonEvidence(entry: string): boolean {
     `${FOUNDATION_TRANSACTION_FILE}.known-file.tmp`,
     `${FOUNDATION_TRANSACTION_FILE}.completed-known-file-evidence`,
     `${FOUNDATION_TRANSACTION_FILE}.completed-document-evidence`,
-    `${FOUNDATION_TRANSACTION_FILE}.completed-scaffold-evidence`
+    `${FOUNDATION_TRANSACTION_FILE}.completed-scaffold-evidence`,
   ];
-  if (exactNames.some((name) =>
-    portable === portableRepositoryPathIdentity(name) && entry !== name)) {
+  if (
+    exactNames.some((name) => portable === portableRepositoryPathIdentity(name) && entry !== name)
+  ) {
     return true;
   }
-  return portable.startsWith(`${transaction}.`) &&
-    !exactNames.includes(entry) && !isTransitionResidue(entry);
+  return (
+    portable.startsWith(`${transaction}.`) &&
+    !exactNames.includes(entry) &&
+    !isTransitionResidue(entry)
+  );
 }
 
 async function boundedStateEntries(stateDirectory: string): Promise<readonly string[]> {
@@ -77,7 +86,9 @@ async function boundedStateEntries(stateDirectory: string): Promise<readonly str
   try {
     for (;;) {
       const entry = await directory.read();
-      if (entry === null) {return entries;}
+      if (entry === null) {
+        return entries;
+      }
       entries.push(entry.name);
       if (entries.length > maximumStateDirectoryEntries) {
         throw new Error("Foundation state directory enumeration budget exceeded.");
@@ -89,7 +100,7 @@ async function boundedStateEntries(stateDirectory: string): Promise<readonly str
 }
 
 export async function inspectFoundationTransitionEvidence(
-  stateDirectory: string
+  stateDirectory: string,
 ): Promise<InternalFoundationTransactionStatus | undefined> {
   let entries: readonly string[];
   try {
@@ -99,22 +110,22 @@ export async function inspectFoundationTransitionEvidence(
       ? undefined
       : manual(
           "journal-transition-residue",
-          "Foundation transaction transition evidence cannot be inspected safely."
+          "Foundation transaction transition evidence cannot be inspected safely.",
         );
   }
   const ambiguousEntries = entries.filter(
-    (entry) => isTransitionResidue(entry) || isAmbiguousCommonEvidence(entry)
+    (entry) => isTransitionResidue(entry) || isAmbiguousCommonEvidence(entry),
   );
   if (ambiguousEntries.length !== 0) {
     return manual(
       "journal-transition-residue",
-      `An incomplete Foundation transaction transition was preserved and requires recovery before another Foundation mutation can start (${ambiguousEntries.join(", ")}).`
+      `An incomplete Foundation transaction transition was preserved and requires recovery before another Foundation mutation can start (${ambiguousEntries.join(", ")}).`,
     );
   }
   return entries.includes(FOUNDATION_TRANSACTION_TEMPORARY_FILE)
     ? manual(
         "orphan-temporary",
-        "An orphan Foundation transaction temporary exists; it was preserved and requires manual recovery."
+        "An orphan Foundation transaction temporary exists; it was preserved and requires manual recovery.",
       )
     : undefined;
 }

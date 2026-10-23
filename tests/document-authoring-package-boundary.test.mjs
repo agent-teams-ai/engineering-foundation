@@ -8,7 +8,10 @@ import { sourceFiles } from "./package-boundary-support.mjs";
 
 const repositoryRoot = resolve(import.meta.dirname, "..");
 const dependencySections = [
-  "dependencies", "devDependencies", "optionalDependencies", "peerDependencies",
+  "dependencies",
+  "devDependencies",
+  "optionalDependencies",
+  "peerDependencies",
 ];
 const names = Object.freeze({
   adapter: "@agent-teams/docs-protocol-agent-teams",
@@ -20,27 +23,32 @@ const names = Object.freeze({
 });
 
 async function manifest(slug) {
-  return JSON.parse(await readFile(
-    join(repositoryRoot, "packages", slug, "package.json"),
-    "utf8",
-  ));
+  return JSON.parse(await readFile(join(repositoryRoot, "packages", slug, "package.json"), "utf8"));
 }
 
 function internalDependencies(value) {
   const publicNames = new Set(PUBLISHABLE_PACKAGES.map(({ name }) => name));
-  return dependencySections.flatMap((section) =>
-    Object.keys(value[section] ?? {}).filter((name) => publicNames.has(name)))
+  return dependencySections
+    .flatMap((section) => Object.keys(value[section] ?? {}).filter((name) => publicNames.has(name)))
     .toSorted();
 }
 
 test("manifests expose exactly the closed ADR-0043 package DAG", async () => {
-  const manifests = new Map(await Promise.all([
-    "repository-mutation", "document-authoring", "engineering-foundation",
-    "docs-protocol", "docs-protocol-agent-teams", "docs-protocol-mcp",
-  ].map(async (slug) => {
-    const value = await manifest(slug);
-    return [value.name, value];
-  })));
+  const manifests = new Map(
+    await Promise.all(
+      [
+        "repository-mutation",
+        "document-authoring",
+        "engineering-foundation",
+        "docs-protocol",
+        "docs-protocol-agent-teams",
+        "docs-protocol-mcp",
+      ].map(async (slug) => {
+        const value = await manifest(slug);
+        return [value.name, value];
+      }),
+    ),
+  );
   const expected = new Map([
     [names.mutation, []],
     [names.authoring, [names.mutation]],
@@ -60,33 +68,43 @@ test("new-only cutover has no Foundation/Document Authoring backchannel", async 
   assert.equal(foundation.exports?.["./document-authoring"], undefined);
   assert.equal(foundation.exports?.["./document-authoring/qualification"], undefined);
 
-  const authoringSources = await sourceFiles(join(
-    repositoryRoot, "packages", "document-authoring", "src",
-  ));
+  const authoringSources = await sourceFiles(
+    join(repositoryRoot, "packages", "document-authoring", "src"),
+  );
   for (const path of authoringSources) {
-    assert.doesNotMatch(await readFile(path, "utf8"),
+    assert.doesNotMatch(
+      await readFile(path, "utf8"),
       /(?:from\s+|import\s*\()["']@agent-teams\/engineering-foundation(?:\/[^"']*)?["']/u,
-      `${path} cannot import Foundation`);
+      `${path} cannot import Foundation`,
+    );
   }
 
-  const foundationSources = await sourceFiles(join(
-    repositoryRoot, "packages", "engineering-foundation", "src",
-  ));
+  const foundationSources = await sourceFiles(
+    join(repositoryRoot, "packages", "engineering-foundation", "src"),
+  );
   for (const path of foundationSources) {
     const source = await readFile(path, "utf8");
-    assert.doesNotMatch(source,
+    assert.doesNotMatch(
+      source,
       /from\s+["']\.\.?\/document-authoring/u,
-      `${path} cannot retain a private authoring facade`);
+      `${path} cannot retain a private authoring facade`,
+    );
   }
 
   for (const slug of [
-    "repository-mutation", "document-authoring", "engineering-foundation",
-    "docs-protocol", "docs-protocol-agent-teams", "docs-protocol-mcp",
+    "repository-mutation",
+    "document-authoring",
+    "engineering-foundation",
+    "docs-protocol",
+    "docs-protocol-agent-teams",
+    "docs-protocol-mcp",
   ]) {
     for (const path of await sourceFiles(join(repositoryRoot, "packages", slug, "src"))) {
-      assert.doesNotMatch(await readFile(path, "utf8"),
+      assert.doesNotMatch(
+        await readFile(path, "utf8"),
         /(?:from\s+|import\s*\()["']@agent-teams\/engineering-foundation\/document-authoring(?:\/[^"']*)?["']/u,
-        `${path} cannot import the removed Foundation authoring export`);
+        `${path} cannot import the removed Foundation authoring export`,
+      );
     }
   }
 });

@@ -86,26 +86,22 @@ export type MarkdownReferenceResolution =
     }
   | {
       readonly kind: "unsafe";
-      readonly reason:
-        | "absolute-path"
-        | "invalid-encoding"
-        | "repository-escape"
-        | "symbolic-link";
+      readonly reason: "absolute-path" | "invalid-encoding" | "repository-escape" | "symbolic-link";
     };
 
 export function anchorsForMarkdownDocument(
   document: MarkdownDocumentObservation,
-  profile: MarkdownAnchorProfile
+  profile: MarkdownAnchorProfile,
 ): readonly string[] {
   if (profile === "none") {
     return [];
   }
 
-  return document.anchorObservations.find((observation) => observation.profile === profile)?.ids ?? [];
+  return (
+    document.anchorObservations.find((observation) => observation.profile === profile)?.ids ?? []
+  );
 }
 
-export function markdownSourceWithoutFrontmatter(
-  document: MarkdownDocumentObservation
-): string {
+export function markdownSourceWithoutFrontmatter(document: MarkdownDocumentObservation): string {
   return document.source.slice(document.frontmatter.endOffset);
 }

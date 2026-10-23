@@ -19,16 +19,20 @@ export interface DocsReadExecution {
 
 export interface DocsReader {
   info(input: DocsBinding & { readonly signal?: AbortSignal }): Promise<DocsReadExecution>;
-  find(input: DocsBinding & {
-    readonly query: DocsFindQueryV3;
-    readonly signal?: AbortSignal;
-  }): Promise<DocsReadExecution>;
-  context(input: DocsBinding & {
-    readonly query: DocsFindQueryV3;
-    readonly limits: {
-      readonly maxBytes: number;
-      readonly maxDocuments: number;
-    };
-    readonly signal?: AbortSignal;
-  }): Promise<DocsReadExecution>;
+  find(
+    input: DocsBinding & {
+      readonly query: DocsFindQueryV3;
+      readonly signal?: AbortSignal;
+    },
+  ): Promise<DocsReadExecution>;
+  context(
+    input: DocsBinding & {
+      readonly query: DocsFindQueryV3;
+      readonly limits: {
+        readonly maxBytes: number;
+        readonly maxDocuments: number;
+      };
+      readonly signal?: AbortSignal;
+    },
+  ): Promise<DocsReadExecution>;
 }

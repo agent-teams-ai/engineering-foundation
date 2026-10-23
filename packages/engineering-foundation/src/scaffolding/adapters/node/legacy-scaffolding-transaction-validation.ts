@@ -1,10 +1,6 @@
 import { sha256Json as sha256DocumentJson } from "@agent-teams/repository-mutation/serialization";
-import type {
-  AuthorityScaffoldJournal
-} from "../../contract/types.js";
-import type {
-  JsonValue
-} from "../../application/model/scaffold-values.js";
+import type { AuthorityScaffoldJournal } from "../../contract/types.js";
+import type { JsonValue } from "../../application/model/scaffold-values.js";
 import { assertAuthorityScaffoldJournal } from "../inbound/assert-authority-scaffold-journal.js";
 import type { ScaffoldLegacyDigests } from "../../application/ports/transaction-observation.js";
 
@@ -23,14 +19,17 @@ function normalizeLegacyScaffoldingValue(value: unknown): unknown {
     return value.map(normalizeLegacyScaffoldingValue);
   }
   if (isRecord(value)) {
-    return Object.fromEntries(Object.entries(value).map(([key, item]) => [
-      key, normalizeLegacyScaffoldingValue(item)
-    ]));
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, normalizeLegacyScaffoldingValue(item)]),
+    );
   }
   return value;
 }
 
-export function assertLegacyScaffoldingJournal(journal: Record<string, unknown>, digests: ScaffoldLegacyDigests): void {
+export function assertLegacyScaffoldingJournal(
+  journal: Record<string, unknown>,
+  digests: ScaffoldLegacyDigests,
+): void {
   const plan = journal["plan"];
   if (!isRecord(plan)) {
     throw new Error("Legacy scaffolding Plan binding is invalid.");

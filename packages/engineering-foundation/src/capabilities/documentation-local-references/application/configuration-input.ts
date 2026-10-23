@@ -6,10 +6,9 @@ export function configurationInputError(message: string): never {
     code: "DOCUMENTATION_LOCAL_REFERENCES_CONFIG_INVALID",
     message,
     phase: "documentation-local-references-config",
-    retryable: false
+    retryable: false,
   });
 }
-
 
 export function assertConfigRepositoryRelativePath(path: string): void {
   assertRepositoryRelativePath(path, "documentation-local-references-config");

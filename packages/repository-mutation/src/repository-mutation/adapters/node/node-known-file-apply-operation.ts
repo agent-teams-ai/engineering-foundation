@@ -14,15 +14,19 @@ import {
   unlinkKnownFileTemporary,
   verifyKnownFileTemporary,
   type KnownFileCapture,
-  type PreparedKnownFileTemporary
+  type PreparedKnownFileTemporary,
 } from "./node-known-file-apply-effects.js";
 import type { KnownFileTransactionFaultInjector } from "./node-known-file-apply-faults.js";
 import {
   persistKnownFileApplyState,
   transitionKnownFileOperation,
-  type KnownFileApplyState
+  type KnownFileApplyState,
 } from "./node-known-file-apply-state.js";
-import { matchesKnownFileImage, observeKnownFile, sameKnownFileIdentity } from "./node-known-file-transaction-filesystem.js";
+import {
+  matchesKnownFileImage,
+  observeKnownFile,
+  sameKnownFileIdentity,
+} from "./node-known-file-transaction-filesystem.js";
 import { KnownFileTransactionError } from "../../application/model/known-file-transaction-error.js";
 import type { NodeKnownFileTransactionJournalStore } from "./node-known-file-transaction-journal-store.js";
 
@@ -40,94 +44,105 @@ interface OperationContext {
 async function transitionAndCheckpoint(
   context: OperationContext,
   transition: Parameters<typeof transitionKnownFileOperation>[2],
-  phase: Parameters<NonNullable<KnownFileTransactionFaultInjector>>[0]["phase"]
+  phase: Parameters<NonNullable<KnownFileTransactionFaultInjector>>[0]["phase"],
 ): Promise<void> {
   const operation = context.stored.envelope.payload.plan.operations[context.index]!;
   const journal = transitionKnownFileOperation(
     context.stored.envelope.payload,
     context.index,
-    transition
+    transition,
   );
   await persistKnownFileApplyState(context.store, context.stored, journal);
   await context.faultInjector?.({
     phase,
     operationIndex: context.index,
-    path: operation.path
+    path: operation.path,
   });
 }
 
-async function publishPreparedLink(
-  context: OperationContext,
-  replacement: boolean
-): Promise<void> {
+async function publishPreparedLink(context: OperationContext, replacement: boolean): Promise<void> {
   const operation = context.stored.envelope.payload.plan.operations[context.index]!;
   await transitionAndCheckpoint(context, { state: "publishing" }, "after-operation-publishing");
   await publishKnownFileLink({
     destination: context.destination,
     operationPath: operation.path,
     temporaryPath: context.temporary.path,
-    replacement
+    replacement,
   });
   await context.faultInjector?.({
     phase: "after-postimage-linked",
     operationIndex: context.index,
-    path: operation.path
+    path: operation.path,
   });
   await unlinkKnownFileTemporary(context.temporary.path);
 }
 
-async function prepareCapture(
-  context: OperationContext
-): Promise<KnownFileCapture> {
+async function prepareCapture(context: OperationContext): Promise<KnownFileCapture> {
   const operation = context.stored.envelope.payload.plan.operations[context.index]!;
-  await transitionAndCheckpoint(context, { state: "capture-authorized" }, "after-capture-authorized");
+  await transitionAndCheckpoint(
+    context,
+    { state: "capture-authorized" },
+    "after-capture-authorized",
+  );
   const capture = await prepareKnownFileCapture({
     operation,
     operationIndex: context.index,
     parent: context.parent,
-    planDigest: context.stored.envelope.payload.plan.planDigest
+    planDigest: context.stored.envelope.payload.plan.planDigest,
   });
   await context.faultInjector?.({
     phase: "after-capture-created-unbound",
     operationIndex: context.index,
-    path: operation.path
+    path: operation.path,
   });
-  await transitionAndCheckpoint(context, {
-    captureDirectoryIdentity: serializeKnownFileIdentity(capture.identity),
-    state: "capture-ready"
-  }, "after-capture-ready");
+  await transitionAndCheckpoint(
+    context,
+    {
+      captureDirectoryIdentity: serializeKnownFileIdentity(capture.identity),
+      state: "capture-ready",
+    },
+    "after-capture-ready",
+  );
   return capture;
 }
 
-async function executeKnownFileReplacement(coordination: Pick<KnownFileCoordination,
-  "captureFileHandleIdentity"
-  | "pathMatchesRegularFileIdentity"
-  | "readBoundedRegularFile"
-  | "readBoundedRegularFileHandle"
->, context: OperationContext): Promise<void> {
+async function executeKnownFileReplacement(
+  coordination: Pick<
+    KnownFileCoordination,
+    | "captureFileHandleIdentity"
+    | "pathMatchesRegularFileIdentity"
+    | "readBoundedRegularFile"
+    | "readBoundedRegularFileHandle"
+  >,
+  context: OperationContext,
+): Promise<void> {
   const operation = context.stored.envelope.payload.plan.operations[context.index]!;
   if (operation.precondition.state !== "known-file") {
     throw new KnownFileTransactionError(
       "KNOWN_FILE_JOURNAL_INVALID",
-      `Replacement operation has no known preimage: ${operation.path}.`
+      `Replacement operation has no known preimage: ${operation.path}.`,
     );
   }
   const capture = await prepareCapture(context);
   const captured = await captureKnownFilePreimage(coordination, {
     capture,
     operation: { ...operation, precondition: operation.precondition },
-    root: context.root
+    root: context.root,
   });
   await context.faultInjector?.({
     phase: "after-preimage-linked-unbound",
     operationIndex: context.index,
-    path: operation.path
+    path: operation.path,
   });
-  await transitionAndCheckpoint(context, {
-    capturedPreimageIdentity: serializeKnownFileIdentity(captured.identity),
-    matchedPreimage: captured.matchedPreimage,
-    state: "preimage-captured"
-  }, "after-preimage-captured");
+  await transitionAndCheckpoint(
+    context,
+    {
+      capturedPreimageIdentity: serializeKnownFileIdentity(captured.identity),
+      matchedPreimage: captured.matchedPreimage,
+      state: "preimage-captured",
+    },
+    "after-preimage-captured",
+  );
   await prepareKnownFileRollback(coordination, {
     ...(context.faultInjector === undefined ? {} : { faultInjector: context.faultInjector }),
     index: context.index,
@@ -135,7 +150,7 @@ async function executeKnownFileReplacement(coordination: Pick<KnownFileCoordinat
     parent: context.parent,
     preimageIndex: captured.matchedPreimage,
     store: context.store,
-    stored: context.stored
+    stored: context.stored,
   });
   await retireKnownFileDestination(coordination, {
     capture,
@@ -145,38 +160,57 @@ async function executeKnownFileReplacement(coordination: Pick<KnownFileCoordinat
     index: context.index,
     operationPath: operation.path,
     parent: context.parent,
-    preimage: operation.precondition.acceptedPreimages[captured.matchedPreimage]!
+    preimage: operation.precondition.acceptedPreimages[captured.matchedPreimage]!,
   });
-  await transitionAndCheckpoint(context, { state: "destination-retired" }, "after-destination-retired");
+  await transitionAndCheckpoint(
+    context,
+    { state: "destination-retired" },
+    "after-destination-retired",
+  );
   await publishPreparedLink(context, true);
 }
 
-async function verifyPublishedPostimage(coordination: Pick<KnownFileCoordination, "readBoundedRegularFile">, context: OperationContext): Promise<void> {
+async function verifyPublishedPostimage(
+  coordination: Pick<KnownFileCoordination, "readBoundedRegularFile">,
+  context: OperationContext,
+): Promise<void> {
   const operation = context.stored.envelope.payload.plan.operations[context.index]!;
   await syncDirectoryStrictly(context.parent);
-  const published = await observeKnownFile(coordination, context.root, operation.path, operation.postimage.size);
-  if (!matchesKnownFileImage(published, operation.postimage) || published.identity === undefined ||
-    !sameKnownFileIdentity(published.identity, context.temporary.identity)) {
+  const published = await observeKnownFile(
+    coordination,
+    context.root,
+    operation.path,
+    operation.postimage.size,
+  );
+  if (
+    !matchesKnownFileImage(published, operation.postimage) ||
+    published.identity === undefined ||
+    !sameKnownFileIdentity(published.identity, context.temporary.identity)
+  ) {
     throw new KnownFileTransactionError(
       "KNOWN_FILE_POSTIMAGE_INVALID",
-      `Published postimage failed exact verification: ${operation.path}.`
+      `Published postimage failed exact verification: ${operation.path}.`,
     );
   }
   await transitionAndCheckpoint(context, { state: "published" }, "after-operation-published");
 }
 
-export async function executeKnownFileOperation(coordination: Pick<KnownFileCoordination,
-  "captureFileHandleIdentity"
-  | "pathMatchesRegularFileIdentity"
-  | "readBoundedRegularFile"
-  | "readBoundedRegularFileHandle"
->, options: {
-  readonly faultInjector?: KnownFileTransactionFaultInjector;
-  readonly index: number;
-  readonly root: string;
-  readonly store: NodeKnownFileTransactionJournalStore;
-  readonly stored: KnownFileApplyState;
-}): Promise<void> {
+export async function executeKnownFileOperation(
+  coordination: Pick<
+    KnownFileCoordination,
+    | "captureFileHandleIdentity"
+    | "pathMatchesRegularFileIdentity"
+    | "readBoundedRegularFile"
+    | "readBoundedRegularFileHandle"
+  >,
+  options: {
+    readonly faultInjector?: KnownFileTransactionFaultInjector;
+    readonly index: number;
+    readonly root: string;
+    readonly store: NodeKnownFileTransactionJournalStore;
+    readonly stored: KnownFileApplyState;
+  },
+): Promise<void> {
   const operation = options.stored.envelope.payload.plan.operations[options.index]!;
   const journalOperation = options.stored.envelope.payload.operations[options.index]!;
   if (journalOperation.state === "already-satisfied" || journalOperation.state === "published") {
@@ -185,50 +219,47 @@ export async function executeKnownFileOperation(coordination: Pick<KnownFileCoor
   if (journalOperation.state !== "pending") {
     throw new KnownFileTransactionError(
       "KNOWN_FILE_RECOVERY_REQUIRED",
-      `Operation ${operation.path} is already in progress and requires recovery.`
+      `Operation ${operation.path} is already in progress and requires recovery.`,
     );
   }
   const parent = await ensureKnownFileParentDirectories({
     ...options,
-    operationPath: operation.path
+    operationPath: operation.path,
   });
   const temporaryContext = {
     destination: join(options.root, ...operation.path.split("/")),
     ...options,
-    parent
+    parent,
   };
-  const authorized = transitionKnownFileOperation(
-    options.stored.envelope.payload,
-    options.index,
-    { state: "temporary-authorized" }
-  );
+  const authorized = transitionKnownFileOperation(options.stored.envelope.payload, options.index, {
+    state: "temporary-authorized",
+  });
   await persistKnownFileApplyState(options.store, options.stored, authorized);
   await options.faultInjector?.({
     phase: "after-temporary-authorized",
     operationIndex: options.index,
-    path: operation.path
+    path: operation.path,
   });
   const temporary = await prepareKnownFileTemporary(coordination, {
     operation,
     operationIndex: options.index,
     parent,
-    planDigest: options.stored.envelope.payload.plan.planDigest
+    planDigest: options.stored.envelope.payload.plan.planDigest,
   });
   await options.faultInjector?.({
     phase: "after-temporary-created-unbound",
     operationIndex: options.index,
-    path: operation.path
+    path: operation.path,
   });
-  const ready = transitionKnownFileOperation(
-    options.stored.envelope.payload,
-    options.index,
-    { state: "temporary-ready", temporaryIdentity: serializeKnownFileIdentity(temporary.identity) }
-  );
+  const ready = transitionKnownFileOperation(options.stored.envelope.payload, options.index, {
+    state: "temporary-ready",
+    temporaryIdentity: serializeKnownFileIdentity(temporary.identity),
+  });
   await persistKnownFileApplyState(options.store, options.stored, ready);
   await options.faultInjector?.({
     phase: "after-temporary-synced",
     operationIndex: options.index,
-    path: operation.path
+    path: operation.path,
   });
   await verifyKnownFileTemporary(coordination, temporary, operation.postimage);
   const context: OperationContext = { ...temporaryContext, temporary };

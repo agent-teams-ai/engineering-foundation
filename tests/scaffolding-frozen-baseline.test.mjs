@@ -1,14 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import {
-  cp,
-  mkdir,
-  mkdtemp,
-  readFile,
-  readdir,
-  rm,
-  writeFile,
-} from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -25,11 +17,7 @@ import {
 import { FOUNDATION_SCHEMA_IDS } from "../packages/engineering-foundation/dist/schema-ids.js";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
-const packageRoot = join(
-  repositoryRoot,
-  "packages",
-  "engineering-foundation",
-);
+const packageRoot = join(repositoryRoot, "packages", "engineering-foundation");
 const cliPath = join(packageRoot, "dist", "cli.js");
 const vector = JSON.parse(
   await readFile(
@@ -37,20 +25,11 @@ const vector = JSON.parse(
     "utf8",
   ),
 );
-const packageManifest = JSON.parse(
-  await readFile(join(packageRoot, "package.json"), "utf8"),
-);
-const sourceFixtureRoot = join(
-  repositoryRoot,
-  "tests",
-  "fixtures",
-  vector.fixture,
-);
+const packageManifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
+const sourceFixtureRoot = join(repositoryRoot, "tests", "fixtures", vector.fixture);
 
 async function withFixture(run) {
-  const root = await mkdtemp(
-    join(tmpdir(), "foundation-scaffolding-frozen-baseline-"),
-  );
+  const root = await mkdtemp(join(tmpdir(), "foundation-scaffolding-frozen-baseline-"));
   try {
     await cp(sourceFixtureRoot, root, { recursive: true });
     await run(root);
@@ -107,7 +86,7 @@ async function schemaFilesBelow(root) {
   for (const entry of await readdir(root, { withFileTypes: true })) {
     const filePath = join(root, entry.name);
     if (entry.isDirectory()) {
-      output.push(...await schemaFilesBelow(filePath));
+      output.push(...(await schemaFilesBelow(filePath)));
     } else if (entry.isFile() && filePath.endsWith(".schema.json")) {
       output.push(relative(packageRoot, filePath).replaceAll("\\", "/"));
     }
@@ -164,16 +143,13 @@ test("recovers the frozen legacy PREPARED journal shape", async () => {
       {
         outcome: recovered.outcome,
         commit: recovered.commit,
-        operationOutcome: new Set(
-          recovered.operations.map(({ outcome }) => outcome),
-        ).values().next().value,
+        operationOutcome: new Set(recovered.operations.map(({ outcome }) => outcome))
+          .values()
+          .next().value,
       },
       vector.legacyJournal.expectedRecovery,
     );
-    assert.equal(
-      new Set(recovered.operations.map(({ outcome }) => outcome)).size,
-      1,
-    );
+    assert.equal(new Set(recovered.operations.map(({ outcome }) => outcome)).size, 1);
     assert.equal(await recoverFilesystemScaffold(root), undefined);
   });
 });
@@ -207,10 +183,12 @@ test("freezes scaffolding CLI error and empty-recovery exit codes", async () => 
 });
 
 test("validates the release-owned public API baseline and freezes the package export map", async () => {
-  const baseline = JSON.parse(await readFile(
-    join(repositoryRoot, "architecture", "public-api", "engineering-foundation.json"),
-    "utf8",
-  ));
+  const baseline = JSON.parse(
+    await readFile(
+      join(repositoryRoot, "architecture", "public-api", "engineering-foundation.json"),
+      "utf8",
+    ),
+  );
   assert.equal(baseline.schemaVersion, 1);
   assert.equal(baseline.packageName, packageManifest.name);
   assert.equal(baseline.packageVersion, packageManifest.version);
@@ -224,9 +202,7 @@ test("validates the release-owned public API baseline and freezes the package ex
     assert.match(entrypoint.exportPath, /^\.|^\.\//u);
     assert.ok(entrypoint.items.length > 0);
   }
-  const scaffolding = baseline.entrypoints.find(
-    ({ exportPath }) => exportPath === "./scaffolding",
-  );
+  const scaffolding = baseline.entrypoints.find(({ exportPath }) => exportPath === "./scaffolding");
   assert.ok(scaffolding);
   assert.deepEqual(
     scaffolding.items.find(
@@ -251,27 +227,25 @@ test("validates the release-owned public API baseline and freezes the package ex
     ...retainedExports,
     "./scaffolding/qualification": {
       types: "./dist/scaffolding/qualification.d.ts",
-      import: "./dist/scaffolding/qualification.js"
+      import: "./dist/scaffolding/qualification.js",
     },
     "./ratchet": {
       types: "./dist/ratchet.d.ts",
-      import: "./dist/ratchet.js"
+      import: "./dist/ratchet.js",
     },
     "./sdk-growth-authority": {
       types: "./dist/sdk-growth-authority.d.ts",
-      import: "./dist/sdk-growth-authority.js"
+      import: "./dist/sdk-growth-authority.js",
     },
     "./source-graph": {
       types: "./dist/source-graph.d.ts",
-      import: "./dist/source-graph.js"
-    }
+      import: "./dist/source-graph.js",
+    },
   });
 });
 
 test("freezes the runtime, filesystem, and published schema allowlists", async () => {
-  const manifest = JSON.parse(
-    await readFile(join(packageRoot, "package.json"), "utf8"),
-  );
+  const manifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
   const runtimeSchemaFiles = FOUNDATION_SCHEMA_IDS.map(
     (schemaId) => `schemas/${schemaId}.schema.json`,
   ).toSorted();
@@ -299,10 +273,7 @@ test("freezes the runtime, filesystem, and published schema allowlists", async (
     "schemas/workspace-dependency-declarations/v2.schema.json",
   ].toSorted();
   assert.deepEqual(runtimeSchemaFiles, expectedSchemaFiles);
-  assert.deepEqual(
-    await schemaFilesBelow(join(packageRoot, "schemas")),
-    expectedSchemaFiles,
-  );
+  assert.deepEqual(await schemaFilesBelow(join(packageRoot, "schemas")), expectedSchemaFiles);
   assert.deepEqual(publishedSchemaFiles, expectedSchemaFiles);
 });
 
@@ -335,16 +306,10 @@ test("keeps packed and registry-install qualification wired", async () => {
     /verifyPackedAuthorityScaffolding/u,
   );
   assert.match(
-    await readFile(
-      join(repositoryRoot, "scripts", "pack-scaffolding-test.mjs"),
-      "utf8",
-    ),
+    await readFile(join(repositoryRoot, "scripts", "pack-scaffolding-test.mjs"), "utf8"),
     /verifyInstalledTransactionBarrier/u,
   );
-  assert.match(
-    registryInstallSource,
-    /\$\{FOUNDATION_PACKAGE_NAME\}\/scaffolding/u,
-  );
+  assert.match(registryInstallSource, /\$\{FOUNDATION_PACKAGE_NAME\}\/scaffolding/u);
   assert.match(
     registryInstallSource,
     /async function verifyInstalledBufQualifier\(installedRoot\) \{\s+if \(process\.platform === "win32"\) \{\s+return;\s+\}/u,
@@ -356,10 +321,7 @@ test("keeps packed and registry-install qualification wired", async () => {
     "the hermetic registry gate must not fetch a published package",
   );
   assert.match(
-    await readFile(
-      join(repositoryRoot, "scripts", "old-foundation-transaction-e2e.mjs"),
-      "utf8",
-    ),
+    await readFile(join(repositoryRoot, "scripts", "old-foundation-transaction-e2e.mjs"), "utf8"),
     /const version = "0\.11\.0";\s+const expectedIntegrity = publishedFoundationIntegrity\(version\);/u,
   );
   assert.match(
@@ -369,15 +331,17 @@ test("keeps packed and registry-install qualification wired", async () => {
     ),
     /const publishedVersion = "0\.12\.0";\s+const expectedIntegrity = publishedFoundationIntegrity\(publishedVersion\);/u,
   );
-  const { publishedFoundationIntegrity } = await import("../scripts/published-foundation-imports.ts");
-  assert.equal(publishedFoundationIntegrity("0.11.0"),
-    "sha512-L/mWa40ziy3veWzEwp3uH4PTSNInmQb02Na0FeyTk8VoXHNApJon2tegQLOkpbwxEAZCP9aSywCm+1hYbxcUrg==");
-  assert.equal(publishedFoundationIntegrity("0.12.0"),
-    "sha512-LWey96bQBwA/91eD1T9pZRKrNUPlAt/8NEOQ5gnWfW6Mzs+kdvyOUNQFXUUR2TTrfzfgiYPgjg5aBTUkCrZ0WQ==");
-  const ciSource = await readFile(
-    join(repositoryRoot, ".github", "workflows", "ci.yml"),
-    "utf8",
+  const { publishedFoundationIntegrity } =
+    await import("../scripts/published-foundation-imports.ts");
+  assert.equal(
+    publishedFoundationIntegrity("0.11.0"),
+    "sha512-L/mWa40ziy3veWzEwp3uH4PTSNInmQb02Na0FeyTk8VoXHNApJon2tegQLOkpbwxEAZCP9aSywCm+1hYbxcUrg==",
   );
+  assert.equal(
+    publishedFoundationIntegrity("0.12.0"),
+    "sha512-LWey96bQBwA/91eD1T9pZRKrNUPlAt/8NEOQ5gnWfW6Mzs+kdvyOUNQFXUUR2TTrfzfgiYPgjg5aBTUkCrZ0WQ==",
+  );
+  const ciSource = await readFile(join(repositoryRoot, ".github", "workflows", "ci.yml"), "utf8");
   for (const requiredLane of [
     "linux-static",
     "linux-coverage",

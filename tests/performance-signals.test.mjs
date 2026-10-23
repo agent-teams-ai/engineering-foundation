@@ -20,9 +20,21 @@ function record(benchmark, count) {
 
 test("performance signal parser accepts exactly six strict advisory records", () => {
   const expected = [
-    { benchmark: "document-catalog-filesystem", count: 100, measurements: { coldMilliseconds: 1, warmMilliseconds: 1 } },
-    { benchmark: "document-catalog-filesystem", count: 1_000, measurements: { coldMilliseconds: 1, warmMilliseconds: 1 } },
-    { benchmark: "document-catalog-filesystem", count: 5_000, measurements: { coldMilliseconds: 1, warmMilliseconds: 1 } },
+    {
+      benchmark: "document-catalog-filesystem",
+      count: 100,
+      measurements: { coldMilliseconds: 1, warmMilliseconds: 1 },
+    },
+    {
+      benchmark: "document-catalog-filesystem",
+      count: 1_000,
+      measurements: { coldMilliseconds: 1, warmMilliseconds: 1 },
+    },
+    {
+      benchmark: "document-catalog-filesystem",
+      count: 5_000,
+      measurements: { coldMilliseconds: 1, warmMilliseconds: 1 },
+    },
     record("document-find-memory", 100),
     record("document-find-memory", 1_000),
     record("document-find-memory", 5_000),
@@ -31,9 +43,19 @@ test("performance signal parser accepts exactly six strict advisory records", ()
     .map((value) => `# FOUNDATION_BENCHMARK ${JSON.stringify(value)}`)
     .join("\n");
   assert.deepEqual(parseBenchmarkRecords(output), expected);
-  assert.throws(() => parseBenchmarkRecords(output.split("\n").slice(1).join("\n")), /exact benchmark\/count/u);
-  assert.throws(() => parseBenchmarkRecords(output.replace('"count":1000', '"count":100')), /exact benchmark\/count/u);
-  assert.throws(() => parseBenchmarkRecords(output.replace('"medianMilliseconds":10', '"medianMilliseconds":-1')), /finite non-negative/u);
+  assert.throws(
+    () => parseBenchmarkRecords(output.split("\n").slice(1).join("\n")),
+    /exact benchmark\/count/u,
+  );
+  assert.throws(
+    () => parseBenchmarkRecords(output.replace('"count":1000', '"count":100')),
+    /exact benchmark\/count/u,
+  );
+  assert.throws(
+    () =>
+      parseBenchmarkRecords(output.replace('"medianMilliseconds":10', '"medianMilliseconds":-1')),
+    /finite non-negative/u,
+  );
 });
 
 test("performance artifact is explicitly advisory and source-bound", () => {

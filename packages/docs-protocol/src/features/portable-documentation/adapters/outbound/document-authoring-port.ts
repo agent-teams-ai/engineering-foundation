@@ -10,19 +10,22 @@ import {
   recoverDocumentationTransactionV2,
   type DocumentDescriptorV2,
   type DocumentPlanV2,
-  type DocumentMetadataValue
+  type DocumentMetadataValue,
 } from "@agent-teams/document-authoring";
 
+import type { DocsFindDocument } from "../../application/model.js";
 import type {
-  DocsFindDocument,
-} from "../../application/model.js";
-import type { DocumentAuthoringDescriptionV2, DocumentAuthoringPortV2 } from "../../application/model-v2.js";
+  DocumentAuthoringDescriptionV2,
+  DocumentAuthoringPortV2,
+} from "../../application/model-v2.js";
 import type { DocumentAuthoringPortV3 } from "../../application/model-v3.js";
 import { DocsProfileError } from "../../application/profile-policy.js";
 import { normalizeDocumentIds } from "../../domain/document-semantics.js";
 
 function stringArray(value: DocumentMetadataValue | undefined, subject: string): readonly string[] {
-  if (value === undefined) {return Object.freeze([]);}
+  if (value === undefined) {
+    return Object.freeze([]);
+  }
   if (!Array.isArray(value) || !value.every((entry) => typeof entry === "string")) {
     throw new DocsProfileError(`${subject} must be an array of canonical document IDs.`);
   }
@@ -35,7 +38,7 @@ function projected(entry: DocumentDescriptorV2, blockedByKey: string): DocsFindD
     ...entry,
     metadata,
     related: stringArray(metadata["related"], `${entry.id}.related`),
-    blockedBy: stringArray(metadata[blockedByKey], `${entry.id}.${blockedByKey}`)
+    blockedBy: stringArray(metadata[blockedByKey], `${entry.id}.${blockedByKey}`),
   });
 }
 
@@ -48,38 +51,51 @@ export class NodeDocumentAuthoringPort implements DocumentAuthoringPortV3 {
   inspectEnvironment(input: Parameters<DocumentAuthoringPortV2["inspectEnvironment"]>[0]) {
     return inspectDocumentAuthoringEnvironmentV1({
       consumerRoot: input.consumerRoot,
-      ...signalOption(input.signal)
+      ...signalOption(input.signal),
     });
   }
 
-  async describe(input: Parameters<DocumentAuthoringPortV2["describe"]>[0]): Promise<DocumentAuthoringDescriptionV2> {
+  async describe(
+    input: Parameters<DocumentAuthoringPortV2["describe"]>[0],
+  ): Promise<DocumentAuthoringDescriptionV2> {
     const request = {
       consumerRoot: input.consumerRoot,
       profilePath: input.profilePath,
-      ...signalOption(input.signal)
+      ...signalOption(input.signal),
     };
     const description = await describeDocumentAuthoringProfileV3(request);
     return Object.freeze({
       authority: description.authority,
       catalog: description.catalog,
-      authorityPaths: Object.freeze([...new Set([
-        description.authorityPaths.profile,
-        description.authorityPaths.metadataSchema,
-        description.authorityPaths.ownerCatalog,
-        ...(description.authorityPaths.metadataSidecar === undefined ? [] : [description.authorityPaths.metadataSidecar]),
-        ...description.types.map(({ template }) => template.path),
-        ...description.types.flatMap(({ reachability }) =>
-          reachability.kind === "manual-fixed-index" ? [reachability.indexPath] : [])
-      ])].toSorted((left, right) => Buffer.compare(Buffer.from(left), Buffer.from(right)))),
+      authorityPaths: Object.freeze(
+        [
+          ...new Set([
+            description.authorityPaths.profile,
+            description.authorityPaths.metadataSchema,
+            description.authorityPaths.ownerCatalog,
+            ...(description.authorityPaths.metadataSidecar === undefined
+              ? []
+              : [description.authorityPaths.metadataSidecar]),
+            ...description.types.map(({ template }) => template.path),
+            ...description.types.flatMap(({ reachability }) =>
+              reachability.kind === "manual-fixed-index" ? [reachability.indexPath] : [],
+            ),
+          ]),
+        ].toSorted((left, right) => Buffer.compare(Buffer.from(left), Buffer.from(right))),
+      ),
       metadataSchemaPath: description.authorityPaths.metadataSchema,
-      metadataSidecar: description.authorityPaths.metadataSidecar === undefined
-        ? Object.freeze({ kind: "none" as const })
-        : Object.freeze({ kind: "path-metadata-map" as const, path: description.authorityPaths.metadataSidecar }),
+      metadataSidecar:
+        description.authorityPaths.metadataSidecar === undefined
+          ? Object.freeze({ kind: "none" as const })
+          : Object.freeze({
+              kind: "path-metadata-map" as const,
+              path: description.authorityPaths.metadataSidecar,
+            }),
       ownerIds: description.ownerIds,
       profileSchemaVersion: description.profileSchemaVersion,
       projectId: description.projectId,
       semanticDigest: description.semanticDigest,
-      types: description.types
+      types: description.types,
     });
   }
 
@@ -87,12 +103,20 @@ export class NodeDocumentAuthoringPort implements DocumentAuthoringPortV3 {
     const catalog = await buildDocumentationCatalogV2({
       consumerRoot: input.consumerRoot,
       profilePath: input.profilePath,
-      ...signalOption(input.signal)
+      ...signalOption(input.signal),
     });
-    return Object.freeze({ projectId: catalog.projectId, status: catalog.status, semanticDigest: catalog.semanticDigest, diagnostics: catalog.diagnostics, documents: catalog.documents });
+    return Object.freeze({
+      projectId: catalog.projectId,
+      status: catalog.status,
+      semanticDigest: catalog.semanticDigest,
+      diagnostics: catalog.diagnostics,
+      documents: catalog.documents,
+    });
   }
 
-  async find(input: Parameters<DocumentAuthoringPortV2["find"]>[0]): Promise<readonly DocsFindDocument[]> {
+  async find(
+    input: Parameters<DocumentAuthoringPortV2["find"]>[0],
+  ): Promise<readonly DocsFindDocument[]> {
     return (await this.findWithEvidence(input)).documents;
   }
 
@@ -106,16 +130,16 @@ export class NodeDocumentAuthoringPort implements DocumentAuthoringPortV3 {
           ...(input.query.id === undefined ? {} : { id: input.query.id }),
           ...(input.query.owner === undefined ? {} : { owner: input.query.owner }),
           ...(input.query.status === undefined ? {} : { status: input.query.status }),
-          ...(input.query.type === undefined ? {} : { type: input.query.type })
-        }
+          ...(input.query.type === undefined ? {} : { type: input.query.type }),
+        },
       },
-      ...signalOption(input.signal)
+      ...signalOption(input.signal),
     });
     return Object.freeze({
       catalogSemanticDigest: base.catalogSemanticDigest,
       catalogStatus: base.catalogStatus,
       diagnostics: base.diagnostics,
-      documents: Object.freeze(base.documents.map((entry) => projected(entry, "blocked_by")))
+      documents: Object.freeze(base.documents.map((entry) => projected(entry, "blocked_by"))),
     });
   }
 
@@ -129,27 +153,37 @@ export class NodeDocumentAuthoringPort implements DocumentAuthoringPortV3 {
       profilePath: input.profilePath,
       intent: input.intent,
       parentPolicy: input.parentPolicy,
-      ...signalOption(input.signal)
+      ...signalOption(input.signal),
     });
-    const observation = Object.freeze({ schemaVersion: plan.schemaVersion, destination: plan.destination, planDigest: plan.planDigest, output: plan.output, authority: plan.authority });
+    const observation = Object.freeze({
+      schemaVersion: plan.schemaVersion,
+      destination: plan.destination,
+      planDigest: plan.planDigest,
+      output: plan.output,
+      authority: plan.authority,
+    });
     this.#plans.set(observation, plan);
     return observation;
   }
 
   apply(input: Parameters<DocumentAuthoringPortV2["apply"]>[0]) {
     const plan = this.#plans.get(input.plan);
-    if (plan === undefined) {throw new DocsProfileError("Document Plan must be applied by its originating authoring adapter.");}
+    if (plan === undefined) {
+      throw new DocsProfileError(
+        "Document Plan must be applied by its originating authoring adapter.",
+      );
+    }
     return applyDocumentationPlanV2({
       consumerRoot: input.consumerRoot,
       plan,
-      ...signalOption(input.signal)
+      ...signalOption(input.signal),
     });
   }
 
   recover(input: Parameters<DocumentAuthoringPortV2["recover"]>[0]) {
     return recoverDocumentationTransactionV2({
       consumerRoot: input.consumerRoot,
-      ...signalOption(input.signal)
+      ...signalOption(input.signal),
     });
   }
 }

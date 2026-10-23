@@ -11,6 +11,8 @@ export function isPublicApiInputError(error: unknown): boolean {
   return error instanceof CapabilityInputError;
 }
 
-export function publicApiFileFailure(error: unknown): ContainedFileReadError["failure"] | undefined {
+export function publicApiFileFailure(
+  error: unknown,
+): ContainedFileReadError["failure"] | undefined {
   return error instanceof ContainedFileReadError ? error.failure : undefined;
 }

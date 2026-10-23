@@ -21,13 +21,13 @@ export type KnownFileRecoveryFaultInjector = (point: {
 export async function persistRecoveryJournal(
   store: NodeKnownFileTransactionJournalStore,
   stored: StoredRecoveryJournal,
-  journal: KnownFileTransactionJournalV1
+  journal: KnownFileTransactionJournalV1,
 ): Promise<void> {
   const envelope = compileKnownFileTransactionEnvelope({
     ownerArtifact: stored.envelope.ownerArtifact,
     kernelArtifact: stored.envelope.kernelArtifact,
     journal,
-    state: stored.envelope.state
+    state: stored.envelope.state,
   });
   stored.authority = await store.replace(stored.authority, envelope);
   stored.envelope = envelope;
@@ -36,10 +36,10 @@ export async function persistRecoveryJournal(
 export function replaceRecoveryOperation(
   journal: KnownFileTransactionJournalV1,
   index: number,
-  operation: KnownFileTransactionJournalV1["operations"][number]
+  operation: KnownFileTransactionJournalV1["operations"][number],
 ): KnownFileTransactionJournalV1 {
   return Object.freeze({
     ...journal,
-    operations: Object.freeze(journal.operations.with(index, operation))
+    operations: Object.freeze(journal.operations.with(index, operation)),
   });
 }

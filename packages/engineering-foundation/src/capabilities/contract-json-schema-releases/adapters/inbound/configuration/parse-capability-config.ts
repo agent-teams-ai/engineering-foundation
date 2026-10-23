@@ -3,7 +3,7 @@ import type {
   JsonSchemaDigest,
   JsonSchemaFixture,
   JsonSchemaReleasePolicy,
-  ReleasedJsonSchemaContractEvidence
+  ReleasedJsonSchemaContractEvidence,
 } from "../../../application/model/json-schema-release.js";
 
 import { CAPABILITY_CONFIG_SCHEMA_VERSION } from "../../../contract/config.js";
@@ -15,10 +15,13 @@ type JsonSchemaReleasedBaselineSchemaId = "contract-json-schema-release-baseline
 const SCHEMA_ID_BY_VERSION: Readonly<
   Record<JsonSchemaReleaseConfigSchemaVersion, JsonSchemaReleaseSchemaId>
 > = Object.freeze({
-  1: "contract-json-schema-releases/v1"
+  1: "contract-json-schema-releases/v1",
 });
 
-import { configurationInputError as inputError, assertConfigurationRepositoryPath } from "../../../application/configuration-input.js";
+import {
+  configurationInputError as inputError,
+  assertConfigurationRepositoryPath,
+} from "../../../application/configuration-input.js";
 
 function record(value: unknown, field: string): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -73,7 +76,9 @@ function releasedBaselinePath(value: unknown): string {
     inputError("releasedBaselinePath must name a JSON or YAML file.");
   }
   if (!repositoryPath.startsWith("architecture/contracts/")) {
-    inputError("releasedBaselinePath must be inside the release-owned architecture/contracts directory.");
+    inputError(
+      "releasedBaselinePath must be inside the release-owned architecture/contracts directory.",
+    );
   }
   return repositoryPath;
 }
@@ -88,7 +93,7 @@ function mapFixture(value: unknown, field: string): JsonSchemaFixture {
     id: string(source["id"], `${field}.id`),
     path: string(source["path"], `${field}.path`),
     schemaId: string(source["schemaId"], `${field}.schemaId`),
-    expectation
+    expectation,
   });
 }
 
@@ -106,26 +111,29 @@ function mapConsumerEvidence(value: unknown, field: string): JsonSchemaConsumerE
     schemaSetDigest: digest(source["schemaSetDigest"], `${field}.schemaSetDigest`),
     fixtureCorpusDigest: digest(source["fixtureCorpusDigest"], `${field}.fixtureCorpusDigest`),
     evidenceDigest: digest(source["evidenceDigest"], `${field}.evidenceDigest`),
-    outcome
+    outcome,
   });
 }
 
 export function mapReleased(
   value: unknown,
-  field = "released baseline"
+  field = "released baseline",
 ): ReleasedJsonSchemaContractEvidence {
   const source = record(value, field);
   return Object.freeze({
     schemaVersion: number(source["schemaVersion"], `${field}.schemaVersion`),
     contractId: string(source["contractId"], `${field}.contractId`),
-    publicContractVersion: string(source["publicContractVersion"], `${field}.publicContractVersion`),
+    publicContractVersion: string(
+      source["publicContractVersion"],
+      `${field}.publicContractVersion`,
+    ),
     schemaSetDigest: digest(source["schemaSetDigest"], `${field}.schemaSetDigest`),
     fixtureCorpusDigest: digest(source["fixtureCorpusDigest"], `${field}.fixtureCorpusDigest`),
     supportedConsumers: Object.freeze(
       list(source["supportedConsumers"], `${field}.supportedConsumers`).map((entry, index) =>
-        mapConsumerEvidence(entry, `${field}.supportedConsumers[${index}]`)
-      )
-    )
+        mapConsumerEvidence(entry, `${field}.supportedConsumers[${index}]`),
+      ),
+    ),
   });
 }
 
@@ -143,25 +151,28 @@ export function parseReleasedBaselinePath(source: Record<string, unknown>): stri
   return releasedBaselinePath(source["releasedBaselinePath"]);
 }
 
-export function parseCapabilityPolicy(source: Record<string, unknown>, released: ReleasedJsonSchemaContractEvidence): JsonSchemaReleasePolicy {
+export function parseCapabilityPolicy(
+  source: Record<string, unknown>,
+  released: ReleasedJsonSchemaContractEvidence,
+): JsonSchemaReleasePolicy {
   return Object.freeze({
     contractId: string(source["contractId"], "contractId"),
     publicContractVersion: string(source["publicContractVersion"], "publicContractVersion"),
     schemaPaths: Object.freeze(
       list(source["schemaPaths"], "schemaPaths").map((entry, index) =>
-        string(entry, `schemaPaths[${index}]`)
-      )
+        string(entry, `schemaPaths[${index}]`),
+      ),
     ),
     fixtures: Object.freeze(
       list(source["fixtures"], "fixtures").map((entry, index) =>
-        mapFixture(entry, `fixtures[${index}]`)
-      )
+        mapFixture(entry, `fixtures[${index}]`),
+      ),
     ),
     released,
     currentConsumerEvidence: Object.freeze(
       list(source["currentConsumerEvidence"], "currentConsumerEvidence").map((entry, index) =>
-        mapConsumerEvidence(entry, `currentConsumerEvidence[${index}]`)
-      )
-    )
+        mapConsumerEvidence(entry, `currentConsumerEvidence[${index}]`),
+      ),
+    ),
   });
 }

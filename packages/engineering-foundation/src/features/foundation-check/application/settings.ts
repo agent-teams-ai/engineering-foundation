@@ -10,5 +10,5 @@ export interface FoundationSettings {
 
 export type FoundationConfigReader = (
   consumerRoot: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ) => Promise<FoundationSettings>;

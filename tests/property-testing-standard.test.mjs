@@ -1,21 +1,13 @@
 import assert from "node:assert/strict";
-import {
-  assert as assertProperty,
-  integer,
-  property,
-  uniqueArray,
-} from "fast-check";
+import { assert as assertProperty, integer, property, uniqueArray } from "fast-check";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
-const distRoot = process.env.FOUNDATION_DIST_ROOT ?? join(
-  repositoryRoot,
-  "packages",
-  "engineering-foundation",
-  "dist",
-);
+const distRoot =
+  process.env.FOUNDATION_DIST_ROOT ??
+  join(repositoryRoot, "packages", "engineering-foundation", "dist");
 const propertyTesting = await import(pathToFileURL(join(distRoot, "index.js")).href);
 
 function seedBank() {
@@ -53,10 +45,7 @@ test("rejects duplicate seeds, unsafe replay paths, and detached replay evidence
     (error) => {
       assert.match(error.message, /duplicate seeds/u);
       assert.equal(error.name, "PropertyTestingEvidenceError");
-      assert.equal(
-        error instanceof propertyTesting.PropertyTestingEvidenceError,
-        true,
-      );
+      assert.equal(error instanceof propertyTesting.PropertyTestingEvidenceError, true);
       assert.equal(error.code, "PROPERTY_TESTING_EVIDENCE_INVALID");
       return true;
     },
@@ -100,11 +89,11 @@ test("replays normalization properties with the declared deterministic seed bank
             numRuns: bank.numRuns,
             seeds,
           });
-          assert.deepEqual(normalized.seeds, seeds.toSorted((left, right) => left - right));
           assert.deepEqual(
-            propertyTesting.normalizeDeterministicSeedBank(normalized),
-            normalized,
+            normalized.seeds,
+            seeds.toSorted((left, right) => left - right),
           );
+          assert.deepEqual(propertyTesting.normalizeDeterministicSeedBank(normalized), normalized);
         },
       ),
       propertyTesting.createFastCheckParameters(bank, seed),

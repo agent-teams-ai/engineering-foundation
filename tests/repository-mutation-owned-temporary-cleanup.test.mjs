@@ -14,7 +14,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { readBoundedRegularFile, cleanupIdentityMatchingOwnedTemporary } from "../packages/repository-mutation/dist/node.js";
+import {
+  readBoundedRegularFile,
+  cleanupIdentityMatchingOwnedTemporary,
+} from "../packages/repository-mutation/dist/node.js";
 
 async function fixture() {
   const parent = await mkdtemp(join(tmpdir(), "owned-temporary-cleanup-"));
@@ -72,10 +75,7 @@ test("atomically quarantines and durably retires the expected temporary", async 
   try {
     const cleanup = options(paths);
     assert.equal(await cleanupIdentityMatchingOwnedTemporary(cleanup.value), "removed");
-    const quarantine = join(
-      paths.parent,
-      ".result.tmp.foundation-owned-cleanup-deterministic",
-    );
+    const quarantine = join(paths.parent, ".result.tmp.foundation-owned-cleanup-deterministic");
     assert.deepEqual(cleanup.syncs, [
       quarantine,
       paths.parent,
@@ -90,9 +90,7 @@ test("atomically quarantines and durably retires the expected temporary", async 
       `sync:${join(paths.parent, ".foundation-retired-evidence-")}`,
       `sync:${paths.parent}`,
     ]);
-    assert.deepEqual(await readdir(paths.parent), [
-      ".foundation-retired-evidence-",
-    ]);
+    assert.deepEqual(await readdir(paths.parent), [".foundation-retired-evidence-"]);
   } finally {
     await rm(paths.parent, { recursive: true, force: true });
   }
@@ -145,7 +143,8 @@ test("rejects a pre-existing terminal-root link without escaping the parent", as
     assert.deepEqual(await readdir(outside), []);
     assert.equal(
       (await readdir(paths.parent)).some((entry) =>
-        entry.includes("foundation-owned-cleanup-deterministic")),
+        entry.includes("foundation-owned-cleanup-deterministic"),
+      ),
       true,
     );
   } finally {
@@ -174,10 +173,7 @@ test("destination quarantine sync failure preserves captured evidence and never 
   const paths = await fixture();
   try {
     const cleanup = options(paths);
-    const quarantine = join(
-      paths.parent,
-      ".result.tmp.foundation-owned-cleanup-deterministic",
-    );
+    const quarantine = join(paths.parent, ".result.tmp.foundation-owned-cleanup-deterministic");
     cleanup.value.syncDirectory = async (path) => {
       cleanup.operations.push(`sync:${path}`);
       if (path === quarantine) {
@@ -190,12 +186,8 @@ test("destination quarantine sync failure preserves captured evidence and never 
       /destination quarantine sync failed/u,
     );
     assert.deepEqual(cleanup.operations, [`sync:${quarantine}`]);
-    assert.equal(
-      await readFile(join(quarantine, "owned-temporary"), "utf8"),
-      "owned\n",
-    );
-    await assert.rejects(readFile(paths.temporaryPath),
-      (error) => error?.code === "ENOENT");
+    assert.equal(await readFile(join(quarantine, "owned-temporary"), "utf8"), "owned\n");
+    await assert.rejects(readFile(paths.temporaryPath), (error) => error?.code === "ENOENT");
   } finally {
     await rm(paths.parent, { recursive: true, force: true });
   }
@@ -217,7 +209,8 @@ test("preserves a foreign replacement captured immediately before rename", async
     assert.equal(await readFile(`${paths.temporaryPath}.owned`, "utf8"), "owned\n");
     const entries = await readdir(paths.parent);
     const quarantine = entries.find((entry) =>
-      entry.includes("foundation-owned-cleanup-deterministic"));
+      entry.includes("foundation-owned-cleanup-deterministic"),
+    );
     assert.ok(quarantine);
     assert.equal(
       await readFile(join(paths.parent, quarantine, "owned-temporary"), "utf8"),
@@ -225,16 +218,10 @@ test("preserves a foreign replacement captured immediately before rename", async
     );
     assert.equal(await readFile(paths.temporaryPath, "utf8"), "foreign\n");
     const restoredIdentity = await lstat(paths.temporaryPath);
-    const quarantinedIdentity = await lstat(
-      join(paths.parent, quarantine, "owned-temporary"),
-    );
+    const quarantinedIdentity = await lstat(join(paths.parent, quarantine, "owned-temporary"));
     assert.equal(restoredIdentity.dev, quarantinedIdentity.dev);
     assert.equal(restoredIdentity.ino, quarantinedIdentity.ino);
-    assert.deepEqual(cleanup.syncs, [
-      join(paths.parent, quarantine),
-      paths.parent,
-      paths.parent,
-    ]);
+    assert.deepEqual(cleanup.syncs, [join(paths.parent, quarantine), paths.parent, paths.parent]);
     assert.deepEqual(events, ["transition:begin"]);
   } finally {
     await rm(paths.parent, { recursive: true, force: true });
@@ -252,10 +239,7 @@ test("keeps a colliding restored path and quarantined foreign evidence", async (
         await writeFile(source, "collision\n");
       },
     });
-    assert.equal(
-      await cleanupIdentityMatchingOwnedTemporary(cleanup.value),
-      "different",
-    );
+    assert.equal(await cleanupIdentityMatchingOwnedTemporary(cleanup.value), "different");
     const quarantine = join(
       paths.parent,
       ".result.tmp.foundation-owned-cleanup-deterministic",
@@ -285,14 +269,8 @@ test("does not restore a quarantine entry that disappeared after capture", async
         return identityChecks === 1 ? "match" : "missing";
       },
     });
-    assert.equal(
-      await cleanupIdentityMatchingOwnedTemporary(cleanup.value),
-      "different",
-    );
-    await assert.rejects(
-      readFile(paths.temporaryPath),
-      (error) => error?.code === "ENOENT",
-    );
+    assert.equal(await cleanupIdentityMatchingOwnedTemporary(cleanup.value), "different");
+    await assert.rejects(readFile(paths.temporaryPath), (error) => error?.code === "ENOENT");
   } finally {
     await rm(paths.parent, { recursive: true, force: true });
   }
@@ -323,10 +301,7 @@ test("preserves quarantined foreign evidence when restoration link fails", async
       "owned-temporary",
     );
     assert.equal(await readFile(quarantine, "utf8"), "foreign\n");
-    await assert.rejects(
-      readFile(paths.temporaryPath),
-      (error) => error?.code === "ENOENT",
-    );
+    await assert.rejects(readFile(paths.temporaryPath), (error) => error?.code === "ENOENT");
   } finally {
     await rm(paths.parent, { recursive: true, force: true });
   }
@@ -387,19 +362,14 @@ test("retains PUBLISHING when the source is repopulated after quarantine retirem
       },
     });
     cleanup.value.transition = transition(events);
-    assert.equal(
-      await cleanupIdentityMatchingOwnedTemporary(cleanup.value),
-      "different",
-    );
+    assert.equal(await cleanupIdentityMatchingOwnedTemporary(cleanup.value), "different");
     assert.equal(await readFile(paths.temporaryPath, "utf8"), "new source\n");
     assert.deepEqual(events, ["transition:begin"]);
     assert.equal(
-      await readFile(join(
-        paths.parent,
-        ".foundation-retired-evidence-",
-        "deterministic",
-        "owned-temporary",
-      ), "utf8"),
+      await readFile(
+        join(paths.parent, ".foundation-retired-evidence-", "deterministic", "owned-temporary"),
+        "utf8",
+      ),
       "owned\n",
     );
   } finally {
@@ -410,10 +380,7 @@ test("retains PUBLISHING when the source is repopulated after quarantine retirem
 test("fails closed when the operation-private quarantine collides", async () => {
   const paths = await fixture();
   try {
-    const collision = join(
-      paths.parent,
-      ".result.tmp.foundation-owned-cleanup-deterministic",
-    );
+    const collision = join(paths.parent, ".result.tmp.foundation-owned-cleanup-deterministic");
     await mkdir(collision);
     const cleanup = options(paths);
     assert.equal(await cleanupIdentityMatchingOwnedTemporary(cleanup.value), "different");
@@ -429,17 +396,11 @@ test("retains the cleanup transition when quarantine allocation collides", async
   const paths = await fixture();
   try {
     const events = [];
-    const collision = join(
-      paths.parent,
-      ".result.tmp.foundation-owned-cleanup-deterministic",
-    );
+    const collision = join(paths.parent, ".result.tmp.foundation-owned-cleanup-deterministic");
     await mkdir(collision);
     const cleanup = options(paths);
     cleanup.value.transition = transition(events);
-    assert.equal(
-      await cleanupIdentityMatchingOwnedTemporary(cleanup.value),
-      "different",
-    );
+    assert.equal(await cleanupIdentityMatchingOwnedTemporary(cleanup.value), "different");
     assert.deepEqual(events, ["transition:begin"]);
     assert.equal(await readFile(paths.temporaryPath, "utf8"), "owned\n");
   } finally {
@@ -462,11 +423,7 @@ test("durably begins the cleanup transition before quarantine rename", async () 
     });
     cleanup.value.transition = transition(events);
     assert.equal(await cleanupIdentityMatchingOwnedTemporary(cleanup.value), "removed");
-    assert.deepEqual(events, [
-      "transition:begin",
-      "quarantine:rename",
-      "transition:complete",
-    ]);
+    assert.deepEqual(events, ["transition:begin", "quarantine:rename", "transition:complete"]);
   } finally {
     await rm(paths.parent, { recursive: true, force: true });
   }
@@ -481,10 +438,7 @@ test("retains the cleanup transition when logical retirement fails", async () =>
     cleanup.value.operations.beforeLogicalRetirement = async () => {
       throw new Error("cleanup failed");
     };
-    await assert.rejects(
-      cleanupIdentityMatchingOwnedTemporary(cleanup.value),
-      /cleanup failed/u,
-    );
+    await assert.rejects(cleanupIdentityMatchingOwnedTemporary(cleanup.value), /cleanup failed/u);
     assert.deepEqual(events, ["transition:begin"]);
   } finally {
     await rm(paths.parent, { recursive: true, force: true });
@@ -502,10 +456,7 @@ test("never deletes a replacement swapped after the final temporary proof", asyn
         await writeFile(path, "foreign replacement\n");
       },
     });
-    assert.equal(
-      await cleanupIdentityMatchingOwnedTemporary(cleanup.value),
-      "different",
-    );
+    assert.equal(await cleanupIdentityMatchingOwnedTemporary(cleanup.value), "different");
     assert.equal(await readFile(retiredPath, "utf8"), "foreign replacement\n");
     assert.equal(await readFile(`${retiredPath}.owned`, "utf8"), "owned\n");
   } finally {
@@ -520,17 +471,11 @@ test("does not begin a cleanup transition for missing or foreign evidence", asyn
     await rename(paths.temporaryPath, join(paths.parent, "retained-original"));
     const missing = options(paths);
     missing.value.transition = transition(events);
-    assert.equal(
-      await cleanupIdentityMatchingOwnedTemporary(missing.value),
-      "missing",
-    );
+    assert.equal(await cleanupIdentityMatchingOwnedTemporary(missing.value), "missing");
     await writeFile(paths.temporaryPath, "foreign\n");
     const foreign = options(paths);
     foreign.value.transition = transition(events);
-    assert.equal(
-      await cleanupIdentityMatchingOwnedTemporary(foreign.value),
-      "different",
-    );
+    assert.equal(await cleanupIdentityMatchingOwnedTemporary(foreign.value), "different");
     assert.deepEqual(events, []);
   } finally {
     await rm(paths.parent, { recursive: true, force: true });
@@ -544,7 +489,10 @@ test("completes the transition when the owned source disappears before rename", 
     const cleanup = options(paths, {
       async rename(source) {
         if ((await lstat(source)).isDirectory()) {
-          return rename(source, join(paths.parent, ".foundation-retired-evidence-", "deterministic"));
+          return rename(
+            source,
+            join(paths.parent, ".foundation-retired-evidence-", "deterministic"),
+          );
         }
         await rm(source);
         const error = new Error("source disappeared");
@@ -553,14 +501,9 @@ test("completes the transition when the owned source disappears before rename", 
       },
     });
     cleanup.value.transition = transition(events);
-    assert.equal(
-      await cleanupIdentityMatchingOwnedTemporary(cleanup.value),
-      "missing",
-    );
+    assert.equal(await cleanupIdentityMatchingOwnedTemporary(cleanup.value), "missing");
     assert.deepEqual(events, ["transition:begin", "transition:complete"]);
-    assert.deepEqual(await readdir(paths.parent), [
-      ".foundation-retired-evidence-",
-    ]);
+    assert.deepEqual(await readdir(paths.parent), [".foundation-retired-evidence-"]);
   } finally {
     await rm(paths.parent, { recursive: true, force: true });
   }

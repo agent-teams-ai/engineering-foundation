@@ -3,13 +3,25 @@ import { copyFile, readFile, realpath, stat } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { delimiter, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { assertExplicitSourceGitAuthority, assertPnpmProfileQualificationRoot, prepareProfileProjection } from "./dev.mts";
+import {
+  assertExplicitSourceGitAuthority,
+  assertPnpmProfileQualificationRoot,
+  prepareProfileProjection,
+} from "./dev.mts";
 import { resolveQualificationExecutables } from "./executable-policy.mts";
-import { assertBunRootProjection, readRepositoryRuntimePolicy, repositoryRoot } from "./runtime-policy.mts";
+import {
+  assertBunRootProjection,
+  readRepositoryRuntimePolicy,
+  repositoryRoot,
+} from "./runtime-policy.mts";
 import { withoutGitRepositorySelectors } from "./git-environment.ts";
 import {
-  assertReleaseExecutionCustody, checkWorkingReleaseCandidate, freezeReleaseCandidate,
-  hasReleaseVersionChanges, readReleaseCandidateContext, removeReleaseCandidateContext,
+  assertReleaseExecutionCustody,
+  checkWorkingReleaseCandidate,
+  freezeReleaseCandidate,
+  hasReleaseVersionChanges,
+  readReleaseCandidateContext,
+  removeReleaseCandidateContext,
   writeReleaseCandidateContext,
 } from "../scripts/release-candidate-host.ts";
 
@@ -34,10 +46,15 @@ function run(
   command: string,
   args: readonly string[],
   cwd: string,
-  environment: NodeJS.ProcessEnv
+  environment: NodeJS.ProcessEnv,
 ): Promise<number> {
   return new Promise((_resolve, reject) => {
-    const child = spawn(command, [...args], { cwd, env: withoutGitRepositorySelectors(environment), shell: false, stdio: "inherit" });
+    const child = spawn(command, [...args], {
+      cwd,
+      env: withoutGitRepositorySelectors(environment),
+      shell: false,
+      stdio: "inherit",
+    });
     child.once("error", reject);
     child.once("exit", (code, signal) => {
       if (signal !== null) {
@@ -65,10 +82,22 @@ async function releaseCommand(): Promise<ReleaseCommand> {
     throw new Error("Release versioning requires admitted Bun 1.4.3.");
   }
   await assertBunRootProjection(sourceRoot);
-  await requireFile(resolve(sourceRoot, "bun.lock"), "Release versioning requires the authoritative Bun lock.");
-  await requireFile(resolve(sourceRoot, "pnpm-lock.yaml"), "Release versioning requires the authoritative pnpm lock.");
-  await requireFile(resolve(sourceRoot, "node_modules/@changesets/cli/bin.js"), "Release versioning requires a Bun-installed Changesets CLI.");
-  const installed = await readFile(resolve(sourceRoot, "node_modules/.pnpm/lock.yaml"), "utf8").catch(() => null);
+  await requireFile(
+    resolve(sourceRoot, "bun.lock"),
+    "Release versioning requires the authoritative Bun lock.",
+  );
+  await requireFile(
+    resolve(sourceRoot, "pnpm-lock.yaml"),
+    "Release versioning requires the authoritative pnpm lock.",
+  );
+  await requireFile(
+    resolve(sourceRoot, "node_modules/@changesets/cli/bin.js"),
+    "Release versioning requires a Bun-installed Changesets CLI.",
+  );
+  const installed = await readFile(
+    resolve(sourceRoot, "node_modules/.pnpm/lock.yaml"),
+    "utf8",
+  ).catch(() => null);
   if (installed !== null) {
     throw new Error("The tracked source worktree must not contain a pnpm installation.");
   }
@@ -76,17 +105,19 @@ async function releaseCommand(): Promise<ReleaseCommand> {
     sourceRoot,
     sourceSha: authority.sourceCommit,
     node: runtime.node,
-    bun
+    bun,
   };
 }
 
 async function assertManagerCustody(sourceRoot: string, expected: string): Promise<void> {
-  const manifest = JSON.parse(await readFile(resolve(sourceRoot, "package.json"), "utf8")) as Record<string, unknown>;
+  const manifest = JSON.parse(
+    await readFile(resolve(sourceRoot, "package.json"), "utf8"),
+  ) as Record<string, unknown>;
   if (manifest["packageManager"] !== expected) {
     throw new Error("Release operation changed or projected the tracked root packageManager.");
   }
   const authority = await assertExplicitSourceGitAuthority(sourceRoot);
-  if (authority.sourceRoot !== await realpath(sourceRoot)) {
+  if (authority.sourceRoot !== (await realpath(sourceRoot))) {
     throw new Error("Release operation changed source Git authority.");
   }
 }
@@ -99,23 +130,32 @@ export async function refreshVersionLocks(command: ReleaseCommand): Promise<Vers
     command.bun,
     ["install", "--lockfile-only", "--ignore-scripts", "--linker=isolated"],
     command.sourceRoot,
-    process.env
+    process.env,
   );
   if (bunStatus !== 0) {
     throw new Error("Bun lock refresh failed.");
   }
-  const targetRoot = resolve(command.sourceRoot, `.worker-tmp/profiles/release-node-${command.sourceSha}`);
+  const targetRoot = resolve(
+    command.sourceRoot,
+    `.worker-tmp/profiles/release-node-${command.sourceSha}`,
+  );
   await prepareProfileProjection({
     profile: "node",
     sourceRoot: command.sourceRoot,
     targetRoot,
-    sourceSha: command.sourceSha
+    sourceSha: command.sourceSha,
   });
   const pnpmStatus = await run(
     command.node,
-    [resolve(repositoryRoot, "tools/pnpm-command.mts"), "install", "--lockfile-only", "--ignore-scripts", "--engine-strict"],
+    [
+      resolve(repositoryRoot, "tools/pnpm-command.mts"),
+      "install",
+      "--lockfile-only",
+      "--ignore-scripts",
+      "--engine-strict",
+    ],
     targetRoot,
-    process.env
+    process.env,
   );
   if (pnpmStatus !== 0) {
     throw new Error("pnpm lock refresh failed in the isolated Node profile.");
@@ -124,7 +164,10 @@ export async function refreshVersionLocks(command: ReleaseCommand): Promise<Vers
   const projectedPnpm = await readFile(resolve(targetRoot, "pnpm-lock.yaml"));
   const pnpmLockChanged = !pnpmBefore.equals(projectedPnpm);
   if (pnpmLockChanged) {
-    await copyFile(resolve(targetRoot, "pnpm-lock.yaml"), resolve(command.sourceRoot, "pnpm-lock.yaml"));
+    await copyFile(
+      resolve(targetRoot, "pnpm-lock.yaml"),
+      resolve(command.sourceRoot, "pnpm-lock.yaml"),
+    );
   }
   await assertManagerCustody(command.sourceRoot, expectedManager);
   const bunLock = await readFile(resolve(command.sourceRoot, "bun.lock"));
@@ -132,7 +175,7 @@ export async function refreshVersionLocks(command: ReleaseCommand): Promise<Vers
   return {
     bunLockSha256: digest(bunLock),
     pnpmLockSha256: digest(pnpmLock),
-    pnpmLockChanged
+    pnpmLockChanged,
   };
 }
 
@@ -141,27 +184,38 @@ async function version(): Promise<number> {
   const policy = await readRepositoryRuntimePolicy(command.sourceRoot);
   const expectedManager = `bun@${policy.toolchain.bun.version}`;
   const authority = await assertExplicitSourceGitAuthority(command.sourceRoot);
-  if (process.env["GITHUB_ACTIONS"] === "true" && process.env["GITHUB_SHA"] !== authority.sourceCommit) {
+  if (
+    process.env["GITHUB_ACTIONS"] === "true" &&
+    process.env["GITHUB_SHA"] !== authority.sourceCommit
+  ) {
     throw new Error("Release versioning must run after the action reset to processed main.");
   }
   const inherited = process.env["AGENT_TEAMS_FOUNDATION_RELEASE_INPUTS_PATH"] !== undefined;
-  const candidate = inherited ? await readReleaseCandidateContext()
+  const candidate = inherited
+    ? await readReleaseCandidateContext()
     : await freezeReleaseCandidate(command.sourceRoot, { nodeExecutable: command.node });
-  if (candidate.custody.sourceRoot !== authority.sourceRoot || candidate.custody.sourceCommit !== authority.sourceCommit ||
-      candidate.custody.installation.nodeExecutable !== await realpath(command.node)) {
+  if (
+    candidate.custody.sourceRoot !== authority.sourceRoot ||
+    candidate.custody.sourceCommit !== authority.sourceCommit ||
+    candidate.custody.installation.nodeExecutable !== (await realpath(command.node))
+  ) {
     throw new Error("The frozen release plan belongs to another processed source.");
   }
-  const contextEnvironment = inherited ? {
-    AGENT_TEAMS_FOUNDATION_RELEASE_INPUTS_PATH: process.env["AGENT_TEAMS_FOUNDATION_RELEASE_INPUTS_PATH"]!,
-    AGENT_TEAMS_FOUNDATION_RELEASE_INPUTS_DIGEST: process.env["AGENT_TEAMS_FOUNDATION_RELEASE_INPUTS_DIGEST"]!,
-  } : (await writeReleaseCandidateContext(candidate)).environment;
+  const contextEnvironment = inherited
+    ? {
+        AGENT_TEAMS_FOUNDATION_RELEASE_INPUTS_PATH:
+          process.env["AGENT_TEAMS_FOUNDATION_RELEASE_INPUTS_PATH"]!,
+        AGENT_TEAMS_FOUNDATION_RELEASE_INPUTS_DIGEST:
+          process.env["AGENT_TEAMS_FOUNDATION_RELEASE_INPUTS_DIGEST"]!,
+      }
+    : (await writeReleaseCandidateContext(candidate)).environment;
   const environment = {
     ...process.env,
     ...authority.environment,
     ...contextEnvironment,
     AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: command.node,
     AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE: command.bun,
-    PATH: `${dirname(command.node)}${delimiter}${process.env["PATH"] ?? ""}`
+    PATH: `${dirname(command.node)}${delimiter}${process.env["PATH"] ?? ""}`,
   };
   try {
     await assertReleaseExecutionCustody(candidate);
@@ -173,10 +227,16 @@ async function version(): Promise<number> {
     for (const args of [
       [candidate.custody.installation.entrypoint, "version"],
       [resolve(command.sourceRoot, "tools/repository-command.mts"), "script", "build"],
-      [resolve(command.sourceRoot, "tools/repository-command.mts"), "tool", "release:version:apply"],
+      [
+        resolve(command.sourceRoot, "tools/repository-command.mts"),
+        "tool",
+        "release:version:apply",
+      ],
     ]) {
       const status = await run(command.node, args, command.sourceRoot, environment);
-      if (status !== 0) { return status; }
+      if (status !== 0) {
+        return status;
+      }
     }
     const evidence = await refreshVersionLocks(command);
     const candidateReport = await checkWorkingReleaseCandidate(candidate, { locksRefreshed: true });
@@ -191,7 +251,10 @@ async function version(): Promise<number> {
 async function publish(): Promise<number> {
   const command = await releaseCommand();
   const authority = await assertExplicitSourceGitAuthority(command.sourceRoot);
-  const targetRoot = resolve(command.sourceRoot, `.worker-tmp/profiles/release-node-${command.sourceSha}`);
+  const targetRoot = resolve(
+    command.sourceRoot,
+    `.worker-tmp/profiles/release-node-${command.sourceSha}`,
+  );
   const installStatus = await run(
     command.node,
     [resolve(command.sourceRoot, "tools/dev.mts"), "--profile", "node", "install"],
@@ -202,8 +265,8 @@ async function publish(): Promise<number> {
       AGENT_TEAMS_FOUNDATION_PROFILE_ROOT: targetRoot,
       AGENT_TEAMS_FOUNDATION_SOURCE_SHA: command.sourceSha,
       AGENT_TEAMS_FOUNDATION_SOURCE_ROOT: command.sourceRoot,
-      AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: command.node
-    }
+      AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: command.node,
+    },
   );
   if (installStatus !== 0) {
     return installStatus;
@@ -218,8 +281,8 @@ async function publish(): Promise<number> {
       AGENT_TEAMS_FOUNDATION_PROFILE_ROOT: targetRoot,
       AGENT_TEAMS_FOUNDATION_SOURCE_SHA: command.sourceSha,
       AGENT_TEAMS_FOUNDATION_SOURCE_ROOT: command.sourceRoot,
-      AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: command.node
-    }
+      AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: command.node,
+    },
   );
   if (buildStatus !== 0) {
     return buildStatus;
@@ -235,17 +298,23 @@ async function publish(): Promise<number> {
       AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE: "node",
       AGENT_TEAMS_FOUNDATION_SOURCE_SHA: command.sourceSha,
       AGENT_TEAMS_FOUNDATION_SOURCE_ROOT: command.sourceRoot,
-      AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: command.node
-    }
+      AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: command.node,
+    },
   );
 }
 
 async function main(): Promise<number> {
   const [operation] = process.argv.slice(2);
-  if (process.argv.length !== 3 || (operation !== "version" && operation !== "publish" && operation !== "cleanup")) {
+  if (
+    process.argv.length !== 3 ||
+    (operation !== "version" && operation !== "publish" && operation !== "cleanup")
+  ) {
     throw new Error("Usage: release-profile.mts (version|publish|cleanup)");
   }
-  if (operation === "cleanup") { await removeReleaseCandidateContext(); return 0; }
+  if (operation === "cleanup") {
+    await removeReleaseCandidateContext();
+    return 0;
+  }
   return operation === "version" ? version() : publish();
 }
 

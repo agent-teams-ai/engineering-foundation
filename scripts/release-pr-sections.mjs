@@ -44,9 +44,7 @@ export function missingSummaryViolations(packageName, generatedRelease, changese
     const summary = searchableMarkdown(changeset.summary);
     const index = unmatchedRelease.indexOf(summary);
     if (index === -1) {
-      violations.push(
-        `${packageName} changelog is missing the summary from ${changeset.path}`,
-      );
+      violations.push(`${packageName} changelog is missing the summary from ${changeset.path}`);
       continue;
     }
     unmatchedRelease =

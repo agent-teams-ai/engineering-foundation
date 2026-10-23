@@ -14,19 +14,54 @@ export function planCheckCoverage(policy: WorkflowCoveragePolicy, paths: readonl
   for (const path of paths) {
     const exclusion = policy.exclusions.find((entry) => matches(path, entry.path));
     if (exclusion !== undefined) {
-      rows.push({ path, facet: null, state: "explicitly-skipped", reason: exclusion.reason, checkIds: [] });
+      rows.push({
+        path,
+        facet: null,
+        state: "explicitly-skipped",
+        reason: exclusion.reason,
+        checkIds: [],
+      });
       continue;
     }
     const scopes = policy.scopes.filter((scope) => scope.roots.some((root) => matches(path, root)));
-    const facets: readonly CoverageFacet[] = scopes.length === 0 ? allFacets : [...new Set(scopes.flatMap((scope) => scope.requiredFacets))].toSorted();
-    const ids = scopes.length === 0 ? [policy.escalationCheck] : [...new Set(scopes.flatMap((scope) => scope.checks))].toSorted();
+    const facets: readonly CoverageFacet[] =
+      scopes.length === 0
+        ? allFacets
+        : [...new Set(scopes.flatMap((scope) => scope.requiredFacets))].toSorted();
+    const ids =
+      scopes.length === 0
+        ? [policy.escalationCheck]
+        : [...new Set(scopes.flatMap((scope) => scope.checks))].toSorted();
     unknown ||= scopes.length === 0;
-    if (facets.some((facet) => !ids.some((id) => policy.checks.some((check) => check.id === id && check.supplies.includes(facet))))) {
+    if (
+      facets.some(
+        (facet) =>
+          !ids.some((id) =>
+            policy.checks.some((check) => check.id === id && check.supplies.includes(facet)),
+          ),
+      )
+    ) {
       missingFacet = true;
-      if (!ids.includes(policy.escalationCheck)) { ids.push(policy.escalationCheck); ids.sort(); }
+      if (!ids.includes(policy.escalationCheck)) {
+        ids.push(policy.escalationCheck);
+        ids.sort();
+      }
     }
-    for (const id of ids) {selected.add(id);}
-    for (const facet of facets) {rows.push({ path, facet, state: "uncovered", reason: scopes.length === 0 ? "Unknown path requires adequate repository escalation." : "Required facet awaits observation.", checkIds: ids });}
+    for (const id of ids) {
+      selected.add(id);
+    }
+    for (const facet of facets) {
+      rows.push({
+        path,
+        facet,
+        state: "uncovered",
+        reason:
+          scopes.length === 0
+            ? "Unknown path requires adequate repository escalation."
+            : "Required facet awaits observation.",
+        checkIds: ids,
+      });
+    }
   }
   return { rows, selected: [...selected].toSorted(), unknown, missingFacet };
 }

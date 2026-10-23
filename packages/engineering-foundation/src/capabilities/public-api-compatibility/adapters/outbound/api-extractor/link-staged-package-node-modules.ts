@@ -1,19 +1,17 @@
 import { stat, symlink } from "node:fs/promises";
 import { join } from "node:path";
 
-import { isPublicApiInputError, publicApiInputError } from "../../../application/policies/public-api-evidence-errors.js";
+import {
+  isPublicApiInputError,
+  publicApiInputError,
+} from "../../../application/policies/public-api-evidence-errors.js";
 
 function inputError(code: string, message: string): never {
   publicApiInputError(code, message, "public-api-extraction");
 }
 
 function isMissingPath(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    error.code === "ENOENT"
-  );
+  return typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT";
 }
 
 /**
@@ -42,12 +40,12 @@ export async function linkStagedNodeModules(input: {
     await symlink(
       sourceNodeModules,
       join(input.stagedDirectory, "node_modules"),
-      process.platform === "win32" ? "junction" : "dir"
+      process.platform === "win32" ? "junction" : "dir",
     );
   } catch {
     inputError(
       "PUBLIC_API_EXTRACTION_FAILED",
-      "Unable to link package-local dependencies into the staged package."
+      "Unable to link package-local dependencies into the staged package.",
     );
   }
 }

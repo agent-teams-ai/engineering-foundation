@@ -1,8 +1,27 @@
-export { checkReleaseCandidate } from './features/candidate-checking/api.js';
+export { checkReleaseCandidate } from "./features/candidate-checking/api.js";
 export type {
-  ChangeKind, CheckReport, ConsumptionEffect, Diagnostic, DiagnosticCode, ExpectedInputs,
-  FileChange, FileLeaf, InputBinding, Json, JsonRecord, LeafShape, ManifestSnapshot,
-  ObservedCandidate, ObservedConsumption, ObservedManifest, PackageChange, PermittedChange,
-  PlannedConsumption, PlannedRelease, ReleaseCandidateInput, ReleaseIntent, ReleaseType,
+  ChangeKind,
+  CheckReport,
+  ConsumptionEffect,
+  Diagnostic,
+  DiagnosticCode,
+  ExpectedInputs,
+  FileChange,
+  FileLeaf,
+  InputBinding,
+  Json,
+  JsonRecord,
+  LeafShape,
+  ManifestSnapshot,
+  ObservedCandidate,
+  ObservedConsumption,
+  ObservedManifest,
+  PackageChange,
+  PermittedChange,
+  PlannedConsumption,
+  PlannedRelease,
+  ReleaseCandidateInput,
+  ReleaseIntent,
+  ReleaseType,
   WorkspacePackage,
-} from './features/candidate-checking/api.js';
+} from "./features/candidate-checking/api.js";

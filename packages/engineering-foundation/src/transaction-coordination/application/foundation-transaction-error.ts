@@ -1,6 +1,6 @@
 import type {
   FoundationMutationKind,
-  FoundationTransactionDiagnostic
+  FoundationTransactionDiagnostic,
 } from "./model/transaction-status.js";
 import type { InternalFoundationTransactionStatus } from "./model/internal-transaction-status.js";
 
@@ -19,7 +19,7 @@ export class FoundationTransactionError extends Error {
   }) {
     const primary = options.status.diagnostics[0] ?? {
       code: "FOUNDATION_TRANSACTION_ACTIVE" as const,
-      message: "A Foundation transaction requires recovery before another mutation can start."
+      message: "A Foundation transaction requires recovery before another mutation can start.",
     };
     super(primary.message);
     this.name = "FoundationTransactionError";

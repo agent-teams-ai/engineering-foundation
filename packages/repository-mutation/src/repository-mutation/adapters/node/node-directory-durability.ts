@@ -23,7 +23,7 @@ const nodeDirectoryDurabilityOperations: DirectoryDurabilityOperations = {
   async open(path) {
     return open(path, "r");
   },
-  platform: process.platform
+  platform: process.platform,
 };
 
 function errorCode(error: unknown): string | undefined {
@@ -34,7 +34,7 @@ function errorCode(error: unknown): string | undefined {
 
 export async function syncDirectoryDurably(
   path: string,
-  operations: DirectoryDurabilityOperations = nodeDirectoryDurabilityOperations
+  operations: DirectoryDurabilityOperations = nodeDirectoryDurabilityOperations,
 ): Promise<DirectoryDurability> {
   try {
     const handle = await operations.open(path);
@@ -62,7 +62,7 @@ export async function syncDirectoryStrictly(path: string): Promise<void> {
 
 export async function syncDirectoryStrictlyWith(
   path: string,
-  syncDirectory: (path: string) => Promise<DirectoryDurability>
+  syncDirectory: (path: string) => Promise<DirectoryDurability>,
 ): Promise<void> {
   if ((await syncDirectory(path)) === "unsupported") {
     throw new StrictDirectoryDurabilityError(path);

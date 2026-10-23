@@ -8,8 +8,7 @@ import test from "node:test";
 import { stringify } from "yaml";
 
 import { describeCanonicalConsumerAssets } from "../dist/consumer-integration/index.js";
-import { computePnpmRuntimeClosureDigestV2 } from
-  "../dist/consumer-integration/adapters/pnpm-runtime-closure-v2.js";
+import { computePnpmRuntimeClosureDigestV2 } from "../dist/consumer-integration/adapters/pnpm-runtime-closure-v2.js";
 
 const cli = new URL("../dist/cli.js", import.meta.url).pathname;
 const sha256 = (character) => `sha256:${character.repeat(64)}`;
@@ -21,50 +20,56 @@ function qualificationFixture() {
     documentAuthoring: { version: "0.1.0", integrity: integrity("B") },
     docsProtocol: { version: "0.5.0", integrity: integrity("C") },
     docsProtocolAgentTeams: { version: "0.1.0", integrity: integrity("D") },
-    engineeringFoundation: { version: "1.0.0", integrity: integrity("E") }
+    engineeringFoundation: { version: "1.0.0", integrity: integrity("E") },
   };
   const names = {
     repositoryMutation: "@agent-teams/repository-mutation",
     documentAuthoring: "@agent-teams/document-authoring",
     docsProtocol: "@agent-teams/docs-protocol",
     docsProtocolAgentTeams: "@agent-teams/docs-protocol-agent-teams",
-    engineeringFoundation: "@agent-teams/engineering-foundation"
+    engineeringFoundation: "@agent-teams/engineering-foundation",
   };
   const dependencies = {
     repositoryMutation: {},
     documentAuthoring: { [names.repositoryMutation]: packages.repositoryMutation.version },
     docsProtocol: {
       [names.documentAuthoring]: packages.documentAuthoring.version,
-      [names.repositoryMutation]: packages.repositoryMutation.version
+      [names.repositoryMutation]: packages.repositoryMutation.version,
     },
     docsProtocolAgentTeams: {
       [names.docsProtocol]: packages.docsProtocol.version,
-      [names.repositoryMutation]: packages.repositoryMutation.version
+      [names.repositoryMutation]: packages.repositoryMutation.version,
     },
     engineeringFoundation: {
       [names.documentAuthoring]: packages.documentAuthoring.version,
-      [names.repositoryMutation]: packages.repositoryMutation.version
-    }
+      [names.repositoryMutation]: packages.repositoryMutation.version,
+    },
   };
   const direct = ["docsProtocol", "docsProtocolAgentTeams", "engineeringFoundation"];
   const lockfile = {
     lockfileVersion: "9.0",
     importers: {
       ".": {
-        devDependencies: Object.fromEntries(direct.map((key) => [
-          names[key],
-          { specifier: packages[key].version, version: packages[key].version }
-        ]))
-      }
+        devDependencies: Object.fromEntries(
+          direct.map((key) => [
+            names[key],
+            { specifier: packages[key].version, version: packages[key].version },
+          ]),
+        ),
+      },
     },
-    packages: Object.fromEntries(Object.keys(packages).map((key) => [
-      `${names[key]}@${packages[key].version}`,
-      { resolution: { integrity: packages[key].integrity } }
-    ])),
-    snapshots: Object.fromEntries(Object.keys(packages).map((key) => [
-      `${names[key]}@${packages[key].version}`,
-      Object.keys(dependencies[key]).length === 0 ? {} : { dependencies: dependencies[key] }
-    ]))
+    packages: Object.fromEntries(
+      Object.keys(packages).map((key) => [
+        `${names[key]}@${packages[key].version}`,
+        { resolution: { integrity: packages[key].integrity } },
+      ]),
+    ),
+    snapshots: Object.fromEntries(
+      Object.keys(packages).map((key) => [
+        `${names[key]}@${packages[key].version}`,
+        Object.keys(dependencies[key]).length === 0 ? {} : { dependencies: dependencies[key] },
+      ]),
+    ),
   };
   const profile = {
     schemaVersion: 3,
@@ -77,7 +82,7 @@ function qualificationFixture() {
     managedStatePath: "architecture/foundation/docs-protocol-managed-state.json",
     qualification: {
       contractPath: "architecture/foundation/docs-protocol-qualification.json",
-      gateCommand: "pnpm docs:protocol:check"
+      gateCommand: "pnpm docs:protocol:check",
     },
     cohort: {
       schemaVersion: 2,
@@ -93,25 +98,25 @@ function qualificationFixture() {
         repository: "agent-teams-ai/.github",
         path: ".github/workflows/docs-protocol-check.yml",
         revision: "3".repeat(40),
-        blobSha: "4".repeat(40)
+        blobSha: "4".repeat(40),
       },
       assets: {
         skillDigest: sha256("5"),
         callerWorkflowDigest: sha256("6"),
         assetCatalogDigest: sha256("7"),
-        transitionCatalogDigest: sha256("8")
+        transitionCatalogDigest: sha256("8"),
       },
       schemas: { consumerIntegration: 3, managedState: 2, docsProtocol: 1 },
       runtime: {
         node: ">=24.18.0 <25",
         pnpm: ">=11.17.0 <12",
-        runtimeClosureDigest: sha256("9")
-      }
-    }
+        runtimeClosureDigest: sha256("9"),
+      },
+    },
   };
   profile.cohort.runtime.runtimeClosureDigest = computePnpmRuntimeClosureDigestV2(
     lockfile,
-    profile.cohort
+    profile.cohort,
   );
   profile.cohort.assets = describeCanonicalConsumerAssets(profile.cohort);
   return { lockfile: stringify(lockfile), profile };
@@ -125,21 +130,30 @@ async function disposableConsumer() {
   await Promise.all([
     writeFile(
       join(architecture, "docs-consumer-integration.json"),
-      `${JSON.stringify(fixture.profile, null, 2)}\n`
+      `${JSON.stringify(fixture.profile, null, 2)}\n`,
     ),
     writeFile(join(root, "pnpm-lock.yaml"), fixture.lockfile),
-    writeFile(join(root, "package.json"), `${JSON.stringify({
-      name: "disposable-qualification-v3",
-      private: true,
-      scripts: { "docs:protocol:check": "node -e \"require('fs').writeFileSync('script-ran', 'bad')\"" }
-    }, null, 2)}\n`)
+    writeFile(
+      join(root, "package.json"),
+      `${JSON.stringify(
+        {
+          name: "disposable-qualification-v3",
+          private: true,
+          scripts: {
+            "docs:protocol:check": "node -e \"require('fs').writeFileSync('script-ran', 'bad')\"",
+          },
+        },
+        null,
+        2,
+      )}\n`,
+    ),
   ]);
   return root;
 }
 
 function run(root, ...args) {
   return spawnSync(process.execPath, [cli, "qualify", "--consumer", root, "--json", ...args], {
-    encoding: "utf8"
+    encoding: "utf8",
   });
 }
 
@@ -153,7 +167,7 @@ test("managed qualify fails closed for profile v3 without trusted registry/canar
     assert.equal(envelope.outcome, "invalid-input");
     assert.match(
       envelope.diagnostics[0].message,
-      /requires a trusted registry\/canary receipt produced outside the consumer CLI/u
+      /requires a trusted registry\/canary receipt produced outside the consumer CLI/u,
     );
     await assert.rejects(access(join(root, "script-ran")), { code: "ENOENT" });
 

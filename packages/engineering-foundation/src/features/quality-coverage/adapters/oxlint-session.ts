@@ -2,9 +2,16 @@ import { isAbsolute, relative, sep } from "node:path";
 import { realpath } from "node:fs/promises";
 import {
   assertNotCancelled,
-  type ManagedProcessExecutor, type ManagedProcessResult, type OxlintFindings, type QualityToolSession
+  type ManagedProcessExecutor,
+  type ManagedProcessResult,
+  type OxlintFindings,
+  type QualityToolSession,
 } from "../api.js";
-import { parseOxlintDiagnostics, parseOxlintFindings, parseOxlintSelection } from "./oxlint-output.js";
+import {
+  parseOxlintDiagnostics,
+  parseOxlintFindings,
+  parseOxlintSelection,
+} from "./oxlint-output.js";
 
 export interface OxlintSessionInput {
   readonly consumerRoot: string;
@@ -34,7 +41,9 @@ function sourceBatches(paths: readonly string[]): readonly (readonly string[])[]
   let batch: string[] = [];
   let length = 0;
   for (const path of paths) {
-    if (path.length > MAX_SOURCE_ARGUMENT_LENGTH) { throw new Error("Quality source path exceeds the command argument limit."); }
+    if (path.length > MAX_SOURCE_ARGUMENT_LENGTH) {
+      throw new Error("Quality source path exceeds the command argument limit.");
+    }
     const nextLength = length + path.length + (batch.length === 0 ? 0 : 1);
     if (batch.length > 0 && nextLength > MAX_SOURCE_ARGUMENT_LENGTH) {
       batches.push(batch);
@@ -44,22 +53,42 @@ function sourceBatches(paths: readonly string[]): readonly (readonly string[])[]
     batch.push(path);
     length += path.length + (batch.length === 1 ? 0 : 1);
   }
-  if (batch.length > 0) { batches.push(batch); }
+  if (batch.length > 0) {
+    batches.push(batch);
+  }
   return batches;
 }
 
 /** Entrypoints have already been bound to the pinned consumer toolchain by preparation. */
-export function createOxlintSession(input: OxlintSessionInput, executor: ManagedProcessExecutor): QualityToolSession & {
+export function createOxlintSession(
+  input: OxlintSessionInput,
+  executor: ManagedProcessExecutor,
+): QualityToolSession & {
   /** Findings per file and rule over the same targets and protective flags as `lint`. */
   findings(measuredRules: ReadonlySet<string>, signal?: AbortSignal): Promise<OxlintFindings>;
 } {
-  const lintArgs = [input.oxlintEntrypoint, "--config", input.configPath,
-    "--deny-warnings", "--disable-nested-config", "--no-ignore", "--threads", "1", "--format", "json"];
-  const run = (args: readonly string[], signal?: AbortSignal) => executor.run({
-    command: input.nodeExecutable, args, cwd: input.consumerRoot,
-    ...(input.environment === undefined ? {} : { environment: input.environment }),
-    timeoutMs: 120_000, strictUtf8: true, ...(signal === undefined ? {} : { signal })
-  });
+  const lintArgs = [
+    input.oxlintEntrypoint,
+    "--config",
+    input.configPath,
+    "--deny-warnings",
+    "--disable-nested-config",
+    "--no-ignore",
+    "--threads",
+    "1",
+    "--format",
+    "json",
+  ];
+  const run = (args: readonly string[], signal?: AbortSignal) =>
+    executor.run({
+      command: input.nodeExecutable,
+      args,
+      cwd: input.consumerRoot,
+      ...(input.environment === undefined ? {} : { environment: input.environment }),
+      timeoutMs: 120_000,
+      strictUtf8: true,
+      ...(signal === undefined ? {} : { signal }),
+    });
   const assertExplicitTargets = (): void => {
     if (input.sourceRoots.length === 0) {
       throw new Error("Quality tool received no explicit source targets; refusing cwd scan.");
@@ -67,7 +96,7 @@ export function createOxlintSession(input: OxlintSessionInput, executor: Managed
   };
   const runSourceBatches = async <T>(
     signal: AbortSignal | undefined,
-    execute: (paths: readonly string[], signal?: AbortSignal) => Promise<T>
+    execute: (paths: readonly string[], signal?: AbortSignal) => Promise<T>,
   ): Promise<readonly T[]> => {
     assertNotCancelled(signal);
     const results: T[] = [];
@@ -80,7 +109,9 @@ export function createOxlintSession(input: OxlintSessionInput, executor: Managed
     return results;
   };
   return {
-    async explicitUnknown() { throw new Error("Explicit unknown scan requires the consumer source reader."); },
+    async explicitUnknown() {
+      throw new Error("Explicit unknown scan requires the consumer source reader.");
+    },
     async select(signal) {
       assertExplicitTargets();
       const results = await runSourceBatches(signal, async (paths, batchSignal) => {
@@ -95,15 +126,38 @@ export function createOxlintSession(input: OxlintSessionInput, executor: Managed
       const paths = new Set<string>();
       for (const project of input.projects) {
         assertNotCancelled(signal);
-        const result = await run([input.compilerEntrypoint, "--project", project,
-          "--noEmit", "--incremental", "false", "--composite", "false", "--listFilesOnly", "--pretty", "false"], signal);
+        const result = await run(
+          [
+            input.compilerEntrypoint,
+            "--project",
+            project,
+            "--noEmit",
+            "--incremental",
+            "false",
+            "--composite",
+            "false",
+            "--listFilesOnly",
+            "--pretty",
+            "false",
+          ],
+          signal,
+        );
         assertNotCancelled(signal);
         assertToolSuccess(result);
         for (const line of result.stdout.trim().split(/\r?\n/u)) {
-          if (!isAbsolute(line)) { throw new Error("Compiler returned malformed project evidence."); }
+          if (!isAbsolute(line)) {
+            throw new Error("Compiler returned malformed project evidence.");
+          }
           // Compiler output and consumer cwd can name different aliases of the same root.
-          const path = relative(root, await realpath(line)).split(sep).join("/");
-          if (path !== ".." && !path.startsWith("../") && !isAbsolute(path) && !path.startsWith("node_modules/")) {
+          const path = relative(root, await realpath(line))
+            .split(sep)
+            .join("/");
+          if (
+            path !== ".." &&
+            !path.startsWith("../") &&
+            !isAbsolute(path) &&
+            !path.startsWith("node_modules/")
+          ) {
             paths.add(path);
           }
         }
@@ -121,20 +175,26 @@ export function createOxlintSession(input: OxlintSessionInput, executor: Managed
       });
       return {
         files: results.reduce((total, result) => total + result.files, 0),
-        diagnostics: results.flatMap((result) => result.diagnostics)
+        diagnostics: results.flatMap((result) => result.diagnostics),
       };
     },
     async findings(measuredRules, signal) {
       assertExplicitTargets();
       const results = await runSourceBatches(signal, async (paths, batchSignal) => {
         // A batch may hold only ignored files; the producer decides whether zero linted files overall is an error.
-        const result = await run([...lintArgs, "--no-error-on-unmatched-pattern", ...paths], batchSignal);
+        const result = await run(
+          [...lintArgs, "--no-error-on-unmatched-pattern", ...paths],
+          batchSignal,
+        );
         if (result.signal !== null || result.stderr.trim().length !== 0) {
           throw new Error("Oxlint did not produce valid lint evidence.");
         }
         return parseOxlintFindings(result.stdout, result.exitCode, measuredRules);
       });
-      return { files: results.reduce((total, result) => total + result.files, 0), findings: results.flatMap((result) => result.findings) };
-    }
+      return {
+        files: results.reduce((total, result) => total + result.files, 0),
+        findings: results.flatMap((result) => result.findings),
+      };
+    },
   };
 }

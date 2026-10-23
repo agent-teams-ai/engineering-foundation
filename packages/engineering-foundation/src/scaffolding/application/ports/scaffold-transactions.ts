@@ -7,17 +7,15 @@ export interface ScaffoldTransactions {
   createCleanupTransition(transactionId: string): OwnedTemporaryCleanupTransitionPort;
 }
 
-export type ScaffoldTransactionProvider = (
-  canonicalRoot: string
-) => Promise<ScaffoldTransactions>;
+export type ScaffoldTransactionProvider = (canonicalRoot: string) => Promise<ScaffoldTransactions>;
 
 export interface ScaffoldTransactionDependencies {
   readonly createCoordinator: (
-    canonicalRoot: string
+    canonicalRoot: string,
   ) => Promise<ScaffoldTransactions["coordinator"]>;
   readonly createCleanupTransition: (
     canonicalRoot: string,
-    transactionId: string
+    transactionId: string,
   ) => OwnedTemporaryCleanupTransitionPort;
 }
 

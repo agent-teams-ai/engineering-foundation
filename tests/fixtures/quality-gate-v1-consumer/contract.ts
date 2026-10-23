@@ -3,16 +3,18 @@ import type { QualityGatePolicyLoader } from "../../../packages/engineering-foun
 
 const oldTypedPolicyLoader: QualityGatePolicyLoader = async () => ({
   packageManager: "pnpm",
-  profiles: [{
-    id: "verify",
-    concurrency: 1,
-    tasks: [{ id: "test", needs: [], after: [] }]
-  }]
+  profiles: [
+    {
+      id: "verify",
+      concurrency: 1,
+      tasks: [{ id: "test", needs: [], after: [] }],
+    },
+  ],
 });
 
 void createQualityGateCommand({
   catalogReader: { read: async () => ({ scripts: { test: "node test.mjs" } }) },
   clock: { nowMs: () => 0 },
   executor: { run: async () => ({ exitCode: 0, signal: null, stdout: "", stderr: "" }) },
-  policyLoader: oldTypedPolicyLoader
+  policyLoader: oldTypedPolicyLoader,
 });

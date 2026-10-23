@@ -13,6 +13,15 @@ import { preparePackages } from "../scripts/prepare-package.mjs";
 import { tarArchive } from "./pack-publishable-artifacts-support.mjs";
 
 const FOUNDATION_PACKAGE = "@agent-teams/engineering-foundation";
+const F3_PRODUCTION_MODULES = JSON.parse(
+  await readFile(
+    new URL("./fixtures/package-archive-budget/f3-production-modules.json", import.meta.url),
+    "utf8",
+  ),
+);
+const EXPECTED_F3_ARTIFACTS = F3_PRODUCTION_MODULES.productionModuleStems.flatMap((stem) =>
+  F3_PRODUCTION_MODULES.compilerArtifacts.map((suffix) => `${stem}${suffix}`),
+);
 const EXPECTED_NEW_MODULE_ARTIFACTS = Object.freeze([
   "dist/local-mode/application/bun-registry-policy.d.ts",
   "dist/local-mode/application/bun-registry-policy.d.ts.map",
@@ -107,10 +116,9 @@ const EXPECTED_NEW_MODULE_ARTIFACTS = Object.freeze([
 ]);
 
 function archiveWithEntries(count) {
-  return tarArchive(Array.from(
-    { length: count },
-    (_, index) => ({ name: `package/dist/${index}.js` }),
-  ));
+  return tarArchive(
+    Array.from({ length: count }, (_, index) => ({ name: `package/dist/${index}.js` })),
+  );
 }
 
 test("keeps the Foundation archive exception package-specific and bounded", () => {
@@ -119,15 +127,15 @@ test("keeps the Foundation archive exception package-specific and bounded", () =
     () => inspectCompressedTarArchive(archiveWithEntries(2_501)),
     /too many entries: 2501/u,
   );
-  const atFoundationLimit = archiveWithEntries(2_789);
+  const atFoundationLimit = archiveWithEntries(2_871);
   assert.throws(() => inspectCompressedTarArchive(atFoundationLimit), /too many entries/u);
   assert.equal(
     inspectCompressedTarArchive(atFoundationLimit, FOUNDATION_PACKAGE).entryCount,
-    2_789,
+    2_871,
   );
   assert.throws(
-    () => inspectCompressedTarArchive(archiveWithEntries(2_790), FOUNDATION_PACKAGE),
-    /too many entries: 2790/u,
+    () => inspectCompressedTarArchive(archiveWithEntries(2_872), FOUNDATION_PACKAGE),
+    /too many entries: 2872/u,
   );
 });
 
@@ -144,20 +152,26 @@ test("applies the same Foundation budget to archive listings", () => {
     requiredArtifactPaths: ["dist/0.js"],
     verboseListing: "",
   };
-  assert.doesNotThrow(() => assertArchiveSafety({
-    ...unrelatedInput,
-    listing: unrelatedListing.join("\n"),
-  }));
-  assert.throws(() => assertArchiveSafety({
-    ...unrelatedInput,
-    listing: [...unrelatedListing, "package/dist/over-limit.js"].join("\n"),
-  }), /too many entries: 2501/u);
+  assert.doesNotThrow(() =>
+    assertArchiveSafety({
+      ...unrelatedInput,
+      listing: unrelatedListing.join("\n"),
+    }),
+  );
+  assert.throws(
+    () =>
+      assertArchiveSafety({
+        ...unrelatedInput,
+        listing: [...unrelatedListing, "package/dist/over-limit.js"].join("\n"),
+      }),
+    /too many entries: 2501/u,
+  );
 
   const listing = [
     "package/package.json",
     "package/LICENSE",
     "package/README.md",
-    ...Array.from({ length: 2_786 }, (_, index) => `package/dist/${index}.js`),
+    ...Array.from({ length: 2_868 }, (_, index) => `package/dist/${index}.js`),
   ];
   const input = {
     archiveBytes: Buffer.from("fixture"),
@@ -166,16 +180,20 @@ test("applies the same Foundation budget to archive listings", () => {
     verboseListing: "",
   };
   assert.doesNotThrow(() => assertArchiveSafety({ ...input, listing: listing.join("\n") }));
-  assert.throws(() => assertArchiveSafety({
-    ...input,
-    listing: [...listing, ...Array.from(
-      { length: 1 },
-      (_, index) => `package/dist/extra-${index}.js`,
-    )].join("\n"),
-  }), /too many entries: 2790/u);
+  assert.throws(
+    () =>
+      assertArchiveSafety({
+        ...input,
+        listing: [
+          ...listing,
+          ...Array.from({ length: 1 }, (_, index) => `package/dist/extra-${index}.js`),
+        ].join("\n"),
+      }),
+    /too many entries: 2872/u,
+  );
 });
 
-test("admits the exact built Foundation inventory and rejects growth beyond its unchanged budget", async () => {
+test("admits the complete built Foundation package inventory and rejects one additional member", async () => {
   await preparePackages();
   const root = "packages/engineering-foundation";
   const manifest = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
@@ -184,35 +202,59 @@ test("admits the exact built Foundation inventory and rejects growth beyond its 
     const metadata = await lstat(join(root, path));
     assert.equal(metadata.isSymbolicLink(), false, path);
     if (metadata.isDirectory()) {
-      for (const entry of await readdir(join(root, path))) { await visit(`${path}/${entry}`); }
+      for (const entry of await readdir(join(root, path))) {
+        await visit(`${path}/${entry}`);
+      }
     } else {
       assert.ok(metadata.isFile(), path);
       paths.add(path);
     }
   }
-  for (const path of manifest.files) { await visit(path); }
-  // Seven Foundation-owned presets moved to Stack; source coverage v4 adds one schema.
-  // The archive safety ceiling remains 2,789; exact membership is qualified separately.
-  assert.equal(paths.size, 2_783, "Requalify the complete package inventory when its membership changes");
-  assert.equal(createHash("sha256").update([...paths].toSorted().join("\n") + "\n").digest("hex"),
-    "b1453000a63c496094a05d24e68e02c627c896f5f9350217ad0c4200c97d3f51",
-    "Requalify exact artifact membership, even when the count stays unchanged");
-  assert.equal([...paths].some(path => path.startsWith("presets/")), false);
+  for (const path of manifest.files) {
+    await visit(path);
+  }
+  assert.equal(
+    paths.size,
+    2_871,
+    "Requalify the complete package inventory when its membership changes",
+  );
+  assert.equal(
+    createHash("sha256")
+      .update([...paths].toSorted().join("\n") + "\n")
+      .digest("hex"),
+    "32c55269a6fea2465deb38c758bed25470ec5473b2c7f88e405124607ce95267",
+    "Requalify exact artifact membership, even when the count stays unchanged",
+  );
+  assert.equal(
+    [...paths].some((path) => path.startsWith("presets/")),
+    false,
+  );
   assert.ok(paths.has("schemas/quality-source-coverage/v4.schema.json"));
   assert.ok(paths.has("schemas/quality-source-coverage/v3.schema.json"));
   assert.ok(paths.has("schemas/package-public-api-native-transition/v1.schema.json"));
-  for (const path of EXPECTED_NEW_MODULE_ARTIFACTS) {
-    assert.ok(paths.has(path), `Expected compiled module artifact is missing from actual inventory: ${path}`);
+  for (const path of [...EXPECTED_NEW_MODULE_ARTIFACTS, ...EXPECTED_F3_ARTIFACTS]) {
+    assert.ok(
+      paths.has(path),
+      `Expected compiled module artifact is missing from actual inventory: ${path}`,
+    );
   }
-  const listing = [...paths].toSorted().map(path => `package/${path}`);
-  const input = { archiveBytes: Buffer.from("inventory"), packageName: FOUNDATION_PACKAGE,
-    requiredArtifactPaths: [...paths], allowedArtifactPaths: manifest.files, verboseListing: "" };
+  const listing = [...paths].toSorted().map((path) => `package/${path}`);
+  const input = {
+    archiveBytes: Buffer.from("inventory"),
+    packageName: FOUNDATION_PACKAGE,
+    requiredArtifactPaths: [...paths],
+    allowedArtifactPaths: manifest.files,
+    verboseListing: "",
+  };
   assert.doesNotThrow(() => assertArchiveSafety({ ...input, listing: listing.join("\n") }));
-  const atLimit = [...listing, ...Array.from({ length: 6 },
-    (_, index) => `package/dist/budget-headroom-${index}.js`)];
-  assert.doesNotThrow(() => assertArchiveSafety({ ...input, listing: atLimit.join("\n") }));
-  assert.throws(() => assertArchiveSafety({ ...input,
-    listing: [...atLimit, "package/dist/over-limit.js"].join("\n") }), /too many entries: 2790/u);
+  assert.throws(
+    () =>
+      assertArchiveSafety({
+        ...input,
+        listing: [...listing, "package/dist/over-limit.js"].join("\n"),
+      }),
+    /too many entries: 2872/u,
+  );
 });
 
 test("rejects complete payload blocks without an observed two-zero-block terminator", () => {
@@ -220,7 +262,27 @@ test("rejects complete payload blocks without an observed two-zero-block termina
   const tar = gunzipSync(complete);
   assert.equal(inspectCompressedTarArchive(complete).entryCount, 1);
   for (const missing of [512, 1024]) {
-    assert.throws(() => inspectCompressedTarArchive(gzipSync(tar.subarray(0, tar.length - missing))), /terminator/u);
+    assert.throws(
+      () => inspectCompressedTarArchive(gzipSync(tar.subarray(0, tar.length - missing))),
+      /terminator/u,
+    );
   }
   assert.throws(() => inspectCompressedTarArchive(gzipSync(Buffer.alloc(0))), /terminator/u);
+});
+
+test("F3 archive growth is exactly 22 complete production compiler tuples", () => {
+  assert.equal(F3_PRODUCTION_MODULES.baselineEntries, 2783);
+  assert.equal(F3_PRODUCTION_MODULES.entries, 2871);
+  assert.equal(F3_PRODUCTION_MODULES.removedEntries, 0);
+  assert.equal(F3_PRODUCTION_MODULES.productionModuleStems.length, 22);
+  assert.equal(EXPECTED_F3_ARTIFACTS.length, 88);
+  assert.equal(new Set(EXPECTED_F3_ARTIFACTS).size, 88);
+  assert.equal(
+    F3_PRODUCTION_MODULES.baselineEntries + EXPECTED_F3_ARTIFACTS.length,
+    F3_PRODUCTION_MODULES.entries,
+  );
+  for (const path of EXPECTED_F3_ARTIFACTS) {
+    assert.match(path, /^dist\//u);
+    assert.doesNotMatch(path, /(?:^|\/)(?:tests|node_modules|\.cache)(?:\/|$)/u);
+  }
 });

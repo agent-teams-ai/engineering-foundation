@@ -4,12 +4,12 @@ import {
   classifyUnexpectedFailure,
   foundationReport,
   readCancellationProblem,
-  readCapabilityInputProblem
+  readCapabilityInputProblem,
 } from "../../validation-reporting/api.js";
 import type {
   CapabilityDefinition,
   FoundationCheckCoverage,
-  FoundationCheckReport
+  FoundationCheckReport,
 } from "../../validation-reporting/api.js";
 
 interface FoundationCheckInvocation {
@@ -22,7 +22,7 @@ interface FoundationCheckInvocation {
 function rootProblemReport(
   foundationVersion: string,
   coverage: FoundationCheckCoverage,
-  error: unknown
+  error: unknown,
 ): FoundationCheckReport {
   const inputProblem = readCapabilityInputProblem(error);
   if (inputProblem !== undefined) {
@@ -31,7 +31,7 @@ function rootProblemReport(
       foundationVersion,
       coverage,
       outcome: cancelled ? "cancelled" : "invalid-input",
-      problem: inputProblem
+      problem: inputProblem,
     });
   }
   const cancellationProblem = readCancellationProblem(error, "foundation-check");
@@ -40,27 +40,24 @@ function rootProblemReport(
       foundationVersion,
       coverage,
       outcome: "cancelled",
-      problem: cancellationProblem
+      problem: cancellationProblem,
     });
   }
   return foundationReport({
     foundationVersion,
     coverage,
     outcome: "failed",
-    problem: classifyUnexpectedFailure(error, "foundation-check")
+    problem: classifyUnexpectedFailure(error, "foundation-check"),
   });
 }
 
 async function runFoundationCheck(
   invocation: FoundationCheckInvocation,
-  dependencies: FoundationCheckDependencies
+  dependencies: FoundationCheckDependencies,
 ): Promise<FoundationCheckReport> {
   const coverage = invocation.capabilityId === undefined ? "full" : "selected";
   try {
-    const config = await dependencies.readConfig(
-      invocation.consumerRoot,
-      invocation.signal
-    );
+    const config = await dependencies.readConfig(invocation.consumerRoot, invocation.signal);
     const declared = config.declaredCapabilities;
     const selected =
       invocation.capabilityId === undefined
@@ -71,7 +68,7 @@ async function runFoundationCheck(
         code: "CAPABILITY_NOT_DECLARED",
         message: `Capability is not declared by the consumer: ${invocation.capabilityId}.`,
         phase: "capability-selection",
-        retryable: false
+        retryable: false,
       });
     }
 
@@ -83,20 +80,20 @@ async function runFoundationCheck(
             code: "CAPABILITY_UNSUPPORTED",
             message: `Capability is not supported by this foundation version: ${id}.`,
             phase: "capability-selection",
-            retryable: false
+            retryable: false,
           });
         }
         return capability.run({
           consumerRoot: invocation.consumerRoot,
           configPath,
-          ...(invocation.signal === undefined ? {} : { signal: invocation.signal })
+          ...(invocation.signal === undefined ? {} : { signal: invocation.signal }),
         });
-      })
+      }),
     );
     return foundationReport({
       foundationVersion: invocation.foundationVersion,
       coverage,
-      capabilities: reports
+      capabilities: reports,
     });
   } catch (error) {
     return rootProblemReport(invocation.foundationVersion, coverage, error);
@@ -108,7 +105,9 @@ export interface FoundationCheckDependencies {
   readonly capabilities: ReadonlyMap<string, CapabilityDefinition>;
 }
 
-export type FoundationCheck = (invocation: FoundationCheckInvocation) => Promise<FoundationCheckReport>;
+export type FoundationCheck = (
+  invocation: FoundationCheckInvocation,
+) => Promise<FoundationCheckReport>;
 
 export function createFoundationCheck(dependencies: FoundationCheckDependencies): FoundationCheck {
   return (invocation) => runFoundationCheck(invocation, dependencies);

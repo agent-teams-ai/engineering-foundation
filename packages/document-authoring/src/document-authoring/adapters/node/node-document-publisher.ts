@@ -8,25 +8,25 @@ import {
   publishPreparedAbsentFile,
   readBoundedRegularFile,
   syncDirectoryDurably,
-  syncDirectoryStrictly
+  syncDirectoryStrictly,
 } from "@agent-teams/repository-mutation/node";
 import type { PortablePathIdentity } from "@agent-teams/repository-mutation/paths";
 import {
   assertDocumentPhysicalIdentity,
   assertNonzeroDocumentPhysicalIdentity,
-  type DocumentPhysicalIdentity
+  type DocumentPhysicalIdentity,
 } from "../../application/model/document-physical-identity.js";
 import type { DocumentOwnedTemporary } from "../../application/model/document-transaction.js";
 import type { DocumentPlanContract as DocumentPlan } from "../../application/model/document-planning.js";
 import type {
   DocumentPublicationResult,
-  DocumentPublisher
+  DocumentPublisher,
 } from "../../application/ports/document-publisher.js";
 import { documentTemporaryPath } from "../../application/policies/document-temporary-path.js";
 import {
   recaptureDocumentPublicationPaths,
   sameDocumentAncestry,
-  sameDocumentPhysicalIdentity
+  sameDocumentPhysicalIdentity,
 } from "./recapture-document-publication-paths.js";
 
 function postimage(plan: DocumentPlan) {
@@ -34,20 +34,20 @@ function postimage(plan: DocumentPlan) {
     bytes: Buffer.from(plan.output.contentBase64, "base64"),
     digest: plan.output.digest,
     mode: 0o644,
-    size: plan.output.size
+    size: plan.output.size,
   };
 }
 
 function wireIdentity(
   identity: PortablePathIdentity,
-  authorityRequired: boolean
+  authorityRequired: boolean,
 ): DocumentPhysicalIdentity {
   const result: DocumentPhysicalIdentity = {
     adapter: "node-filesystem",
     version: 1,
     dev: identity.dev.toString(10),
     ino: identity.ino.toString(10),
-    birthtimeNs: identity.birthtimeNs.toString(10)
+    birthtimeNs: identity.birthtimeNs.toString(10),
   };
   assertDocumentPhysicalIdentity(result);
   if (authorityRequired) {
@@ -62,28 +62,32 @@ function physicalIdentity(temporary: DocumentOwnedTemporary): PortablePathIdenti
   const result = {
     dev: BigInt(value.dev),
     ino: BigInt(value.ino),
-    birthtimeNs: BigInt(value.birthtimeNs)
+    birthtimeNs: BigInt(value.birthtimeNs),
   };
   return result;
 }
 
 async function readExactPublicationIdentity(
   destinationPath: string,
-  plan: DocumentPlan
+  plan: DocumentPlan,
 ): Promise<DocumentPhysicalIdentity> {
   const observed = await readBoundedRegularFile(destinationPath, plan.output.size);
-  if (observed.outcome !== "read" ||
+  if (
+    observed.outcome !== "read" ||
     observed.bytes.byteLength !== plan.output.size ||
     `sha256:${createHash("sha256").update(observed.bytes).digest("hex")}` !== plan.output.digest ||
-    (process.platform !== "win32" && (observed.mode & 0o777) !== 0o644)) {
+    (process.platform !== "win32" && (observed.mode & 0o777) !== 0o644)
+  ) {
     throw new Error("Published document identity could not be verified.");
   }
   return wireIdentity(observed.identity, true);
 }
 
 function assertTemporaryBinding(plan: DocumentPlan, temporary: DocumentOwnedTemporary): void {
-  if (temporary.path !== documentTemporaryPath(plan.destination, plan.planDigest) ||
-    temporary.digest !== plan.output.digest) {
+  if (
+    temporary.path !== documentTemporaryPath(plan.destination, plan.planDigest) ||
+    temporary.digest !== plan.output.digest
+  ) {
     throw new Error("Document temporary is not exactly bound to the supplied Plan.");
   }
 }
@@ -95,7 +99,7 @@ type NodeDocumentPublisherFaultPoint =
   | { readonly phase: "after-temporary-cleanup-synced" };
 
 type NodeDocumentPublisherFaultInjector = (
-  point: NodeDocumentPublisherFaultPoint
+  point: NodeDocumentPublisherFaultPoint,
 ) => Promise<void> | void;
 
 export interface NodeDocumentPublisherOperations {
@@ -120,7 +124,7 @@ export class NodeDocumentPublisher implements DocumentPublisher {
       syncDirectoryStrictly: operations.syncDirectoryStrictly ?? syncDirectoryStrictly,
       ...(operations.faultInjector === undefined
         ? {}
-        : { faultInjector: operations.faultInjector })
+        : { faultInjector: operations.faultInjector }),
     };
   }
 
@@ -132,26 +136,20 @@ export class NodeDocumentPublisher implements DocumentPublisher {
     request.signal?.throwIfAborted();
     const paths = await recaptureDocumentPublicationPaths({
       consumerRoot: request.consumerRoot,
-      destination: request.plan.destination
+      destination: request.plan.destination,
     });
-    const temporaryPath = documentTemporaryPath(
-      request.plan.destination,
-      request.plan.planDigest
-    );
+    const temporaryPath = documentTemporaryPath(request.plan.destination, request.plan.planDigest);
     const temporaryBefore = await recaptureDocumentPublicationPaths({
       consumerRoot: request.consumerRoot,
-      destination: temporaryPath
+      destination: temporaryPath,
     });
-    if (!sameDocumentAncestry(
-      paths.ancestryIdentities,
-      temporaryBefore.ancestryIdentities
-    )) {
+    if (!sameDocumentAncestry(paths.ancestryIdentities, temporaryBefore.ancestryIdentities)) {
       throw new Error("Document temporary is not confined to the publication parent.");
     }
     await this.#operations.syncDirectoryStrictly(paths.parent);
     const recaptured = await recaptureDocumentPublicationPaths({
       consumerRoot: request.consumerRoot,
-      destination: request.plan.destination
+      destination: request.plan.destination,
     });
     if (!sameDocumentAncestry(paths.ancestryIdentities, recaptured.ancestryIdentities)) {
       throw new Error("Document publication parent changed during durability preflight.");
@@ -166,69 +164,75 @@ export class NodeDocumentPublisher implements DocumentPublisher {
       async validateOpenedPath(identity) {
         const openedAuthority = await recaptureDocumentPublicationPaths({
           consumerRoot: request.consumerRoot,
-          destination: temporaryPath
+          destination: temporaryPath,
         });
-        if (!sameDocumentAncestry(
-          temporaryBefore.ancestryIdentities,
-          openedAuthority.ancestryIdentities
-        ) || (await pathMatchesRegularFileIdentity(
-          openedAuthority.destinationPath,
-          identity
-        )) !== "match") {
+        if (
+          !sameDocumentAncestry(
+            temporaryBefore.ancestryIdentities,
+            openedAuthority.ancestryIdentities,
+          ) ||
+          (await pathMatchesRegularFileIdentity(openedAuthority.destinationPath, identity)) !==
+            "match"
+        ) {
           throw new Error(
-            "Opened document temporary is not bound to the captured repository ancestry."
+            "Opened document temporary is not bound to the captured repository ancestry.",
           );
         }
-      }
+      },
     });
     const temporaryAfterOpen = await recaptureDocumentPublicationPaths({
       consumerRoot: request.consumerRoot,
-      destination: temporaryPath
+      destination: temporaryPath,
     });
-    if (!sameDocumentAncestry(
-      temporaryBefore.ancestryIdentities,
-      temporaryAfterOpen.ancestryIdentities
-    )) {
+    if (
+      !sameDocumentAncestry(
+        temporaryBefore.ancestryIdentities,
+        temporaryAfterOpen.ancestryIdentities,
+      )
+    ) {
       throw new Error("Document temporary parent changed while the file was prepared.");
     }
     const observedTemporary = await readBoundedRegularFile(
       temporaryAfterOpen.destinationPath,
-      request.plan.output.size
+      request.plan.output.size,
     );
-    if (observedTemporary.outcome !== "read" ||
-      !sameDocumentPhysicalIdentity(observedTemporary.identity, captured)) {
+    if (
+      observedTemporary.outcome !== "read" ||
+      !sameDocumentPhysicalIdentity(observedTemporary.identity, captured)
+    ) {
       throw new Error("Prepared document handle is no longer bound to its repository path.");
     }
     const temporaryAfterRead = await recaptureDocumentPublicationPaths({
       consumerRoot: request.consumerRoot,
-      destination: temporaryPath
+      destination: temporaryPath,
     });
-    if (!sameDocumentAncestry(
-      temporaryAfterOpen.ancestryIdentities,
-      temporaryAfterRead.ancestryIdentities
-    )) {
+    if (
+      !sameDocumentAncestry(
+        temporaryAfterOpen.ancestryIdentities,
+        temporaryAfterRead.ancestryIdentities,
+      )
+    ) {
       throw new Error("Document temporary parent changed during post-open verification.");
     }
     await this.#operations.syncDirectoryStrictly(temporaryAfterRead.parent);
     await this.#operations.faultInjector?.({ phase: "after-temporary-synced" });
     const finalPaths = await recaptureDocumentPublicationPaths({
       consumerRoot: request.consumerRoot,
-      destination: temporaryPath
+      destination: temporaryPath,
     });
-    if (!sameDocumentAncestry(
-      temporaryAfterRead.ancestryIdentities,
-      finalPaths.ancestryIdentities
-    )) {
+    if (
+      !sameDocumentAncestry(temporaryAfterRead.ancestryIdentities, finalPaths.ancestryIdentities)
+    ) {
       throw new Error("Document temporary parent changed before identity binding.");
     }
     const temporary: DocumentOwnedTemporary = {
       path: temporaryPath,
       digest: request.plan.output.digest,
-      identity: wireIdentity(captured, true)
+      identity: wireIdentity(captured, true),
     };
     return Object.freeze({
       ...temporary,
-      identity: Object.freeze(temporary.identity)
+      identity: Object.freeze(temporary.identity),
     });
   }
 
@@ -243,24 +247,21 @@ export class NodeDocumentPublisher implements DocumentPublisher {
     const expectedIdentity = physicalIdentity(request.temporary);
     const before = await recaptureDocumentPublicationPaths({
       consumerRoot: request.consumerRoot,
-      destination: request.plan.destination
+      destination: request.plan.destination,
     });
     await this.#operations.syncDirectoryStrictly(before.parent);
     const paths = await recaptureDocumentPublicationPaths({
       consumerRoot: request.consumerRoot,
-      destination: request.plan.destination
+      destination: request.plan.destination,
     });
     if (!sameDocumentAncestry(before.ancestryIdentities, paths.ancestryIdentities)) {
       throw new Error("Document publication parent changed during durability preflight.");
     }
     const temporaryAuthority = await recaptureDocumentPublicationPaths({
       consumerRoot: request.consumerRoot,
-      destination: request.temporary.path
+      destination: request.temporary.path,
     });
-    if (!sameDocumentAncestry(
-      paths.ancestryIdentities,
-      temporaryAuthority.ancestryIdentities
-    )) {
+    if (!sameDocumentAncestry(paths.ancestryIdentities, temporaryAuthority.ancestryIdentities)) {
       throw new Error("Bound document temporary left the publication parent.");
     }
     const temporaryPath = temporaryAuthority.destinationPath;
@@ -276,31 +277,33 @@ export class NodeDocumentPublisher implements DocumentPublisher {
       link: async (source, destination) => {
         const immediatelyBefore = await recaptureDocumentPublicationPaths({
           consumerRoot: request.consumerRoot,
-          destination: request.plan.destination
+          destination: request.plan.destination,
         });
         const sourceBefore = await recaptureDocumentPublicationPaths({
           consumerRoot: request.consumerRoot,
-          destination: request.temporary.path
+          destination: request.temporary.path,
         });
-        if (!sameDocumentAncestry(
-          paths.ancestryIdentities,
-          immediatelyBefore.ancestryIdentities
-        ) || !sameDocumentAncestry(
-          immediatelyBefore.ancestryIdentities,
-          sourceBefore.ancestryIdentities
-        )) {
+        if (
+          !sameDocumentAncestry(paths.ancestryIdentities, immediatelyBefore.ancestryIdentities) ||
+          !sameDocumentAncestry(
+            immediatelyBefore.ancestryIdentities,
+            sourceBefore.ancestryIdentities,
+          )
+        ) {
           throw new Error("Document publication ancestry changed before link.");
         }
         await this.#operations.link(source, destination);
         await this.#operations.faultInjector?.({ phase: "after-hard-link" });
         const immediatelyAfter = await recaptureDocumentPublicationPaths({
           consumerRoot: request.consumerRoot,
-          destination: request.plan.destination
+          destination: request.plan.destination,
         });
-        if (!sameDocumentAncestry(
-          immediatelyBefore.ancestryIdentities,
-          immediatelyAfter.ancestryIdentities
-        )) {
+        if (
+          !sameDocumentAncestry(
+            immediatelyBefore.ancestryIdentities,
+            immediatelyAfter.ancestryIdentities,
+          )
+        ) {
           throw new Error("Document publication ancestry changed during link.");
         }
       },
@@ -308,44 +311,40 @@ export class NodeDocumentPublisher implements DocumentPublisher {
       postimage: postimage(request.plan),
       readBoundedRegularFile,
       syncDirectory: this.#operations.syncDirectoryDurably,
-      temporaryPath
+      temporaryPath,
     });
     const afterPublication = await recaptureDocumentPublicationPaths({
       consumerRoot: request.consumerRoot,
-      destination: request.plan.destination
+      destination: request.plan.destination,
     });
-    if (!sameDocumentAncestry(
-      paths.ancestryIdentities,
-      afterPublication.ancestryIdentities
-    )) {
+    if (!sameDocumentAncestry(paths.ancestryIdentities, afterPublication.ancestryIdentities)) {
       throw new Error("Document publication ancestry changed during link.");
     }
     await this.#operations.faultInjector?.({ phase: "after-publication-synced" });
     const finalPublication = await recaptureDocumentPublicationPaths({
       consumerRoot: request.consumerRoot,
-      destination: request.plan.destination
+      destination: request.plan.destination,
     });
-    if (!sameDocumentAncestry(
-      afterPublication.ancestryIdentities,
-      finalPublication.ancestryIdentities
-    )) {
+    if (
+      !sameDocumentAncestry(
+        afterPublication.ancestryIdentities,
+        finalPublication.ancestryIdentities,
+      )
+    ) {
       throw new Error("Document publication ancestry changed before completion.");
     }
     if (outcome === "published") {
       return Object.freeze({
         outcome,
         publicationIdentity: Object.freeze(wireIdentity(expectedIdentity, true)),
-        identityEvidence: "owned-temporary"
+        identityEvidence: "owned-temporary",
       });
     }
     return Object.freeze({
       outcome,
       publicationIdentity: Object.freeze(
-        await readExactPublicationIdentity(
-          finalPublication.destinationPath,
-          request.plan
-        )
-      )
+        await readExactPublicationIdentity(finalPublication.destinationPath, request.plan),
+      ),
     });
   }
 
@@ -360,16 +359,13 @@ export class NodeDocumentPublisher implements DocumentPublisher {
     const expectedIdentity = physicalIdentity(request.temporary);
     const before = await recaptureDocumentPublicationPaths({
       consumerRoot: request.consumerRoot,
-      destination: request.plan.destination
+      destination: request.plan.destination,
     });
     const temporaryAuthority = await recaptureDocumentPublicationPaths({
       consumerRoot: request.consumerRoot,
-      destination: request.temporary.path
+      destination: request.temporary.path,
     });
-    if (!sameDocumentAncestry(
-      before.ancestryIdentities,
-      temporaryAuthority.ancestryIdentities
-    )) {
+    if (!sameDocumentAncestry(before.ancestryIdentities, temporaryAuthority.ancestryIdentities)) {
       throw new Error("Bound document temporary left the publication parent.");
     }
     const temporaryPath = temporaryAuthority.destinationPath;
@@ -378,54 +374,66 @@ export class NodeDocumentPublisher implements DocumentPublisher {
     // may already exist and its durability must reach a verified postcondition.
     const publicationIdentity = await readExactPublicationIdentity(
       before.destinationPath,
-      request.plan
+      request.plan,
     );
-    if (!sameDocumentPhysicalIdentity(
-      {
-        dev: BigInt(publicationIdentity.dev),
-        ino: BigInt(publicationIdentity.ino),
-        birthtimeNs: BigInt(publicationIdentity.birthtimeNs)
-      },
-      expectedIdentity
-    )) {
+    if (
+      !sameDocumentPhysicalIdentity(
+        {
+          dev: BigInt(publicationIdentity.dev),
+          ino: BigInt(publicationIdentity.ino),
+          birthtimeNs: BigInt(publicationIdentity.birthtimeNs),
+        },
+        expectedIdentity,
+      )
+    ) {
       throw new Error("Published document does not match its bound temporary identity.");
     }
     try {
       const observedTemporary = await readBoundedRegularFile(
         temporaryPath,
-        request.plan.output.size
+        request.plan.output.size,
       );
-      if (observedTemporary.outcome !== "read" ||
+      if (
+        observedTemporary.outcome !== "read" ||
         !sameDocumentPhysicalIdentity(observedTemporary.identity, expectedIdentity) ||
-        `sha256:${createHash("sha256").update(observedTemporary.bytes).digest("hex")}` !== request.plan.output.digest ||
-        (process.platform !== "win32" && (observedTemporary.mode & 0o777) !== 0o644)) {
+        `sha256:${createHash("sha256").update(observedTemporary.bytes).digest("hex")}` !==
+          request.plan.output.digest ||
+        (process.platform !== "win32" && (observedTemporary.mode & 0o777) !== 0o644)
+      ) {
         throw new Error("Bound document temporary changed during publication completion.");
       }
     } catch (error) {
-      if (!(error instanceof Error && "code" in error &&
-        (error as NodeJS.ErrnoException).code === "ENOENT")) {
+      if (
+        !(
+          error instanceof Error &&
+          "code" in error &&
+          (error as NodeJS.ErrnoException).code === "ENOENT"
+        )
+      ) {
         throw error;
       }
     }
     await this.#operations.syncDirectoryStrictly(before.parent);
     const after = await recaptureDocumentPublicationPaths({
       consumerRoot: request.consumerRoot,
-      destination: request.plan.destination
+      destination: request.plan.destination,
     });
     if (!sameDocumentAncestry(before.ancestryIdentities, after.ancestryIdentities)) {
       throw new Error("Document publication parent changed during completion.");
     }
     const verifiedIdentity = await readExactPublicationIdentity(
       after.destinationPath,
-      request.plan
+      request.plan,
     );
-    if (verifiedIdentity.dev !== publicationIdentity.dev ||
+    if (
+      verifiedIdentity.dev !== publicationIdentity.dev ||
       verifiedIdentity.ino !== publicationIdentity.ino ||
-      verifiedIdentity.birthtimeNs !== publicationIdentity.birthtimeNs) {
+      verifiedIdentity.birthtimeNs !== publicationIdentity.birthtimeNs
+    ) {
       throw new Error("Published document identity changed during completion.");
     }
     return Object.freeze({
-      publicationIdentity: Object.freeze(verifiedIdentity)
+      publicationIdentity: Object.freeze(verifiedIdentity),
     });
   }
 
@@ -438,12 +446,12 @@ export class NodeDocumentPublisher implements DocumentPublisher {
     const expectedIdentity = physicalIdentity(request.temporary);
     const paths = await recaptureDocumentPublicationPaths({
       consumerRoot: request.consumerRoot,
-      destination: request.temporary.path
+      destination: request.temporary.path,
     });
     await this.#operations.syncDirectoryStrictly(paths.parent);
     const recaptured = await recaptureDocumentPublicationPaths({
       consumerRoot: request.consumerRoot,
-      destination: request.temporary.path
+      destination: request.temporary.path,
     });
     if (!sameDocumentAncestry(paths.ancestryIdentities, recaptured.ancestryIdentities)) {
       throw new Error("Document temporary parent changed during durability preflight.");
@@ -458,22 +466,19 @@ export class NodeDocumentPublisher implements DocumentPublisher {
       parent: recaptured.parent,
       rm: this.#operations.remove,
       syncDirectory: this.#operations.syncDirectoryDurably,
-      temporaryPath: recaptured.destinationPath
+      temporaryPath: recaptured.destinationPath,
     });
     if (outcome === "different") {
       throw new Error("Document temporary was replaced and was preserved.");
     }
     await this.#operations.faultInjector?.({
-      phase: "after-temporary-cleanup-synced"
+      phase: "after-temporary-cleanup-synced",
     });
     const final = await recaptureDocumentPublicationPaths({
       consumerRoot: request.consumerRoot,
-      destination: request.temporary.path
+      destination: request.temporary.path,
     });
-    if (!sameDocumentAncestry(
-      recaptured.ancestryIdentities,
-      final.ancestryIdentities
-    )) {
+    if (!sameDocumentAncestry(recaptured.ancestryIdentities, final.ancestryIdentities)) {
       throw new Error("Document temporary ancestry changed during cleanup.");
     }
   }

@@ -20,13 +20,14 @@ async function createFixture() {
   return root;
 }
 
-const inspect = (root) => new NodeDocsAdoptionInspector().inspect({
-  policy: "portable-v1",
-  authorityPaths: [".docs-protocol/metadata.schema.json"],
-  consumerRoot: root,
-  profilePath,
-  skillPath
-});
+const inspect = (root) =>
+  new NodeDocsAdoptionInspector().inspect({
+    policy: "portable-v1",
+    authorityPaths: [".docs-protocol/metadata.schema.json"],
+    consumerRoot: root,
+    profilePath,
+    skillPath,
+  });
 
 test("portable adoption accepts only the generic Skill route and contained authorities", async () => {
   const root = await createFixture();
@@ -65,6 +66,8 @@ test("portable adoption rejects symlinked and hardlinked workflow authority", as
     await link(join(hardlinkRoot, skillPath), join(hardlinkRoot, "skill-alias.md"));
     assert.ok((await inspect(hardlinkRoot)).some(({ subject }) => subject === skillPath));
   } finally {
-    await Promise.all([symlinkRoot, hardlinkRoot].map((root) => rm(root, { recursive: true, force: true })));
+    await Promise.all(
+      [symlinkRoot, hardlinkRoot].map((root) => rm(root, { recursive: true, force: true })),
+    );
   }
 });

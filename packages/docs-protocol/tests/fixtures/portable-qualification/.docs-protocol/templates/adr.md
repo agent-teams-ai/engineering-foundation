@@ -1,4 +1,4 @@
-````markdown
+```markdown
 ---
 placeholder: true
 ---
@@ -10,4 +10,4 @@ placeholder: true
 ## Decision
 
 ## Consequences
-````
+```

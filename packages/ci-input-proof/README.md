@@ -5,7 +5,7 @@ product runtime code. There are no runtime dependencies, I/O, hashing, cache,
 Get Modular dependency, execution receipts or merge authority.
 
 ```ts
-import { compareLeafInventories } from '@agent-teams/ci-input-proof';
+import { compareLeafInventories } from "@agent-teams/ci-input-proof";
 
 const relation = compareLeafInventories(before, after, permittedContentChanges);
 ```
@@ -85,16 +85,48 @@ documentation body is permitted structural content. The independently collected
 before/current inventories can have this minimal shape:
 
 ```ts
-import { compareLeafInventories, type LeafInventory } from '@agent-teams/ci-input-proof';
-const before: LeafInventory = { version: 1, digestScheme: 'sha256', inputs: [
-  { path: 'parser.ts', type: 'file', mode: '100644', membership: 'closed', content: '1'.repeat(64) },
-  { path: 'docs/usage.md', type: 'file', mode: '100644', membership: 'structural', content: '2'.repeat(64) },
-] };
-const current: LeafInventory = { version: 1, digestScheme: 'sha256', inputs: [
-  { path: 'parser.ts', type: 'file', mode: '100644', membership: 'closed', content: '1'.repeat(64) },
-  { path: 'docs/usage.md', type: 'file', mode: '100644', membership: 'structural', content: '3'.repeat(64) },
-] };
-const relation = compareLeafInventories(before, current, ['docs/usage.md']);
+import { compareLeafInventories, type LeafInventory } from "@agent-teams/ci-input-proof";
+const before: LeafInventory = {
+  version: 1,
+  digestScheme: "sha256",
+  inputs: [
+    {
+      path: "parser.ts",
+      type: "file",
+      mode: "100644",
+      membership: "closed",
+      content: "1".repeat(64),
+    },
+    {
+      path: "docs/usage.md",
+      type: "file",
+      mode: "100644",
+      membership: "structural",
+      content: "2".repeat(64),
+    },
+  ],
+};
+const current: LeafInventory = {
+  version: 1,
+  digestScheme: "sha256",
+  inputs: [
+    {
+      path: "parser.ts",
+      type: "file",
+      mode: "100644",
+      membership: "closed",
+      content: "1".repeat(64),
+    },
+    {
+      path: "docs/usage.md",
+      type: "file",
+      mode: "100644",
+      membership: "structural",
+      content: "3".repeat(64),
+    },
+  ],
+};
+const relation = compareLeafInventories(before, current, ["docs/usage.md"]);
 ```
 
 These inert values illustrate the relation, not a complete collector. A compatible
@@ -294,13 +326,13 @@ qualifies Jest ESM.
 
 ### Pins, migration and support checklist
 
-| Item | Exact support |
-| --- | --- |
-| Node | repository `.node-version` `26.11.1`; package engines `^24.18.0 || ^26.0.0` |
-| pnpm | package range `>=11.17.0 <12`; this repository pins `pnpm@11.20.0` |
-| TypeScript | repository catalog pin `7.0.2` |
-| Package dependencies | no runtime dependencies; no floating dependency ranges |
-| Module format | ESM public root only; no CommonJS fallback |
+| Item                             | Exact support                                                                           |
+| -------------------------------- | --------------------------------------------------------------------------------------- |
+| Node                             | repository `.node-version` `26.11.1`; package engines `^24.18.0                         |     | ^26.0.0` |
+| pnpm                             | package range `>=11.17.0 <12`; this repository pins `pnpm@11.20.0`                      |
+| TypeScript                       | repository catalog pin `7.0.2`                                                          |
+| Package dependencies             | no runtime dependencies; no floating dependency ranges                                  |
+| Module format                    | ESM public root only; no CommonJS fallback                                              |
 | Historical published predecessor | `0.1.0-rc.0`; successor availability follows the exact manifest/registry release record |
 
 Before enabling any consumer omission:

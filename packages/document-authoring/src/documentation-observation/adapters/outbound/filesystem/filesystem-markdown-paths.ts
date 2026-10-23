@@ -6,7 +6,7 @@ import {
   isMissingMarkdownFilesystemError,
   nodeFilesystemMarkdownOperations,
   throwMarkdownFilesystemUnavailable,
-  type FilesystemMarkdownOperations
+  type FilesystemMarkdownOperations,
 } from "./filesystem-markdown-filesystem.js";
 
 export interface FilesystemMarkdownRepositoryContext {
@@ -16,7 +16,7 @@ export interface FilesystemMarkdownRepositoryContext {
 export async function createFilesystemMarkdownRepositoryContext(
   consumerRoot: string,
   filesystem: FilesystemMarkdownOperations = nodeFilesystemMarkdownOperations,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<FilesystemMarkdownRepositoryContext> {
   assertNotCancelled(signal);
   let canonicalRoot: string;
@@ -33,9 +33,9 @@ export async function createFilesystemMarkdownRepositoryContext(
           code: "DOCUMENTATION_CONSUMER_ROOT_MISSING",
           message: "Consumer root must be an existing directory.",
           phase: "documentation-observation",
-          retryable: false
+          retryable: false,
         },
-        { cause: error }
+        { cause: error },
       );
     }
     throwMarkdownFilesystemUnavailable(error, "accessing the consumer root");
@@ -46,23 +46,17 @@ export async function createFilesystemMarkdownRepositoryContext(
       code: "DOCUMENTATION_CONSUMER_ROOT_INVALID",
       message: "Consumer root must be a directory.",
       phase: "documentation-observation",
-      retryable: false
+      retryable: false,
     });
   }
   return { canonicalRoot };
 }
 
-export function markdownRepositoryPath(
-  root: string,
-  absolutePath: string
-): string {
+export function markdownRepositoryPath(root: string, absolutePath: string): string {
   return relative(root, absolutePath).split(sep).join("/");
 }
 
-export function isWithinMarkdownRepository(
-  root: string,
-  candidate: string
-): boolean {
+export function isWithinMarkdownRepository(root: string, candidate: string): boolean {
   const relation = relative(root, candidate);
   return relation !== ".." && !relation.startsWith(`..${sep}`) && !isAbsolute(relation);
 }

@@ -5,13 +5,9 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 const RELEASE_BRANCH = "changeset-release/main";
-const ACCEPTED_ADR_BASELINE_PATH =
-  "architecture/decisions/accepted-decisions.json";
+const ACCEPTED_ADR_BASELINE_PATH = "architecture/decisions/accepted-decisions.json";
 const LEGACY_ADR_ROOT = "docs/decisions";
-const RELEASE_OWNED_PREFIXES = [
-  "architecture/contracts/",
-  "architecture/public-api/",
-];
+const RELEASE_OWNED_PREFIXES = ["architecture/contracts/", "architecture/public-api/"];
 const ADR_ID = /^ADR-\d{4}$/u;
 const IMMUTABLE_DIGEST = /^sha256:[a-f0-9]{64}$/u;
 
@@ -28,9 +24,7 @@ function isRepositoryMarkdownPath(value) {
     value.endsWith(".md") &&
     !value.startsWith("/") &&
     !value.includes("\\") &&
-    value.split("/").every(
-      (segment) => segment.length > 0 && segment !== "." && segment !== "..",
-    )
+    value.split("/").every((segment) => segment.length > 0 && segment !== "." && segment !== "..")
   );
 }
 
@@ -58,9 +52,7 @@ function parseAcceptedAdrBaseline(source, revision) {
   try {
     value = JSON.parse(source);
   } catch {
-    throw new Error(
-      `Accepted ADR baseline at ${revision} is not valid JSON.`,
-    );
+    throw new Error(`Accepted ADR baseline at ${revision} is not valid JSON.`);
   }
   if (
     !isRecord(value) ||
@@ -91,14 +83,8 @@ function parseAcceptedAdrBaseline(source, revision) {
     ids.add(candidate.id);
     paths.add(candidate.path);
   }
-  if (
-    entries.some(
-      (entry, index) => index > 0 && entries[index - 1].id >= entry.id,
-    )
-  ) {
-    throw new Error(
-      `Accepted ADR baseline at ${revision} must be sorted by unique ADR ID.`,
-    );
+  if (entries.some((entry, index) => index > 0 && entries[index - 1].id >= entry.id)) {
+    throw new Error(`Accepted ADR baseline at ${revision} must be sorted by unique ADR ID.`);
   }
   return entries;
 }
@@ -116,9 +102,7 @@ export function acceptedAdrHistoryViolations(previousSource, currentSource) {
   }
   const previous = parseAcceptedAdrBaseline(previousSource, "merge base");
   if (currentSource === null) {
-    return [
-      `Accepted ADR history baseline ${ACCEPTED_ADR_BASELINE_PATH} was deleted.`,
-    ];
+    return [`Accepted ADR history baseline ${ACCEPTED_ADR_BASELINE_PATH} was deleted.`];
   }
   const current = parseAcceptedAdrBaseline(currentSource, "HEAD");
   const currentById = new Map(current.map((entry) => [entry.id, entry]));
@@ -179,21 +163,13 @@ function sourceWithoutLeadingFrontmatter(source) {
 }
 
 function isLegacyAcceptedAdr(source) {
-  return (
-    /^# ADR-\d{4}: /mu.test(source) &&
-    /^Status: (?:Accepted|Superseded)\s*$/mu.test(source)
-  );
+  return /^# ADR-\d{4}: /mu.test(source) && /^Status: (?:Accepted|Superseded)\s*$/mu.test(source);
 }
 
 async function legacyAcceptedAdrSources(cwd, revision) {
-  const paths = (await gitOutput(cwd, [
-    "ls-tree",
-    "-r",
-    "--name-only",
-    revision,
-    "--",
-    LEGACY_ADR_ROOT,
-  ]))
+  const paths = (
+    await gitOutput(cwd, ["ls-tree", "-r", "--name-only", revision, "--", LEGACY_ADR_ROOT])
+  )
     .split(/\r?\n/u)
     .filter((path) => path.endsWith(".md"))
     .toSorted();
@@ -203,9 +179,7 @@ async function legacyAcceptedAdrSources(cwd, revision) {
       source: await gitFileAtRevision(cwd, revision, path),
     })),
   );
-  return entries.filter(
-    (entry) => entry.source !== null && isLegacyAcceptedAdr(entry.source),
-  );
+  return entries.filter((entry) => entry.source !== null && isLegacyAcceptedAdr(entry.source));
 }
 
 async function acceptedAdrBootstrapViolations(input) {
@@ -237,9 +211,7 @@ export async function acceptedAdrHistoryViolationsAtMergeBase({
   cwd = process.cwd(),
   headReference = "HEAD",
 }) {
-  const mergeBase = (
-    await gitOutput(cwd, ["merge-base", baseReference, headReference])
-  ).trim();
+  const mergeBase = (await gitOutput(cwd, ["merge-base", baseReference, headReference])).trim();
   if (!/^[0-9a-f]{40}$/u.test(mergeBase)) {
     throw new Error("Git merge-base did not return an immutable commit identifier.");
   }
@@ -266,12 +238,7 @@ function protectedPaths(change) {
     : [change.path];
 }
 
-export function releaseOwnedFileViolations(
-  changes,
-  headReference,
-  headRepository,
-  baseRepository,
-) {
+export function releaseOwnedFileViolations(changes, headReference, headRepository, baseRepository) {
   if (
     headReference === RELEASE_BRANCH &&
     headRepository !== undefined &&
@@ -300,7 +267,7 @@ async function changedPullRequestPaths() {
   const { stdout } = await execFileAsync(
     "git",
     ["diff", "--name-status", "--diff-filter=ACMRTD", `origin/${base}...HEAD`, "--"],
-    { encoding: "utf8" }
+    { encoding: "utf8" },
   );
   return stdout
     .split(/\r?\n/u)
@@ -347,7 +314,7 @@ async function main() {
   const violations = [...releaseOwnedViolations, ...historyViolations].toSorted();
   if (violations.length > 0) {
     throw new Error(
-      `Release-owned or accepted-ADR history policy failed: ${violations.join(", ")}.`
+      `Release-owned or accepted-ADR history policy failed: ${violations.join(", ")}.`,
     );
   }
 }

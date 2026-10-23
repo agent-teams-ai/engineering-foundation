@@ -12,19 +12,27 @@ export interface GrowthInvocation {
   readonly lockDigest: GrowthDigest;
   readonly toolchainDigest: GrowthDigest;
   readonly artifactDigests: readonly GrowthDigest[];
-  readonly tool: { readonly version: string; readonly artifactDigest: GrowthDigest; readonly extractorVersion: string };
+  readonly tool: {
+    readonly version: string;
+    readonly artifactDigest: GrowthDigest;
+    readonly extractorVersion: string;
+  };
 }
 export interface GrowthCancellation {
   readonly signal?: AbortSignal;
   throwIfCancelled(): void;
 }
-export type GrowthResolutionStep =
-  | { readonly condition: string }
-  | { readonly index: number };
+export type GrowthResolutionStep = { readonly condition: string } | { readonly index: number };
 export type GrowthResolutionTree =
   | { readonly kind: "target"; readonly target: string }
   | { readonly kind: "null" }
-  | { readonly kind: "conditions"; readonly entries: readonly { readonly condition: string; readonly value: GrowthResolutionTree }[] }
+  | {
+      readonly kind: "conditions";
+      readonly entries: readonly {
+        readonly condition: string;
+        readonly value: GrowthResolutionTree;
+      }[];
+    }
   | { readonly kind: "fallbacks"; readonly entries: readonly GrowthResolutionTree[] };
 export interface GrowthCoordinate {
   readonly packageName: string;
@@ -37,12 +45,23 @@ export interface GrowthCoordinate {
     | { readonly kind: "data" | "wildcard-member"; readonly member: string }
     | { readonly kind: "package" };
 }
-export const growthDimensions = ["topology", "resolution", "typed", "reachable", "runtime", "bin", "data", "wildcard", "packed", "decision"] as const;
+export const growthDimensions = [
+  "topology",
+  "resolution",
+  "typed",
+  "reachable",
+  "runtime",
+  "bin",
+  "data",
+  "wildcard",
+  "packed",
+  "decision",
+] as const;
 export interface GrowthCoverage {
   readonly packageName: string;
   readonly classification: "governed" | "private-only";
   readonly dimensions: readonly {
-    readonly dimension: typeof growthDimensions[number];
+    readonly dimension: (typeof growthDimensions)[number];
     readonly status: "complete" | "limited" | "unsupported" | "unavailable";
     readonly reasons: readonly string[];
   }[];
@@ -53,13 +72,18 @@ export interface GrowthSurfaceObservation extends GrowthInvocation {
   readonly coverage: readonly GrowthCoverage[];
   readonly entries: readonly {
     readonly coordinate: GrowthCoordinate;
-    readonly value: { readonly state: "absent" } | { readonly state: "present"; readonly digest: GrowthDigest };
+    readonly value:
+      | { readonly state: "absent" }
+      | { readonly state: "present"; readonly digest: GrowthDigest };
   }[];
 }
 export interface GrowthCompatibilityPackage {
   readonly packageName: string;
   readonly typed: { readonly kind: "typed"; readonly snapshot: GrowthEvidence<PublicApiSnapshot> };
-  readonly artifact: { readonly kind: "artifact"; readonly snapshot: GrowthEvidence<PublicApiSnapshot> };
+  readonly artifact: {
+    readonly kind: "artifact";
+    readonly snapshot: GrowthEvidence<PublicApiSnapshot>;
+  };
 }
 export interface GrowthObservationExecution {
   readonly identity: GrowthInvocation;
@@ -86,4 +110,12 @@ export class GrowthObservationUnavailableError extends Error {
   }
 }
 
-export type GrowthObservationReference = Pick<GrowthInvocation, "sourceCommit" | "sourceTree" | "topologyDigest" | "lockDigest" | "toolchainDigest" | "artifactDigests"> & { readonly surfaceDigest: GrowthDigest };
+export type GrowthObservationReference = Pick<
+  GrowthInvocation,
+  | "sourceCommit"
+  | "sourceTree"
+  | "topologyDigest"
+  | "lockDigest"
+  | "toolchainDigest"
+  | "artifactDigests"
+> & { readonly surfaceDigest: GrowthDigest };

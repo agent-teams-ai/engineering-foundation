@@ -5,7 +5,7 @@ import {
   computeInstalledArtifactBuildIdentity,
   installedRepositoryMutationBuildIdentity,
   installedRepositoryMutationVersion,
-  REPOSITORY_MUTATION_PACKAGE_NAME
+  REPOSITORY_MUTATION_PACKAGE_NAME,
 } from "@agent-teams/repository-mutation";
 import type { DocumentTransactionEnvelope } from "../../application/model/document-transaction.js";
 
@@ -13,10 +13,11 @@ const packageRoot = dirname(fileURLToPath(new URL("../../../../package.json", im
 
 function computeDocumentAuthoringBuildIdentity(
   root: string,
-  limits: { readonly maximumVisitedEntries?: number } = {}
+  limits: { readonly maximumVisitedEntries?: number } = {},
 ): Promise<`sha256:${string}`> {
   return computeInstalledArtifactBuildIdentity(
-    { packageRoot: root, roots: ["dist", "schemas"] }, limits
+    { packageRoot: root, roots: ["dist", "schemas"] },
+    limits,
   );
 }
 
@@ -26,9 +27,12 @@ export function installedDocumentAuthoringBuildIdentity(): Promise<`sha256:${str
   return installedIdentity;
 }
 
-export async function installedDocumentMutationArtifact(): Promise<DocumentTransactionEnvelope["kernelArtifact"]> {
+export async function installedDocumentMutationArtifact(): Promise<
+  DocumentTransactionEnvelope["kernelArtifact"]
+> {
   const [version, buildIdentity] = await Promise.all([
-    installedRepositoryMutationVersion(), installedRepositoryMutationBuildIdentity()
+    installedRepositoryMutationVersion(),
+    installedRepositoryMutationBuildIdentity(),
   ]);
   return Object.freeze({ name: REPOSITORY_MUTATION_PACKAGE_NAME, version, buildIdentity });
 }

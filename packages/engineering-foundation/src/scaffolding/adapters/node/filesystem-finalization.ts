@@ -1,35 +1,29 @@
 import type { ScaffoldJournalStore } from "./scaffold-journal-store.js";
 import type {
   AuthorityScaffoldJournal,
-  AuthorityScaffoldOperationReceipt
+  AuthorityScaffoldOperationReceipt,
 } from "../../contract/types.js";
-import type {
-  AuthorityScaffoldPlan
-} from "../../application/model/scaffold-compilation.js";
-import type {
-  AuthorityScaffoldReceipt
-} from "../../contract/receipt-authority-types.js";
+import type { AuthorityScaffoldPlan } from "../../application/model/scaffold-compilation.js";
+import type { AuthorityScaffoldReceipt } from "../../contract/receipt-authority-types.js";
 import { createAuthorityScaffoldReceipt } from "../inbound/authority-scaffold-receipt.js";
 import {
   recoveryRequiredForAuthority,
   resolveAuthority,
-  safeClassifyPlan
+  safeClassifyPlan,
 } from "./filesystem-authority.js";
 import { assertNoOwnedCleanupResidue } from "./filesystem-operation-state.js";
 import {
   createAuthorityDiagnostic,
   freshAuthorityScaffoldJournal,
   replaceScaffoldJournalOperation,
-  receiptFromJournalStates
+  receiptFromJournalStates,
 } from "./filesystem-journal-state.js";
 import {
   createScaffoldJournalReconciled,
   removeScaffoldJournalReconciled,
-  replaceScaffoldJournalReconciled
+  replaceScaffoldJournalReconciled,
 } from "./node-scaffold-journal-gateway.js";
-import {
-  type ScaffoldJournalAuthority
-} from "./node-scaffold-journal-store.js";
+import { type ScaffoldJournalAuthority } from "./node-scaffold-journal-store.js";
 import type { AssessScaffoldPlanAuthority } from "./scaffold-filesystem-dependencies.js";
 
 interface FinalizationFaultPoint {
@@ -40,9 +34,7 @@ interface FinalizationFaultPoint {
     | "before-final-authority-recheck";
 }
 
-type FinalizationFaultInjector = (
-  point: FinalizationFaultPoint
-) => Promise<void> | void;
+type FinalizationFaultInjector = (point: FinalizationFaultPoint) => Promise<void> | void;
 
 export function staleBeforeJournal(plan: AuthorityScaffoldPlan): AuthorityScaffoldReceipt {
   return createAuthorityScaffoldReceipt({
@@ -52,7 +44,7 @@ export function staleBeforeJournal(plan: AuthorityScaffoldPlan): AuthorityScaffo
     operations: plan.operations.map((operation) => ({
       operationId: operation.id,
       path: operation.path,
-      outcome: "not-applied"
+      outcome: "not-applied",
     })),
     diagnostics: [
       createAuthorityDiagnostic(
@@ -60,21 +52,19 @@ export function staleBeforeJournal(plan: AuthorityScaffoldPlan): AuthorityScaffo
         "apply",
         plan.projectId,
         "Consumer authority changed after planning.",
-        "Compile a new Plan from the current consumer authority."
-      )
-    ]
+        "Compile a new Plan from the current consumer authority.",
+      ),
+    ],
   });
 }
 
-function authorityUnverifiableBeforeJournal(
-  plan: AuthorityScaffoldPlan
-): AuthorityScaffoldReceipt {
+function authorityUnverifiableBeforeJournal(plan: AuthorityScaffoldPlan): AuthorityScaffoldReceipt {
   return recoveryRequiredForAuthority({
     plan,
     phase: "apply",
     ruleId: "scaffolding.authority.unverifiable",
     message: "Authority cannot be re-verified safely; no output was created.",
-    remediation: "Restore readable authority sources, then compile a new Plan."
+    remediation: "Restore readable authority sources, then compile a new Plan.",
   });
 }
 
@@ -92,7 +82,7 @@ async function classifyBeforeJournal(options: {
       phase: "apply",
       ruleId: "scaffolding.apply.unverifiable-workspace",
       message: "The workspace cannot be safely verified before commit.",
-      remediation: "Resolve the filesystem state manually, then compile a new Plan."
+      remediation: "Resolve the filesystem state manually, then compile a new Plan.",
     });
   }
   if (states.every(({ state }) => state === "after")) {
@@ -101,11 +91,7 @@ async function classifyBeforeJournal(options: {
   let journal = freshAuthorityScaffoldJournal(options.plan);
   for (const { operation, state } of states) {
     if (state === "after") {
-      journal = replaceScaffoldJournalOperation(
-        journal,
-        operation.id,
-        "preexisting"
-      );
+      journal = replaceScaffoldJournalOperation(journal, operation.id, "preexisting");
     }
   }
   return receiptFromJournalStates({
@@ -114,10 +100,8 @@ async function classifyBeforeJournal(options: {
     outcome: "rejected",
     phase: "apply",
     conflictOperationIds: new Set(
-      states
-        .filter(({ state }) => state === "conflict")
-        .map(({ operation }) => operation.id)
-    )
+      states.filter(({ state }) => state === "conflict").map(({ operation }) => operation.id),
+    ),
   });
 }
 
@@ -131,10 +115,7 @@ export async function verifyAlreadyAppliedScaffold(options: {
 }): Promise<AuthorityScaffoldReceipt> {
   await options.faultInjector?.({ phase: "before-final-authority-recheck" });
   for (let pass = 0; pass < 2; pass += 1) {
-    const authority = await options.assessPlanAuthority(
-      options.root,
-      options.plan
-    );
+    const authority = await options.assessPlanAuthority(options.root, options.plan);
     if (authority.state === "stale") {
       return staleBeforeJournal(options.plan);
     }
@@ -165,8 +146,8 @@ export async function verifyAlreadyAppliedScaffold(options: {
       operationId: operation.id,
       path: operation.path,
       outcome: "already-satisfied",
-      resultDigest: operation.after.digest
-    }))
+      resultDigest: operation.after.digest,
+    })),
   });
 }
 
@@ -187,9 +168,7 @@ function isReceipt(value: unknown): value is AuthorityScaffoldReceipt {
   return typeof value === "object" && value !== null && "receiptDigest" in value;
 }
 
-async function verifyOutputs(
-  options: FinalizationOptions
-): Promise<
+async function verifyOutputs(options: FinalizationOptions): Promise<
   | AuthorityScaffoldReceipt
   | readonly {
       readonly operation: AuthorityScaffoldJournal["plan"]["operations"][number];
@@ -206,13 +185,11 @@ async function verifyOutputs(
       phase: options.recovered ? "recovery" : "apply",
       ruleId: "scaffolding.recovery.unverifiable-workspace",
       message: "The workspace cannot be safely verified after publication.",
-      remediation: "Resolve the filesystem state manually, then retry recovery."
+      remediation: "Resolve the filesystem state manually, then retry recovery.",
     });
   }
   const conflictIds = new Set(
-    states
-      .filter(({ state }) => state !== "after")
-      .map(({ operation }) => operation.id)
+    states.filter(({ state }) => state !== "after").map(({ operation }) => operation.id),
   );
   if (conflictIds.size === 0) {
     return states;
@@ -220,14 +197,14 @@ async function verifyOutputs(
   await replaceScaffoldJournalReconciled(
     options.journalStore,
     { journal: options.journal, journalAuthority: options.journalAuthority },
-    options.journal
+    options.journal,
   );
   return receiptFromJournalStates({
     plan: options.journal.plan,
     journal: options.journal,
     outcome: "recovery-required",
     phase: "recovery",
-    conflictOperationIds: conflictIds
+    conflictOperationIds: conflictIds,
   });
 }
 
@@ -235,18 +212,18 @@ function observedOperations(
   states: readonly {
     readonly operation: AuthorityScaffoldJournal["plan"]["operations"][number];
     readonly state: "absent" | "after" | "conflict";
-  }[]
+  }[],
 ): readonly AuthorityScaffoldOperationReceipt[] {
   return states.map(({ operation }) => ({
     operationId: operation.id,
     path: operation.path,
     outcome: "already-satisfied" as const,
-    resultDigest: operation.after.digest
+    resultDigest: operation.after.digest,
   }));
 }
 
 export async function finalizeAuthorityScaffoldJournal(
-  options: FinalizationOptions
+  options: FinalizationOptions,
 ): Promise<AuthorityScaffoldReceipt> {
   await options.faultInjector?.({ phase: "before-final-authority-recheck" });
   const firstAuthority = await resolveAuthority(options);
@@ -259,7 +236,7 @@ export async function finalizeAuthorityScaffoldJournal(
   }
   const finalAuthority = await resolveAuthority({
     ...options,
-    observedOperations: observedOperations(firstStates)
+    observedOperations: observedOperations(firstStates),
   });
   if (finalAuthority !== undefined) {
     return finalAuthority;
@@ -273,17 +250,14 @@ export async function finalizeAuthorityScaffoldJournal(
   options.journalFaultContext.finalizing = true;
   await removeScaffoldJournalReconciled(options.journalStore, {
     journal: options.journal,
-    journalAuthority: options.journalAuthority
+    journalAuthority: options.journalAuthority,
   });
   options.journalFaultContext.finalizing = false;
   try {
     await options.faultInjector?.({ phase: "after-journal-unlinked" });
   } catch (error) {
     const observed = await options.journalStore.stabilizeForReconciliation();
-    if (
-      observed.outcome !== "stable" ||
-      observed.stored !== undefined
-    ) {
+    if (observed.outcome !== "stable" || observed.stored !== undefined) {
       throw error;
     }
   }
@@ -291,13 +265,14 @@ export async function finalizeAuthorityScaffoldJournal(
     plan: options.journal.plan,
     outcome: options.recovered ? "failed-recovered" : "applied",
     commitState: options.recovered ? "recovered" : "committed",
-    operations: options.journal.plan.operations.map((operation) =>
-      options.receipts.get(operation.id) ?? {
-        operationId: operation.id,
-        path: operation.path,
-        outcome: "already-satisfied" as const,
-        resultDigest: operation.after.digest
-      }
-    )
+    operations: options.journal.plan.operations.map(
+      (operation) =>
+        options.receipts.get(operation.id) ?? {
+          operationId: operation.id,
+          path: operation.path,
+          outcome: "already-satisfied" as const,
+          resultDigest: operation.after.digest,
+        },
+    ),
   });
 }

@@ -4,11 +4,7 @@ import { readFile } from "node:fs/promises";
 const OBSERVATION_TIMEOUT_MS = 10_000;
 
 function confirmedTimeout(error) {
-  return (
-    error?.timedOut === true &&
-    error?.killed === true &&
-    error?.terminationConfirmed === true
-  );
+  return error?.timedOut === true && error?.killed === true && error?.terminationConfirmed === true;
 }
 
 async function defaultReadVersion(registryUrl, name, version) {
@@ -61,12 +57,15 @@ export async function publishWithExactEffectReconciliation({
     await publish();
     return "published";
   } catch (error) {
-    if (!confirmedTimeout(error) || !await observe({
-      archivePath,
-      name,
-      registryUrl,
-      version,
-    })) {
+    if (
+      !confirmedTimeout(error) ||
+      !(await observe({
+        archivePath,
+        name,
+        registryUrl,
+        version,
+      }))
+    ) {
       throw error;
     }
     return "reconciled";

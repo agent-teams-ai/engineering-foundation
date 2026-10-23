@@ -3,12 +3,9 @@ import type {
   AgentWorkflowInvocation,
   AgentWorkflowStepReport,
   RepositoryChanges,
-  ScriptExecutionResult
+  ScriptExecutionResult,
 } from "../model/changed-workflow.js";
-import type {
-  PackageScriptRunner,
-  RepositoryChangesReader
-} from "../ports/changed-workflow.js";
+import type { PackageScriptRunner, RepositoryChangesReader } from "../ports/changed-workflow.js";
 
 const MAX_PATH_ARGUMENTS = 200;
 const MAX_PATH_ARGUMENT_BYTES = 24 * 1024;
@@ -25,8 +22,7 @@ function pathMatchesTrigger(path: string, trigger: string): boolean {
 function exceedsArgumentBudget(paths: readonly string[]): boolean {
   return (
     paths.length > MAX_PATH_ARGUMENTS ||
-    paths.reduce((total, path) => total + Buffer.byteLength(path) + 1, 0) >
-      MAX_PATH_ARGUMENT_BYTES
+    paths.reduce((total, path) => total + Buffer.byteLength(path) + 1, 0) > MAX_PATH_ARGUMENT_BYTES
   );
 }
 
@@ -44,31 +40,28 @@ async function executeStep(
   runner: PackageScriptRunner,
   id: string,
   script: string,
-  paths: readonly string[]
+  paths: readonly string[],
 ): Promise<AgentWorkflowStepReport> {
   const result = await runner.run({
     packageManager: input.policy.packageManager,
     consumerRoot: input.consumerRoot,
     script,
     paths,
-    ...(input.signal === undefined ? {} : { signal: input.signal })
+    ...(input.signal === undefined ? {} : { signal: input.signal }),
   });
   return Object.freeze({
     id,
     script,
     paths: Object.freeze([...paths]),
     outcome: result.exitCode === 0 ? "passed" : "violations",
-    output: output(result)
+    output: output(result),
   });
 }
 
-function shouldRunFastFull(
-  input: AgentWorkflowInvocation,
-  changes: RepositoryChanges
-): boolean {
+function shouldRunFastFull(input: AgentWorkflowInvocation, changes: RepositoryChanges): boolean {
   return (
     changes.changedPaths.some((path) =>
-      input.policy.fullScanPaths.some((trigger) => pathMatchesTrigger(path, trigger))
+      input.policy.fullScanPaths.some((trigger) => pathMatchesTrigger(path, trigger)),
     ) ||
     changes.deletedPaths.length > 0 ||
     changes.changedPaths.length !== changes.existingPaths.length ||
@@ -79,24 +72,18 @@ function shouldRunFastFull(
 async function changedSteps(
   input: AgentWorkflowInvocation,
   changes: RepositoryChanges,
-  runner: PackageScriptRunner
+  runner: PackageScriptRunner,
 ): Promise<readonly AgentWorkflowStepReport[]> {
   const steps: AgentWorkflowStepReport[] = [];
   for (const check of input.policy.changedChecks) {
     const paths = changes.existingPaths.filter((path) =>
-      check.extensions.some((extension) => pathMatchesExtension(path, extension))
+      check.extensions.some((extension) => pathMatchesExtension(path, extension)),
     );
     if (paths.length === 0) {
       continue;
     }
     steps.push(
-      await executeStep(
-        input,
-        runner,
-        check.id,
-        check.script,
-        check.passPaths ? paths : []
-      )
+      await executeStep(input, runner, check.id, check.script, check.passPaths ? paths : []),
     );
   }
   return Object.freeze(steps);
@@ -105,30 +92,22 @@ async function changedSteps(
 export async function runChangedAgentWorkflow(
   input: AgentWorkflowInvocation,
   changesReader: RepositoryChangesReader,
-  scriptRunner: PackageScriptRunner
+  scriptRunner: PackageScriptRunner,
 ): Promise<AgentWorkflowChangedReport> {
   const changes = await changesReader.collect({
     consumerRoot: input.consumerRoot,
     ...(input.baseRef === undefined ? {} : { baseRef: input.baseRef }),
-    ...(input.signal === undefined ? {} : { signal: input.signal })
+    ...(input.signal === undefined ? {} : { signal: input.signal }),
   });
   const fastFull = shouldRunFastFull(input, changes);
   const steps = fastFull
     ? Object.freeze([
-        await executeStep(
-          input,
-          scriptRunner,
-          "fast-full",
-          input.policy.scripts.fast,
-          []
-        )
+        await executeStep(input, scriptRunner, "fast-full", input.policy.scripts.fast, []),
       ])
     : await changedSteps(input, changes, scriptRunner);
   return Object.freeze({
     reportSchemaVersion: 1,
-    outcome: steps.some(({ outcome }) => outcome === "violations")
-      ? "violations"
-      : "passed",
+    outcome: steps.some(({ outcome }) => outcome === "violations") ? "violations" : "passed",
     coverage: fastFull ? "fast-full" : "changed",
     baselineRef: changes.baselineRef,
     baselineCommit: changes.baselineCommit,
@@ -141,6 +120,6 @@ export async function runChangedAgentWorkflow(
     changeGroups: changes.changeGroups,
     scopeDigest: changes.scopeDigest,
     changedPaths: changes.changedPaths,
-    steps
+    steps,
   });
 }

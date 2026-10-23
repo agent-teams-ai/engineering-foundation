@@ -5,7 +5,7 @@ import type { PortablePathIdentity } from "@agent-teams/repository-mutation/path
 import {
   captureNodeRepositoryPathAuthority,
   recaptureNodeRepositoryPathAuthority,
-  sameNodePathIdentity
+  sameNodePathIdentity,
 } from "./node-path-authority.js";
 
 export interface RecapturedDocumentPublicationPaths {
@@ -16,16 +16,11 @@ export interface RecapturedDocumentPublicationPaths {
   readonly root: string;
 }
 
-async function assertNoOwnedCleanupResidue(
-  directories: readonly string[]
-): Promise<void> {
+async function assertNoOwnedCleanupResidue(directories: readonly string[]): Promise<void> {
   for (const directory of directories) {
     const entries = await readdir(directory);
-    if (entries.some((entry) =>
-      entry.includes(OWNED_TEMPORARY_CLEANUP_RESIDUE_MARKER))) {
-      throw new Error(
-        "A document temporary cleanup residue was preserved for manual recovery."
-      );
+    if (entries.some((entry) => entry.includes(OWNED_TEMPORARY_CLEANUP_RESIDUE_MARKER))) {
+      throw new Error("A document temporary cleanup residue was preserved for manual recovery.");
     }
   }
 }
@@ -37,20 +32,16 @@ export async function recaptureDocumentPublicationPaths(request: {
 }): Promise<RecapturedDocumentPublicationPaths> {
   const authority = await captureNodeRepositoryPathAuthority({
     consumerRoot: request.consumerRoot,
-    repositoryPath: request.destination
+    repositoryPath: request.destination,
   });
-  await assertNoOwnedCleanupResidue(
-    authority.ancestry.map((entry) => entry.absolutePath)
-  );
+  await assertNoOwnedCleanupResidue(authority.ancestry.map((entry) => entry.absolutePath));
   const recaptured = await recaptureNodeRepositoryPathAuthority(authority);
   return Object.freeze({
-    ancestryIdentities: Object.freeze(
-      recaptured.ancestry.map((entry) => entry.identity)
-    ),
+    ancestryIdentities: Object.freeze(recaptured.ancestry.map((entry) => entry.identity)),
     destinationPath: recaptured.destinationPath,
     parent: recaptured.parent,
     parentIdentity: recaptured.parentIdentity,
-    root: recaptured.root.canonicalRoot
+    root: recaptured.root.canonicalRoot,
   });
 }
 
@@ -58,9 +49,10 @@ export const sameDocumentPhysicalIdentity = sameNodePathIdentity;
 
 export function sameDocumentAncestry(
   left: readonly PortablePathIdentity[],
-  right: readonly PortablePathIdentity[]
+  right: readonly PortablePathIdentity[],
 ): boolean {
-  return left.length === right.length &&
-    left.every((identity, index) =>
-      sameNodePathIdentity(identity, right[index]!));
+  return (
+    left.length === right.length &&
+    left.every((identity, index) => sameNodePathIdentity(identity, right[index]!))
+  );
 }

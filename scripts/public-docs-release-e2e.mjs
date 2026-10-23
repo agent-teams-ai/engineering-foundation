@@ -10,10 +10,12 @@ import { releaseState } from "./release-publish.mjs";
 import { parseStableVersion } from "./release-publish-registry-version.mjs";
 
 async function readAuthority() {
-  return JSON.parse(await readFile(new URL(
-    "../architecture/foundation/open-source-docs-release.json",
-    import.meta.url,
-  ), "utf8"));
+  return JSON.parse(
+    await readFile(
+      new URL("../architecture/foundation/open-source-docs-release.json", import.meta.url),
+      "utf8",
+    ),
+  );
 }
 
 export function publicDocsReleaseQualificationDecision({ authority, release }) {
@@ -40,27 +42,25 @@ export async function main({
   qualify = verifyPublicExactDocsCoordinates,
   write = (line) => process.stdout.write(line),
 } = {}) {
-  const [authority, release] = await Promise.all([
-    loadAuthority(),
-    inspectReleaseState(cwd),
-  ]);
+  const [authority, release] = await Promise.all([loadAuthority(), inspectReleaseState(cwd)]);
   const releaseDecision = publicDocsReleaseQualificationDecision({ authority, release });
   if (releaseDecision.action === "skip") {
-    write("Public Docs Protocol release qualification SKIP: current release lacks stable public Docs coordinates.\n");
+    write(
+      "Public Docs Protocol release qualification SKIP: current release lacks stable public Docs coordinates.\n",
+    );
     return releaseDecision;
   }
 
   const temporaryRoot = await mkdtemp(resolve(tmpdir(), "public-docs-release-e2e-"));
   try {
-    const decision = requirePublicDocsDecision(
-      await qualify({ temporaryRoot }),
-      { required: true },
-    );
+    const decision = requirePublicDocsDecision(await qualify({ temporaryRoot }), {
+      required: true,
+    });
     write(
       `Public Docs Protocol release qualification PASS: ${decision.coordinates
         .map(({ name, version }) => `${name}@${version}`)
         .join(", ")}; provenance commit ${decision.commit}; ` +
-      `${decision.matrix.length} install profiles.\n`,
+        `${decision.matrix.length} install profiles.\n`,
     );
     return Object.freeze({ ...releaseDecision, qualification: decision });
   } finally {

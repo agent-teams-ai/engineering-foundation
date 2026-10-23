@@ -6,9 +6,15 @@ declare const leaseBrand: unique symbol;
 declare const observationBrand: unique symbol;
 declare const claimBrand: unique symbol;
 
-export interface MutationLease { readonly [leaseBrand]: true }
-export interface MutationObservation { readonly [observationBrand]: true }
-export interface MutationClaim { readonly [claimBrand]: true }
+export interface MutationLease {
+  readonly [leaseBrand]: true;
+}
+export interface MutationObservation {
+  readonly [observationBrand]: true;
+}
+export interface MutationClaim {
+  readonly [claimBrand]: true;
+}
 
 export interface MutationArtifactIdentity {
   readonly name: string;
@@ -56,13 +62,18 @@ interface ClaimState {
 const leases = new WeakMap<object, LeaseState>();
 const observations = new WeakMap<object, ObservationState>();
 const claims = new WeakMap<object, ClaimState>();
-function invalid(code: "MUTATION_CLAIM_INVALID" | "MUTATION_LEASE_INVALID", message: string): never {
+function invalid(
+  code: "MUTATION_CLAIM_INVALID" | "MUTATION_LEASE_INVALID",
+  message: string,
+): never {
   throw new RepositoryMutationError(code, message);
 }
 
 function leaseState(lease: MutationLease): LeaseState {
   const state = leases.get(lease);
-  if (state === undefined || state.released) {invalid("MUTATION_LEASE_INVALID", "Mutation lease is forged, released, or unavailable.");}
+  if (state === undefined || state.released) {
+    invalid("MUTATION_LEASE_INVALID", "Mutation lease is forged, released, or unavailable.");
+  }
   return state;
 }
 
@@ -71,13 +82,21 @@ async function assertPhysicalRoot(state: LeaseState): Promise<void> {
   try {
     current = await state.port.physicalRootIdentity(state.root);
   } catch (error) {
-    if (error instanceof RepositoryMutationError) {throw error;}
+    if (error instanceof RepositoryMutationError) {
+      throw error;
+    }
     invalid("MUTATION_LEASE_INVALID", "Mutation repository root cannot be revalidated.");
   }
-  if (current.birthtimeNs !== state.rootIdentity.birthtimeNs ||
-    current.dev !== state.rootIdentity.dev || current.ino !== state.rootIdentity.ino) {
+  if (
+    current.birthtimeNs !== state.rootIdentity.birthtimeNs ||
+    current.dev !== state.rootIdentity.dev ||
+    current.ino !== state.rootIdentity.ino
+  ) {
     state.retained = true;
-    invalid("MUTATION_LEASE_INVALID", "Mutation repository root changed after the physical lease was acquired.");
+    invalid(
+      "MUTATION_LEASE_INVALID",
+      "Mutation repository root changed after the physical lease was acquired.",
+    );
   }
 }
 
@@ -90,14 +109,24 @@ function binaryCompare(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
-function inertRecord(value: unknown, keys: readonly string[], label: string): Record<string, unknown> {
-  if (typeof value !== "object" || value === null || Array.isArray(value) ||
-    !hasPlainPrototype(value)) {
+function inertRecord(
+  value: unknown,
+  keys: readonly string[],
+  label: string,
+): Record<string, unknown> {
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    Array.isArray(value) ||
+    !hasPlainPrototype(value)
+  ) {
     invalid("MUTATION_CLAIM_INVALID", `${label} is not inert record data.`);
   }
   const ownKeys = Reflect.ownKeys(value);
-  if (!ownKeys.every((key) => typeof key === "string") ||
-    ownKeys.toSorted(binaryCompare).join(",") !== keys.toSorted(binaryCompare).join(",")) {
+  if (
+    !ownKeys.every((key) => typeof key === "string") ||
+    ownKeys.toSorted(binaryCompare).join(",") !== keys.toSorted(binaryCompare).join(",")
+  ) {
     invalid("MUTATION_CLAIM_INVALID", `${label} has an invalid shape.`);
   }
   const record: Record<string, unknown> = {};
@@ -112,23 +141,35 @@ function inertRecord(value: unknown, keys: readonly string[], label: string): Re
 }
 
 function snapshotArtifact(value: unknown, label: string): MutationArtifactIdentity {
-  const candidate = inertRecord(value, ["buildIdentity", "name", "version"], `${label} artifact identity`);
-  if (typeof candidate["name"] !== "string" || candidate["name"].length === 0 ||
-    typeof candidate["version"] !== "string" || candidate["version"].length === 0 ||
+  const candidate = inertRecord(
+    value,
+    ["buildIdentity", "name", "version"],
+    `${label} artifact identity`,
+  );
+  if (
+    typeof candidate["name"] !== "string" ||
+    candidate["name"].length === 0 ||
+    typeof candidate["version"] !== "string" ||
+    candidate["version"].length === 0 ||
     typeof candidate["buildIdentity"] !== "string" ||
-    !/^sha256:[0-9a-f]{64}$/u.test(candidate["buildIdentity"])) {
+    !/^sha256:[0-9a-f]{64}$/u.test(candidate["buildIdentity"])
+  ) {
     invalid("MUTATION_CLAIM_INVALID", `${label} artifact identity is invalid.`);
   }
   return Object.freeze({
     name: candidate["name"],
     version: candidate["version"],
-    buildIdentity: candidate["buildIdentity"]
+    buildIdentity: candidate["buildIdentity"],
   }) as MutationArtifactIdentity;
 }
 
 function snapshotIntent(intent: unknown): MutationIntent {
-  if (typeof intent !== "object" || intent === null || Array.isArray(intent) ||
-    !hasPlainPrototype(intent)) {
+  if (
+    typeof intent !== "object" ||
+    intent === null ||
+    Array.isArray(intent) ||
+    !hasPlainPrototype(intent)
+  ) {
     invalid("MUTATION_CLAIM_INVALID", "Mutation intent is not inert record data.");
   }
   const kindDescriptor = Object.getOwnPropertyDescriptor(intent, "kind");
@@ -140,18 +181,20 @@ function snapshotIntent(intent: unknown): MutationIntent {
     kindDescriptor.value === "apply-known-file"
       ? ["kernelArtifact", "kind", "ownerArtifact", "planDigest"]
       : ["kernelArtifact", "kind", "ownerArtifact"],
-    "Mutation intent"
+    "Mutation intent",
   );
   const ownerArtifact = snapshotArtifact(candidate["ownerArtifact"], "Owner");
   const kernelArtifact = snapshotArtifact(candidate["kernelArtifact"], "Kernel");
-  if (candidate["kind"] === "apply-known-file" &&
+  if (
+    candidate["kind"] === "apply-known-file" &&
     typeof candidate["planDigest"] === "string" &&
-    /^sha256:[0-9a-f]{64}$/u.test(candidate["planDigest"])) {
+    /^sha256:[0-9a-f]{64}$/u.test(candidate["planDigest"])
+  ) {
     return Object.freeze({
       kind: "apply-known-file",
       planDigest: candidate["planDigest"],
       ownerArtifact,
-      kernelArtifact
+      kernelArtifact,
     }) as MutationIntent;
   }
   if (candidate["kind"] === "recover-known-file") {
@@ -165,10 +208,16 @@ async function acquireMutationLease(root: string, port: MutationLeasePort): Prom
   const rootIdentity = await port.physicalRootIdentity(canonicalRoot);
   const release = await port.acquire(canonicalRoot);
   const currentIdentity = await port.physicalRootIdentity(canonicalRoot);
-  if (currentIdentity.birthtimeNs !== rootIdentity.birthtimeNs ||
-    currentIdentity.dev !== rootIdentity.dev || currentIdentity.ino !== rootIdentity.ino) {
+  if (
+    currentIdentity.birthtimeNs !== rootIdentity.birthtimeNs ||
+    currentIdentity.dev !== rootIdentity.dev ||
+    currentIdentity.ino !== rootIdentity.ino
+  ) {
     await release({ retainTransactionBarrier: true });
-    invalid("MUTATION_LEASE_INVALID", "Mutation repository root changed while its physical lease was acquired.");
+    invalid(
+      "MUTATION_LEASE_INVALID",
+      "Mutation repository root changed while its physical lease was acquired.",
+    );
   }
   const lease = Object.freeze({}) as MutationLease;
   leases.set(lease, {
@@ -178,7 +227,7 @@ async function acquireMutationLease(root: string, port: MutationLeasePort): Prom
     release,
     released: false,
     retained: false,
-    sequence: 0
+    sequence: 0,
   });
   return lease;
 }
@@ -192,7 +241,7 @@ export async function observeMutationState(lease: MutationLease): Promise<Mutati
     lease,
     fingerprint: snapshot.fingerprint,
     commonEvidence: snapshot.commonEvidence,
-    sequence: state.sequence
+    sequence: state.sequence,
   });
   return observation;
 }
@@ -200,21 +249,30 @@ export async function observeMutationState(lease: MutationLease): Promise<Mutati
 export async function claimMutation(
   lease: MutationLease,
   observation: MutationObservation,
-  intent: MutationIntent
+  intent: MutationIntent,
 ): Promise<MutationClaim> {
   const state = leaseState(lease);
   await assertPhysicalRoot(state);
   const observed = observations.get(observation);
   if (observed === undefined || observed.lease !== lease || observed.sequence !== state.sequence) {
-    invalid("MUTATION_CLAIM_INVALID", "Mutation observation is forged, stale, or belongs to another lease.");
+    invalid(
+      "MUTATION_CLAIM_INVALID",
+      "Mutation observation is forged, stale, or belongs to another lease.",
+    );
   }
   const current = await state.port.snapshot(state.root);
   if (observed.fingerprint !== current.fingerprint) {
-    invalid("MUTATION_CLAIM_INVALID", "Mutation observation became stale before the claim was issued.");
+    invalid(
+      "MUTATION_CLAIM_INVALID",
+      "Mutation observation became stale before the claim was issued.",
+    );
   }
   const capturedIntent = snapshotIntent(intent);
   if (capturedIntent.kind === "apply-known-file" && observed.commonEvidence) {
-    invalid("MUTATION_CLAIM_INVALID", "Common transaction evidence must be recovered before apply.");
+    invalid(
+      "MUTATION_CLAIM_INVALID",
+      "Common transaction evidence must be recovered before apply.",
+    );
   }
   if (capturedIntent.kind === "recover-known-file" && !observed.commonEvidence) {
     invalid("MUTATION_CLAIM_INVALID", "Known-file recovery requires common transaction evidence.");
@@ -227,18 +285,21 @@ export async function claimMutation(
     fingerprint: observed.fingerprint,
     commonEvidence: observed.commonEvidence,
     sequence: state.sequence,
-    consumed: false
+    consumed: false,
   });
   return claim;
 }
 
 export async function consumeMutationClaim(
   claim: MutationClaim,
-  expectedKind: MutationIntent["kind"]
+  expectedKind: MutationIntent["kind"],
 ): Promise<string> {
   const claimState = claims.get(claim);
   if (claimState === undefined || claimState.consumed || claimState.intent.kind !== expectedKind) {
-    invalid("MUTATION_CLAIM_INVALID", "Mutation claim is forged, consumed, or has the wrong intent.");
+    invalid(
+      "MUTATION_CLAIM_INVALID",
+      "Mutation claim is forged, consumed, or has the wrong intent.",
+    );
   }
   const state = leaseState(claimState.lease);
   await assertPhysicalRoot(state);
@@ -246,9 +307,13 @@ export async function consumeMutationClaim(
     invalid("MUTATION_CLAIM_INVALID", "Mutation claim generation became stale before consumption.");
   }
   const current = await state.port.snapshot(state.root);
-  if (current.fingerprint !== claimState.fingerprint ||
-    current.commonEvidence !== claimState.commonEvidence) {
-    if (current.commonEvidence) {state.retained = true;}
+  if (
+    current.fingerprint !== claimState.fingerprint ||
+    current.commonEvidence !== claimState.commonEvidence
+  ) {
+    if (current.commonEvidence) {
+      state.retained = true;
+    }
     invalid("MUTATION_CLAIM_INVALID", "Mutation claim evidence became stale before consumption.");
   }
   claimState.consumed = true;
@@ -258,17 +323,23 @@ export async function consumeMutationClaim(
 
 export function mutationClaimIntent(claim: MutationClaim): MutationIntent {
   const claimState = claims.get(claim);
-  if (claimState === undefined || claimState.consumed) {invalid("MUTATION_CLAIM_INVALID", "Mutation claim is forged or consumed.");}
+  if (claimState === undefined || claimState.consumed) {
+    invalid("MUTATION_CLAIM_INVALID", "Mutation claim is forged or consumed.");
+  }
   leaseState(claimState.lease);
   return claimState.intent;
 }
 
 export async function retainMutationClaimBarrierOnEvidence(claim: MutationClaim): Promise<void> {
   const claimState = claims.get(claim);
-  if (claimState === undefined) {return;}
+  if (claimState === undefined) {
+    return;
+  }
   const state = leaseState(claimState.lease);
   try {
-    if ((await state.port.snapshot(state.root)).commonEvidence) {state.retained = true;}
+    if ((await state.port.snapshot(state.root)).commonEvidence) {
+      state.retained = true;
+    }
   } catch {
     state.retained = true;
   }
@@ -277,7 +348,9 @@ export async function retainMutationClaimBarrierOnEvidence(claim: MutationClaim)
 export async function retainMutationBarrierOnEvidence(lease: MutationLease): Promise<boolean> {
   const state = leaseState(lease);
   try {
-    if (!(await state.port.snapshot(state.root)).commonEvidence) {return false;}
+    if (!(await state.port.snapshot(state.root)).commonEvidence) {
+      return false;
+    }
   } catch {
     state.retained = true;
     return true;

@@ -121,8 +121,7 @@ test("rejects public API drift after a package version was already promoted", as
         consumerRoot: "/fixture",
         policy: {
           schemaVersion: 1,
-          acceptedDecisionBaselinePath:
-            "architecture/decisions/accepted-decisions.json",
+          acceptedDecisionBaselinePath: "architecture/decisions/accepted-decisions.json",
           changesetDirectory: ".changeset",
           packages: [packagePolicy],
         },
@@ -179,8 +178,7 @@ test("rejects public API drift after a package version was already promoted", as
         },
       },
     ),
-    (error) =>
-      error?.problem?.code === "PUBLIC_API_BASELINE_PROMOTION_RELEASE_DRIFT",
+    (error) => error?.problem?.code === "PUBLIC_API_BASELINE_PROMOTION_RELEASE_DRIFT",
   );
   assert.deepEqual(writes, []);
 });

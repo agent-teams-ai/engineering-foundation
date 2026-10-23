@@ -10,9 +10,7 @@ import {
   applyKnownFileTransaction,
   compileKnownFileTransactionPlan,
 } from "@agent-teams/repository-mutation";
-import {
-  applyKnownFileTransaction as applyKnownFileTransactionWithFaults,
-} from "@agent-teams/repository-mutation/qualification";
+import { applyKnownFileTransaction as applyKnownFileTransactionWithFaults } from "@agent-teams/repository-mutation/qualification";
 import { assertDocsCommandEnvelopeSchema } from "../dist/features/docs-command/adapters/outbound/docs-command-envelope-schema-validator.js";
 
 const execute = promisify(execFile);
@@ -20,9 +18,7 @@ const cli = new URL("../dist/cli.js", import.meta.url);
 const ignoredSnapshotPaths = new Set([
   ".agent-teams-local/foundation-operation-lock.completed-evidence",
 ]);
-const ignoredSnapshotPrefixes = [
-  ".agent-teams-local/foundation-operation-lock.completed-evidence",
-];
+const ignoredSnapshotPrefixes = [".agent-teams-local/foundation-operation-lock.completed-evidence"];
 
 async function runJson(arguments_) {
   const result = await execute(process.execPath, [cli.pathname, ...arguments_, "--json"]);
@@ -48,8 +44,9 @@ async function runJsonFailure(arguments_) {
 
 async function snapshotTree(root, relative = "") {
   const directory = join(root, relative);
-  const entries = (await readdir(directory, { withFileTypes: true }))
-    .toSorted((left, right) => left.name < right.name ? -1 : left.name > right.name ? 1 : 0);
+  const entries = (await readdir(directory, { withFileTypes: true })).toSorted((left, right) =>
+    left.name < right.name ? -1 : left.name > right.name ? 1 : 0,
+  );
   const snapshot = [];
   for (const entry of entries) {
     const path = relative === "" ? entry.name : `${relative}/${entry.name}`;
@@ -62,7 +59,7 @@ async function snapshotTree(root, relative = "") {
     const stats = await lstat(join(root, path));
     if (stats.isDirectory()) {
       snapshot.push({ path, type: "directory" });
-      snapshot.push(...await snapshotTree(root, path));
+      snapshot.push(...(await snapshotTree(root, path)));
     } else if (stats.isFile()) {
       snapshot.push({
         content: (await readFile(join(root, path))).toString("base64"),
@@ -81,9 +78,12 @@ test("portable CLI flow bootstraps, authors, discovers, and projects agent conte
   try {
     const initArguments = [
       "init",
-      "--consumer", root,
-      "--project-id", "portable-e2e",
-      "--owner", "docs/platform",
+      "--consumer",
+      root,
+      "--project-id",
+      "portable-e2e",
+      "--owner",
+      "docs/platform",
     ];
     const empty = await snapshotTree(root);
     const preview = await runJson([...initArguments, "--dry-run"]);
@@ -97,7 +97,8 @@ test("portable CLI flow bootstraps, authors, discovers, and projects agent conte
     const applied = await runJson([
       ...initArguments,
       "--apply",
-      "--expect", preview.result.planDigest,
+      "--expect",
+      preview.result.planDigest,
     ]);
     assert.equal(applied.result.writeState, "applied");
 
@@ -107,16 +108,25 @@ test("portable CLI flow bootstraps, authors, discovers, and projects agent conte
 
     const initialCheck = await runJson(["check", "--consumer", root]);
     assert.equal(initialCheck.outcome, "success");
-    assert.equal(initialCheck.diagnostics.some(({ severity }) => severity === "error"), false);
+    assert.equal(
+      initialCheck.diagnostics.some(({ severity }) => severity === "error"),
+      false,
+    );
 
     const newArguments = [
       "new",
-      "--consumer", root,
-      "--type", "tutorial",
-      "--id", "docs.tutorial.getting-started",
-      "--title", "Getting started",
-      "--owner", "docs/platform",
-      "--summary", "A short portable documentation tutorial.",
+      "--consumer",
+      root,
+      "--type",
+      "tutorial",
+      "--id",
+      "docs.tutorial.getting-started",
+      "--title",
+      "Getting started",
+      "--owner",
+      "docs/platform",
+      "--summary",
+      "A short portable documentation tutorial.",
     ];
     const beforeNewPreview = await snapshotTree(root);
     const newPreview = await runJson([...newArguments, "--dry-run"]);
@@ -130,22 +140,27 @@ test("portable CLI flow bootstraps, authors, discovers, and projects agent conte
       /^# Getting started$/mu,
     );
 
-    const found = await runJson([
-      "find", "getting strted", "--fuzzy", "--consumer", root,
-    ]);
+    const found = await runJson(["find", "getting strted", "--fuzzy", "--consumer", root]);
     assert.equal(found.schemaVersion, 3);
     assert.equal(found.result.ranking, "fuzzy-advisory");
     assert.equal(found.result.documents[0].id, "docs.tutorial.getting-started");
 
     const context = await runJson([
-      "context", "getting strted", "--fuzzy", "--max-documents", "1",
-      "--max-bytes", "4096", "--consumer", root,
+      "context",
+      "getting strted",
+      "--fuzzy",
+      "--max-documents",
+      "1",
+      "--max-bytes",
+      "4096",
+      "--consumer",
+      root,
     ]);
     assert.equal(context.schemaVersion, 3);
     assert.equal(context.result.format, "llms.txt");
     assert.deepEqual(context.result.selection, {
       ranking: "fuzzy-advisory",
-      query: { text: "getting strted" }
+      query: { text: "getting strted" },
     });
     assert.deepEqual(context.result.limits, { maxBytes: 4096, maxDocuments: 1 });
     assert.equal(Object.hasOwn(context.result, "ranking"), false);
@@ -159,16 +174,25 @@ test("portable CLI flow bootstraps, authors, discovers, and projects agent conte
     const beforeRerun = await snapshotTree(root);
     const rerun = await runJson([...initArguments, "--dry-run"]);
     assert.equal(rerun.result.writeState, "current");
-    assert.deepEqual(await snapshotTree(root), beforeRerun, "idempotent init preview must not write");
+    assert.deepEqual(
+      await snapshotTree(root),
+      beforeRerun,
+      "idempotent init preview must not write",
+    );
 
     const currentApply = await runJson([
       ...initArguments,
       "--apply",
-      "--expect", rerun.result.planDigest,
+      "--expect",
+      rerun.result.planDigest,
     ]);
     assert.equal(currentApply.result.writeState, "current");
     assert.equal(currentApply.result.receiptOutcome, "already-satisfied");
-    assert.deepEqual(await snapshotTree(root), beforeRerun, "idempotent init apply must preserve the tree");
+    assert.deepEqual(
+      await snapshotTree(root),
+      beforeRerun,
+      "idempotent init apply must preserve the tree",
+    );
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -179,16 +203,23 @@ test("init apply reports an interrupted transaction as recoverable before mutati
   try {
     const initArguments = [
       "init",
-      "--consumer", root,
-      "--project-id", "portable-recovery-e2e",
-      "--owner", "docs/platform",
+      "--consumer",
+      root,
+      "--project-id",
+      "portable-recovery-e2e",
+      "--owner",
+      "docs/platform",
     ];
     const preview = await runJson([...initArguments, "--dry-run"]);
-    const interruptedPlan = compileKnownFileTransactionPlan({ operations: [{
-      path: "interrupted-bootstrap-fixture.txt",
-      precondition: { state: "absent" },
-      postimage: { bytes: Buffer.from("must-not-publish\n", "utf8") },
-    }] });
+    const interruptedPlan = compileKnownFileTransactionPlan({
+      operations: [
+        {
+          path: "interrupted-bootstrap-fixture.txt",
+          precondition: { state: "absent" },
+          postimage: { bytes: Buffer.from("must-not-publish\n", "utf8") },
+        },
+      ],
+    });
     await assert.rejects(
       applyKnownFileTransactionWithFaults({
         consumerRoot: root,
@@ -206,7 +237,8 @@ test("init apply reports an interrupted transaction as recoverable before mutati
     const blocked = await runJsonFailure([
       ...initArguments,
       "--apply",
-      "--expect", preview.result.planDigest,
+      "--expect",
+      preview.result.planDigest,
     ]);
     assert.equal(blocked.exitCode, 1);
     assert.equal(blocked.envelope.schemaVersion, 3);
@@ -226,7 +258,8 @@ test("init apply reports an interrupted transaction as recoverable before mutati
     const applied = await runJson([
       ...initArguments,
       "--apply",
-      "--expect", preview.result.planDigest,
+      "--expect",
+      preview.result.planDigest,
     ]);
     assert.equal(applied.result.writeState, "applied");
   } finally {
@@ -241,19 +274,19 @@ test("init dry-run reports an oversized AGENTS route as a schema-valid conflict 
     const before = await snapshotTree(root);
     const blocked = await runJsonFailure([
       "init",
-      "--consumer", root,
-      "--project-id", "portable-oversized-agents-e2e",
-      "--owner", "docs/platform",
+      "--consumer",
+      root,
+      "--project-id",
+      "portable-oversized-agents-e2e",
+      "--owner",
+      "docs/platform",
       "--dry-run",
     ]);
     assert.equal(blocked.exitCode, 1);
     assert.equal(blocked.envelope.command, "docs.init");
     assert.equal(blocked.envelope.outcome, "conflict");
     assert.equal(blocked.envelope.result.writeState, "blocked");
-    assert.equal(
-      blocked.envelope.result.issues[0].code,
-      "PORTABLE_BOOTSTRAP_AGENTS_TOO_LARGE",
-    );
+    assert.equal(blocked.envelope.result.issues[0].code, "PORTABLE_BOOTSTRAP_AGENTS_TOO_LARGE");
     assert.deepEqual(await snapshotTree(root), before, "oversized AGENTS preview must not write");
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -268,20 +301,27 @@ test("init apply waits for an active operation instead of prescribing recovery",
   try {
     const initArguments = [
       "init",
-      "--consumer", root,
-      "--project-id", "portable-active-lock-e2e",
-      "--owner", "docs/platform",
+      "--consumer",
+      root,
+      "--project-id",
+      "portable-active-lock-e2e",
+      "--owner",
+      "docs/platform",
     ];
     const preview = await runJson([...initArguments, "--dry-run"]);
-    const activePlan = compileKnownFileTransactionPlan({ operations: [{
-      path: "active-operation-fixture.txt",
-      precondition: { state: "absent" },
-      postimage: { bytes: Buffer.from("active operation\n", "utf8") },
-    }] });
+    const activePlan = compileKnownFileTransactionPlan({
+      operations: [
+        {
+          path: "active-operation-fixture.txt",
+          precondition: { state: "absent" },
+          postimage: { bytes: Buffer.from("active operation\n", "utf8") },
+        },
+      ],
+    });
     if (process.platform === "win32") {
       await assert.rejects(
         applyKnownFileTransaction({ consumerRoot: root, plan: activePlan }),
-        (error) => error?.code === "KNOWN_FILE_APPLY_UNSUPPORTED"
+        (error) => error?.code === "KNOWN_FILE_APPLY_UNSUPPORTED",
       );
       return;
     }
@@ -300,7 +340,8 @@ test("init apply waits for an active operation instead of prescribing recovery",
     const blocked = await runJsonFailure([
       ...initArguments,
       "--apply",
-      "--expect", preview.result.planDigest,
+      "--expect",
+      preview.result.planDigest,
     ]);
     assert.equal(blocked.exitCode, 1);
     assert.equal(blocked.envelope.outcome, "conflict");
@@ -314,7 +355,11 @@ test("init apply waits for an active operation instead of prescribing recovery",
     assert.match(blocked.envelope.diagnostics[0].message, /Wait for it to finish/u);
     assert.match(blocked.envelope.diagnostics[0].message, /retry the init preview or --apply/u);
     assert.doesNotMatch(blocked.envelope.diagnostics[0].message, /restore that build/u);
-    assert.deepEqual(await snapshotTree(root), beforeApply, "active-lock preflight must not mutate");
+    assert.deepEqual(
+      await snapshotTree(root),
+      beforeApply,
+      "active-lock preflight must not mutate",
+    );
 
     const recoverBlocked = await runJsonFailure(["init", "--recover", "--consumer", root]);
     assert.equal(recoverBlocked.exitCode, 1);

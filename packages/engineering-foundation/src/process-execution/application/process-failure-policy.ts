@@ -1,4 +1,8 @@
-import { associateProcessFailureFacts, readProcessFailureFacts, type ProcessFailureFacts } from "../../features/validation-reporting/process-failure-facts.js";
+import {
+  associateProcessFailureFacts,
+  readProcessFailureFacts,
+  type ProcessFailureFacts,
+} from "../../features/validation-reporting/process-failure-facts.js";
 import { FoundationError } from "../../features/validation-reporting/foundation-error.js";
 import { ProcessCancellationError, ProcessTimeoutError } from "./errors.js";
 import type { ManagedProcessResult, ProcessRequest } from "./process.js";
@@ -13,12 +17,12 @@ export function processFailure(
   request: ProcessRequest,
   message: string,
   cause?: unknown,
-  facts?: ProcessFailureFacts
+  facts?: ProcessFailureFacts,
 ): FoundationError {
   const failure = new FoundationError(
     "PROCESS_FAILED",
     `${describeRequest(request)} ${message}`,
-    cause === undefined ? undefined : { cause }
+    cause === undefined ? undefined : { cause },
   );
   associateProcessFailureFacts(failure, facts);
   return failure;
@@ -27,20 +31,17 @@ export function processFailure(
 export function processCancelled(
   request: ProcessRequest,
   message: string,
-  cause?: unknown
+  cause?: unknown,
 ): FoundationError {
   return new ProcessCancellationError(
     `${describeRequest(request)} ${message}`,
-    cause === undefined ? undefined : { cause }
+    cause === undefined ? undefined : { cause },
   );
 }
 
-export function processTimedOut(
-  request: ProcessRequest,
-  timeoutMs: number
-): ProcessTimeoutError {
+export function processTimedOut(request: ProcessRequest, timeoutMs: number): ProcessTimeoutError {
   return new ProcessTimeoutError(timeoutMs, {
-    requestDescription: describeRequest(request)
+    requestDescription: describeRequest(request),
   });
 }
 
@@ -49,14 +50,10 @@ function resolveTimeout(request: ProcessRequest): number | undefined {
   if (timeoutMs === undefined) {
     return undefined;
   }
-  if (
-    !Number.isSafeInteger(timeoutMs) ||
-    timeoutMs <= 0 ||
-    timeoutMs > MAX_PROCESS_TIMEOUT_MS
-  ) {
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0 || timeoutMs > MAX_PROCESS_TIMEOUT_MS) {
     throw processFailure(
       request,
-      `requires timeoutMs to be a positive integer no greater than ${MAX_PROCESS_TIMEOUT_MS}.`
+      `requires timeoutMs to be a positive integer no greater than ${MAX_PROCESS_TIMEOUT_MS}.`,
     );
   }
   return timeoutMs;
@@ -64,11 +61,7 @@ function resolveTimeout(request: ProcessRequest): number | undefined {
 
 function assertProcessCanStart(request: ProcessRequest): void {
   if (request.signal?.aborted === true) {
-    throw processCancelled(
-      request,
-      "was cancelled before it started.",
-      request.signal.reason
-    );
+    throw processCancelled(request, "was cancelled before it started.", request.signal.reason);
   }
 }
 
@@ -82,26 +75,39 @@ export function isProcessFailure(error: unknown): error is FoundationError {
   return error instanceof FoundationError;
 }
 
-export function processCleanupFailure(request: ProcessRequest, description: string, error: unknown, windows: boolean): FoundationError {
+export function processCleanupFailure(
+  request: ProcessRequest,
+  description: string,
+  error: unknown,
+  windows: boolean,
+): FoundationError {
   const requestDescription = describeRequest(request);
   const failure = new FoundationError(
     "PROCESS_FAILED",
     windows ? `${description} ${requestDescription}` : `${requestDescription} ${description}`,
-    { cause: error }
+    { cause: error },
   );
   associateProcessFailureFacts(failure, { reason: "cleanup" });
   return failure;
 }
 
-export function processExitResult(result: ManagedProcessResult, exitCode: number | null, signal: NodeJS.Signals | null): ManagedProcessResult {
+export function processExitResult(
+  result: ManagedProcessResult,
+  exitCode: number | null,
+  signal: NodeJS.Signals | null,
+): ManagedProcessResult {
   associateProcessFailureFacts(result, {
     reason: "exit",
     ...(exitCode === null ? {} : { exitCode }),
-    ...(signal === null ? {} : { signal })
+    ...(signal === null ? {} : { signal }),
   });
   return result;
 }
 
-export function processExitFailure(request: ProcessRequest, message: string, result: ManagedProcessResult): FoundationError {
+export function processExitFailure(
+  request: ProcessRequest,
+  message: string,
+  result: ManagedProcessResult,
+): FoundationError {
   return processFailure(request, message, undefined, readProcessFailureFacts(result));
 }

@@ -104,7 +104,12 @@ function byRule(diagnostics, ruleId) {
   return diagnostics.filter((diagnostic) => diagnostic.ruleId === ruleId);
 }
 
-function sourceAnalysisDependencies({ files, parsedSource, resolution, workspacePackage: packageValue }) {
+function sourceAnalysisDependencies({
+  files,
+  parsedSource,
+  resolution,
+  workspacePackage: packageValue,
+}) {
   return Object.freeze({
     inventoryReader: Object.freeze({
       async read() {
@@ -145,11 +150,7 @@ test("builds a deeply frozen, deterministic graph with POSIX Windows-path identi
     appPackage,
     [sourceReference("static", "../domain/model.js", 9)],
   );
-  const domainFile = classified(
-    "packages\\app\\src\\domain\\model.ts",
-    domain,
-    appPackage,
-  );
+  const domainFile = classified("packages\\app\\src\\domain\\model.ts", domain, appPackage);
   const seenImporterPaths = [];
   const resolver = {
     resolve({ file }) {
@@ -196,12 +197,7 @@ test("builds a deeply frozen, deterministic graph with POSIX Windows-path identi
 test("schema v1 requires entrypoints and only permits declared cross-boundary targets", async () => {
   const schema = JSON.parse(
     await readFile(
-      join(
-        packageRoot,
-        "schemas",
-        "architecture-source-dependencies",
-        "v1.schema.json",
-      ),
+      join(packageRoot, "schemas", "architecture-source-dependencies", "v1.schema.json"),
       "utf8",
     ),
   );
@@ -241,16 +237,8 @@ test("schema v1 requires entrypoints and only permits declared cross-boundary ta
       sourceReference("static", "../domain/public.js", 60),
     ],
   );
-  const internalFile = classified(
-    "packages/app/src/domain/internal.ts",
-    domain,
-    appPackage,
-  );
-  const publicFile = classified(
-    "packages/app/src/domain/public.ts",
-    domain,
-    appPackage,
-  );
+  const internalFile = classified("packages/app/src/domain/internal.ts", domain, appPackage);
+  const publicFile = classified("packages/app/src/domain/public.ts", domain, appPackage);
   const resolver = {
     resolve({ reference }) {
       return {
@@ -284,10 +272,7 @@ test("schema v1 requires entrypoints and only permits declared cross-boundary ta
   );
 
   const staleDomain = boundary("app.domain", ["packages/app/src/domain"], {
-    entrypoints: [
-      "packages/app/src/domain/public.ts",
-      "packages/app/src/domain/deleted.ts",
-    ],
+    entrypoints: ["packages/app/src/domain/public.ts", "packages/app/src/domain/deleted.ts"],
   });
   const staleEntrypointDiagnostics = evaluateSourceDependencies({
     policy: policy([application, staleDomain]),
@@ -305,12 +290,9 @@ test("schema v1 requires entrypoints and only permits declared cross-boundary ta
 test("blocks package-name imports back into the importing workspace package", () => {
   const appPackage = workspacePackage("@fixture/app", "packages/app");
   const appBoundary = boundary("app.domain", ["packages/app/src"]);
-  const appFile = classified(
-    "packages/app/src/value.ts",
-    appBoundary,
-    appPackage,
-    [sourceReference("static", "@fixture/app", 0)],
-  );
+  const appFile = classified("packages/app/src/value.ts", appBoundary, appPackage, [
+    sourceReference("static", "@fixture/app", 0),
+  ]);
   const graph = buildObservedSourceGraph({
     inventory: { packages: [appPackage] },
     allSourceFiles: sourceFiles([appFile]),
@@ -323,10 +305,8 @@ test("blocks package-name imports back into the importing workspace package", ()
     graph,
   });
   assert.equal(
-    byRule(
-      diagnostics,
-      "architecture.source-dependencies.self-package-import-boundary-unresolved",
-    ).length,
+    byRule(diagnostics, "architecture.source-dependencies.self-package-import-boundary-unresolved")
+      .length,
     1,
   );
 });
@@ -346,25 +326,17 @@ test("permits type-only imports from development dependencies but blocks runtime
   const appBoundary = boundary("app.application", ["packages/app/src"], {
     packages: ["fixture-types"],
   });
-  const appFile = classified(
-    "packages/app/src/index.ts",
-    appBoundary,
-    appPackage,
-    [
-      sourceReference("static-type", "fixture-types", 0),
-      sourceReference("static", "fixture-types", 30),
-    ],
-  );
+  const appFile = classified("packages/app/src/index.ts", appBoundary, appPackage, [
+    sourceReference("static-type", "fixture-types", 0),
+    sourceReference("static", "fixture-types", 30),
+  ]);
   const graph = buildObservedSourceGraph({
     inventory: { packages: [appPackage] },
     allSourceFiles: sourceFiles([appFile]),
     classifiedFiles: [appFile],
     resolver: new NodeSourceDependencyResolver(),
   });
-  assert.deepEqual(
-    graph.edges.map((edge) => edge.mode).toSorted(),
-    ["runtime", "type-only"],
-  );
+  assert.deepEqual(graph.edges.map((edge) => edge.mode).toSorted(), ["runtime", "type-only"]);
 
   const diagnostics = evaluateSourceDependencies({
     policy: policy([appBoundary]),
@@ -452,24 +424,14 @@ test("rejects runtime and type-only cycles between approved boundaries", () => {
     boundaries: ["app.a"],
     entrypoints: ["packages/app/src/b/index.ts"],
   });
-  const aFile = classified(
-    "packages/app/src/a/index.ts",
-    a,
-    appPackage,
-    [
-      sourceReference("static", "../b/index.js", 0),
-      sourceReference("static-type", "../b/index.js", 30),
-    ],
-  );
-  const bFile = classified(
-    "packages/app/src/b/index.ts",
-    b,
-    appPackage,
-    [
-      sourceReference("static", "../a/index.js", 0),
-      sourceReference("static-type", "../a/index.js", 30),
-    ],
-  );
+  const aFile = classified("packages/app/src/a/index.ts", a, appPackage, [
+    sourceReference("static", "../b/index.js", 0),
+    sourceReference("static-type", "../b/index.js", 30),
+  ]);
+  const bFile = classified("packages/app/src/b/index.ts", b, appPackage, [
+    sourceReference("static", "../a/index.js", 0),
+    sourceReference("static-type", "../a/index.js", 30),
+  ]);
   const graph = buildObservedSourceGraph({
     inventory: { packages: [appPackage] },
     allSourceFiles: sourceFiles([aFile, bFile]),
@@ -515,18 +477,12 @@ test("classifies a mixed runtime and type-only SCC as a runtime cycle", () => {
   const appPackage = workspacePackage("@fixture/app", "packages/app");
   const a = boundary("app.a", ["packages/app/src/a"]);
   const b = boundary("app.b", ["packages/app/src/b"]);
-  const aFile = classified(
-    "packages/app/src/a/index.ts",
-    a,
-    appPackage,
-    [sourceReference("static", "../b/index.js", 0)],
-  );
-  const bFile = classified(
-    "packages/app/src/b/index.ts",
-    b,
-    appPackage,
-    [sourceReference("static-type", "../a/index.js", 0)],
-  );
+  const aFile = classified("packages/app/src/a/index.ts", a, appPackage, [
+    sourceReference("static", "../b/index.js", 0),
+  ]);
+  const bFile = classified("packages/app/src/b/index.ts", b, appPackage, [
+    sourceReference("static-type", "../a/index.js", 0),
+  ]);
   const graph = buildObservedSourceGraph({
     inventory: { packages: [appPackage] },
     allSourceFiles: sourceFiles([aFile, bFile]),
@@ -553,16 +509,12 @@ test("classifies a mixed runtime and type-only SCC as a runtime cycle", () => {
 
 test("reports separate deterministic boundary and package SCCs with canonical bounded witnesses", () => {
   const localPackage = workspacePackage("@fixture/local", "packages/local");
-  const packageOne = workspacePackage(
-    "@fixture/one",
-    "packages/one",
-    [{ dependencyName: "@fixture/two", section: "dependencies" }],
-  );
-  const packageTwo = workspacePackage(
-    "@fixture/two",
-    "packages/two",
-    [{ dependencyName: "@fixture/one", section: "dependencies" }],
-  );
+  const packageOne = workspacePackage("@fixture/one", "packages/one", [
+    { dependencyName: "@fixture/two", section: "dependencies" },
+  ]);
+  const packageTwo = workspacePackage("@fixture/two", "packages/two", [
+    { dependencyName: "@fixture/one", section: "dependencies" },
+  ]);
   const a = boundary("local.a", ["packages/local/src/a"], {
     boundaries: ["local.b"],
     entrypoints: ["packages/local/src/a/a.ts"],
@@ -583,48 +535,25 @@ test("reports separate deterministic boundary and package SCCs with canonical bo
     packages: ["@fixture/one"],
     entrypoints: ["packages/two/src/index.ts"],
   });
-  const aFile = classified(
-    "packages/local/src/a/a.ts",
-    a,
-    localPackage,
-    [
-      sourceReference("static", "../b/b.js", 0),
-      sourceReference("static-type", "../b/b.js", 30),
-    ],
-  );
-  const bFile = classified(
-    "packages/local/src/b/b.ts",
-    b,
-    localPackage,
-    [
-      sourceReference("static", "../c/c.js", 0),
-      sourceReference("static-type", "../a/a.js", 30),
-    ],
-  );
-  const cFile = classified(
-    "packages/local/src/c/c.ts",
-    c,
-    localPackage,
-    [sourceReference("static", "../a/a.js", 0)],
-  );
-  const oneFile = classified(
-    "packages/one/src/index.ts",
-    one,
-    packageOne,
-    [
-      sourceReference("static", "@fixture/two", 0),
-      sourceReference("static-type", "@fixture/two", 30),
-    ],
-  );
-  const twoFile = classified(
-    "packages/two/src/index.ts",
-    two,
-    packageTwo,
-    [
-      sourceReference("static", "@fixture/one", 0),
-      sourceReference("static-type", "@fixture/one", 30),
-    ],
-  );
+  const aFile = classified("packages/local/src/a/a.ts", a, localPackage, [
+    sourceReference("static", "../b/b.js", 0),
+    sourceReference("static-type", "../b/b.js", 30),
+  ]);
+  const bFile = classified("packages/local/src/b/b.ts", b, localPackage, [
+    sourceReference("static", "../c/c.js", 0),
+    sourceReference("static-type", "../a/a.js", 30),
+  ]);
+  const cFile = classified("packages/local/src/c/c.ts", c, localPackage, [
+    sourceReference("static", "../a/a.js", 0),
+  ]);
+  const oneFile = classified("packages/one/src/index.ts", one, packageOne, [
+    sourceReference("static", "@fixture/two", 0),
+    sourceReference("static-type", "@fixture/two", 30),
+  ]);
+  const twoFile = classified("packages/two/src/index.ts", two, packageTwo, [
+    sourceReference("static", "@fixture/one", 0),
+    sourceReference("static-type", "@fixture/one", 30),
+  ]);
   const sourcePathBySpecifier = Object.freeze({
     "../b/b.js": "packages/local/src/b/b.ts",
     "../c/c.js": "packages/local/src/c/c.ts",
@@ -687,7 +616,10 @@ test("reports separate deterministic boundary and package SCCs with canonical bo
     diagnostics,
     "architecture.source-dependencies.boundary-runtime-cycle",
   )[0];
-  assert.equal(evidence(runtimeBoundary, "cycle-witness"), "local.a -> local.b -> local.c -> local.a");
+  assert.equal(
+    evidence(runtimeBoundary, "cycle-witness"),
+    "local.a -> local.b -> local.c -> local.a",
+  );
   const typeBoundary = byRule(
     diagnostics,
     "architecture.source-dependencies.boundary-type-only-cycle",
@@ -742,11 +674,11 @@ test("bounds a canonical SCC witness without recursive traversal", () => {
     unresolvedRuntimeReferences: Object.freeze([]),
   });
   const [diagnostic] = evaluateSourceDependencyCycles(graph);
-  assert.equal(
-    diagnostic.ruleId,
-    "architecture.source-dependencies.boundary-runtime-cycle",
+  assert.equal(diagnostic.ruleId, "architecture.source-dependencies.boundary-runtime-cycle");
+  assert.match(
+    evidence(diagnostic, "cycle-witness"),
+    /boundary\.00 -> boundary\.01 -> .*\.\.\..* -> boundary\.00/,
   );
-  assert.match(evidence(diagnostic, "cycle-witness"), /boundary\.00 -> boundary\.01 -> .*\.\.\..* -> boundary\.00/);
   assert.equal(evidence(diagnostic, "cycle-witness-edge-count"), "2048");
 });
 
@@ -758,9 +690,13 @@ test("caller-owned source snapshots reject concrete adapter edges including type
   const consumer = boundary("consumer.application", ["packages/app/src/consumer"], {
     boundaries: ["observation.application"],
   });
-  const application = boundary("observation.application", ["packages/app/src/observation/application"], {
-    entrypoints: ["packages/app/src/observation/application/api.ts"],
-  });
+  const application = boundary(
+    "observation.application",
+    ["packages/app/src/observation/application"],
+    {
+      entrypoints: ["packages/app/src/observation/application/api.ts"],
+    },
+  );
   const adapter = boundary("observation.adapter", ["packages/app/src/observation/adapters"], {
     entrypoints: ["packages/app/src/observation/adapters/filesystem.ts"],
   });
@@ -773,27 +709,47 @@ test("caller-owned source snapshots reject concrete adapter edges including type
   ]) {
     const files = [
       { path: "packages/app/src/consumer/use-case.ts", source: statement },
-      { path: "packages/app/src/observation/application/api.ts", source: "export interface Snapshot { path: string }; export function read() { return []; }" },
-      { path: "packages/app/src/observation/adapters/filesystem.ts", source: "export class FilesystemReader { read() { return []; } }" },
+      {
+        path: "packages/app/src/observation/application/api.ts",
+        source: "export interface Snapshot { path: string }; export function read() { return []; }",
+      },
+      {
+        path: "packages/app/src/observation/adapters/filesystem.ts",
+        source: "export class FilesystemReader { read() { return []; } }",
+      },
     ];
     const signal = new AbortController().signal;
     let reads = 0;
-    const diagnostics = await analyzeSourceDependencies({
-      consumerRoot: "/no-filesystem-authority", policy: policy([consumer, application, adapter]), signal,
-    }, {
-      inventoryReader: { async read() { return { packages: [pkg] }; } },
-      sourceReader: { async read(root, roots, observedSignal) {
-        reads += 1;
-        assert.equal(root, "/no-filesystem-authority");
-        assert.deepEqual(roots, ["packages"]);
-        assert.equal(observedSignal, signal);
-        return files;
-      } },
-      parser: new OxcSourceDependencyParser(),
-      resolver: new NodeSourceDependencyResolver(),
-    });
+    const diagnostics = await analyzeSourceDependencies(
+      {
+        consumerRoot: "/no-filesystem-authority",
+        policy: policy([consumer, application, adapter]),
+        signal,
+      },
+      {
+        inventoryReader: {
+          async read() {
+            return { packages: [pkg] };
+          },
+        },
+        sourceReader: {
+          async read(root, roots, observedSignal) {
+            reads += 1;
+            assert.equal(root, "/no-filesystem-authority");
+            assert.deepEqual(roots, ["packages"]);
+            assert.equal(observedSignal, signal);
+            return files;
+          },
+        },
+        parser: new OxcSourceDependencyParser(),
+        resolver: new NodeSourceDependencyResolver(),
+      },
+    );
     assert.equal(reads, 1);
-    assert.deepEqual(diagnostics.map(({ ruleId }) => ruleId), rejected
-      ? ["architecture.source-dependencies.forbidden-boundary-dependency"] : [], statement);
+    assert.deepEqual(
+      diagnostics.map(({ ruleId }) => ruleId),
+      rejected ? ["architecture.source-dependencies.forbidden-boundary-dependency"] : [],
+      statement,
+    );
   }
 });

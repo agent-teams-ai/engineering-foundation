@@ -1,3 +1,5 @@
+import { releaseNotes } from "./release-changelog-notes.ts";
+import { expectedIntegrityHex } from "./release-package-payload.ts";
 import { spawnSync } from "node:child_process";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -21,75 +23,21 @@ import { publishablePackageByName } from "./publishable-packages.mjs";
 import { readQualifiedReleaseArtifact, readVerifiedArchive } from "./pack-artifact-archive.mjs";
 export { readQualifiedReleaseArtifact } from "./pack-artifact-archive.mjs";
 
-const EXPECTED_NPM_VERSION = "11.19.0";
 export { GITHUB_RECONCILIATION_ATTEMPTS, GITHUB_RECONCILIATION_RETRY_MILLISECONDS };
-
-export function assertNpmVersion(npmVersion = executeCommand("npm", ["--version"]).trim()) {
-  if (npmVersion !== EXPECTED_NPM_VERSION) {
-    throw new Error(`Ordered publishing requires npm ${EXPECTED_NPM_VERSION}, observed ${npmVersion}.`);
-  }
-}
-
-export function npmPublishArguments(artifact, tag) {
-  const registry = artifact.registry ?? "https://registry.npmjs.org/";
-  return [
-    "publish", artifact.archivePath, "--access", "public", "--tag", tag,
-    "--provenance", "--ignore-scripts", `--registry=${registry}`,
-  ];
-}
-
-export function npmSignatureInstallArguments(artifact) {
-  const registry = artifact.registry ?? "https://registry.npmjs.org/";
-  return [
-    "install", "--ignore-scripts", "--no-audit", "--fund=false", "--save-exact",
-    `--registry=${registry}`, `${artifact.name}@${artifact.version}`,
-  ];
-}
-
-function executeCommand(executable, args, options = {}) {
-  const result = spawnSync(executable, args, {
-    encoding: "utf8", maxBuffer: 32 * 1024 * 1024, ...options,
-  });
-  if (result.error !== undefined) {
-    throw result.error;
-  }
-  if (result.status !== 0) {
-    throw new Error(`${executable} ${args[0]} failed (${result.status}): ${result.stderr.trim()}`);
-  }
-  return result.stdout;
-}
-
-// Keep raw npm output (which can contain credentials) inside this adapter.
-// Only positively identified local refusals bypass registry reconciliation.
-export function publishNpmArtifact(artifact, tag, { cwd, spawn = spawnSync } = {}) {
-  const result = spawn("npm", npmPublishArguments(artifact, tag), {
-    cwd, encoding: "utf8", maxBuffer: 32 * 1024 * 1024,
-  });
-  if (result.error === undefined && result.status === 0) {
-    return;
-  }
-  const npmCode = /^npm error code (E[A-Z0-9]+)$/mu.exec(result.stderr ?? "")?.[1];
-  const code = result.error?.code ?? npmCode;
-  const knownCodes = [
-    "ENOENT", "EACCES", "ENEEDAUTH", "EUSAGE", "EPRIVATE",
-    "E401", "E403", "E404", "EPUBLISHCONFLICT", "ECONNRESET",
-    "ETIMEDOUT", "ENOBUFS", "EINTEGRITY", "E422", "E500", "E502", "E503",
-  ];
-  const notStarted = result.error !== undefined
-    ? ["ENOENT", "EACCES"].includes(result.error.code) && result.pid === 0
-    : ["ENEEDAUTH", "EUSAGE", "EPRIVATE"].includes(npmCode);
-  const diagnostic = [
-    `npm publish failed; code=${knownCodes.includes(code) ? code : "unknown"}`,
-    `exit=${Number.isInteger(result.status) ? result.status : "unknown"}`,
-    `signal=${["SIGTERM", "SIGKILL", "SIGINT"].includes(result.signal) ? result.signal : "none-or-unknown"}`,
-    "raw output omitted",
-  ].join("; ");
-  throw Object.assign(new Error(diagnostic), {
-    publishFailure: { diagnostic, notStarted,
-      outcome: result.error === undefined && Number.isInteger(result.status) && result.status !== 0
-        ? "nonzero" : "unknown" },
-  });
-}
+export {
+  runTimedAudit,
+  assertNpmVersion,
+  npmPublishArguments,
+  npmSignatureInstallArguments,
+  publishNpmArtifact,
+} from "./release-npm-command.ts";
+import {
+  runTimedAudit,
+  assertNpmVersion,
+  npmSignatureInstallArguments,
+  publishNpmArtifact,
+  executeCommand,
+} from "./release-npm-command.ts";
 
 function statementFromAttestations(metadata) {
   const entries = metadata?.attestations?.filter(
@@ -99,7 +47,10 @@ function statementFromAttestations(metadata) {
     return;
   }
   const envelope = entries[0]?.bundle?.dsseEnvelope;
-  if (envelope?.payloadType !== "application/vnd.in-toto+json" || typeof envelope.payload !== "string") {
+  if (
+    envelope?.payloadType !== "application/vnd.in-toto+json" ||
+    typeof envelope.payload !== "string"
+  ) {
     return;
   }
   try {
@@ -114,8 +65,12 @@ function soleEntry(value) {
 }
 
 function exactDigestEntry(value, key) {
-  return value !== null && typeof value === "object" &&
-    Object.keys(value).length === 1 && typeof value[key] === "string";
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    Object.keys(value).length === 1 &&
+    typeof value[key] === "string"
+  );
 }
 
 function exactGitDependency(definition) {
@@ -131,8 +86,10 @@ function exactShaSubject(statement) {
 }
 
 export function provenanceFrom(statement) {
-  if (statement?.["_type"] !== "https://in-toto.io/Statement/v1" ||
-      statement.predicateType !== "https://slsa.dev/provenance/v1") {
+  if (
+    statement?.["_type"] !== "https://in-toto.io/Statement/v1" ||
+    statement.predicateType !== "https://slsa.dev/provenance/v1"
+  ) {
     return;
   }
   const definition = statement.predicate?.buildDefinition;
@@ -165,9 +122,13 @@ function attestationBundlesFrom(entry) {
 }
 
 function exactVerifiedAuditEntry(evidence, artifact) {
-  if (!Array.isArray(evidence?.invalid) || evidence.invalid.length !== 0 ||
-      !Array.isArray(evidence?.missing) || evidence.missing.length !== 0 ||
-      !Array.isArray(evidence?.verified)) {
+  if (
+    !Array.isArray(evidence?.invalid) ||
+    evidence.invalid.length !== 0 ||
+    !Array.isArray(evidence?.missing) ||
+    evidence.missing.length !== 0 ||
+    !Array.isArray(evidence?.verified)
+  ) {
     throw new Error("npm signature audit did not return clean verification evidence.");
   }
   const matches = evidence.verified.filter(
@@ -178,13 +139,18 @@ function exactVerifiedAuditEntry(evidence, artifact) {
     (bundle) => bundle?.predicateType === "https://slsa.dev/provenance/v1",
   );
   const publishBundles = bundles?.filter(
-    (bundle) => bundle?.predicateType ===
-      "https://github.com/npm/attestation/tree/main/specs/publish/v0.1",
+    (bundle) =>
+      bundle?.predicateType === "https://github.com/npm/attestation/tree/main/specs/publish/v0.1",
   );
-  if (matches.length !== 1 || matches[0].attestations?.provenance?.predicateType !==
-      "https://slsa.dev/provenance/v1" || provenanceBundles?.length !== 1 ||
-      publishBundles?.length !== 1) {
-    throw new Error(`npm audit did not cryptographically verify signature and provenance for ${artifact.name}@${artifact.version}.`);
+  if (
+    matches.length !== 1 ||
+    matches[0].attestations?.provenance?.predicateType !== "https://slsa.dev/provenance/v1" ||
+    provenanceBundles?.length !== 1 ||
+    publishBundles?.length !== 1
+  ) {
+    throw new Error(
+      `npm audit did not cryptographically verify signature and provenance for ${artifact.name}@${artifact.version}.`,
+    );
   }
   return { entry: matches[0], provenanceBundle: provenanceBundles[0] };
 }
@@ -195,8 +161,10 @@ export function assertNpmSignatureEvidence(evidence, artifact) {
 
 function statementFromVerifiedBundle(bundle) {
   const envelope = bundle?.bundle?.dsseEnvelope;
-  if (envelope?.payloadType !== "application/vnd.in-toto+json" ||
-      typeof envelope.payload !== "string") {
+  if (
+    envelope?.payloadType !== "application/vnd.in-toto+json" ||
+    typeof envelope.payload !== "string"
+  ) {
     throw new Error("npm verified SLSA bundle has no in-toto DSSE payload.");
   }
   const bytes = Buffer.from(envelope.payload, "base64");
@@ -210,31 +178,31 @@ function statementFromVerifiedBundle(bundle) {
   }
 }
 
-function expectedIntegrityHex(integrity) {
-  const match = /^sha512-([A-Za-z0-9+/]+={0,2})$/u.exec(integrity ?? "");
-  const bytes = match === null ? undefined : Buffer.from(match[1], "base64");
-  if (match === null || bytes.length !== 64 || bytes.toString("base64") !== match[1]) {
-    throw new Error("npm verified provenance received non-canonical artifact SRI.");
-  }
-  return bytes.toString("hex");
-}
-
 export function verifiedProvenanceFromNpmAudit(evidence, artifact, source) {
   const { provenanceBundle } = exactVerifiedAuditEntry(evidence, artifact);
   const statement = statementFromVerifiedBundle(provenanceBundle);
   const provenance = provenanceFrom(statement);
-  if (source.expectedInvocation !== undefined &&
-      statement.predicate?.runDetails?.metadata?.invocationId !== source.expectedInvocation) {
-    throw new Error(`npm verified provenance invocation differs from reviewed publication for ${artifact.name}.`);
+  if (
+    source.expectedInvocation !== undefined &&
+    statement.predicate?.runDetails?.metadata?.invocationId !== source.expectedInvocation
+  ) {
+    throw new Error(
+      `npm verified provenance invocation differs from reviewed publication for ${artifact.name}.`,
+    );
   }
   const expectedSubject = `pkg:npm/${npmPurlName(artifact.name)}@${artifact.version}`;
-  if (provenance?.repository !== source.repository || provenance.workflow !== source.workflow ||
-      provenance.ref !== source.ref ||
-      provenance.dependencyUri !== `git+${source.repository}@${source.ref}` ||
-      !/^[a-f0-9]{40}$/u.test(provenance.commit ?? "") ||
-      provenance.subjectName !== expectedSubject ||
-      provenance.sha512 !== expectedIntegrityHex(artifact.integrity)) {
-    throw new Error(`npm verified provenance is not bound to ${artifact.name}@${artifact.version} and its reviewed source.`);
+  if (
+    provenance?.repository !== source.repository ||
+    provenance.workflow !== source.workflow ||
+    provenance.ref !== source.ref ||
+    provenance.dependencyUri !== `git+${source.repository}@${source.ref}` ||
+    !/^[a-f0-9]{40}$/u.test(provenance.commit ?? "") ||
+    provenance.subjectName !== expectedSubject ||
+    provenance.sha512 !== expectedIntegrityHex(artifact.integrity)
+  ) {
+    throw new Error(
+      `npm verified provenance is not bound to ${artifact.name}@${artifact.version} and its reviewed source.`,
+    );
   }
   return provenance;
 }
@@ -246,7 +214,8 @@ async function verifyNpmSignature(artifact, source) {
     await writeFile(join(temporary, "package.json"), `${JSON.stringify({ private: true })}\n`);
     try {
       executeCommand("npm", npmSignatureInstallArguments(artifact), {
-        cwd: temporary, timeout: 120_000,
+        cwd: temporary,
+        timeout: 120_000,
       });
     } catch {
       throw new Error("npm signature installation failed; raw output omitted.");
@@ -258,44 +227,55 @@ async function verifyNpmSignature(artifact, source) {
 }
 
 // A timed audit must terminate even when npm ignores SIGTERM.
-export function runTimedAudit(command, args, options) {
-  return spawnSync(command, args, {
-    encoding: "utf8", maxBuffer: 32 * 1024 * 1024, ...options, killSignal: "SIGKILL",
-  });
-}
-
 function isExactAttestationE404(result, expectedUrl) {
   if (result.error !== undefined || result.status === 0) {
     return false;
   }
   const stderr = result.stderr ?? "";
   const codes = [...stderr.matchAll(/^npm error code (E[A-Z0-9]+)$/gmu)].map((match) => match[1]);
-  const urls = [...stderr.matchAll(/^npm error 404 Not Found - GET (https?:\/\/\S+)/gmu)].map((match) => match[1]);
+  const urls = [...stderr.matchAll(/^npm error 404 Not Found - GET (https?:\/\/\S+)/gmu)].map(
+    (match) => match[1],
+  );
   if (codes.length === 0 || !codes.every((code) => code === "E404") || urls.length !== 1) {
     return false;
   }
   try {
     const observed = new URL(urls[0]);
-    return observed.origin === expectedUrl.origin && observed.username === "" &&
-      observed.password === "" && observed.search === "" && observed.hash === "" &&
-      decodeURIComponent(observed.pathname) === decodeURIComponent(expectedUrl.pathname);
+    return (
+      observed.origin === expectedUrl.origin &&
+      observed.username === "" &&
+      observed.password === "" &&
+      observed.search === "" &&
+      observed.hash === "" &&
+      decodeURIComponent(observed.pathname) === decodeURIComponent(expectedUrl.pathname)
+    );
   } catch {
     return false;
   }
 }
 
 async function auditNpmSignature(artifact, source, temporary, registry) {
-  const args = ["audit", "signatures", "--json", "--include-attestations", "--prefer-online", `--registry=${registry}`];
+  const args = [
+    "audit",
+    "signatures",
+    "--json",
+    "--include-attestations",
+    "--prefer-online",
+    `--registry=${registry}`,
+  ];
   const endpoint = registryUrl(
-    artifact, `-/npm/v1/attestations/${encodeURIComponent(artifact.name)}@${artifact.version}`,
+    artifact,
+    `-/npm/v1/attestations/${encodeURIComponent(artifact.name)}@${artifact.version}`,
   );
-  const deadline = performance.now() +
+  const deadline =
+    performance.now() +
     (REGISTRY_OBSERVATION_ATTEMPTS - 1) * REGISTRY_OBSERVATION_RETRY_MILLISECONDS;
   let observedExactE404 = false;
   for (let attempt = 0; attempt < REGISTRY_OBSERVATION_ATTEMPTS; attempt += 1) {
     const remaining = Math.max(1, Math.ceil(deadline - performance.now()));
     const result = runTimedAudit("npm", args, {
-      cwd: temporary, timeout: Math.min(120_000, remaining),
+      cwd: temporary,
+      timeout: Math.min(120_000, remaining),
     });
     let incompleteAttestations = false;
     if (result.error === undefined && result.status === 0) {
@@ -315,15 +295,20 @@ async function auditNpmSignature(artifact, source, temporary, registry) {
       }
     }
     const retryable = incompleteAttestations || isExactAttestationE404(result, endpoint);
-    const timedOutAfterExactE404 = observedExactE404 && result.error?.code === "ETIMEDOUT" &&
-      !result.stderr;
+    const timedOutAfterExactE404 =
+      observedExactE404 && result.error?.code === "ETIMEDOUT" && !result.stderr;
     const wait = Math.min(REGISTRY_OBSERVATION_RETRY_MILLISECONDS, deadline - performance.now());
     if (!retryable || wait <= 0 || attempt + 1 >= REGISTRY_OBSERVATION_ATTEMPTS) {
-      const code = incompleteAttestations ? "attestations-not-yet-verified"
-        : retryable || timedOutAfterExactE404 ? "E404" : "unknown-or-non-transient";
+      const code = incompleteAttestations
+        ? "attestations-not-yet-verified"
+        : retryable || timedOutAfterExactE404
+          ? "E404"
+          : "unknown-or-non-transient";
       throw new Error(`npm signature audit failed; code=${code}; raw output omitted.`);
     }
-    if (!incompleteAttestations) { observedExactE404 = true; }
+    if (!incompleteAttestations) {
+      observedExactE404 = true;
+    }
     const { promise, resolve: finishWait } = Promise.withResolvers();
     setTimeout(finishWait, wait);
     await promise;
@@ -331,29 +316,10 @@ async function auditNpmSignature(artifact, source, temporary, registry) {
 }
 
 function packedManifestFromBytes(archive) {
-  return JSON.parse(executeCommand(
-    "tar",
-    ["-xzOf", "-", "package/package.json"],
-    { input: archive },
-  ));
+  return JSON.parse(
+    executeCommand("tar", ["-xzOf", "-", "package/package.json"], { input: archive }),
+  );
 }
-
-function releaseNotes(changelog, version) {
-  const source = changelog.replaceAll("\r\n", "\n");
-  const lines = source.split("\n");
-  const start = lines.indexOf(`## ${version}`);
-  if (start < 0) {
-    throw new Error(`Changelog has no exact ${version} release entry.`);
-  }
-  const contentLines = lines.slice(start + 1);
-  const next = contentLines.findIndex((line) => line.startsWith("## "));
-  const content = contentLines.slice(0, next < 0 ? undefined : next).join("\n").trim();
-  if (content.length === 0) {
-    throw new Error(`Changelog entry for ${version} is empty.`);
-  }
-  return content;
-}
-
 
 async function packArtifacts(cwd, state, destination) {
   if (resolve(cwd) !== resolve(fileURLToPath(new URL("..", import.meta.url)))) {
@@ -365,9 +331,12 @@ async function packArtifacts(cwd, state, destination) {
   for (const packageInfo of state.packages.public) {
     const catalog = publishablePackageByName(packageInfo.name);
     artifacts.push({
-      ...await readQualifiedReleaseArtifact(qualified[packageInfo.name], packageInfo),
+      ...(await readQualifiedReleaseArtifact(qualified[packageInfo.name], packageInfo)),
       name: packageInfo.name,
-      releaseNotes: releaseNotes(await readFile(join(cwd, catalog.changelogPath), "utf8"), packageInfo.version),
+      releaseNotes: releaseNotes(
+        await readFile(join(cwd, catalog.changelogPath), "utf8"),
+        packageInfo.version,
+      ),
       registry: packageInfo.registry,
       version: packageInfo.version,
     });
@@ -394,19 +363,26 @@ function isGitAncestor(cwd, ancestor, descendant) {
 
 export function assertLiveMainHead(repository, expectedCommit, request = githubJson) {
   const live = request([`repos/${repository}/git/ref/heads/main`]);
-  if (live?.ref !== "refs/heads/main" || live.object?.type !== "commit" ||
-      live.object.sha !== expectedCommit) {
+  if (
+    live?.ref !== "refs/heads/main" ||
+    live.object?.type !== "commit" ||
+    live.object.sha !== expectedCommit
+  ) {
     throw new Error("Ordered publishing refused because protected main advanced beyond this run.");
   }
 }
 
 export async function reconcileGithubRelease(artifact, releaseCommit, options = {}) {
-  return await reconcileGithubTagRelease({
-    body: artifact.releaseNotes,
-    prerelease: artifact.version.includes("-"),
-    tag: `${artifact.name}@${artifact.version}`,
-    title: `${artifact.name}@${artifact.version}`,
-  }, releaseCommit, options);
+  return await reconcileGithubTagRelease(
+    {
+      body: artifact.releaseNotes,
+      prerelease: artifact.version.includes("-"),
+      tag: `${artifact.name}@${artifact.version}`,
+      title: `${artifact.name}@${artifact.version}`,
+    },
+    releaseCommit,
+    options,
+  );
 }
 
 function registryUrl(artifact, path) {
@@ -431,12 +407,15 @@ async function fetchJson(url, init) {
 async function inspectVersion(artifact, { remainingMilliseconds } = {}) {
   // One shared signal includes all response bodies in the remaining visibility budget.
   // Preflight/final observations retain their existing independent 10s request bounds.
-  const signal = remainingMilliseconds === undefined ? undefined
-    : AbortSignal.timeout(Math.max(1, Math.ceil(remainingMilliseconds)));
+  const signal =
+    remainingMilliseconds === undefined
+      ? undefined
+      : AbortSignal.timeout(Math.max(1, Math.ceil(remainingMilliseconds)));
   let stage = "metadata";
   try {
     const response = await fetch(registryUrl(artifact, encodeURIComponent(artifact.name)), {
-      headers: { accept: "application/json" }, signal: registryRequestSignal(signal),
+      headers: { accept: "application/json" },
+      signal: registryRequestSignal(signal),
     });
     if (!response.ok) {
       await response.body?.cancel();
@@ -444,9 +423,13 @@ async function inspectVersion(artifact, { remainingMilliseconds } = {}) {
     }
     const packument = await response.json();
     const version = packument?.versions?.[artifact.version];
-    if (version === undefined) { return { stage, status: "absent" }; }
+    if (version === undefined) {
+      return { stage, status: "absent" };
+    }
     stage = "tarball";
-    const archiveResponse = await fetch(version.dist.tarball, { signal: registryRequestSignal(signal) });
+    const archiveResponse = await fetch(version.dist.tarball, {
+      signal: registryRequestSignal(signal),
+    });
     if (!archiveResponse.ok) {
       await archiveResponse.body?.cancel();
       throw new Error(`tarball download returned ${archiveResponse.status}`);
@@ -456,7 +439,10 @@ async function inspectVersion(artifact, { remainingMilliseconds } = {}) {
     const manifest = packedManifestFromBytes(archive);
     stage = "attestation";
     const attestations = await fetchJson(
-      registryUrl(artifact, `-/npm/v1/attestations/${encodeURIComponent(artifact.name)}@${artifact.version}`),
+      registryUrl(
+        artifact,
+        `-/npm/v1/attestations/${encodeURIComponent(artifact.name)}@${artifact.version}`,
+      ),
       { signal },
     );
     return {
@@ -480,8 +466,11 @@ export async function publishOrderedRelease({ cwd, decision, state }) {
     workflow: ".github/workflows/release.yml",
     isTrustedCommit: async (commit) => isGitAncestor(cwd, commit, process.env.GITHUB_SHA),
   };
-  if (!/^[a-f0-9]{40}$/u.test(source.commit ?? "") || source.ref !== "refs/heads/main" ||
-      !/^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(source.repository)) {
+  if (
+    !/^[a-f0-9]{40}$/u.test(source.commit ?? "") ||
+    source.ref !== "refs/heads/main" ||
+    !/^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(source.repository)
+  ) {
     throw new Error("Ordered publishing requires the exact protected-main GitHub source identity.");
   }
   assertNpmVersion();
@@ -510,7 +499,8 @@ export async function publishOrderedRelease({ cwd, decision, state }) {
             `Package archive changed during verification: ${artifact.archivePath}.`,
           ];
           const reason = reasons.find((message) => message === error?.message);
-          const diagnostic = "publish prerequisite failed before npm invocation" +
+          const diagnostic =
+            "publish prerequisite failed before npm invocation" +
             (reason === undefined ? "" : `: ${reason}`);
           throw Object.assign(new Error(diagnostic), {
             publishFailure: { diagnostic, notStarted: true },
@@ -519,7 +509,8 @@ export async function publishOrderedRelease({ cwd, decision, state }) {
         publishNpmArtifact(artifact, tag, { cwd });
       },
       reportPublishFailure: (message) => process.stderr.write(`${message}\n`),
-      reportProgress: (record) => process.stdout.write(`Ordered release stage: ${JSON.stringify(record)}\n`),
+      reportProgress: (record) =>
+        process.stdout.write(`Ordered release stage: ${JSON.stringify(record)}\n`),
       reconcileRelease: reconcileGithubRelease,
       source,
       verifySignature: async (artifact) => await verifyNpmSignature(artifact, source),

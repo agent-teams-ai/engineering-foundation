@@ -1,4 +1,8 @@
-import type { CallToolResult, StandardSchemaWithJSON, ToolAnnotations } from "@modelcontextprotocol/server";
+import type {
+  CallToolResult,
+  StandardSchemaWithJSON,
+  ToolAnnotations,
+} from "@modelcontextprotocol/server";
 import type { DocsFindQuery } from "@agent-teams/docs-protocol";
 
 export const DOCS_PROTOCOL_MCP_PROJECTION_VERSION = 1 as const;

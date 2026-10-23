@@ -8,24 +8,24 @@ import {
   assertSourceTopologyActive as assertNotCancelled,
   isSourceTopologyProblem,
   sourceTopologyInputError as inputError,
-  type SourceWorkspaceManifestLoader
+  type SourceWorkspaceManifestLoader,
 } from "../../../api.js";
 import type { WorkspaceInventory } from "../../../application/model/workspace-inventory.js";
 import { portableRepositoryPathIdentity } from "../../../application/model/repository-path.js";
 import type {
   InspectSourceWorkspaceTopologyInput,
-  SourceWorkspaceInventorySnapshotReader
+  SourceWorkspaceInventorySnapshotReader,
 } from "../../../application/ports/source-workspace-topology-inspector.js";
 import {
   discoverSourceWorkspacePaths,
   type DiscoveredSourceWorkspacePaths,
   type SourceWorkspaceDiscoveryHooks,
-  type SourceWorkspaceDiscoveryLimits
+  type SourceWorkspaceDiscoveryLimits,
 } from "./selected-package-source-discovery.js";
 import {
   captureStableRepositoryPath,
   type SourceWorkspaceFileSystem,
-  type StableRepositoryPath
+  type StableRepositoryPath,
 } from "./source-workspace-filesystem.js";
 import { inspectUniqueRoots } from "./source-workspace-root-snapshot.js";
 
@@ -60,7 +60,7 @@ async function readPackageTypeScopes(
   canonicalConsumerRoot: string,
   manifestPaths: readonly string[],
   fileSystem: SourceWorkspaceFileSystem,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<readonly { readonly moduleType: "commonjs" | "module"; readonly rootPath: string }[]> {
   const scopes = [] as { moduleType: "commonjs" | "module"; rootPath: string }[];
   for (const manifestPath of manifestPaths) {
@@ -70,7 +70,7 @@ async function readPackageTypeScopes(
       const bytes = await fileSystem.readContainedFile({
         candidate: join(canonicalConsumerRoot, ...manifestPath.split("/")),
         maxBytes: 2 * 1024 * 1024,
-        root: canonicalConsumerRoot
+        root: canonicalConsumerRoot,
       });
       assertSourceManifestByteLimit(bytes.byteLength, 2 * 1024 * 1024, manifestPath);
       value = JSON.parse(Buffer.from(bytes).toString("utf8")) as unknown;
@@ -78,39 +78,33 @@ async function readPackageTypeScopes(
       assertNotCancelled(signal);
       inputError(
         "PACKAGE_MANIFEST_INVALID",
-        `Nested package scope is unavailable or invalid: ${manifestPath}.`
+        `Nested package scope is unavailable or invalid: ${manifestPath}.`,
       );
     }
     if (typeof value !== "object" || value === null || Array.isArray(value)) {
       inputError(
         "PACKAGE_MANIFEST_INVALID",
-        `Nested package scope must contain an object: ${manifestPath}.`
+        `Nested package scope must contain an object: ${manifestPath}.`,
       );
     }
     scopes.push({
-      moduleType: (value as Record<string, unknown>)["type"] === "module"
-        ? "module"
-        : "commonjs",
-      rootPath: packageRootForManifest(manifestPath)
+      moduleType: (value as Record<string, unknown>)["type"] === "module" ? "module" : "commonjs",
+      rootPath: packageRootForManifest(manifestPath),
     });
   }
-  return Object.freeze(scopes.toSorted((left, right) =>
-    compareBinaryStrings(left.rootPath, right.rootPath)
-  ));
+  return Object.freeze(
+    scopes.toSorted((left, right) => compareBinaryStrings(left.rootPath, right.rootPath)),
+  );
 }
 
 function packageRootForManifest(manifestPath: string): string {
   return manifestPath === "package.json" ? "." : posix.dirname(manifestPath);
 }
 
-function manifestSelectedByPackageRoot(
-  manifestPath: string,
-  packageRoot: string
-): boolean {
+function manifestSelectedByPackageRoot(manifestPath: string, packageRoot: string): boolean {
   const manifestRoot = packageRootForManifest(manifestPath);
   return (
-    portableRepositoryPathIdentity(manifestRoot) ===
-      portableRepositoryPathIdentity(packageRoot) ||
+    portableRepositoryPathIdentity(manifestRoot) === portableRepositoryPathIdentity(packageRoot) ||
     portableRepositoryPathIdentity(posix.dirname(manifestRoot)) ===
       portableRepositoryPathIdentity(packageRoot)
   );
@@ -118,24 +112,20 @@ function manifestSelectedByPackageRoot(
 
 function assertPackageRootsContainPackages(
   packageRoots: readonly string[],
-  manifestPaths: readonly string[]
+  manifestPaths: readonly string[],
 ): void {
   for (const packageRoot of packageRoots) {
     const identity = portableRepositoryPathIdentity(packageRoot);
     const hasManifest = manifestPaths.some((manifestPath) => {
-      const manifestRoot = portableRepositoryPathIdentity(
-        packageRootForManifest(manifestPath)
-      );
+      const manifestRoot = portableRepositoryPathIdentity(packageRootForManifest(manifestPath));
       return (
-        identity === "." ||
-        manifestRoot === identity ||
-        manifestRoot.startsWith(`${identity}/`)
+        identity === "." || manifestRoot === identity || manifestRoot.startsWith(`${identity}/`)
       );
     });
     if (!hasManifest) {
       inputError(
         "PACKAGE_ROOT_EMPTY",
-        `Schema v2 package root contains no package manifests: ${packageRoot}.`
+        `Schema v2 package root contains no package manifests: ${packageRoot}.`,
       );
     }
   }
@@ -143,26 +133,23 @@ function assertPackageRootsContainPackages(
 
 function assertPortableDiscoveryAgreement(
   workspaceManifestPaths: readonly string[],
-  discovered: DiscoveredSourceWorkspacePaths
+  discovered: DiscoveredSourceWorkspacePaths,
 ): void {
   const discoveredDirectories = new Map(
     discovered.directorySnapshots.map(({ repositoryPath }) => [
       portableRepositoryPathIdentity(repositoryPath),
-      repositoryPath
-    ])
+      repositoryPath,
+    ]),
   );
   for (const manifestPath of workspaceManifestPaths) {
     const manifestRoot = packageRootForManifest(manifestPath);
     const discoveredDirectory = discoveredDirectories.get(
-      portableRepositoryPathIdentity(manifestRoot)
+      portableRepositoryPathIdentity(manifestRoot),
     );
-    if (
-      discoveredDirectory !== undefined &&
-      discoveredDirectory !== manifestRoot
-    ) {
+    if (discoveredDirectory !== undefined && discoveredDirectory !== manifestRoot) {
       inputError(
         "PACKAGE_PATH_CASE_COLLISION",
-        `Workspace manifest and source directory paths differ only by portable identity: ${manifestRoot} and ${discoveredDirectory}.`
+        `Workspace manifest and source directory paths differ only by portable identity: ${manifestRoot} and ${discoveredDirectory}.`,
       );
     }
   }
@@ -171,7 +158,7 @@ function assertPortableDiscoveryAgreement(
 function selectedWorkspaceRoots(
   input: InspectSourceWorkspaceTopologyInput,
   workspaceManifestPaths: readonly string[],
-  observations: RootPackageSourceScopes | undefined
+  observations: RootPackageSourceScopes | undefined,
 ): readonly string[] {
   return workspaceManifestPaths
     .filter(
@@ -179,8 +166,8 @@ function selectedWorkspaceRoots(
         manifestPath !== "package.json" &&
         (observations === undefined || observations.authorityPaths().includes(manifestPath)) &&
         input.packageRoots.some((packageRoot) =>
-          manifestSelectedByPackageRoot(manifestPath, packageRoot)
-        )
+          manifestSelectedByPackageRoot(manifestPath, packageRoot),
+        ),
     )
     .map(packageRootForManifest);
 }
@@ -189,40 +176,44 @@ function selectObservedPackages(
   input: InspectSourceWorkspaceTopologyInput,
   workspaceManifestPaths: readonly string[],
   discovered: DiscoveredSourceWorkspacePaths,
-  observations: RootPackageSourceScopes | undefined
+  observations: RootPackageSourceScopes | undefined,
 ) {
-  const ownership = observations?.deriveOwnership(input.governedRoots, input.v3?.includeRootPackage === true);
+  const ownership = observations?.deriveOwnership(
+    input.governedRoots,
+    input.v3?.includeRootPackage === true,
+  );
   const authorityPaths = ownership?.ownershipManifestPaths;
   const unclassifiedWorkspaceManifest = (authorityPaths ?? workspaceManifestPaths).find(
     (manifestPath) =>
       manifestPath !== "package.json" &&
       !input.packageRoots.some((packageRoot) =>
-        manifestSelectedByPackageRoot(manifestPath, packageRoot)
-      )
+        manifestSelectedByPackageRoot(manifestPath, packageRoot),
+      ),
   );
   if (unclassifiedWorkspaceManifest !== undefined) {
     inputError(
       "WORKSPACE_PACKAGE_OUTSIDE_PACKAGE_ROOTS",
-      `pnpm workspace package is outside the closed schema v2 packageRoots contract: ${unclassifiedWorkspaceManifest}.`
+      `pnpm workspace package is outside the closed schema v2 packageRoots contract: ${unclassifiedWorkspaceManifest}.`,
     );
   }
   if (input.v3?.includeRootPackage === true && ownership?.rootSourceRoots.length === 0) {
-    inputError("SOURCE_ROOT_PACKAGE_SCOPE_EMPTY", "Root package participation requires a root-owned governed source root.");
+    inputError(
+      "SOURCE_ROOT_PACKAGE_SCOPE_EMPTY",
+      "Root package participation requires a root-owned governed source root.",
+    );
   }
   const selectedManifestPaths = Object.freeze(
     (authorityPaths ?? discovered.manifestPaths).filter((manifestPath) =>
       manifestPath === "package.json"
         ? input.v3?.includeRootPackage === true
         : input.packageRoots.some((packageRoot) =>
-          manifestSelectedByPackageRoot(manifestPath, packageRoot)
-        )
-    )
+            manifestSelectedByPackageRoot(manifestPath, packageRoot),
+          ),
+    ),
   );
   assertPackageRootsContainPackages(input.packageRoots, selectedManifestPaths);
   const manifestPaths = Object.freeze(
-    [...new Set(["package.json", ...selectedManifestPaths])].toSorted(
-      compareBinaryStrings
-    )
+    [...new Set(["package.json", ...selectedManifestPaths])].toSorted(compareBinaryStrings),
   );
   return { ownership, selectedManifestPaths, manifestPaths };
 }
@@ -230,17 +221,16 @@ function selectObservedPackages(
 async function discoverWorkspaceManifests(
   snapshotInput: CapturePnpmSourceWorkspaceSnapshotInput,
   canonicalConsumerRoot: string,
-  workspaceManifest: unknown
+  workspaceManifest: unknown,
 ): Promise<readonly string[]> {
   const { input, fileSystem } = snapshotInput;
   let workspaceManifestPaths: readonly string[];
   try {
-    workspaceManifestPaths = await snapshotInput.inventoryReader
-      .discoverManifestPathsFromManifest(
-        canonicalConsumerRoot,
-        workspaceManifest,
-        input.signal
-      );
+    workspaceManifestPaths = await snapshotInput.inventoryReader.discoverManifestPathsFromManifest(
+      canonicalConsumerRoot,
+      workspaceManifest,
+      input.signal,
+    );
   } catch (error) {
     if (isSourceTopologyProblem(error, "PACKAGE_PATH_CASE_COLLISION")) {
       // Workspace glob discovery necessarily observes non-package directories.
@@ -254,7 +244,7 @@ async function discoverWorkspaceManifests(
         fileSystem,
         limits: snapshotInput.limits,
         ...(snapshotInput.hooks === undefined ? {} : { hooks: snapshotInput.hooks }),
-        ...(input.signal === undefined ? {} : { signal: input.signal })
+        ...(input.signal === undefined ? {} : { signal: input.signal }),
       });
     }
     throw error;
@@ -263,7 +253,7 @@ async function discoverWorkspaceManifests(
 }
 
 export async function capturePnpmSourceWorkspaceSnapshot(
-  snapshotInput: CapturePnpmSourceWorkspaceSnapshotInput
+  snapshotInput: CapturePnpmSourceWorkspaceSnapshotInput,
 ): Promise<PnpmSourceWorkspaceSnapshot> {
   const { fileSystem, input } = snapshotInput;
   assertNotCancelled(input.signal);
@@ -271,24 +261,22 @@ export async function capturePnpmSourceWorkspaceSnapshot(
     input.consumerRoot,
     input.workspaceManifestPath,
     "source-workspace-topology",
-    input.signal
+    input.signal,
   );
-  const canonicalConsumerRoot = await fileSystem
-    .realpath(input.consumerRoot)
-    .catch(() => {
-      assertNotCancelled(input.signal);
-      return inputError(
-        "CONSUMER_ROOT_UNAVAILABLE",
-        "Consumer root must be an existing accessible directory."
-      );
-    });
+  const canonicalConsumerRoot = await fileSystem.realpath(input.consumerRoot).catch(() => {
+    assertNotCancelled(input.signal);
+    return inputError(
+      "CONSUMER_ROOT_UNAVAILABLE",
+      "Consumer root must be an existing accessible directory.",
+    );
+  });
   assertNotCancelled(input.signal);
   const consumerRootSnapshot = await captureStableRepositoryPath(
     canonicalConsumerRoot,
     ".",
     "directory",
     fileSystem,
-    input.signal
+    input.signal,
   );
   const configuredPackageRoots = await inspectUniqueRoots({
     canonicalConsumerRoot,
@@ -297,56 +285,78 @@ export async function capturePnpmSourceWorkspaceSnapshot(
     operations: fileSystem,
     roots: input.packageRoots,
     ...(input.signal === undefined ? {} : { signal: input.signal }),
-    symbolicLinkCode: "PACKAGE_ROOT_SYMLINK_PROHIBITED"
+    symbolicLinkCode: "PACKAGE_ROOT_SYMLINK_PROHIBITED",
   });
   const workspaceManifestPaths = await discoverWorkspaceManifests(
-    snapshotInput, canonicalConsumerRoot, workspaceManifest
+    snapshotInput,
+    canonicalConsumerRoot,
+    workspaceManifest,
   );
-  const observations = input.v3 === undefined ? undefined : new RootPackageSourceScopes(
-    canonicalConsumerRoot, fileSystem, snapshotInput.limits, input.signal
-  );
+  const observations =
+    input.v3 === undefined
+      ? undefined
+      : new RootPackageSourceScopes(
+          canonicalConsumerRoot,
+          fileSystem,
+          snapshotInput.limits,
+          input.signal,
+        );
   await observations?.observeAncestry([...input.governedRoots, ...input.packageRoots]);
   for (const manifestPath of observations === undefined ? [] : workspaceManifestPaths) {
     await observations?.observe(manifestPath);
   }
-  const initialOwnership = observations?.deriveOwnership(input.governedRoots, input.v3?.includeRootPackage === true);
-  const selectedWorkspacePackageRoots = selectedWorkspaceRoots(input, workspaceManifestPaths, observations);
+  const initialOwnership = observations?.deriveOwnership(
+    input.governedRoots,
+    input.v3?.includeRootPackage === true,
+  );
+  const selectedWorkspacePackageRoots = selectedWorkspaceRoots(
+    input,
+    workspaceManifestPaths,
+    observations,
+  );
   const discovered = await discoverSourceWorkspacePaths(canonicalConsumerRoot, {
     repositoryRoots: input.packageRoots,
-    ...(observations === undefined ? {} : {
-      budget: observations.budget,
-      rootSourceRoots: initialOwnership?.rootSourceRoots ?? [],
-      observeManifest: (path: string) => observations.observe(path)
-    }),
+    ...(observations === undefined
+      ? {}
+      : {
+          budget: observations.budget,
+          rootSourceRoots: initialOwnership?.rootSourceRoots ?? [],
+          observeManifest: (path: string) => observations.observe(path),
+        }),
     governedRoots: input.governedRoots,
     boundaryRoots: input.boundaryRoots.map(({ path }) => path),
     selectedPackageRoots: selectedWorkspacePackageRoots,
     fileSystem,
     limits: snapshotInput.limits,
     ...(snapshotInput.hooks === undefined ? {} : { hooks: snapshotInput.hooks }),
-    ...(input.signal === undefined ? {} : { signal: input.signal })
+    ...(input.signal === undefined ? {} : { signal: input.signal }),
   });
   assertPortableDiscoveryAgreement(workspaceManifestPaths, discovered);
   const { ownership, selectedManifestPaths, manifestPaths } = selectObservedPackages(
-    input, workspaceManifestPaths, discovered, observations
+    input,
+    workspaceManifestPaths,
+    discovered,
+    observations,
   );
   await observations?.revalidate();
   const inventory = await snapshotInput.inventoryReader.readFromManifestPaths(
     canonicalConsumerRoot,
     workspaceManifest,
     manifestPaths,
-    input.signal
+    input.signal,
   );
   await observations?.revalidate();
-  const packageTypeScopes = observations?.typeScopes() ?? await readPackageTypeScopes(
-    canonicalConsumerRoot,
-    discovered.manifestPaths,
-    fileSystem,
-    input.signal
-  );
+  const packageTypeScopes =
+    observations?.typeScopes() ??
+    (await readPackageTypeScopes(
+      canonicalConsumerRoot,
+      discovered.manifestPaths,
+      fileSystem,
+      input.signal,
+    ));
   const selectedManifestSet = new Set(selectedManifestPaths);
   const selectedPackages = inventory.packages.filter((workspacePackage) =>
-    selectedManifestSet.has(workspacePackage.manifestPath)
+    selectedManifestSet.has(workspacePackage.manifestPath),
   );
   return Object.freeze({
     ...(observations === undefined ? {} : { observations }),
@@ -358,6 +368,6 @@ export async function capturePnpmSourceWorkspaceSnapshot(
     inventory,
     packageTypeScopes,
     selectedManifestPaths,
-    selectedPackages
+    selectedPackages,
   });
 }

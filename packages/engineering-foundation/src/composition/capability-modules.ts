@@ -4,115 +4,141 @@ import { createSourceTreeReader } from "../source-inventory/module.js";
 import { createWorkspaceInventoryReader } from "../workspace-inventory/module.js";
 import { qualityCoverageCapability } from "./quality-coverage.js";
 import { QUALITY_COVERAGE_RULES_BY_ID } from "../features/quality-coverage/api.js";
-import { createCapabilityModule, createCapabilityModules } from "../features/validation-reporting/api.js";
+import {
+  createCapabilityModule,
+  createCapabilityModules,
+} from "../features/validation-reporting/api.js";
 import type { CapabilityModuleDescriptor } from "../features/validation-reporting/api.js";
 import {
   AjvJsonSchemaReleaseInspector,
   createJsonSchemaInspector,
   createJsonSchemaReleaseCapability,
-  JSON_SCHEMA_RELEASE_RULES_BY_ID
+  JSON_SCHEMA_RELEASE_RULES_BY_ID,
 } from "../capabilities/contract-json-schema-releases/module.js";
 import {
   GovernanceAcceptedDecisionEvidenceAcl,
   createProtobufEvolutionCapability,
-  PROTOBUF_EVOLUTION_RULES_BY_ID
+  PROTOBUF_EVOLUTION_RULES_BY_ID,
 } from "../capabilities/contract-protobuf-evolution/module.js";
 import {
   createDocumentationLocalReferencesCapability,
-  DOCUMENTATION_LOCAL_REFERENCE_RULES_BY_ID
+  DOCUMENTATION_LOCAL_REFERENCE_RULES_BY_ID,
 } from "../capabilities/documentation-local-references/module.js";
 import {
   createExecutableSpecificationsCapability,
-  EXECUTABLE_SPECIFICATION_RULES_BY_ID
+  EXECUTABLE_SPECIFICATION_RULES_BY_ID,
 } from "../capabilities/executable-specifications/module.js";
 import {
   ARCHITECTURE_DECISION_GOVERNANCE_RULES_BY_ID,
   createArchitectureDecisionGovernanceCapability,
-  readAcceptedArchitectureDecisionEvidence as readAcceptedEvidence
+  readAcceptedArchitectureDecisionEvidence as readAcceptedEvidence,
 } from "../capabilities/governance-architecture-decisions/module.js";
 import {
   createPublicApiCompatibilityCapability,
-  PUBLIC_API_COMPATIBILITY_RULES_BY_ID
+  PUBLIC_API_COMPATIBILITY_RULES_BY_ID,
 } from "../capabilities/public-api-compatibility/module.js";
 import {
   createQualityGateRunnerCapability,
-  QUALITY_GATE_RUNNER_RULES_BY_ID
+  QUALITY_GATE_RUNNER_RULES_BY_ID,
 } from "../capabilities/quality-gate-runner/module.js";
 import {
   createRepositoryAgentWorkflowCapability,
-  REPOSITORY_AGENT_WORKFLOW_RULES_BY_ID
+  REPOSITORY_AGENT_WORKFLOW_RULES_BY_ID,
 } from "../capabilities/repository-agent-workflow/module.js";
 import {
   createRepositorySecurityBaselineCapability,
-  REPOSITORY_SECURITY_RULES_BY_ID
+  REPOSITORY_SECURITY_RULES_BY_ID,
 } from "../capabilities/repository-security-baseline/module.js";
 import {
   createSourceDependenciesCapability,
-  SOURCE_DEPENDENCY_RULES_BY_ID
+  SOURCE_DEPENDENCY_RULES_BY_ID,
 } from "../capabilities/source-dependencies/module.js";
 import {
   createSuppressionGovernanceCapability,
-  SUPPRESSION_GOVERNANCE_RULES_BY_ID
+  SUPPRESSION_GOVERNANCE_RULES_BY_ID,
 } from "../capabilities/suppression-governance/module.js";
 import {
   createWorkspaceDependencyDeclarationsCapability,
-  RULES_BY_ID as WORKSPACE_RULES_BY_ID
+  RULES_BY_ID as WORKSPACE_RULES_BY_ID,
 } from "../capabilities/workspace-dependency-declarations/module.js";
 
-export type { CapabilityModuleDescriptor, RuleExplanation } from "../features/validation-reporting/api.js";
+export type {
+  CapabilityModuleDescriptor,
+  RuleExplanation,
+} from "../features/validation-reporting/api.js";
 
-const readAcceptedArchitectureDecisionEvidence = (input: Parameters<typeof readAcceptedEvidence>[0]) =>
-  readAcceptedEvidence(input, assertSchema);
+const readAcceptedArchitectureDecisionEvidence = (
+  input: Parameters<typeof readAcceptedEvidence>[0],
+) => readAcceptedEvidence(input, assertSchema);
 
-export const CAPABILITY_MODULES: readonly CapabilityModuleDescriptor[] =
-  createCapabilityModules([
-    createCapabilityModule(qualityCoverageCapability, QUALITY_COVERAGE_RULES_BY_ID),
-    createCapabilityModule(
-      createJsonSchemaReleaseCapability({ assertSchema }),
-      JSON_SCHEMA_RELEASE_RULES_BY_ID
+export const CAPABILITY_MODULES: readonly CapabilityModuleDescriptor[] = createCapabilityModules([
+  createCapabilityModule(qualityCoverageCapability, QUALITY_COVERAGE_RULES_BY_ID),
+  createCapabilityModule(
+    createJsonSchemaReleaseCapability({ assertSchema }),
+    JSON_SCHEMA_RELEASE_RULES_BY_ID,
+  ),
+  createCapabilityModule(
+    createProtobufEvolutionCapability({
+      acceptedDecisionEvidence: new GovernanceAcceptedDecisionEvidenceAcl(
+        readAcceptedArchitectureDecisionEvidence,
+      ),
+      assertSchema,
+    }),
+    PROTOBUF_EVOLUTION_RULES_BY_ID,
+  ),
+  createCapabilityModule(
+    createDocumentationLocalReferencesCapability({ assertSchema }),
+    DOCUMENTATION_LOCAL_REFERENCE_RULES_BY_ID,
+  ),
+  createCapabilityModule(
+    createExecutableSpecificationsCapability({
+      workspaceManifestPathReader: createWorkspaceInventoryReader(),
+      createJsonSchemaInspector,
+      assertSchema,
+    }),
+    EXECUTABLE_SPECIFICATION_RULES_BY_ID,
+  ),
+  createCapabilityModule(
+    createArchitectureDecisionGovernanceCapability({ assertSchema }),
+    ARCHITECTURE_DECISION_GOVERNANCE_RULES_BY_ID,
+  ),
+  createCapabilityModule(
+    createPublicApiCompatibilityCapability(
+      readAcceptedArchitectureDecisionEvidence,
+      assertSchema,
+      new AjvJsonSchemaReleaseInspector({ read: readContainedRegularFile }),
     ),
-    createCapabilityModule(
-      createProtobufEvolutionCapability({ acceptedDecisionEvidence: new GovernanceAcceptedDecisionEvidenceAcl(readAcceptedArchitectureDecisionEvidence), assertSchema }),
-      PROTOBUF_EVOLUTION_RULES_BY_ID
+    PUBLIC_API_COMPATIBILITY_RULES_BY_ID,
+  ),
+  createCapabilityModule(
+    createQualityGateRunnerCapability({ assertSchema }),
+    QUALITY_GATE_RUNNER_RULES_BY_ID,
+  ),
+  createCapabilityModule(
+    createRepositoryAgentWorkflowCapability({ assertSchema }),
+    REPOSITORY_AGENT_WORKFLOW_RULES_BY_ID,
+  ),
+  createCapabilityModule(
+    createRepositorySecurityBaselineCapability({ assertSchema }),
+    REPOSITORY_SECURITY_RULES_BY_ID,
+  ),
+  createCapabilityModule(
+    createSourceDependenciesCapability({
+      inventoryReader: createWorkspaceInventoryReader(),
+      sourceReader: createSourceTreeReader(),
+      assertSchema,
+    }),
+    SOURCE_DEPENDENCY_RULES_BY_ID,
+  ),
+  createCapabilityModule(
+    createSuppressionGovernanceCapability({ sourceReader: createSourceTreeReader(), assertSchema }),
+    SUPPRESSION_GOVERNANCE_RULES_BY_ID,
+  ),
+  createCapabilityModule(
+    createWorkspaceDependencyDeclarationsCapability(
+      createWorkspaceInventoryReader(),
+      readFoundationSchema,
     ),
-    createCapabilityModule(
-      createDocumentationLocalReferencesCapability({ assertSchema }),
-      DOCUMENTATION_LOCAL_REFERENCE_RULES_BY_ID
-    ),
-    createCapabilityModule(
-      createExecutableSpecificationsCapability({ workspaceManifestPathReader: createWorkspaceInventoryReader(), createJsonSchemaInspector, assertSchema }),
-      EXECUTABLE_SPECIFICATION_RULES_BY_ID
-    ),
-    createCapabilityModule(
-      createArchitectureDecisionGovernanceCapability({ assertSchema }),
-      ARCHITECTURE_DECISION_GOVERNANCE_RULES_BY_ID
-    ),
-    createCapabilityModule(
-      createPublicApiCompatibilityCapability(readAcceptedArchitectureDecisionEvidence, assertSchema, new AjvJsonSchemaReleaseInspector({ read: readContainedRegularFile })),
-      PUBLIC_API_COMPATIBILITY_RULES_BY_ID
-    ),
-    createCapabilityModule(
-      createQualityGateRunnerCapability({ assertSchema }),
-      QUALITY_GATE_RUNNER_RULES_BY_ID
-    ),
-    createCapabilityModule(
-      createRepositoryAgentWorkflowCapability({ assertSchema }),
-      REPOSITORY_AGENT_WORKFLOW_RULES_BY_ID
-    ),
-    createCapabilityModule(
-      createRepositorySecurityBaselineCapability({ assertSchema }),
-      REPOSITORY_SECURITY_RULES_BY_ID
-    ),
-    createCapabilityModule(
-      createSourceDependenciesCapability({ inventoryReader: createWorkspaceInventoryReader(), sourceReader: createSourceTreeReader(), assertSchema }),
-      SOURCE_DEPENDENCY_RULES_BY_ID
-    ),
-    createCapabilityModule(
-      createSuppressionGovernanceCapability({ sourceReader: createSourceTreeReader(), assertSchema }),
-      SUPPRESSION_GOVERNANCE_RULES_BY_ID
-    ),
-    createCapabilityModule(
-      createWorkspaceDependencyDeclarationsCapability(createWorkspaceInventoryReader(), readFoundationSchema),
-      WORKSPACE_RULES_BY_ID
-    )
-  ]);
+    WORKSPACE_RULES_BY_ID,
+  ),
+]);

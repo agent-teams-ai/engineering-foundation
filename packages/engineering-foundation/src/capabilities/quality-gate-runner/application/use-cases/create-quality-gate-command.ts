@@ -13,7 +13,7 @@ function inputError(code: string, message: string): never {
     code,
     message,
     phase: "quality-gate-runner-command",
-    retryable: false
+    retryable: false,
   });
 }
 
@@ -32,17 +32,19 @@ export interface QualityGateCommandDependencies {
   readonly policyLoader: QualityGatePolicyLoader;
 }
 
-export type QualityGateCommand = (
-  input: QualityGateCommandInput
-) => Promise<QualityGateRunReport>;
+export type QualityGateCommand = (input: QualityGateCommandInput) => Promise<QualityGateRunReport>;
 
 function normalizePolicy(input: QualityGatePolicyInput): NormalizedQualityGatePolicy {
   if ("packageManager" in input) {
     return Object.freeze({
-      profiles: Object.freeze(input.profiles.map((profile) => Object.freeze({
-        ...profile,
-        packageManager: input.packageManager
-      })))
+      profiles: Object.freeze(
+        input.profiles.map((profile) =>
+          Object.freeze({
+            ...profile,
+            packageManager: input.packageManager,
+          }),
+        ),
+      ),
     });
   }
   return input;
@@ -50,57 +52,49 @@ function normalizePolicy(input: QualityGatePolicyInput): NormalizedQualityGatePo
 
 function assertNotCancelled(signal: AbortSignal | undefined): void {
   if (signal?.aborted === true) {
-    inputError(
-      "EXECUTION_CANCELLED",
-      "Quality gate execution was cancelled."
-    );
+    inputError("EXECUTION_CANCELLED", "Quality gate execution was cancelled.");
   }
 }
 
 export function createQualityGateCommand(
-  dependencies: QualityGateCommandDependencies
+  dependencies: QualityGateCommandDependencies,
 ): QualityGateCommand {
   return async (input) => {
     if (dependencies.qualityGateActive === true) {
       inputError(
         "QUALITY_GATE_RECURSION",
-        "A quality gate task cannot start another quality gate runner."
+        "A quality gate task cannot start another quality gate runner.",
       );
     }
     assertNotCancelled(input.signal);
-    const policy = normalizePolicy(await dependencies.policyLoader(
-      input.consumerRoot,
-      input.configPath,
-      input.signal
-    ));
+    const policy = normalizePolicy(
+      await dependencies.policyLoader(input.consumerRoot, input.configPath, input.signal),
+    );
     assertNotCancelled(input.signal);
     const profile = policy.profiles.find(({ id }) => id === input.profileId);
     if (profile === undefined) {
       inputError(
         "QUALITY_GATE_PROFILE_UNKNOWN",
-        `Unknown quality gate profile: ${input.profileId}.`
+        `Unknown quality gate profile: ${input.profileId}.`,
       );
     }
-    const catalog = await dependencies.catalogReader.read(
-      input.consumerRoot,
-      input.signal
-    );
+    const catalog = await dependencies.catalogReader.read(input.consumerRoot, input.signal);
     assertNotCancelled(input.signal);
     const diagnostics = evaluateQualityGateScripts(policy, catalog);
     if (diagnostics.length > 0) {
       inputError(
         "QUALITY_GATE_SCRIPTS_INVALID",
-        diagnostics.map(({ message }) => message).join(" ")
+        diagnostics.map(({ message }) => message).join(" "),
       );
     }
     return await runQualityGateProfile(
       {
         consumerRoot: input.consumerRoot,
         profile,
-        ...(input.signal === undefined ? {} : { signal: input.signal })
+        ...(input.signal === undefined ? {} : { signal: input.signal }),
       },
       dependencies.executor,
-      dependencies.clock
+      dependencies.clock,
     );
   };
 }

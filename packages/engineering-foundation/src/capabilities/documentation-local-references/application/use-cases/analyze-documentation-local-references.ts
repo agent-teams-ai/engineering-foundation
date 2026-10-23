@@ -4,7 +4,7 @@ import type { MarkdownRepository } from "@agent-teams/document-authoring/observa
 import type {
   DocumentationLocalReferencesObservation,
   DocumentationLocalReferencesPolicy,
-  ResolvedMarkdownReferenceObservation
+  ResolvedMarkdownReferenceObservation,
 } from "../model/documentation-local-references.js";
 import { evaluateDocumentationLocalReferences } from "../policies/evaluate-documentation-local-references.js";
 
@@ -16,13 +16,13 @@ export interface AnalyzeDocumentationLocalReferencesInput {
 
 export async function analyzeDocumentationLocalReferences(
   input: AnalyzeDocumentationLocalReferencesInput,
-  dependencies: { readonly repository: MarkdownRepository }
+  dependencies: { readonly repository: MarkdownRepository },
 ): Promise<readonly FoundationDiagnostic[]> {
   assertNotCancelled(input.signal);
   const observation = await dependencies.repository.observe({
     consumerRoot: input.consumerRoot,
     roots: input.policy.markdownRoots,
-    ...(input.signal === undefined ? {} : { signal: input.signal })
+    ...(input.signal === undefined ? {} : { signal: input.signal }),
   });
   const resolvedReferences: ResolvedMarkdownReferenceObservation[] = [];
   for (const document of observation.documents) {
@@ -32,23 +32,23 @@ export async function analyzeDocumentationLocalReferences(
         consumerRoot: input.consumerRoot,
         rawTarget: reference.rawTarget,
         ...(input.signal === undefined ? {} : { signal: input.signal }),
-        source: document
+        source: document,
       });
       resolvedReferences.push(
         Object.freeze({
           reference,
           resolution,
-          sourcePath: document.repositoryPath
-        })
+          sourcePath: document.repositoryPath,
+        }),
       );
     }
   }
   const resolvedObservation: DocumentationLocalReferencesObservation = Object.freeze({
     repository: observation,
-    resolvedReferences: Object.freeze(resolvedReferences)
+    resolvedReferences: Object.freeze(resolvedReferences),
   });
   return evaluateDocumentationLocalReferences({
     observation: resolvedObservation,
-    policy: input.policy
+    policy: input.policy,
   });
 }

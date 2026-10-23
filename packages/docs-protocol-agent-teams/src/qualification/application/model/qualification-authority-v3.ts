@@ -1,6 +1,6 @@
 import type {
   ConsumerQualificationAuthorityV3,
-  ConsumerUpgradeAuthorityV2
+  ConsumerUpgradeAuthorityV2,
 } from "../../../consumer-integration/application-api.js";
 
 export interface DocsProtocolQualificationAuthorityV3Request {

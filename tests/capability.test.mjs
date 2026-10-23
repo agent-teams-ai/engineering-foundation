@@ -40,7 +40,7 @@ import {
   cliPath,
   reportSchemaPath,
   withFixture,
-  withSourceFixture
+  withSourceFixture,
 } from "./support/capability-fixtures.mjs";
 
 test("accepts only exact SemVer versions", () => {
@@ -64,14 +64,15 @@ test("keeps schema, capability, rule, and explain registries drift-free", async 
     foundationConfigSchema.properties.capabilities.properties,
   ).toSorted();
   const runtimeCapabilityIds = [...CAPABILITY_REGISTRY.keys()].toSorted();
-  const moduleCapabilityIds = CAPABILITY_MODULES.map(
-    ({ definition }) => definition.id,
-  );
+  const moduleCapabilityIds = CAPABILITY_MODULES.map(({ definition }) => definition.id);
 
   assert.deepEqual(schemaCapabilityIds, runtimeCapabilityIds);
   assert.deepEqual(moduleCapabilityIds, [...CAPABILITY_REGISTRY.keys()]);
   assert.equal(Object.isFrozen(CAPABILITY_MODULES), true);
-  assert.equal(CAPABILITY_MODULES.every((module) => Object.isFrozen(module)), true);
+  assert.equal(
+    CAPABILITY_MODULES.every((module) => Object.isFrozen(module)),
+    true,
+  );
   for (const { definition } of CAPABILITY_MODULES) {
     assert.equal(CAPABILITY_REGISTRY.get(definition.id), definition);
   }
@@ -116,10 +117,13 @@ test("rejects duplicate capability and rule IDs before registry use", () => {
   const firstRule = firstModule.rules.get(firstRuleId);
   assert.notEqual(firstRule, undefined);
   assert.throws(
-    () => createRuleRegistry([{
-      definition: firstModule.definition,
-      rules: new Map([[firstRuleId, { ...firstRule, id: `${firstRuleId}.drifted` }]]),
-    }]),
+    () =>
+      createRuleRegistry([
+        {
+          definition: firstModule.definition,
+          rules: new Map([[firstRuleId, { ...firstRule, id: `${firstRuleId}.drifted` }]]),
+        },
+      ]),
     new Error(
       `Rule registry key ${firstRuleId} does not match metadata ID ${firstRuleId}.drifted.`,
     ),
@@ -127,17 +131,24 @@ test("rejects duplicate capability and rule IDs before registry use", () => {
   const secondRuleEntry = secondModule.rules.entries().next().value;
   assert.notEqual(secondRuleEntry, undefined);
   assert.throws(
-    () => createRuleRegistry([{
-      definition: firstModule.definition,
-      rules: new Map([secondRuleEntry]),
-    }]),
+    () =>
+      createRuleRegistry([
+        {
+          definition: firstModule.definition,
+          rules: new Map([secondRuleEntry]),
+        },
+      ]),
     new Error(
       `Rule ID ${secondRuleEntry[0]} is not owned by capability ${firstModule.definition.id}.`,
     ),
   );
 
   assert.throws(
-    () => createUniqueRegistry("test", [["duplicate", {}], ["duplicate", {}]]),
+    () =>
+      createUniqueRegistry("test", [
+        ["duplicate", {}],
+        ["duplicate", {}],
+      ]),
     new Error("Duplicate test ID: duplicate."),
   );
 });
@@ -157,10 +168,7 @@ test("restricts released contract and API baseline mutation to the Changesets re
       "agent-teams-ai/engineering-foundation",
       "agent-teams-ai/engineering-foundation",
     ),
-    [
-      "architecture/contracts/released-events.json",
-      "architecture/public-api/library.json",
-    ],
+    ["architecture/contracts/released-events.json", "architecture/public-api/library.json"],
   );
   assert.deepEqual(
     releaseOwnedFileViolations(
@@ -201,9 +209,17 @@ test("existing release-owned prefix covers artifact sidecars without admitting t
   const path = "architecture/public-api/library.artifacts.json";
   const repo = "agent-teams-ai/engineering-foundation";
   for (const status of ["M", "D", "T"]) {
-    assert.deepEqual(releaseOwnedFileViolations([{ status, path }], "feat/inventory", repo, repo), [path]);
-    assert.deepEqual(releaseOwnedFileViolations([{ status, path }], "changeset-release/main", repo, repo), []);
-    assert.deepEqual(releaseOwnedFileViolations([{ status, path }], "changeset-release/main", "fork/repo", repo), [path]);
+    assert.deepEqual(releaseOwnedFileViolations([{ status, path }], "feat/inventory", repo, repo), [
+      path,
+    ]);
+    assert.deepEqual(
+      releaseOwnedFileViolations([{ status, path }], "changeset-release/main", repo, repo),
+      [],
+    );
+    assert.deepEqual(
+      releaseOwnedFileViolations([{ status, path }], "changeset-release/main", "fork/repo", repo),
+      [path],
+    );
   }
   for (const change of [
     { status: "R", previousPath: path, path: "tmp/sidecar.json" },
@@ -214,7 +230,10 @@ test("existing release-owned prefix covers artifact sidecars without admitting t
   // Initial creation is permitted by this path guard, not accepted promotion.
   // The capability's evidence/fixation checks remain responsible for content.
   for (const status of ["A", "C"]) {
-    assert.deepEqual(releaseOwnedFileViolations([{ status, path }], "feat/inventory", repo, repo), []);
+    assert.deepEqual(
+      releaseOwnedFileViolations([{ status, path }], "feat/inventory", repo, repo),
+      [],
+    );
   }
 });
 
@@ -250,9 +269,7 @@ test("rejects a same-pull-request accepted ADR and baseline rewrite, but permits
     await writeFile(firstDecisionPath, "initial accepted decision\n", "utf8");
     await writeFile(
       baselinePath,
-      acceptedAdrBaseline([
-        acceptedAdrEntry("ADR-0001", "docs/decisions/0001-foundation.md", "a"),
-      ]),
+      acceptedAdrBaseline([acceptedAdrEntry("ADR-0001", "docs/decisions/0001-foundation.md", "a")]),
       "utf8",
     );
     runGit(root, ["init", "-q"]);
@@ -266,9 +283,7 @@ test("rejects a same-pull-request accepted ADR and baseline rewrite, but permits
     await writeFile(firstDecisionPath, "rewritten accepted decision\n", "utf8");
     await writeFile(
       baselinePath,
-      acceptedAdrBaseline([
-        acceptedAdrEntry("ADR-0001", "docs/decisions/0001-foundation.md", "b"),
-      ]),
+      acceptedAdrBaseline([acceptedAdrEntry("ADR-0001", "docs/decisions/0001-foundation.md", "b")]),
       "utf8",
     );
     runGit(root, ["add", "."]);
@@ -362,9 +377,7 @@ test("seals legacy accepted ADR source when initializing its first immutable bas
     await writeFile(decisionPath, decoratedSource, "utf8");
     await writeFile(
       baselinePath,
-      acceptedAdrBaseline([
-        acceptedAdrEntry("ADR-0001", "docs/decisions/0001-legacy.md", "a"),
-      ]),
+      acceptedAdrBaseline([acceptedAdrEntry("ADR-0001", "docs/decisions/0001-legacy.md", "a")]),
       "utf8",
     );
     runGit(root, ["add", "."]);
@@ -384,9 +397,7 @@ test("seals legacy accepted ADR source when initializing its first immutable bas
     );
     await writeFile(
       baselinePath,
-      acceptedAdrBaseline([
-        acceptedAdrEntry("ADR-0001", "docs/decisions/0001-legacy.md", "b"),
-      ]),
+      acceptedAdrBaseline([acceptedAdrEntry("ADR-0001", "docs/decisions/0001-legacy.md", "b")]),
       "utf8",
     );
     runGit(root, ["add", "."]);
@@ -437,9 +448,7 @@ test("reports deterministic source boundary and resolution violations", async ()
     );
     const { result, report } = check(consumerRoot);
     assert.equal(result.status, 1);
-    const ruleIds = report.capabilities[0].diagnostics.map(
-      (diagnostic) => diagnostic.ruleId,
-    );
+    const ruleIds = report.capabilities[0].diagnostics.map((diagnostic) => diagnostic.ruleId);
     assert.deepEqual(ruleIds, ruleIds.toSorted());
     assert.deepEqual(
       new Set(ruleIds),
@@ -466,8 +475,8 @@ test("discards partial dependency evidence when governed source is malformed", a
     );
     const { result, report } = check(consumerRoot);
     assert.equal(result.status, 1);
-    const malformedDiagnostics = report.capabilities[0].diagnostics.filter(
-      (diagnostic) => diagnostic.location.path.endsWith("malformed.ts"),
+    const malformedDiagnostics = report.capabilities[0].diagnostics.filter((diagnostic) =>
+      diagnostic.location.path.endsWith("malformed.ts"),
     );
     assert.deepEqual(
       malformedDiagnostics.map((diagnostic) => diagnostic.ruleId),
@@ -478,23 +487,12 @@ test("discards partial dependency evidence when governed source is malformed", a
 
 test("fails closed when AI-created source is outside every declared boundary", async () => {
   await withSourceFixture(async (consumerRoot) => {
-    const configPath = join(
-      consumerRoot,
-      "architecture",
-      "foundation",
-      "source-dependencies.yaml",
-    );
+    const configPath = join(consumerRoot, "architecture", "foundation", "source-dependencies.yaml");
     const config = parseYaml(await readFile(configPath, "utf8"));
-    const surfaceBoundary = config.boundaries.find(
-      (boundary) => boundary.id === "app.surface",
-    );
+    const surfaceBoundary = config.boundaries.find((boundary) => boundary.id === "app.surface");
     assert.notEqual(surfaceBoundary, undefined);
     surfaceBoundary.roots = ["packages/app/src/index.ts"];
-    await writeFile(
-      configPath,
-      stringifyYaml(config, { lineWidth: 0 }),
-      "utf8",
-    );
+    await writeFile(configPath, stringifyYaml(config, { lineWidth: 0 }), "utf8");
     await writeFile(
       join(consumerRoot, "packages", "app", "src", "orphan.ts"),
       "export const orphan = true;\n",
@@ -505,8 +503,7 @@ test("fails closed when AI-created source is outside every declared boundary", a
     assert.equal(
       report.capabilities[0].diagnostics.some(
         (diagnostic) =>
-          diagnostic.ruleId ===
-            "architecture.source-dependencies.unclassified-source-file" &&
+          diagnostic.ruleId === "architecture.source-dependencies.unclassified-source-file" &&
           diagnostic.location.path.endsWith("orphan.ts"),
       ),
       true,
@@ -526,8 +523,7 @@ test("treats an explicit empty package export map as blocking every subpath", as
     assert.equal(
       report.capabilities[0].diagnostics.some(
         (diagnostic) =>
-          diagnostic.ruleId ===
-          "architecture.source-dependencies.package-subpath-not-exported",
+          diagnostic.ruleId === "architecture.source-dependencies.package-subpath-not-exported",
       ),
       true,
     );
@@ -545,24 +541,18 @@ test("rejects source symlinks before parsing", async () => {
     );
     const { result, report } = check(consumerRoot);
     assert.equal(result.status, 2);
-    assert.equal(
-      report.capabilities[0].problem.code,
-      "SOURCE_SYMLINK_PROHIBITED",
-    );
+    assert.equal(report.capabilities[0].problem.code, "SOURCE_SYMLINK_PROHIBITED");
   });
 });
 
 async function upgradeSourceFixtureToV2(consumerRoot) {
-  const configPath = join(
-    consumerRoot,
-    "architecture",
-    "foundation",
-    "source-dependencies.yaml",
-  );
+  const configPath = join(consumerRoot, "architecture", "foundation", "source-dependencies.yaml");
   const config = parseYaml(await readFile(configPath, "utf8"));
   config.schemaVersion = 2;
   config.packageRoots = ["packages"];
-  config.boundaries = config.boundaries.filter(({ id }) => ["app.surface", "core.surface"].includes(id)).map((boundary) => ({ ...boundary, allow: { ...boundary.allow, boundaries: [] } }));
+  config.boundaries = config.boundaries
+    .filter(({ id }) => ["app.surface", "core.surface"].includes(id))
+    .map((boundary) => ({ ...boundary, allow: { ...boundary.allow, boundaries: [] } }));
   await writeFile(configPath, stringifyYaml(config, { lineWidth: 0 }), "utf8");
 }
 
@@ -577,10 +567,7 @@ test("v2 rejects governed roots and manifests that traverse symlinks", async () 
     await symlink(join(packageRoot, "source-real"), join(packageRoot, "src"));
     const sourceResult = check(consumerRoot);
     assert.equal(sourceResult.result.status, 2);
-    assert.equal(
-      sourceResult.report.capabilities[0].problem.code,
-      "SOURCE_SYMLINK_PROHIBITED",
-    );
+    assert.equal(sourceResult.report.capabilities[0].problem.code, "SOURCE_SYMLINK_PROHIBITED");
   });
 
   await withSourceFixture(async (consumerRoot) => {
@@ -591,10 +578,11 @@ test("v2 rejects governed roots and manifests that traverse symlinks", async () 
     await symlink(targetPath, manifestPath);
     const manifestResult = check(consumerRoot);
     assert.equal(manifestResult.result.status, 2);
-    assert.ok([
-      "PACKAGE_MANIFEST_SYMLINK_PROHIBITED",
-      "SOURCE_ROOT_OUTSIDE_WORKSPACE",
-    ].includes(manifestResult.report.capabilities[0].problem.code));
+    assert.ok(
+      ["PACKAGE_MANIFEST_SYMLINK_PROHIBITED", "SOURCE_ROOT_OUTSIDE_WORKSPACE"].includes(
+        manifestResult.report.capabilities[0].problem.code,
+      ),
+    );
   });
 });
 
@@ -609,10 +597,7 @@ test("rejects case-folding collisions on case-sensitive filesystems", async () =
     }
     const { result, report } = check(consumerRoot);
     assert.equal(result.status, 2);
-    assert.equal(
-      report.capabilities[0].problem.code,
-      "SOURCE_PATH_CASE_COLLISION",
-    );
+    assert.equal(report.capabilities[0].problem.code, "SOURCE_PATH_CASE_COLLISION");
   });
 });
 
@@ -676,9 +661,7 @@ test("collects deterministic dependency policy violations", async () => {
     const { result, report } = check(consumerRoot);
     assert.equal(result.status, 1);
     assert.equal(report.outcome, "violations");
-    const ruleIds = report.capabilities[0].diagnostics.map(
-      (diagnostic) => diagnostic.ruleId,
-    );
+    const ruleIds = report.capabilities[0].diagnostics.map((diagnostic) => diagnostic.ruleId);
     assert.deepEqual(ruleIds, ruleIds.toSorted());
     assert.deepEqual(
       new Set(ruleIds),
@@ -752,10 +735,7 @@ test("distinguishes complete and explicitly selected capability coverage", async
     const complete = check(consumerRoot);
     assert.equal(complete.report.coverage, "full");
 
-    const selected = check(
-      consumerRoot,
-      "workspace.dependency-declarations",
-    );
+    const selected = check(consumerRoot, "workspace.dependency-declarations");
     assert.equal(selected.result.status, 0);
     assert.equal(selected.report.coverage, "selected");
     assert.deepEqual(
@@ -812,20 +792,16 @@ test("returns the stable cancellation outcome without reading consumer input", a
 });
 
 test("classifies an unavailable consumer root as invalid input", () => {
-  const { result, report } = check(
-    join(tmpdir(), "foundation-consumer-that-does-not-exist"),
-  );
+  const { result, report } = check(join(tmpdir(), "foundation-consumer-that-does-not-exist"));
   assert.equal(result.status, 2);
   assert.equal(report.outcome, "invalid-input");
   assert.equal(report.problem.code, "CONSUMER_ROOT_UNAVAILABLE");
 });
 
 test("exposes immutable schemas and rule explanations through the CLI", () => {
-  const schema = spawnSync(
-    process.execPath,
-    [cliPath, "schema", "foundation-config/v1"],
-    { encoding: "utf8" },
-  );
+  const schema = spawnSync(process.execPath, [cliPath, "schema", "foundation-config/v1"], {
+    encoding: "utf8",
+  });
   assert.equal(schema.status, 0);
   assert.equal(JSON.parse(schema.stdout).$schema, "https://json-schema.org/draft/2020-12/schema");
 

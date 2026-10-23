@@ -1,45 +1,31 @@
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
-import { access, chmod, link as hardLink, mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import test from "node:test";
-
+import { fixture, missing, quarantinedEvidence } from "./support/publication-fixture.ts";
+import { createHash } from "node:crypto";
+import {
+  chmod,
+  link as hardLink,
+  mkdir,
+  readFile,
+  readdir,
+  rename,
+  rm,
+  writeFile,
+} from "node:fs/promises";
+import { join } from "node:path";
 import {
   assertTemporaryPathsAbsent,
   classifyExactFilePostimage,
-  readBoundedRegularFile
+  readBoundedRegularFile,
 } from "../packages/repository-mutation/dist/node.js";
 import { publishAbsentFile } from "../packages/repository-mutation/dist/qualification/index.js";
-
 const bytes = Buffer.from("exact postimage\n");
 const postimage = {
   bytes,
   digest: `sha256:${createHash("sha256").update(bytes).digest("hex")}`,
   mode: 0o644,
-  size: bytes.byteLength
+  size: bytes.byteLength,
 };
-
-async function fixture() {
-  const root = await mkdtemp(join(tmpdir(), "foundation-publication-"));
-  return {
-    allowUnsupportedDirectoryDurability: process.platform === "win32",
-    destinationPath: join(root, "result.txt"),
-    root,
-    temporaryPath: join(root, ".result.tmp")
-  };
-}
-
-async function missing(path) {
-  await assert.rejects(access(path), (error) => error?.code === "ENOENT");
-}
-
-async function quarantinedEvidence(root) {
-  const entry = (await readdir(root)).find((name) =>
-    name.includes(".foundation-owned-cleanup-"));
-  assert.ok(entry, "expected preserved cleanup quarantine");
-  return readFile(join(root, entry, "owned-temporary"));
-}
 
 test("classifies absent, exact and conflicting postimages", async () => {
   const paths = await fixture();
@@ -60,10 +46,16 @@ test("classifies absent, exact and conflicting postimages", async () => {
 test("publishes absent postimage and removes only its temporary", async () => {
   const paths = await fixture();
   try {
-    assert.equal(await publishAbsentFile({ ...paths, displayPath: "result.txt", postimage }), "published");
+    assert.equal(
+      await publishAbsentFile({ ...paths, displayPath: "result.txt", postimage }),
+      "published",
+    );
     assert.deepEqual(await readFile(paths.destinationPath), bytes);
     await missing(paths.temporaryPath);
-    assert.equal(await publishAbsentFile({ ...paths, displayPath: "result.txt", postimage }), "already-satisfied");
+    assert.equal(
+      await publishAbsentFile({ ...paths, displayPath: "result.txt", postimage }),
+      "already-satisfied",
+    );
   } finally {
     await rm(paths.root, { recursive: true, force: true });
   }
@@ -81,11 +73,11 @@ test("uses the injected bounded reader for every publication verification", asyn
           async readBoundedRegularFile(path, maximumBytes) {
             reads += 1;
             return readBoundedRegularFile(path, maximumBytes);
-          }
+          },
         },
-        postimage
+        postimage,
       }),
-      "published"
+      "published",
     );
     assert.equal(reads, 4);
     assert.deepEqual(await readFile(paths.destinationPath), bytes);
@@ -101,16 +93,16 @@ test("rejects identical or cross-directory publication paths before I/O", async 
     for (const temporaryPath of [
       paths.destinationPath,
       join(paths.root, ".", "RESULT.TXT"),
-      join(otherRoot.root, ".result.tmp")
+      join(otherRoot.root, ".result.tmp"),
     ]) {
       await assert.rejects(
         publishAbsentFile({
           ...paths,
           displayPath: "result.txt",
           postimage,
-          temporaryPath
+          temporaryPath,
         }),
-        (error) => error?.code === "PUBLICATION_INVALID"
+        (error) => error?.code === "PUBLICATION_INVALID",
       );
       await missing(paths.destinationPath);
     }
@@ -128,7 +120,7 @@ test("publishes an immutable postimage snapshot when the caller mutates its inpu
     const publication = publishAbsentFile({
       ...paths,
       displayPath: "result.txt",
-      postimage: mutablePostimage
+      postimage: mutablePostimage,
     });
     mutableBytes.fill(0x78);
     mutablePostimage.digest = "sha256:caller-mutated";
@@ -147,7 +139,7 @@ test("publishes from an immutable options snapshot", async () => {
   const options = {
     ...paths,
     displayPath: "result.txt",
-    postimage
+    postimage,
   };
   try {
     const publication = publishAbsentFile(options);
@@ -157,7 +149,7 @@ test("publishes from an immutable options snapshot", async () => {
     options.operations = {
       async link() {
         throw new Error("mutated operation must not run");
-      }
+      },
     };
     assert.equal(await publication, "published");
     assert.deepEqual(await readFile(paths.destinationPath), bytes);
@@ -169,7 +161,10 @@ test("publishes from an immutable options snapshot", async () => {
 });
 
 test("accepts only an exact concurrent publication", async () => {
-  for (const [content, expected] of [[bytes, "already-satisfied"], [Buffer.from("other\n"), "CONFLICT"]]) {
+  for (const [content, expected] of [
+    [bytes, "already-satisfied"],
+    [Buffer.from("other\n"), "CONFLICT"],
+  ]) {
     const paths = await fixture();
     try {
       const promise = publishAbsentFile({
@@ -181,9 +176,9 @@ test("accepts only an exact concurrent publication", async () => {
             const error = new Error("exists");
             error.code = "EEXIST";
             throw error;
-          }
+          },
         },
-        postimage
+        postimage,
       });
       if (expected === "already-satisfied") {
         assert.equal(await promise, expected);
@@ -211,11 +206,14 @@ test("syncs the destination directory before accepting an exact EEXIST publicati
             const error = Object.assign(new Error("exists"), { code: "EEXIST" });
             throw error;
           },
-          async syncDirectory(path) { synced.push(path); return "durable"; }
+          async syncDirectory(path) {
+            synced.push(path);
+            return "durable";
+          },
         },
-        postimage
+        postimage,
       }),
-      "already-satisfied"
+      "already-satisfied",
     );
     assert.ok(synced.includes(paths.root));
   } finally {
@@ -231,14 +229,14 @@ test("concurrent real-filesystem publishers converge on one exact postimage", as
         ...paths,
         displayPath: "result.txt",
         postimage,
-        temporaryPath: join(paths.root, ".first.tmp")
+        temporaryPath: join(paths.root, ".first.tmp"),
       }),
       publishAbsentFile({
         ...paths,
         displayPath: "result.txt",
         postimage,
-        temporaryPath: join(paths.root, ".second.tmp")
-      })
+        temporaryPath: join(paths.root, ".second.tmp"),
+      }),
     ]);
     assert.deepEqual(outcomes.toSorted(), ["already-satisfied", "published"]);
     assert.deepEqual(await readFile(paths.destinationPath), bytes);
@@ -272,11 +270,11 @@ test("retries a transient inode metadata change while accepting an exact concurr
               return { outcome: "changed" };
             }
             return readBoundedRegularFile(path, maximumBytes);
-          }
+          },
         },
-        postimage
+        postimage,
       }),
-      "already-satisfied"
+      "already-satisfied",
     );
     assert.equal(unstableReads, 1);
     assert.deepEqual(await readFile(paths.destinationPath), bytes);
@@ -311,11 +309,11 @@ test("retries an outcome-path metadata change after an exact EEXIST classificati
               }
             }
             return readBoundedRegularFile(path, maximumBytes);
-          }
+          },
         },
-        postimage
+        postimage,
       }),
-      "already-satisfied"
+      "already-satisfied",
     );
     assert.equal(postPublicationReads, 3);
     assert.deepEqual(await readFile(paths.destinationPath), bytes);
@@ -348,17 +346,17 @@ test("rejects different bytes observed after an outcome-path metadata change", a
               postPublicationReads += 1;
               if (postPublicationReads === 2) {
                 await writeFile(paths.destinationPath, differentBytes, {
-                  mode: 0o644
+                  mode: 0o644,
                 });
                 return { outcome: "changed" };
               }
             }
             return readBoundedRegularFile(path, maximumBytes);
-          }
+          },
         },
-        postimage
+        postimage,
       }),
-      (error) => error?.code === "CONFLICT"
+      (error) => error?.code === "CONFLICT",
     );
     assert.equal(postPublicationReads, 3);
     assert.deepEqual(await readFile(paths.destinationPath), differentBytes);
@@ -391,11 +389,11 @@ test("fails closed after bounded retries when concurrent publication never stabi
               return { outcome: "changed" };
             }
             return readBoundedRegularFile(path, maximumBytes);
-          }
+          },
         },
-        postimage
+        postimage,
       }),
-      (error) => error?.code === "CONFLICT"
+      (error) => error?.code === "CONFLICT",
     );
     assert.equal(unstableReads, 3);
     assert.deepEqual(await readFile(paths.destinationPath), bytes);
@@ -412,7 +410,7 @@ test("concurrent different postimages preserve the winner and reject the loser",
     bytes: otherBytes,
     digest: `sha256:${createHash("sha256").update(otherBytes).digest("hex")}`,
     mode: 0o644,
-    size: otherBytes.byteLength
+    size: otherBytes.byteLength,
   };
   try {
     const results = await Promise.allSettled([
@@ -420,14 +418,14 @@ test("concurrent different postimages preserve the winner and reject the loser",
         ...paths,
         displayPath: "result.txt",
         postimage,
-        temporaryPath: join(paths.root, ".first.tmp")
+        temporaryPath: join(paths.root, ".first.tmp"),
       }),
       publishAbsentFile({
         ...paths,
         displayPath: "result.txt",
         postimage: otherPostimage,
-        temporaryPath: join(paths.root, ".second.tmp")
-      })
+        temporaryPath: join(paths.root, ".second.tmp"),
+      }),
     ]);
     assert.equal(results.filter((result) => result.status === "fulfilled").length, 1);
     const rejection = results.find((result) => result.status === "rejected");
@@ -453,11 +451,11 @@ test("fails closed when hard links are unsupported", async () => {
             const error = new Error("unsupported");
             error.code = "EPERM";
             throw error;
-          }
+          },
         },
-        postimage
+        postimage,
       }),
-      (error) => error?.code === "PUBLICATION_UNSUPPORTED"
+      (error) => error?.code === "PUBLICATION_UNSUPPORTED",
     );
     await missing(paths.destinationPath);
     await missing(paths.temporaryPath);
@@ -479,11 +477,11 @@ test("fails closed when publication directory durability is unsupported", async 
           async syncDirectory() {
             syncCount += 1;
             return syncCount === 1 ? "unsupported" : "durable";
-          }
+          },
         },
-        postimage
+        postimage,
       }),
-      (error) => error?.code === "PUBLICATION_UNSUPPORTED"
+      (error) => error?.code === "PUBLICATION_UNSUPPORTED",
     );
     assert.deepEqual(await readFile(paths.destinationPath), bytes);
     await missing(paths.temporaryPath);
@@ -509,14 +507,14 @@ test("reports cleanup failure when cleanup directory durability is unsupported",
         operations: {
           async syncDirectory() {
             return "unsupported";
-          }
+          },
         },
-        postimage
+        postimage,
       }),
       (error) =>
         error?.code === "CLEANUP_FAILED" &&
         error.cause === primary &&
-        error.cleanupError?.code === "PUBLICATION_UNSUPPORTED"
+        error.cleanupError?.code === "PUBLICATION_UNSUPPORTED",
     );
     await missing(paths.destinationPath);
     await missing(paths.temporaryPath);
@@ -537,9 +535,9 @@ test("preserves destination after a post-link fault", async () => {
             throw new Error("post-link fault");
           }
         },
-        postimage
+        postimage,
       }),
-      /post-link fault/u
+      /post-link fault/u,
     );
     assert.deepEqual(await readFile(paths.destinationPath), bytes);
     await missing(paths.temporaryPath);
@@ -560,9 +558,9 @@ test("cleans its known temporary after a pre-sync publication fault", async () =
             throw new Error("write boundary fault");
           }
         },
-        postimage
+        postimage,
       }),
-      /write boundary fault/u
+      /write boundary fault/u,
     );
     await missing(paths.temporaryPath);
     await missing(paths.destinationPath);
@@ -588,14 +586,14 @@ test("retains the primary publication failure when cleanup also fails", async ()
         operations: {
           async syncDirectory() {
             throw cleanup;
-          }
+          },
         },
-        postimage
+        postimage,
       }),
       (error) =>
         error?.code === "CLEANUP_FAILED" &&
         error.cause === primary &&
-        error.cleanupError === cleanup
+        error.cleanupError === cleanup,
     );
     assert.deepEqual(await quarantinedEvidence(paths.root), bytes);
     await missing(paths.destinationPath);
@@ -617,14 +615,13 @@ test("preserves a replacement of an owned temporary", async () => {
             await writeFile(paths.temporaryPath, "replacement\n");
           }
         },
-        postimage
+        postimage,
       }),
-      (error) => error?.code === "TEMPORARY_REPLACED"
+      (error) => error?.code === "TEMPORARY_REPLACED",
     );
     assert.equal(await readFile(paths.temporaryPath, "utf8"), "replacement\n");
     assert.equal(
-      (await readdir(paths.root)).some((entry) =>
-        entry.includes(".foundation-owned-cleanup-")),
+      (await readdir(paths.root)).some((entry) => entry.includes(".foundation-owned-cleanup-")),
       false,
     );
     assert.deepEqual(await readFile(paths.destinationPath), bytes);
@@ -646,15 +643,14 @@ test("rejects an exact pre-link temporary replacement by identity", async () => 
             await writeFile(paths.temporaryPath, bytes, { mode: 0o644 });
           }
         },
-        postimage
+        postimage,
       }),
-      (error) => error?.code === "TEMPORARY_REPLACED"
+      (error) => error?.code === "TEMPORARY_REPLACED",
     );
     await missing(paths.destinationPath);
     assert.deepEqual(await readFile(paths.temporaryPath), bytes);
     assert.equal(
-      (await readdir(paths.root)).some((entry) =>
-        entry.includes(".foundation-owned-cleanup-")),
+      (await readdir(paths.root)).some((entry) => entry.includes(".foundation-owned-cleanup-")),
       false,
     );
   } finally {
@@ -674,9 +670,9 @@ test("rejects a pre-link in-place temporary mutation", async () => {
             await writeFile(paths.temporaryPath, "foreign bytes!!\n");
           }
         },
-        postimage
+        postimage,
       }),
-      (error) => error?.code === "TEMPORARY_REPLACED"
+      (error) => error?.code === "TEMPORARY_REPLACED",
     );
     await missing(paths.destinationPath);
     await missing(paths.temporaryPath);
@@ -697,17 +693,16 @@ test("does not claim success when the pathname is replaced inside link", async (
             await rename(source, `${source}.owned`);
             await writeFile(source, "foreign replacement\n");
             await hardLink(source, destination);
-          }
+          },
         },
-        postimage
+        postimage,
       }),
-      (error) => error?.code === "TEMPORARY_REPLACED"
+      (error) => error?.code === "TEMPORARY_REPLACED",
     );
     assert.equal(await readFile(paths.destinationPath, "utf8"), "foreign replacement\n");
     assert.equal(await readFile(paths.temporaryPath, "utf8"), "foreign replacement\n");
     assert.equal(
-      (await readdir(paths.root)).some((entry) =>
-        entry.includes(".foundation-owned-cleanup-")),
+      (await readdir(paths.root)).some((entry) => entry.includes(".foundation-owned-cleanup-")),
       false,
     );
   } finally {
@@ -726,11 +721,11 @@ test("does not claim success when the inode is mutated inside link", async () =>
           async link(source, destination) {
             await writeFile(source, "foreign mutation\n");
             await hardLink(source, destination);
-          }
+          },
         },
-        postimage
+        postimage,
       }),
-      (error) => error?.code === "VERIFICATION_FAILED"
+      (error) => error?.code === "VERIFICATION_FAILED",
     );
     assert.equal(await readFile(paths.destinationPath, "utf8"), "foreign mutation\n");
     await missing(paths.temporaryPath);
@@ -756,11 +751,11 @@ test("reverifies destination identity and content before returning success", asy
               await writeFile(paths.destinationPath, bytes, { mode: 0o644 });
             }
             return "unsupported";
-          }
+          },
         },
-        postimage
+        postimage,
       }),
-      (error) => error?.code === "VERIFICATION_FAILED"
+      (error) => error?.code === "VERIFICATION_FAILED",
     );
     assert.deepEqual(await readFile(paths.destinationPath), bytes);
     await missing(paths.temporaryPath);
@@ -775,7 +770,7 @@ test("does not overwrite an existing temporary", async () => {
     await writeFile(paths.temporaryPath, "reserved\n");
     await assert.rejects(
       publishAbsentFile({ ...paths, displayPath: "result.txt", postimage }),
-      (error) => error?.code === "TEMPORARY_EXISTS"
+      (error) => error?.code === "TEMPORARY_EXISTS",
     );
     assert.equal(await readFile(paths.temporaryPath, "utf8"), "reserved\n");
     await missing(paths.destinationPath);
@@ -791,23 +786,23 @@ test("classifies every existing temporary by existence alone", async () => {
     await chmod(paths.temporaryPath, 0o000);
     await assert.rejects(
       assertTemporaryPathsAbsent([
-        { displayPath: "result.txt", temporaryPath: paths.temporaryPath }
+        { displayPath: "result.txt", temporaryPath: paths.temporaryPath },
       ]),
-      (error) => error?.code === "TEMPORARY_EXISTS"
+      (error) => error?.code === "TEMPORARY_EXISTS",
     );
     await rm(paths.temporaryPath);
     await mkdir(paths.temporaryPath);
     await assert.rejects(
       assertTemporaryPathsAbsent([
-        { displayPath: "result.txt", temporaryPath: paths.temporaryPath }
+        { displayPath: "result.txt", temporaryPath: paths.temporaryPath },
       ]),
-      (error) => error?.code === "TEMPORARY_EXISTS"
+      (error) => error?.code === "TEMPORARY_EXISTS",
     );
     await rm(paths.temporaryPath, { recursive: true });
     await assert.doesNotReject(
       assertTemporaryPathsAbsent([
-        { displayPath: "result.txt", temporaryPath: paths.temporaryPath }
-      ])
+        { displayPath: "result.txt", temporaryPath: paths.temporaryPath },
+      ]),
     );
   } finally {
     await rm(paths.root, { recursive: true, force: true });
@@ -821,9 +816,9 @@ test("rejects inconsistent postimage metadata before creating files", async () =
       publishAbsentFile({
         ...paths,
         displayPath: "result.txt",
-        postimage: { ...postimage, size: postimage.size + 1 }
+        postimage: { ...postimage, size: postimage.size + 1 },
       }),
-      (error) => error?.code === "INVALID_POSTIMAGE"
+      (error) => error?.code === "INVALID_POSTIMAGE",
     );
     await missing(paths.destinationPath);
     await missing(paths.temporaryPath);

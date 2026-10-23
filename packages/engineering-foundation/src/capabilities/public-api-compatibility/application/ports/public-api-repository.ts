@@ -1,7 +1,7 @@
 import type {
   PackageReleaseEvidence,
   PublicApiPackagePolicy,
-  PublicApiSnapshot
+  PublicApiSnapshot,
 } from "../model/public-api.js";
 
 export interface PublicApiRepository {
@@ -9,7 +9,7 @@ export interface PublicApiRepository {
     consumerRoot: string,
     policy: PublicApiPackagePolicy,
     snapshot: PublicApiSnapshot,
-    mode: "create" | "replace"
+    mode: "create" | "replace",
   ): Promise<{
     readonly destination: string;
     readonly operation: "create" | "replace";
@@ -21,21 +21,21 @@ export interface PublicApiRepository {
     consumerRoot: string,
     policy: PublicApiPackagePolicy,
     signal: AbortSignal | undefined,
-    purpose: "release-promotion"
+    purpose: "release-promotion",
   ): Promise<PublicApiSnapshot | undefined>;
 
   readReleasedBaseline(
     consumerRoot: string,
     policy: PublicApiPackagePolicy,
     signal?: AbortSignal,
-    purpose?: "compatibility-check"
+    purpose?: "compatibility-check",
   ): Promise<PublicApiSnapshot>;
 
   readReleaseEvidence(
     consumerRoot: string,
     changesetDirectory: string,
     policy: PublicApiPackagePolicy,
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ): Promise<PackageReleaseEvidence>;
 
   writeReleasedBaseline(
@@ -43,6 +43,6 @@ export interface PublicApiRepository {
     policy: PublicApiPackagePolicy,
     snapshot: PublicApiSnapshot,
     signal?: AbortSignal,
-    mode?: "create" | "replace"
+    mode?: "create" | "replace",
   ): Promise<void>;
 }

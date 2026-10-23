@@ -13,10 +13,17 @@ import { createFindingsBaselineCommandsFactory } from "../capabilities/findings-
 
 const host = createFoundationCommandHost({
   artifactSchemaInspector: new AjvJsonSchemaReleaseInspector({ read: readContainedRegularFile }),
-  scaffoldingApi, FoundationLocalModeService, inspectFoundationPackage,
-  assertSchema, isFoundationSchemaId, readFoundationSchema,
-  loadFoundationConfig, runFoundationCheck, RULE_REGISTRY, createQualityCommand,
-  createFindingsBaselineCommands: createFindingsBaselineCommandsFactory(assertSchema)
+  scaffoldingApi,
+  FoundationLocalModeService,
+  inspectFoundationPackage,
+  assertSchema,
+  isFoundationSchemaId,
+  readFoundationSchema,
+  loadFoundationConfig,
+  runFoundationCheck,
+  RULE_REGISTRY,
+  createQualityCommand,
+  createFindingsBaselineCommands: createFindingsBaselineCommandsFactory(assertSchema),
 });
 
 export async function runProcessFoundationCli(): Promise<void> {

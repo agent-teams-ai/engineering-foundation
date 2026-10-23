@@ -12,7 +12,7 @@ export function renderAgentWorkflowReport(report: AgentWorkflowChangedReport): s
     `Merge base: ${report.mergeBaseCommit ?? "none"}`,
     `Scope digest: ${report.scopeDigest}`,
     `Evidence groups: committed ${report.changeGroups.committed.paths.length}, staged ${report.changeGroups.staged.paths.length}, unstaged ${report.changeGroups.unstaged.paths.length}, untracked ${report.changeGroups.untracked.paths.length}`,
-    `Changed paths: ${report.changedPaths.length}`
+    `Changed paths: ${report.changedPaths.length}`,
   ];
   if (report.changedPaths.length > 0) {
     lines.push(...displayedPaths.map((path) => `  ${path}`));
@@ -32,14 +32,12 @@ export function renderAgentWorkflowReport(report: AgentWorkflowChangedReport): s
   return `${lines.join("\n")}\n`;
 }
 
-export function renderEffectiveInstructionsReport(
-  report: EffectiveInstructionsReport
-): string {
+export function renderEffectiveInstructionsReport(report: EffectiveInstructionsReport): string {
   const lines = [
     `Effective instructions for ${report.target.path}`,
     `Target directory: ${report.target.directory}`,
     `Loaded: ${report.budget.loadedBytes}/${report.budget.maximumBytes} bytes`,
-    `Resolution digest: ${report.resolutionDigest}`
+    `Resolution digest: ${report.resolutionDigest}`,
   ];
   if (report.layers.length === 0) {
     lines.push("Applicable instruction files: none");
@@ -51,7 +49,7 @@ export function renderEffectiveInstructionsReport(
       `   Size: ${layer.loadedBytes}/${layer.sourceBytes} bytes`,
       `   Source digest: ${layer.sourceDigest ?? "not read (budget exhausted)"}`,
       `   Loaded digest: ${layer.loadedDigest}`,
-      "   Why: first regular candidate in an ancestor directory of the target"
+      "   Why: first regular candidate in an ancestor directory of the target",
     );
     if (layer.canOverrideEarlier.length > 0) {
       lines.push(`   Can override earlier: ${layer.canOverrideEarlier.join(", ")}`);
@@ -64,7 +62,9 @@ export function renderEffectiveInstructionsReport(
     lines.push("Warning: the final applied instruction file was truncated by the byte budget.");
   }
   if (report.budget.exhausted) {
-    lines.push("Warning: later instruction layers may be excluded because the byte budget is exhausted.");
+    lines.push(
+      "Warning: later instruction layers may be excluded because the byte budget is exhausted.",
+    );
   }
   return `${lines.join("\n")}\n`;
 }

@@ -1,21 +1,31 @@
 import { lstat, mkdir, opendir, realpath } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
-import { type BoundDirectoryCreation, type CapturedDirectory, type DirectoryCreatePolicy, type DirectoryMaterializationProjection, type ProjectedDirectory, type UnboundDirectoryCreationRecovery, DirectoryMutationError } from "../../application/model/directory-materialization.js";
+import {
+  type BoundDirectoryCreation,
+  type CapturedDirectory,
+  type DirectoryCreatePolicy,
+  type DirectoryMaterializationProjection,
+  type ProjectedDirectory,
+  type UnboundDirectoryCreationRecovery,
+  DirectoryMutationError,
+} from "../../application/model/directory-materialization.js";
 
 import type { PortablePathIdentity } from "../../../path-identity.js";
 import {
   portableRepositoryPathIdentity,
-  portableRepositoryPathProblem
+  portableRepositoryPathProblem,
 } from "../../application/model/repository-path.js";
 import { syncDirectoryStrictly } from "./node-directory-durability.js";
 import { createAndBindNodeDirectory } from "./node-create-and-bind-directory.js";
 import { isLexicallyContainedPath } from "./node-repository-path.js";
 
 export interface DirectoryIdentityBindingPort {
-  bindCreatedDirectory(directory: CapturedDirectory & {
-    readonly parentIdentity: PortablePathIdentity;
-  }): Promise<void>;
+  bindCreatedDirectory(
+    directory: CapturedDirectory & {
+      readonly parentIdentity: PortablePathIdentity;
+    },
+  ): Promise<void>;
 }
 
 interface DirectoryCreationFaultPoint {
@@ -24,7 +34,7 @@ interface DirectoryCreationFaultPoint {
 }
 
 export type DirectoryCreationFaultInjector = (
-  point: DirectoryCreationFaultPoint
+  point: DirectoryCreationFaultPoint,
 ) => Promise<void> | void;
 
 const maximumDirectoryEntries = 1024;
@@ -35,12 +45,14 @@ async function boundedDirectoryNames(path: string): Promise<readonly string[]> {
   try {
     for (;;) {
       const entry = await directory.read();
-      if (entry === null) {return names;}
+      if (entry === null) {
+        return names;
+      }
       names.push(entry.name);
       if (names.length > maximumDirectoryEntries) {
         throw new DirectoryMutationError(
           "CONCURRENT_CHANGE",
-          "Repository directory contains too many entries to inspect portable aliases safely."
+          "Repository directory contains too many entries to inspect portable aliases safely.",
         );
       }
     }
@@ -59,15 +71,8 @@ function isMissing(error: unknown): boolean {
   return errorCode(error) === "ENOENT";
 }
 
-function sameIdentity(
-  left: PortablePathIdentity,
-  right: PortablePathIdentity
-): boolean {
-  return (
-    left.dev === right.dev &&
-    left.ino === right.ino &&
-    left.birthtimeNs === right.birthtimeNs
-  );
+function sameIdentity(left: PortablePathIdentity, right: PortablePathIdentity): boolean {
+  return left.dev === right.dev && left.ino === right.ino && left.birthtimeNs === right.birthtimeNs;
 }
 
 function identityFromMetadata(metadata: {
@@ -78,16 +83,12 @@ function identityFromMetadata(metadata: {
   const identity = {
     birthtimeNs: metadata.birthtimeNs,
     dev: metadata.dev,
-    ino: metadata.ino
+    ino: metadata.ino,
   };
-  if (
-    identity.birthtimeNs === 0n ||
-    identity.dev === 0n ||
-    identity.ino === 0n
-  ) {
+  if (identity.birthtimeNs === 0n || identity.dev === 0n || identity.ino === 0n) {
     throw new DirectoryMutationError(
       "IDENTITY_UNAVAILABLE",
-      "The filesystem did not provide a nonzero directory identity."
+      "The filesystem did not provide a nonzero directory identity.",
     );
   }
   return identity;
@@ -98,7 +99,7 @@ function assertRepositoryPath(repositoryPath: string): readonly string[] {
   if (problem !== undefined) {
     throw new DirectoryMutationError(
       "INVALID_PATH",
-      `Invalid portable repository directory path (${problem}): ${repositoryPath}.`
+      `Invalid portable repository directory path (${problem}): ${repositoryPath}.`,
     );
   }
   return repositoryPath.split("/");
@@ -106,64 +107,58 @@ function assertRepositoryPath(repositoryPath: string): readonly string[] {
 
 async function captureRealDirectory(
   absolutePath: string,
-  repositoryPath: string
+  repositoryPath: string,
 ): Promise<CapturedDirectory> {
   const metadata = await lstat(absolutePath, { bigint: true });
   if (metadata.isSymbolicLink()) {
     throw new DirectoryMutationError(
       "SYMLINK",
-      `Repository directory must not be a symbolic link: ${repositoryPath}.`
+      `Repository directory must not be a symbolic link: ${repositoryPath}.`,
     );
   }
   if (!metadata.isDirectory()) {
     throw new DirectoryMutationError(
       "NOT_DIRECTORY",
-      `Repository path is not a directory: ${repositoryPath}.`
+      `Repository path is not a directory: ${repositoryPath}.`,
     );
   }
   return {
     absolutePath,
     identity: identityFromMetadata(metadata),
-    repositoryPath
+    repositoryPath,
   };
 }
 
 async function assertCanonicalContainment(
   canonicalRoot: string,
-  directory: CapturedDirectory
+  directory: CapturedDirectory,
 ): Promise<void> {
   const canonical = await realpath(directory.absolutePath);
   if (!isLexicallyContainedPath(canonicalRoot, canonical)) {
     throw new DirectoryMutationError(
       "OUTSIDE_ROOT",
-      `Repository directory resolves outside its root: ${directory.repositoryPath}.`
+      `Repository directory resolves outside its root: ${directory.repositoryPath}.`,
     );
   }
-  const recaptured = await captureRealDirectory(
-    directory.absolutePath,
-    directory.repositoryPath
-  );
+  const recaptured = await captureRealDirectory(directory.absolutePath, directory.repositoryPath);
   if (!sameIdentity(directory.identity, recaptured.identity)) {
     throw new DirectoryMutationError(
       "CONCURRENT_CHANGE",
-      `Directory identity changed while checking containment: ${directory.repositoryPath}.`
+      `Directory identity changed while checking containment: ${directory.repositoryPath}.`,
     );
   }
 }
 
-async function assertNoAlias(
-  parent: string,
-  requestedName: string
-): Promise<boolean> {
+async function assertNoAlias(parent: string, requestedName: string): Promise<boolean> {
   const requestedIdentity = portableRepositoryPathIdentity(requestedName);
   const entries = await boundedDirectoryNames(parent);
   const aliases = entries.filter(
-    (entry) => portableRepositoryPathIdentity(entry) === requestedIdentity
+    (entry) => portableRepositoryPathIdentity(entry) === requestedIdentity,
   );
   if (aliases.some((entry) => entry !== requestedName)) {
     throw new DirectoryMutationError(
       "ALIAS_COLLISION",
-      `Portable case/NFC alias collides with requested directory: ${requestedName}.`
+      `Portable case/NFC alias collides with requested directory: ${requestedName}.`,
     );
   }
   return aliases.includes(requestedName);
@@ -180,18 +175,18 @@ async function captureRoot(repositoryRoot: string): Promise<{
   if (!sameIdentity(root.identity, recapturedRoot.identity)) {
     throw new DirectoryMutationError(
       "CONCURRENT_CHANGE",
-      "Repository root identity changed while it was captured."
+      "Repository root identity changed while it was captured.",
     );
   }
   return {
     canonicalRoot,
-    root: recapturedRoot
+    root: recapturedRoot,
   };
 }
 
 async function captureExistingPath(
   canonicalRoot: string,
-  repositoryPath: string
+  repositoryPath: string,
 ): Promise<CapturedDirectory> {
   if (repositoryPath === ".") {
     return captureRealDirectory(canonicalRoot, ".");
@@ -233,7 +228,7 @@ export async function projectDirectoryMaterialization(options: {
     if (!exists) {
       missingDirectories.push({
         absolutePath: currentAbsolute,
-        repositoryPath
+        repositoryPath,
       });
       continue;
     }
@@ -247,10 +242,10 @@ export async function projectDirectoryMaterialization(options: {
     createPolicy: options.createPolicy,
     finalParent: {
       absolutePath: join(canonicalRoot, ...segments),
-      repositoryPath: options.repositoryPath
+      repositoryPath: options.repositoryPath,
     },
     missingDirectories,
-    repositoryRoot: root
+    repositoryRoot: root,
   };
 }
 
@@ -265,7 +260,7 @@ export async function recaptureExactDirectoryIdentity(options: {
   if (!sameIdentity(captured.identity, options.expectedIdentity)) {
     throw new DirectoryMutationError(
       "CONCURRENT_CHANGE",
-      `Directory identity changed: ${options.repositoryPath}.`
+      `Directory identity changed: ${options.repositoryPath}.`,
     );
   }
   return captured;
@@ -284,15 +279,16 @@ export async function createAndBindOneDirectory(options: {
   if (options.createPolicy !== "allow") {
     throw new DirectoryMutationError(
       "CREATE_FORBIDDEN",
-      `Directory creation is forbidden by policy: ${options.repositoryPath}.`
+      `Directory creation is forbidden by policy: ${options.repositoryPath}.`,
     );
   }
   return createAndBindNodeDirectory({
-    ambiguousError: (error) => new DirectoryMutationError(
-      "AMBIGUOUS_CREATION",
-      `Directory may exist without a durable identity binding: ${options.repositoryPath}. Manual recovery is required.`,
-      { cause: error, manualRecoveryRequired: true }
-    ),
+    ambiguousError: (error) =>
+      new DirectoryMutationError(
+        "AMBIGUOUS_CREATION",
+        `Directory may exist without a durable identity binding: ${options.repositoryPath}. Manual recovery is required.`,
+        { cause: error, manualRecoveryRequired: true },
+      ),
     async bind(bound) {
       await options.binding.bindCreatedDirectory(bound);
     },
@@ -301,14 +297,11 @@ export async function createAndBindOneDirectory(options: {
       const absolutePath = join(canonicalRoot, ...segments);
       const parentPath = dirname(absolutePath);
       const parentRepositoryPath = segments.slice(0, -1).join("/") || ".";
-      const parent = await captureExistingPath(
-        canonicalRoot,
-        parentRepositoryPath
-      );
+      const parent = await captureExistingPath(canonicalRoot, parentRepositoryPath);
       if (!sameIdentity(parent.identity, options.expectedParentIdentity)) {
         throw new DirectoryMutationError(
           "CONCURRENT_CHANGE",
-          `Parent directory identity changed: ${parentRepositoryPath}.`
+          `Parent directory identity changed: ${parentRepositoryPath}.`,
         );
       }
       await assertNoAlias(parentPath, segments.at(-1) ?? "");
@@ -317,51 +310,47 @@ export async function createAndBindOneDirectory(options: {
     async createAndObserve(parent, markCreated) {
       await mkdir(parent.absolutePath, {
         mode: options.mode ?? 0o755,
-        recursive: false
+        recursive: false,
       });
       markCreated();
       // Portable Node cannot atomically return mkdir's identity. The first
       // observation is authoritative only for cooperative writers.
-      const observed = await captureRealDirectory(
-        parent.absolutePath,
-        options.repositoryPath
-      );
+      const observed = await captureRealDirectory(parent.absolutePath, options.repositoryPath);
       await options.faultInjector?.({
         phase: "after-mkdir-before-capture",
-        repositoryPath: options.repositoryPath
+        repositoryPath: options.repositoryPath,
       });
       return observed;
     },
     async recapture(parent, observed) {
-      const captured = await captureExistingPath(
-        parent.canonicalRoot,
-        options.repositoryPath
-      );
+      const captured = await captureExistingPath(parent.canonicalRoot, options.repositoryPath);
       const recapturedParent = await captureExistingPath(
         parent.canonicalRoot,
-        parent.parentRepositoryPath
+        parent.parentRepositoryPath,
       );
       await assertNoAlias(parent.parentPath, segments.at(-1) ?? "");
-      if (!sameIdentity(observed.identity, captured.identity) ||
-        !sameIdentity(recapturedParent.identity, parent.parent.identity)) {
+      if (
+        !sameIdentity(observed.identity, captured.identity) ||
+        !sameIdentity(recapturedParent.identity, parent.parent.identity)
+      ) {
         throw new DirectoryMutationError(
           "CONCURRENT_CHANGE",
-          `Created directory or its parent changed before binding: ${options.repositoryPath}.`
+          `Created directory or its parent changed before binding: ${options.repositoryPath}.`,
         );
       }
       return {
         ...captured,
         outcome: "created-and-bound" as const,
-        parentIdentity: parent.parent.identity
+        parentIdentity: parent.parent.identity,
       };
     },
     async syncParent(parent) {
       await syncDirectoryStrictly(parent.parentPath);
       await options.faultInjector?.({
         phase: "after-parent-sync-before-bind",
-        repositoryPath: options.repositoryPath
+        repositoryPath: options.repositoryPath,
       });
-    }
+    },
   });
 }
 

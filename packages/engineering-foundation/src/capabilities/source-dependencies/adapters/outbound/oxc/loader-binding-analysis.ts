@@ -2,16 +2,24 @@ import type { CallExpression, Expression, Program } from "oxc-parser";
 
 import { LoaderLexicalScopes } from "./loader-lexical-scopes.js";
 import {
-  builtinOrigin, memberOrigin, propertyName, unwrapExpression,
-  type LexicalBinding, type LexicalScope, type LoaderOrigin
+  builtinOrigin,
+  memberOrigin,
+  propertyName,
+  unwrapExpression,
+  type LexicalBinding,
+  type LexicalScope,
+  type LoaderOrigin,
 } from "./loader-syntax.js";
 
 function isImportMetaUrl(expression: Expression): boolean {
   const value = unwrapExpression(expression);
-  return value.type === "MemberExpression" &&
+  return (
+    value.type === "MemberExpression" &&
     propertyName(value.property, value.computed) === "url" &&
     value.object.type === "MetaProperty" &&
-    value.object.meta.name === "import" && value.object.property.name === "meta";
+    value.object.meta.name === "import" &&
+    value.object.property.name === "meta"
+  );
 }
 
 function opaqueOrigins(origins: readonly LoaderOrigin[]): readonly LoaderOrigin[] {
@@ -41,8 +49,10 @@ export class LoaderBindingAnalysis {
   #calleeOrigins(value: Expression, scope: LexicalScope): readonly LoaderOrigin[] {
     const callee = unwrapExpression(value);
     return callee.type === "MemberExpression"
-      ? this.#expressionOrigins(callee.object, scope).flatMap((object) =>
-          memberOrigin(object, propertyName(callee.property, callee.computed), true) ?? [])
+      ? this.#expressionOrigins(callee.object, scope).flatMap(
+          (object) =>
+            memberOrigin(object, propertyName(callee.property, callee.computed), true) ?? [],
+        )
       : this.#expressionOrigins(callee, scope);
   }
 
@@ -75,7 +85,10 @@ export class LoaderBindingAnalysis {
       origins.push(...this.#bindingOrigins(binding.initialBinding));
     }
     for (const input of binding.inputs) {
-      let candidates = this.#expressionOrigins(input.expression, this.#scopes.scope(input.expression));
+      let candidates = this.#expressionOrigins(
+        input.expression,
+        this.#scopes.scope(input.expression),
+      );
       for (const property of input.properties) {
         candidates = candidates.flatMap((candidate) => memberOrigin(candidate, property) ?? []);
       }
@@ -101,8 +114,10 @@ export class LoaderBindingAnalysis {
       return binding === undefined ? [] : this.#bindingOrigins(binding);
     }
     if (expression.type === "MemberExpression") {
-      return this.#expressionOrigins(expression.object, scope).flatMap((object) =>
-        memberOrigin(object, propertyName(expression.property, expression.computed)) ?? []);
+      return this.#expressionOrigins(expression.object, scope).flatMap(
+        (object) =>
+          memberOrigin(object, propertyName(expression.property, expression.computed)) ?? [],
+      );
     }
     if (expression.type === "AssignmentExpression") {
       // Plain assignment evaluates to its RHS, independently of the written
@@ -110,18 +125,26 @@ export class LoaderBindingAnalysis {
       if (expression.operator === "=") {
         return this.#expressionOrigins(expression.right, scope);
       }
-      if (expression.operator === "||=" || expression.operator === "&&=" || expression.operator === "??=") {
+      if (
+        expression.operator === "||=" ||
+        expression.operator === "&&=" ||
+        expression.operator === "??="
+      ) {
         const left = expression.left;
-        const origins = left.type === "ArrayPattern" || left.type === "ObjectPattern"
-          ? [] : this.#expressionOrigins(left, scope);
+        const origins =
+          left.type === "ArrayPattern" || left.type === "ObjectPattern"
+            ? []
+            : this.#expressionOrigins(left, scope);
         return opaqueOrigins([...origins, ...this.#expressionOrigins(expression.right, scope)]);
       }
       // Arithmetic and bitwise assignment results are coerced values, not loaders.
       return [];
     }
     if (expression.type === "ConditionalExpression" || expression.type === "LogicalExpression") {
-      const branches = expression.type === "ConditionalExpression"
-        ? [expression.consequent, expression.alternate] : [expression.left, expression.right];
+      const branches =
+        expression.type === "ConditionalExpression"
+          ? [expression.consequent, expression.alternate]
+          : [expression.left, expression.right];
       return opaqueOrigins(branches.flatMap((branch) => this.#expressionOrigins(branch, scope)));
     }
     if (expression.type === "SequenceExpression") {
@@ -129,8 +152,10 @@ export class LoaderBindingAnalysis {
       return last === undefined ? [] : this.#expressionOrigins(last, scope);
     }
     return expression.type === "CallExpression"
-      ? this.#calleeOrigins(expression.callee, scope).flatMap((callee) =>
-          this.#callResultOrigin(expression, callee) ?? []) : [];
+      ? this.#calleeOrigins(expression.callee, scope).flatMap(
+          (callee) => this.#callResultOrigin(expression, callee) ?? [],
+        )
+      : [];
   }
 
   #callResultOrigin(expression: CallExpression, callee: LoaderOrigin): LoaderOrigin | undefined {
@@ -139,8 +164,15 @@ export class LoaderBindingAnalysis {
       return { kind: "loader", opaque: true };
     }
     if (callee.kind === "factory") {
-      return { kind: "loader", ...(callee.opaque === true || argument === undefined ||
-        argument.type === "SpreadElement" || !isImportMetaUrl(argument) ? { opaque: true } : {}) };
+      return {
+        kind: "loader",
+        ...(callee.opaque === true ||
+        argument === undefined ||
+        argument.type === "SpreadElement" ||
+        !isImportMetaUrl(argument)
+          ? { opaque: true }
+          : {}),
+      };
     }
     if (callee.kind !== "loader" && callee.kind !== "builtin-getter") {
       return undefined;
@@ -149,6 +181,8 @@ export class LoaderBindingAnalysis {
       return undefined;
     }
     const origin = builtinOrigin(argument.value);
-    return origin === undefined ? undefined : { ...origin, ...(callee.opaque === true ? { opaque: true } : {}) };
+    return origin === undefined
+      ? undefined
+      : { ...origin, ...(callee.opaque === true ? { opaque: true } : {}) };
   }
 }

@@ -1,6 +1,10 @@
 {
   "schemaVersion": 2,
-  "repository": { "provider": "github", "id": "1", "nameWithOwner": "agent-teams-ai/docs-protocol-qualification-fixture" },
+  "repository": {
+    "provider": "github",
+    "id": "1",
+    "nameWithOwner": "agent-teams-ai/docs-protocol-qualification-fixture"
+  },
   "integrationRoot": ".",
   "packageManager": "pnpm",
   "profilePath": "architecture/foundation/docs-protocol.yaml",
@@ -22,8 +26,14 @@
     "upgradeFrom": [],
     "rollbackTo": [],
     "packages": {
-      "docsProtocol": { "version": "0.1.4", "integrity": "sha512-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==" },
-      "engineeringFoundation": { "version": "0.19.0", "integrity": "sha512-BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB==" }
+      "docsProtocol": {
+        "version": "0.1.4",
+        "integrity": "sha512-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+      },
+      "engineeringFoundation": {
+        "version": "0.19.0",
+        "integrity": "sha512-BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=="
+      }
     },
     "workflow": {
       "repository": "agent-teams-ai/.github",

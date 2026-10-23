@@ -54,15 +54,7 @@ function runChanged(consumerRoot, ...args) {
 function runChangedAuto(consumerRoot) {
   const result = spawnSync(
     process.execPath,
-    [
-      cliPath,
-      "agent-workflow",
-      "changed",
-      "--consumer",
-      consumerRoot,
-      "--format",
-      "json",
-    ],
+    [cliPath, "agent-workflow", "changed", "--consumer", consumerRoot, "--format", "json"],
     { encoding: "utf8" },
   );
   return {
@@ -71,11 +63,11 @@ function runChangedAuto(consumerRoot) {
   };
 }
 async function invocations(consumerRoot) {
-  const source = await readFile(
-    join(consumerRoot, ".fixture-invocations.jsonl"),
-    "utf8",
-  );
-  return source.trim().split("\n").map((line) => JSON.parse(line));
+  const source = await readFile(join(consumerRoot, ".fixture-invocations.jsonl"), "utf8");
+  return source
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line));
 }
 
 async function waitForProcessId(path) {
@@ -105,7 +97,6 @@ function processIsRunning(pid) {
   }
 }
 
-
 test("executes pnpm through its shell-free package entrypoint", async () => {
   const consumerRoot = await mkdtemp(join(tmpdir(), "foundation-pnpm-entrypoint-"));
   try {
@@ -118,10 +109,13 @@ test("executes pnpm through its shell-free package entrypoint", async () => {
       `require("node:fs").writeFileSync(".fake-pnpm-args.json", JSON.stringify(process.argv.slice(2)));\n`,
       "utf8",
     );
-    const result = await new PnpmPackageScriptRunner({
-      pnpmHome,
-      nodeExecutablePath: process.execPath
-    }, createWorkflowProcess()).run({
+    const result = await new PnpmPackageScriptRunner(
+      {
+        pnpmHome,
+        nodeExecutablePath: process.execPath,
+      },
+      createWorkflowProcess(),
+    ).run({
       packageManager: "pnpm",
       consumerRoot,
       script: "lint:files",
@@ -187,9 +181,7 @@ setInterval(() => {}, 1000);
     });
     let descendantPid;
     try {
-      descendantPid = await waitForProcessId(
-        join(consumerRoot, ".fixture-descendant.pid"),
-      );
+      descendantPid = await waitForProcessId(join(consumerRoot, ".fixture-descendant.pid"));
       const closed = new Promise((resolve) => {
         command.once("close", resolve);
       });
@@ -294,17 +286,10 @@ test("rejects one file being assigned to multiple instruction roles", async () =
       "repository-agent-workflow.yaml",
     );
     const source = await readFile(configPath, "utf8");
-    await writeFile(
-      configPath,
-      source.replace("claude: CLAUDE.md", "claude: AGENTS.md"),
-      "utf8",
-    );
+    await writeFile(configPath, source.replace("claude: CLAUDE.md", "claude: AGENTS.md"), "utf8");
     const { result, report } = check(consumerRoot);
     assert.equal(result.status, 2);
-    assert.equal(
-      report.capabilities[0].problem.code,
-      "REPOSITORY_AGENT_WORKFLOW_CONFIG_INVALID",
-    );
+    assert.equal(report.capabilities[0].problem.code, "REPOSITORY_AGENT_WORKFLOW_CONFIG_INVALID");
   });
 });
 
@@ -383,10 +368,7 @@ test("produces a deterministic empty-scope digest and does not mutate the reposi
     assert.equal(second.result.status, 0, second.result.stderr);
     assert.equal(second.report.scopeDigest, first.report.scopeDigest);
     assert.deepEqual(await readFile(indexPath), indexBefore);
-    assert.equal(
-      gitOutput(consumerRoot, "status", "--porcelain=v2", "-z"),
-      statusBefore,
-    );
+    assert.equal(gitOutput(consumerRoot, "status", "--porcelain=v2", "-z"), statusBefore);
   });
 });
 
@@ -489,7 +471,10 @@ test("routes changed source files to path-aware and project-wide checks", async 
   await withAgentWorkflowFixture(async (consumerRoot) => {
     initializeRepository(consumerRoot);
     await writeFile(join(consumerRoot, "src", "index.ts"), "export const fixture = false;\n");
-    await writeFile(join(consumerRoot, "src", "file with space.ts"), "export const spaced = true;\n");
+    await writeFile(
+      join(consumerRoot, "src", "file with space.ts"),
+      "export const spaced = true;\n",
+    );
 
     const { result, report } = runChanged(consumerRoot);
     assert.equal(result.status, 0, result.stderr);
@@ -556,18 +541,11 @@ test("rejects a fast workflow that recursively invokes the changed workflow", as
       "repository-agent-workflow.yaml",
     );
     const source = await readFile(configPath, "utf8");
-    await writeFile(
-      configPath,
-      source.replace("fast: check:fast", "fast: check:changed"),
-      "utf8",
-    );
+    await writeFile(configPath, source.replace("fast: check:fast", "fast: check:changed"), "utf8");
 
     const { result, report } = check(consumerRoot);
     assert.equal(result.status, 2);
-    assert.equal(
-      report.capabilities[0].problem.code,
-      "REPOSITORY_AGENT_WORKFLOW_CONFIG_INVALID",
-    );
+    assert.equal(report.capabilities[0].problem.code, "REPOSITORY_AGENT_WORKFLOW_CONFIG_INVALID");
     assert.match(
       report.capabilities[0].problem.message,
       /fast workflow script cannot be the changed workflow script/u,
@@ -577,11 +555,12 @@ test("rejects a fast workflow that recursively invokes the changed workflow", as
 
 test("escalates policy changes and deletions to the configured fast full gate", async () => {
   for (const mutate of [
-    (consumerRoot) => writeFile(
-      join(consumerRoot, "AGENTS.md"),
-      "Run `pnpm check:changed`, `pnpm check:fast`, and `pnpm check`.\n",
-      "utf8",
-    ),
+    (consumerRoot) =>
+      writeFile(
+        join(consumerRoot, "AGENTS.md"),
+        "Run `pnpm check:changed`, `pnpm check:fast`, and `pnpm check`.\n",
+        "utf8",
+      ),
     (consumerRoot) => rm(join(consumerRoot, "src", "index.ts")),
   ]) {
     await withAgentWorkflowFixture(async (consumerRoot) => {
@@ -602,10 +581,7 @@ test("escalates policy changes and deletions to the configured fast full gate", 
 test("treats a staged rename as deletion plus addition", async () => {
   await withAgentWorkflowFixture(async (consumerRoot) => {
     initializeRepository(consumerRoot);
-    await rename(
-      join(consumerRoot, "src", "index.ts"),
-      join(consumerRoot, "src", "renamed.ts"),
-    );
+    await rename(join(consumerRoot, "src", "index.ts"), join(consumerRoot, "src", "renamed.ts"));
     git(consumerRoot, "add", "--all");
     const { result, report } = runChanged(consumerRoot);
     assert.equal(result.status, 0, result.stderr);

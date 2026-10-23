@@ -21,27 +21,14 @@ async function assertAbsent(path) {
 }
 
 function jsonErrorCode(failure) {
-  return failure?.stdout.length === 0
-    ? undefined
-    : JSON.parse(failure.stdout).error?.code;
+  return failure?.stdout.length === 0 ? undefined : JSON.parse(failure.stdout).error?.code;
 }
 
-export async function verifyInstalledTransactionBarrier({
-  cliPath,
-  consumerRoot,
-  fixtureRoot,
-}) {
+export async function verifyInstalledTransactionBarrier({ cliPath, consumerRoot, fixtureRoot }) {
   await cp(fixtureRoot, consumerRoot, { recursive: true });
   const { stdout: planOutput } = await runCommand(
     process.execPath,
-    [
-      cliPath,
-      "scaffold-plan",
-      "intents/create-fixture.yaml",
-      "--consumer",
-      consumerRoot,
-      "--json",
-    ],
+    [cliPath, "scaffold-plan", "intents/create-fixture.yaml", "--consumer", consumerRoot, "--json"],
     consumerRoot,
   );
   const plan = JSON.parse(planOutput);
@@ -50,11 +37,7 @@ export async function verifyInstalledTransactionBarrier({
   await writeFile(planPath, planOutput, "utf8");
   const planBefore = await readFile(planPath);
 
-  const transactionPath = join(
-    consumerRoot,
-    ".agent-teams-local",
-    "scaffolding-transaction.json",
-  );
+  const transactionPath = join(consumerRoot, ".agent-teams-local", "scaffolding-transaction.json");
   await mkdir(dirname(transactionPath), { recursive: true });
   await writeFile(transactionPath, unknownTransactionBytes);
   const transactionBefore = await readFile(transactionPath);
@@ -113,8 +96,7 @@ export async function verifyInstalledTransactionBarrier({
   }
   if (
     status.transaction?.state !== "manual-recovery-required" ||
-    status.transaction.diagnostics?.[0]?.code !==
-      "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED"
+    status.transaction.diagnostics?.[0]?.code !== "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED"
   ) {
     throw new Error("Installed status omitted the foreign transaction diagnostic.");
   }

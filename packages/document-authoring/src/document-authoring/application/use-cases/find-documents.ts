@@ -3,17 +3,15 @@ import type {
   DocumentDescriptor,
   DocumentSearchCorpusEntry,
   DocumentationSearchCatalogSnapshot,
-  DocumentationSearchCatalogSnapshotV2
+  DocumentationSearchCatalogSnapshotV2,
 } from "../model/document-catalog.js";
 import type {
   DocumentFindFilters,
   DocumentFindQuery,
   DocumentFindResult,
-  DocumentFindResultV2
+  DocumentFindResultV2,
 } from "../model/document-find.js";
-import type {
-  DocumentationSearchCatalogReader
-} from "../ports/documentation-search-catalog-reader.js";
+import type { DocumentationSearchCatalogReader } from "../ports/documentation-search-catalog-reader.js";
 import type { DocumentationSearchCatalogReaderV2 } from "../ports/documentation-search-catalog-reader-v2.js";
 import { DocumentCatalogError } from "../model/document-catalog-error.js";
 
@@ -36,18 +34,14 @@ interface CompiledDocumentFindQuery {
 function invalidQuery(message: string): never {
   throw new DocumentCatalogError(
     "DOCUMENT_CATALOG_INPUT_INVALID",
-    `Document query is invalid: ${message}`
+    `Document query is invalid: ${message}`,
   );
 }
 
 function containsUnsafeCharacter(value: string): boolean {
   for (const character of value) {
     const code = character.codePointAt(0) ?? 0;
-    if (
-      code <= 0x1f ||
-      code === 0x7f ||
-      (code >= 0xd800 && code <= 0xdfff)
-    ) {
+    if (code <= 0x1f || code === 0x7f || (code >= 0xd800 && code <= 0xdfff)) {
       return true;
     }
   }
@@ -58,7 +52,7 @@ function validateFilter(
   value: string | undefined,
   name: string,
   maximumLength: number,
-  pattern: RegExp
+  pattern: RegExp,
 ): void {
   if (value === undefined) {
     return;
@@ -73,33 +67,23 @@ function validateFilter(
   }
 }
 
-function compileDocumentFindQuery(
-  query: DocumentFindQuery | undefined
-): CompiledDocumentFindQuery {
+function compileDocumentFindQuery(query: DocumentFindQuery | undefined): CompiledDocumentFindQuery {
   const filters = query?.filters ?? {};
   validateFilter(filters.id, "id", 214, OPAQUE_ID);
   validateFilter(filters.owner, "owner", 214, OPAQUE_ID);
   validateFilter(filters.status, "status", 160, LOWER_ID);
   validateFilter(filters.type, "type", 160, LOWER_ID);
   const text = query?.text;
-  if (
-    text !== undefined &&
-    (text.length > MAXIMUM_TEXT_LENGTH || containsUnsafeCharacter(text))
-  ) {
+  if (text !== undefined && (text.length > MAXIMUM_TEXT_LENGTH || containsUnsafeCharacter(text))) {
     invalidQuery("text must be a bounded Unicode string without control characters.");
   }
   return Object.freeze({
     filters: Object.freeze({ ...filters }),
-    ...(text === undefined
-      ? {}
-      : { normalizedText: text.normalize("NFC").toLowerCase() })
+    ...(text === undefined ? {} : { normalizedText: text.normalize("NFC").toLowerCase() }),
   });
 }
 
-function matchesFilters(
-  entry: DocumentSearchCorpusEntry,
-  filters: DocumentFindFilters
-): boolean {
+function matchesFilters(entry: DocumentSearchCorpusEntry, filters: DocumentFindFilters): boolean {
   const { descriptor } = entry;
   return (
     (filters.id === undefined || descriptor.id === filters.id) &&
@@ -115,15 +99,12 @@ function normalizedSearchFields(entry: DocumentSearchCorpusEntry): readonly stri
     entry.descriptor.title,
     entry.descriptor.summary,
     ...entry.headings,
-    entry.body
+    entry.body,
   ].map((value) => value.normalize("NFC").toLowerCase());
 }
 
 interface SearchSnapshot<Descriptor extends DocumentDescriptor> {
-  readonly catalog: Pick<
-    DocumentationSearchCatalogSnapshot["catalog"],
-    "diagnostics" | "status"
-  >;
+  readonly catalog: Pick<DocumentationSearchCatalogSnapshot["catalog"], "diagnostics" | "status">;
   readonly documents: readonly (Omit<DocumentSearchCorpusEntry, "descriptor"> & {
     readonly descriptor: Descriptor;
   })[];
@@ -131,7 +112,7 @@ interface SearchSnapshot<Descriptor extends DocumentDescriptor> {
 
 function findInSnapshot<Descriptor extends DocumentDescriptor>(
   snapshot: SearchSnapshot<Descriptor>,
-  query: CompiledDocumentFindQuery
+  query: CompiledDocumentFindQuery,
 ): Omit<DocumentFindResult, "documents"> & {
   readonly documents: readonly Descriptor[];
 } {
@@ -141,20 +122,20 @@ function findInSnapshot<Descriptor extends DocumentDescriptor>(
         matchesFilters(entry, query.filters) &&
         (query.normalizedText === undefined ||
           normalizedSearchFields(entry).some((field) =>
-            field.includes(query.normalizedText ?? "")
-          ))
+            field.includes(query.normalizedText ?? ""),
+          )),
     )
     .map((entry) => entry.descriptor)
     .toSorted(
       (left, right) =>
         compareBinaryStrings(left.id, right.id) ||
-        compareBinaryStrings(left.repositoryPath, right.repositoryPath)
+        compareBinaryStrings(left.repositoryPath, right.repositoryPath),
     );
   return Object.freeze({
     catalogStatus: snapshot.catalog.status,
     diagnostics: snapshot.catalog.diagnostics,
     documents: Object.freeze(documents),
-    matches: documents.length
+    matches: documents.length,
   });
 }
 
@@ -170,7 +151,7 @@ export class FindDocuments {
     const snapshot = await this.#catalog.read({
       consumerRoot: request.consumerRoot,
       profilePath: request.profilePath,
-      ...(request.signal === undefined ? {} : { signal: request.signal })
+      ...(request.signal === undefined ? {} : { signal: request.signal }),
     });
     return findInSnapshot(snapshot, query);
   }
@@ -188,12 +169,12 @@ export class FindDocumentsV2 {
     const snapshot: DocumentationSearchCatalogSnapshotV2 = await this.#catalog.read({
       consumerRoot: request.consumerRoot,
       profilePath: request.profilePath,
-      ...(request.signal === undefined ? {} : { signal: request.signal })
+      ...(request.signal === undefined ? {} : { signal: request.signal }),
     });
     const result = findInSnapshot(snapshot, query);
     return Object.freeze({
       ...result,
-      catalogSemanticDigest: snapshot.catalog.semanticDigest
+      catalogSemanticDigest: snapshot.catalog.semanticDigest,
     });
   }
 }

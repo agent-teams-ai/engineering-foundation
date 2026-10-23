@@ -8,10 +8,15 @@ export type Repository = Readonly<{
   nameWithOwner: string;
 }>;
 
-export type PackageEvidence = Readonly<Record<string, Readonly<{
-  version: string;
-  integrity: string;
-}>>>;
+export type PackageEvidence = Readonly<
+  Record<
+    string,
+    Readonly<{
+      version: string;
+      integrity: string;
+    }>
+  >
+>;
 
 export type Coordinate = Readonly<{
   key: string;
@@ -103,10 +108,11 @@ export type QualificationProfileV3 = Readonly<{
   [key: string]: unknown;
 }>;
 
-export type ManagedState = JsonRecord & Readonly<{
-  schemaVersion: number;
-  stateDigest: string;
-}>;
+export type ManagedState = JsonRecord &
+  Readonly<{
+    schemaVersion: number;
+    stateDigest: string;
+  }>;
 
 export type CohortV3Consistency = Readonly<{
   output: JsonRecord;

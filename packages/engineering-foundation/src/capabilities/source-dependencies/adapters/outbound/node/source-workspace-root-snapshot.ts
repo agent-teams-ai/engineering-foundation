@@ -4,7 +4,7 @@ import {
   captureStableRepositoryPath,
   revalidateStableRepositoryPath,
   type SourceWorkspaceDirectorySystem,
-  type StableRepositoryPath
+  type StableRepositoryPath,
 } from "./source-workspace-filesystem.js";
 
 interface InspectUniqueRootsInput {
@@ -29,7 +29,7 @@ function filesystemIdentity(path: StableRepositoryPath): string {
 }
 
 export async function inspectUniqueRoots(
-  input: InspectUniqueRootsInput
+  input: InspectUniqueRootsInput,
 ): Promise<readonly StableRepositoryPath[]> {
   const identities = new Map<string, string>();
   const inspected: StableRepositoryPath[] = [];
@@ -39,14 +39,14 @@ export async function inspectUniqueRoots(
       repositoryPath,
       input.expectedKind,
       input.operations,
-      input.signal
+      input.signal,
     );
     const identity = filesystemIdentity(root);
     const existing = identities.get(identity);
     if (existing !== undefined) {
       inputError(
         "SOURCE_ROOT_REALPATH_DUPLICATE",
-        `${input.label} share one physical filesystem identity: ${existing} and ${repositoryPath}.`
+        `${input.label} share one physical filesystem identity: ${existing} and ${repositoryPath}.`,
       );
     }
     identities.set(identity, repositoryPath);
@@ -56,21 +56,19 @@ export async function inspectUniqueRoots(
   if (symbolicLink !== undefined) {
     inputError(
       input.symbolicLinkCode ?? "SOURCE_SYMLINK_PROHIBITED",
-      `Schema v2 source paths cannot traverse symbolic links: ${symbolicLink.repositoryPath}.`
+      `Schema v2 source paths cannot traverse symbolic links: ${symbolicLink.repositoryPath}.`,
     );
   }
   return Object.freeze(inspected);
 }
 
-export async function revalidateRoots(
-  input: RevalidateRootsInput
-): Promise<void> {
+export async function revalidateRoots(input: RevalidateRootsInput): Promise<void> {
   for (const root of input.roots) {
     await revalidateStableRepositoryPath(
       input.canonicalConsumerRoot,
       root,
       input.operations,
-      input.signal
+      input.signal,
     );
   }
 }

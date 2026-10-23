@@ -24,7 +24,9 @@ export async function mapStageIo<T, R>(
   const worker = async (): Promise<void> => {
     while (!failed) {
       const next = iterator.next();
-      if (next.done) { return; }
+      if (next.done) {
+        return;
+      }
 
       const [index, item] = next.value;
       try {
@@ -39,10 +41,7 @@ export async function mapStageIo<T, R>(
   };
 
   const settled = await Promise.allSettled(
-    Array.from(
-      { length: Math.min(concurrency, items.length) },
-      () => worker(),
-    ),
+    Array.from({ length: Math.min(concurrency, items.length) }, () => worker()),
   );
 
   for (const result of settled) {
@@ -52,7 +51,9 @@ export async function mapStageIo<T, R>(
     }
   }
 
-  if (failed) { throw failure; }
+  if (failed) {
+    throw failure;
+  }
   return results;
 }
 
@@ -101,7 +102,9 @@ export function reserveStageBytes(
     },
 
     release(): void {
-      if (!active) { return; }
+      if (!active) {
+        return;
+      }
       active = false;
       state.reservedBytes = (state.reservedBytes ?? 0) - size;
     },

@@ -1,4 +1,7 @@
-import { sha256Json as sha256DocumentJson, type CanonicalJsonValue } from "@agent-teams/repository-mutation";
+import {
+  sha256Json as sha256DocumentJson,
+  type CanonicalJsonValue,
+} from "@agent-teams/repository-mutation";
 import { legacyFoundationEnvelopeSha256Json } from "./legacy-document-envelope-v2.js";
 
 export function assertEnvelopeDigests(envelope: Record<string, unknown>): void {

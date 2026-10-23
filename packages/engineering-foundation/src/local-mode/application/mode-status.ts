@@ -1,4 +1,8 @@
-import type { FoundationLinkState, FoundationTransactionAwareStatus, FoundationTransactionStatus } from "./model.js";
+import type {
+  FoundationLinkState,
+  FoundationTransactionAwareStatus,
+  FoundationTransactionStatus,
+} from "./model.js";
 import type { InternalFoundationTransactionStatus } from "../../transaction-coordination/application/model/internal-transaction-status.js";
 
 export interface InstalledFoundation {
@@ -10,15 +14,22 @@ export function buildStatus(input: {
   readonly consumerRoot: string;
   readonly dependencySpec?: string;
   readonly installed: InstalledFoundation;
-  readonly provenance?: { readonly lockfilePath: string; readonly packageKey: string; readonly integrity: string };
+  readonly provenance?: {
+    readonly lockfilePath: string;
+    readonly packageKey: string;
+    readonly integrity: string;
+  };
   readonly linkState?: FoundationLinkState;
   readonly transaction?: FoundationTransactionStatus;
   readonly issues: readonly string[];
 }): FoundationTransactionAwareStatus {
   return {
-    mode: input.issues.length === 0
-      ? input.linkState === undefined ? "REGISTRY" : "LOCAL"
-      : "INVALID",
+    mode:
+      input.issues.length === 0
+        ? input.linkState === undefined
+          ? "REGISTRY"
+          : "LOCAL"
+        : "INVALID",
     consumerRoot: input.consumerRoot,
     ...(input.dependencySpec === undefined ? {} : { dependencySpec: input.dependencySpec }),
     ...(input.installed.root === undefined ? {} : { installedPackageRoot: input.installed.root }),
@@ -28,21 +39,18 @@ export function buildStatus(input: {
       : {
           lockfilePath: input.provenance.lockfilePath,
           lockfilePackageKey: input.provenance.packageKey,
-          registryIntegrity: input.provenance.integrity
+          registryIntegrity: input.provenance.integrity,
         }),
     ...(input.linkState === undefined ? {} : { linkState: input.linkState }),
     ...(input.transaction === undefined ? {} : { transaction: input.transaction }),
-    issues: input.issues
+    issues: input.issues,
   };
 }
 
 export function projectPublicTransactionStatus(
-  status: InternalFoundationTransactionStatus
+  status: InternalFoundationTransactionStatus,
 ): FoundationTransactionStatus {
-  if (
-    status.state === "pending" &&
-    status.operationKind === "known-file-transaction"
-  ) {
+  if (status.state === "pending" && status.operationKind === "known-file-transaction") {
     return {
       state: status.state,
       operationKind: status.operationKind,
@@ -50,7 +58,7 @@ export function projectPublicTransactionStatus(
       foundationVersion: status.foundationVersion,
       foundationBuildIdentity: status.foundationBuildIdentity,
       recovery: status.recovery,
-      diagnostics: status.diagnostics
+      diagnostics: status.diagnostics,
     };
   }
   if (status.state === "manual-recovery-required") {
@@ -64,18 +72,14 @@ export function projectPublicTransactionStatus(
       return {
         state: "manual-recovery-required",
         reason: "recovery-handler-unavailable",
-        ...(status.operationKind === undefined
-          ? {}
-          : { operationKind: status.operationKind }),
-        diagnostics: status.diagnostics
+        ...(status.operationKind === undefined ? {} : { operationKind: status.operationKind }),
+        diagnostics: status.diagnostics,
       };
     }
     return {
       state: "manual-recovery-required",
       reason: status.reason,
-      ...(status.operationKind === undefined
-        ? {}
-        : { operationKind: status.operationKind }),
+      ...(status.operationKind === undefined ? {} : { operationKind: status.operationKind }),
       ...(status.format === undefined ? {} : { format: status.format }),
       ...(status.foundationVersion === undefined
         ? {}
@@ -83,7 +87,7 @@ export function projectPublicTransactionStatus(
       ...(status.foundationBuildIdentity === undefined
         ? {}
         : { foundationBuildIdentity: status.foundationBuildIdentity }),
-      diagnostics: status.diagnostics
+      diagnostics: status.diagnostics,
     };
   }
   return status;

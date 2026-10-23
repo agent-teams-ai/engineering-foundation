@@ -6,6 +6,11 @@ export interface KnownFileTerminalDirectory {
 }
 
 export interface KnownFileObservationPort {
-  readonly readBoundedRegularFile: (path: string, maximumBytes: number) => Promise<BoundedRegularFileRead>;
-  readonly assertTerminalEvidenceDirectory: (authority: KnownFileTerminalDirectory) => Promise<void>;
+  readonly readBoundedRegularFile: (
+    path: string,
+    maximumBytes: number,
+  ) => Promise<BoundedRegularFileRead>;
+  readonly assertTerminalEvidenceDirectory: (
+    authority: KnownFileTerminalDirectory,
+  ) => Promise<void>;
 }

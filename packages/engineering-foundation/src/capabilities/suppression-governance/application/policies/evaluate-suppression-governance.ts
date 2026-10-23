@@ -5,18 +5,11 @@ import type {
   SuppressionGovernancePolicy,
   SuppressionScan,
   SuppressionWaiver,
-  WaiverableDirective
+  WaiverableDirective,
 } from "../model/suppression-governance.js";
-import {
-  SUPPRESSION_GOVERNANCE_RULES,
-  type SuppressionGovernanceRuleMetadata
-} from "../rules.js";
+import { SUPPRESSION_GOVERNANCE_RULES, type SuppressionGovernanceRuleMetadata } from "../rules.js";
 
-const BUILT_IN_PROTECTED_RULE_PREFIXES = [
-  "security.",
-  "tenancy.",
-  "tenant-isolation."
-] as const;
+const BUILT_IN_PROTECTED_RULE_PREFIXES = ["security.", "tenancy.", "tenant-isolation."] as const;
 const MAXIMUM_WAIVER_LIFETIME_DAYS = 90;
 
 function diagnostic(input: {
@@ -35,12 +28,12 @@ function diagnostic(input: {
     message: input.message,
     location: {
       path: input.path,
-      start: { line: input.line, column: input.column ?? 1 }
+      start: { line: input.line, column: input.column ?? 1 },
     },
     relatedLocations: [],
     evidence: input.evidence ?? [],
     remediation: input.rule.remediation,
-    requiresArchitectureReview: input.rule.requiresArchitectureReview
+    requiresArchitectureReview: input.rule.requiresArchitectureReview,
   };
 }
 
@@ -66,53 +59,48 @@ function waiverable(kind: SuppressionDirective["kind"]): kind is WaiverableDirec
 
 function protectedRules(
   directive: SuppressionDirective,
-  policy: SuppressionGovernancePolicy
+  policy: SuppressionGovernancePolicy,
 ): readonly string[] {
-  const prefixes = [
-    ...BUILT_IN_PROTECTED_RULE_PREFIXES,
-    ...policy.nonWaivableRulePrefixes
-  ];
-  return directive.rules.filter((ruleId) =>
-    prefixes.some((prefix) => ruleId.startsWith(prefix))
-  );
+  const prefixes = [...BUILT_IN_PROTECTED_RULE_PREFIXES, ...policy.nonWaivableRulePrefixes];
+  return directive.rules.filter((ruleId) => prefixes.some((prefix) => ruleId.startsWith(prefix)));
 }
 
 function classifyProhibited(
   directive: SuppressionDirective,
-  policy: SuppressionGovernancePolicy
+  policy: SuppressionGovernancePolicy,
 ): FoundationDiagnostic | undefined {
   const base = {
     subject: locationKey(directive.path, directive.line),
     path: directive.path,
     line: directive.line,
-    column: directive.column
+    column: directive.column,
   };
   if (directive.kind.startsWith("eslint-")) {
     return diagnostic({
       ...base,
       rule: SUPPRESSION_GOVERNANCE_RULES.legacySuppression,
-      message: `Legacy suppression directive is prohibited: ${directive.kind}.`
+      message: `Legacy suppression directive is prohibited: ${directive.kind}.`,
     });
   }
   if (directive.kind === "typescript-ignore" || directive.kind === "typescript-nocheck") {
     return diagnostic({
       ...base,
       rule: SUPPRESSION_GOVERNANCE_RULES.prohibitedTypeScriptSuppression,
-      message: `TypeScript suppression directive is prohibited: ${directive.kind}.`
+      message: `TypeScript suppression directive is prohibited: ${directive.kind}.`,
     });
   }
   if (directive.scope === "file") {
     return diagnostic({
       ...base,
       rule: SUPPRESSION_GOVERNANCE_RULES.broadSuppression,
-      message: `Broad suppression directive is prohibited: ${directive.kind}.`
+      message: `Broad suppression directive is prohibited: ${directive.kind}.`,
     });
   }
   if (directive.rules.length === 0) {
     return diagnostic({
       ...base,
       rule: SUPPRESSION_GOVERNANCE_RULES.unscopedSuppression,
-      message: `Suppression directive does not name an exact rule: ${directive.kind}.`
+      message: `Suppression directive does not name an exact rule: ${directive.kind}.`,
     });
   }
   const blockedRules = protectedRules(directive, policy);
@@ -121,7 +109,7 @@ function classifyProhibited(
       ...base,
       rule: SUPPRESSION_GOVERNANCE_RULES.protectedRuleSuppression,
       message: `Suppression targets non-waivable rule(s): ${blockedRules.join(", ")}.`,
-      evidence: blockedRules.map((value) => ({ kind: "protected-rule", value }))
+      evidence: blockedRules.map((value) => ({ kind: "protected-rule", value })),
     });
   }
   return undefined;
@@ -129,7 +117,7 @@ function classifyProhibited(
 
 function waiverTimeDiagnostics(
   waiver: SuppressionWaiver,
-  today: string
+  today: string,
 ): readonly FoundationDiagnostic[] {
   const created = isoDateToEpochDay(waiver.createdOn);
   const expires = isoDateToEpochDay(waiver.expiresOn);
@@ -141,7 +129,7 @@ function waiverTimeDiagnostics(
     subject: waiver.id,
     path: waiver.path,
     line: waiver.line,
-    evidence: [{ kind: "waiver-id", value: waiver.id }]
+    evidence: [{ kind: "waiver-id", value: waiver.id }],
   };
   const diagnostics: FoundationDiagnostic[] = [];
   if (created > current) {
@@ -149,8 +137,8 @@ function waiverTimeDiagnostics(
       diagnostic({
         ...base,
         rule: SUPPRESSION_GOVERNANCE_RULES.futureWaiver,
-        message: `Waiver ${waiver.id} has future createdOn ${waiver.createdOn}.`
-      })
+        message: `Waiver ${waiver.id} has future createdOn ${waiver.createdOn}.`,
+      }),
     );
   }
   if (expires < current) {
@@ -158,8 +146,8 @@ function waiverTimeDiagnostics(
       diagnostic({
         ...base,
         rule: SUPPRESSION_GOVERNANCE_RULES.expiredWaiver,
-        message: `Waiver ${waiver.id} expired on ${waiver.expiresOn}.`
-      })
+        message: `Waiver ${waiver.id} expired on ${waiver.expiresOn}.`,
+      }),
     );
   }
   if (expires - created > MAXIMUM_WAIVER_LIFETIME_DAYS) {
@@ -167,8 +155,8 @@ function waiverTimeDiagnostics(
       diagnostic({
         ...base,
         rule: SUPPRESSION_GOVERNANCE_RULES.excessiveLifetime,
-        message: `Waiver ${waiver.id} exceeds ${MAXIMUM_WAIVER_LIFETIME_DAYS} days.`
-      })
+        message: `Waiver ${waiver.id} exceeds ${MAXIMUM_WAIVER_LIFETIME_DAYS} days.`,
+      }),
     );
   }
   return diagnostics;
@@ -181,7 +169,7 @@ export function evaluateSuppressionGovernance(input: {
 }): readonly FoundationDiagnostic[] {
   const diagnostics: FoundationDiagnostic[] = [];
   const waiversByLocation = new Map(
-    input.policy.waivers.map((waiver) => [locationKey(waiver.path, waiver.line), waiver])
+    input.policy.waivers.map((waiver) => [locationKey(waiver.path, waiver.line), waiver]),
   );
   const consumedWaivers = new Set<string>();
 
@@ -193,8 +181,8 @@ export function evaluateSuppressionGovernance(input: {
           subject: scan.path,
           message: `Source parser reported ${scan.parseErrorCount} error(s).`,
           path: scan.path,
-          line: 1
-        })
+          line: 1,
+        }),
       );
       continue;
     }
@@ -218,8 +206,8 @@ export function evaluateSuppressionGovernance(input: {
             path: directive.path,
             line: directive.line,
             column: directive.column,
-            evidence: directive.rules.map((value) => ({ kind: "rule", value }))
-          })
+            evidence: directive.rules.map((value) => ({ kind: "rule", value })),
+          }),
         );
         continue;
       }
@@ -233,8 +221,8 @@ export function evaluateSuppressionGovernance(input: {
             path: directive.path,
             line: directive.line,
             column: directive.column,
-            evidence: [{ kind: "waiver-id", value: waiver.id }]
-          })
+            evidence: [{ kind: "waiver-id", value: waiver.id }],
+          }),
         );
         continue;
       }
@@ -251,8 +239,8 @@ export function evaluateSuppressionGovernance(input: {
           message: `Waiver ${waiver.id} does not match one allowed suppression.`,
           path: waiver.path,
           line: waiver.line,
-          evidence: [{ kind: "waiver-id", value: waiver.id }]
-        })
+          evidence: [{ kind: "waiver-id", value: waiver.id }],
+        }),
       );
     }
   }

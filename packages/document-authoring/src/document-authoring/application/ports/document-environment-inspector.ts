@@ -3,15 +3,10 @@ export interface DocumentEnvironmentInspection {
   readonly installedFoundationBuildIdentity: string;
   readonly filesystem: {
     readonly basis: "platform-contract";
-    readonly strictDirectoryDurability:
-      | "platform-supported"
-      | "platform-unsupported";
+    readonly strictDirectoryDurability: "platform-supported" | "platform-unsupported";
   };
 }
 
 export interface DocumentEnvironmentInspector {
-  inspect(
-    consumerRoot: string,
-    signal?: AbortSignal
-  ): Promise<DocumentEnvironmentInspection>;
+  inspect(consumerRoot: string, signal?: AbortSignal): Promise<DocumentEnvironmentInspection>;
 }

@@ -5,20 +5,29 @@ import { fileURLToPath } from "node:url";
 import { firstExisting, isRegularFile, verifyQualificationNode } from "./executable-policy.mts";
 import { readRepositoryRuntimePolicy, repositoryRoot } from "./runtime-policy.mts";
 
-const allowedArguments = [
-  ["--version"],
-  ["peers", "check", "--lockfile-only"]
-] as const;
+const allowedArguments = [["--version"], ["peers", "check", "--lockfile-only"]] as const;
 
 function isReadOnlyPack(args: readonly string[]): boolean {
   const output = args[2];
-  return args.length === 3 && args[0] === "pack" && args[1] === "--out" &&
-    output !== undefined && isAbsolute(output) && output.endsWith(".tgz");
+  return (
+    args.length === 3 &&
+    args[0] === "pack" &&
+    args[1] === "--out" &&
+    output !== undefined &&
+    isAbsolute(output) &&
+    output.endsWith(".tgz")
+  );
 }
 
 function matchesArguments(args: readonly string[]): boolean {
-  if (isReadOnlyPack(args)) { return true; }
-  if (args.length === 2 && args[0] === "run" && /^[A-Za-z0-9][A-Za-z0-9:._-]*$/u.test(args[1] ?? "")) {
+  if (isReadOnlyPack(args)) {
+    return true;
+  }
+  if (
+    args.length === 2 &&
+    args[0] === "run" &&
+    /^[A-Za-z0-9][A-Za-z0-9:._-]*$/u.test(args[1] ?? "")
+  ) {
     return true;
   }
   if (
@@ -31,15 +40,17 @@ function matchesArguments(args: readonly string[]): boolean {
     return true;
   }
   if (
-    args.length === 4 && args[0] === "install" &&
+    args.length === 4 &&
+    args[0] === "install" &&
     (args[1] === "--frozen-lockfile" || args[1] === "--lockfile-only") &&
-    args[2] === "--ignore-scripts" && args[3] === "--engine-strict"
+    args[2] === "--ignore-scripts" &&
+    args[3] === "--engine-strict"
   ) {
     return true;
   }
-  return allowedArguments.some((allowed) =>
-    allowed.length === args.length &&
-    allowed.every((value, index) => value === args[index])
+  return allowedArguments.some(
+    (allowed) =>
+      allowed.length === args.length && allowed.every((value, index) => value === args[index]),
   );
 }
 
@@ -58,16 +69,18 @@ function observationEnvironment(): NodeJS.ProcessEnv {
 function observesPnpmVersion(
   command: string,
   entrypointArguments: readonly string[],
-  expectedVersion: string
+  expectedVersion: string,
 ): boolean {
-  const observation = spawnSync(command, [
-    ...entrypointArguments,
-    "--pm-on-fail=ignore",
-    "--version"
-  ], { encoding: "utf8", timeout: 10_000, env: observationEnvironment() });
-  return observation.status === 0 &&
+  const observation = spawnSync(
+    command,
+    [...entrypointArguments, "--pm-on-fail=ignore", "--version"],
+    { encoding: "utf8", timeout: 10_000, env: observationEnvironment() },
+  );
+  return (
+    observation.status === 0 &&
     observation.stdout.trim() === expectedVersion &&
-    observation.stderr.trim() === "";
+    observation.stderr.trim() === ""
+  );
 }
 
 function isJavaScriptEntrypoint(path: string): boolean {
@@ -96,14 +109,17 @@ function invocationForPath(path: string, node: string): PnpmInvocation | null {
 async function admittedPnpmInvocation(
   candidate: string,
   node: string,
-  expectedVersion: string
+  expectedVersion: string,
 ): Promise<PnpmInvocation | null> {
-  if (!await isRegularFile(candidate)) {
+  if (!(await isRegularFile(candidate))) {
     return null;
   }
   const selected = await realpath(candidate);
   const invocation = invocationForPath(selected, node);
-  if (invocation === null || !observesPnpmVersion(invocation.command, invocation.args, expectedVersion)) {
+  if (
+    invocation === null ||
+    !observesPnpmVersion(invocation.command, invocation.args, expectedVersion)
+  ) {
     return null;
   }
   return invocation;
@@ -111,7 +127,7 @@ async function admittedPnpmInvocation(
 
 export async function resolvePnpmInvocation(
   node: string,
-  expectedVersion: string
+  expectedVersion: string,
 ): Promise<PnpmInvocation> {
   const explicit = process.env["AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT"];
   if (explicit !== undefined) {
@@ -121,13 +137,14 @@ export async function resolvePnpmInvocation(
     }
     return invocation;
   }
-  const candidates = (process.env["PATH"] ?? "").split(delimiter)
+  const candidates = (process.env["PATH"] ?? "")
+    .split(delimiter)
     .filter((path) => path.length > 0)
     .flatMap((path) => [
       resolve(path, pnpmPortableName()),
       resolve(path, "pnpm.mjs"),
       resolve(path, "pnpm.cjs"),
-      resolve(path, "pnpm.js")
+      resolve(path, "pnpm.js"),
     ]);
   for (const candidate of candidates) {
     const invocation = await admittedPnpmInvocation(candidate, node, expectedVersion);
@@ -140,12 +157,16 @@ export async function resolvePnpmInvocation(
 
 async function verifiedNode(): Promise<string> {
   const explicit = process.env["AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE"];
-  return verifyQualificationNode(explicit ?? await firstExisting([
-    process.versions["bun"] === undefined ? process.execPath : undefined,
-    ...((process.env["PATH"] ?? "").split(delimiter)
-      .filter((path) => path.length > 0)
-      .map((path) => resolve(path, process.platform === "win32" ? "node.exe" : "node")))
-  ]));
+  return verifyQualificationNode(
+    explicit ??
+      (await firstExisting([
+        process.versions["bun"] === undefined ? process.execPath : undefined,
+        ...(process.env["PATH"] ?? "")
+          .split(delimiter)
+          .filter((path) => path.length > 0)
+          .map((path) => resolve(path, process.platform === "win32" ? "node.exe" : "node")),
+      ])),
+  );
 }
 
 async function assertReadOnlyPack(): Promise<void> {
@@ -159,7 +180,9 @@ async function assertReadOnlyPack(): Promise<void> {
     throw new Error("Read-only pack requires a package manifest object.");
   }
   const scripts: unknown = Reflect.get(manifest, "scripts");
-  if (scripts === undefined) { return; }
+  if (scripts === undefined) {
+    return;
+  }
   if (scripts === null || typeof scripts !== "object" || Array.isArray(scripts)) {
     throw new Error("Read-only pack requires a scripts object.");
   }
@@ -175,9 +198,14 @@ async function main(): Promise<number> {
   if (!matchesArguments(args)) {
     throw new Error("pnpm-command accepts only the closed pinned pnpm operations.");
   }
-  if (args[0] === "pack") { await assertReadOnlyPack(); }
-  const pnpmArguments = ["--pm-on-fail=ignore",
-    ...(isReadOnlyPack(args) ? ["--config.ignore-scripts=true"] : []), ...args];
+  if (args[0] === "pack") {
+    await assertReadOnlyPack();
+  }
+  const pnpmArguments = [
+    "--pm-on-fail=ignore",
+    ...(isReadOnlyPack(args) ? ["--config.ignore-scripts=true"] : []),
+    ...args,
+  ];
   const policy = await readRepositoryRuntimePolicy(repositoryRoot);
   const node = await verifiedNode();
   const invocation = await resolvePnpmInvocation(node, policy.toolchain.pnpm.version);
@@ -187,9 +215,9 @@ async function main(): Promise<number> {
       ...process.env,
       ...(process.env["AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE"] === "node"
         ? { AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE: "node" }
-        : {})
+        : {}),
     },
-    stdio: "inherit"
+    stdio: "inherit",
   });
   if (result.error !== undefined) {
     throw result.error;

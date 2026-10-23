@@ -34,7 +34,7 @@ async function main(): Promise<void> {
   const lifetime = new AbortController();
   const handle = serveStdio(
     () => createDocsProtocolMcpServer(new NodeDocsReader(), binding, lifetime.signal),
-    { onerror: () => process.stderr.write("docs-protocol-mcp: MCP transport failed.\n") }
+    { onerror: () => process.stderr.write("docs-protocol-mcp: MCP transport failed.\n") },
   );
   const shutdown = (): void => {
     lifetime.abort();

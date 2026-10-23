@@ -3,7 +3,7 @@ import type { MarkdownDocumentObservation } from "@agent-teams/document-authorin
 import {
   ARCHITECTURE_DECISION_STATUSES,
   type ArchitectureDecision,
-  type ArchitectureDecisionStatus
+  type ArchitectureDecisionStatus,
 } from "../model/architecture-decision.js";
 import { ARCHITECTURE_DECISION_GOVERNANCE_RULES } from "../rules.js";
 import { architectureDecisionDiagnostic } from "./architecture-decision-diagnostic.js";
@@ -52,9 +52,7 @@ function strings(value: unknown): readonly string[] | undefined {
 
 function architectureDecisionIds(value: unknown): readonly string[] | undefined {
   const entries = strings(value);
-  return entries?.every((entry) => ADR_ID.test(entry)) === true
-    ? entries
-    : undefined;
+  return entries?.every((entry) => ADR_ID.test(entry)) === true ? entries : undefined;
 }
 
 function architectureDecisionStatus(value: unknown): ArchitectureDecisionStatus | undefined {
@@ -69,9 +67,7 @@ function filename(path: string): string {
   return segments.at(-1) ?? path;
 }
 
-function frontmatterMetadata(
-  document: MarkdownDocumentObservation
-): FrontmatterMetadataResult {
+function frontmatterMetadata(document: MarkdownDocumentObservation): FrontmatterMetadataResult {
   const subject = document.repositoryPath;
   if (document.frontmatter.kind === "absent") {
     return {
@@ -80,10 +76,10 @@ function frontmatterMetadata(
           message: "ADR document requires YAML frontmatter.",
           path: document.repositoryPath,
           rule: ARCHITECTURE_DECISION_GOVERNANCE_RULES.frontmatterInvalid,
-          subject
-        })
+          subject,
+        }),
       ],
-      kind: "invalid"
+      kind: "invalid",
     };
   }
   if (document.frontmatter.kind === "invalid") {
@@ -94,25 +90,25 @@ function frontmatterMetadata(
           message: "ADR frontmatter is invalid.",
           path: document.repositoryPath,
           rule: ARCHITECTURE_DECISION_GOVERNANCE_RULES.frontmatterInvalid,
-          subject
-        })
+          subject,
+        }),
       ],
-      kind: "invalid"
+      kind: "invalid",
     };
   }
   const metadata = record(document.frontmatter.value);
   return metadata === undefined
     ? {
-      diagnostics: [
-        architectureDecisionDiagnostic({
-          message: "ADR frontmatter must be a YAML object.",
-          path: document.repositoryPath,
-          rule: ARCHITECTURE_DECISION_GOVERNANCE_RULES.frontmatterInvalid,
-          subject
-        })
-      ],
-      kind: "invalid"
-    }
+        diagnostics: [
+          architectureDecisionDiagnostic({
+            message: "ADR frontmatter must be a YAML object.",
+            path: document.repositoryPath,
+            rule: ARCHITECTURE_DECISION_GOVERNANCE_RULES.frontmatterInvalid,
+            subject,
+          }),
+        ],
+        kind: "invalid",
+      }
     : { kind: "valid", metadata };
 }
 
@@ -135,8 +131,8 @@ function metadataFields(input: {
         message: "ADR frontmatter id must match ADR-NNNN.",
         path: document.repositoryPath,
         rule: ARCHITECTURE_DECISION_GOVERNANCE_RULES.frontmatterInvalid,
-        subject
-      })
+        subject,
+      }),
     );
   }
   if (status === undefined) {
@@ -145,8 +141,8 @@ function metadataFields(input: {
         message: "ADR frontmatter status must be proposed, accepted, or superseded.",
         path: document.repositoryPath,
         rule: ARCHITECTURE_DECISION_GOVERNANCE_RULES.frontmatterInvalid,
-        subject
-      })
+        subject,
+      }),
     );
   }
   if (supersedes === undefined || supersededBy === undefined) {
@@ -155,14 +151,11 @@ function metadataFields(input: {
         message: "ADR supersedes and superseded_by metadata must be arrays of unique ADR IDs.",
         path: document.repositoryPath,
         rule: ARCHITECTURE_DECISION_GOVERNANCE_RULES.frontmatterInvalid,
-        subject
-      })
+        subject,
+      }),
     );
   }
-  return idIsValid &&
-    status !== undefined &&
-    supersedes !== undefined &&
-    supersededBy !== undefined
+  return idIsValid && status !== undefined && supersedes !== undefined && supersededBy !== undefined
     ? { id, status, supersededBy, supersedes }
     : undefined;
 }
@@ -180,7 +173,7 @@ function filenameDiagnostic(input: {
     message: `ADR filename must match ${input.id}: ${fileMatch?.[1] === undefined ? "NNNN-kebab-case.md" : `${fileMatch[1]}-kebab-case.md`}.`,
     path: input.document.repositoryPath,
     rule: ARCHITECTURE_DECISION_GOVERNANCE_RULES.filenameMismatch,
-    subject: input.id
+    subject: input.id,
   });
 }
 
@@ -203,12 +196,12 @@ function headingDiagnostic(input: {
         message: `ADR requires exactly one level-one heading beginning with ${expectedHeadingPrefix}.`,
         path: input.document.repositoryPath,
         rule: ARCHITECTURE_DECISION_GOVERNANCE_RULES.headingMismatch,
-        subject: input.id
+        subject: input.id,
       });
 }
 
 export function parseArchitectureDecisionDocument(
-  document: MarkdownDocumentObservation
+  document: MarkdownDocumentObservation,
 ): ParsedArchitectureDecisionDocument {
   const metadata = frontmatterMetadata(document);
   if (metadata.kind === "invalid") {
@@ -223,7 +216,7 @@ export function parseArchitectureDecisionDocument(
 
   const identityDiagnostics = [
     filenameDiagnostic({ document, id: fields.id }),
-    headingDiagnostic({ document, id: fields.id })
+    headingDiagnostic({ document, id: fields.id }),
   ].filter((entry): entry is FoundationDiagnostic => entry !== undefined);
   diagnostics.push(...identityDiagnostics);
 
@@ -234,8 +227,8 @@ export function parseArchitectureDecisionDocument(
       metadata: metadata.metadata,
       status: fields.status,
       supersededBy: fields.supersededBy,
-      supersedes: fields.supersedes
+      supersedes: fields.supersedes,
     },
-    diagnostics
+    diagnostics,
   };
 }

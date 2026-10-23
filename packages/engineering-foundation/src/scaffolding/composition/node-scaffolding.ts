@@ -5,12 +5,15 @@ import { resolveInstalledFoundationTransactionArtifacts } from "../../transactio
 import { legacyFoundationEnvelopeSha256Json } from "../../transaction-coordination/adapters/node/legacy-document-envelope-v2.js";
 import { assertEnvelopeDigests } from "../../transaction-coordination/adapters/node/legacy-envelope-digests.js";
 import type { ScaffoldAuthorityObservation } from "../application/ports/authority-observation.js";
-import type { ScaffoldLegacyDigests, ScaffoldTransactionArtifacts } from "../application/ports/transaction-observation.js";
+import type {
+  ScaffoldLegacyDigests,
+  ScaffoldTransactionArtifacts,
+} from "../application/ports/transaction-observation.js";
 import type { ScaffoldAuthorityDependencies } from "../adapters/node/scaffold-authority-dependencies.js";
 import {
   inspectCurrentScaffoldingRecord as inspectCurrent,
   inspectLegacyScaffoldingEnvelope as inspectEnvelope,
-  inspectLegacyScaffoldingJournal as inspectJournal
+  inspectLegacyScaffoldingJournal as inspectJournal,
 } from "../adapters/node/scaffold-transaction-status.js";
 import { createAuthorityScaffoldRegistry } from "./scaffold-registry.js";
 import type { AuthorityScaffoldPlan } from "../application/model/scaffold-compilation.js";
@@ -19,7 +22,10 @@ import type { ScaffoldAuthorityFaultInjector } from "../adapters/node/filesystem
 import type { ScaffoldTransactionProvider } from "../application/ports/scaffold-transactions.js";
 import type { ScaffoldSchemaValidator } from "../adapters/schema-validation.js";
 import type { ScaffoldFilesystemDependencies } from "../adapters/node/scaffold-filesystem-dependencies.js";
-import { createScaffoldingApi, type ScaffoldingApi } from "../adapters/inbound/create-scaffolding-api.js";
+import {
+  createScaffoldingApi,
+  type ScaffoldingApi,
+} from "../adapters/inbound/create-scaffolding-api.js";
 import { planAuthorityScaffoldFromFile } from "../adapters/inbound/plan-authority-scaffold-from-file.js";
 import { readAuthorityScaffoldPlanFile } from "../adapters/node/node-authority-input-loader.js";
 import { validateAuthorityScaffoldReceipt } from "../adapters/node/node-authority-receipt-validator.js";
@@ -30,74 +36,96 @@ import { recoverAuthorityFilesystemScaffoldWithFaultInjection as recover } from 
 
 export function createScaffoldFilesystemDependencies(
   assertSchema: ScaffoldSchemaValidator,
-  createTransactions: ScaffoldTransactionProvider
+  createTransactions: ScaffoldTransactionProvider,
 ): ScaffoldFilesystemDependencies {
   return {
     assertPlanSchema: (plan) => assertSchema("scaffold-plan/v1", plan, "scaffold-apply-plan"),
-    assessPlanAuthority: (root, plan) => assessScaffoldPlanAuthority(root, plan, assertSchema, scaffoldAuthorityDependencies),
-    createJournalStore: (root, operations) => new NodeScaffoldJournalStore(root, assertSchema, scaffoldTransactionArtifacts, operations),
-    createTransactions
+    assessPlanAuthority: (root, plan) =>
+      assessScaffoldPlanAuthority(root, plan, assertSchema, scaffoldAuthorityDependencies),
+    createJournalStore: (root, operations) =>
+      new NodeScaffoldJournalStore(root, assertSchema, scaffoldTransactionArtifacts, operations),
+    createTransactions,
   };
 }
 
 export function createNodeScaffoldingApi(
   assertSchema: ScaffoldSchemaValidator,
-  createTransactions: ScaffoldTransactionProvider
+  createTransactions: ScaffoldTransactionProvider,
 ): ScaffoldingApi {
   const filesystem = createScaffoldFilesystemDependencies(assertSchema, createTransactions);
   return createScaffoldingApi({
-    planScaffoldFromFile: (options) => planAuthorityScaffoldFromFile(options, assertSchema, scaffoldAuthorityDependencies),
+    planScaffoldFromFile: (options) =>
+      planAuthorityScaffoldFromFile(options, assertSchema, scaffoldAuthorityDependencies),
     applyFilesystemScaffold: (root, plan) => apply(root, plan, undefined, filesystem),
     recoverFilesystemScaffold: (root, scope) => recover(root, scope, undefined, filesystem),
-    readScaffoldPlanFile: (root, path) => readAuthorityScaffoldPlanFile(root, path, assertSchema, scaffoldAuthorityObservation),
-    validateScaffoldReceipt: (receipt, plan) => validateAuthorityScaffoldReceipt(receipt, assertSchema, plan)
+    readScaffoldPlanFile: (root, path) =>
+      readAuthorityScaffoldPlanFile(root, path, assertSchema, scaffoldAuthorityObservation),
+    validateScaffoldReceipt: (receipt, plan) =>
+      validateAuthorityScaffoldReceipt(receipt, assertSchema, plan),
   });
 }
 
 /** Feature-owned binding for the existing private fault-injection operations. */
 export function createNodeScaffoldFilesystem(
   assertSchema: ScaffoldSchemaValidator,
-  createTransactions: ScaffoldTransactionProvider
+  createTransactions: ScaffoldTransactionProvider,
 ) {
   return {
     applyAuthorityFilesystemScaffoldWithFaultInjection: (
       consumerRoot: string,
       plan: AuthorityScaffoldPlan,
-      faultInjector?: ScaffoldAuthorityFaultInjector
-    ) => apply(consumerRoot, plan, faultInjector,
-      createScaffoldFilesystemDependencies(assertSchema, createTransactions)),
+      faultInjector?: ScaffoldAuthorityFaultInjector,
+    ) =>
+      apply(
+        consumerRoot,
+        plan,
+        faultInjector,
+        createScaffoldFilesystemDependencies(assertSchema, createTransactions),
+      ),
     recoverAuthorityFilesystemScaffoldWithFaultInjection: (
       consumerRoot: string,
       scope?: AuthorityScaffoldRecoveryScope,
-      faultInjector?: ScaffoldAuthorityFaultInjector
-    ) => recover(consumerRoot, scope, faultInjector,
-      createScaffoldFilesystemDependencies(assertSchema, createTransactions))
+      faultInjector?: ScaffoldAuthorityFaultInjector,
+    ) =>
+      recover(
+        consumerRoot,
+        scope,
+        faultInjector,
+        createScaffoldFilesystemDependencies(assertSchema, createTransactions),
+      ),
   };
 }
 
 /** Existing implementations are selected once, without performing observations eagerly. */
 export const scaffoldAuthorityObservation: ScaffoldAuthorityObservation = {
   parseYaml: parseStrictYamlSource,
-  pathTraversesSymbolicLink
+  pathTraversesSymbolicLink,
 };
 export const scaffoldAuthorityDependencies: ScaffoldAuthorityDependencies = {
   observation: scaffoldAuthorityObservation,
   installedVersion: installedFoundationVersion,
-  createRegistry: createAuthorityScaffoldRegistry
+  createRegistry: createAuthorityScaffoldRegistry,
 };
-export const scaffoldTransactionArtifacts: ScaffoldTransactionArtifacts = resolveInstalledFoundationTransactionArtifacts;
+export const scaffoldTransactionArtifacts: ScaffoldTransactionArtifacts =
+  resolveInstalledFoundationTransactionArtifacts;
 export const scaffoldLegacyDigests: ScaffoldLegacyDigests = {
   journalPlanDigest: legacyFoundationEnvelopeSha256Json,
-  assertEnvelopeDigests
+  assertEnvelopeDigests,
 };
 
 export function inspectCurrentScaffoldingRecord(input: Parameters<typeof inspectCurrent>[0]) {
   return inspectCurrent(input, scaffoldTransactionArtifacts);
 }
-export function inspectLegacyScaffoldingJournal(input: Parameters<typeof inspectJournal>[0], assertSchema: ScaffoldSchemaValidator) {
+export function inspectLegacyScaffoldingJournal(
+  input: Parameters<typeof inspectJournal>[0],
+  assertSchema: ScaffoldSchemaValidator,
+) {
   return inspectJournal(input, assertSchema, scaffoldLegacyDigests);
 }
-export function inspectLegacyScaffoldingEnvelope(value: Parameters<typeof inspectEnvelope>[0], assertSchema: ScaffoldSchemaValidator) {
+export function inspectLegacyScaffoldingEnvelope(
+  value: Parameters<typeof inspectEnvelope>[0],
+  assertSchema: ScaffoldSchemaValidator,
+) {
   return inspectEnvelope(value, assertSchema, scaffoldLegacyDigests);
 }
 

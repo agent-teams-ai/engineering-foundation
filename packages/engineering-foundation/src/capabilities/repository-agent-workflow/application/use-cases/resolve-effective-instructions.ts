@@ -3,11 +3,11 @@ import { CapabilityInputError } from "../../../../features/validation-reporting/
 import type {
   EffectiveInstructionCandidateObservation,
   EffectiveInstructionLayerReport,
-  EffectiveInstructionsReport
+  EffectiveInstructionsReport,
 } from "../model/effective-instructions.js";
 import {
   DEFAULT_EFFECTIVE_INSTRUCTION_BUDGET_BYTES,
-  EFFECTIVE_INSTRUCTION_SEMANTICS
+  EFFECTIVE_INSTRUCTION_SEMANTICS,
 } from "../model/effective-instructions.js";
 import type { EffectiveInstructionsReader } from "../ports/effective-instructions-reader.js";
 
@@ -16,16 +16,16 @@ function inputError(code: string, message: string): never {
     code,
     message,
     phase: "repository-agent-workflow-effective-instructions",
-    retryable: false
+    retryable: false,
   });
 }
 
 function selectedCandidate(
-  candidates: readonly EffectiveInstructionCandidateObservation[]
-): { readonly candidate: EffectiveInstructionCandidateObservation; readonly index: number } | undefined {
-  const index = candidates.findIndex(
-    ({ kind }) => kind === "file" || kind === "symlink"
-  );
+  candidates: readonly EffectiveInstructionCandidateObservation[],
+):
+  | { readonly candidate: EffectiveInstructionCandidateObservation; readonly index: number }
+  | undefined {
+  const index = candidates.findIndex(({ kind }) => kind === "file" || kind === "symlink");
   const candidate = candidates[index];
   return index < 0 || candidate === undefined ? undefined : { candidate, index };
 }
@@ -33,7 +33,7 @@ function selectedCandidate(
 function hasInstructionText(bytes: Uint8Array): boolean {
   const text = new TextDecoder("utf-8", {
     fatal: false,
-    ignoreBOM: true
+    ignoreBOM: true,
   }).decode(bytes);
   return /\P{White_Space}/u.test(text);
 }
@@ -48,7 +48,7 @@ export async function resolveEffectiveInstructions(
     readonly targetPath: string;
     readonly signal?: AbortSignal;
   },
-  reader: EffectiveInstructionsReader
+  reader: EffectiveInstructionsReader,
 ): Promise<EffectiveInstructionsReport> {
   const discovery = await reader.discover(input);
   let remainingBytes = DEFAULT_EFFECTIVE_INSTRUCTION_BUDGET_BYTES;
@@ -67,7 +67,7 @@ export async function resolveEffectiveInstructions(
       consumerRoot: input.consumerRoot,
       directory: directoryPath,
       readSelectedBytes: remainingBytes > 0,
-      ...(input.signal === undefined ? {} : { signal: input.signal })
+      ...(input.signal === undefined ? {} : { signal: input.signal }),
     });
     const selected = selectedCandidate(directory.candidates);
     if (selected === undefined) {
@@ -76,7 +76,7 @@ export async function resolveEffectiveInstructions(
     if (selected.candidate.kind === "symlink") {
       inputError(
         "REPOSITORY_AGENT_WORKFLOW_INSTRUCTION_SYMLINK_PROHIBITED",
-        `The effective instruction candidate cannot be a symbolic link: ${selected.candidate.path}.`
+        `The effective instruction candidate cannot be a symbolic link: ${selected.candidate.path}.`,
       );
     }
     if (selected.candidate.kind !== "file") {
@@ -85,7 +85,7 @@ export async function resolveEffectiveInstructions(
     if (selected.candidate.bytes === null && remainingBytes > 0) {
       inputError(
         "REPOSITORY_AGENT_WORKFLOW_INSTRUCTION_UNAVAILABLE",
-        `The selected instruction candidate was not read: ${selected.candidate.path}.`
+        `The selected instruction candidate was not read: ${selected.candidate.path}.`,
       );
     }
 
@@ -112,33 +112,39 @@ export async function resolveEffectiveInstructions(
       digestSources.push({
         path: selected.candidate.path,
         loadedBytes: admitted.byteLength,
-        loadedDigest: sha256Bytes(admitted)
+        loadedDigest: sha256Bytes(admitted),
       });
     }
 
-    layers.push(Object.freeze({
-      order: layers.length + 1,
-      directory: directory.directory,
-      scope: scopeFor(directory.directory),
-      selectedPath: selected.candidate.path,
-      selectionReason: "first-regular-candidate",
-      applicabilityReason: "instruction-directory-contains-target",
-      status,
-      sourceBytes: selected.candidate.sourceBytes,
-      loadedBytes: appliedBytes.byteLength,
-      sourceDigest: source === null ? null : sha256Bytes(source),
-      loadedDigest: sha256Bytes(appliedBytes),
-      shadowed: Object.freeze(directory.candidates
-        .slice(selected.index + 1)
-        .filter(({ kind }) => kind === "file" || kind === "symlink")
-        .map(({ path }) => Object.freeze({
-          path,
-          reason: "higher-priority-candidate-selected" as const
-        }))),
-      canOverrideEarlier: Object.freeze(
-        status === "applied" || status === "truncated" ? canOverrideEarlier : []
-      )
-    }));
+    layers.push(
+      Object.freeze({
+        order: layers.length + 1,
+        directory: directory.directory,
+        scope: scopeFor(directory.directory),
+        selectedPath: selected.candidate.path,
+        selectionReason: "first-regular-candidate",
+        applicabilityReason: "instruction-directory-contains-target",
+        status,
+        sourceBytes: selected.candidate.sourceBytes,
+        loadedBytes: appliedBytes.byteLength,
+        sourceDigest: source === null ? null : sha256Bytes(source),
+        loadedDigest: sha256Bytes(appliedBytes),
+        shadowed: Object.freeze(
+          directory.candidates
+            .slice(selected.index + 1)
+            .filter(({ kind }) => kind === "file" || kind === "symlink")
+            .map(({ path }) =>
+              Object.freeze({
+                path,
+                reason: "higher-priority-candidate-selected" as const,
+              }),
+            ),
+        ),
+        canOverrideEarlier: Object.freeze(
+          status === "applied" || status === "truncated" ? canOverrideEarlier : [],
+        ),
+      }),
+    );
   }
 
   return Object.freeze({
@@ -148,19 +154,19 @@ export async function resolveEffectiveInstructions(
     target: Object.freeze({
       path: discovery.targetPath,
       directory: discovery.targetDirectory,
-      reason: "repository-relative-file-selected-by-caller"
+      reason: "repository-relative-file-selected-by-caller",
     }),
     budget: Object.freeze({
       maximumBytes: DEFAULT_EFFECTIVE_INSTRUCTION_BUDGET_BYTES,
       loadedBytes,
       exhausted: remainingBytes === 0,
-      truncated
+      truncated,
     }),
     resolutionDigest: sha256Json({
       semantics: EFFECTIVE_INSTRUCTION_SEMANTICS,
       sources: digestSources,
-      targetPath: discovery.targetPath
+      targetPath: discovery.targetPath,
     }),
-    layers: Object.freeze(layers)
+    layers: Object.freeze(layers),
   });
 }

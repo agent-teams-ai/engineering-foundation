@@ -5,7 +5,7 @@ import {
   QUALIFIED_DOCS_COHORT_V2_EDGES,
   qualifiedDocsCohortV2PackageEntries,
   type QualifiedDocsCohortBindingV2,
-  type UnselectedCohortV3
+  type UnselectedCohortV3,
 } from "../application-api.js";
 import { PnpmRuntimeClosureError } from "./pnpm-runtime-closure-v1.js";
 
@@ -15,7 +15,8 @@ const LOCKFILE_VERSION = "9.0";
 const MAXIMUM_PACKAGES = 2048;
 const MAXIMUM_DEPTH = 64;
 const MAXIMUM_BYTES = 2 * 1024 * 1024;
-const REGISTRY_VERSION = /^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?(?:\+[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$/u;
+const REGISTRY_VERSION =
+  /^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?(?:\+[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$/u;
 const SHA512_SRI = /^sha512-[A-Za-z0-9+/]{86}==$/u;
 
 type JsonRecord = Record<string, unknown>;
@@ -39,8 +40,12 @@ function record(value: unknown, label: string): JsonRecord {
 function binding(container: JsonRecord, name: string): readonly unknown[] {
   return ["dependencies", "devDependencies", "optionalDependencies"].flatMap((section) => {
     const entries = container[section];
-    return entries === null || typeof entries !== "object" || Array.isArray(entries) ||
-      (entries as JsonRecord)[name] === undefined ? [] : [(entries as JsonRecord)[name]];
+    return entries === null ||
+      typeof entries !== "object" ||
+      Array.isArray(entries) ||
+      (entries as JsonRecord)[name] === undefined
+      ? []
+      : [(entries as JsonRecord)[name]];
   });
 }
 
@@ -57,12 +62,17 @@ function locator(name: string, raw: unknown, label: string): string {
 
 function sortedEdges(snapshot: JsonRecord, section: string, label: string): readonly ClosureEdge[] {
   return Object.entries(record(snapshot[section] ?? {}, `${label} ${section}`))
-    .toSorted(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)
+    .toSorted(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
     .map(([name, raw]) => ({ name, locator: locator(name, raw, `${label} ${section}.${name}`) }));
 }
 
-function compareEdges(left: { from: string; to: string }, right: { from: string; to: string }): number {
-  return left.from === right.from ? left.to.localeCompare(right.to) : left.from.localeCompare(right.from);
+function compareEdges(
+  left: { from: string; to: string },
+  right: { from: string; to: string },
+): number {
+  return left.from === right.from
+    ? left.to.localeCompare(right.to)
+    : left.from.localeCompare(right.from);
 }
 
 function assertRegistryResolution(resolution: JsonRecord, packageLocator: string): void {
@@ -85,7 +95,11 @@ function assertRegistryResolution(resolution: JsonRecord, packageLocator: string
   } catch {
     fail(`Runtime closure locator ${packageLocator} has an invalid registry tarball.`);
   }
-  if (source.origin !== "https://registry.npmjs.org" || source.username !== "" || source.password !== "") {
+  if (
+    source.origin !== "https://registry.npmjs.org" ||
+    source.username !== "" ||
+    source.password !== ""
+  ) {
     fail(`Runtime closure locator ${packageLocator} must resolve from registry.npmjs.org.`);
   }
 }
@@ -94,8 +108,11 @@ function projectRuntimeClosure(
   packages: JsonRecord,
   snapshots: JsonRecord,
   roots: readonly ClosureEdge[],
-  expected: ReturnType<typeof qualifiedDocsCohortV2PackageEntries>
-): { readonly locators: readonly string[]; readonly managedEdges: readonly { from: string; to: string }[] } {
+  expected: ReturnType<typeof qualifiedDocsCohortV2PackageEntries>,
+): {
+  readonly locators: readonly string[];
+  readonly managedEdges: readonly { from: string; to: string }[];
+} {
   const pending = roots.map(({ locator: value }) => ({ locator: value, depth: 0 }));
   const visited = new Set<string>();
   const managedEdges: { from: string; to: string }[] = [];
@@ -113,14 +130,23 @@ function projectRuntimeClosure(
       fail(`Runtime closure exceeds maximum package count ${MAXIMUM_PACKAGES}.`);
     }
     const physicalLocator = current.locator.split("(", 1)[0]!;
-    const packageEntry = record(packages[physicalLocator], `Runtime closure package ${physicalLocator}`);
-    const snapshot = record(snapshots[current.locator], `Runtime closure snapshot ${current.locator}`);
-    const resolution = record(packageEntry["resolution"], `Runtime closure resolution ${physicalLocator}`);
+    const packageEntry = record(
+      packages[physicalLocator],
+      `Runtime closure package ${physicalLocator}`,
+    );
+    const snapshot = record(
+      snapshots[current.locator],
+      `Runtime closure snapshot ${current.locator}`,
+    );
+    const resolution = record(
+      packageEntry["resolution"],
+      `Runtime closure resolution ${physicalLocator}`,
+    );
     assertRegistryResolution(resolution, current.locator);
     const from = expected.find((entry) => physicalLocator === `${entry.name}@${entry.version}`);
     const edges = [
       ...sortedEdges(snapshot, "dependencies", current.locator),
-      ...sortedEdges(snapshot, "optionalDependencies", current.locator)
+      ...sortedEdges(snapshot, "optionalDependencies", current.locator),
     ];
     // Both raw references bind; only a conflicting physical resolution is ambiguous.
     const edgeByName = new Map<string, string>();
@@ -152,14 +178,19 @@ function projectRuntimeClosure(
     const matches = [...physicalResolutions].filter((value) => value.startsWith(`${entry.name}@`));
     const packageEntry = record(packages[physicalLocator], `${entry.name} package`);
     const resolution = record(packageEntry["resolution"], `${entry.name} resolution`);
-    if (matches.length !== 1 || matches[0] !== physicalLocator ||
-      resolution["integrity"] !== entry.integrity) {
+    if (
+      matches.length !== 1 ||
+      matches[0] !== physicalLocator ||
+      resolution["integrity"] !== entry.integrity
+    ) {
       fail(`${entry.name} runtime closure coordinate differs from the Cohort.`);
     }
   }
   managedEdges.sort(compareEdges);
-  if (canonicalConsumerIntegrationJson(managedEdges) !==
-    canonicalConsumerIntegrationJson(QUALIFIED_DOCS_COHORT_V2_EDGES.toSorted(compareEdges))) {
+  if (
+    canonicalConsumerIntegrationJson(managedEdges) !==
+    canonicalConsumerIntegrationJson(QUALIFIED_DOCS_COHORT_V2_EDGES.toSorted(compareEdges))
+  ) {
     fail("Runtime closure v2 internal dependency edges are not exactly closed.");
   }
   return { locators, managedEdges };
@@ -168,7 +199,7 @@ function projectRuntimeClosure(
 function projectSnapshotOptionality(
   snapshots: JsonRecord,
   roots: readonly ClosureEdge[],
-  locators: readonly string[]
+  locators: readonly string[],
 ): JsonRecord {
   // pnpm's optional flag describes reachability from every importer. Recompute
   // it for the qualified roots so unrelated consumer roots cannot change evidence.
@@ -184,21 +215,23 @@ function projectSnapshotOptionality(
     const snapshot = record(snapshots[current], `Runtime closure snapshot ${current}`);
     pending.push(...sortedEdges(snapshot, "dependencies", current).map((edge) => edge.locator));
   }
-  return Object.fromEntries(locators.map((value) => {
-    const snapshot = { ...record(snapshots[value], `Runtime closure snapshot ${value}`) };
-    if (required.has(value)) {
-      delete snapshot["optional"];
-    } else {
-      snapshot["optional"] = true;
-    }
-    return [value, snapshot];
-  }));
+  return Object.fromEntries(
+    locators.map((value) => {
+      const snapshot = { ...record(snapshots[value], `Runtime closure snapshot ${value}`) };
+      if (required.has(value)) {
+        delete snapshot["optional"];
+      } else {
+        snapshot["optional"] = true;
+      }
+      return [value, snapshot];
+    }),
+  );
 }
 
 /** V2 binds raw peer-qualified snapshots with cohort-relative optional reachability. */
 export function computePnpmRuntimeClosureDigestV2(
   lock: JsonRecord,
-  cohort: Pick<QualifiedDocsCohortBindingV2, "packages"> | Pick<UnselectedCohortV3, "packages">
+  cohort: Pick<QualifiedDocsCohortBindingV2, "packages"> | Pick<UnselectedCohortV3, "packages">,
 ): `sha256:${string}` {
   if (String(lock["lockfileVersion"]) !== LOCKFILE_VERSION) {
     fail("Runtime closure requires pnpm lockfileVersion 9.0.");
@@ -236,15 +269,21 @@ export function computePnpmRuntimeClosureDigestV2(
   const pnpmLock = {
     lockfileVersion: LOCKFILE_VERSION,
     settings: { autoInstallPeers: true, excludeLinksFromLockfile: false },
-    importers: { ".": { devDependencies: Object.fromEntries(roots.map(({ name, locator: value }) => [
-      name,
-      {
-        specifier: expected.find((entry) => entry.name === name)!.version,
-        version: value.slice(`${name}@`.length)
-      }
-    ])) } },
+    importers: {
+      ".": {
+        devDependencies: Object.fromEntries(
+          roots.map(({ name, locator: value }) => [
+            name,
+            {
+              specifier: expected.find((entry) => entry.name === name)!.version,
+              version: value.slice(`${name}@`.length),
+            },
+          ]),
+        ),
+      },
+    },
     packages: Object.fromEntries(physicalLocators.map((value) => [value, packages[value]])),
-    snapshots: projectSnapshotOptionality(snapshots, roots, closure.locators)
+    snapshots: projectSnapshotOptionality(snapshots, roots, closure.locators),
   };
   const source = `${canonicalConsumerIntegrationJson({
     domain: "agent-teams.docs-runtime-closure/v2",
@@ -252,10 +291,13 @@ export function computePnpmRuntimeClosureDigestV2(
     packageManager: PACKAGE_MANAGER,
     packageCount: closure.locators.length,
     coordinates: expected.map(({ name, direct, version, integrity }) => ({
-      name, role: direct ? "direct" : "transitive", version, integrity
+      name,
+      role: direct ? "direct" : "transitive",
+      version,
+      integrity,
     })),
     managedEdges: closure.managedEdges,
-    pnpmLock
+    pnpmLock,
   })}\n`;
   if (Buffer.byteLength(source, "utf8") > MAXIMUM_BYTES) {
     fail(`Runtime closure evidence exceeds ${MAXIMUM_BYTES} bytes.`);

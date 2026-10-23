@@ -1,4 +1,7 @@
-import { CapabilityInputError,assertNotCancelled } from "../../../../features/validation-reporting/api.js";
+import {
+  CapabilityInputError,
+  assertNotCancelled,
+} from "../../../../features/validation-reporting/api.js";
 import type { BufExecutable, BufInvocation } from "../ports/buf-executable.js";
 
 function hasControlCharacter(value: string): boolean {
@@ -16,7 +19,7 @@ function inputError(code: string, message: string): never {
     code,
     message,
     phase: "protobuf-buf-executable",
-    retryable: false
+    retryable: false,
   });
 }
 
@@ -26,7 +29,7 @@ export async function verifyPinnedBufVersion(
     readonly expectedVersion: string;
     readonly signal?: AbortSignal;
   },
-  executable: BufExecutable
+  executable: BufExecutable,
 ): Promise<void> {
   assertNotCancelled(input.signal);
   if (
@@ -40,22 +43,22 @@ export async function verifyPinnedBufVersion(
   const result = await executable.run(
     {
       ...input.invocation,
-      arguments: ["--version"]
+      arguments: ["--version"],
     },
-    input.signal
+    input.signal,
   );
   assertNotCancelled(input.signal);
   if (result.exitCode !== 0) {
     inputError(
       "BUF_VERSION_FAILED",
-      `Pinned Buf executable could not report its version: ${result.stderr.trim() || "unknown error"}.`
+      `Pinned Buf executable could not report its version: ${result.stderr.trim() || "unknown error"}.`,
     );
   }
   const reportedVersion = result.stdout.trim();
   if (reportedVersion !== input.expectedVersion) {
     inputError(
       "BUF_VERSION_MISMATCH",
-      `Pinned Buf version ${reportedVersion || "missing"} does not match expected ${input.expectedVersion}.`
+      `Pinned Buf version ${reportedVersion || "missing"} does not match expected ${input.expectedVersion}.`,
     );
   }
 }

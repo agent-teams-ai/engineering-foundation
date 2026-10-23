@@ -9,12 +9,8 @@
         "recordDigest": "sha256:02bc526540933e6ad1a1a648fa4398db199317a8de9dfa480adcf821c702bfd4",
         "qualificationEventDigest": "sha256:5166d2df2cc6abfcabb7784d094668a309283d6d73d60ddbd0239ea162f6f502",
         "eligibleAfter": "2026-08-19T03:39:37Z",
-        "upgradeFrom": [
-          "docs-2026-08-18-rc1"
-        ],
-        "rollbackTo": [
-          "docs-2026-08-18-rc1"
-        ],
+        "upgradeFrom": ["docs-2026-08-18-rc1"],
+        "rollbackTo": ["docs-2026-08-18-rc1"],
         "packages": {
           "docsProtocol": {
             "version": "0.1.0-rc.12",
@@ -61,9 +57,7 @@
         "recordDigest": "sha256:a35177e6ff340a475440b7f38bf099962ad3b39f2c50af56d43ba3cd08e0905f",
         "qualificationEventDigest": "sha256:1e3a7faaf9fcbed32534536914d67fecafe35e3fb5d109c531c24d935320e55c",
         "eligibleAfter": "2026-08-24T14:10:53Z",
-        "upgradeFrom": [
-          "docs-2026-08-18-rc3"
-        ],
+        "upgradeFrom": ["docs-2026-08-18-rc3"],
         "rollbackTo": [],
         "packages": {
           "docsProtocol": {
@@ -111,10 +105,7 @@
         "recordDigest": "sha256:b37736f98967b8727d9f1466f165bb8a6345ec8f4677462cd19a2247372ae003",
         "qualificationEventDigest": "sha256:be018ba57362a06d796386707ab75da7d670c2107c0dc1e582ffe75914cff6bf",
         "eligibleAfter": "2026-08-25T15:43:15Z",
-        "upgradeFrom": [
-          "docs-2026-08-18-rc2",
-          "docs-2026-08-23-stable1"
-        ],
+        "upgradeFrom": ["docs-2026-08-18-rc2", "docs-2026-08-23-stable1"],
         "rollbackTo": [],
         "packages": {
           "docsProtocol": {
@@ -162,9 +153,7 @@
         "recordDigest": "sha256:6967adc19c521f085c2772178d170218ac4327d058f120374a87b5ba2f6b8ca5",
         "qualificationEventDigest": "sha256:c8879b257ceda0a53e9243e1a69c0baa5aa64ce8c5ee1c9929d659e5e3366a6f",
         "eligibleAfter": "2026-08-26T22:05:43Z",
-        "upgradeFrom": [
-          "docs-2026-08-24-stable2"
-        ],
+        "upgradeFrom": ["docs-2026-08-24-stable2"],
         "rollbackTo": [],
         "packages": {
           "docsProtocol": {
@@ -212,9 +201,7 @@
         "recordDigest": "sha256:e1ad7395b51d7b912db2181d263104067c712fc0cd13bac91aa5dccbc2590cc4",
         "qualificationEventDigest": "sha256:bc24797129f6fedd4d252f20deebf9762da1093ff7a5dea137c32cb52d12e471",
         "eligibleAfter": "2026-08-28T23:40:55Z",
-        "upgradeFrom": [
-          "docs-2026-08-25-stable3"
-        ],
+        "upgradeFrom": ["docs-2026-08-25-stable3"],
         "rollbackTo": [],
         "packages": {
           "docsProtocol": {

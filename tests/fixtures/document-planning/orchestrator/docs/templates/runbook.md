@@ -1,4 +1,4 @@
-````markdown
+```markdown
 ---
 placeholder: true
 ---
@@ -22,4 +22,4 @@ placeholder: true
 ## Evidence to preserve
 
 ## Related alerts and dashboards
-````
+```

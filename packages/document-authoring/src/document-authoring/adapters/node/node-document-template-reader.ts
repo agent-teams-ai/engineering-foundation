@@ -1,6 +1,8 @@
-import { assertDocumentAuthoringActive, isDocumentInputFailure } from "../../application/policies/document-input-failure.js";
+import {
+  assertDocumentAuthoringActive,
+  isDocumentInputFailure,
+} from "../../application/policies/document-input-failure.js";
 import type { DocumentFileReader } from "../../application/ports/document-file-reader.js";
-
 
 import type { DocumentTemplateSnapshot } from "../../application/model/document-planning.js";
 import type { DocumentTemplateReader } from "../../application/ports/document-template-reader.js";
@@ -22,7 +24,7 @@ export class NodeDocumentTemplateReader implements DocumentTemplateReader {
       const file = await readDocumentAuthorityFile(this.readFile, {
         consumerRoot: request.consumerRoot,
         maxBytes: MAX_TEMPLATE_BYTES,
-        path: request.path
+        path: request.path,
       });
       assertDocumentAuthoringActive(request.signal);
       return Object.freeze({ evidence: file.evidence, source: file.source });
@@ -36,13 +38,13 @@ export class NodeDocumentTemplateReader implements DocumentTemplateReader {
             ? "DOCUMENT_PLANNING_INPUT_INVALID"
             : "DOCUMENT_PLANNING_AUTHORITY_UNAVAILABLE",
           `Document template is unavailable or invalid: ${request.path}.`,
-          { cause: error }
+          { cause: error },
         );
       }
       throw new DocumentPlanningError(
         "DOCUMENT_PLANNING_AUTHORITY_UNAVAILABLE",
         `Document template is unavailable or invalid: ${request.path}.`,
-        { cause: error }
+        { cause: error },
       );
     }
   }

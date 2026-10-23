@@ -1,8 +1,27 @@
-export { checkReleaseCandidate } from './application/check-release-candidate.js';
+export { checkReleaseCandidate } from "./application/check-release-candidate.js";
 export type {
-  ChangeKind, CheckReport, ConsumptionEffect, Diagnostic, DiagnosticCode, ExpectedInputs,
-  FileChange, FileLeaf, InputBinding, Json, JsonRecord, LeafShape, ManifestSnapshot,
-  ObservedCandidate, ObservedConsumption, ObservedManifest, PackageChange, PermittedChange,
-  PlannedConsumption, PlannedRelease, ReleaseCandidateInput, ReleaseIntent, ReleaseType,
+  ChangeKind,
+  CheckReport,
+  ConsumptionEffect,
+  Diagnostic,
+  DiagnosticCode,
+  ExpectedInputs,
+  FileChange,
+  FileLeaf,
+  InputBinding,
+  Json,
+  JsonRecord,
+  LeafShape,
+  ManifestSnapshot,
+  ObservedCandidate,
+  ObservedConsumption,
+  ObservedManifest,
+  PackageChange,
+  PermittedChange,
+  PlannedConsumption,
+  PlannedRelease,
+  ReleaseCandidateInput,
+  ReleaseIntent,
+  ReleaseType,
   WorkspacePackage,
-} from './application/model.js';
+} from "./application/model.js";

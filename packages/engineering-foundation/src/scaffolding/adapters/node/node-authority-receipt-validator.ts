@@ -1,9 +1,5 @@
-import type {
-  AuthorityScaffoldPlan
-} from "../../application/model/scaffold-compilation.js";
-import type {
-  AuthorityScaffoldReceipt
-} from "../../contract/receipt-authority-types.js";
+import type { AuthorityScaffoldPlan } from "../../application/model/scaffold-compilation.js";
+import type { AuthorityScaffoldReceipt } from "../../contract/receipt-authority-types.js";
 import { assertAuthorityScaffoldReceiptDigest } from "../inbound/authority-scaffold-receipt.js";
 import type { ScaffoldSchemaValidator } from "../schema-validation.js";
 
@@ -11,7 +7,7 @@ import type { ScaffoldSchemaValidator } from "../schema-validation.js";
 export async function validateAuthorityScaffoldReceipt(
   receipt: unknown,
   assertSchema: ScaffoldSchemaValidator,
-  plan?: AuthorityScaffoldPlan
+  plan?: AuthorityScaffoldPlan,
 ): Promise<AuthorityScaffoldReceipt> {
   await assertSchema("scaffold-receipt/v1", receipt, "scaffold-receipt");
   const validated = receipt as AuthorityScaffoldReceipt;

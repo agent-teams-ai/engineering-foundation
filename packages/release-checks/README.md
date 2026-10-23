@@ -15,8 +15,8 @@ Changesets remains the version and dependency-propagation engine. The Host
 freezes its official plan, independently observes the result, then calls:
 
 ```ts
-import { checkReleaseCandidate } from '@agent-teams/release-checks';
-import type { ExpectedInputs, ObservedCandidate } from '@agent-teams/release-checks';
+import { checkReleaseCandidate } from "@agent-teams/release-checks";
+import type { ExpectedInputs, ObservedCandidate } from "@agent-teams/release-checks";
 
 function check(expected: ExpectedInputs, observed: ObservedCandidate) {
   return checkReleaseCandidate({ schemaVersion: 1, expected, observed });
@@ -31,17 +31,17 @@ release record.
 
 ## Contract and ownership
 
-| Input | Required facts |
-| --- | --- |
-| `expected.binding` | Portable immutable source identity/digest; exact engine identity/digest; config, inventory, policy, intent-set and frozen-plan digests |
-| `expected.packages` | Nonempty complete inventory of actual packages, including a root `package.json` when present; unique name/root/path, public/private visibility, version eligibility and full accepted manifest snapshot |
-| `expected.intents` | Complete qualified source intent identities/paths/digests, pending/retained participation and explicit requested package/type pairs |
-| `expected.plan` | All official normalized release records, including dependent and unchanged `none` records; exact old/new versions and direct intent links; explicit qualified consumption effects |
-| `expected.permittedChanges` | Exact path, classification, change kind, before/after type/mode and named Host content authority |
-| `observed.binding` | Independently re-observed portable input identity; never copied merely to make the comparison pass |
-| `observed.manifests` | Independent complete manifest inventory and full before/after semantic and byte-identity snapshots |
-| `observed.consumptions` | Independently observed intent identity, original digest and effect |
-| `observed.diff` | Complete independently enumerated candidate changes, with exact before/after leaf identity and absence |
+| Input                       | Required facts                                                                                                                                                                                          |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `expected.binding`          | Portable immutable source identity/digest; exact engine identity/digest; config, inventory, policy, intent-set and frozen-plan digests                                                                  |
+| `expected.packages`         | Nonempty complete inventory of actual packages, including a root `package.json` when present; unique name/root/path, public/private visibility, version eligibility and full accepted manifest snapshot |
+| `expected.intents`          | Complete qualified source intent identities/paths/digests, pending/retained participation and explicit requested package/type pairs                                                                     |
+| `expected.plan`             | All official normalized release records, including dependent and unchanged `none` records; exact old/new versions and direct intent links; explicit qualified consumption effects                       |
+| `expected.permittedChanges` | Exact path, classification, change kind, before/after type/mode and named Host content authority                                                                                                        |
+| `observed.binding`          | Independently re-observed portable input identity; never copied merely to make the comparison pass                                                                                                      |
+| `observed.manifests`        | Independent complete manifest inventory and full before/after semantic and byte-identity snapshots                                                                                                      |
+| `observed.consumptions`     | Independently observed intent identity, original digest and effect                                                                                                                                      |
+| `observed.diff`             | Complete independently enumerated candidate changes, with exact before/after leaf identity and absence                                                                                                  |
 
 The complete public types are exported from the root. All source roots and paths
 are relative to the Git repository root, even when the engine runs in a nested
@@ -142,8 +142,8 @@ expected data and its `ConformanceCase` type. It exports no test runner or
 framework integration:
 
 ```ts
-import { checkReleaseCandidate } from '@agent-teams/release-checks';
-import { releaseCandidateConformanceCases } from '@agent-teams/release-checks/conformance';
+import { checkReleaseCandidate } from "@agent-teams/release-checks";
+import { releaseCandidateConformanceCases } from "@agent-teams/release-checks/conformance";
 
 for (const entry of releaseCandidateConformanceCases) {
   const actual = checkReleaseCandidate(entry.input);

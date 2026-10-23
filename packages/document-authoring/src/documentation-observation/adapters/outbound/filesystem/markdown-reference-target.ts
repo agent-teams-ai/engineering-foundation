@@ -32,7 +32,7 @@ function splitTargetAndFragment(rawTarget: string): SplitReferenceTarget {
     if (character === "#") {
       return {
         fragment: rawTarget.slice(index + 1),
-        target: rawTarget.slice(0, index)
+        target: rawTarget.slice(0, index),
       };
     }
   }
@@ -52,15 +52,10 @@ function isExternalReference(target: string): boolean {
 }
 
 function isFileOrDriveAbsoluteReference(target: string): boolean {
-  return (
-    target.toLowerCase().startsWith("file:") ||
-    /^[A-Za-z]:[\\/]/u.test(target)
-  );
+  return target.toLowerCase().startsWith("file:") || /^[A-Za-z]:[\\/]/u.test(target);
 }
 
-export function parseMarkdownReferenceTarget(
-  rawTarget: string
-): MarkdownReferenceTarget {
+export function parseMarkdownReferenceTarget(rawTarget: string): MarkdownReferenceTarget {
   const split = splitTargetAndFragment(rawTarget);
   const target = decodeMarkdownDestination(split.target);
   const fragment = decodeMarkdownDestination(split.fragment);

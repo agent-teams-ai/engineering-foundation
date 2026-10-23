@@ -3,30 +3,21 @@ import { createHash } from "node:crypto";
 import { stringify } from "yaml";
 
 import { describeCanonicalConsumerAssets } from "../dist/consumer-integration/index.js";
-import {
-  computePnpmRuntimeClosureDigestV2
-} from "../dist/consumer-integration/adapters/pnpm-runtime-closure-v2.js";
+import { computePnpmRuntimeClosureDigestV2 } from "../dist/consumer-integration/adapters/pnpm-runtime-closure-v2.js";
 import {
   createDocsProtocolQualificationV3,
-  createDocsProtocolQualificationV3Observer
+  createDocsProtocolQualificationV3Observer,
 } from "../dist/qualification/application-api.js";
-import { observeQualifiedPnpmLockfileV2 } from
-  "../dist/consumer-integration/adapters/pnpm-lockfile-validator-v2.js";
+import { observeQualifiedPnpmLockfileV2 } from "../dist/consumer-integration/adapters/pnpm-lockfile-validator-v2.js";
 import type {
   DocsProtocolQualificationCohortEvidenceV3,
   DocsProtocolQualificationCohortV3Receipt,
   DocsProtocolQualificationCohortV3Request,
-  DocsProtocolQualificationPackageKeyV3
+  DocsProtocolQualificationPackageKeyV3,
 } from "../dist/qualification/index.js";
-import type {
-  DocsProtocolQualificationRuntimeObservation
-} from "../dist/qualification/application/model/v3-contract.js";
-import type {
-  ManagedSuccessorProfile
-} from "../dist/consumer-integration/domain/model.js";
-import type {
-  PackedManagedRuntimePolicy
-} from "../dist/consumer-integration/application/policies/qualified-docs-cohort-v3.js";
+import type { DocsProtocolQualificationRuntimeObservation } from "../dist/qualification/application/model/v3-contract.js";
+import type { ManagedSuccessorProfile } from "../dist/consumer-integration/domain/model.js";
+import type { PackedManagedRuntimePolicy } from "../dist/consumer-integration/application/policies/qualified-docs-cohort-v3.js";
 
 type Node26RuntimeFixture = {
   readonly nodeVersion: "26.11.1";
@@ -82,8 +73,7 @@ type CohortFixture = Omit<
 };
 
 const digest = (character: string): `sha256:${string}` => `sha256:${character.repeat(64)}`;
-const integrity = (character: string): `sha512-${string}` =>
-  `sha512-${character.repeat(86)}==`;
+const integrity = (character: string): `sha512-${string}` => `sha512-${character.repeat(86)}==`;
 
 type PackageKey = DocsProtocolQualificationPackageKeyV3;
 
@@ -92,63 +82,69 @@ const packages: DocsProtocolQualificationCohortEvidenceV3["packages"] = {
   documentAuthoring: { version: "0.1.0", integrity: integrity("B") },
   docsProtocol: { version: "0.5.0", integrity: integrity("C") },
   docsProtocolAgentTeams: { version: "0.1.0", integrity: integrity("D") },
-  engineeringFoundation: { version: "1.0.0", integrity: integrity("E") }
+  engineeringFoundation: { version: "1.0.0", integrity: integrity("E") },
 };
 const packageNames: Readonly<Record<PackageKey, `@agent-teams/${string}`>> = {
   repositoryMutation: "@agent-teams/repository-mutation",
   documentAuthoring: "@agent-teams/document-authoring",
   docsProtocol: "@agent-teams/docs-protocol",
   docsProtocolAgentTeams: "@agent-teams/docs-protocol-agent-teams",
-  engineeringFoundation: "@agent-teams/engineering-foundation"
+  engineeringFoundation: "@agent-teams/engineering-foundation",
 };
 const internalDependencies: Readonly<Record<PackageKey, Readonly<Record<string, string>>>> = {
   repositoryMutation: {},
   documentAuthoring: { [packageNames.repositoryMutation]: packages.repositoryMutation.version },
   docsProtocol: {
     [packageNames.documentAuthoring]: packages.documentAuthoring.version,
-    [packageNames.repositoryMutation]: packages.repositoryMutation.version
+    [packageNames.repositoryMutation]: packages.repositoryMutation.version,
   },
   docsProtocolAgentTeams: {
     [packageNames.docsProtocol]: packages.docsProtocol.version,
-    [packageNames.repositoryMutation]: packages.repositoryMutation.version
+    [packageNames.repositoryMutation]: packages.repositoryMutation.version,
   },
   engineeringFoundation: {
     [packageNames.documentAuthoring]: packages.documentAuthoring.version,
-    [packageNames.repositoryMutation]: packages.repositoryMutation.version
-  }
+    [packageNames.repositoryMutation]: packages.repositoryMutation.version,
+  },
 };
 const packageKeys = [
   "repositoryMutation",
   "documentAuthoring",
   "docsProtocol",
   "docsProtocolAgentTeams",
-  "engineeringFoundation"
+  "engineeringFoundation",
 ] satisfies readonly PackageKey[];
 const directPackageKeys = [
   "docsProtocol",
   "docsProtocolAgentTeams",
-  "engineeringFoundation"
+  "engineeringFoundation",
 ] satisfies readonly PackageKey[];
 const lockfile: Record<string, unknown> = {
   lockfileVersion: "9.0",
   importers: {
     ".": {
-      devDependencies: Object.fromEntries(directPackageKeys.map((key) => [
-        packageNames[key],
-        { specifier: packages[key].version, version: packages[key].version }
-      ]))
-    }
+      devDependencies: Object.fromEntries(
+        directPackageKeys.map((key) => [
+          packageNames[key],
+          { specifier: packages[key].version, version: packages[key].version },
+        ]),
+      ),
+    },
   },
-  packages: Object.fromEntries(packageKeys.map((key) => [
-    `${packageNames[key]}@${packages[key].version}`,
-    { resolution: { integrity: packages[key].integrity } }
-  ])),
-  snapshots: Object.fromEntries(packageKeys.map((key) => [
-    `${packageNames[key]}@${packages[key].version}`,
-    Object.keys(internalDependencies[key]).length === 0
-      ? {}
-      : { dependencies: internalDependencies[key] }
-  ]))
+  packages: Object.fromEntries(
+    packageKeys.map((key) => [
+      `${packageNames[key]}@${packages[key].version}`,
+      { resolution: { integrity: packages[key].integrity } },
+    ]),
+  ),
+  snapshots: Object.fromEntries(
+    packageKeys.map((key) => [
+      `${packageNames[key]}@${packages[key].version}`,
+      Object.keys(internalDependencies[key]).length === 0
+        ? {}
+        : { dependencies: internalDependencies[key] },
+    ]),
+  ),
 };
 const lockfileBytes = Buffer.from(stringify(lockfile));
 const sourceDigest = digest("f");
@@ -164,9 +160,9 @@ export const policy: PackedRuntimePolicyFixture = {
         nodeVersion: "24.21.0",
         pnpmVersion: "11.20.0",
         platform: "linux",
-        architecture: "x64"
+        architecture: "x64",
       },
-      default: false
+      default: false,
     },
     "node-26-managed-qualified": {
       node: ">=26.0.0 <27",
@@ -174,14 +170,14 @@ export const policy: PackedRuntimePolicyFixture = {
         nodeVersion: "26.11.1",
         pnpmVersion: "11.20.0",
         platform: "linux",
-        architecture: "x64"
+        architecture: "x64",
       },
-      default: true
-    }
-  }
+      default: true,
+    },
+  },
 };
 export const createRequestFixture = (
-  fixturePolicy: PackedRuntimePolicyFixture
+  fixturePolicy: PackedRuntimePolicyFixture,
 ): DocsProtocolQualificationCohortV3Request => {
   const selectedLane = "node-26-managed-qualified";
   const selectedRuntime = fixturePolicy.lanes[selectedLane];
@@ -200,25 +196,25 @@ export const createRequestFixture = (
       repository: "agent-teams-ai/.github",
       path: ".github/workflows/docs-protocol-check.yml",
       revision: "4".repeat(40),
-      blobSha: "5".repeat(40)
+      blobSha: "5".repeat(40),
     },
     assets: {
       skillDigest: digest("6"),
       callerWorkflowDigest: digest("7"),
       assetCatalogDigest: digest("8"),
-      transitionCatalogDigest: digest("9")
+      transitionCatalogDigest: digest("9"),
     },
     schemas: {
       consumerIntegration: 4,
       managedState: 3,
       qualificationReceipt: 1,
-      docsProtocol: 1
+      docsProtocol: 1,
     },
     runtime: {
       policy: {
         id: fixturePolicy.policyId,
         version: fixturePolicy.policyVersion,
-        digest: fixturePolicy.sourceDigest
+        digest: fixturePolicy.sourceDigest,
       },
       selectedLane,
       node: selectedRuntime.node,
@@ -226,9 +222,9 @@ export const createRequestFixture = (
       qualificationRuntime: selectedRuntime.qualificationRuntime,
       runtimeClosure: {
         domain: "agent-teams.docs-runtime-closure/v2",
-        digest: digest("a")
-      }
-    }
+        digest: digest("a"),
+      },
+    },
   };
   const runtimeClosureDigest = computePnpmRuntimeClosureDigestV2(lockfile, cohortData);
   const cohort: CohortFixture = {
@@ -238,9 +234,9 @@ export const createRequestFixture = (
       ...cohortData.runtime,
       runtimeClosure: {
         domain: "agent-teams.docs-runtime-closure/v2",
-        digest: runtimeClosureDigest
-      }
-    }
+        digest: runtimeClosureDigest,
+      },
+    },
   };
   const profile: ManagedSuccessorProfile = {
     schemaVersion: 4,
@@ -253,36 +249,36 @@ export const createRequestFixture = (
     managedStatePath: "architecture/foundation/docs-protocol-managed-state.json",
     qualification: {
       contractPath: "architecture/foundation/docs-protocol-qualification.json",
-      gateCommand: "pnpm docs:protocol:check"
+      gateCommand: "pnpm docs:protocol:check",
     },
-    cohort
+    cohort,
   };
   const evidence: DocsProtocolQualificationCohortEvidenceV3 = {
     cohort: {
       cohortId: cohort.cohortId,
       recordDigest: cohort.recordDigest,
       qualificationEventDigest: cohort.qualificationEventDigest,
-      candidateDigest: cohort.candidateDigest
+      candidateDigest: cohort.candidateDigest,
     },
     packages,
     schemas: cohort.schemas,
     policy: {
       id: fixturePolicy.policyId,
       version: fixturePolicy.policyVersion,
-      sourceDigest: fixturePolicy.sourceDigest
+      sourceDigest: fixturePolicy.sourceDigest,
     },
     runtime: {
       selectedLane: cohort.runtime.selectedLane,
       node: cohort.runtime.node,
       pnpm: cohort.runtime.pnpm,
       qualificationRuntime: cohort.runtime.qualificationRuntime,
-      runtimeClosureDigest
-    }
+      runtimeClosureDigest,
+    },
   };
   return {
     profile: structuredClone(profile),
     evidence: structuredClone(evidence),
-    lockfileBytes: new Uint8Array(lockfileBytes)
+    lockfileBytes: new Uint8Array(lockfileBytes),
   };
 };
 export const request = createRequestFixture(policy);
@@ -290,14 +286,16 @@ export const exactRuntime: DocsProtocolQualificationRuntimeObservation = {
   nodeVersion: "26.11.1",
   pnpmVersion: "11.20.0",
   platform: "linux",
-  architecture: "x64"
+  architecture: "x64",
 };
-export const observeLockfile = createDocsProtocolQualificationV3Observer(observeQualifiedPnpmLockfileV2);
+export const observeLockfile = createDocsProtocolQualificationV3Observer(
+  observeQualifiedPnpmLockfileV2,
+);
 export const observePackedPolicy = (): PackedManagedRuntimePolicy => policy;
 export const qualification = createDocsProtocolQualificationV3(
   observeLockfile,
   () => exactRuntime,
-  observePackedPolicy
+  observePackedPolicy,
 );
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -322,5 +320,5 @@ export const receiptDigest = (receipt: unknown): string => {
   return `sha256:${createHash("sha256").update(canonicalJson(body)).digest("hex")}`;
 };
 export const isCohortReceipt = (
-  receipt: ReturnType<typeof qualification>
+  receipt: ReturnType<typeof qualification>,
 ): receipt is DocsProtocolQualificationCohortV3Receipt => receipt.schemaVersion === 1;

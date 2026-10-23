@@ -12,12 +12,12 @@ const plan = {
   destination: "docs/decisions/0083-test.md",
   planDigest: digest,
   intent: { title: "Test document" },
-  authority: { profile: { path: "profile.yaml" } }
+  authority: { profile: { path: "profile.yaml" } },
 };
 const successfulReceipt = {
   outcome: "applied",
   receiptDigest: digest,
-  diagnostics: []
+  diagnostics: [],
 };
 const environment = {
   async inspect() {
@@ -37,23 +37,42 @@ function newHarness(overrides = {}) {
   return {
     calls,
     subject: new RunDocumentNew({
-      async inspect() { calls.push("inspect"); return { schemaVersion: 1, state: "idle", diagnostics: [] }; },
-      async plan() { calls.push("plan"); return plan; },
-      async apply() { calls.push("apply"); return successfulReceipt; },
+      async inspect() {
+        calls.push("inspect");
+        return { schemaVersion: 1, state: "idle", diagnostics: [] };
+      },
+      async plan() {
+        calls.push("plan");
+        return plan;
+      },
+      async apply() {
+        calls.push("apply");
+        return successfulReceipt;
+      },
       similar: {
-        async advise() { calls.push("similar"); return { matches: [], query: "test" }; }
+        async advise() {
+          calls.push("similar");
+          return { matches: [], query: "test" };
+        },
       },
       reachability: {
         async project() {
           calls.push("reachability");
-          return { state: "manual-required", indexPath: "docs/README.md", markdownLink: "[ADR-0083](decisions/0083-test.md)" };
-        }
+          return {
+            state: "manual-required",
+            indexPath: "docs/README.md",
+            markdownLink: "[ADR-0083](decisions/0083-test.md)",
+          };
+        },
       },
       structure: {
-        async verify() { calls.push("verify"); return { valid: true, diagnostics: [] }; }
+        async verify() {
+          calls.push("verify");
+          return { valid: true, diagnostics: [] };
+        },
       },
-      ...overrides
-    })
+      ...overrides,
+    }),
   };
 }
 
@@ -61,11 +80,18 @@ test("docs new projects consumer input errors and preserves unexpected failures"
   const message = "Invalid consumer. ".repeat(100);
   for (const [error, outcome, exitCode] of [
     [new DocumentAuthoringError("CONSUMER_INVALID", message), "invalid-input", 2],
-    [Object.assign(new Error(message), { code: "CONSUMER_INVALID" }), "execution-failure", 3]
+    [Object.assign(new Error(message), { code: "CONSUMER_INVALID" }), "execution-failure", 3],
   ]) {
-    const harness = newHarness({ async plan() { throw error; } });
+    const harness = newHarness({
+      async plan() {
+        throw error;
+      },
+    });
     const result = await harness.subject.execute({
-      consumerRoot: "/fixture", profilePath: "profile.yaml", intent: {}, dryRun: false
+      consumerRoot: "/fixture",
+      profilePath: "profile.yaml",
+      intent: {},
+      dryRun: false,
     });
     assert.equal(result.exitCode, exitCode);
     assert.equal(result.envelope.outcome, outcome);
@@ -81,7 +107,10 @@ test("docs new projects consumer input errors and preserves unexpected failures"
 test("docs new dry-run plans a preview without reservation or mutation", async () => {
   const harness = newHarness();
   const result = await harness.subject.execute({
-    consumerRoot: "/fixture", profilePath: "profile.yaml", intent: {}, dryRun: true
+    consumerRoot: "/fixture",
+    profilePath: "profile.yaml",
+    intent: {},
+    dryRun: true,
   });
   assert.equal(result.exitCode, 0);
   assert.equal(result.envelope.schemaVersion, 2);
@@ -93,8 +122,8 @@ test("docs new dry-run plans a preview without reservation or mutation", async (
     reachability: {
       state: "manual-required",
       indexPath: "docs/README.md",
-      markdownLink: "[ADR-0083](decisions/0083-test.md)"
-    }
+      markdownLink: "[ADR-0083](decisions/0083-test.md)",
+    },
   });
   assert.deepEqual(harness.calls, ["inspect", "plan", "similar", "reachability"]);
 });
@@ -104,14 +133,24 @@ test("docs new reports an already-applied replay as success and verifies structu
     async apply() {
       harness.calls.push("apply");
       return { ...successfulReceipt, outcome: "already-applied" };
-    }
+    },
   });
   const result = await harness.subject.execute({
-    consumerRoot: "/fixture", profilePath: "profile.yaml", intent: {}, dryRun: false
+    consumerRoot: "/fixture",
+    profilePath: "profile.yaml",
+    intent: {},
+    dryRun: false,
   });
   assert.equal(result.exitCode, 0);
   assert.equal(result.envelope.result.writeState, "already-applied");
-  assert.deepEqual(harness.calls, ["inspect", "plan", "similar", "reachability", "apply", "verify"]);
+  assert.deepEqual(harness.calls, [
+    "inspect",
+    "plan",
+    "similar",
+    "reachability",
+    "apply",
+    "verify",
+  ]);
 });
 
 test("docs new emits deterministic similar-document advice without blocking", async () => {
@@ -121,26 +160,29 @@ test("docs new emits deterministic similar-document advice without blocking", as
         harness.calls.push("similar");
         return {
           matches: [{ id: "ADR-0007", repositoryPath: "docs/adr/0007-existing.md" }],
-          query: "Exact title"
+          query: "Exact title",
         };
-      }
-    }
+      },
+    },
   });
   const result = await harness.subject.execute({
     consumerRoot: "/fixture",
     profilePath: "profile.yaml",
     intent: { title: "Exact title" },
-    dryRun: true
+    dryRun: true,
   });
   assert.equal(result.envelope.outcome, "success");
-  assert.deepEqual(result.envelope.diagnostics, [{
-    ruleId: "document.new.similar-documents",
-    severity: "info",
-    phase: "planning",
-    subject: "document.new",
-    message: "1 existing document(s) contain the exact title query. Review them before publishing if they overlap.",
-    remediation: { commandId: "docs.find", args: { text: "Exact title" } }
-  }]);
+  assert.deepEqual(result.envelope.diagnostics, [
+    {
+      ruleId: "document.new.similar-documents",
+      severity: "info",
+      phase: "planning",
+      subject: "document.new",
+      message:
+        "1 existing document(s) contain the exact title query. Review them before publishing if they overlap.",
+      remediation: { commandId: "docs.find", args: { text: "Exact title" } },
+    },
+  ]);
 });
 
 test("docs new bounds similar-document diagnostics independently of match IDs", async () => {
@@ -158,8 +200,10 @@ test("docs new bounds similar-document diagnostics independently of match IDs", 
     },
   });
   const execution = await harness.subject.execute({
-    consumerRoot: "/fixture", profilePath: "profile.yaml",
-    intent: { title: "Bounded advisory" }, dryRun: true,
+    consumerRoot: "/fixture",
+    profilePath: "profile.yaml",
+    intent: { title: "Bounded advisory" },
+    dryRun: true,
   });
 
   assert.equal(execution.envelope.diagnostics[0]?.subject, "document.new");
@@ -172,11 +216,17 @@ test("docs new bounds similar-document diagnostics independently of match IDs", 
 
 test("docs new fails closed on advisory failure and preserves cancellation", async () => {
   const failed = newHarness({
-    similar: { async advise() { throw new Error("catalog unavailable"); } }
+    similar: {
+      async advise() {
+        throw new Error("catalog unavailable");
+      },
+    },
   });
   const result = await failed.subject.execute({
-    consumerRoot: "/fixture", profilePath: "profile.yaml",
-    intent: { title: "Exact title" }, dryRun: true
+    consumerRoot: "/fixture",
+    profilePath: "profile.yaml",
+    intent: { title: "Exact title" },
+    dryRun: true,
   });
   assert.equal(result.envelope.outcome, "execution-failure");
   assert.deepEqual(failed.calls, ["inspect", "plan"]);
@@ -187,12 +237,15 @@ test("docs new fails closed on advisory failure and preserves cancellation", asy
       async advise() {
         controller.abort();
         throw new Error("catalog observation cancelled");
-      }
-    }
+      },
+    },
   });
   const cancelledResult = await cancelled.subject.execute({
-    consumerRoot: "/fixture", profilePath: "profile.yaml",
-    intent: { title: "Exact title" }, dryRun: true, signal: controller.signal
+    consumerRoot: "/fixture",
+    profilePath: "profile.yaml",
+    intent: { title: "Exact title" },
+    dryRun: true,
+    signal: controller.signal,
   });
   assert.equal(cancelledResult.exitCode, 130);
   assert.equal(cancelledResult.envelope.outcome, "cancelled");
@@ -203,16 +256,26 @@ test("docs new blocks planning when transaction recovery is pending", async () =
     async inspect() {
       harness.calls.push("inspect");
       return {
-        schemaVersion: 1, state: "recoverable", operationKind: "document-authoring",
-        format: "document-authoring-envelope-v3", foundationVersion: "0.16.0",
+        schemaVersion: 1,
+        state: "recoverable",
+        operationKind: "document-authoring",
+        format: "document-authoring-envelope-v3",
+        foundationVersion: "0.16.0",
         foundationBuildIdentity: digest,
-        recovery: { commandId: "docs-recover", exactFoundationVersion: "0.16.0", exactFoundationBuildIdentity: digest },
-        diagnostics: []
+        recovery: {
+          commandId: "docs-recover",
+          exactFoundationVersion: "0.16.0",
+          exactFoundationBuildIdentity: digest,
+        },
+        diagnostics: [],
       };
-    }
+    },
   });
   const result = await harness.subject.execute({
-    consumerRoot: "/fixture", profilePath: "profile.yaml", intent: {}, dryRun: false
+    consumerRoot: "/fixture",
+    profilePath: "profile.yaml",
+    intent: {},
+    dryRun: false,
   });
   assert.equal(result.exitCode, 1);
   assert.equal(result.envelope.outcome, "recovery-required");
@@ -222,17 +285,31 @@ test("docs new blocks planning when transaction recovery is pending", async () =
 test("docs new never invents docs recovery for foreign or corrupt evidence", async () => {
   for (const inspection of [
     {
-      schemaVersion: 1, state: "manual-recovery-required", reason: "corrupt",
-      transactionKind: "corrupt", diagnostics: []
+      schemaVersion: 1,
+      state: "manual-recovery-required",
+      reason: "corrupt",
+      transactionKind: "corrupt",
+      diagnostics: [],
     },
     {
-      schemaVersion: 1, state: "manual-recovery-required", reason: "foreign",
-      operationKind: "scaffolding", transactionKind: "scaffold", diagnostics: []
-    }
+      schemaVersion: 1,
+      state: "manual-recovery-required",
+      reason: "foreign",
+      operationKind: "scaffolding",
+      transactionKind: "scaffold",
+      diagnostics: [],
+    },
   ]) {
-    const harness = newHarness({ async inspect() { return inspection; } });
+    const harness = newHarness({
+      async inspect() {
+        return inspection;
+      },
+    });
     const result = await harness.subject.execute({
-      consumerRoot: "/fixture", profilePath: "profile.yaml", intent: {}, dryRun: false
+      consumerRoot: "/fixture",
+      profilePath: "profile.yaml",
+      intent: {},
+      dryRun: false,
     });
     assert.equal(result.envelope.diagnostics[0].remediation, undefined);
   }
@@ -242,8 +319,11 @@ test("docs new cancellation is 130 before publication", async () => {
   const controller = new AbortController();
   controller.abort();
   const result = await newHarness().subject.execute({
-    consumerRoot: "/fixture", profilePath: "profile.yaml", intent: {}, dryRun: false,
-    signal: controller.signal
+    consumerRoot: "/fixture",
+    profilePath: "profile.yaml",
+    intent: {},
+    dryRun: false,
+    signal: controller.signal,
   });
   assert.equal(result.exitCode, 130);
   assert.equal(result.envelope.outcome, "cancelled");
@@ -252,11 +332,18 @@ test("docs new cancellation is 130 before publication", async () => {
 test("docs new post-publication cancellation is a committed violation, never 130", async () => {
   const harness = newHarness({
     structure: {
-      async verify() { const error = new Error("cancelled"); error.name = "AbortError"; throw error; }
-    }
+      async verify() {
+        const error = new Error("cancelled");
+        error.name = "AbortError";
+        throw error;
+      },
+    },
   });
   const result = await harness.subject.execute({
-    consumerRoot: "/fixture", profilePath: "profile.yaml", intent: {}, dryRun: false
+    consumerRoot: "/fixture",
+    profilePath: "profile.yaml",
+    intent: {},
+    dryRun: false,
   });
   assert.equal(result.exitCode, 1);
   assert.equal(result.envelope.outcome, "violation");
@@ -265,7 +352,7 @@ test("docs new post-publication cancellation is a committed violation, never 130
   assert.deepEqual(result.envelope.result.reachability, {
     state: "manual-required",
     indexPath: "docs/README.md",
-    markdownLink: "[ADR-0083](decisions/0083-test.md)"
+    markdownLink: "[ADR-0083](decisions/0083-test.md)",
   });
 });
 
@@ -274,13 +361,20 @@ test("docs doctor projects exact recovery and unknown versions", async () => {
     environment,
     async inspect() {
       return {
-        schemaVersion: 1, state: "recoverable", operationKind: "document-authoring",
-        format: "document-authoring-envelope-v3", foundationVersion: "0.16.0",
+        schemaVersion: 1,
+        state: "recoverable",
+        operationKind: "document-authoring",
+        format: "document-authoring-envelope-v3",
+        foundationVersion: "0.16.0",
         foundationBuildIdentity: digest,
-        recovery: { commandId: "docs-recover", exactFoundationVersion: "0.16.0", exactFoundationBuildIdentity: digest },
-        diagnostics: [{ code: "FOUNDATION_TRANSACTION_ACTIVE", message: "pending" }]
+        recovery: {
+          commandId: "docs-recover",
+          exactFoundationVersion: "0.16.0",
+          exactFoundationBuildIdentity: digest,
+        },
+        diagnostics: [{ code: "FOUNDATION_TRANSACTION_ACTIVE", message: "pending" }],
       };
-    }
+    },
   }).execute({ consumerRoot: "/fixture" });
   assert.equal(recoverable.envelope.result.recoveryClass, "auto-recoverable");
   assert.equal(recoverable.envelope.result.foundationVersion, "0.16.0");
@@ -289,21 +383,27 @@ test("docs doctor projects exact recovery and unknown versions", async () => {
     args: {
       consumerRoot: "/fixture",
       exactFoundationVersion: "0.16.0",
-      exactFoundationBuildIdentity: digest
-    }
+      exactFoundationBuildIdentity: digest,
+    },
   });
-  assert.deepEqual(recoverable.envelope.diagnostics[0].remediation,
-    recoverable.envelope.result.recoveryCommand);
+  assert.deepEqual(
+    recoverable.envelope.diagnostics[0].remediation,
+    recoverable.envelope.result.recoveryCommand,
+  );
 
   const unknown = await new RunDocumentDoctor({
     environment,
     async inspect() {
       return {
-        schemaVersion: 1, state: "manual-recovery-required", reason: "version mismatch",
+        schemaVersion: 1,
+        state: "manual-recovery-required",
+        reason: "version mismatch",
         operationKind: "local-mode",
-        diagnostics: [{ code: "FOUNDATION_TRANSACTION_VERSION_MISMATCH", message: "use exact version" }]
+        diagnostics: [
+          { code: "FOUNDATION_TRANSACTION_VERSION_MISMATCH", message: "use exact version" },
+        ],
       };
-    }
+    },
   }).execute({ consumerRoot: "/fixture" });
   assert.equal(unknown.envelope.result.transactionState, "version-mismatch");
   assert.equal(unknown.envelope.result.protocolKind, "local-mode");
@@ -315,7 +415,9 @@ test("docs doctor cancellation is 130 before and after inspection", async () => 
   before.abort();
   const cancelledBefore = await new RunDocumentDoctor({
     environment,
-    async inspect() { throw new Error("must not inspect"); }
+    async inspect() {
+      throw new Error("must not inspect");
+    },
   }).execute({ consumerRoot: "/fixture", signal: before.signal });
   assert.equal(cancelledBefore.exitCode, 130);
   assert.equal(cancelledBefore.envelope.outcome, "cancelled");
@@ -326,7 +428,7 @@ test("docs doctor cancellation is 130 before and after inspection", async () => 
     async inspect() {
       after.abort();
       return { schemaVersion: 1, state: "idle", diagnostics: [] };
-    }
+    },
   }).execute({ consumerRoot: "/fixture", signal: after.signal });
   assert.equal(cancelledAfter.exitCode, 130);
   assert.equal(cancelledAfter.envelope.outcome, "cancelled");
@@ -348,23 +450,25 @@ test("docs doctor preserves exact version and build recovery authority", async (
           commandId: "docs-recover",
           args: {
             exactFoundationVersion: "0.14.7",
-            exactFoundationBuildIdentity: digest
-          }
+            exactFoundationBuildIdentity: digest,
+          },
         },
-        diagnostics: [{
-          code: "FOUNDATION_TRANSACTION_VERSION_MISMATCH",
-          message: "exact handler required"
-        }]
+        diagnostics: [
+          {
+            code: "FOUNDATION_TRANSACTION_VERSION_MISMATCH",
+            message: "exact handler required",
+          },
+        ],
       };
-    }
+    },
   }).execute({ consumerRoot: "/fixture" });
   assert.deepEqual(result.envelope.result.recoveryCommand, {
     commandId: "docs.recover",
     args: {
       consumerRoot: "/fixture",
       exactFoundationVersion: "0.14.7",
-      exactFoundationBuildIdentity: digest
-    }
+      exactFoundationBuildIdentity: digest,
+    },
   });
 });
 
@@ -373,27 +477,34 @@ test("docs new exact recovery remediation retains non-cwd consumer root", async 
   const harness = newHarness({
     async inspect() {
       return {
-        schemaVersion: 1, state: "recoverable", operationKind: "document-authoring",
-        format: "document-authoring-envelope-v3", foundationVersion: "0.16.0",
+        schemaVersion: 1,
+        state: "recoverable",
+        operationKind: "document-authoring",
+        format: "document-authoring-envelope-v3",
+        foundationVersion: "0.16.0",
         foundationBuildIdentity: digest,
         recovery: {
-          commandId: "docs-recover", exactFoundationVersion: "0.16.0",
-          exactFoundationBuildIdentity: digest
+          commandId: "docs-recover",
+          exactFoundationVersion: "0.16.0",
+          exactFoundationBuildIdentity: digest,
         },
-        diagnostics: []
+        diagnostics: [],
       };
-    }
+    },
   });
   const result = await harness.subject.execute({
-    consumerRoot, profilePath: "profile.yaml", intent: {}, dryRun: false
+    consumerRoot,
+    profilePath: "profile.yaml",
+    intent: {},
+    dryRun: false,
   });
   assert.deepEqual(result.envelope.diagnostics[0].remediation, {
     commandId: "docs.recover",
     args: {
       consumerRoot,
       exactFoundationVersion: "0.16.0",
-      exactFoundationBuildIdentity: digest
-    }
+      exactFoundationBuildIdentity: digest,
+    },
   });
 });
 
@@ -402,13 +513,15 @@ test("docs new sends manual recovery receipts to doctor and normalizes Windows r
     async apply() {
       return {
         outcome: "manual-recovery-required",
-        diagnostics: [{
-          ruleId: "document.writer.manual-recovery",
-          severity: "error",
-          phase: "recovery",
-          subject: "document.transaction",
-          message: "Manual inspection is required.",
-        }],
+        diagnostics: [
+          {
+            ruleId: "document.writer.manual-recovery",
+            severity: "error",
+            phase: "recovery",
+            subject: "document.transaction",
+            message: "Manual inspection is required.",
+          },
+        ],
         commit: {
           state: "manual-recovery-required",
           publication: "unknown",
@@ -464,17 +577,19 @@ test("recovery context preserves a literal POSIX backslash as filename data", as
     dryRun: false,
   });
 
-  assert.equal(
-    execution.envelope.diagnostics[0]?.remediation?.args.consumerRoot,
-    consumerRoot,
-  );
+  assert.equal(execution.envelope.diagnostics[0]?.remediation?.args.consumerRoot, consumerRoot);
 });
 
 test("docs recover is a no-op when idle and refuses manual evidence", async () => {
   let recoverCalls = 0;
   const idle = await new RunDocumentRecover({
-    async inspect() { return { schemaVersion: 1, state: "idle", diagnostics: [] }; },
-    async recover() { recoverCalls += 1; return successfulReceipt; }
+    async inspect() {
+      return { schemaVersion: 1, state: "idle", diagnostics: [] };
+    },
+    async recover() {
+      recoverCalls += 1;
+      return successfulReceipt;
+    },
   }).execute({ consumerRoot: "/fixture" });
   assert.equal(idle.envelope.result.transactionState, "no-pending-transaction");
   assert.equal(idle.envelope.result.writeState, "unchanged");
@@ -484,11 +599,18 @@ test("docs recover is a no-op when idle and refuses manual evidence", async () =
   const manual = await new RunDocumentRecover({
     async inspect() {
       return {
-        schemaVersion: 1, state: "manual-recovery-required", reason: "tampered",
-        diagnostics: [{ code: "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED", message: "inspect manually" }]
+        schemaVersion: 1,
+        state: "manual-recovery-required",
+        reason: "tampered",
+        diagnostics: [
+          { code: "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED", message: "inspect manually" },
+        ],
       };
     },
-    async recover() { recoverCalls += 1; return successfulReceipt; }
+    async recover() {
+      recoverCalls += 1;
+      return successfulReceipt;
+    },
   }).execute({ consumerRoot: "/fixture" });
   assert.equal(manual.exitCode, 1);
   assert.equal(manual.envelope.result.transactionState, "manual-required");
@@ -500,35 +622,46 @@ test("docs recover is a no-op when idle and refuses manual evidence", async () =
 
 test("docs recover projects committed and unresolved receipts without guessing", async () => {
   const recoverable = {
-    schemaVersion: 1, state: "recoverable", operationKind: "document-authoring",
-    format: "document-authoring-envelope-v3", foundationVersion: "0.16.0",
+    schemaVersion: 1,
+    state: "recoverable",
+    operationKind: "document-authoring",
+    format: "document-authoring-envelope-v3",
+    foundationVersion: "0.16.0",
     foundationBuildIdentity: digest,
-    recovery: { commandId: "docs-recover", exactFoundationVersion: "0.16.0", exactFoundationBuildIdentity: digest },
-    diagnostics: []
+    recovery: {
+      commandId: "docs-recover",
+      exactFoundationVersion: "0.16.0",
+      exactFoundationBuildIdentity: digest,
+    },
+    diagnostics: [],
   };
   const applied = await new RunDocumentRecover({
-    async inspect() { return recoverable; },
+    async inspect() {
+      return recoverable;
+    },
     async recover() {
       return {
         ...successfulReceipt,
-        commit: { publication: "published" }
+        commit: { publication: "published" },
       };
-    }
+    },
   }).execute({ consumerRoot: "/fixture" });
   assert.equal(applied.envelope.result.transactionState, "recovered");
   assert.equal(applied.envelope.result.writeState, "committed");
   assert.equal(applied.envelope.result.recoveryRequired, false);
 
   const pending = await new RunDocumentRecover({
-    async inspect() { return recoverable; },
+    async inspect() {
+      return recoverable;
+    },
     async recover() {
       return {
         outcome: "recovery-required",
         receiptDigest: digest,
         diagnostics: [],
-        commit: { publication: "unknown" }
+        commit: { publication: "unknown" },
       };
-    }
+    },
   }).execute({ consumerRoot: "/fixture" });
   assert.equal(pending.envelope.result.transactionState, "recovery-required");
   assert.equal(pending.envelope.result.writeState, "unknown");

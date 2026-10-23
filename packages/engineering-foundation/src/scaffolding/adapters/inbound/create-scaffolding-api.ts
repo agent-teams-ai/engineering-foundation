@@ -2,11 +2,9 @@ import type {
   ScaffoldAuthorityEvidence,
   ScaffoldPlan,
   ScaffoldRecoveryScope,
-  ScaffoldReceipt
+  ScaffoldReceipt,
 } from "../../contract/scaffold-contract.js";
-import {
-  assertScaffoldAuthorityEvidenceDigest as assertAuthorityEvidenceDigest
-} from "../../kernel/authority-evidence.js";
+import { assertScaffoldAuthorityEvidenceDigest as assertAuthorityEvidenceDigest } from "../../kernel/authority-evidence.js";
 import { assertAuthorityScaffoldPlanDigest } from "../../kernel/plan-validation.js";
 import { assertAuthorityScaffoldReceiptDigest } from "./authority-scaffold-receipt.js";
 import { snapshotAuthorityScaffoldRecoveryScope } from "../../kernel/recovery-scope.js";
@@ -18,10 +16,19 @@ export interface ScaffoldingOperations {
     readonly intentPath: string;
     readonly configPath?: string;
   }) => Promise<ScaffoldPlan>;
-  readonly applyFilesystemScaffold: (consumerRoot: string, plan: ScaffoldPlan) => Promise<ScaffoldReceipt>;
-  readonly recoverFilesystemScaffold: (consumerRoot: string, scope?: ScaffoldRecoveryScope) => Promise<ScaffoldReceipt | undefined>;
+  readonly applyFilesystemScaffold: (
+    consumerRoot: string,
+    plan: ScaffoldPlan,
+  ) => Promise<ScaffoldReceipt>;
+  readonly recoverFilesystemScaffold: (
+    consumerRoot: string,
+    scope?: ScaffoldRecoveryScope,
+  ) => Promise<ScaffoldReceipt | undefined>;
   readonly readScaffoldPlanFile: (consumerRoot: string, planPath: string) => Promise<ScaffoldPlan>;
-  readonly validateScaffoldReceipt: (receipt: unknown, plan?: ScaffoldPlan) => Promise<ScaffoldReceipt>;
+  readonly validateScaffoldReceipt: (
+    receipt: unknown,
+    plan?: ScaffoldPlan,
+  ) => Promise<ScaffoldReceipt>;
 }
 
 export type ScaffoldingApi = ReturnType<typeof createScaffoldingApi>;
@@ -30,16 +37,11 @@ function assertScaffoldPlanDigest(plan: ScaffoldPlan): void {
   assertAuthorityScaffoldPlanDigest(plan);
 }
 
-function assertScaffoldReceiptDigest(
-  receipt: ScaffoldReceipt,
-  plan?: ScaffoldPlan
-): void {
+function assertScaffoldReceiptDigest(receipt: ScaffoldReceipt, plan?: ScaffoldPlan): void {
   assertAuthorityScaffoldReceiptDigest(receipt, plan);
 }
 
-function assertScaffoldAuthorityEvidenceDigest(
-  evidence: ScaffoldAuthorityEvidence
-): void {
+function assertScaffoldAuthorityEvidenceDigest(evidence: ScaffoldAuthorityEvidence): void {
   assertAuthorityEvidenceDigest(evidence);
 }
 
@@ -55,7 +57,7 @@ export function createScaffoldingApi(operations: ScaffoldingOperations) {
 
   async function applyFilesystemScaffold(
     consumerRoot: string,
-    plan: ScaffoldPlan
+    plan: ScaffoldPlan,
   ): Promise<ScaffoldReceipt> {
     return operations.applyFilesystemScaffold(consumerRoot, plan);
   }
@@ -67,25 +69,26 @@ export function createScaffoldingApi(operations: ScaffoldingOperations) {
     if (scopeArgument.length > 1) {
       throw new ScaffoldError(
         "SCAFFOLD_INPUT_INVALID",
-        "Scaffolding recovery accepts at most one recovery scope."
+        "Scaffolding recovery accepts at most one recovery scope.",
       );
     }
-    const snapshot = scopeArgument.length === 0
-      ? undefined
-      : snapshotAuthorityScaffoldRecoveryScope(scopeArgument[0]);
+    const snapshot =
+      scopeArgument.length === 0
+        ? undefined
+        : snapshotAuthorityScaffoldRecoveryScope(scopeArgument[0]);
     return operations.recoverFilesystemScaffold(consumerRoot, snapshot);
   }
 
   async function readScaffoldPlanFile(
     consumerRoot: string,
-    planPath: string
+    planPath: string,
   ): Promise<ScaffoldPlan> {
     return operations.readScaffoldPlanFile(consumerRoot, planPath);
   }
 
   async function validateScaffoldReceipt(
     receipt: unknown,
-    plan?: ScaffoldPlan
+    plan?: ScaffoldPlan,
   ): Promise<ScaffoldReceipt> {
     return operations.validateScaffoldReceipt(receipt, plan);
   }
@@ -98,6 +101,6 @@ export function createScaffoldingApi(operations: ScaffoldingOperations) {
     validateScaffoldReceipt,
     assertScaffoldPlanDigest,
     assertScaffoldReceiptDigest,
-    assertScaffoldAuthorityEvidenceDigest
+    assertScaffoldAuthorityEvidenceDigest,
   });
 }

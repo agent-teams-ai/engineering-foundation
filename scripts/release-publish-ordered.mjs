@@ -1,9 +1,6 @@
 import { createHash } from "node:crypto";
 
-import {
-  PUBLISHABLE_PACKAGE_DEPENDENCIES,
-  PUBLISHABLE_PACKAGES,
-} from "./publishable-packages.mjs";
+import { PUBLISHABLE_PACKAGE_DEPENDENCIES, PUBLISHABLE_PACKAGES } from "./publishable-packages.mjs";
 
 export const FOUNDATION_PACKAGE = "@agent-teams/engineering-foundation";
 export const DOCUMENT_AUTHORING_PACKAGE = "@agent-teams/document-authoring";
@@ -15,14 +12,19 @@ export const REGISTRY_OBSERVATION_RETRY_MILLISECONDS = 5_000;
 export const REGISTRY_VISIBILITY_TIMEOUT_MILLISECONDS = 15 * 60_000;
 const REGISTRY_VISIBILITY_RETRY_MILLISECONDS = 5_000;
 
-const RELEASE_GRAPH = Object.freeze(PUBLISHABLE_PACKAGES.map(({ name }) => Object.freeze({
-  name,
-  dependencies: PUBLISHABLE_PACKAGE_DEPENDENCIES[name] ?? Object.freeze([]),
-})));
+const RELEASE_GRAPH = Object.freeze(
+  PUBLISHABLE_PACKAGES.map(({ name }) =>
+    Object.freeze({
+      name,
+      dependencies: PUBLISHABLE_PACKAGE_DEPENDENCIES[name] ?? Object.freeze([]),
+    }),
+  ),
+);
 
-const delay = (milliseconds) => new Promise((resolve) => {
-  setTimeout(resolve, milliseconds);
-});
+const delay = (milliseconds) =>
+  new Promise((resolve) => {
+    setTimeout(resolve, milliseconds);
+  });
 
 function fail(message) {
   throw new Error(`Ordered release refused: ${message}`);
@@ -37,8 +39,10 @@ function canonicalIntegrity(integrity) {
 }
 
 export function npmPurlName(name) {
-  if (typeof name !== "string" ||
-      !/^(?:@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*|[a-z0-9][a-z0-9._-]*)$/u.test(name)) {
+  if (
+    typeof name !== "string" ||
+    !/^(?:@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*|[a-z0-9][a-z0-9._-]*)$/u.test(name)
+  ) {
     fail("artifact has a non-canonical npm package name");
   }
   return name.startsWith("@") ? `%40${name.slice(1)}` : name;
@@ -51,21 +55,28 @@ async function exactSource(provenance, artifact, source) {
     provenance.ref === source.ref &&
     provenance.dependencyUri === `git+${source.repository}@${source.ref}` &&
     typeof provenance.commit === "string" &&
-    await source.isTrustedCommit(provenance.commit) &&
+    (await source.isTrustedCommit(provenance.commit)) &&
     provenance.subjectName === `pkg:npm/${npmPurlName(artifact.name)}@${artifact.version}` &&
-    provenance.sha512 === Buffer.from(canonicalIntegrity(artifact.integrity), "base64").toString("hex")
+    provenance.sha512 ===
+      Buffer.from(canonicalIntegrity(artifact.integrity), "base64").toString("hex")
   );
 }
 
 async function assertReusable(artifact, published, source) {
   if (published.integrity !== artifact.integrity) {
-    fail(`${artifact.name}@${artifact.version} exists with different tarball SRI; quarantine it and release a new version`);
+    fail(
+      `${artifact.name}@${artifact.version} exists with different tarball SRI; quarantine it and release a new version`,
+    );
   }
   if (JSON.stringify(published.manifest) !== JSON.stringify(artifact.manifest)) {
-    fail(`${artifact.name}@${artifact.version} exists with a different packed manifest; quarantine it and release a new version`);
+    fail(
+      `${artifact.name}@${artifact.version} exists with a different packed manifest; quarantine it and release a new version`,
+    );
   }
   if (!(await exactSource(published.provenance, artifact, source))) {
-    fail(`${artifact.name}@${artifact.version} provenance is absent or is not bound to the reviewed source`);
+    fail(
+      `${artifact.name}@${artifact.version} provenance is absent or is not bound to the reviewed source`,
+    );
   }
   if (Number.isNaN(Date.parse(published.publishedAt ?? ""))) {
     fail(`${artifact.name}@${artifact.version} has no trustworthy publication timestamp`);
@@ -74,10 +85,14 @@ async function assertReusable(artifact, published, source) {
 
 async function assertVerifiedAuthority(artifact, published, provenance, source) {
   if (!(await exactSource(provenance, artifact, source))) {
-    fail(`${artifact.name}@${artifact.version} cryptographically verified provenance is not bound to the reviewed source`);
+    fail(
+      `${artifact.name}@${artifact.version} cryptographically verified provenance is not bound to the reviewed source`,
+    );
   }
   if (JSON.stringify(provenance) !== JSON.stringify(published.provenance)) {
-    fail(`${artifact.name}@${artifact.version} raw registry provenance disagrees with npm's verified attestation`);
+    fail(
+      `${artifact.name}@${artifact.version} raw registry provenance disagrees with npm's verified attestation`,
+    );
   }
 }
 
@@ -89,49 +104,79 @@ function assertFinalTag(artifact, published, finalTag) {
 }
 
 function stageRecord(artifact, stage, status, started, now) {
-  return { name: artifact.name, version: artifact.version, stage, status,
-    elapsedMilliseconds: Math.max(0, Math.ceil(now() - started)) };
+  return {
+    name: artifact.name,
+    version: artifact.version,
+    stage,
+    status,
+    elapsedMilliseconds: Math.max(0, Math.ceil(now() - started)),
+  };
 }
 
 function observationStatus(observed) {
   const stage = ["metadata", "tarball", "attestation"].includes(observed?.stage)
-    ? observed.stage : "registry";
+    ? observed.stage
+    : "registry";
   const status = ["present", "absent", "unknown"].includes(observed?.status)
-    ? observed.status : "invalid";
+    ? observed.status
+    : "invalid";
   return `${stage}-${status}`;
 }
 
 function publishFailureOutcome(error) {
-  return error?.publishFailure?.notStarted === true ? "not-started"
-    : error?.publishFailure?.outcome === "nonzero" ? "nonzero" : "unknown";
+  return error?.publishFailure?.notStarted === true
+    ? "not-started"
+    : error?.publishFailure?.outcome === "nonzero"
+      ? "nonzero"
+      : "unknown";
 }
 
 function assertRegistryVisibilityPolicy({ visibilityTimeoutMilliseconds, retryDelayMilliseconds }) {
-  if (!Number.isFinite(visibilityTimeoutMilliseconds) || visibilityTimeoutMilliseconds <= 0 ||
-      visibilityTimeoutMilliseconds > REGISTRY_VISIBILITY_TIMEOUT_MILLISECONDS ||
-      !Number.isFinite(retryDelayMilliseconds) || retryDelayMilliseconds <= 0) {
+  if (
+    !Number.isFinite(visibilityTimeoutMilliseconds) ||
+    visibilityTimeoutMilliseconds <= 0 ||
+    visibilityTimeoutMilliseconds > REGISTRY_VISIBILITY_TIMEOUT_MILLISECONDS ||
+    !Number.isFinite(retryDelayMilliseconds) ||
+    retryDelayMilliseconds <= 0
+  ) {
     fail("registry visibility requires a positive bounded deadline and retry interval");
   }
 }
 
-async function observeExact({ artifact, finalTag, inspect, source, visibilityTimeoutMilliseconds,
-  retryDelayMilliseconds, now, wait, reportProgress }) {
+async function observeExact({
+  artifact,
+  finalTag,
+  inspect,
+  source,
+  visibilityTimeoutMilliseconds,
+  retryDelayMilliseconds,
+  now,
+  wait,
+  reportProgress,
+}) {
   const started = now();
   const deadline = started + visibilityTimeoutMilliseconds;
   let last;
   while (true) {
     const remainingMilliseconds = deadline - now();
-    if (remainingMilliseconds <= 0) { break; }
-    last = await inspect(artifact, { remainingMilliseconds })
-      .catch(() => ({ status: "unknown" }));
-    reportProgress({ ...stageRecord(artifact, "visibility", observationStatus(last), started, now),
-      budgetMilliseconds: visibilityTimeoutMilliseconds });
+    if (remainingMilliseconds <= 0) {
+      break;
+    }
+    last = await inspect(artifact, { remainingMilliseconds }).catch(() => ({ status: "unknown" }));
+    reportProgress({
+      ...stageRecord(artifact, "visibility", observationStatus(last), started, now),
+      budgetMilliseconds: visibilityTimeoutMilliseconds,
+    });
     // An adapter ignoring cancellation must never turn an arbitrarily late reply into success.
-    if (now() >= deadline) { break; }
+    if (now() >= deadline) {
+      break;
+    }
     if (last?.status === "present") {
       await assertReusable(artifact, last, source);
       assertFinalTag(artifact, last, finalTag);
-      if (now() >= deadline) { break; }
+      if (now() >= deadline) {
+        break;
+      }
       reportProgress(stageRecord(artifact, "visibility", "verified", started, now));
       return last;
     }
@@ -139,18 +184,23 @@ async function observeExact({ artifact, finalTag, inspect, source, visibilityTim
       fail(`${artifact.name}@${artifact.version} inspection returned an invalid state`);
     }
     const remainingWait = deadline - now();
-    if (remainingWait <= 0) { break; }
+    if (remainingWait <= 0) {
+      break;
+    }
     await wait(Math.min(retryDelayMilliseconds, remainingWait));
   }
   reportProgress(stageRecord(artifact, "visibility", "deadline-exceeded", started, now));
   // Provider exception text and response bodies are never diagnostic authority.
   const status = ["absent", "unknown"].includes(last?.status) ? last.status : "unverified";
-  fail(`${artifact.name}@${artifact.version} registry result remained ${status}; visibility deadline exceeded`);
+  fail(
+    `${artifact.name}@${artifact.version} registry result remained ${status}; visibility deadline exceeded`,
+  );
 }
 
 async function publishOrReuse(options) {
-  const initial = options.initial ??
-    await options.inspect(options.artifact).catch((error) => ({ status: "unknown", error }));
+  const initial =
+    options.initial ??
+    (await options.inspect(options.artifact).catch((error) => ({ status: "unknown", error })));
   if (initial.status === "present") {
     await assertReusable(options.artifact, initial, options.source);
     assertFinalTag(options.artifact, initial, options.finalTag);
@@ -160,7 +210,9 @@ async function publishOrReuse(options) {
     fail(`${options.artifact.name}@${options.artifact.version} preflight result is unknown`);
   }
   if (initial.status !== "absent") {
-    fail(`${options.artifact.name}@${options.artifact.version} preflight returned an invalid state`);
+    fail(
+      `${options.artifact.name}@${options.artifact.version} preflight returned an invalid state`,
+    );
   }
   const authorization = options.authorizePublish(options.artifact);
   if (authorization !== undefined) {
@@ -168,15 +220,22 @@ async function publishOrReuse(options) {
   }
   let initialFailure;
   const started = options.now();
-  options.reportProgress(stageRecord(options.artifact, "npm-publish", "started", started, options.now));
+  options.reportProgress(
+    stageRecord(options.artifact, "npm-publish", "started", started, options.now),
+  );
   try {
     await options.publish(options.artifact, options.finalTag);
-    options.reportProgress(stageRecord(options.artifact, "npm-publish", "acknowledged", started, options.now));
+    options.reportProgress(
+      stageRecord(options.artifact, "npm-publish", "acknowledged", started, options.now),
+    );
   } catch (error) {
     const outcome = publishFailureOutcome(error);
-    options.reportProgress(stageRecord(options.artifact, "npm-publish", outcome, started, options.now));
+    options.reportProgress(
+      stageRecord(options.artifact, "npm-publish", outcome, started, options.now),
+    );
     // The runtime adapter supplies only sanitized diagnostics, never raw npm output.
-    initialFailure = error?.publishFailure?.diagnostic ??
+    initialFailure =
+      error?.publishFailure?.diagnostic ??
       "publish failed with an unclassified error; raw output omitted";
     const message = `${options.artifact.name}@${options.artifact.version} initial publish failure: ${initialFailure}`;
     options.reportPublishFailure(message);
@@ -189,9 +248,10 @@ async function publishOrReuse(options) {
     return await observeExact(options);
   } catch (error) {
     if (initialFailure !== undefined) {
-      const message = typeof error?.message === "string"
-        ? error.message.replace(/^Ordered release refused: /u, "")
-        : "registry observation failed with an unclassified error";
+      const message =
+        typeof error?.message === "string"
+          ? error.message.replace(/^Ordered release refused: /u, "")
+          : "registry observation failed with an unclassified error";
       fail(`${message}; initial publish failure: ${initialFailure}`);
     }
     throw error;
@@ -207,29 +267,48 @@ async function assertInitialObservation({ artifact, finalTag, published, source 
   if (published.status === "absent") {
     return;
   }
-  fail(`${artifact.name}@${artifact.version} pair preflight is unknown (${observationStatus(published)})`);
+  fail(
+    `${artifact.name}@${artifact.version} pair preflight is unknown (${observationStatus(published)})`,
+  );
 }
 
 function exactReleaseDependency(artifact, dependency) {
   return artifact.manifest?.dependencies?.[dependency.name] === dependency.version;
 }
 
-function assertReleaseWave({ artifacts, authorizePublish, reconcileRelease, source,
-  verifySignature }) {
+function assertReleaseWave({
+  artifacts,
+  authorizePublish,
+  reconcileRelease,
+  source,
+  verifySignature,
+}) {
   const releaseNames = RELEASE_GRAPH.map(({ name }) => name);
   const dependencyConfigNames = Object.keys(PUBLISHABLE_PACKAGE_DEPENDENCIES);
-  if (new Set(releaseNames).size !== releaseNames.length ||
-      dependencyConfigNames.length !== releaseNames.length ||
-      dependencyConfigNames.some((name) => !releaseNames.includes(name)) ||
-      RELEASE_GRAPH.some((entry, index) => entry.dependencies.some(
-        (dependency) => releaseNames.indexOf(dependency) < 0 || releaseNames.indexOf(dependency) >= index,
-      ))) {
-    fail("the publishable package dependency graph must be complete, unique, and topologically ordered");
+  if (
+    new Set(releaseNames).size !== releaseNames.length ||
+    dependencyConfigNames.length !== releaseNames.length ||
+    dependencyConfigNames.some((name) => !releaseNames.includes(name)) ||
+    RELEASE_GRAPH.some((entry, index) =>
+      entry.dependencies.some(
+        (dependency) =>
+          releaseNames.indexOf(dependency) < 0 || releaseNames.indexOf(dependency) >= index,
+      ),
+    )
+  ) {
+    fail(
+      "the publishable package dependency graph must be complete, unique, and topologically ordered",
+    );
   }
   const artifactsByName = new Map(artifacts.map((artifact) => [artifact.name, artifact]));
-  if (artifactsByName.size !== artifacts.length || artifacts.length !== RELEASE_GRAPH.length ||
-      RELEASE_GRAPH.some(({ name }) => !artifactsByName.has(name))) {
-    fail(`the release wave must contain exactly ${RELEASE_GRAPH.map(({ name }) => name).join(", ")}`);
+  if (
+    artifactsByName.size !== artifacts.length ||
+    artifacts.length !== RELEASE_GRAPH.length ||
+    RELEASE_GRAPH.some(({ name }) => !artifactsByName.has(name))
+  ) {
+    fail(
+      `the release wave must contain exactly ${RELEASE_GRAPH.map(({ name }) => name).join(", ")}`,
+    );
   }
   for (const entry of RELEASE_GRAPH) {
     const artifact = artifactsByName.get(entry.name);
@@ -242,9 +321,14 @@ function assertReleaseWave({ artifacts, authorizePublish, reconcileRelease, sour
   if (typeof verifySignature !== "function") {
     fail("an npm cryptographic signature verifier is required");
   }
-  if (typeof authorizePublish !== "function" || typeof reconcileRelease !== "function" ||
-      typeof source?.isTrustedCommit !== "function") {
-    fail("live-main authorization, idempotent release reconciliation and source ancestry verification are required");
+  if (
+    typeof authorizePublish !== "function" ||
+    typeof reconcileRelease !== "function" ||
+    typeof source?.isTrustedCommit !== "function"
+  ) {
+    fail(
+      "live-main authorization, idempotent release reconciliation and source ancestry verification are required",
+    );
   }
   return artifactsByName;
 }
@@ -274,7 +358,9 @@ async function observeInitialWave({ artifactsByName, finalTag, inspect, source }
     }
     for (const dependencyName of entry.dependencies) {
       if (initialByName.get(dependencyName).status === "absent") {
-        fail(`${entry.name} exists without its exact ${dependencyName} dependency; quarantine before releasing`);
+        fail(
+          `${entry.name} exists without its exact ${dependencyName} dependency; quarantine before releasing`,
+        );
       }
     }
   }
@@ -297,7 +383,11 @@ export async function orderedRelease({
   wait = delay,
 }) {
   const artifactsByName = assertReleaseWave({
-    artifacts, authorizePublish, reconcileRelease, source, verifySignature,
+    artifacts,
+    authorizePublish,
+    reconcileRelease,
+    source,
+    verifySignature,
   });
   if (!/^(?:latest|rc)$/u.test(finalTag)) {
     fail("the final npm tag must be exactly latest or rc");
@@ -318,13 +408,24 @@ export async function orderedRelease({
       await assertReusable(artifact, before, source);
       reportProgress(stageRecord(artifact, "selection", "reuse", now(), now));
     }
-    const published = before.status === "present"
-      ? before
-      : await publishOrReuse({
-        artifact, authorizePublish, finalTag, inspect, publish,
-        initial: before, reportPublishFailure, reportProgress, retryDelayMilliseconds, source,
-        visibilityTimeoutMilliseconds, now, wait,
-      });
+    const published =
+      before.status === "present"
+        ? before
+        : await publishOrReuse({
+            artifact,
+            authorizePublish,
+            finalTag,
+            inspect,
+            publish,
+            initial: before,
+            reportPublishFailure,
+            reportProgress,
+            retryDelayMilliseconds,
+            source,
+            visibilityTimeoutMilliseconds,
+            now,
+            wait,
+          });
     assertFinalTag(artifact, published, finalTag);
     for (const dependencyName of entry.dependencies) {
       const dependency = artifactsByName.get(dependencyName);
@@ -351,17 +452,28 @@ export async function orderedRelease({
     const artifact = artifactsByName.get(entry.name);
     const provenance = provenanceByName.get(entry.name);
     const final = await inspectFinalSnapshot({
-      artifact, finalTag, inspect, provenance, source,
+      artifact,
+      finalTag,
+      inspect,
+      provenance,
+      source,
     });
     for (const dependencyName of entry.dependencies) {
-      if (!exactReleaseDependency({ manifest: final.manifest }, artifactsByName.get(dependencyName)) ||
-          Date.parse(finalByName.get(dependencyName).publishedAt) > Date.parse(final.publishedAt)) {
+      if (
+        !exactReleaseDependency(
+          { manifest: final.manifest },
+          artifactsByName.get(dependencyName),
+        ) ||
+        Date.parse(finalByName.get(dependencyName).publishedAt) > Date.parse(final.publishedAt)
+      ) {
         fail(`the final registry snapshot does not preserve ${dependencyName} -> ${artifact.name}`);
       }
     }
     finalByName.set(entry.name, final);
     releasedArtifacts.push({
-      ...artifact, ...final, provenance,
+      ...artifact,
+      ...final,
+      provenance,
       emitReleaseLine: provenance.commit === source.commit,
     });
   }

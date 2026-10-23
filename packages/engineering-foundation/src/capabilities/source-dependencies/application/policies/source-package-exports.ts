@@ -9,28 +9,24 @@ function nearestPackageType(input: {
   readonly importerPath: string;
   readonly packageTypeScopes: ResolveSourceDependencyInput["packageTypeScopes"];
 }): "commonjs" | "module" {
-  return (input.packageTypeScopes ?? [])
-    .filter(
-      (scope) =>
-        pathInside(scope.rootPath, input.importer.rootPath) &&
-        pathInside(input.importerPath, scope.rootPath)
-    )
-    .toSorted((left, right) => right.rootPath.length - left.rootPath.length)[0]
-    ?.moduleType ?? input.importer.moduleType;
+  return (
+    (input.packageTypeScopes ?? [])
+      .filter(
+        (scope) =>
+          pathInside(scope.rootPath, input.importer.rootPath) &&
+          pathInside(input.importerPath, scope.rootPath),
+      )
+      .toSorted((left, right) => right.rootPath.length - left.rootPath.length)[0]?.moduleType ??
+    input.importer.moduleType
+  );
 }
 
-function importerUsesCommonJs(
-  importerPath: string,
-  moduleType: "commonjs" | "module"
-): boolean {
+function importerUsesCommonJs(importerPath: string, moduleType: "commonjs" | "module"): boolean {
   const extension = posix.extname(importerPath).toLocaleLowerCase("en-US");
   return (
     extension === ".cts" ||
     extension === ".cjs" ||
-    ((extension === ".ts" ||
-      extension === ".tsx" ||
-      extension === ".js" ||
-      extension === ".jsx") &&
+    ((extension === ".ts" || extension === ".tsx" || extension === ".js" || extension === ".jsx") &&
       moduleType === "commonjs")
   );
 }
@@ -55,12 +51,9 @@ export function subpathExported(input: {
   const condition =
     input.reference.kind === "commonjs" ||
     input.reference.kind.startsWith("import-equals") ||
-    (staticLike && importerUsesCommonJs(
-      input.importerPath,
-      nearestPackageType(input)
-    ))
-    ? "require"
-    : "import";
+    (staticLike && importerUsesCommonJs(input.importerPath, nearestPackageType(input)))
+      ? "require"
+      : "import";
   const typeOnly =
     input.reference.kind === "static-type" ||
     input.reference.kind === "export-type" ||
@@ -70,6 +63,6 @@ export function subpathExported(input: {
     input.target.exportSurface.entries,
     input.subpath,
     condition,
-    typeOnly
+    typeOnly,
   ).available;
 }

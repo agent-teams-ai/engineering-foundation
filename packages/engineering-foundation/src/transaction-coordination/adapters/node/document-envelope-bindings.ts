@@ -1,11 +1,11 @@
 import {
   assertDocumentPlanDigests,
-  documentTemporaryPath
+  documentTemporaryPath,
 } from "@agent-teams/document-authoring/qualification";
 import type { InternalFoundationTransactionStatus } from "../../application/model/internal-transaction-status.js";
 import {
   classifyNodeTemporaryIdentity,
-  unverifiableDocumentTemporaryStatus
+  unverifiableDocumentTemporaryStatus,
 } from "./document-temporary-identity.js";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -26,7 +26,7 @@ function assertTemporaryBinding(options: {
     ? `${String(options.plan["destination"])}.foundation-document.tmp`
     : documentTemporaryPath(
         String(options.plan["destination"]),
-        String(options.plan["planDigest"])
+        String(options.plan["planDigest"]),
       );
   if (
     !isRecord(output) ||
@@ -64,29 +64,30 @@ function assertLifecycleBinding(options: {
   const hasTemporary = options.journal["ownedTemporary"] !== undefined;
   const hasPublication = options.journal["publicationIdentity"] !== undefined;
   const lifecycle = `${String(precondition["state"])}:${String(destination["state"])}:${String(hasTemporary)}:${String(hasPublication)}`;
-  const expected = options.journalVersion === 1
-    ? new Map([
-        ["PREPARED", new Set(["absent:pending:false:false", "absent:preexisting:false:false"])],
-        ["PUBLISHING", new Set(["absent:publishing:true:false"])],
-        ["PUBLISHED", new Set(["absent:published:false:false"])]
-      ])
-    : options.journalVersion === 2 ? new Map([
-        ["PREPARED", new Set(["absent:pending:false:false", "absent:preexisting:false:false"])],
-        ["PUBLISHING", new Set(["absent:publishing:true:false"])],
-        ["PUBLISHED", new Set(["absent:published:false:true"])]
-      ]) : new Map([
-        ["PREPARED", new Set(["absent:pending:false:false", "absent:preexisting:false:false"])],
-        ["MATERIALIZING", new Set(["absent:materializing:false:false"])],
-        ["PUBLISHING", new Set(["absent:publishing:true:false"])],
-        ["PUBLISHED", new Set(["absent:published:false:true"])]
-      ]);
+  const expected =
+    options.journalVersion === 1
+      ? new Map([
+          ["PREPARED", new Set(["absent:pending:false:false", "absent:preexisting:false:false"])],
+          ["PUBLISHING", new Set(["absent:publishing:true:false"])],
+          ["PUBLISHED", new Set(["absent:published:false:false"])],
+        ])
+      : options.journalVersion === 2
+        ? new Map([
+            ["PREPARED", new Set(["absent:pending:false:false", "absent:preexisting:false:false"])],
+            ["PUBLISHING", new Set(["absent:publishing:true:false"])],
+            ["PUBLISHED", new Set(["absent:published:false:true"])],
+          ])
+        : new Map([
+            ["PREPARED", new Set(["absent:pending:false:false", "absent:preexisting:false:false"])],
+            ["MATERIALIZING", new Set(["absent:materializing:false:false"])],
+            ["PUBLISHING", new Set(["absent:publishing:true:false"])],
+            ["PUBLISHED", new Set(["absent:published:false:true"])],
+          ]);
   if (expected.get(String(options.state))?.has(lifecycle) !== true) {
     throw new Error("Document transaction lifecycle binding is invalid.");
   }
   if (hasPublication) {
-    const identity = classifyNodeTemporaryIdentity(
-      options.journal["publicationIdentity"]
-    );
+    const identity = classifyNodeTemporaryIdentity(options.journal["publicationIdentity"]);
     if (identity !== "verifiable") {
       throw new Error("Document publication identity must be valid and nonzero.");
     }
@@ -109,13 +110,10 @@ export function inspectDocumentTransactionBindings(options: {
   const temporary = assertTemporaryBinding({
     journal: options.journal,
     plan: options.plan,
-    legacyDigestSemantics
+    legacyDigestSemantics,
   });
   assertLifecycleBinding(options);
   return temporary === "unverifiable"
-    ? unverifiableDocumentTemporaryStatus(
-        options.foundation,
-        options.format ?? "envelope-v2"
-      )
+    ? unverifiableDocumentTemporaryStatus(options.foundation, options.format ?? "envelope-v2")
     : undefined;
 }

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { copyFile, cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { copyFile, cp, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { delimiter, dirname, join, resolve } from "node:path";
 import test from "node:test";
@@ -259,6 +259,123 @@ test("normal lint gate stops on the installed doctor diagnostic before running s
   assert.notEqual(rejected.status, 0, rejected.stderr);
   assert.match(rejected.stdout, /TOOLCHAIN_TOOL_PIN_MISMATCH/u);
   await assert.rejects(readFile(join(root, "syntax-ran")), /ENOENT/u);
+});
+
+test("required format gate uses the installed Node tool, preserves files and propagates failure", async (t) => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), "TEST-foundation-format-gate-")));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const manifest: unknown = JSON.parse(
+    await readFile(join(repositoryRoot, "package.json"), "utf8"),
+  );
+  assert.ok(manifest !== null && typeof manifest === "object" && "scripts" in manifest);
+  const rawScripts = manifest.scripts;
+  assert.ok(rawScripts !== null && typeof rawScripts === "object");
+  const scripts: Partial<Record<string, string>> = {};
+  for (const [id, value] of Object.entries(rawScripts)) {
+    assert.equal(typeof value, "string");
+    assert.ok(typeof value === "string");
+    scripts[id] = value;
+  }
+  assert.deepEqual(TOOL_COMMANDS["format:check"], {
+    entry: "node_modules/stack-toolchain/dist/cli.js",
+    args: ["format:check"],
+    role: "node-tool",
+  });
+  assert.equal(scripts["format:check"], "node tools/repository-command.mts tool format:check");
+  for (const id of ["check", "check:fast"]) {
+    const pipeline = scripts[id];
+    assert.ok(pipeline !== undefined);
+    const commands = pipeline.split(" && ");
+    const gate = "node tools/repository-command.mts script format:check";
+    assert.equal(commands.filter((command) => command === gate).length, 1);
+    assert.ok(
+      commands.indexOf(gate) < commands.findIndex((command) => /script lint/u.test(command)),
+    );
+  }
+  await cp(join(repositoryRoot, "tools"), join(root, "tools"), { recursive: true });
+  const verifier = "packages/engineering-foundation/src/process-execution/node-runtime-verifier.ts";
+  await mkdir(dirname(join(root, verifier)), { recursive: true });
+  await copyFile(join(repositoryRoot, verifier), join(root, verifier));
+  const runtime = "architecture/foundation/repository-runtime.json";
+  await mkdir(dirname(join(root, runtime)), { recursive: true });
+  await copyFile(join(repositoryRoot, runtime), join(root, runtime));
+  await writeFile(join(root, "package.json"), JSON.stringify({ type: "module", scripts }));
+  const source = "export const unformatted={value:1};\n";
+  const config = '{"format":{"paths":["source.ts","!frozen.json"]}}\n';
+  await writeFile(join(root, "source.ts"), source);
+  await writeFile(join(root, "toolchain.config.json"), config);
+  const installed = join(root, "node_modules/stack-toolchain/dist/cli.js");
+  await mkdir(dirname(installed), { recursive: true });
+  await writeFile(
+    installed,
+    [
+      'if(process.argv.length!==3||process.argv[2]!=="format:check")process.exit(99);',
+      "console.log(JSON.stringify({node:process.execPath,args:process.argv.slice(2)}));",
+      'process.exitCode=Number(process.env["FORMAT_FIXTURE_EXIT"]??0);',
+    ].join("\n"),
+  );
+  const fallback = join(root, "packages/stack-toolchain/dist/cli.js");
+  await mkdir(dirname(fallback), { recursive: true });
+  await writeFile(
+    fallback,
+    'require("node:fs").writeFileSync("fallback-ran","wrong");process.exit(0);',
+  );
+  const invoke = (profile: string, exitCode: number) =>
+    spawnSync(
+      process.execPath,
+      [join(root, "tools/repository-command.mts"), "tool", "format:check"],
+      {
+        cwd: root,
+        encoding: "utf8",
+        timeout: 10_000,
+        env: {
+          ...process.env,
+          AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE: profile,
+          AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: process.execPath,
+          FORMAT_FIXTURE_EXIT: String(exitCode),
+          PATH: `${dirname(process.execPath)}${delimiter}${process.env["PATH"] ?? ""}`,
+        },
+      },
+    );
+  for (const profile of ["node", "bun"]) {
+    for (const exitCode of [0, 23]) {
+      const result = invoke(profile, exitCode);
+      assert.ifError(result.error);
+      assert.equal(result.status, exitCode, result.stderr);
+      assert.equal(
+        result.stdout.trim(),
+        JSON.stringify({ node: process.execPath, args: ["format:check"] }),
+      );
+      assert.equal(await readFile(join(root, "source.ts"), "utf8"), source);
+      assert.equal(await readFile(join(root, "toolchain.config.json"), "utf8"), config);
+    }
+  }
+  const scriptFailure = spawnSync(process.execPath, ["--run", "format:check"], {
+    cwd: root,
+    encoding: "utf8",
+    timeout: 10_000,
+    env: {
+      ...process.env,
+      AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE: "node",
+      AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: process.execPath,
+      FORMAT_FIXTURE_EXIT: "23",
+      PATH: `${dirname(process.execPath)}${delimiter}${process.env["PATH"] ?? ""}`,
+    },
+  });
+  assert.ifError(scriptFailure.error);
+  assert.notEqual(scriptFailure.status, 0, scriptFailure.stderr);
+  assert.equal(
+    scriptFailure.stdout.trim(),
+    JSON.stringify({ node: process.execPath, args: ["format:check"] }),
+  );
+  await rm(installed);
+  const absent = invoke("node", 0);
+  assert.notEqual(absent.status, 0);
+  assert.match(
+    absent.stderr,
+    /Tool entrypoint is unavailable: node_modules\/stack-toolchain\/dist\/cli.js/u,
+  );
+  await assert.rejects(readFile(join(root, "fallback-ran")), /ENOENT/u);
 });
 
 test("packed doctor report binds the installed version, exported pins and stable findings", async () => {

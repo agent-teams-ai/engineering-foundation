@@ -10,21 +10,21 @@ export interface AgentWorkflowInstructionsInput {
 }
 
 export function createAgentWorkflowInstructionsCommand(
-  reader: EffectiveInstructionsReader
+  reader: EffectiveInstructionsReader,
 ): (input: AgentWorkflowInstructionsInput) => Promise<void> {
   return async (input) => {
     const report = await resolveEffectiveInstructions(
       {
         consumerRoot: input.consumerRoot,
         targetPath: input.targetPath,
-        ...(input.signal === undefined ? {} : { signal: input.signal })
+        ...(input.signal === undefined ? {} : { signal: input.signal }),
       },
-      reader
+      reader,
     );
     process.stdout.write(
       input.format === "json"
         ? `${JSON.stringify(report, null, 2)}\n`
-        : renderEffectiveInstructionsReport(report)
+        : renderEffectiveInstructionsReport(report),
     );
   };
 }

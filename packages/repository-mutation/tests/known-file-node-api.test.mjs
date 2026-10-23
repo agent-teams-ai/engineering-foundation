@@ -6,13 +6,19 @@ import { join } from "node:path";
 import test from "node:test";
 
 const nodeBindings = [
-  ["", "applyKnownFileTransaction"], ["", "recoverKnownFileTransaction"],
+  ["", "applyKnownFileTransaction"],
+  ["", "recoverKnownFileTransaction"],
   ["", "inspectKnownFileTransactionBarrier"],
-  ["/node", "classifyExactFilePostimage"], ["/node", "cleanupIdentityMatchingOwnedTemporary"],
-  ["/node", "prepareExactSiblingTemporary"], ["/node", "publishAbsentFile"],
-  ["/node", "observeAtomicFileReplacement"], ["/node", "inspectRetiredTemporaryDuplicates"],
-  ["/qualification", "applyKnownFileTransaction"], ["/qualification", "recoverKnownFileTransaction"],
-  ["/qualification", "prepareExactSiblingTemporary"], ["/qualification", "publishAbsentFile"]
+  ["/node", "classifyExactFilePostimage"],
+  ["/node", "cleanupIdentityMatchingOwnedTemporary"],
+  ["/node", "prepareExactSiblingTemporary"],
+  ["/node", "publishAbsentFile"],
+  ["/node", "observeAtomicFileReplacement"],
+  ["/node", "inspectRetiredTemporaryDuplicates"],
+  ["/qualification", "applyKnownFileTransaction"],
+  ["/qualification", "recoverKnownFileTransaction"],
+  ["/qualification", "prepareExactSiblingTemporary"],
+  ["/qualification", "publishAbsentFile"],
 ];
 
 test("known-file Node factory forwards all thirteen operations without binding or changing completion", () => {
@@ -86,9 +92,11 @@ test("known-file Node factory forwards all thirteen operations without binding o
     }
     assert.equal(calls.length, names.length * 3);
   `;
-  const invocation = spawnSync(process.execPath, [
-    "--experimental-test-module-mocks", "--input-type=module", "--eval", script
-  ], { encoding: "utf8", timeout: 30_000, maxBuffer: 1024 * 1024 });
+  const invocation = spawnSync(
+    process.execPath,
+    ["--experimental-test-module-mocks", "--input-type=module", "--eval", script],
+    { encoding: "utf8", timeout: 30_000, maxBuffer: 1024 * 1024 },
+  );
   assert.equal(invocation.error, undefined, invocation.error?.message);
   assert.equal(invocation.status, 0, invocation.stdout + invocation.stderr);
 });
@@ -152,7 +160,9 @@ test("the actual workspace graph resolves the thirteen Node bindings to their ad
     }));
   `;
   const invocation = spawnSync(process.execPath, ["--input-type=module", "--eval", script], {
-    encoding: "utf8", timeout: 180_000, maxBuffer: 2 * 1024 * 1024
+    encoding: "utf8",
+    timeout: 180_000,
+    maxBuffer: 2 * 1024 * 1024,
   });
   assert.equal(invocation.error, undefined, invocation.error?.message);
   assert.equal(invocation.status, 0, invocation.stdout + invocation.stderr);
@@ -160,15 +170,32 @@ test("the actual workspace graph resolves the thirteen Node bindings to their ad
   t.diagnostic(JSON.stringify(evidence));
   assert.deepEqual(evidence.errors, []);
   assert.equal(evidence.groups.length, 6);
-  const adapter = "packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-api.ts";
+  const adapter =
+    "packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-api.ts";
   for (const group of evidence.groups) {
-    assert.ok(group.owners.every((owner) => owner !== null), JSON.stringify(group));
-    assert.ok(group.owners.some((owner) => owner.path === adapter && owner.layer === "adapters"), JSON.stringify(group));
+    assert.ok(
+      group.owners.every((owner) => owner !== null),
+      JSON.stringify(group),
+    );
+    assert.ok(
+      group.owners.some((owner) => owner.path === adapter && owner.layer === "adapters"),
+      JSON.stringify(group),
+    );
   }
   assert.equal(evidence.perBinding.length, 13);
   for (const binding of evidence.perBinding) {
-    assert.deepEqual(binding.owners, [{ path: adapter, module: "repository-mutation",
-      feature: "known-file-transactions", layer: "adapters" }], JSON.stringify(binding));
+    assert.deepEqual(
+      binding.owners,
+      [
+        {
+          path: adapter,
+          module: "repository-mutation",
+          feature: "known-file-transactions",
+          layer: "adapters",
+        },
+      ],
+      JSON.stringify(binding),
+    );
   }
 });
 
@@ -242,18 +269,26 @@ test("real domain and application imports reject all thirteen public Node bindin
     }));
   `;
   const invocation = spawnSync(process.execPath, ["--input-type=module", "--eval", script], {
-    encoding: "utf8", timeout: 180_000, maxBuffer: 2 * 1024 * 1024
+    encoding: "utf8",
+    timeout: 180_000,
+    maxBuffer: 2 * 1024 * 1024,
   });
   assert.equal(invocation.error, undefined, invocation.error?.message);
   assert.equal(invocation.status, 0, invocation.stdout + invocation.stderr);
   const evidence = JSON.parse(invocation.stdout);
   t.diagnostic(JSON.stringify(evidence));
   assert.deepEqual(evidence.errors, []);
-  assert.deepEqual(evidence.negatives.map(({ role }) => role), ["domain", "application"]);
-  const adapter = "packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-api.ts";
+  assert.deepEqual(
+    evidence.negatives.map(({ role }) => role),
+    ["domain", "application"],
+  );
+  const adapter =
+    "packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-api.ts";
   for (const negative of evidence.negatives) {
-    const expected = { code: "layer-direction", message:
-      `${negative.path} -> ${adapter}: ${negative.role} cannot import adapters.` };
+    const expected = {
+      code: "layer-direction",
+      message: `${negative.path} -> ${adapter}: ${negative.role} cannot import adapters.`,
+    };
     assert.equal(negative.perBinding.length, 13);
     for (const [index, binding] of negative.perBinding.entries()) {
       const [suffix, name] = nodeBindings[index];
@@ -261,10 +296,27 @@ test("real domain and application imports reject all thirteen public Node bindin
       assert.equal(binding.type, "ImportDeclaration");
       assert.equal(binding.specifier, "@agent-teams/repository-mutation" + suffix);
       assert.deepEqual(binding.names, [name]);
-      assert.deepEqual(binding.owners, [{ path: adapter, module: "repository-mutation",
-        feature: "known-file-transactions", layer: "adapters" }], JSON.stringify(binding));
-      assert.deepEqual(binding.problems, [expected], `${negative.role}: ${binding.specifier}#${name}`);
+      assert.deepEqual(
+        binding.owners,
+        [
+          {
+            path: adapter,
+            module: "repository-mutation",
+            feature: "known-file-transactions",
+            layer: "adapters",
+          },
+        ],
+        JSON.stringify(binding),
+      );
+      assert.deepEqual(
+        binding.problems,
+        [expected],
+        `${negative.role}: ${binding.specifier}#${name}`,
+      );
     }
-    assert.deepEqual(negative.problems, nodeBindings.map(() => expected));
+    assert.deepEqual(
+      negative.problems,
+      nodeBindings.map(() => expected),
+    );
   }
 });

@@ -20,9 +20,18 @@ test("failed compatibility operations drain a peer's writes before temporary cle
     const outcome = settleScaffoldingOperations([
       Promise.reject(failure),
       peer.promise.then(() => writeFile(join(root, "peer-result"), "complete")),
-    ]).catch(error => { settled = true; return error; });
-    await new Promise(resolve => { setImmediate(resolve); });
-    assert.equal(settled, false, "the failed operation cannot release its root while its peer writes");
+    ]).catch((error) => {
+      settled = true;
+      return error;
+    });
+    await new Promise((resolve) => {
+      setImmediate(resolve);
+    });
+    assert.equal(
+      settled,
+      false,
+      "the failed operation cannot release its root while its peer writes",
+    );
     peer.resolve();
     assert.equal(await outcome, failure);
     assert.equal(await readFile(join(root, "peer-result"), "utf8"), "complete");
@@ -35,8 +44,10 @@ test("failed compatibility operations drain a peer's writes before temporary cle
 test("compatibility preserves both concurrent failures after draining", async () => {
   const failures = [new Error("current failed"), new Error("historical failed")];
   const operations = [];
-  for (const failure of failures) { operations.push(Promise.reject(failure)); }
-  await assert.rejects(settleScaffoldingOperations(operations), error => {
+  for (const failure of failures) {
+    operations.push(Promise.reject(failure));
+  }
+  await assert.rejects(settleScaffoldingOperations(operations), (error) => {
     assert.ok(error instanceof AggregateError);
     assert.deepEqual(error.errors, failures);
     return true;
@@ -59,18 +70,9 @@ test("published compatibility ignores only release identity fields", () => {
     ...candidatePlanBody,
     planDigest: compatibilityDigest(candidatePlanBody),
   };
-  const projectedPublishedPlan = projectScaffoldPlanCompatibility(
-    publishedPlan,
-    "0.12.0",
-  );
-  const projectedCandidatePlan = projectScaffoldPlanCompatibility(
-    candidatePlan,
-    "0.13.0",
-  );
-  assert.deepEqual(
-    projectedCandidatePlan,
-    projectedPublishedPlan,
-  );
+  const projectedPublishedPlan = projectScaffoldPlanCompatibility(publishedPlan, "0.12.0");
+  const projectedCandidatePlan = projectScaffoldPlanCompatibility(candidatePlan, "0.13.0");
+  assert.deepEqual(projectedCandidatePlan, projectedPublishedPlan);
 
   const changedPlanBody = structuredClone(candidatePlanBody);
   changedPlanBody.operations[0].path = "changed.md";

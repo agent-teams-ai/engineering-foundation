@@ -32,5 +32,5 @@ export type KnownFileTransactionFaultPoint =
     };
 
 export type KnownFileTransactionFaultInjector = (
-  point: KnownFileTransactionFaultPoint
+  point: KnownFileTransactionFaultPoint,
 ) => Promise<void> | void;

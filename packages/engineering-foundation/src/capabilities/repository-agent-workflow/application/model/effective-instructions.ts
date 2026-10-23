@@ -5,7 +5,7 @@ export const EFFECTIVE_INSTRUCTION_SEMANTICS =
 
 export const EFFECTIVE_INSTRUCTION_CANDIDATE_NAMES = Object.freeze([
   "AGENTS.override.md",
-  "AGENTS.md"
+  "AGENTS.md",
 ] as const);
 
 export type EffectiveInstructionCandidateObservation =

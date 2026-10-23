@@ -1,3 +1,21 @@
+import {
+  ACTION_SHA,
+  DEPENDENCY_REVIEW_SHA,
+  SBOM_SHA,
+  REUSABLE_WORKFLOW_SHA,
+  CONTAINER_DIGEST,
+  JOB_CONTAINER_IMAGE,
+  SERVICE_CONTAINER_IMAGE,
+  COMPOSITE_ACTION_SHA,
+  TRANSITIVE_ACTION_SHA,
+  ACTIONLINT_RUNNER_SHA,
+  UNTRUSTED_SHA,
+  UNUSED_SHA,
+  ZIZMOR_RUNNER_SHA,
+  TOOL_CONFIGS,
+  ciWorkflow,
+  compositeAction,
+} from "./support/security-workflow-fixture.ts";
 import { registerSecurityObservationPortTests } from "./support/security-observation-ports.mjs";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -16,20 +34,6 @@ registerSecurityObservationPortTests();
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const cliPath = join(repositoryRoot, "packages", "engineering-foundation", "dist", "cli.js");
 
-const ACTION_SHA = "1111111111111111111111111111111111111111";
-const DEPENDENCY_REVIEW_SHA = "2222222222222222222222222222222222222222";
-const SBOM_SHA = "3333333333333333333333333333333333333333";
-const REUSABLE_WORKFLOW_SHA = "4444444444444444444444444444444444444444";
-const CONTAINER_DIGEST = "a".repeat(64);
-const JOB_CONTAINER_IMAGE = `ghcr.io/example/build@sha256:${CONTAINER_DIGEST}`;
-const SERVICE_CONTAINER_IMAGE = `ghcr.io/example/database@sha256:${"b".repeat(64)}`;
-const COMPOSITE_ACTION_SHA = "b".repeat(40);
-const TRANSITIVE_ACTION_SHA = "c".repeat(40);
-const ACTIONLINT_RUNNER_SHA = "d".repeat(40);
-const UNTRUSTED_SHA = "f".repeat(40);
-const UNUSED_SHA = "e".repeat(40);
-const ZIZMOR_RUNNER_SHA = "9".repeat(40);
-
 function allowedUse(uses, transitiveUses = []) {
   return { uses, transitiveUses };
 }
@@ -46,115 +50,6 @@ const ALLOWED_USES = [
     allowedUse(`example/transitive-action@${TRANSITIVE_ACTION_SHA}`),
   ]),
 ];
-
-const TOOL_CONFIGS = {
-  actionlint: {
-    configPath: ".foundation/tool-config/actionlint.yaml",
-    evidencePath: ".foundation/tool-evidence/actionlint.json",
-    invocationUse: `example/actionlint-runner@${ACTIONLINT_RUNNER_SHA}`,
-    jobId: "actionlint",
-    resultPath: ".foundation/tool-results/actionlint.json",
-    version: "1.7.7",
-    workflowPath: ".github/workflows/ci.yml",
-  },
-  zizmor: {
-    configPath: ".foundation/tool-config/zizmor.yaml",
-    evidencePath: ".foundation/tool-evidence/zizmor.json",
-    invocationUse: `example/zizmor-runner@${ZIZMOR_RUNNER_SHA}`,
-    jobId: "zizmor",
-    resultPath: ".foundation/tool-results/zizmor.json",
-    version: "1.16.1",
-    workflowPath: ".github/workflows/ci.yml",
-  },
-};
-
-function ciWorkflow({
-  actionlintNonBlocking = false,
-  actionlintStepConditional = false,
-  actionlintStepNonBlocking = false,
-  dependencyReview = true,
-  extraStep = "",
-  installBeforeDependencyReview = false,
-  jobContainerImage,
-  pullRequest = true,
-  serviceContainerImage,
-}) {
-  return [
-    "name: CI",
-    "on:",
-    ...(pullRequest ? ["  pull_request:"] : ["  push:"]),
-    "permissions:",
-    "  contents: read",
-    "jobs:",
-    ...(dependencyReview
-      ? [
-          "  dependency-review:",
-          "    runs-on: ubuntu-24.04",
-          "    steps:",
-          `      - uses: actions/checkout@${ACTION_SHA}`,
-          ...(installBeforeDependencyReview ? ["      - run: pnpm install --frozen-lockfile"] : []),
-          `      - uses: actions/dependency-review-action@${DEPENDENCY_REVIEW_SHA}`,
-          "        with:",
-          "          base-ref: refs/heads/main",
-          "          head-ref: refs/pull/current/head",
-          "          fail-on-severity: moderate",
-          "          vulnerability-check: true",
-          "          warn-only: false",
-        ]
-      : []),
-    "  check:",
-    ...(dependencyReview ? ["    needs: dependency-review"] : []),
-    "    runs-on: ubuntu-24.04",
-    ...(jobContainerImage === undefined ? [] : [`    container: ${jobContainerImage}`]),
-    ...(serviceContainerImage === undefined
-      ? []
-      : [
-          "    services:",
-          "      database:",
-          `        image: ${serviceContainerImage}`,
-        ]),
-    "    steps:",
-    `      - uses: actions/checkout@${ACTION_SHA}`,
-    `      - uses: anchore/sbom-action@${SBOM_SHA}`,
-    `      - uses: docker://ghcr.io/example/workflow-tool@sha256:${CONTAINER_DIGEST}`,
-    "      - uses: ./.github/actions/checked-in-action",
-    ...(extraStep === "" ? [] : [extraStep]),
-    "  reusable:",
-    ...(dependencyReview ? ["    needs: dependency-review"] : []),
-    `    uses: example/reusable/.github/workflows/release.yml@${REUSABLE_WORKFLOW_SHA}`,
-    "  actionlint:",
-    "    runs-on: ubuntu-24.04",
-    ...(actionlintNonBlocking ? ["    continue-on-error: true"] : []),
-    "    steps:",
-    ...(actionlintStepConditional ? ["      - if: always()"] : []),
-    ...(actionlintStepConditional
-      ? [
-          `        uses: ${TOOL_CONFIGS.actionlint.invocationUse}`,
-          ...(actionlintStepNonBlocking ? ["        continue-on-error: true"] : []),
-        ]
-      : [
-          `      - uses: ${TOOL_CONFIGS.actionlint.invocationUse}`,
-          ...(actionlintStepNonBlocking ? ["        continue-on-error: true"] : []),
-        ]),
-    "  zizmor:",
-    "    runs-on: ubuntu-24.04",
-    "    steps:",
-    `      - uses: ${TOOL_CONFIGS.zizmor.invocationUse}`,
-    "",
-  ].join("\n");
-}
-
-function compositeAction(use, run) {
-  return [
-    "name: Checked-in action",
-    "runs:",
-    "  using: composite",
-    "  steps:",
-    `    - uses: ${use}`,
-    ...(run === undefined ? [] : [`    - run: ${run}`]),
-    "",
-  ].join("\n");
-}
 
 function toolEvidenceConfig({
   actionlintInvocationUse,
@@ -329,8 +224,7 @@ async function withConsumer(options, callback) {
       "architecture/foundation/repository-security-baseline.yaml",
       `${capabilityConfig({
         allowedContainerImages: options.allowedContainerImages ?? [],
-        allowedPullRequestTargetWorkflows:
-          options.allowedPullRequestTargetWorkflows,
+        allowedPullRequestTargetWorkflows: options.allowedPullRequestTargetWorkflows,
         allowedUses: options.allowedUses ?? ALLOWED_USES,
         actionlintInvocationUse: options.actionlintInvocationUse,
         actionlintRollout: options.actionlintRollout,
@@ -388,16 +282,27 @@ test("requires Dependency Review in the declared required CI workflow", async ()
       );
       // The Linux CI driver must reject an actual non-SDK failure before archive acquisition.
       if (process.platform === "linux") {
-        const ci = parseYaml(await readFile(join(repositoryRoot, ".github/workflows/ci.yml"), "utf8"));
-        const step = ci.jobs["linux-static"].steps.find(candidate => candidate.id === "foundation-check");
-        assert.match(step.run, /node scripts\/public-api-native-migration-cli\.ts qualify --ordinary-report "\$RUNNER_TEMP\/foundation-check\.json" --migration-report "\$RUNNER_TEMP\/native-api-migration\.json"/u);
-        const { qualifyOrdinaryResult } = await import("../scripts/public-api-native-migration-cli.ts");
+        const ci = parseYaml(
+          await readFile(join(repositoryRoot, ".github/workflows/ci.yml"), "utf8"),
+        );
+        const step = ci.jobs["linux-static"].steps.find(
+          (candidate) => candidate.id === "foundation-check",
+        );
+        assert.match(
+          step.run,
+          /node scripts\/public-api-native-migration-cli\.ts qualify --ordinary-report "\$RUNNER_TEMP\/foundation-check\.json" --migration-report "\$RUNNER_TEMP\/native-api-migration\.json"/u,
+        );
+        const { qualifyOrdinaryResult } =
+          await import("../scripts/public-api-native-migration-cli.ts");
         let acquired = false;
         const original = { stdout: result.stdout, stderr: result.stderr, exitCode: result.status };
-        await assert.rejects(qualifyOrdinaryResult(original, async () => {
-          acquired = true;
-          assert.fail("an unrelated security failure must not acquire migration archives");
-        }), /ordinary full report is not the exact retained mismatch result/u);
+        await assert.rejects(
+          qualifyOrdinaryResult(original, async () => {
+            acquired = true;
+            assert.fail("an unrelated security failure must not acquire migration archives");
+          }),
+          /ordinary full report is not the exact retained mismatch result/u,
+        );
         assert.equal(acquired, false);
         assert.deepEqual(original, { stdout: result.stdout, stderr: result.stderr, exitCode: 1 });
       }
@@ -450,9 +355,7 @@ test("allows only an explicitly reviewed pull_request_target workflow path", asy
 test("rejects a stale pull_request_target workflow declaration", async () => {
   await withConsumer(
     {
-      allowedPullRequestTargetWorkflows: [
-        ".github/workflows/missing-reviewrouter.yml",
-      ],
+      allowedPullRequestTargetWorkflows: [".github/workflows/missing-reviewrouter.yml"],
       includeTools: false,
     },
     async (consumerRoot) => {
@@ -468,38 +371,75 @@ test("rejects a stale pull_request_target workflow declaration", async () => {
 
 test("repository CI preserves admitted runtime security scans and Node qualification gates", async () => {
   const sourceRoot = await repositorySourceRoot();
-  const [workflow, manifest, policy, runtimeBytes, { TOOL_COMMANDS }, profileDriver, securityToolchain] = await Promise.all([
-    readFile(join(repositoryRoot, ".github", "workflows", "ci.yml"), "utf8"),
-    readFile(join(sourceRoot, "package.json"), "utf8"),
-    readFile(join(repositoryRoot, "architecture/foundation/repository-security-baseline.yaml"), "utf8"),
-    readFile(join(repositoryRoot, "architecture/foundation/repository-runtime.json"), "utf8"),
-    import("../tools/repository-tool-catalog.ts"),
-    readFile(join(repositoryRoot, "tools/dev.mts"), "utf8"),
-    readFile(join(repositoryRoot, "scripts/security-toolchain.mjs"), "utf8"),
-  ]);
+  const [workflow, manifest, policy, runtimeBytes, dispatcher, profileDriver, securityToolchain] =
+    await Promise.all([
+      readFile(join(repositoryRoot, ".github", "workflows", "ci.yml"), "utf8"),
+      readFile(join(sourceRoot, "package.json"), "utf8"),
+      readFile(
+        join(repositoryRoot, "architecture/foundation/repository-security-baseline.yaml"),
+        "utf8",
+      ),
+      readFile(join(repositoryRoot, "architecture/foundation/repository-runtime.json"), "utf8"),
+      readFile(join(repositoryRoot, "tools/repository-command.mts"), "utf8"),
+      readFile(join(repositoryRoot, "tools/dev.mts"), "utf8"),
+      readFile(join(repositoryRoot, "scripts/security-toolchain.mjs"), "utf8"),
+    ]);
   const scripts = JSON.parse(manifest).scripts;
   const ci = parseYaml(workflow);
 
-  assert.match(ci.jobs["dependency-review"].steps[1].uses, /^actions\/dependency-review-action@[a-f0-9]{40}$/u);
-  assert.deepEqual(ci.jobs["macos-qualification"].needs, ["dependency-review", "macos-native", "macos-package"]);
+  assert.match(
+    ci.jobs["dependency-review"].steps[1].uses,
+    /^actions\/dependency-review-action@[a-f0-9]{40}$/u,
+  );
+  assert.deepEqual(ci.jobs["macos-qualification"].needs, [
+    "dependency-review",
+    "macos-native",
+    "macos-package",
+  ]);
   const macosSteps = ci.jobs["macos-native"].steps;
   assert.ok(macosSteps.some(({ run }) => run === "bun tools/dev.mts test:qgr:lifecycle:built"));
-  const macosMutationQualification = macosSteps.find(({ name }) => name === "Qualify repository mutation, scaffolding, and durable document writing")?.run;
-  assert.match(macosMutationQualification, /tests\/known-file-transaction-node\.test\.mjs[\s\S]*tests\/known-file-transaction-plan\.test\.mjs[\s\S]*tests\/scaffolding-recovery-scope\.test\.mjs/u);
+  const macosMutationQualification = macosSteps.find(
+    ({ name }) => name === "Qualify repository mutation, scaffolding, and durable document writing",
+  )?.run;
+  assert.match(
+    macosMutationQualification,
+    /tests\/known-file-transaction-node\.test\.mjs[\s\S]*tests\/known-file-transaction-plan\.test\.mjs[\s\S]*tests\/scaffolding-recovery-scope\.test\.mjs/u,
+  );
   for (const [jobId, job] of Object.entries(ci.jobs)) {
-    if (jobId === "dependency-review") { continue; }
-    assert.ok(Array.isArray(job.needs) ? job.needs.includes("dependency-review") : job.needs === "dependency-review",
-      `${jobId} must depend directly on dependency-review`);
+    if (jobId === "dependency-review") {
+      continue;
+    }
+    assert.ok(
+      Array.isArray(job.needs)
+        ? job.needs.includes("dependency-review")
+        : job.needs === "dependency-review",
+      `${jobId} must depend directly on dependency-review`,
+    );
   }
   const staticSteps = ci.jobs["linux-static"].steps;
   const installIndex = staticSteps.findIndex(({ run }) => run === "bun tools/dev.mts install");
   const buildIndex = staticSteps.findIndex(({ run }) => run === "bun tools/dev.mts build");
-  const securityIndex = staticSteps.findIndex(({ run }) => run === "bun tools/dev.mts security:workflows");
+  const securityIndex = staticSteps.findIndex(
+    ({ run }) => run === "bun tools/dev.mts security:workflows",
+  );
   assert.ok(installIndex > 0 && buildIndex > installIndex && securityIndex > buildIndex);
-  assert.ok(staticSteps.slice(0, installIndex).some(({ uses, with: options }) =>
-    uses?.startsWith("actions/setup-node@") && options?.["node-version-file"] === ".node-version"));
-  assert.ok(staticSteps.slice(0, installIndex).some(({ uses, with: options }) =>
-    uses?.startsWith("oven-sh/setup-bun@") && options?.["bun-version"] === "1.4.3"));
+  assert.ok(
+    staticSteps
+      .slice(0, installIndex)
+      .some(
+        ({ uses, with: options }) =>
+          uses?.startsWith("actions/setup-node@") &&
+          options?.["node-version-file"] === ".node-version",
+      ),
+  );
+  assert.ok(
+    staticSteps
+      .slice(0, installIndex)
+      .some(
+        ({ uses, with: options }) =>
+          uses?.startsWith("oven-sh/setup-bun@") && options?.["bun-version"] === "1.4.3",
+      ),
+  );
   const runtime = JSON.parse(runtimeBytes);
   assert.equal(JSON.parse(manifest).packageManager, "bun@1.4.3");
   assert.equal(runtime.defaultProfile, "bun");
@@ -507,23 +447,65 @@ test("repository CI preserves admitted runtime security scans and Node qualifica
   assert.equal(runtime.install.dependencyScripts, false);
   assert.deepEqual(runtime.install.nativeInitialization, ["@ast-grep/cli", "nx"]);
   assert.deepEqual(runtime.install.disabledDependencyScripts, ["esbuild"]);
-  assert.match(profileDriver, /\["install", "--frozen-lockfile", "--ignore-scripts", "--linker=isolated"\]/u);
-  assert.match(profileDriver, /\["install", "--frozen-lockfile", "--ignore-scripts", "--engine-strict"\]/u);
-  assert.match(profileDriver, /const qualified = await run\([\s\S]*?tools\.node,[\s\S]*?qualify-native-tools\.mts[\s\S]*?qualified === 0[\s\S]*?dependencies-installed-check\.mts/u);
+  assert.match(
+    profileDriver,
+    /\["install", "--frozen-lockfile", "--ignore-scripts", "--linker=isolated"\]/u,
+  );
+  assert.match(
+    profileDriver,
+    /\["install", "--frozen-lockfile", "--ignore-scripts", "--engine-strict"\]/u,
+  );
+  assert.match(
+    profileDriver,
+    /const qualified = await run\([\s\S]*?tools\.node,[\s\S]*?qualify-native-tools\.mts[\s\S]*?qualified === 0[\s\S]*?dependencies-installed-check\.mts/u,
+  );
   const compatibilitySteps = ci.jobs["node26-compatibility"].steps;
-  const projectionInstall = compatibilitySteps.find(({ run }) => run === "node tools/dev.mts --profile node install");
+  const projectionInstall = compatibilitySteps.find(
+    ({ run }) => run === "node tools/dev.mts --profile node install",
+  );
   assert.equal(projectionInstall?.env.AGENT_TEAMS_FOUNDATION_SOURCE_SHA, "${{ github.sha }}");
-  assert.ok(compatibilitySteps.some(({ run, "working-directory": cwd }) => run === "pnpm dependencies:peers:check" && cwd === ".worker-tmp/profiles/node-${{ github.sha }}"));
+  assert.ok(
+    compatibilitySteps.some(
+      ({ run, "working-directory": cwd }) =>
+        run === "pnpm dependencies:peers:check" &&
+        cwd === ".worker-tmp/profiles/node-${{ github.sha }}",
+    ),
+  );
   const securityPolicy = parseYaml(policy);
   assert.equal(securityPolicy.dependencyReview.workflowPath, ".github/workflows/pr-feedback.yml");
   assert.equal(securityPolicy.sbomWorkflow, ".github/workflows/pr-feedback.yml");
-  assert.equal(scripts["security:workflows"], "node tools/repository-command.mts tool security:workflows");
-  assert.deepEqual(TOOL_COMMANDS["security:workflows"], { entry: "scripts/security-toolchain.mjs", args: [], role: "runtime" });
-  assert.deepEqual(TOOL_COMMANDS["test:qgr:lifecycle:built"], { entry: "scripts/run-selected-tests.mjs", args: ["tests/quality-gate-runner.test.mjs", "tests/quality-gate-runner-lifecycle.test.mjs", "tests/quality-gate-runner-real-pnpm-lifecycle.test.mjs", "tests/quality-gate-runner-remediation.test.mjs"], role: "node-qualification" });
-  assert.match(await readFile(join(repositoryRoot, "tools/repository-command.mts"), "utf8"), /paths\.length > 0 && command\.acceptsPaths !== true/u);
+  assert.equal(
+    scripts["security:workflows"],
+    "node tools/repository-command.mts tool security:workflows",
+  );
+  const { TOOL_COMMANDS } = await import("../tools/repository-tool-catalog.ts");
+  assert.deepEqual(TOOL_COMMANDS["security:workflows"], {
+    entry: "scripts/security-toolchain.mjs",
+    args: [],
+    role: "runtime",
+  });
+  assert.deepEqual(TOOL_COMMANDS["test:qgr:lifecycle:built"], {
+    entry: "scripts/run-selected-tests.mjs",
+    args: [
+      "tests/quality-gate-runner.test.mjs",
+      "tests/quality-gate-runner-lifecycle.test.mjs",
+      "tests/quality-gate-runner-real-pnpm-lifecycle.test.mjs",
+      "tests/quality-gate-runner-remediation.test.mjs",
+    ],
+    role: "node-qualification",
+  });
+  assert.match(dispatcher, /from "\.\/repository-tool-catalog\.ts"/u);
+  assert.match(dispatcher, /TOOL_COMMANDS\[id\]/u);
+  assert.match(dispatcher, /paths\.length > 0 && command\.acceptsPaths !== true/u);
   assert.match(securityToolchain, /\["exec", "--", "actionlint"\]/u);
-  assert.match(securityToolchain, /"zizmor",[\s\S]*?"--offline",[\s\S]*?"--strict-collection",[\s\S]*?"\."\s*\]/u);
-  assert.equal(ci.jobs.check.if, "${{ always() && (github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:'))) }}");
+  assert.match(
+    securityToolchain,
+    /"zizmor",[\s\S]*?"--offline",[\s\S]*?"--strict-collection",[\s\S]*?"\."\s*,?\s*\]/u,
+  );
+  assert.equal(
+    ci.jobs.check.if,
+    "${{ always() && (github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:'))) }}",
+  );
   assert.match(ci.jobs.check.steps[0].uses, /^re-actors\/alls-green@[a-f0-9]{40}$/u);
   assert.doesNotMatch(workflow, /aquaproj\/aqua-installer/u);
   assert.doesNotMatch(policy, /aquaproj\/aqua-installer/u);
@@ -691,17 +673,14 @@ test("rejects a failed zizmor evidence envelope", async () => {
 });
 
 test("requires a blocking actionlint declaration to target a blocking external CI job", async () => {
-  await withConsumer(
-    { actionlintNonBlocking: true, includeTools: true },
-    async (consumerRoot) => {
-      const { result, report } = runCheck(consumerRoot);
-      assert.equal(result.status, 1);
-      assert.deepEqual(
-        securityDiagnostics(report).map(({ ruleId }) => ruleId),
-        ["repository.security-baseline.tool-evidence-rollout-mismatch"],
-      );
-    },
-  );
+  await withConsumer({ actionlintNonBlocking: true, includeTools: true }, async (consumerRoot) => {
+    const { result, report } = runCheck(consumerRoot);
+    assert.equal(result.status, 1);
+    assert.deepEqual(
+      securityDiagnostics(report).map(({ ruleId }) => ruleId),
+      ["repository.security-baseline.tool-evidence-rollout-mismatch"],
+    );
+  });
 });
 
 test("requires a blocking actionlint invocation to be unconditional", async () => {
@@ -733,18 +712,15 @@ test("requires a blocking actionlint invocation to fail the job", async () => {
 });
 
 test("requires a blocking external tool job to run for every pull request", async () => {
-  await withConsumer(
-    { includeTools: true, pullRequest: false },
-    async (consumerRoot) => {
-      const { result, report } = runCheck(consumerRoot);
-      assert.equal(result.status, 1);
-      assert.ok(
-        securityDiagnostics(report).some(
-          ({ ruleId }) => ruleId === "repository.security-baseline.tool-evidence-rollout-mismatch",
-        ),
-      );
-    },
-  );
+  await withConsumer({ includeTools: true, pullRequest: false }, async (consumerRoot) => {
+    const { result, report } = runCheck(consumerRoot);
+    assert.equal(result.status, 1);
+    assert.ok(
+      securityDiagnostics(report).some(
+        ({ ruleId }) => ruleId === "repository.security-baseline.tool-evidence-rollout-mismatch",
+      ),
+    );
+  });
 });
 
 test("binds actionlint evidence to the reviewed invocation in its declared CI job", async () => {
@@ -816,7 +792,7 @@ test("rejects actionlint evidence when its opaque result artifact changes", asyn
   await withConsumer({ includeTools: true }, async (consumerRoot) => {
     await writeFile(
       join(consumerRoot, TOOL_CONFIGS.actionlint.resultPath),
-      "{\"tool\":\"actionlint\",\"diagnostics\":[\"changed-after-evidence\"]}\n",
+      '{"tool":"actionlint","diagnostics":["changed-after-evidence"]}\n',
       "utf8",
     );
     const { result, report } = runCheck(consumerRoot);

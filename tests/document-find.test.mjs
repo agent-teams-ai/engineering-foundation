@@ -8,9 +8,7 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import { assertSchema } from "../packages/document-authoring/dist/document-authoring/adapters/node/schema-catalog.js";
-import {
-  findDocumentationDocuments,
-} from "../packages/document-authoring/dist/index.js";
+import { findDocumentationDocuments } from "../packages/document-authoring/dist/index.js";
 import { FindDocuments } from "../packages/document-authoring/dist/document-authoring/application/use-cases/find-documents.js";
 import {
   documentFindFailure,
@@ -20,23 +18,26 @@ import { DocumentCatalogError } from "../packages/document-authoring/dist/docume
 import { DocumentAuthoringError } from "../packages/document-authoring/dist/document-authoring/application/model/errors.js";
 import { assertDocsCommandEnvelopeSchema } from "../packages/docs-protocol/dist/features/docs-command/adapters/outbound/docs-command-envelope-schema-validator.js";
 
-const cliPath = fileURLToPath(
-  new URL("../packages/docs-protocol/dist/cli.js", import.meta.url),
-);
+const cliPath = fileURLToPath(new URL("../packages/docs-protocol/dist/cli.js", import.meta.url));
 
 test("find classifies consumer errors without trusting lookalike error codes", () => {
   const message = "Invalid consumer. ".repeat(100);
   const invalid = documentFindFailure(new DocumentAuthoringError("CONSUMER_INVALID", message));
   assert.equal(invalid.exitCode, 2);
   assert.equal(invalid.envelope.outcome, "invalid-input");
-  assert.deepEqual(invalid.envelope.diagnostics, [{
-    message: message.slice(0, 1_000), phase: "input",
-    ruleId: "document.query.invalid-input", severity: "error", subject: "document.query"
-  }]);
+  assert.deepEqual(invalid.envelope.diagnostics, [
+    {
+      message: message.slice(0, 1_000),
+      phase: "input",
+      ruleId: "document.query.invalid-input",
+      severity: "error",
+      subject: "document.query",
+    },
+  ]);
   for (const error of [
     new Error(message),
     Object.assign(new Error(message), { code: "CONSUMER_INVALID" }),
-    { code: "CONSUMER_INVALID", message }
+    { code: "CONSUMER_INVALID", message },
   ]) {
     const failed = documentFindFailure(error);
     assert.equal(failed.exitCode, 3);
@@ -218,22 +219,32 @@ test("finds literal Unicode text across all specified fields with AND filters", 
       "BODY NEEDLE",
     ]) {
       const result = await findDocumentationDocuments(request(root, { text }));
-      assert.deepEqual(result.documents.map(({ id }) => id), ["guide.zeta"]);
+      assert.deepEqual(
+        result.documents.map(({ id }) => id),
+        ["guide.zeta"],
+      );
     }
-    const filtered = await findDocumentationDocuments(request(root, {
-      filters: {
-        id: "guide.zeta",
-        owner: "product",
-        status: "draft",
-        type: "runbook",
-      },
-      text: "deployment",
-    }));
-    assert.deepEqual(filtered.documents.map(({ id }) => id), ["guide.zeta"]);
-    const rejectedByAnd = await findDocumentationDocuments(request(root, {
-      filters: { owner: "architecture", type: "runbook" },
-      text: "deployment",
-    }));
+    const filtered = await findDocumentationDocuments(
+      request(root, {
+        filters: {
+          id: "guide.zeta",
+          owner: "product",
+          status: "draft",
+          type: "runbook",
+        },
+        text: "deployment",
+      }),
+    );
+    assert.deepEqual(
+      filtered.documents.map(({ id }) => id),
+      ["guide.zeta"],
+    );
+    const rejectedByAnd = await findDocumentationDocuments(
+      request(root, {
+        filters: { owner: "architecture", type: "runbook" },
+        text: "deployment",
+      }),
+    );
     assert.equal(rejectedByAnd.matches, 0);
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -293,24 +304,17 @@ test("Docs Protocol CLI emits one schema-valid JSON object and never writes an i
         documentSource({ id: "guide.valid", title: "Valid guide" }),
         "utf8",
       ),
-      writeFile(
-        join(root, "docs", "content", "invalid.md"),
-        "# Missing frontmatter\n",
-        "utf8",
-      ),
+      writeFile(join(root, "docs", "content", "invalid.md"), "# Missing frontmatter\n", "utf8"),
     ]);
     const before = await Promise.all([
       readFile(join(root, "docs", "content", "valid.md")),
       readdir(root, { recursive: true }),
     ]);
-    const result = spawnSync(process.execPath, [
-      cliPath,
-      "find",
-      "valid",
-      "--consumer",
-      root,
-      "--json",
-    ], { encoding: "utf8", env: { ...process.env, LANG: "tr_TR.UTF-8" } });
+    const result = spawnSync(
+      process.execPath,
+      [cliPath, "find", "valid", "--consumer", root, "--json"],
+      { encoding: "utf8", env: { ...process.env, LANG: "tr_TR.UTF-8" } },
+    );
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.stderr, "");
     const output = JSON.parse(result.stdout);
@@ -318,15 +322,14 @@ test("Docs Protocol CLI emits one schema-valid JSON object and never writes an i
     await assertDocsCommandEnvelopeSchema(output);
     assert.equal(output.outcome, "success");
     assert.equal(output.result.matches, 1);
-    assert.deepEqual(output.result.documents.map(({ id }) => id), ["guide.valid"]);
+    assert.deepEqual(
+      output.result.documents.map(({ id }) => id),
+      ["guide.valid"],
+    );
     assert.deepEqual(output.diagnostics, []);
-    const human = spawnSync(process.execPath, [
-      cliPath,
-      "find",
-      "valid",
-      "--consumer",
-      root,
-    ], { encoding: "utf8" });
+    const human = spawnSync(process.execPath, [cliPath, "find", "valid", "--consumer", root], {
+      encoding: "utf8",
+    });
     assert.equal(human.status, 0, human.stderr);
     assert.equal(human.stderr, "");
     assert.match(human.stdout, /^docs\.find: success\nMatches: 1\n/u);
@@ -364,20 +367,12 @@ test("bounds schema output and maps closed failure outcomes deterministically", 
   assert.equal(partial.envelope.result.matches, 3_000);
   assert.equal(partial.envelope.result.documents.length, 2_048);
   assert.equal(partial.envelope.diagnostics.length, 256);
-  assert.equal(
-    partial.envelope.diagnostics.at(-1).ruleId,
-    "document.query.diagnostics-truncated",
-  );
-  await assertSchema(
-    "document-command-envelope/v1",
-    partial.envelope,
-    "bounded-docs-find",
-  );
+  assert.equal(partial.envelope.diagnostics.at(-1).ruleId, "document.query.diagnostics-truncated");
+  await assertSchema("document-command-envelope/v1", partial.envelope, "bounded-docs-find");
 
-  const stale = documentFindFailure(new DocumentCatalogError(
-    "DOCUMENT_CATALOG_AUTHORITY_CHANGED",
-    "Authority changed.",
-  ));
+  const stale = documentFindFailure(
+    new DocumentCatalogError("DOCUMENT_CATALOG_AUTHORITY_CHANGED", "Authority changed."),
+  );
   assert.equal(stale.exitCode, 1);
   assert.equal(stale.envelope.outcome, "authority-stale");
   await assertSchema("document-command-envelope/v1", stale.envelope, "stale-docs-find");
@@ -396,14 +391,11 @@ test("CLI reports zero matches as success and invalid JSON invocations structura
       documentSource({ id: "guide.valid" }),
       "utf8",
     );
-    const zero = spawnSync(process.execPath, [
-      cliPath,
-      "find",
-      "absent",
-      "--consumer",
-      root,
-      "--json",
-    ], { encoding: "utf8" });
+    const zero = spawnSync(
+      process.execPath,
+      [cliPath, "find", "absent", "--consumer", root, "--json"],
+      { encoding: "utf8" },
+    );
     assert.equal(zero.status, 0, zero.stderr);
     assert.deepEqual(JSON.parse(zero.stdout).result, {
       kind: "find",
@@ -426,13 +418,11 @@ test("CLI reports zero matches as success and invalid JSON invocations structura
       await assertDocsCommandEnvelopeSchema(output);
     }
 
-    const missingConsumer = spawnSync(process.execPath, [
-      cliPath,
-      "find",
-      "--consumer",
-      join(root, "missing"),
-      "--json",
-    ], { encoding: "utf8" });
+    const missingConsumer = spawnSync(
+      process.execPath,
+      [cliPath, "find", "--consumer", join(root, "missing"), "--json"],
+      { encoding: "utf8" },
+    );
     assert.equal(missingConsumer.status, 3);
     assert.equal(missingConsumer.stderr, "");
     const missingOutput = JSON.parse(missingConsumer.stdout);
@@ -451,14 +441,11 @@ test("excludes non-portable document paths from schema-bound command output", as
       documentSource({ id: "guide.unicode", title: "Unicode path" }),
       "utf8",
     );
-    const result = spawnSync(process.execPath, [
-      cliPath,
-      "find",
-      "unicode",
-      "--consumer",
-      root,
-      "--json",
-    ], { encoding: "utf8" });
+    const result = spawnSync(
+      process.execPath,
+      [cliPath, "find", "unicode", "--consumer", root, "--json"],
+      { encoding: "utf8" },
+    );
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.stderr, "");
     const output = JSON.parse(result.stdout);
@@ -509,43 +496,54 @@ function searchSnapshot(count) {
 }
 
 const advisoryTest = process.env.FOUNDATION_PERFORMANCE === "1" ? test : test.skip;
-const performanceDocumentCounts = process.env.FOUNDATION_PERFORMANCE_COUNTS === undefined
-  ? [100, 1_000, 5_000]
-  : process.env.FOUNDATION_PERFORMANCE_COUNTS.split(",").map(Number);
+const performanceDocumentCounts =
+  process.env.FOUNDATION_PERFORMANCE_COUNTS === undefined
+    ? [100, 1_000, 5_000]
+    : process.env.FOUNDATION_PERFORMANCE_COUNTS.split(",").map(Number);
 
-advisoryTest("collects advisory deterministic in-memory query benchmarks at 100, 1,000, and 5,000 documents", async (context) => {
-  for (const count of performanceDocumentCounts) {
-    await context.test(`${count} documents`, async (subtest) => {
-      const snapshot = searchSnapshot(count);
-      const finder = new FindDocuments({ async read() { return snapshot; } });
-      const queryRequest = {
-        consumerRoot: "/fixture",
-        profilePath: "document-authoring.yaml",
-        query: { text: "target" },
-      };
-      for (let index = 0; index < 5; index += 1) {
-        await finder.execute(queryRequest);
-      }
-      const samples = [];
-      let result;
-      for (let index = 0; index < 25; index += 1) {
-        const started = performance.now();
-        result = await finder.execute(queryRequest);
-        samples.push(performance.now() - started);
-      }
-      assert.deepEqual(result.documents.map(({ id }) => id), [
-        `guide.${String(count - 1).padStart(5, "0")}`,
-      ]);
-      samples.sort((left, right) => left - right);
-      subtest.diagnostic(`FOUNDATION_BENCHMARK ${JSON.stringify({
-        benchmark: "document-find-memory",
-        count,
-        measurements: {
-          medianMilliseconds: samples[12],
-          p95Milliseconds: samples[23],
-          samples: samples.length,
-        },
-      })}`);
-    });
-  }
-});
+advisoryTest(
+  "collects advisory deterministic in-memory query benchmarks at 100, 1,000, and 5,000 documents",
+  async (context) => {
+    for (const count of performanceDocumentCounts) {
+      await context.test(`${count} documents`, async (subtest) => {
+        const snapshot = searchSnapshot(count);
+        const finder = new FindDocuments({
+          async read() {
+            return snapshot;
+          },
+        });
+        const queryRequest = {
+          consumerRoot: "/fixture",
+          profilePath: "document-authoring.yaml",
+          query: { text: "target" },
+        };
+        for (let index = 0; index < 5; index += 1) {
+          await finder.execute(queryRequest);
+        }
+        const samples = [];
+        let result;
+        for (let index = 0; index < 25; index += 1) {
+          const started = performance.now();
+          result = await finder.execute(queryRequest);
+          samples.push(performance.now() - started);
+        }
+        assert.deepEqual(
+          result.documents.map(({ id }) => id),
+          [`guide.${String(count - 1).padStart(5, "0")}`],
+        );
+        samples.sort((left, right) => left - right);
+        subtest.diagnostic(
+          `FOUNDATION_BENCHMARK ${JSON.stringify({
+            benchmark: "document-find-memory",
+            count,
+            measurements: {
+              medianMilliseconds: samples[12],
+              p95Milliseconds: samples[23],
+              samples: samples.length,
+            },
+          })}`,
+        );
+      });
+    }
+  },
+);

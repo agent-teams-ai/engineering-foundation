@@ -1,2 +1,1 @@
 # @agent-teams/release-checks
-

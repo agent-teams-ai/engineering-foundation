@@ -7,12 +7,8 @@ export class PnpmWorkspaceReader implements WorkspaceReader {
   read(
     consumerRoot: string,
     workspaceManifestPath: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ): Promise<WorkspaceSnapshot> {
-    return this.inventoryReader.read(
-      consumerRoot,
-      workspaceManifestPath,
-      signal
-    );
+    return this.inventoryReader.read(consumerRoot, workspaceManifestPath, signal);
   }
 }

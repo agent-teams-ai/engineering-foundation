@@ -1,13 +1,11 @@
 import type { ScaffoldJournalStore } from "./scaffold-journal-store.js";
-import type {
-  AuthorityScaffoldJournal
-} from "../../contract/types.js";
+import type { AuthorityScaffoldJournal } from "../../contract/types.js";
 import { ScaffoldError } from "../../scaffold-error.js";
 import { sameJournalSlotAuthority as sameScaffoldJournalAuthority } from "@agent-teams/repository-mutation/node";
 import {
   type ScaffoldJournalAuthority,
   type ScaffoldJournalSlotObservation,
-  type StoredScaffoldJournal
+  type StoredScaffoldJournal,
 } from "./node-scaffold-journal-store.js";
 
 export interface ActiveScaffoldJournal {
@@ -18,41 +16,40 @@ export interface ActiveScaffoldJournal {
 function reconciliationFailure(
   operation: string,
   primary: unknown,
-  inspection?: unknown
+  inspection?: unknown,
 ): ScaffoldError {
-  const rawPrimaryMessage = primary instanceof Error
-    ? primary.message
-    : `${operation} failed`;
-  const primaryMessage = operation === "Journal removal" &&
-    rawPrimaryMessage.includes("invalid strict JSON")
-    ? "Scaffolding journal changed before it could be removed."
-    : rawPrimaryMessage.includes("journal temporary identity or bytes changed")
-    ? "Scaffolding journal temporary path was replaced concurrently."
-    : rawPrimaryMessage.includes("Canonical scaffolding journal identity or bytes changed")
+  const rawPrimaryMessage = primary instanceof Error ? primary.message : `${operation} failed`;
+  const primaryMessage =
+    operation === "Journal removal" && rawPrimaryMessage.includes("invalid strict JSON")
       ? "Scaffolding journal changed before it could be removed."
-      : rawPrimaryMessage.includes("journal evidence identity or bytes changed")
-        ? "Quarantined scaffolding journal changed concurrently."
-        : rawPrimaryMessage;
+      : rawPrimaryMessage.includes("journal temporary identity or bytes changed")
+        ? "Scaffolding journal temporary path was replaced concurrently."
+        : rawPrimaryMessage.includes("Canonical scaffolding journal identity or bytes changed")
+          ? "Scaffolding journal changed before it could be removed."
+          : rawPrimaryMessage.includes("journal evidence identity or bytes changed")
+            ? "Quarantined scaffolding journal changed concurrently."
+            : rawPrimaryMessage;
   return new ScaffoldError(
     "SCAFFOLD_RECOVERY_REQUIRED",
     `${primaryMessage} Durable journal state cannot be classified safely; all evidence was preserved.`,
     [],
     {
-      cause: inspection === undefined
-        ? primary
-        : new AggregateError(
-            [primary, inspection],
-            `${operation} and journal reconciliation both failed.`,
-            { cause: primary }
-          )
-    }
+      cause:
+        inspection === undefined
+          ? primary
+          : new AggregateError(
+              [primary, inspection],
+              `${operation} and journal reconciliation both failed.`,
+              { cause: primary },
+            ),
+    },
   );
 }
 
 async function observeAfterFailure(
   store: ScaffoldJournalStore,
   operation: string,
-  primary: unknown
+  primary: unknown,
 ): Promise<ScaffoldJournalSlotObservation> {
   try {
     return await store.stabilizeForReconciliation();
@@ -62,15 +59,13 @@ async function observeAfterFailure(
 }
 
 function stableStored(
-  observation: ScaffoldJournalSlotObservation
+  observation: ScaffoldJournalSlotObservation,
 ): StoredScaffoldJournal | undefined {
-  return observation.outcome === "recovery-required"
-    ? observation.canonical
-    : observation.stored;
+  return observation.outcome === "recovery-required" ? observation.canonical : observation.stored;
 }
 
 export async function readScaffoldJournal(
-  store: ScaffoldJournalStore
+  store: ScaffoldJournalStore,
 ): Promise<ActiveScaffoldJournal | undefined> {
   const stored = await store.read();
   return stored === undefined
@@ -80,7 +75,7 @@ export async function readScaffoldJournal(
 
 export async function createScaffoldJournalReconciled(
   store: ScaffoldJournalStore,
-  journal: AuthorityScaffoldJournal
+  journal: AuthorityScaffoldJournal,
 ): Promise<ScaffoldJournalAuthority> {
   try {
     return await store.create(journal);
@@ -102,7 +97,7 @@ export async function createScaffoldJournalReconciled(
 export async function replaceScaffoldJournalReconciled(
   store: ScaffoldJournalStore,
   active: ActiveScaffoldJournal,
-  journal: AuthorityScaffoldJournal
+  journal: AuthorityScaffoldJournal,
 ): Promise<ScaffoldJournalAuthority> {
   try {
     return await store.replace(active.journalAuthority, journal);
@@ -114,7 +109,8 @@ export async function replaceScaffoldJournalReconciled(
     const stored = stableStored(observed);
     if (
       observed.outcome === "not-applied" ||
-      (observed.outcome === "stable" && stored !== undefined &&
+      (observed.outcome === "stable" &&
+        stored !== undefined &&
         sameScaffoldJournalAuthority(stored.authority, active.journalAuthority))
     ) {
       throw primary;
@@ -125,7 +121,7 @@ export async function replaceScaffoldJournalReconciled(
 
 export async function removeScaffoldJournalReconciled(
   store: ScaffoldJournalStore,
-  active: ActiveScaffoldJournal
+  active: ActiveScaffoldJournal,
 ): Promise<void> {
   try {
     await store.remove(active.journalAuthority);
@@ -137,7 +133,8 @@ export async function removeScaffoldJournalReconciled(
     const stored = stableStored(observed);
     if (
       observed.outcome === "not-applied" ||
-      (observed.outcome === "stable" && stored !== undefined &&
+      (observed.outcome === "stable" &&
+        stored !== undefined &&
         sameScaffoldJournalAuthority(stored.authority, active.journalAuthority))
     ) {
       throw primary;

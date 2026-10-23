@@ -13,7 +13,8 @@ const repositoryRoot = resolvePath(dirname(fileURLToPath(import.meta.url)), ".."
 const requireFromRepository = createRequire(import.meta.url);
 
 function packageBinary(packageName, binaryName) {
-  const manifestPath = requireFromRepository.resolve.paths(packageName)
+  const manifestPath = requireFromRepository.resolve
+    .paths(packageName)
     ?.map((searchRoot) => join(searchRoot, ...packageName.split("/"), "package.json"))
     .find((candidate) => {
       try {
@@ -26,7 +27,8 @@ function packageBinary(packageName, binaryName) {
     throw new Error(`Cannot resolve the installed ${packageName} manifest.`);
   }
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
-  const relativeBinary = typeof manifest.bin === "string" ? manifest.bin : manifest.bin?.[binaryName];
+  const relativeBinary =
+    typeof manifest.bin === "string" ? manifest.bin : manifest.bin?.[binaryName];
   if (typeof relativeBinary !== "string" || relativeBinary === "") {
     throw new Error(`${packageName} does not expose the required ${binaryName} executable.`);
   }
@@ -37,13 +39,15 @@ export function publishablePackageCheckPlan(packages = PUBLISHABLE_PACKAGES) {
   if (!Array.isArray(packages) || packages.length === 0) {
     throw new Error("Publishable package checks require a non-empty projected inventory.");
   }
-  return Object.freeze(packages.flatMap(({ root }) => [
-    Object.freeze({ arguments: Object.freeze([root]), tool: "publint" }),
-    Object.freeze({
-      arguments: Object.freeze(["--pack", root]),
-      tool: "native-package-types",
-    }),
-  ]));
+  return Object.freeze(
+    packages.flatMap(({ root }) => [
+      Object.freeze({ arguments: Object.freeze([root]), tool: "publint" }),
+      Object.freeze({
+        arguments: Object.freeze(["--pack", root]),
+        tool: "native-package-types",
+      }),
+    ]),
+  );
 }
 
 export async function runPublishablePackageChecks({
@@ -55,9 +59,16 @@ export async function runPublishablePackageChecks({
 } = {}) {
   const temporaryRoot = await mkdtemp(join(tmpdir(), "publishable-package-checks-"));
   try {
-    const packages = await Promise.all(PUBLISHABLE_PACKAGES.map(async entry => ({
-      ...entry, root: await stageBuiltMarkdownPublication({ repositoryRoot, packageRoot: join(repositoryRoot, entry.root), temporaryRoot }),
-    })));
+    const packages = await Promise.all(
+      PUBLISHABLE_PACKAGES.map(async (entry) => ({
+        ...entry,
+        root: await stageBuiltMarkdownPublication({
+          repositoryRoot,
+          packageRoot: join(repositoryRoot, entry.root),
+          temporaryRoot,
+        }),
+      })),
+    );
     for (const step of publishablePackageCheckPlan(packages)) {
       const toolPath = toolPaths[step.tool];
       if (typeof toolPath !== "string" || toolPath === "") {
@@ -70,9 +81,8 @@ export async function runPublishablePackageChecks({
   }
 }
 
-const invokedPath = process.argv[1] === undefined
-  ? undefined
-  : pathToFileURL(resolvePath(process.argv[1])).href;
+const invokedPath =
+  process.argv[1] === undefined ? undefined : pathToFileURL(resolvePath(process.argv[1])).href;
 if (invokedPath === import.meta.url) {
   await runPublishablePackageChecks();
 }

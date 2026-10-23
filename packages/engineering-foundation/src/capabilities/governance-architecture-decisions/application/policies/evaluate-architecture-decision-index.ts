@@ -2,7 +2,7 @@ import type { FoundationDiagnostic } from "../../../../features/validation-repor
 import type { MarkdownDocumentObservation } from "@agent-teams/document-authoring/observation";
 import type {
   ArchitectureDecision,
-  ArchitectureDecisionPolicy
+  ArchitectureDecisionPolicy,
 } from "../model/architecture-decision.js";
 import { ARCHITECTURE_DECISION_GOVERNANCE_RULES } from "../rules.js";
 import { architectureDecisionDiagnostic } from "./architecture-decision-diagnostic.js";
@@ -31,7 +31,7 @@ function missingSectionDiagnostics(input: {
   const actualSections = new Set(
     input.index.headings
       .filter((heading) => heading.depth === 2)
-      .map((heading) => normalizeArchitectureDecisionIndexSection(heading.text))
+      .map((heading) => normalizeArchitectureDecisionIndexSection(heading.text)),
   );
   return [...input.expectedSections]
     .filter((expectedSection) => !actualSections.has(expectedSection))
@@ -41,8 +41,8 @@ function missingSectionDiagnostics(input: {
         message: `ADR index is missing required lifecycle section ${expectedSection}.`,
         path: input.index.repositoryPath,
         rule: ARCHITECTURE_DECISION_GOVERNANCE_RULES.indexMembership,
-        subject: input.index.repositoryPath
-      })
+        subject: input.index.repositoryPath,
+      }),
     );
 }
 
@@ -64,19 +64,19 @@ function membershipDiagnostic(input: {
           { kind: "expected-section", value: input.expectedSection },
           {
             kind: "actual-sections",
-            value: input.membership?.sections.join(", ") ?? "<none>"
-          }
+            value: input.membership?.sections.join(", ") ?? "<none>",
+          },
         ],
         message: `ADR ${input.decision.id} must be listed exactly once under ${input.expectedSection} in the ADR index.`,
         path: input.decision.document.repositoryPath,
         relatedPath: input.index.repositoryPath,
         rule: ARCHITECTURE_DECISION_GOVERNANCE_RULES.indexMembership,
-        subject: input.decision.id
+        subject: input.decision.id,
       });
 }
 
 export function evaluateArchitectureDecisionIndex(
-  input: IndexEvaluationInput
+  input: IndexEvaluationInput,
 ): readonly FoundationDiagnostic[] {
   if (input.index === undefined) {
     return [
@@ -84,30 +84,26 @@ export function evaluateArchitectureDecisionIndex(
         message: "Configured ADR index is missing from governed Markdown roots.",
         path: input.policy.index.path,
         rule: ARCHITECTURE_DECISION_GOVERNANCE_RULES.indexMissing,
-        subject: input.policy.index.path
-      })
+        subject: input.policy.index.path,
+      }),
     ];
   }
 
   const memberships = new Map(
-    input.memberships.map((membership) => [membership.decisionId, membership])
+    input.memberships.map((membership) => [membership.decisionId, membership]),
   );
   const expectedSections = new Set(
-    Object.values(input.policy.index.sections).map(
-      normalizeArchitectureDecisionIndexSection
-    )
+    Object.values(input.policy.index.sections).map(normalizeArchitectureDecisionIndexSection),
   );
-  const diagnostics = [
-    ...missingSectionDiagnostics({ expectedSections, index: input.index })
-  ];
+  const diagnostics = [...missingSectionDiagnostics({ expectedSections, index: input.index })];
   for (const decision of input.decisions) {
     const membership = membershipDiagnostic({
       decision,
       expectedSection: normalizeArchitectureDecisionIndexSection(
-        input.policy.index.sections[decision.status]
+        input.policy.index.sections[decision.status],
       ),
       index: input.index,
-      membership: memberships.get(decision.id)
+      membership: memberships.get(decision.id),
     });
     if (membership !== undefined) {
       diagnostics.push(membership);

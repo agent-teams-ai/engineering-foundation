@@ -5,9 +5,12 @@ import type { MarkdownDocumentObservation } from "../../../application/model/mar
 import {
   nodeFilesystemMarkdownOperations,
   throwMarkdownFilesystemUnavailable,
-  type FilesystemMarkdownOperations
+  type FilesystemMarkdownOperations,
 } from "./filesystem-markdown-filesystem.js";
-import { markdownRepositoryPath, type FilesystemMarkdownRepositoryContext } from "./filesystem-markdown-paths.js";
+import {
+  markdownRepositoryPath,
+  type FilesystemMarkdownRepositoryContext,
+} from "./filesystem-markdown-paths.js";
 
 import { observeMarkdownDocument } from "./markdown-document-parser.js";
 
@@ -28,9 +31,7 @@ function decodeMarkdownSource(bytes: Buffer): string {
   try {
     return new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);
   } catch {
-    throw new MarkdownSourceInvalidError(
-      "Markdown source must contain well-formed UTF-8."
-    );
+    throw new MarkdownSourceInvalidError("Markdown source must contain well-formed UTF-8.");
   }
 }
 
@@ -39,7 +40,7 @@ function resourceLimit(message: string): never {
     code: "DOCUMENTATION_RESOURCE_LIMIT_EXCEEDED",
     message,
     phase: "documentation-observation",
-    retryable: false
+    retryable: false,
   });
 }
 
@@ -56,7 +57,7 @@ function assertDocumentStructureWithinLimits(source: string): void {
       referenceMarkers += 1;
       if (referenceMarkers > MAX_MARKDOWN_REFERENCE_MARKERS) {
         resourceLimit(
-          `Markdown source exceeds ${MAX_MARKDOWN_REFERENCE_MARKERS} potential reference markers.`
+          `Markdown source exceeds ${MAX_MARKDOWN_REFERENCE_MARKERS} potential reference markers.`,
         );
       }
     }
@@ -80,17 +81,17 @@ export class FilesystemMarkdownDocumentReader {
   async read(
     context: FilesystemMarkdownRepositoryContext,
     absolutePath: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ): Promise<MarkdownDocumentObservation | undefined> {
     assertNotCancelled(signal);
     let source: string;
     let sourceBytes: number;
     try {
       const bytes = await this.#filesystem.readContainedRegularFile({
-          candidate: absolutePath,
-          maxBytes: MAX_MARKDOWN_BYTES,
-          root: context.canonicalRoot
-        });
+        candidate: absolutePath,
+        maxBytes: MAX_MARKDOWN_BYTES,
+        root: context.canonicalRoot,
+      });
       source = decodeMarkdownSource(bytes);
       sourceBytes = bytes.byteLength;
     } catch (error) {
@@ -112,9 +113,7 @@ export class FilesystemMarkdownDocumentReader {
       return cached;
     }
     assertDocumentStructureWithinLimits(source);
-    const previousBytes = cached === undefined
-      ? 0
-      : Buffer.byteLength(cached.source, "utf8");
+    const previousBytes = cached === undefined ? 0 : Buffer.byteLength(cached.source, "utf8");
     const nextCachedBytes = this.#cachedBytes - previousBytes + sourceBytes;
     const nextDocumentCount = this.#documents.size + (cached === undefined ? 1 : 0);
     if (
@@ -122,12 +121,12 @@ export class FilesystemMarkdownDocumentReader {
       nextDocumentCount > MAX_CACHED_MARKDOWN_DOCUMENTS
     ) {
       resourceLimit(
-        `Markdown cache exceeds ${MAX_CACHED_MARKDOWN_DOCUMENTS} documents or ${MAX_CACHED_MARKDOWN_BYTES} bytes.`
+        `Markdown cache exceeds ${MAX_CACHED_MARKDOWN_DOCUMENTS} documents or ${MAX_CACHED_MARKDOWN_BYTES} bytes.`,
       );
     }
     const document = observeMarkdownDocument(
       markdownRepositoryPath(context.canonicalRoot, absolutePath),
-      source
+      source,
     );
     this.#cachedBytes = nextCachedBytes;
     this.#documents.set(absolutePath, document);

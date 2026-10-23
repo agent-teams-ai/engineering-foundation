@@ -1,6 +1,9 @@
 import type { SourceTreeReader } from "../../../../source-inventory/api.js";
 import type { WorkspacePackage } from "../../../../workspace-inventory/api.js";
-import type { ArchitectureBoundaryPolicy, ClassifiedSourceFile } from "../model/source-workspace.js";
+import type {
+  ArchitectureBoundaryPolicy,
+  ClassifiedSourceFile,
+} from "../model/source-workspace.js";
 import { normalizeRepositoryPath } from "../model/repository-path.js";
 import { stronglyConnectedComponents as components } from "../policies/evaluate-source-dependency-cycles.js";
 import { compareBinaryStrings } from "../../../../binary-string-comparator.js";
@@ -10,8 +13,15 @@ import { buildObservedSourceGraph } from "./build-observed-source-graph.js";
 
 // Public facts name their closed value sets without exposing private parser model types.
 export type SourceGraphReferenceKind =
-  | "commonjs" | "dynamic" | "export" | "export-type" | "import-equals"
-  | "import-equals-type" | "static" | "static-type" | "type-query";
+  | "commonjs"
+  | "dynamic"
+  | "export"
+  | "export-type"
+  | "import-equals"
+  | "import-equals-type"
+  | "static"
+  | "static-type"
+  | "type-query";
 
 export interface SourceGraphEdge {
   readonly from: string;
@@ -94,20 +104,40 @@ export interface ObserveSourceGraphInput {
 
 // The graph is architecture-neutral: one synthetic boundary and package own every file.
 const boundary: ArchitectureBoundaryPolicy = Object.freeze({
-  id: "source-graph", dependencyMode: "runtime", roots: [], entrypoints: [], packageExports: [],
-  allowedBoundaries: [], allowedPackages: [], allowedBuiltins: [], allowedRuntimeReferences: []
+  id: "source-graph",
+  dependencyMode: "runtime",
+  roots: [],
+  entrypoints: [],
+  packageExports: [],
+  allowedBoundaries: [],
+  allowedPackages: [],
+  allowedBuiltins: [],
+  allowedRuntimeReferences: [],
 });
 const workspacePackage: WorkspacePackage = Object.freeze({
-  name: "source-graph", rootPath: ".", manifestPath: "package.json", moduleType: "module",
-  dependencies: [], bundledDependencies: [], exportSurface: { explicit: false, entries: [] }
+  name: "source-graph",
+  rootPath: ".",
+  manifestPath: "package.json",
+  moduleType: "module",
+  dependencies: [],
+  bundledDependencies: [],
+  exportSurface: { explicit: false, entries: [] },
 });
 
 const compareImports = (left: SourceGraphUnresolved, right: SourceGraphUnresolved): number =>
-  compareBinaryStrings(left.from, right.from) || left.line - right.line || compareBinaryStrings(left.specifier, right.specifier);
+  compareBinaryStrings(left.from, right.from) ||
+  left.line - right.line ||
+  compareBinaryStrings(left.specifier, right.specifier);
 
 function lineAt(source: string, offset: number): number {
   let line = 1;
-  for (let index = source.indexOf("\n"); index !== -1 && index < offset; index = source.indexOf("\n", index + 1)) { line += 1; }
+  for (
+    let index = source.indexOf("\n");
+    index !== -1 && index < offset;
+    index = source.indexOf("\n", index + 1)
+  ) {
+    line += 1;
+  }
   return line;
 }
 
@@ -115,11 +145,22 @@ function fileExports(file: ClassifiedSourceFile): SourceGraphFileExports {
   const { parsed } = file;
   return Object.freeze({
     path: file.path,
-    status: parsed.parseErrorCount > 0 ? "parse-failure" : parsed.unsupportedExports.length > 0 ? "unsupported" : "complete",
-    exports: Object.freeze(parsed.runtimeExports.map(({ name, kind, start }) =>
-      Object.freeze({ name, kind, line: lineAt(file.source, start) }))),
-    unsupported: Object.freeze(parsed.unsupportedExports.map(({ kind, start }) =>
-      Object.freeze({ kind, line: lineAt(file.source, start) })))
+    status:
+      parsed.parseErrorCount > 0
+        ? "parse-failure"
+        : parsed.unsupportedExports.length > 0
+          ? "unsupported"
+          : "complete",
+    exports: Object.freeze(
+      parsed.runtimeExports.map(({ name, kind, start }) =>
+        Object.freeze({ name, kind, line: lineAt(file.source, start) }),
+      ),
+    ),
+    unsupported: Object.freeze(
+      parsed.unsupportedExports.map(({ kind, start }) =>
+        Object.freeze({ kind, line: lineAt(file.source, start) }),
+      ),
+    ),
   });
 }
 
@@ -130,12 +171,19 @@ export interface SourceGraphDependencies {
 }
 
 /** Reads the files under `roots` and resolves their imports with the parser and resolver of `architecture.source-dependencies`. */
-export async function observeSourceGraph(input: ObserveSourceGraphInput, dependencies: SourceGraphDependencies): Promise<SourceGraph> {
+export async function observeSourceGraph(
+  input: ObserveSourceGraphInput,
+  dependencies: SourceGraphDependencies,
+): Promise<SourceGraph> {
   const files = await dependencies.sourceReader.read(input.consumerRoot, input.roots, input.signal);
   const { parser } = dependencies;
   const sources = new Map(files.map((file) => [normalizeRepositoryPath(file.path), file.source]));
   const classifiedFiles: ClassifiedSourceFile[] = files.map((file) => ({
-    ...file, path: normalizeRepositoryPath(file.path), boundary, workspacePackage, parsed: parser.parse(file)
+    ...file,
+    path: normalizeRepositoryPath(file.path),
+    boundary,
+    workspacePackage,
+    parsed: parser.parse(file),
   }));
   const graph = buildObservedSourceGraph({
     consumerRoot: input.consumerRoot,
@@ -143,18 +191,30 @@ export async function observeSourceGraph(input: ObserveSourceGraphInput, depende
     allSourceFiles: files,
     classifiedFiles,
     resolver: dependencies.resolver,
-    ...(input.signal === undefined ? {} : { signal: input.signal })
+    ...(input.signal === undefined ? {} : { signal: input.signal }),
   });
   const line = (path: string, offset: number) => lineAt(sources.get(path) ?? "", offset);
   const edges: SourceGraphEdge[] = [];
   const unresolved: SourceGraphUnresolved[] = [];
   const external: SourceGraphExternal[] = [];
   for (const edge of graph.edges) {
-    const at = { from: edge.fromPath, specifier: edge.specifier, kind: edge.kind, mode: edge.mode, line: line(edge.fromPath, edge.start) };
+    const at = {
+      from: edge.fromPath,
+      specifier: edge.specifier,
+      kind: edge.kind,
+      mode: edge.mode,
+      line: line(edge.fromPath, edge.start),
+    };
     const { resolution } = edge;
     switch (resolution.kind) {
       case "local-file":
-        edges.push({ from: edge.fromPath, to: resolution.path, kind: edge.kind, mode: edge.mode, line: at.line });
+        edges.push({
+          from: edge.fromPath,
+          to: resolution.path,
+          kind: edge.kind,
+          mode: edge.mode,
+          line: at.line,
+        });
         break;
       case "builtin":
       case "external-package":
@@ -177,24 +237,42 @@ export async function observeSourceGraph(input: ObserveSourceGraphInput, depende
   }
   return Object.freeze({
     files: Object.freeze(graph.nodes.map(({ path }) => path).toSorted(compareBinaryStrings)),
-    edges: Object.freeze(edges.toSorted((left, right) => compareBinaryStrings(left.from, right.from) || compareBinaryStrings(left.to, right.to) || left.line - right.line)),
+    edges: Object.freeze(
+      edges.toSorted(
+        (left, right) =>
+          compareBinaryStrings(left.from, right.from) ||
+          compareBinaryStrings(left.to, right.to) ||
+          left.line - right.line,
+      ),
+    ),
     unresolved: Object.freeze(unresolved.toSorted(compareImports)),
     external: Object.freeze(external.toSorted(compareImports)),
-    unresolvedRuntimeReferences: Object.freeze(graph.unresolvedRuntimeReferences.map(({ path, kind, start }) =>
-      Object.freeze({ from: path, kind, line: line(path, start) }))),
+    unresolvedRuntimeReferences: Object.freeze(
+      graph.unresolvedRuntimeReferences.map(({ path, kind, start }) =>
+        Object.freeze({ from: path, kind, line: line(path, start) }),
+      ),
+    ),
     parseFailures: Object.freeze(graph.parseFailures.map(({ path }) => path)),
-    runtimeExports: Object.freeze(classifiedFiles.map(fileExports).toSorted((left, right) => compareBinaryStrings(left.path, right.path)))
+    runtimeExports: Object.freeze(
+      classifiedFiles
+        .map(fileExports)
+        .toSorted((left, right) => compareBinaryStrings(left.path, right.path)),
+    ),
   });
 }
 
 /** Strongly connected components of any edge set. Only components with more than one node are returned. */
-export function stronglyConnectedComponents(edges: readonly Pick<SourceGraphEdge, "from" | "to">[]): readonly (readonly string[])[] {
+export function stronglyConnectedComponents(
+  edges: readonly Pick<SourceGraphEdge, "from" | "to">[],
+): readonly (readonly string[])[] {
   const adjacency = new Map<string, { readonly to: string }[]>();
   for (const { from, to } of edges) {
     const outgoing = adjacency.get(from) ?? [];
     outgoing.push({ to });
     adjacency.set(from, outgoing);
-    if (!adjacency.has(to)) { adjacency.set(to, []); }
+    if (!adjacency.has(to)) {
+      adjacency.set(to, []);
+    }
   }
   return components(adjacency);
 }

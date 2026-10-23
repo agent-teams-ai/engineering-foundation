@@ -1,16 +1,16 @@
 import type {
   DocumentCommandDiagnostic,
   DocumentCommandExecution,
-  DocumentDoctorResult
+  DocumentDoctorResult,
 } from "../model/document-command.js";
 import type { DocumentTransactionInspection } from "../model/document-transaction-inspection.js";
 import type {
   DocumentEnvironmentInspection,
-  DocumentEnvironmentInspector
+  DocumentEnvironmentInspector,
 } from "../ports/document-environment-inspector.js";
 import {
   commandExecution,
-  projectDocumentCommandFailure
+  projectDocumentCommandFailure,
 } from "../policies/document-command-projection.js";
 import { projectDocumentCommandConsumerRoot } from "../policies/document-command-consumer-root.js";
 
@@ -24,16 +24,16 @@ interface Dependencies {
   inspect(consumerRoot: string): Promise<DocumentTransactionInspection>;
 }
 
-function environmentResult(environment: Awaited<
-  ReturnType<DocumentEnvironmentInspector["inspect"]>
->): Pick<
+function environmentResult(
+  environment: Awaited<ReturnType<DocumentEnvironmentInspector["inspect"]>>,
+): Pick<
   DocumentDoctorResult,
   "filesystem" | "installedFoundationBuildIdentity" | "installedFoundationVersion"
 > {
   return {
     filesystem: environment.filesystem,
     installedFoundationBuildIdentity: environment.installedFoundationBuildIdentity,
-    installedFoundationVersion: environment.installedFoundationVersion
+    installedFoundationVersion: environment.installedFoundationVersion,
   };
 }
 
@@ -44,13 +44,13 @@ function unsupportedDurabilityDiagnostic(): DocumentCommandDiagnostic {
     phase: "authority",
     subject: "filesystem.directory-durability",
     message:
-      "Strict directory durability is unsupported for this consumer repository; document publication is unavailable on this filesystem."
+      "Strict directory durability is unsupported for this consumer repository; document publication is unavailable on this filesystem.",
   };
 }
 
 function inspectionDiagnostics(
   inspection: DocumentTransactionInspection,
-  consumerRoot: string
+  consumerRoot: string,
 ): readonly DocumentCommandDiagnostic[] {
   if (inspection.state === "idle") {
     return [];
@@ -62,45 +62,58 @@ function inspectionDiagnostics(
     subject: "document.transaction",
     message: entry.message,
     ...(inspection.state === "recoverable"
-      ? { remediation: {
-          commandId: "docs.recover" as const,
-          args: {
-            consumerRoot: projectDocumentCommandConsumerRoot(consumerRoot),
-            exactFoundationVersion: inspection.recovery.exactFoundationVersion,
-            exactFoundationBuildIdentity: inspection.recovery.exactFoundationBuildIdentity
-          }
-        } }
+      ? {
+          remediation: {
+            commandId: "docs.recover" as const,
+            args: {
+              consumerRoot: projectDocumentCommandConsumerRoot(consumerRoot),
+              exactFoundationVersion: inspection.recovery.exactFoundationVersion,
+              exactFoundationBuildIdentity: inspection.recovery.exactFoundationBuildIdentity,
+            },
+          },
+        }
       : inspection.recovery === undefined
         ? {}
-        : { remediation: {
-            commandId: inspection.recovery.commandId === "docs-recover"
-              ? "docs.recover" as const : inspection.recovery.commandId,
-            args: {
-              ...inspection.recovery.args,
-              consumerRoot: projectDocumentCommandConsumerRoot(consumerRoot)
-            }
-          } })
+        : {
+            remediation: {
+              commandId:
+                inspection.recovery.commandId === "docs-recover"
+                  ? ("docs.recover" as const)
+                  : inspection.recovery.commandId,
+              args: {
+                ...inspection.recovery.args,
+                consumerRoot: projectDocumentCommandConsumerRoot(consumerRoot),
+              },
+            },
+          }),
   }));
 }
 
 function manualTransactionState(
-  inspection: Extract<DocumentTransactionInspection, {
-    readonly state: "manual-recovery-required";
-  }>
+  inspection: Extract<
+    DocumentTransactionInspection,
+    {
+      readonly state: "manual-recovery-required";
+    }
+  >,
 ): DocumentDoctorResult["transactionState"] {
   if (inspection.transactionKind !== undefined) {
     return inspection.transactionKind;
   }
-  if (inspection.diagnostics.some(
-    ({ code }) => code === "FOUNDATION_TRANSACTION_VERSION_MISMATCH"
-  )) {
+  if (
+    inspection.diagnostics.some(({ code }) => code === "FOUNDATION_TRANSACTION_VERSION_MISMATCH")
+  ) {
     return "version-mismatch";
   }
   switch (inspection.operationKind) {
-    case "document-authoring": return "document";
-    case "local-mode": return "local-mode";
-    case "scaffolding": return "scaffold";
-    case undefined: return "unknown";
+    case "document-authoring":
+      return "document";
+    case "local-mode":
+      return "local-mode";
+    case "scaffolding":
+      return "scaffold";
+    case undefined:
+      return "unknown";
   }
   return "unknown";
 }
@@ -113,22 +126,19 @@ export class RunDocumentDoctor {
   }
 
   async execute(
-    request: RunDocumentDoctorRequest
+    request: RunDocumentDoctorRequest,
   ): Promise<DocumentCommandExecution<DocumentDoctorResult>> {
     let environment: DocumentEnvironmentInspection | undefined;
     try {
       request.signal?.throwIfAborted();
       environment = await this.#dependencies.environment.inspect(
         request.consumerRoot,
-        request.signal
+        request.signal,
       );
       const inspection = await this.#dependencies.inspect(request.consumerRoot);
       request.signal?.throwIfAborted();
       if (inspection.state === "idle") {
-        if (
-          environment.filesystem.strictDirectoryDurability ===
-            "platform-unsupported"
-        ) {
+        if (environment.filesystem.strictDirectoryDurability === "platform-unsupported") {
           return commandExecution({
             command: "docs.doctor",
             diagnostics: [unsupportedDurabilityDiagnostic()],
@@ -137,16 +147,19 @@ export class RunDocumentDoctor {
               kind: "doctor",
               ...environmentResult(environment),
               transactionState: "none",
-              recoveryClass: "not-required"
-            }
+              recoveryClass: "not-required",
+            },
           });
         }
         return commandExecution({
-          command: "docs.doctor", outcome: "success",
+          command: "docs.doctor",
+          outcome: "success",
           result: {
-            kind: "doctor", ...environmentResult(environment),
-            transactionState: "none", recoveryClass: "not-required"
-          }
+            kind: "doctor",
+            ...environmentResult(environment),
+            transactionState: "none",
+            recoveryClass: "not-required",
+          },
         });
       }
       if (inspection.state === "recoverable") {
@@ -155,7 +168,8 @@ export class RunDocumentDoctor {
           diagnostics: inspectionDiagnostics(inspection, request.consumerRoot),
           outcome: "recovery-required",
           result: {
-            kind: "doctor", ...environmentResult(environment),
+            kind: "doctor",
+            ...environmentResult(environment),
             transactionState: "document",
             protocolKind: "document-authoring",
             foundationVersion: inspection.foundationVersion,
@@ -166,10 +180,10 @@ export class RunDocumentDoctor {
               args: {
                 consumerRoot: projectDocumentCommandConsumerRoot(request.consumerRoot),
                 exactFoundationVersion: inspection.recovery.exactFoundationVersion,
-                exactFoundationBuildIdentity: inspection.recovery.exactFoundationBuildIdentity
-              }
-            }
-          }
+                exactFoundationBuildIdentity: inspection.recovery.exactFoundationBuildIdentity,
+              },
+            },
+          },
         });
       }
       const exactRecovery = inspection.recovery;
@@ -182,39 +196,51 @@ export class RunDocumentDoctor {
           ...environmentResult(environment),
           transactionState: manualTransactionState(inspection),
           ...(inspection.operationKind === "document-authoring" ||
-            inspection.operationKind === "local-mode" ||
-            inspection.operationKind === "scaffolding"
+          inspection.operationKind === "local-mode" ||
+          inspection.operationKind === "scaffolding"
             ? { protocolKind: inspection.operationKind }
             : { protocolKind: "unknown" as const }),
           ...(inspection.foundationVersion === undefined
-            ? {} : { foundationVersion: inspection.foundationVersion }),
+            ? {}
+            : { foundationVersion: inspection.foundationVersion }),
           ...(inspection.foundationBuildIdentity === undefined
-            ? {} : { foundationBuildIdentity: inspection.foundationBuildIdentity }),
+            ? {}
+            : { foundationBuildIdentity: inspection.foundationBuildIdentity }),
           recoveryClass: "manual",
           ...(exactRecovery === undefined
             ? {}
-            : { recoveryCommand: {
-                commandId: exactRecovery.commandId === "docs-recover"
-                  ? "docs.recover" as const : exactRecovery.commandId,
-                args: {
-                  ...exactRecovery.args,
-                  consumerRoot: projectDocumentCommandConsumerRoot(request.consumerRoot)
-                }
-              } })
-        }
+            : {
+                recoveryCommand: {
+                  commandId:
+                    exactRecovery.commandId === "docs-recover"
+                      ? ("docs.recover" as const)
+                      : exactRecovery.commandId,
+                  args: {
+                    ...exactRecovery.args,
+                    consumerRoot: projectDocumentCommandConsumerRoot(request.consumerRoot),
+                  },
+                },
+              }),
+        },
       });
     } catch (error) {
       const failure = projectDocumentCommandFailure({
-        command: "docs.doctor", error, phase: "recovery", subject: "document.transaction"
+        command: "docs.doctor",
+        error,
+        phase: "recovery",
+        subject: "document.transaction",
       });
       return commandExecution({
-        command: "docs.doctor", diagnostics: [failure.diagnostic], outcome: failure.outcome,
+        command: "docs.doctor",
+        diagnostics: [failure.diagnostic],
+        outcome: failure.outcome,
         result: {
           kind: "doctor",
           ...(environment === undefined ? {} : environmentResult(environment)),
-          transactionState: "unknown", protocolKind: "unknown",
-          recoveryClass: "manual"
-        }
+          transactionState: "unknown",
+          protocolKind: "unknown",
+          recoveryClass: "manual",
+        },
       });
     }
   }

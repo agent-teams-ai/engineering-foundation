@@ -8,6 +8,6 @@ export function createNodeFoundationTransactionSlot(options: {
 }): NodeFoundationTransactionSlot {
   return new NodeFoundationTransactionSlot({
     consumerRoot: options.consumerRoot,
-    inspection: createFoundationTransactionInspection(options)
+    inspection: createFoundationTransactionInspection(options),
   });
 }

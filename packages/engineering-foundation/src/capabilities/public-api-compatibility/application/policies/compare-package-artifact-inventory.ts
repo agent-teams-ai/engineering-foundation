@@ -6,10 +6,12 @@ import { classifyPublicApiChange } from "./evaluate-public-api-compatibility.js"
 export function comparePackageArtifactInventory(
   released: PublicApiArtifactSnapshot,
   current: PublicApiArtifactSnapshot,
-  fingerprint: ChangeFingerprint
+  fingerprint: ChangeFingerprint,
 ): PublicApiChangeSet {
   return classifyPublicApiChange(
-    artifactApiProjection(released), artifactApiProjection(current), fingerprint
+    artifactApiProjection(released),
+    artifactApiProjection(current),
+    fingerprint,
   );
 }
 
@@ -20,10 +22,20 @@ function escapeExpression(value: string): string {
 /** Match the portable identities required by the release archive inspector. */
 export function artifactPathIdentity(path: string): string {
   const segments = path.split("/");
-  if (segments.some((part) => part === "" || part === "." || part === ".." ||
-      /[\p{Cc}<>:"|?*\\%#\s]/u.test(part) || /[. ]$/u.test(part) ||
-      /^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)/u.test(part.normalize("NFKC").toUpperCase()) ||
-      part.normalize("NFKC").toUpperCase() === "NODE_MODULES")) {
+  if (
+    segments.some(
+      (part) =>
+        part === "" ||
+        part === "." ||
+        part === ".." ||
+        /[\p{Cc}<>:"|?*\\%#\s]/u.test(part) ||
+        /[. ]$/u.test(part) ||
+        /^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)/u.test(
+          part.normalize("NFKC").toUpperCase(),
+        ) ||
+        part.normalize("NFKC").toUpperCase() === "NODE_MODULES",
+    )
+  ) {
     throw new Error(`Artifact member is not a portable package path: ${path}.`);
   }
   return segments.map((part) => part.normalize("NFKC").toUpperCase()).join("/");
@@ -31,14 +43,25 @@ export function artifactPathIdentity(path: string): string {
 
 export function wildcardExpression(pattern: string): RegExp {
   const segments = pattern.split("/");
-  if (pattern.split("*").length !== 2 || pattern.includes("\\") ||
-      segments.some((segment) => segment === "" || segment === "." || segment === ".." || segment === "node_modules") ||
-      /[\p{Cc}\s%?#]/u.test(pattern)) {
-    throw new Error(`Artifact wildcard target must be a normalized package path with one *: ${pattern}.`);
+  if (
+    pattern.split("*").length !== 2 ||
+    pattern.includes("\\") ||
+    segments.some(
+      (segment) =>
+        segment === "" || segment === "." || segment === ".." || segment === "node_modules",
+    ) ||
+    /[\p{Cc}\s%?#]/u.test(pattern)
+  ) {
+    throw new Error(
+      `Artifact wildcard target must be a normalized package path with one *: ${pattern}.`,
+    );
   }
   const [prefix, suffix] = pattern.split("*");
   artifactPathIdentity(`${prefix ?? ""}artifact${suffix ?? ""}`);
-  return new RegExp(`^${escapeExpression(prefix ?? "")}(.+)${escapeExpression(suffix ?? "")}$`, "u");
+  return new RegExp(
+    `^${escapeExpression(prefix ?? "")}(.+)${escapeExpression(suffix ?? "")}$`,
+    "u",
+  );
 }
 
 /** Archive paths are normalized package-relative regular-file names from the tar inspector. */
@@ -52,7 +75,7 @@ export function assertPackedWildcardMembers(input: {
     for (const member of wildcard.members) {
       if (!expression.test(member) || !actual.has(member)) {
         throw new Error(
-          `Packed artifact is missing wildcard export member ${wildcard.exportPath} -> ${member}.`
+          `Packed artifact is missing wildcard export member ${wildcard.exportPath} -> ${member}.`,
         );
       }
     }

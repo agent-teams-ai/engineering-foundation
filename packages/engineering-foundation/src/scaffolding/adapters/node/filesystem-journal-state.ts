@@ -1,20 +1,18 @@
 import type {
   ScaffoldDiagnosticV1,
-  AuthorityScaffoldPlan
+  AuthorityScaffoldPlan,
 } from "../../application/model/scaffold-compilation.js";
 import type {
   AuthorityScaffoldJournalOperation,
   AuthorityScaffoldJournal,
-  AuthorityScaffoldOperationReceipt
+  AuthorityScaffoldOperationReceipt,
 } from "../../contract/types.js";
-import type {
-  AuthorityScaffoldReceipt
-} from "../../contract/receipt-authority-types.js";
+import type { AuthorityScaffoldReceipt } from "../../contract/receipt-authority-types.js";
 import { createAuthorityScaffoldReceipt } from "../inbound/authority-scaffold-receipt.js";
 import { assertSafeExistingAncestors } from "./filesystem-path-guard.js";
 import {
   assertNoOwnedCleanupResidue,
-  classifyFilesystemOperation
+  classifyFilesystemOperation,
 } from "./filesystem-operation-state.js";
 
 export function createAuthorityDiagnostic(
@@ -22,7 +20,7 @@ export function createAuthorityDiagnostic(
   phase: ScaffoldDiagnosticV1["phase"],
   subject: string,
   message: string,
-  remediation: string
+  remediation: string,
 ): ScaffoldDiagnosticV1 {
   return Object.freeze({
     ruleId,
@@ -30,7 +28,7 @@ export function createAuthorityDiagnostic(
     phase,
     subject,
     message,
-    remediation
+    remediation,
   });
 }
 
@@ -44,31 +42,26 @@ export function receiptFromJournalStates(options: {
   return createAuthorityScaffoldReceipt({
     plan: options.plan,
     outcome: options.outcome,
-    commitState:
-      options.outcome === "recovery-required" ? "recovery-required" : "rejected",
+    commitState: options.outcome === "recovery-required" ? "recovery-required" : "rejected",
     operations: options.plan.operations.map((operation) => {
       const journalOperation = options.journal.operations.find(
-        (candidate) => candidate.operationId === operation.id
+        (candidate) => candidate.operationId === operation.id,
       );
       if (options.conflictOperationIds.has(operation.id)) {
         return { operationId: operation.id, path: operation.path, outcome: "conflict" };
       }
-      if (
-        journalOperation?.state === "preexisting" ||
-        journalOperation?.state === "published"
-      ) {
+      if (journalOperation?.state === "preexisting" || journalOperation?.state === "published") {
         return {
           operationId: operation.id,
           path: operation.path,
           outcome: "already-satisfied",
-          resultDigest: operation.after.digest
+          resultDigest: operation.after.digest,
         };
       }
       return {
         operationId: operation.id,
         path: operation.path,
-        outcome:
-          journalOperation?.state === "publishing" ? "unobserved" : "not-applied"
+        outcome: journalOperation?.state === "publishing" ? "unobserved" : "not-applied",
       };
     }),
     diagnostics: [
@@ -81,9 +74,9 @@ export function receiptFromJournalStates(options: {
         "Scaffolding output cannot be proven safe for the requested transaction state.",
         options.phase === "recovery"
           ? "Resolve the output manually, then retry recovery."
-          : "Compile a new Plan from the current workspace state."
-      )
-    ]
+          : "Compile a new Plan from the current workspace state.",
+      ),
+    ],
   });
 }
 
@@ -105,7 +98,7 @@ export function createRecoveryRequiredReceipt(options: {
       options.plan.operations.map((operation) => ({
         operationId: operation.id,
         path: operation.path,
-        outcome: "unobserved"
+        outcome: "unobserved",
       })),
     diagnostics: [
       createAuthorityDiagnostic(
@@ -113,13 +106,15 @@ export function createRecoveryRequiredReceipt(options: {
         options.phase,
         options.subject,
         options.message,
-        options.remediation
-      )
-    ]
+        options.remediation,
+      ),
+    ],
   });
 }
 
-export function freshAuthorityScaffoldJournal(plan: AuthorityScaffoldPlan): AuthorityScaffoldJournal {
+export function freshAuthorityScaffoldJournal(
+  plan: AuthorityScaffoldPlan,
+): AuthorityScaffoldJournal {
   return Object.freeze({
     schemaVersion: 1,
     state: "PREPARED",
@@ -129,33 +124,31 @@ export function freshAuthorityScaffoldJournal(plan: AuthorityScaffoldPlan): Auth
         Object.freeze({
           operationId: operation.id,
           path: operation.path,
-          state: "pending" as const
-        })
-      )
-    )
+          state: "pending" as const,
+        }),
+      ),
+    ),
   });
 }
 
 export function replaceScaffoldJournalOperation(
   journal: AuthorityScaffoldJournal,
   operationId: string,
-  state: AuthorityScaffoldJournalOperation["state"]
+  state: AuthorityScaffoldJournalOperation["state"],
 ): AuthorityScaffoldJournal {
   return Object.freeze({
     ...journal,
     operations: Object.freeze(
       journal.operations.map((operation) =>
-        operation.operationId === operationId
-          ? Object.freeze({ ...operation, state })
-          : operation
-      )
-    )
+        operation.operationId === operationId ? Object.freeze({ ...operation, state }) : operation,
+      ),
+    ),
   });
 }
 
 export async function reconcileAuthorityScaffoldJournal(
   root: string,
-  journal: AuthorityScaffoldJournal
+  journal: AuthorityScaffoldJournal,
 ): Promise<{
   readonly journal: AuthorityScaffoldJournal;
   readonly conflictIds: ReadonlySet<string>;
@@ -164,9 +157,7 @@ export async function reconcileAuthorityScaffoldJournal(
   let next = journal;
   const conflictIds = new Set<string>();
   for (const operation of journal.plan.operations) {
-    const recorded = next.operations.find(
-      (candidate) => candidate.operationId === operation.id
-    );
+    const recorded = next.operations.find((candidate) => candidate.operationId === operation.id);
     if (recorded === undefined) {
       conflictIds.add(operation.id);
       continue;
@@ -191,7 +182,7 @@ export async function reconcileAuthorityScaffoldJournal(
       next = replaceScaffoldJournalOperation(
         next,
         operation.id,
-        state === "after" ? "published" : "pending"
+        state === "after" ? "published" : "pending",
       );
       continue;
     }

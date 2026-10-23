@@ -7,20 +7,27 @@ export async function openRawFixtureSocket(boundary, context) {
     port: Number.parseInt(boundary.environment.QGR_FIXTURE_PORT, 10),
   });
   const closed = onceSocket(socket, "close");
-  context.after(async () => { socket.destroy(); await closed; });
+  context.after(async () => {
+    socket.destroy();
+    await closed;
+  });
   socket.on("error", () => {});
   await onceSocket(socket, "connect");
   return { closed, socket };
 }
 
 function onceSocket(socket, event) {
-  return new Promise((resolve) => { socket.once(event, resolve); });
+  return new Promise((resolve) => {
+    socket.once(event, resolve);
+  });
 }
 
 function readSocketLine(socket) {
   return new Promise((resolve, reject) => {
     let source = "";
-    const onClose = () => { reject(new Error("Socket closed before a complete line.")); };
+    const onClose = () => {
+      reject(new Error("Socket closed before a complete line."));
+    };
     const onData = (chunk) => {
       source += chunk;
       const newline = source.indexOf("\n");
@@ -40,10 +47,12 @@ export async function registerRawFixtureRole(boundary, role, context) {
   socket.setEncoding("utf8");
   const acknowledged = readSocketLine(socket);
   const environment = boundary.environmentFor(role);
-  socket.write(`${JSON.stringify({
-    boundaryId: environment.QGR_FIXTURE_BOUNDARY_ID,
-    credential: environment.QGR_FIXTURE_CREDENTIAL,
-  })}\n`);
+  socket.write(
+    `${JSON.stringify({
+      boundaryId: environment.QGR_FIXTURE_BOUNDARY_ID,
+      credential: environment.QGR_FIXTURE_CREDENTIAL,
+    })}\n`,
+  );
   assert.equal(
     await acknowledged,
     `${JSON.stringify({

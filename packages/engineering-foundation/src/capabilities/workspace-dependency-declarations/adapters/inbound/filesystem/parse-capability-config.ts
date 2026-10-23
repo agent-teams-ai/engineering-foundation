@@ -7,17 +7,15 @@ export function parseCapabilityConfig(input: unknown): WorkspaceDependencyDeclar
   const policies = root["policies"] as Record<string, unknown>;
   return Object.freeze({
     packageManagerKind: packageManager["kind"] as "pnpm" | "bun",
-    workspaceManifestPath: packageManager[
-      "workspaceManifest"
-    ] as "pnpm-workspace.yaml",
+    workspaceManifestPath: packageManager["workspaceManifest"] as "pnpm-workspace.yaml",
     policy: Object.freeze({
       reservedScopes: Object.freeze([...(policies["reservedScopes"] as string[])]),
       developmentOnlyPackages: Object.freeze([
-        ...(policies["developmentOnlyPackages"] as string[])
+        ...(policies["developmentOnlyPackages"] as string[]),
       ]),
       exactRegistryDevelopmentOnlyPackages: Object.freeze([
-        ...(policies["exactRegistryDevelopmentOnlyPackages"] as string[])
-      ])
-    })
+        ...(policies["exactRegistryDevelopmentOnlyPackages"] as string[]),
+      ]),
+    }),
   });
 }

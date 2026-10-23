@@ -25,19 +25,17 @@ export interface SourceWorkspaceInventorySnapshotReader {
   discoverManifestPathsFromManifest(
     consumerRoot: string,
     workspaceManifest: unknown,
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ): Promise<readonly string[]>;
 
   readFromManifestPaths(
     consumerRoot: string,
     workspaceManifest: unknown,
     manifestPaths: readonly string[],
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ): Promise<WorkspaceInventory>;
 }
 
 export interface SourceWorkspaceTopologyInspector {
-  inspect(
-    input: InspectSourceWorkspaceTopologyInput
-  ): Promise<SourceWorkspaceTopology>;
+  inspect(input: InspectSourceWorkspaceTopologyInput): Promise<SourceWorkspaceTopology>;
 }

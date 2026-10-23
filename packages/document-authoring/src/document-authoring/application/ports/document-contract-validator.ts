@@ -1,6 +1,6 @@
 import type {
   DocumentIntent,
-  DocumentPlanContract as DocumentPlan
+  DocumentPlanContract as DocumentPlan,
 } from "../model/document-planning.js";
 
 export interface DocumentContractValidator {

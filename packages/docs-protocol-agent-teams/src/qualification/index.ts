@@ -6,28 +6,24 @@ export type {
   ManagedRestorationLockV1Provenance,
   ManagedRestorationLockV1Request,
   ManagedRestorationLockV1Result,
-  ManagedRestorationSelectionV1
+  ManagedRestorationSelectionV1,
 } from "./application-api.js";
 export { runDocsProtocolQualificationV2 } from "./composition/qualification.js";
 export { runDocsProtocolQualificationV3 } from "./composition/qualification.js";
-export { projectDocsProtocolQualificationV3Authority } from
-  "./composition/qualification.js";
-export { projectDocsProtocolQualificationCohortV3Authority } from
-  "./composition/qualification.js";
+export { projectDocsProtocolQualificationV3Authority } from "./composition/qualification.js";
+export { projectDocsProtocolQualificationCohortV3Authority } from "./composition/qualification.js";
 export type {
   DocsProtocolQualificationAuthorityV3,
   DocsProtocolQualificationAuthorityV3Request,
   DocsProtocolQualificationCohortV3Authority,
-  DocsProtocolQualificationCohortV3AuthorityRequest
+  DocsProtocolQualificationCohortV3AuthorityRequest,
 } from "./application-api.js";
-export {
-  observeDocsProtocolQualificationV3Lockfile
-} from "./composition/qualification.js";
+export { observeDocsProtocolQualificationV3Lockfile } from "./composition/qualification.js";
 export type {
   DocsProtocolQualificationContractV2,
   DocsProtocolQualificationReceiptV2,
   DocsProtocolQualificationScenarioV2,
-  DocsProtocolQualificationV2Request
+  DocsProtocolQualificationV2Request,
 } from "./application-api.js";
 export type {
   DocsProtocolQualificationCheckV3,
@@ -42,7 +38,7 @@ export type {
   DocsProtocolQualificationPackageKeyV3,
   DocsProtocolQualificationPackageReceiptV3,
   DocsProtocolQualificationReceiptV3,
-  DocsProtocolQualificationV3Request
+  DocsProtocolQualificationV3Request,
 } from "./application-api.js";
 export type {
   ConsumerQualificationAuthorityV3,
@@ -56,5 +52,5 @@ export type {
   QualifiedDocsCohortV1,
   QualifiedDocsCohortV2,
   QualifiedDocsPackageCoordinateV2,
-  UnselectedCohortV3
+  UnselectedCohortV3,
 } from "../consumer-integration/application-api.js";

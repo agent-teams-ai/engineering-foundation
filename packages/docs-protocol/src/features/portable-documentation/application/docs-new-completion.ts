@@ -5,7 +5,7 @@ import type {
   DocsCodeAnchor,
   DocsCommandOutcome,
   DocsDiagnostic,
-  ReachabilityAction
+  ReachabilityAction,
 } from "./model.js";
 import type { DocsBlockerPolicy, DocumentAuthoringPortV2 } from "./model-v2.js";
 import { normalizeCodeAnchors } from "../domain/document-semantics.js";
@@ -13,14 +13,19 @@ import { DocsProfileError } from "./profile-policy.js";
 import { validateCatalogDocumentRelations } from "../domain/blocker-policy.js";
 import { catalogMatchesExpectedPostimage } from "./authority-handshake.js";
 
-const BINARY = (left: string, right: string): number => Buffer.compare(Buffer.from(left), Buffer.from(right));
+const BINARY = (left: string, right: string): number =>
+  Buffer.compare(Buffer.from(left), Buffer.from(right));
 
 const MAX_DIAGNOSTICS = 256;
 const MAX_CORPUS_ANCHOR_PATTERNS = 1_024;
 const MAX_CORPUS_ANCHOR_OCCURRENCES = 4_096;
 
-export function boundedDiagnostics(diagnostics: readonly DocsDiagnostic[]): readonly DocsDiagnostic[] {
-  if (diagnostics.length <= MAX_DIAGNOSTICS) {return Object.freeze([...diagnostics]);}
+export function boundedDiagnostics(
+  diagnostics: readonly DocsDiagnostic[],
+): readonly DocsDiagnostic[] {
+  if (diagnostics.length <= MAX_DIAGNOSTICS) {
+    return Object.freeze([...diagnostics]);
+  }
   return Object.freeze([
     ...diagnostics.slice(0, MAX_DIAGNOSTICS - 1),
     {
@@ -28,32 +33,40 @@ export function boundedDiagnostics(diagnostics: readonly DocsDiagnostic[]): read
       severity: "error",
       phase: "authority",
       subject: "docs.diagnostics",
-      message: `Diagnostics exceeded the deterministic ${MAX_DIAGNOSTICS}-item output budget; additional findings were omitted.`
-    }
+      message: `Diagnostics exceeded the deterministic ${MAX_DIAGNOSTICS}-item output budget; additional findings were omitted.`,
+    },
   ]);
 }
 
 export function inspectRecapturedAnchors(
   anchors: readonly DocsCodeAnchor[],
-  matchedPatterns: readonly string[]
+  matchedPatterns: readonly string[],
 ): { readonly diagnostics: readonly DocsDiagnostic[]; readonly requiredMissing: boolean } {
   const matched = new Set(matchedPatterns);
   const missing = anchors.filter(({ pattern }) => !matched.has(pattern));
   return Object.freeze({
-    diagnostics: Object.freeze(missing.map(({ enforcement, pattern }) => ({
-      ruleId: enforcement === "required" ? "docs.code-anchor.required-stale" : "docs.code-anchor.advisory-unmatched",
-      severity: enforcement === "required" ? "error" as const : "warning" as const,
-      phase: "authority" as const,
-      subject: pattern,
-      message: enforcement === "required"
-        ? `Required code anchor ${pattern} no longer matches a current regular file.`
-        : `Advisory code anchor ${pattern} does not match a current regular file.`
-    }))),
-    requiredMissing: missing.some(({ enforcement }) => enforcement === "required")
+    diagnostics: Object.freeze(
+      missing.map(({ enforcement, pattern }) => ({
+        ruleId:
+          enforcement === "required"
+            ? "docs.code-anchor.required-stale"
+            : "docs.code-anchor.advisory-unmatched",
+        severity: enforcement === "required" ? ("error" as const) : ("warning" as const),
+        phase: "authority" as const,
+        subject: pattern,
+        message:
+          enforcement === "required"
+            ? `Required code anchor ${pattern} no longer matches a current regular file.`
+            : `Advisory code anchor ${pattern} does not match a current regular file.`,
+      })),
+    ),
+    requiredMissing: missing.some(({ enforcement }) => enforcement === "required"),
   });
 }
 
-export function mergeDiagnostics(...groups: readonly (readonly DocsDiagnostic[])[]): readonly DocsDiagnostic[] {
+export function mergeDiagnostics(
+  ...groups: readonly (readonly DocsDiagnostic[])[]
+): readonly DocsDiagnostic[] {
   const seen = new Set<string>();
   const merged: DocsDiagnostic[] = [];
   for (const diagnostic of groups.flat()) {
@@ -67,19 +80,33 @@ export function mergeDiagnostics(...groups: readonly (readonly DocsDiagnostic[])
 }
 
 function semanticDiagnostic(subject: string, message: string): DocsDiagnostic {
-  return { ruleId: "docs.metadata.common-semantics", severity: "error", phase: "authority", subject, message };
+  return {
+    ruleId: "docs.metadata.common-semantics",
+    severity: "error",
+    phase: "authority",
+    subject,
+    message,
+  };
 }
 
-type CatalogDocument = Awaited<ReturnType<DocumentAuthoringPortV2["buildCatalog"]>>["documents"][number];
+type CatalogDocument = Awaited<
+  ReturnType<DocumentAuthoringPortV2["buildCatalog"]>
+>["documents"][number];
 
-function inspectDocumentSemantics(document: CatalogDocument, byId: ReadonlyMap<string, CatalogDocument>, policy: DocsBlockerPolicy): readonly DocsCodeAnchor[] {
+function inspectDocumentSemantics(
+  document: CatalogDocument,
+  byId: ReadonlyMap<string, CatalogDocument>,
+  policy: DocsBlockerPolicy,
+): readonly DocsCodeAnchor[] {
   validateCatalogDocumentRelations({ document, documents: byId, policy });
   const anchorsValue = document.metadata["code_anchors"];
   return anchorsValue === undefined
     ? []
     : Array.isArray(anchorsValue)
       ? normalizeCodeAnchors(anchorsValue)
-      : (() => { throw new DocsProfileError("code_anchors must be an array."); })();
+      : (() => {
+          throw new DocsProfileError("code_anchors must be an array.");
+        })();
 }
 
 export async function inspectCorpusSemantics(input: {
@@ -92,39 +119,80 @@ export async function inspectCorpusSemantics(input: {
   const diagnostics: DocsDiagnostic[] = [];
   let diagnosticsOverflowed = false;
   const pushDiagnostic = (diagnostic: DocsDiagnostic): void => {
-    if (diagnostics.length < MAX_DIAGNOSTICS - 1) {diagnostics.push(diagnostic);}
-    else if (!diagnosticsOverflowed) {
+    if (diagnostics.length < MAX_DIAGNOSTICS - 1) {
+      diagnostics.push(diagnostic);
+    } else if (!diagnosticsOverflowed) {
       diagnosticsOverflowed = true;
-      diagnostics.push({ ruleId: "docs.diagnostics.overflow", severity: "error", phase: "authority", subject: "docs.check", message: `Diagnostics exceeded the deterministic ${MAX_DIAGNOSTICS}-item output budget; additional findings were omitted.` });
+      diagnostics.push({
+        ruleId: "docs.diagnostics.overflow",
+        severity: "error",
+        phase: "authority",
+        subject: "docs.check",
+        message: `Diagnostics exceeded the deterministic ${MAX_DIAGNOSTICS}-item output budget; additional findings were omitted.`,
+      });
     }
   };
   const byId = new Map(input.catalog.documents.map((document) => [document.id, document]));
-  const anchorOwners = new Map<string, Array<{ readonly enforcement: "advisory" | "required"; readonly id: string }>>();
+  const anchorOwners = new Map<
+    string,
+    Array<{ readonly enforcement: "advisory" | "required"; readonly id: string }>
+  >();
   let anchorOccurrences = 0;
   let anchorBudgetExceeded = false;
   for (const document of input.catalog.documents) {
     try {
       const anchors = inspectDocumentSemantics(document, byId, input.policy);
       for (const { enforcement, pattern } of anchors) {
-        if (anchorOccurrences >= MAX_CORPUS_ANCHOR_OCCURRENCES || (!anchorOwners.has(pattern) && anchorOwners.size >= MAX_CORPUS_ANCHOR_PATTERNS)) {anchorBudgetExceeded = true; continue;}
+        if (
+          anchorOccurrences >= MAX_CORPUS_ANCHOR_OCCURRENCES ||
+          (!anchorOwners.has(pattern) && anchorOwners.size >= MAX_CORPUS_ANCHOR_PATTERNS)
+        ) {
+          anchorBudgetExceeded = true;
+          continue;
+        }
         anchorOccurrences += 1;
         const owners = anchorOwners.get(pattern) ?? [];
         owners.push({ enforcement, id: document.id });
         anchorOwners.set(pattern, owners);
       }
     } catch (error) {
-      pushDiagnostic(semanticDiagnostic(document.repositoryPath, error instanceof Error ? error.message : "Common metadata semantics are invalid."));
+      pushDiagnostic(
+        semanticDiagnostic(
+          document.repositoryPath,
+          error instanceof Error ? error.message : "Common metadata semantics are invalid.",
+        ),
+      );
     }
   }
   if (anchorBudgetExceeded) {
-    pushDiagnostic({ ruleId: "docs.code-anchor.corpus-budget-exceeded", severity: "error", phase: "authority", subject: "code_anchors", message: `Code anchors exceed the global corpus budget of ${MAX_CORPUS_ANCHOR_PATTERNS} unique patterns or ${MAX_CORPUS_ANCHOR_OCCURRENCES} occurrences.` });
+    pushDiagnostic({
+      ruleId: "docs.code-anchor.corpus-budget-exceeded",
+      severity: "error",
+      phase: "authority",
+      subject: "code_anchors",
+      message: `Code anchors exceed the global corpus budget of ${MAX_CORPUS_ANCHOR_PATTERNS} unique patterns or ${MAX_CORPUS_ANCHOR_OCCURRENCES} occurrences.`,
+    });
   }
   const patterns = [...anchorOwners.keys()].toSorted(BINARY);
-  const matched = await input.anchors.matchedPatterns({ consumerRoot: input.consumerRoot, patterns, ...(input.signal === undefined ? {} : { signal: input.signal }) });
+  const matched = await input.anchors.matchedPatterns({
+    consumerRoot: input.consumerRoot,
+    patterns,
+    ...(input.signal === undefined ? {} : { signal: input.signal }),
+  });
   for (const pattern of patterns) {
     if (!matched.includes(pattern)) {
       for (const { enforcement, id } of anchorOwners.get(pattern) ?? []) {
-        pushDiagnostic({ ...semanticDiagnostic(id, `Code anchor ${pattern} does not match a current regular file.`), ruleId: enforcement === "required" ? "docs.code-anchor.required-unmatched" : "docs.code-anchor.advisory-unmatched", severity: enforcement === "required" ? "error" : "warning" });
+        pushDiagnostic({
+          ...semanticDiagnostic(
+            id,
+            `Code anchor ${pattern} does not match a current regular file.`,
+          ),
+          ruleId:
+            enforcement === "required"
+              ? "docs.code-anchor.required-unmatched"
+              : "docs.code-anchor.advisory-unmatched",
+          severity: enforcement === "required" ? "error" : "warning",
+        });
       }
     }
   }
@@ -157,19 +225,22 @@ export async function completeDocsNewApply(input: {
     matchedAfterPublication = await input.anchors.matchedPatterns({
       consumerRoot: input.consumerRoot,
       patterns: input.codeAnchors.map(({ pattern }) => pattern),
-      ...(input.signal === undefined ? {} : { signal: input.signal })
+      ...(input.signal === undefined ? {} : { signal: input.signal }),
     });
   } catch (error) {
     return {
-      diagnostics: [...input.diagnostics, {
-        ruleId: "docs.code-anchor.post-publication-inspection-failed",
-        severity: "error",
-        phase: "authority",
-        subject: input.plan.destination,
-        message: `Published document code-anchor authority could not be verified; manual reconciliation is required: ${error instanceof Error ? error.message : "unknown inspection failure"}`
-      }],
+      diagnostics: [
+        ...input.diagnostics,
+        {
+          ruleId: "docs.code-anchor.post-publication-inspection-failed",
+          severity: "error",
+          phase: "authority",
+          subject: input.plan.destination,
+          message: `Published document code-anchor authority could not be verified; manual reconciliation is required: ${error instanceof Error ? error.message : "unknown inspection failure"}`,
+        },
+      ],
       outcome: "recovery-required",
-      writeState: "published-recovery-required"
+      writeState: "published-recovery-required",
     };
   }
   const matched = new Set(matchedAfterPublication);
@@ -177,15 +248,26 @@ export async function completeDocsNewApply(input: {
   const diagnostics = [...input.diagnostics];
   for (const { enforcement, pattern } of missing) {
     const diagnostic: DocsDiagnostic = {
-      ruleId: enforcement === "required" ? "docs.code-anchor.required-stale-after-publication" : "docs.code-anchor.advisory-unmatched",
+      ruleId:
+        enforcement === "required"
+          ? "docs.code-anchor.required-stale-after-publication"
+          : "docs.code-anchor.advisory-unmatched",
       severity: enforcement === "required" ? "error" : "warning",
       phase: "authority",
       subject: pattern,
-      message: enforcement === "required"
-        ? `Required code anchor ${pattern} no longer matches after publication; the published document requires manual reconciliation.`
-        : `Advisory code anchor ${pattern} does not match a current regular file.`
+      message:
+        enforcement === "required"
+          ? `Required code anchor ${pattern} no longer matches after publication; the published document requires manual reconciliation.`
+          : `Advisory code anchor ${pattern} does not match a current regular file.`,
     };
-    if (!diagnostics.some((entry) => entry.ruleId === diagnostic.ruleId && entry.subject === diagnostic.subject && entry.message === diagnostic.message)) {
+    if (
+      !diagnostics.some(
+        (entry) =>
+          entry.ruleId === diagnostic.ruleId &&
+          entry.subject === diagnostic.subject &&
+          entry.message === diagnostic.message,
+      )
+    ) {
       diagnostics.push(diagnostic);
     }
   }
@@ -193,7 +275,7 @@ export async function completeDocsNewApply(input: {
     return {
       diagnostics,
       outcome: "recovery-required",
-      writeState: "published-recovery-required"
+      writeState: "published-recovery-required",
     };
   }
   let catalog: Awaited<ReturnType<DocumentAuthoringPortV2["buildCatalog"]>>;
@@ -201,31 +283,38 @@ export async function completeDocsNewApply(input: {
     catalog = await input.foundation.buildCatalog({
       consumerRoot: input.consumerRoot,
       profilePath: input.profilePath,
-      ...(input.signal === undefined ? {} : { signal: input.signal })
+      ...(input.signal === undefined ? {} : { signal: input.signal }),
     });
   } catch (error) {
     return {
-      diagnostics: [...diagnostics, {
-        ruleId: "docs.new.catalog-postimage-unavailable",
-        severity: "error",
-        phase: "apply",
-        subject: input.plan.destination,
-        message: `Published document catalog postimage could not be verified; manual reconciliation is required: ${error instanceof Error ? error.message : "unknown catalog failure"}`
-      }],
+      diagnostics: [
+        ...diagnostics,
+        {
+          ruleId: "docs.new.catalog-postimage-unavailable",
+          severity: "error",
+          phase: "apply",
+          subject: input.plan.destination,
+          message: `Published document catalog postimage could not be verified; manual reconciliation is required: ${error instanceof Error ? error.message : "unknown catalog failure"}`,
+        },
+      ],
       outcome: "recovery-required",
-      writeState: "published-recovery-required"
+      writeState: "published-recovery-required",
     };
   }
   if (!catalogMatchesExpectedPostimage(input.plan, catalog)) {
     return {
-      diagnostics: [...diagnostics, {
-        ruleId: "docs.new.catalog-postimage-mismatch",
-        severity: "error",
-        phase: "apply",
-        subject: input.plan.destination,
-        message: "Published document catalog does not match the Plan expected postimage; no reachability action was issued."
-      }],
-      outcome: "execution-failure"
+      diagnostics: [
+        ...diagnostics,
+        {
+          ruleId: "docs.new.catalog-postimage-mismatch",
+          severity: "error",
+          phase: "apply",
+          subject: input.plan.destination,
+          message:
+            "Published document catalog does not match the Plan expected postimage; no reachability action was issued.",
+        },
+      ],
+      outcome: "execution-failure",
     };
   }
   return { diagnostics, outcome: "success", reachability: input.reachability };

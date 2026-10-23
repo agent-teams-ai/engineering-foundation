@@ -3,34 +3,29 @@ import { compareBinaryStrings } from "../../../../../binary-string-comparator.js
 import {
   sourceTopologyInputError as inputError,
   type SourceWorkspaceFileReader,
-  type SourceWorkspaceManifestLoader
+  type SourceWorkspaceManifestLoader,
 } from "../../../api.js";
 import type { SourceWorkspaceTopology } from "../../../application/model/source-workspace-topology.js";
 import type {
   InspectSourceWorkspaceTopologyInput,
   SourceBoundaryRootDescription,
   SourceWorkspaceInventorySnapshotReader,
-  SourceWorkspaceTopologyInspector
+  SourceWorkspaceTopologyInspector,
 } from "../../../application/ports/source-workspace-topology-inspector.js";
 import {
   buildSelectedPackageSourceTopology,
   rootOutsideSelectedPackages,
   sourceWorkspaceDiscoveryLimits,
   type SourceWorkspaceDiscoveryHooks,
-  type SourceWorkspaceDiscoveryLimits
+  type SourceWorkspaceDiscoveryLimits,
 } from "./selected-package-source-discovery.js";
 import { readGovernedSourceFiles } from "./selected-package-source-snapshot-reader.js";
-import {
-  capturePnpmSourceWorkspaceSnapshot
-} from "./pnpm-source-workspace-snapshot.js";
+import { capturePnpmSourceWorkspaceSnapshot } from "./pnpm-source-workspace-snapshot.js";
 import {
   createSourceWorkspaceFileSystem,
-  type SourceWorkspaceFileSystem
+  type SourceWorkspaceFileSystem,
 } from "./source-workspace-filesystem.js";
-import {
-  inspectUniqueRoots,
-  revalidateRoots
-} from "./source-workspace-root-snapshot.js";
+import { inspectUniqueRoots, revalidateRoots } from "./source-workspace-root-snapshot.js";
 
 export interface PnpmSourceWorkspaceTopologyInspectorDependencies {
   readonly fileReader: SourceWorkspaceFileReader;
@@ -41,34 +36,31 @@ export interface PnpmSourceWorkspaceTopologyInspectorDependencies {
   readonly workspaceManifestLoader: SourceWorkspaceManifestLoader;
 }
 
-function boundaryRootPaths(
-  roots: readonly SourceBoundaryRootDescription[]
-): readonly string[] {
+function boundaryRootPaths(roots: readonly SourceBoundaryRootDescription[]): readonly string[] {
   return roots
     .toSorted(
       (left, right) =>
         compareBinaryStrings(left.path, right.path) ||
-        compareBinaryStrings(left.boundaryId, right.boundaryId)
+        compareBinaryStrings(left.boundaryId, right.boundaryId),
     )
     .map((root) => root.path);
 }
 
-export class PnpmSourceWorkspaceTopologyInspector
-  implements SourceWorkspaceTopologyInspector
-{
+export class PnpmSourceWorkspaceTopologyInspector implements SourceWorkspaceTopologyInspector {
   readonly #dependencies: PnpmSourceWorkspaceTopologyInspectorDependencies;
   readonly #fileSystem: SourceWorkspaceFileSystem;
   readonly #limits: SourceWorkspaceDiscoveryLimits;
 
   constructor(dependencies: PnpmSourceWorkspaceTopologyInspectorDependencies) {
     this.#dependencies = dependencies;
-    this.#fileSystem = createSourceWorkspaceFileSystem(dependencies.fileReader, dependencies.fileSystem);
+    this.#fileSystem = createSourceWorkspaceFileSystem(
+      dependencies.fileReader,
+      dependencies.fileSystem,
+    );
     this.#limits = sourceWorkspaceDiscoveryLimits(dependencies.limits);
   }
 
-  async inspect(
-    input: InspectSourceWorkspaceTopologyInput
-  ): Promise<SourceWorkspaceTopology> {
+  async inspect(input: InspectSourceWorkspaceTopologyInput): Promise<SourceWorkspaceTopology> {
     const {
       canonicalConsumerRoot,
       configuredPackageRoots,
@@ -79,31 +71,26 @@ export class PnpmSourceWorkspaceTopologyInspector
       ownership,
       packageTypeScopes,
       selectedManifestPaths,
-      selectedPackages
+      selectedPackages,
     } = await capturePnpmSourceWorkspaceSnapshot({
       fileSystem: this.#fileSystem,
       input,
       inventoryReader: this.#dependencies.inventoryReader,
       limits: this.#limits,
-      ...(this.#dependencies.hooks === undefined
-        ? {}
-        : { hooks: this.#dependencies.hooks }),
-      workspaceManifestLoader: this.#dependencies.workspaceManifestLoader
+      ...(this.#dependencies.hooks === undefined ? {} : { hooks: this.#dependencies.hooks }),
+      workspaceManifestLoader: this.#dependencies.workspaceManifestLoader,
     });
-    const outsideRoot = [
-      ...input.governedRoots,
-      ...input.boundaryRoots.map(({ path }) => path)
-    ]
+    const outsideRoot = [...input.governedRoots, ...input.boundaryRoots.map(({ path }) => path)]
       .toSorted(compareBinaryStrings)
       .find((root) =>
         ownership === undefined
           ? rootOutsideSelectedPackages(root, selectedPackages, selectedManifestPaths)
-          : sourcePackageOwner(root, selectedPackages, ownership) === undefined
+          : sourcePackageOwner(root, selectedPackages, ownership) === undefined,
       );
     if (outsideRoot !== undefined) {
       inputError(
         "SOURCE_ROOT_OUTSIDE_WORKSPACE",
-        `Governed or architecture boundary root is outside the schema v2 packageRoots contract: ${outsideRoot}.`
+        `Governed or architecture boundary root is outside the schema v2 packageRoots contract: ${outsideRoot}.`,
       );
     }
     const packageRoots = await inspectUniqueRoots({
@@ -112,7 +99,7 @@ export class PnpmSourceWorkspaceTopologyInspector
       label: "Workspace package roots",
       operations: this.#fileSystem,
       roots: selectedPackages.map((workspacePackage) => workspacePackage.rootPath),
-      ...(input.signal === undefined ? {} : { signal: input.signal })
+      ...(input.signal === undefined ? {} : { signal: input.signal }),
     });
     const governedRoots = await inspectUniqueRoots({
       canonicalConsumerRoot,
@@ -120,7 +107,7 @@ export class PnpmSourceWorkspaceTopologyInspector
       label: "Governed roots",
       operations: this.#fileSystem,
       roots: input.governedRoots,
-      ...(input.signal === undefined ? {} : { signal: input.signal })
+      ...(input.signal === undefined ? {} : { signal: input.signal }),
     });
     const boundaryRoots = await inspectUniqueRoots({
       canonicalConsumerRoot,
@@ -128,13 +115,13 @@ export class PnpmSourceWorkspaceTopologyInspector
       label: "Architecture boundary roots",
       operations: this.#fileSystem,
       roots: boundaryRootPaths(input.boundaryRoots),
-      ...(input.signal === undefined ? {} : { signal: input.signal })
+      ...(input.signal === undefined ? {} : { signal: input.signal }),
     });
     const symbolicLink = discovered.symbolicLinkPaths[0];
     if (symbolicLink !== undefined) {
       inputError(
         "SOURCE_SYMLINK_PROHIBITED",
-        `Selected workspace source cannot contain symbolic links: ${symbolicLink}.`
+        `Selected workspace source cannot contain symbolic links: ${symbolicLink}.`,
       );
     }
     const packageRootIdentities = new Map(
@@ -142,31 +129,34 @@ export class PnpmSourceWorkspaceTopologyInspector
         root.repositoryPath,
         Object.freeze({
           device: String(root.canonicalMetadata.dev),
-          inode: String(root.canonicalMetadata.ino)
-        })
-      ])
+          inode: String(root.canonicalMetadata.ino),
+        }),
+      ]),
     );
     const packages = buildSelectedPackageSourceTopology(
       selectedPackages,
       discovered.sourcePaths,
-      ownership?.ownershipManifestPaths ?? selectedManifestPaths
-    ).map((workspacePackage) => Object.freeze({
-      ...workspacePackage,
-      filesystemIdentity: packageRootIdentities.get(workspacePackage.rootPath) ??
-        inputError(
-          "SOURCE_FILESYSTEM_CHANGED",
-          `Workspace package root identity is missing: ${workspacePackage.rootPath}.`
-        )
-    }));
+      ownership?.ownershipManifestPaths ?? selectedManifestPaths,
+    ).map((workspacePackage) =>
+      Object.freeze({
+        ...workspacePackage,
+        filesystemIdentity:
+          packageRootIdentities.get(workspacePackage.rootPath) ??
+          inputError(
+            "SOURCE_FILESYSTEM_CHANGED",
+            `Workspace package root identity is missing: ${workspacePackage.rootPath}.`,
+          ),
+      }),
+    );
     const unownedSourcePath = discovered.sourcePaths.find((path) =>
       ownership === undefined
         ? rootOutsideSelectedPackages(path, selectedPackages, selectedManifestPaths)
-        : sourcePackageOwner(path, selectedPackages, ownership) === undefined
+        : sourcePackageOwner(path, selectedPackages, ownership) === undefined,
     );
     if (unownedSourcePath !== undefined) {
       inputError(
         "SOURCE_OUTSIDE_PACKAGE",
-        `Source below a configured package root belongs to no package: ${unownedSourcePath}.`
+        `Source below a configured package root belongs to no package: ${unownedSourcePath}.`,
       );
     }
     const selectedSourcePaths = packages
@@ -180,8 +170,8 @@ export class PnpmSourceWorkspaceTopologyInspector
         fileSystem: this.#fileSystem,
         limits: this.#limits,
         consumedBytes: observations?.manifestBytes ?? 0,
-        ...(input.signal === undefined ? {} : { signal: input.signal })
-      }
+        ...(input.signal === undefined ? {} : { signal: input.signal }),
+      },
     );
     await revalidateRoots({
       canonicalConsumerRoot,
@@ -192,9 +182,9 @@ export class PnpmSourceWorkspaceTopologyInspector
         ...configuredPackageRoots,
         ...packageRoots,
         ...governedRoots,
-        ...boundaryRoots
+        ...boundaryRoots,
       ],
-      ...(input.signal === undefined ? {} : { signal: input.signal })
+      ...(input.signal === undefined ? {} : { signal: input.signal }),
     });
     await observations?.revalidate();
     return Object.freeze({
@@ -202,12 +192,12 @@ export class PnpmSourceWorkspaceTopologyInspector
       canonicalConsumerRoot,
       consumerRootIdentity: Object.freeze({
         device: String(consumerRootSnapshot.canonicalMetadata.dev),
-        inode: String(consumerRootSnapshot.canonicalMetadata.ino)
+        inode: String(consumerRootSnapshot.canonicalMetadata.ino),
       }),
       inventory,
       packageTypeScopes,
       packages,
-      sourceFiles
+      sourceFiles,
     });
   }
 }

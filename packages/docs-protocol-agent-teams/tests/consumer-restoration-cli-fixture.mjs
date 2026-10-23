@@ -10,10 +10,18 @@ import { restorationJson } from "../dist/consumer-integration/application/polici
 export async function restorationSnapshot(root, prefix = "") {
   const result = {};
   for (const entry of await readdir(join(root, prefix), { withFileTypes: true })) {
-    if ([".git", ".agent-teams-local", "node_modules"].includes(entry.name)) {continue;}
+    if ([".git", ".agent-teams-local", "node_modules"].includes(entry.name)) {
+      continue;
+    }
     const path = prefix ? `${prefix}/${entry.name}` : entry.name;
-    if (entry.isDirectory()) {Object.assign(result, await restorationSnapshot(root, path)); continue;}
-    result[path] = { bytes: (await readFile(join(root, path))).toString("base64"), mode: (await lstat(join(root, path))).mode & 0o777 };
+    if (entry.isDirectory()) {
+      Object.assign(result, await restorationSnapshot(root, path));
+      continue;
+    }
+    result[path] = {
+      bytes: (await readFile(join(root, path))).toString("base64"),
+      mode: (await lstat(join(root, path))).mode & 0o777,
+    };
   }
   return result;
 }
@@ -21,20 +29,62 @@ export async function restorationSnapshot(root, prefix = "") {
 // Recompute ALL candidate integrity bindings to exercise semantic scope, not a stale hash refusal.
 export function resealRestorationProof(proof, path) {
   proof.proofPath = path;
-  const body = { schemaVersion: 1, protocol: proof.plan.protocol, planDigest: proof.plan.planDigest, outcome: "applied",
-    operations: proof.plan.operations.map(({ path: operationPath, postimage }) => ({ path: operationPath, outcome: "replaced", resultDigest: postimage.digest })) };
-  proof.receipt = { ...body, receiptDigest: sha256Json({ domain: "agent-teams.repository-mutation.known-file-receipt/v1", body }) };
+  const body = {
+    schemaVersion: 1,
+    protocol: proof.plan.protocol,
+    planDigest: proof.plan.planDigest,
+    outcome: "applied",
+    operations: proof.plan.operations.map(({ path: operationPath, postimage }) => ({
+      path: operationPath,
+      outcome: "replaced",
+      resultDigest: postimage.digest,
+    })),
+  };
+  proof.receipt = {
+    ...body,
+    receiptDigest: sha256Json({
+      domain: "agent-teams.repository-mutation.known-file-receipt/v1",
+      body,
+    }),
+  };
   proof.originalReceipt = proof.receipt;
-  const { receipt: _receipt, originalReceipt: _original, activation: _activation, preparationDigest: _digest, proofPath: _path, ...intent } = proof;
-  proof.preparationDigest = sha256Bytes(Buffer.from(`${restorationJson({ ...intent, protocol: "agent-teams.managed-v1-restoration-preparation/v1" })}\n`));
+  const {
+    receipt: _receipt,
+    originalReceipt: _original,
+    activation: _activation,
+    preparationDigest: _digest,
+    proofPath: _path,
+    ...intent
+  } = proof;
+  proof.preparationDigest = sha256Bytes(
+    Buffer.from(
+      `${restorationJson({ ...intent, protocol: "agent-teams.managed-v1-restoration-preparation/v1" })}\n`,
+    ),
+  );
   return Buffer.from(`${restorationJson(proof)}\n`);
 }
 
 export function restorationArgs(fixture, command, selection, proofPath = fixture.proofPath) {
   const forward = command !== "restore";
-  return [command, "--consumer", fixture.consumerRoot, "--source-generation", forward ? "1" : "2", "--target-generation", forward ? "2" : "1",
-    "--from", forward ? fixture.origin.cohortId : fixture.target.cohortId, "--to", forward ? fixture.target.cohortId : fixture.origin.cohortId,
-    ...(forward ? ["--preparation", selection.path] : []), "--proof", proofPath, "--expect", selection.digest, "--json"];
+  return [
+    command,
+    "--consumer",
+    fixture.consumerRoot,
+    "--source-generation",
+    forward ? "1" : "2",
+    "--target-generation",
+    forward ? "2" : "1",
+    "--from",
+    forward ? fixture.origin.cohortId : fixture.target.cohortId,
+    "--to",
+    forward ? fixture.target.cohortId : fixture.origin.cohortId,
+    ...(forward ? ["--preparation", selection.path] : []),
+    "--proof",
+    proofPath,
+    "--expect",
+    selection.digest,
+    "--json",
+  ];
 }
 
 // Only fixture catalog and central authority are injected. The production router, strict serializer,
@@ -89,26 +139,52 @@ finally {
  if(previousFileSizeLimit!==undefined) execFileSync('prlimit',['--pid',String(process.pid),'--fsize='+previousFileSizeLimit+':']);
 }
 `;
-  const payload = { argv, catalog: fixture.fixtureCatalog, target: options.target ?? fixture.target, origin: options.origin ?? fixture.origin,
-    fault: options.fault, proofPath: options.proofPath ?? fixture.proofPath, preparationPath: options.preparationPath ?? `${fixture.proofPath}.prepared` };
+  const payload = {
+    argv,
+    catalog: fixture.fixtureCatalog,
+    target: options.target ?? fixture.target,
+    origin: options.origin ?? fixture.origin,
+    fault: options.fault,
+    proofPath: options.proofPath ?? fixture.proofPath,
+    preparationPath: options.preparationPath ?? `${fixture.proofPath}.prepared`,
+  };
   const result = await new Promise((resolve, reject) => {
     const child = spawn(process.execPath, ["--input-type=module", "-e", script], {
-      cwd: fixture.consumerRoot, env: { ...process.env, ...options.env,
-        ...(options.fault === "during-activation" ? { MANAGED_RESTORATION_KILL_CONTROLLER: "1" } : {}) },
-      stdio: ["pipe", options.fault === "lost-output" ? "ignore" : "pipe", "pipe"]
+      cwd: fixture.consumerRoot,
+      env: {
+        ...process.env,
+        ...options.env,
+        ...(options.fault === "during-activation"
+          ? { MANAGED_RESTORATION_KILL_CONTROLLER: "1" }
+          : {}),
+      },
+      stdio: ["pipe", options.fault === "lost-output" ? "ignore" : "pipe", "pipe"],
     });
-    let stdout = "", stderr = "";
-    child.stdout?.on("data", (data) => {stdout += data;}); child.stderr.on("data", (data) => {stderr += data;});
-    child.on("error", reject); child.on("close", (code, signal) => resolve({ code, signal, stdout, stderr }));
+    let stdout = "",
+      stderr = "";
+    child.stdout?.on("data", (data) => {
+      stdout += data;
+    });
+    child.stderr.on("data", (data) => {
+      stderr += data;
+    });
+    child.on("error", reject);
+    child.on("close", (code, signal) => resolve({ code, signal, stdout, stderr }));
     child.stdin.end(JSON.stringify(payload));
   });
   const directory = process.env.MANAGED_RESTORATION_EVIDENCE_DIR;
   if (directory) {
     await mkdir(directory, { recursive: true });
     const name = `${String(++evidenceSequence).padStart(3, "0")}-${options.label ?? argv[0]}`;
-    await writeFile(join(directory, `${name}.json`), `${JSON.stringify({ argv, fault: options.fault, ...result }, null, 2)}\n`, { flag: "wx" });
+    await writeFile(
+      join(directory, `${name}.json`),
+      `${JSON.stringify({ argv, fault: options.fault, ...result }, null, 2)}\n`,
+      { flag: "wx" },
+    );
   }
-  if (result.stdout.trim()) {result.execution = JSON.parse(result.stdout);}
+  if (result.stdout.trim()) {
+    result.execution = JSON.parse(result.stdout);
+  }
   return result;
 }
 

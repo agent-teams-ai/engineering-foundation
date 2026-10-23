@@ -16,7 +16,11 @@ function contained(root: string, path: string): boolean {
   const suffix = relative(root, path);
   return suffix !== ".." && !suffix.startsWith(`..${sep}`) && !isAbsolute(suffix);
 }
-async function resolvePackage(root: string, issuer: string, name: string): Promise<string | undefined> {
+async function resolvePackage(
+  root: string,
+  issuer: string,
+  name: string,
+): Promise<string | undefined> {
   let current = issuer;
   while (contained(root, current)) {
     const candidate = join(current, "node_modules", name);
@@ -28,7 +32,9 @@ async function resolvePackage(root: string, issuer: string, name: string): Promi
       }
       return physical;
     }
-    if (current === root) { break; }
+    if (current === root) {
+      break;
+    }
     current = dirname(current);
   }
   return undefined;
@@ -50,37 +56,55 @@ export async function projectProducerSourceDependencies(directory: string): Prom
   const sourceManifest = await manifest(source);
   const rootManifest = await manifest(root);
   const selected = rootManifest.devDependencies?.[sourceManifest.name];
-  if (selected === undefined) { return; }
+  if (selected === undefined) {
+    return;
+  }
   const installed = await realpath(join(root, "node_modules", sourceManifest.name));
   if (installed === source || !contained(join(root, "node_modules"), installed)) {
-    throw new Error("Producer projection requires a distinct contained registry Toolchain installation.");
+    throw new Error(
+      "Producer projection requires a distinct contained registry Toolchain installation.",
+    );
   }
   const registry = await manifest(installed);
   if (registry.name !== sourceManifest.name || registry.version !== selected) {
-    throw new Error("Producer projection registry identity differs from the exact root declaration.");
+    throw new Error(
+      "Producer projection registry identity differs from the exact root declaration.",
+    );
   }
-  const authority = parsePnpmWorkspaceAuthority(await readFile(join(root, "pnpm-workspace.yaml"), "utf8"));
-  const declarations = { ...sourceManifest.dependencies, ...sourceManifest.devDependencies, ...sourceManifest.optionalDependencies };
+  const authority = parsePnpmWorkspaceAuthority(
+    await readFile(join(root, "pnpm-workspace.yaml"), "utf8"),
+  );
+  const declarations = {
+    ...sourceManifest.dependencies,
+    ...sourceManifest.devDependencies,
+    ...sourceManifest.optionalDependencies,
+  };
   const planned: { name: string; target: string }[] = [];
   for (const [name, spec] of Object.entries(declarations)) {
     const version = admittedVersion(name, spec, authority);
     const existing = await resolvePackage(root, source, name);
-    const target = existing ?? await resolvePackage(root, installed, name);
+    const target = existing ?? (await resolvePackage(root, installed, name));
     if (target === undefined) {
-      if (sourceManifest.optionalDependencies?.[name] !== undefined) { continue; }
+      if (sourceManifest.optionalDependencies?.[name] !== undefined) {
+        continue;
+      }
       throw new Error(`Required producer dependency is unavailable: ${name}`);
     }
     const observed = await manifest(target);
     if (observed.name !== name || observed.version !== version) {
       throw new Error(`Producer dependency identity mismatch: ${name}`);
     }
-    if (existing === undefined) { planned.push({ name, target }); }
+    if (existing === undefined) {
+      planned.push({ name, target });
+    }
   }
   // Validate every dependency before making the first owned link. Never replace existing entries.
   for (const { name, target } of planned) {
     const link = join(source, "node_modules", name);
     await mkdir(dirname(link), { recursive: true });
     await symlink(target, link, "junction");
-    if (await realpath(link) !== target) { throw new Error(`Producer dependency link changed: ${name}`); }
+    if ((await realpath(link)) !== target) {
+      throw new Error(`Producer dependency link changed: ${name}`);
+    }
   }
 }

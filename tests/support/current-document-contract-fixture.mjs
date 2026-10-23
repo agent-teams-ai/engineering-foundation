@@ -1,10 +1,14 @@
-import { documentPlanDigest, documentReceiptDigest } from "../../packages/document-authoring/dist/document-authoring/application/policies/document-contract-digests.js";
+import {
+  documentPlanDigest,
+  documentReceiptDigest,
+} from "../../packages/document-authoring/dist/document-authoring/application/policies/document-contract-digests.js";
 import { sha256Json } from "../../packages/repository-mutation/dist/index.js";
 import { createDocumentEnvelopeV3 } from "../fixtures/document-authoring-envelope-v3.mjs";
 
 export const fixtureKernelArtifact = Object.freeze({
-  name: "@agent-teams/repository-mutation", version: "0.0.0",
-  buildIdentity: `sha256:${"9".repeat(64)}`
+  name: "@agent-teams/repository-mutation",
+  version: "0.0.0",
+  buildIdentity: `sha256:${"9".repeat(64)}`,
 });
 
 // Synthetic current policy input, deliberately separate from frozen old JSON.

@@ -1,7 +1,7 @@
 import type {
   ConsumerIntegrationDesiredStateV3,
   ManagedSuccessorProfile,
-  QualifiedDocsCohortBindingV2
+  QualifiedDocsCohortBindingV2,
 } from "../../../consumer-integration/application-api.js";
 
 export type DocsProtocolQualificationCheckV3 =
@@ -13,8 +13,7 @@ export type DocsProtocolQualificationCheckV3 =
   | "schema-bindings-3-2-1"
   | "runtime-closure-digest";
 
-export type DocsProtocolQualificationPackageKeyV3 =
-  keyof QualifiedDocsCohortBindingV2["packages"];
+export type DocsProtocolQualificationPackageKeyV3 = keyof QualifiedDocsCohortBindingV2["packages"];
 
 export interface DocsProtocolQualificationObservedPackageV3 {
   readonly version: string;
@@ -23,10 +22,9 @@ export interface DocsProtocolQualificationObservedPackageV3 {
 
 /** Evidence observed by the release/canary lane, never inferred from installation shape. */
 export interface DocsProtocolQualificationEvidenceV3 {
-  readonly packages: Readonly<Record<
-    DocsProtocolQualificationPackageKeyV3,
-    DocsProtocolQualificationObservedPackageV3
-  >>;
+  readonly packages: Readonly<
+    Record<DocsProtocolQualificationPackageKeyV3, DocsProtocolQualificationObservedPackageV3>
+  >;
   readonly schemas: {
     readonly consumerIntegration: number;
     readonly managedState: number;
@@ -100,10 +98,9 @@ export interface DocsProtocolQualificationCohortEvidenceV3 {
     readonly qualificationEventDigest: `sha256:${string}`;
     readonly candidateDigest: `sha256:${string}`;
   };
-  readonly packages: Readonly<Record<
-    DocsProtocolQualificationPackageKeyV3,
-    DocsProtocolQualificationObservedPackageV3
-  >>;
+  readonly packages: Readonly<
+    Record<DocsProtocolQualificationPackageKeyV3, DocsProtocolQualificationObservedPackageV3>
+  >;
   readonly schemas: {
     readonly consumerIntegration: 4;
     readonly managedState: 3;

@@ -2,10 +2,12 @@ import { createFoundationTransactionCoordinatorFactory } from "../transaction-co
 import type { FoundationTransactionCoordinator } from "../transaction-coordination/application/foundation-transaction-coordinator.js";
 import { createNodeFoundationTransactionSlot } from "./node-foundation-transaction-slot.js";
 
-const coordinator = createFoundationTransactionCoordinatorFactory(createNodeFoundationTransactionSlot);
+const coordinator = createFoundationTransactionCoordinatorFactory(
+  createNodeFoundationTransactionSlot,
+);
 
 export async function createNodeFoundationTransactionCoordinator(
-  consumerRoot: string
+  consumerRoot: string,
 ): Promise<FoundationTransactionCoordinator> {
   return coordinator.createNodeFoundationTransactionCoordinator(consumerRoot);
 }

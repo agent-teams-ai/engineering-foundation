@@ -1,8 +1,5 @@
 import type { PortablePathIdentity } from "../../../path-identity.js";
-import type {
-  KnownFileDigest,
-  KnownFileTransactionPlanV1
-} from "./known-file-transaction.js";
+import type { KnownFileDigest, KnownFileTransactionPlanV1 } from "./known-file-transaction.js";
 
 export interface KnownFileTransactionPortableIdentityV1 {
   readonly birthtimeNs: string;
@@ -84,21 +81,21 @@ export interface KnownFileTransactionEnvelopeV1 {
 }
 
 export function serializeKnownFileIdentity(
-  identity: PortablePathIdentity
+  identity: PortablePathIdentity,
 ): KnownFileTransactionPortableIdentityV1 {
   return Object.freeze({
     birthtimeNs: identity.birthtimeNs.toString(),
     dev: identity.dev.toString(),
-    ino: identity.ino.toString()
+    ino: identity.ino.toString(),
   });
 }
 
 export function deserializeKnownFileIdentity(
-  identity: KnownFileTransactionPortableIdentityV1
+  identity: KnownFileTransactionPortableIdentityV1,
 ): PortablePathIdentity {
   return {
     birthtimeNs: BigInt(identity.birthtimeNs),
     dev: BigInt(identity.dev),
-    ino: BigInt(identity.ino)
+    ino: BigInt(identity.ino),
   };
 }

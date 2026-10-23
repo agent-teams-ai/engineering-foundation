@@ -1,19 +1,19 @@
-import {
-  mkdir,
-  mkdtemp,
-  readdir,
-  rm,
-  stat,
-  writeFile
-} from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
-import { isPublicApiInputError, publicApiFileFailure, publicApiInputError } from "../../../application/policies/public-api-evidence-errors.js";
-import type { PublicApiFileReader, PublicApiSourceEvidence } from "../../../application/ports/public-api-evidence.js";
+import {
+  isPublicApiInputError,
+  publicApiFileFailure,
+  publicApiInputError,
+} from "../../../application/policies/public-api-evidence-errors.js";
+import type {
+  PublicApiFileReader,
+  PublicApiSourceEvidence,
+} from "../../../application/ports/public-api-evidence.js";
 import {
   compareCanonicalReferences,
-  type PublicApiPackagePolicy
+  type PublicApiPackagePolicy,
 } from "../../../application/model/public-api.js";
 import { linkStagedNodeModules } from "./link-staged-package-node-modules.js";
 
@@ -57,10 +57,7 @@ function extractionReadError(error: unknown, repositoryPath: string): never {
           : publicApiFileFailure(error) === "invalid"
             ? "PUBLIC_API_PATH_INVALID"
             : "PUBLIC_API_PATH_UNAVAILABLE";
-    inputError(
-      code,
-      `Public API extraction input is unavailable or changed: ${repositoryPath}.`
-    );
+    inputError(code, `Public API extraction input is unavailable or changed: ${repositoryPath}.`);
   }
   throw error;
 }
@@ -70,7 +67,7 @@ export function sourcePathFor(root: string, repositoryPath: string): string {
   if (!contained(root, candidate)) {
     inputError(
       "PUBLIC_API_PATH_ESCAPE",
-      `Public API extraction path escapes the consumer repository: ${repositoryPath}.`
+      `Public API extraction path escapes the consumer repository: ${repositoryPath}.`,
     );
   }
   return candidate;
@@ -89,24 +86,30 @@ export function stagedPathForSource(input: {
   ) {
     inputError(
       "PUBLIC_API_PATH_ESCAPE",
-      "Configured public API evidence must stay inside the consumer repository."
+      "Configured public API evidence must stay inside the consumer repository.",
     );
   }
   return join(input.snapshot.stagingRoot, repositoryRelativePath);
 }
 
-async function readStagedSourceFile(input: {
-  readonly root: string;
-  readonly sourcePath: string;
-}, files: PublicApiFileReader): Promise<Buffer> {
+async function readStagedSourceFile(
+  input: {
+    readonly root: string;
+    readonly sourcePath: string;
+  },
+  files: PublicApiFileReader,
+): Promise<Buffer> {
   try {
     const bytes = await files.read({
       candidate: input.sourcePath,
       maxBytes: MAX_EXTRACTOR_INPUT_BYTES,
-      root: input.root
+      root: input.root,
     });
     if (bytes.byteLength > MAX_EXTRACTOR_INPUT_BYTES) {
-      inputError("PUBLIC_API_PATH_INVALID", `Public API extraction input is unavailable or changed: ${relative(input.root, input.sourcePath)}.`);
+      inputError(
+        "PUBLIC_API_PATH_INVALID",
+        `Public API extraction input is unavailable or changed: ${relative(input.root, input.sourcePath)}.`,
+      );
     }
     return Buffer.from(bytes);
   } catch (error) {
@@ -119,7 +122,7 @@ function consumeDirectoryEntries(budget: StagingBudget, count: number): void {
   if (budget.entryCount > MAX_STAGED_REPOSITORY_ENTRIES) {
     inputError(
       "PUBLIC_API_PATH_INVALID",
-      `Public API input exceeds ${MAX_STAGED_REPOSITORY_ENTRIES} staged repository entries.`
+      `Public API input exceeds ${MAX_STAGED_REPOSITORY_ENTRIES} staged repository entries.`,
     );
   }
 }
@@ -129,21 +132,24 @@ function consumeBytes(budget: StagingBudget, source: Buffer, scope: string): voi
   if (budget.totalBytes > MAX_STAGED_PACKAGE_BYTES) {
     inputError(
       "PUBLIC_API_PATH_INVALID",
-      `Public API ${scope} input exceeds the staged extraction resource limit.`
+      `Public API ${scope} input exceeds the staged extraction resource limit.`,
     );
   }
 }
 
-async function stagePackageDirectory(input: {
-  readonly budget: StagingBudget;
-  readonly destinationDirectory: string;
-  readonly root: string;
-  readonly sourceDirectory: string;
-}, evidence: PublicApiSourceEvidence): Promise<void> {
+async function stagePackageDirectory(
+  input: {
+    readonly budget: StagingBudget;
+    readonly destinationDirectory: string;
+    readonly root: string;
+    readonly sourceDirectory: string;
+  },
+  evidence: PublicApiSourceEvidence,
+): Promise<void> {
   if (await evidence.paths.traversesSymbolicLink(input.root, input.sourceDirectory)) {
     inputError(
       "PUBLIC_API_PATH_SYMLINK_PROHIBITED",
-      `Public API package tree cannot traverse a symbolic link: ${relative(input.root, input.sourceDirectory)}.`
+      `Public API package tree cannot traverse a symbolic link: ${relative(input.root, input.sourceDirectory)}.`,
     );
   }
   let entries;
@@ -152,12 +158,12 @@ async function stagePackageDirectory(input: {
   } catch {
     inputError(
       "PUBLIC_API_PATH_UNAVAILABLE",
-      `Public API package directory is unavailable: ${relative(input.root, input.sourceDirectory)}.`
+      `Public API package directory is unavailable: ${relative(input.root, input.sourceDirectory)}.`,
     );
   }
   consumeDirectoryEntries(input.budget, entries.length);
   for (const entry of entries.toSorted((left, right) =>
-    compareCanonicalReferences(left.name, right.name)
+    compareCanonicalReferences(left.name, right.name),
   )) {
     const sourcePath = join(input.sourceDirectory, entry.name);
     if (
@@ -172,23 +178,26 @@ async function stagePackageDirectory(input: {
     if (entry.isSymbolicLink()) {
       inputError(
         "PUBLIC_API_PATH_SYMLINK_PROHIBITED",
-        `Public API package tree cannot include a symbolic link: ${relative(input.root, sourcePath)}.`
+        `Public API package tree cannot include a symbolic link: ${relative(input.root, sourcePath)}.`,
       );
     }
     if (entry.isDirectory()) {
       await mkdir(destinationPath, { mode: 0o700, recursive: true });
-      await stagePackageDirectory({
-        budget: input.budget,
-        destinationDirectory: destinationPath,
-        root: input.root,
-        sourceDirectory: sourcePath
-      }, evidence);
+      await stagePackageDirectory(
+        {
+          budget: input.budget,
+          destinationDirectory: destinationPath,
+          root: input.root,
+          sourceDirectory: sourcePath,
+        },
+        evidence,
+      );
       continue;
     }
     if (!entry.isFile()) {
       inputError(
         "PUBLIC_API_PATH_INVALID",
-        `Public API package tree contains an unsupported entry: ${relative(input.root, sourcePath)}.`
+        `Public API package tree contains an unsupported entry: ${relative(input.root, sourcePath)}.`,
       );
     }
     const source = await readStagedSourceFile({ root: input.root, sourcePath }, evidence.files);
@@ -197,25 +206,28 @@ async function stagePackageDirectory(input: {
   }
 }
 
-async function stageRepositoryCompilerInputs(input: {
-  readonly budget: StagingBudget;
-  readonly destinationDirectory: string;
-  readonly root: string;
-  readonly sourceDirectory: string;
-  readonly sourcePackageRoot: string;
-}, evidence: PublicApiSourceEvidence): Promise<void> {
+async function stageRepositoryCompilerInputs(
+  input: {
+    readonly budget: StagingBudget;
+    readonly destinationDirectory: string;
+    readonly root: string;
+    readonly sourceDirectory: string;
+    readonly sourcePackageRoot: string;
+  },
+  evidence: PublicApiSourceEvidence,
+): Promise<void> {
   let entries;
   try {
     entries = await readdir(input.sourceDirectory, { withFileTypes: true });
   } catch {
     inputError(
       "PUBLIC_API_PATH_UNAVAILABLE",
-      `Public API repository evidence is unavailable: ${relative(input.root, input.sourceDirectory)}.`
+      `Public API repository evidence is unavailable: ${relative(input.root, input.sourceDirectory)}.`,
     );
   }
   consumeDirectoryEntries(input.budget, entries.length);
   for (const entry of entries.toSorted((left, right) =>
-    compareCanonicalReferences(left.name, right.name)
+    compareCanonicalReferences(left.name, right.name),
   )) {
     const sourcePath = join(input.sourceDirectory, entry.name);
     if (
@@ -230,11 +242,14 @@ async function stageRepositoryCompilerInputs(input: {
     const destinationPath = join(input.destinationDirectory, entry.name);
     if (entry.isDirectory()) {
       await mkdir(destinationPath, { mode: 0o700, recursive: true });
-      await stageRepositoryCompilerInputs({
-        ...input,
-        destinationDirectory: destinationPath,
-        sourceDirectory: sourcePath
-      }, evidence);
+      await stageRepositoryCompilerInputs(
+        {
+          ...input,
+          destinationDirectory: destinationPath,
+          sourceDirectory: sourcePath,
+        },
+        evidence,
+      );
       continue;
     }
     if (entry.isSymbolicLink() || !entry.isFile() || !REPOSITORY_COMPILER_INPUT.test(entry.name)) {
@@ -246,22 +261,25 @@ async function stageRepositoryCompilerInputs(input: {
   }
 }
 
-export async function stagePackageSnapshot(input: {
-  readonly policy: PublicApiPackagePolicy;
-  readonly root: string;
-}, evidence: PublicApiSourceEvidence): Promise<StagedPackageSnapshot> {
+export async function stagePackageSnapshot(
+  input: {
+    readonly policy: PublicApiPackagePolicy;
+    readonly root: string;
+  },
+  evidence: PublicApiSourceEvidence,
+): Promise<StagedPackageSnapshot> {
   const sourcePackageRoot = sourcePathFor(input.root, input.policy.packageRoot);
   if (await evidence.paths.traversesSymbolicLink(input.root, sourcePackageRoot)) {
     inputError(
       "PUBLIC_API_PATH_SYMLINK_PROHIBITED",
-      `Public API package root cannot traverse a symbolic link: ${input.policy.packageRoot}.`
+      `Public API package root cannot traverse a symbolic link: ${input.policy.packageRoot}.`,
     );
   }
   try {
     if (!(await stat(sourcePackageRoot)).isDirectory()) {
       inputError(
         "PUBLIC_API_PATH_INVALID",
-        `Public API package root is not a directory: ${input.policy.packageRoot}.`
+        `Public API package root is not a directory: ${input.policy.packageRoot}.`,
       );
     }
   } catch (error) {
@@ -270,7 +288,7 @@ export async function stagePackageSnapshot(input: {
     }
     inputError(
       "PUBLIC_API_PATH_UNAVAILABLE",
-      `Public API package root is unavailable: ${input.policy.packageRoot}.`
+      `Public API package root is unavailable: ${input.policy.packageRoot}.`,
     );
   }
   let stagingRoot: string;
@@ -279,38 +297,44 @@ export async function stagePackageSnapshot(input: {
   } catch {
     inputError(
       "PUBLIC_API_EXTRACTION_FAILED",
-      "Unable to allocate a private public API staging directory."
+      "Unable to allocate a private public API staging directory.",
     );
   }
   const snapshot: StagedPackageSnapshot = Object.freeze({
     packageRoot: join(stagingRoot, input.policy.packageRoot),
     sourceRoot: input.root,
     sourcePackageRoot,
-    stagingRoot
+    stagingRoot,
   });
   try {
     const budget = { entryCount: 0, totalBytes: 0 };
     await mkdir(snapshot.packageRoot, { mode: 0o700, recursive: true });
-    await stageRepositoryCompilerInputs({
-      budget,
-      destinationDirectory: snapshot.stagingRoot,
-      root: input.root,
-      sourceDirectory: input.root,
-      sourcePackageRoot: snapshot.sourcePackageRoot
-    }, evidence);
-    await stagePackageDirectory({
-      budget,
-      destinationDirectory: snapshot.packageRoot,
-      root: input.root,
-      sourceDirectory: snapshot.sourcePackageRoot
-    }, evidence);
+    await stageRepositoryCompilerInputs(
+      {
+        budget,
+        destinationDirectory: snapshot.stagingRoot,
+        root: input.root,
+        sourceDirectory: input.root,
+        sourcePackageRoot: snapshot.sourcePackageRoot,
+      },
+      evidence,
+    );
+    await stagePackageDirectory(
+      {
+        budget,
+        destinationDirectory: snapshot.packageRoot,
+        root: input.root,
+        sourceDirectory: snapshot.sourcePackageRoot,
+      },
+      evidence,
+    );
     await linkStagedNodeModules({
       sourceDirectory: snapshot.sourceRoot,
-      stagedDirectory: snapshot.stagingRoot
+      stagedDirectory: snapshot.stagingRoot,
     });
     await linkStagedNodeModules({
       sourceDirectory: snapshot.sourcePackageRoot,
-      stagedDirectory: snapshot.packageRoot
+      stagedDirectory: snapshot.packageRoot,
     });
     return snapshot;
   } catch (error) {

@@ -9,9 +9,7 @@ import test from "node:test";
 import { sha256Json as sha256DocumentJson } from "../packages/repository-mutation/dist/serialization.js";
 import { installedFoundationBuildIdentity } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/installed-foundation-build-identity.js";
 import { createNodeFoundationTransactionSlot } from "../packages/engineering-foundation/dist/composition/node-foundation-transaction-slot.js";
-import {
-  planScaffoldFromFile,
-} from "../packages/engineering-foundation/dist/scaffolding/index.js";
+import { planScaffoldFromFile } from "../packages/engineering-foundation/dist/scaffolding/index.js";
 import { sha256Json as sha256ScaffoldingJson } from "../packages/engineering-foundation/dist/scaffolding/kernel/canonical-json.js";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
@@ -25,8 +23,19 @@ const fixture = JSON.parse(
   ),
 );
 function legacyCanonicalJson(value) {
-  if (Array.isArray(value)) {return "[" + value.map(legacyCanonicalJson).join(",") + "]";}
-  if (typeof value === "object" && value !== null) {return "{" + Object.entries(value).toSorted(([left], [right]) => left < right ? -1 : left > right ? 1 : 0).map(([key, item]) => JSON.stringify(key) + ":" + legacyCanonicalJson(item)).join(",") + "}";}
+  if (Array.isArray(value)) {
+    return "[" + value.map(legacyCanonicalJson).join(",") + "]";
+  }
+  if (typeof value === "object" && value !== null) {
+    return (
+      "{" +
+      Object.entries(value)
+        .toSorted(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+        .map(([key, item]) => JSON.stringify(key) + ":" + legacyCanonicalJson(item))
+        .join(",") +
+      "}"
+    );
+  }
   return JSON.stringify(value);
 }
 
@@ -109,10 +118,7 @@ test("does not use legacy digest semantics for an unrecognized build", async () 
 test("does not route a same-build scaffolding envelope through the document legacy verifier", async () => {
   const root = await mkdtemp(join(tmpdir(), "foundation-legacy-envelope-"));
   try {
-    const authorityRoot = join(
-      repositoryRoot,
-      "tests/fixtures/scaffolding-authority-consumer",
-    );
+    const authorityRoot = join(repositoryRoot, "tests/fixtures/scaffolding-authority-consumer");
     const planned = await planScaffoldFromFile({
       consumerRoot: authorityRoot,
       intentPath: "intents/create-fixture.yaml",
@@ -161,14 +167,13 @@ test("does not route a same-build scaffolding envelope through the document lega
 test("verifies current scaffolding envelope digests with frozen scaffolding canonicalization", async () => {
   const root = await mkdtemp(join(tmpdir(), "foundation-scaffolding-envelope-"));
   try {
-    const authorityRoot = join(
-      repositoryRoot,
-      "tests/fixtures/scaffolding-authority-consumer",
+    const authorityRoot = join(repositoryRoot, "tests/fixtures/scaffolding-authority-consumer");
+    const plan = structuredClone(
+      await planScaffoldFromFile({
+        consumerRoot: authorityRoot,
+        intentPath: "intents/create-fixture.yaml",
+      }),
     );
-    const plan = structuredClone(await planScaffoldFromFile({
-      consumerRoot: authorityRoot,
-      intentPath: "intents/create-fixture.yaml",
-    }));
     plan.resolved.recipeParameters.edgeNumber = -0;
     plan.resolved.recipeParameters.edgeString = "\ud800";
     const { planDigest: _planDigest, ...planBody } = plan;
@@ -287,11 +292,7 @@ for (const vector of [
   test(`preserves ${vector.version} legacy -0 and lone-surrogate evidence`, async () => {
     const root = await mkdtemp(join(tmpdir(), "foundation-legacy-envelope-"));
     try {
-      const envelope = legacyEdgeEnvelope(
-        vector.version,
-        vector.buildIdentity,
-        vector,
-      );
+      const envelope = legacyEdgeEnvelope(vector.version, vector.buildIdentity, vector);
       await writeEnvelope(root, envelope);
       const before = await readFile(slotPath(root));
       const status = await createNodeFoundationTransactionSlot({

@@ -16,9 +16,9 @@ function execution(command, result) {
       command,
       outcome: "success",
       diagnostics: [],
-      result
+      result,
     },
-    exitCode: 0
+    exitCode: 0,
   };
 }
 
@@ -54,9 +54,9 @@ test("MCP transport exposes and calls only the fixed read-only surface", async (
         includedDocuments: 1,
         omittedDocuments: 0,
         truncated: false,
-        content: "# Sandbox documentation\n\n- ADR-0001: Sandbox\n"
+        content: "# Sandbox documentation\n\n- ADR-0001: Sandbox\n",
       });
-    }
+    },
   };
   const binding = { consumerRoot: fixture, profilePath: "docs.config.yaml" };
   const server = createDocsProtocolMcpServer(reader, binding);
@@ -88,7 +88,7 @@ test("MCP transport exposes and calls only the fixed read-only surface", async (
   const initialized = await request("initialize", {
     protocolVersion: "2025-11-25",
     capabilities: {},
-    clientInfo: { name: "docs-protocol-mcp-e2e", version: "1.0.0" }
+    clientInfo: { name: "docs-protocol-mcp-e2e", version: "1.0.0" },
   });
   assert.ok("result" in initialized);
   assert.equal(initialized.result.serverInfo.name, "@agent-teams/docs-protocol-mcp");
@@ -97,20 +97,31 @@ test("MCP transport exposes and calls only the fixed read-only surface", async (
   await clientTransport.send({ jsonrpc: "2.0", method: "notifications/initialized" });
 
   const listed = await request("tools/list", {});
-  assert.deepEqual(listed.result.tools.map(({ name }) => name), ["docs_info", "docs_find", "docs_context"]);
+  assert.deepEqual(
+    listed.result.tools.map(({ name }) => name),
+    ["docs_info", "docs_find", "docs_context"],
+  );
   assert.ok(listed.result.tools.every(({ annotations }) => annotations.readOnlyHint === true));
-  assert.ok(listed.result.tools.every(({ outputSchema }) =>
-    outputSchema.type === "object" && outputSchema.additionalProperties === false && outputSchema.properties.result.additionalProperties === false
-  ));
+  assert.ok(
+    listed.result.tools.every(
+      ({ outputSchema }) =>
+        outputSchema.type === "object" &&
+        outputSchema.additionalProperties === false &&
+        outputSchema.properties.result.additionalProperties === false,
+    ),
+  );
 
   const called = await request("tools/call", {
     name: "docs_context",
-    arguments: { text: "sandbox", fuzzy: true, maxDocuments: 2, maxBytes: 4096 }
+    arguments: { text: "sandbox", fuzzy: true, maxDocuments: 2, maxBytes: 4096 },
   });
   const payload = JSON.parse(called.result.content[0].text);
   assert.deepEqual(called.result.structuredContent, payload);
   assert.equal(payload.result.format, "llms.txt");
-  assert.deepEqual(payload.result.selection, { ranking: "fuzzy-advisory", query: { text: "sandbox" } });
+  assert.deepEqual(payload.result.selection, {
+    ranking: "fuzzy-advisory",
+    query: { text: "sandbox" },
+  });
   assert.deepEqual(payload.result.limits, { maxBytes: 4096, maxDocuments: 2 });
   assert.equal(Object.hasOwn(payload.result, "ranking"), false);
   assert.match(payload.result.content, /ADR-0001/u);
@@ -120,11 +131,14 @@ test("MCP transport exposes and calls only the fixed read-only surface", async (
 
   for (const [name, arguments_, kind] of [
     ["docs_info", {}, "info"],
-    ["docs_find", { id: "ADR-0001", maxResults: 1 }, "find"]
+    ["docs_find", { id: "ADR-0001", maxResults: 1 }, "find"],
   ]) {
     const response = await request("tools/call", { name, arguments: arguments_ });
     assert.notEqual(response.result.isError, true);
-    assert.deepEqual(response.result.structuredContent, JSON.parse(response.result.content[0].text));
+    assert.deepEqual(
+      response.result.structuredContent,
+      JSON.parse(response.result.content[0].text),
+    );
     assert.equal(response.result.structuredContent.result.kind, kind);
     assert.equal(response.result.structuredContent.source.command, `docs.${kind}`);
   }
@@ -134,7 +148,7 @@ test("MCP transport exposes and calls only the fixed read-only surface", async (
     ["docs_find", { maxResults: 1 }],
     ["docs_find", { owner: "docs/team", fuzzy: true }],
     ["docs_context", { maxBytes: 1023 }],
-    ["docs_context", { fuzzy: true }]
+    ["docs_context", { fuzzy: true }],
   ]) {
     const invalid = await request("tools/call", { name, arguments: arguments_ });
     assert.ok("error" in invalid || invalid.result?.isError === true);
@@ -143,7 +157,7 @@ test("MCP transport exposes and calls only the fixed read-only surface", async (
 
   const rootOverride = await request("tools/call", {
     name: "docs_context",
-    arguments: { text: "sandbox", consumerRoot: "/escape" }
+    arguments: { text: "sandbox", consumerRoot: "/escape" },
   });
   assert.ok("error" in rootOverride || rootOverride.result?.isError === true);
   assert.equal(calls.length, 3);

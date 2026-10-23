@@ -15,7 +15,7 @@ function safeValidationMessage(errors: readonly ErrorObject[] | null | undefined
 }
 
 export function createSchemaCatalog<SchemaId extends string>(
-  catalogInput: SchemaCatalogInput<SchemaId>
+  catalogInput: SchemaCatalogInput<SchemaId>,
 ): SchemaCatalog<SchemaId> {
   const ajv = new Ajv2020({
     allErrors: true,
@@ -27,7 +27,7 @@ export function createSchemaCatalog<SchemaId extends string>(
     // annotations for tooling and readers, not runtime-enforced constraints.
     // This is an intentional, accepted schema-catalog choice, not a
     // standard-compliance defect.
-    validateFormats: false
+    validateFormats: false,
   });
   const validators = new Map<SchemaId, ValidateFunction>();
   const schemaLoads = new Map<string, Promise<string>>();
@@ -59,9 +59,7 @@ export function createSchemaCatalog<SchemaId extends string>(
     return loading;
   }
 
-  async function validator(
-    schemaId: SchemaId
-  ): Promise<ValidateFunction> {
+  async function validator(schemaId: SchemaId): Promise<ValidateFunction> {
     const cached = validators.get(schemaId);
     if (cached !== undefined) {
       return cached;
@@ -75,11 +73,7 @@ export function createSchemaCatalog<SchemaId extends string>(
     return compiled;
   }
 
-  async function assertSchema(
-    schemaId: SchemaId,
-    input: unknown,
-    phase: string
-  ): Promise<void> {
+  async function assertSchema(schemaId: SchemaId, input: unknown, phase: string): Promise<void> {
     const validate = await validator(schemaId);
     if (!validate(input)) {
       rejectSchemaInput(safeValidationMessage(validate.errors), phase);
@@ -91,6 +85,6 @@ export function createSchemaCatalog<SchemaId extends string>(
     isSchemaId(value: string): value is SchemaId {
       return catalogInput.schemaIds.some((candidate) => candidate === value);
     },
-    readSchema: catalogInput.readSchema
+    readSchema: catalogInput.readSchema,
   };
 }

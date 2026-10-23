@@ -2,7 +2,7 @@ import { compareBinaryStrings } from "../../../binary-string-comparator.js";
 import type {
   DocumentIntent,
   DocumentJsonObject,
-  DocumentJsonValue
+  DocumentJsonValue,
 } from "../model/document-planning.js";
 import { DocumentPlanningPolicyError } from "./document-planning-policy-error.js";
 
@@ -16,7 +16,7 @@ const GOVERNED_KEYS = new Set([
   "status",
   "summary",
   "title",
-  "type"
+  "type",
 ]);
 
 function invalidJson(message: string): never {
@@ -51,9 +51,11 @@ function normalizeJsonObject(value: DocumentJsonObject): DocumentJsonObject {
     }
     normalized.set(key, normalizeJson(rawValue));
   }
-  return Object.freeze(Object.fromEntries(
-    [...normalized].toSorted(([left], [right]) => compareBinaryStrings(left, right))
-  ));
+  return Object.freeze(
+    Object.fromEntries(
+      [...normalized].toSorted(([left], [right]) => compareBinaryStrings(left, right)),
+    ),
+  );
 }
 
 function isJsonArray(value: DocumentJsonValue): value is readonly DocumentJsonValue[] {
@@ -81,7 +83,7 @@ function normalizeJson(value: DocumentJsonValue): DocumentJsonValue {
 }
 
 function normalizeAdditionalMetadata(
-  metadata: Readonly<Record<string, DocumentJsonValue>> | undefined
+  metadata: Readonly<Record<string, DocumentJsonValue>> | undefined,
 ): Readonly<Record<string, DocumentJsonValue>> | undefined {
   if (metadata === undefined) {
     return undefined;
@@ -100,7 +102,7 @@ export function normalizeDocumentIntent(input: DocumentIntent): DocumentIntent {
   if (related !== undefined && new Set(related).size !== related.length) {
     throw new DocumentPlanningPolicyError(
       "duplicate-related",
-      "Document Intent related identifiers must remain unique after NFC normalization."
+      "Document Intent related identifiers must remain unique after NFC normalization.",
     );
   }
   const additionalMetadata = normalizeAdditionalMetadata(input.additionalMetadata);
@@ -112,12 +114,10 @@ export function normalizeDocumentIntent(input: DocumentIntent): DocumentIntent {
     owner: normalizeString(input.owner),
     summary: normalizeString(input.summary),
     ...(input.slug === undefined ? {} : { slug: normalizeString(input.slug) }),
-    ...(input.destination === undefined
-      ? {}
-      : { destination: normalizeString(input.destination) }),
+    ...(input.destination === undefined ? {} : { destination: normalizeString(input.destination) }),
     ...(related === undefined
       ? {}
       : { related: Object.freeze(related.toSorted(compareBinaryStrings)) }),
-    ...(additionalMetadata === undefined ? {} : { additionalMetadata })
+    ...(additionalMetadata === undefined ? {} : { additionalMetadata }),
   });
 }

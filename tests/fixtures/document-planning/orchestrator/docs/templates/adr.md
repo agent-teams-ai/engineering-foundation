@@ -1,4 +1,4 @@
-````markdown
+```markdown
 ---
 placeholder: true
 ---
@@ -20,4 +20,4 @@ What is decided, including ownership and invariants?
 ## Rejected alternatives
 
 - Alternative and why it was rejected.
-````
+```

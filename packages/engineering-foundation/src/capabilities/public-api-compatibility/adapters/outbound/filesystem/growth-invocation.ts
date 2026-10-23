@@ -4,10 +4,20 @@ import { createHash } from "node:crypto";
 import { readFile, readdir, lstat, realpath } from "node:fs/promises";
 import { resolve, join } from "node:path";
 import { NATIVE_EXTRACTOR_VERSION } from "../api-extractor/load-pinned-audit-sdk.js";
-import { assertNotCancelled, publicApiInputError, publicApiFileFailure } from "../../../application/policies/public-api-evidence-errors.js";
+import {
+  assertNotCancelled,
+  publicApiInputError,
+  publicApiFileFailure,
+} from "../../../application/policies/public-api-evidence-errors.js";
 import type { PublicApiFileReader } from "../../../application/ports/public-api-evidence.js";
-import type { GrowthDigest, GrowthInvocation } from "../../../application/model/growth-observation.js";
-import { growthCanonicalJson, normalizeGrowthInvocation } from "../../../application/policies/normalize-growth-observation.js";
+import type {
+  GrowthDigest,
+  GrowthInvocation,
+} from "../../../application/model/growth-observation.js";
+import {
+  growthCanonicalJson,
+  normalizeGrowthInvocation,
+} from "../../../application/policies/normalize-growth-observation.js";
 
 /** The deadline of one source-identity git call. On Windows it also covers the Job Object wrapper (the PowerShell bootstrap that
  * compiles its C# helper with `Add-Type`, plus the Node process host), not only git, and a cold runner can need more than ten seconds. */
@@ -16,21 +26,39 @@ const GROWTH_GIT_TIMEOUT_MS = 60_000;
 /** The part of a process executor that the growth identity reads use; the composition root supplies the real one. */
 export interface GrowthGitProcesses {
   run(request: {
-    readonly command: string; readonly args: readonly string[]; readonly cwd: string; readonly timeoutMs: number;
+    readonly command: string;
+    readonly args: readonly string[];
+    readonly cwd: string;
+    readonly timeoutMs: number;
     readonly signal?: AbortSignal;
   }): Promise<{ readonly exitCode: number; readonly stdout: string }>;
 }
 
 /** The git runner of the growth identity reads, bound to one repository root. */
-export const createGrowthGitRunner = (processes: GrowthGitProcesses, consumerRoot: string) =>
-  (args: readonly string[], signal?: AbortSignal) => processes.run({
-    command: "git", args, cwd: consumerRoot, timeoutMs: GROWTH_GIT_TIMEOUT_MS, ...(signal === undefined ? {} : { signal })
+export const createGrowthGitRunner =
+  (processes: GrowthGitProcesses, consumerRoot: string) =>
+  (args: readonly string[], signal?: AbortSignal) =>
+    processes.run({
+      command: "git",
+      args,
+      cwd: consumerRoot,
+      timeoutMs: GROWTH_GIT_TIMEOUT_MS,
+      ...(signal === undefined ? {} : { signal }),
+    });
+
+export const growthBytesDigest = (bytes: string | Uint8Array): GrowthDigest =>
+  `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
+
+export function readGrowthInputFile(
+  consumerRoot: string,
+  path: string,
+  files: PublicApiFileReader,
+): Promise<Uint8Array> {
+  return files.read({
+    root: consumerRoot,
+    candidate: resolve(consumerRoot, path),
+    maxBytes: 32 * 1024 * 1024,
   });
-
-export const growthBytesDigest = (bytes: string | Uint8Array): GrowthDigest => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
-
-export function readGrowthInputFile(consumerRoot: string, path: string, files: PublicApiFileReader): Promise<Uint8Array> {
-  return files.read({ root: consumerRoot, candidate: resolve(consumerRoot, path), maxBytes: 32 * 1024 * 1024 });
 }
 
 function unavailable(reason: string): never {
@@ -39,21 +67,37 @@ function unavailable(reason: string): never {
 
 /** Command-boundary identity of the actual source checkpoint and selected build
  * inputs. These byte identities carry no archive qualification or CI authority. */
-export async function readGrowthInvocation(consumerRoot: string, inventory: Awaited<ReturnType<GrowthWorkspaceReader["read"]>>, dependencies: {
-  readonly files: PublicApiFileReader;
-  readonly runGit: (args: readonly string[], signal?: AbortSignal) => Promise<{ readonly exitCode: number; readonly stdout: string }>;
-}, signal?: AbortSignal): Promise<GrowthInvocation> {
+export async function readGrowthInvocation(
+  consumerRoot: string,
+  inventory: Awaited<ReturnType<GrowthWorkspaceReader["read"]>>,
+  dependencies: {
+    readonly files: PublicApiFileReader;
+    readonly runGit: (
+      args: readonly string[],
+      signal?: AbortSignal,
+    ) => Promise<{ readonly exitCode: number; readonly stdout: string }>;
+  },
+  signal?: AbortSignal,
+): Promise<GrowthInvocation> {
   assertNotCancelled(signal);
   const git = async (args: readonly string[]) => {
     try {
       const result = await dependencies.runGit(["-C", consumerRoot, ...args], signal);
-      if (result.exitCode !== 0) { unavailable("Source Git checkpoint is unavailable or changed."); }
+      if (result.exitCode !== 0) {
+        unavailable("Source Git checkpoint is unavailable or changed.");
+      }
       return result.stdout.trim();
-    }
-    catch (error) {
+    } catch (error) {
       assertNotCancelled(signal);
-      if (error !== null && typeof error === "object" && "code" in error && (typeof error.code === "number" || error.code === "ENOENT")) {
-        unavailable("Source Git checkpoint is unavailable or changed; observe a committed source with its built inputs.");
+      if (
+        error !== null &&
+        typeof error === "object" &&
+        "code" in error &&
+        (typeof error.code === "number" || error.code === "ENOENT")
+      ) {
+        unavailable(
+          "Source Git checkpoint is unavailable or changed; observe a committed source with its built inputs.",
+        );
       }
       throw error;
     }
@@ -67,19 +111,36 @@ export async function readGrowthInvocation(consumerRoot: string, inventory: Awai
   const sourceCommit = await git(["rev-parse", "--verify", "HEAD"]);
   const sourceTree = await git(["rev-parse", "--verify", "HEAD^{tree}"]);
   await git(["diff", "--quiet", "HEAD", "--"]);
-  if (packageDirectories.length > 0 && await git(["ls-files", "--others", "--exclude-standard", "--", ...packageDirectories.map((pkg) => pkg.rootPath)])) {
+  if (
+    packageDirectories.length > 0 &&
+    (await git([
+      "ls-files",
+      "--others",
+      "--exclude-standard",
+      "--",
+      ...packageDirectories.map((pkg) => pkg.rootPath),
+    ]))
+  ) {
     unavailable("Uncommitted package inputs cannot bind a Git source tree.");
   }
   let total = 0;
   const input = async (path: string) => {
     try {
-      const bytes = await dependencies.files.read({ root: consumerRoot, candidate: resolve(consumerRoot, path), maxBytes: 32 * 1024 * 1024 });
+      const bytes = await dependencies.files.read({
+        root: consumerRoot,
+        candidate: resolve(consumerRoot, path),
+        maxBytes: 32 * 1024 * 1024,
+      });
       total += bytes.byteLength;
-      if (total > 32 * 1024 * 1024) { unavailable("SDK invocation input byte budget exhausted."); }
+      if (total > 32 * 1024 * 1024) {
+        unavailable("SDK invocation input byte budget exhausted.");
+      }
       return { path, digest: growthBytesDigest(bytes) };
     } catch (error) {
       const failure = publicApiFileFailure(error);
-      if (failure !== undefined) { unavailable(`SDK invocation input ${path} is ${failure}.`); }
+      if (failure !== undefined) {
+        unavailable(`SDK invocation input ${path} is ${failure}.`);
+      }
       throw error;
     }
   };
@@ -88,65 +149,128 @@ export async function readGrowthInvocation(consumerRoot: string, inventory: Awai
   const buildPaths: string[] = [];
   async function buildFiles(path: string): Promise<void> {
     for (const entry of await readdir(resolve(consumerRoot, path), { withFileTypes: true })) {
-      if (entry.name === "node_modules" || entry.name === ".git") { continue; }
+      if (entry.name === "node_modules" || entry.name === ".git") {
+        continue;
+      }
       const child = `${path}/${entry.name}`;
-      if (entry.isDirectory()) { await buildFiles(child); }
-      else { buildPaths.push(child); }
-      if (buildPaths.length > 4096) { unavailable("SDK invocation input file budget exhausted."); }
+      if (entry.isDirectory()) {
+        await buildFiles(child);
+      } else {
+        buildPaths.push(child);
+      }
+      if (buildPaths.length > 4096) {
+        unavailable("SDK invocation input file budget exhausted.");
+      }
     }
   }
-  for (const pkg of packageDirectories) { await buildFiles(pkg.rootPath); }
+  for (const pkg of packageDirectories) {
+    await buildFiles(pkg.rootPath);
+  }
   const build = await Promise.all(buildPaths.toSorted().map(input));
   const lock = await input("pnpm-lock.yaml");
   const manifestBytes = await readFile(new URL("../../../../../../package.json", import.meta.url));
   const toolManifest = JSON.parse(manifestBytes.toString("utf8")) as { version: string };
-  const toolArtifactDigest = await distributionDigest(await realpath(new URL("../../../../../../", import.meta.url)), dependencies.files, signal);
+  const toolArtifactDigest = await distributionDigest(
+    await realpath(new URL("../../../../../../", import.meta.url)),
+    dependencies.files,
+    signal,
+  );
   assertNotCancelled(signal);
-  if (await git(["rev-parse", "--verify", "HEAD"]) !== sourceCommit) { unavailable("Source checkpoint changed during observation."); }
+  if ((await git(["rev-parse", "--verify", "HEAD"])) !== sourceCommit) {
+    unavailable("Source checkpoint changed during observation.");
+  }
   await git(["diff", "--quiet", "HEAD", "--"]);
-  return normalizeGrowthInvocation({ repository: await git(["rev-parse", "--show-toplevel"]), sourceCommit, sourceTree,
-    topologyDigest: growthBytesDigest(growthCanonicalJson({ workspace, manifests: manifests.toSorted((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0) })),
-    lockDigest: lock.digest, toolchainDigest: growthBytesDigest(growthCanonicalJson({ node: process.version, extractor: NATIVE_EXTRACTOR_VERSION, lock: lock.digest })),
+  return normalizeGrowthInvocation({
+    repository: await git(["rev-parse", "--show-toplevel"]),
+    sourceCommit,
+    sourceTree,
+    topologyDigest: growthBytesDigest(
+      growthCanonicalJson({
+        workspace,
+        manifests: manifests.toSorted((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0)),
+      }),
+    ),
+    lockDigest: lock.digest,
+    toolchainDigest: growthBytesDigest(
+      growthCanonicalJson({
+        node: process.version,
+        extractor: NATIVE_EXTRACTOR_VERSION,
+        lock: lock.digest,
+      }),
+    ),
     artifactDigests: [growthBytesDigest(growthCanonicalJson(build))],
-    tool: { version: toolManifest.version, artifactDigest: toolArtifactDigest, extractorVersion: NATIVE_EXTRACTOR_VERSION } });
+    tool: {
+      version: toolManifest.version,
+      artifactDigest: toolArtifactDigest,
+      extractorVersion: NATIVE_EXTRACTOR_VERSION,
+    },
+  });
 }
 
-async function distributionDigest(root: string, reader: PublicApiFileReader, signal?: AbortSignal): Promise<GrowthDigest> {
+async function distributionDigest(
+  root: string,
+  reader: PublicApiFileReader,
+  signal?: AbortSignal,
+): Promise<GrowthDigest> {
   const files: { path: string; digest: GrowthDigest }[] = [];
   let total = 0;
   async function capture(path: string): Promise<void> {
     assertNotCancelled(signal);
-    const bytes = await reader.read({ root, candidate: join(root, path), maxBytes: 32 * 1024 * 1024 });
+    const bytes = await reader.read({
+      root,
+      candidate: join(root, path),
+      maxBytes: 32 * 1024 * 1024,
+    });
     total += bytes.byteLength;
-    if (total > 32 * 1024 * 1024 || files.length >= 4096) { unavailable("SDK checker distribution identity budget exhausted."); }
+    if (total > 32 * 1024 * 1024 || files.length >= 4096) {
+      unavailable("SDK checker distribution identity budget exhausted.");
+    }
     files.push({ path, digest: growthBytesDigest(bytes) });
   }
   async function visit(path: string): Promise<void> {
     for (const entry of await readdir(join(root, path), { withFileTypes: true })) {
       const child = `${path}/${entry.name}`;
-      if (entry.isDirectory()) { await visit(child); }
-      else { await capture(child); }
+      if (entry.isDirectory()) {
+        await visit(child);
+      } else {
+        await capture(child);
+      }
     }
   }
   await capture("package.json");
-  await visit("dist"); await visit("schemas");
-  return growthBytesDigest(growthCanonicalJson(files.toSorted((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0)));
+  await visit("dist");
+  await visit("schemas");
+  return growthBytesDigest(
+    growthCanonicalJson(files.toSorted((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0))),
+  );
 }
 
 /** Early destination validation; publication revalidates under its own fence. */
 export async function assertGrowthDestination(root: string, path: string): Promise<void> {
   const segments = path.split("/");
-  if (path.length === 0 || path.startsWith("/") || segments.some(segment => segment === "." || segment === "..")) {
+  if (
+    path.length === 0 ||
+    path.startsWith("/") ||
+    segments.some((segment) => segment === "." || segment === "..")
+  ) {
     configurationInputError("SDK report destination must be repository-relative and normalized.");
   }
   let current = resolve(root);
   const directories = [current];
-  for (const segment of segments.slice(0, -1)) { current = join(current, segment); directories.push(current); }
+  for (const segment of segments.slice(0, -1)) {
+    current = join(current, segment);
+    directories.push(current);
+  }
   for (const directory of directories) {
     let entry;
-    try { entry = await lstat(directory); }
-    catch (error) {
-      if (error instanceof Error && "code" in error && (error.code === "ENOENT" || error.code === "ENOTDIR")) {
+    try {
+      entry = await lstat(directory);
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        "code" in error &&
+        (error.code === "ENOENT" || error.code === "ENOTDIR")
+      ) {
         configurationInputError("SDK report parents must exist as real directories.");
       }
       throw error;
@@ -161,9 +285,13 @@ export async function assertGrowthDestination(root: string, path: string): Promi
   }
   try {
     const entry = await lstat(join(root, path));
-    if (!entry.isFile() || entry.isSymbolicLink() || entry.nlink !== 1) { configurationInputError("SDK report destination must be a distinct regular file."); }
+    if (!entry.isFile() || entry.isSymbolicLink() || entry.nlink !== 1) {
+      configurationInputError("SDK report destination must be a distinct regular file.");
+    }
   } catch (error) {
-    if (error instanceof Error && "code" in error && error.code === "ENOENT") { return; }
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      return;
+    }
     throw error;
   }
 }

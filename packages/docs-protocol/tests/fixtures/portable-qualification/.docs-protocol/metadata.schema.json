@@ -4,13 +4,28 @@
   "additionalProperties": false,
   "required": ["id", "type", "status", "owner", "summary"],
   "properties": {
-    "id": {"type": "string"},
-    "type": {"enum": ["adr", "index"]},
-    "status": {"enum": ["active", "proposed"]},
-    "owner": {"type": "string"},
-    "summary": {"type": "string"},
-    "related": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},
-    "blocked_by": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},
-    "code_anchors": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "object"}}
+    "id": { "type": "string" },
+    "type": { "enum": ["adr", "index"] },
+    "status": { "enum": ["active", "proposed"] },
+    "owner": { "type": "string" },
+    "summary": { "type": "string" },
+    "related": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string" }
+    },
+    "blocked_by": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string" }
+    },
+    "code_anchors": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "object" }
+    }
   }
 }

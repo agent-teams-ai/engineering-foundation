@@ -6,7 +6,9 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // These suites share the established declaration fixture as inert repository data.
-const fixture = fileURLToPath(new URL("../../../../tests/fixtures/workspace-dependency-declarations/valid/", import.meta.url));
+const fixture = fileURLToPath(
+  new URL("../../../../tests/fixtures/workspace-dependency-declarations/valid/", import.meta.url),
+);
 const cli = fileURLToPath(new URL("../../dist/cli.js", import.meta.url));
 
 export async function withFixture(callback) {
@@ -20,9 +22,11 @@ export async function withFixture(callback) {
 }
 
 export function check(consumerRoot, ...capabilities) {
-  const result = spawnSync(process.execPath,
+  const result = spawnSync(
+    process.execPath,
     [cli, "check", ...capabilities, "--consumer", consumerRoot, "--format", "json"],
-    { encoding: "utf8" });
+    { encoding: "utf8" },
+  );
   assert.equal(result.stderr, "");
   return { result, report: JSON.parse(result.stdout) };
 }

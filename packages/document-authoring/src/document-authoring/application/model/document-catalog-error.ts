@@ -6,11 +6,7 @@ export type DocumentCatalogErrorCode =
 export class DocumentCatalogError extends Error {
   readonly code: DocumentCatalogErrorCode;
 
-  constructor(
-    code: DocumentCatalogErrorCode,
-    message: string,
-    options?: ErrorOptions
-  ) {
+  constructor(code: DocumentCatalogErrorCode, message: string, options?: ErrorOptions) {
     super(message, options);
     this.name = "DocumentCatalogError";
     this.code = code;

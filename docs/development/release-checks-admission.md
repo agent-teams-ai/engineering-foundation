@@ -35,18 +35,18 @@ adopt exact supported coordinates only after registry proof.
 
 ## Admission and qualification evidence
 
-| Claim | Status and authority |
-| --- | --- |
-| Plan accepted before implementation | Completed I1-I3 and C1-C3, retained review record |
-| Actual pinned engine behavior | P0 qualified 14 disposable fixtures with Changesets 2.31.1/3.0.2; report digest retained in the review record |
-| Pure source and common fixtures | Implemented in one `candidate-checking` feature; focused tests must qualify the final source |
-| Real Foundation consumer | Source-built release Hosts adopt the contract; final-head Host conformance and tamper checks remain required |
-| Packed installed consumer | Focused actual qualification passed: two independent clean-stage builds produced identical archives; the installed pnpm consumer passed native TypeScript 7.0.2 and all 12 common runtime cases through both public entries |
-| Hermetic registry consumer | The same qualified archive was published only to disposable no-uplink Verdaccio and installed by exact version with npm; public typing and all 12 runtime cases passed with matching archive integrity. Existing `npm-foundation` qualification invokes the same probe |
-| Complete inventories | Catalog, strict projects, source/feature/quality profiles and complete Linux/Windows/coverage inventories include the package and tests |
-| Initial typed baseline | Existing native promotion owner created only `release-checks.json` at `0.0.0`; the complete nine-package typed and artifact checks passed and all 13 historical baseline files retained their exact hashes |
-| Namespace bootstrap | Exact Ubuntu writer tree/SRI reviewed and approved on 2026-10-23; current-head writer reproduction, maintainer readiness and protected publication remain pending |
-| Supported release and external consumers | Pending exact protected publication, registry readback and separate installed consumer evidence |
+| Claim                                    | Status and authority                                                                                                                                                                                                                                                   |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Plan accepted before implementation      | Completed I1-I3 and C1-C3, retained review record                                                                                                                                                                                                                      |
+| Actual pinned engine behavior            | P0 qualified 14 disposable fixtures with Changesets 2.31.1/3.0.2; report digest retained in the review record                                                                                                                                                          |
+| Pure source and common fixtures          | Implemented in one `candidate-checking` feature; focused tests must qualify the final source                                                                                                                                                                           |
+| Real Foundation consumer                 | Source-built release Hosts adopt the contract; final-head Host conformance and tamper checks remain required                                                                                                                                                           |
+| Packed installed consumer                | Focused actual qualification passed: two independent clean-stage builds produced identical archives; the installed pnpm consumer passed native TypeScript 7.0.2 and all 12 common runtime cases through both public entries                                            |
+| Hermetic registry consumer               | The same qualified archive was published only to disposable no-uplink Verdaccio and installed by exact version with npm; public typing and all 12 runtime cases passed with matching archive integrity. Existing `npm-foundation` qualification invokes the same probe |
+| Complete inventories                     | Catalog, strict projects, source/feature/quality profiles and complete Linux/Windows/coverage inventories include the package and tests                                                                                                                                |
+| Initial typed baseline                   | Existing native promotion owner created only `release-checks.json` at `0.0.0`; the complete nine-package typed and artifact checks passed and all 13 historical baseline files retained their exact hashes                                                             |
+| Namespace bootstrap                      | Exact Ubuntu writer tree/SRI reviewed and approved on 2026-10-23; current-head writer reproduction, maintainer readiness and protected publication remain pending                                                                                                      |
+| Supported release and external consumers | Pending exact protected publication, registry readback and separate installed consumer evidence                                                                                                                                                                        |
 
 The retained [installed qualification report](../research/evidence/release-checks/p1-installed-qualification.json)
 has SHA-256
@@ -134,3 +134,23 @@ signature/provenance/deprecation readback and cleanup. Only after its immutable
 deprecated `0.0.0` baseline exists may the normal Changesets owner-PR flow
 publish supported `0.1.0`. The supported artifact then needs exact public
 registry and installed-consumer qualification before external adoption.
+
+## Integrated formatting writer review, 2026-10-23
+
+Source admission merged through PR421 at
+`059d557b1c65e3515f392c719d72b058b049ba20`. The earlier pre-merge hold above is
+historical; it does not establish npm readiness or authorize bootstrap.
+PR444 formats the source and extracts private conformance data within the same
+feature. Its actual Ubuntu writer archive from run `40029541925`, attempt 1,
+artifact `12534816890`, received an independent
+[content review](../research/evidence/release-checks/formatted-writer-20261023/release-checks-formatted-writer-review.md).
+The catalog now binds package tree `d9d922a360ba81eebcbecb50fa4baeddf9faa9bf`
+and the exact reviewed SRI; the retained receipt and JSON review preserve the
+archive digest and complete comparison with the previous approval. Prior
+approvals, accepted ADR and initial API evidence remain unchanged.
+
+The old-tree writer rejection remains a failed result. Final-head/current-base
+full CI must reproduce the newly approved archive. Namespace bootstrap, fresh
+protected-main qualification, interactive provider readiness and supported
+publication remain pending. Stack Toolchain's one-time token authorization
+does not authorize a token for this independent package.

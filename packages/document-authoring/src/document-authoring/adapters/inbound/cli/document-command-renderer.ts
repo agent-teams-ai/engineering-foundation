@@ -4,25 +4,25 @@ import type {
   DocumentDoctorResult,
   DocumentNewResult,
   DocumentRecoverResult,
-  DocumentRecoveryCommand
+  DocumentRecoveryCommand,
 } from "../../../application/model/document-command.js";
 
-type DocumentMutationResult =
-  | DocumentDoctorResult
-  | DocumentNewResult
-  | DocumentRecoverResult;
+type DocumentMutationResult = DocumentDoctorResult | DocumentNewResult | DocumentRecoverResult;
 
 export function renderDocumentCommandJson(
-  execution: DocumentCommandExecution<DocumentMutationResult>
+  execution: DocumentCommandExecution<DocumentMutationResult>,
 ): string {
   return `${JSON.stringify(execution.envelope)}\n`;
 }
 
 function humanCommand(command: DocumentRecoveryCommand): string {
   switch (command.commandId) {
-    case "docs.recover": return "agent-teams-docs recover";
-    case "scaffold-recover": return "agent-teams-foundation scaffold-recover";
-    case "detach": return "agent-teams-foundation detach";
+    case "docs.recover":
+      return "agent-teams-docs recover";
+    case "scaffold-recover":
+      return "agent-teams-foundation scaffold-recover";
+    case "detach":
+      return "agent-teams-foundation detach";
   }
 }
 
@@ -35,16 +35,19 @@ function humanRemediationCommand(command: DocumentCommandRemediation): string {
     return humanCommand({ commandId: command.commandId, args: command.args });
   }
   switch (command.commandId) {
-    case "docs.doctor": return "agent-teams-docs doctor";
-    case "docs.find": return "agent-teams-docs find";
-    case "docs.new": return "agent-teams-docs new";
+    case "docs.doctor":
+      return "agent-teams-docs doctor";
+    case "docs.find":
+      return "agent-teams-docs find";
+    case "docs.new":
+      return "agent-teams-docs new";
   }
 }
 
 function renderRemediationCommand(
   command: DocumentCommandRemediation,
   lines: string[],
-  rendered: Set<string>
+  rendered: Set<string>,
 ): void {
   const identity = JSON.stringify(command);
   if (rendered.has(identity)) {
@@ -69,7 +72,7 @@ function renderRemediationCommand(
 function renderRecoveryCommand(
   command: DocumentRecoveryCommand,
   lines: string[],
-  rendered: Set<string>
+  rendered: Set<string>,
 ): void {
   renderRemediationCommand(command, lines, rendered);
 }
@@ -89,19 +92,12 @@ function renderNew(result: DocumentNewResult, lines: string[]): void {
     lines.push("Next: review this preview, then run docs new without --dry-run");
   } else if (result.reachability?.state === "manual-required") {
     lines.push(`Next: add the exact link to ${String(result.reachability.indexPath)}`);
-  } else if (
-    result.writeState === "applied" ||
-    result.writeState === "already-applied"
-  ) {
+  } else if (result.writeState === "applied" || result.writeState === "already-applied") {
     lines.push("Next: agent-teams-foundation repo check");
   }
 }
 
-function renderDoctor(
-  result: DocumentDoctorResult,
-  lines: string[],
-  rendered: Set<string>
-): void {
+function renderDoctor(result: DocumentDoctorResult, lines: string[], rendered: Set<string>): void {
   if (result.installedFoundationVersion !== undefined) {
     lines.push(`Installed Foundation: ${result.installedFoundationVersion}`);
   }
@@ -110,7 +106,7 @@ function renderDoctor(
   }
   if (result.filesystem !== undefined) {
     lines.push(
-      `Filesystem durability: ${result.filesystem.strictDirectoryDurability} (${result.filesystem.basis})`
+      `Filesystem durability: ${result.filesystem.strictDirectoryDurability} (${result.filesystem.basis})`,
     );
   }
   lines.push(`Transaction: ${result.transactionState}`);
@@ -132,7 +128,7 @@ function renderDoctor(
 function renderRecover(
   result: DocumentRecoverResult,
   lines: string[],
-  rendered: Set<string>
+  rendered: Set<string>,
 ): void {
   lines.push(`Transaction: ${result.transactionState}`);
   lines.push(`Write: ${result.writeState}`);
@@ -142,19 +138,25 @@ function renderRecover(
 }
 
 export function renderDocumentCommandText(
-  execution: DocumentCommandExecution<DocumentMutationResult>
+  execution: DocumentCommandExecution<DocumentMutationResult>,
 ): string {
   const { envelope } = execution;
   const lines = [`${envelope.command}: ${envelope.outcome}`];
   const renderedRemediations = new Set<string>();
   switch (envelope.result.kind) {
-    case "new": renderNew(envelope.result, lines); break;
-    case "doctor": renderDoctor(envelope.result, lines, renderedRemediations); break;
-    case "recover": renderRecover(envelope.result, lines, renderedRemediations); break;
+    case "new":
+      renderNew(envelope.result, lines);
+      break;
+    case "doctor":
+      renderDoctor(envelope.result, lines, renderedRemediations);
+      break;
+    case "recover":
+      renderRecover(envelope.result, lines, renderedRemediations);
+      break;
   }
   for (const entry of envelope.diagnostics) {
     lines.push(
-      `${entry.severity.toUpperCase()} ${entry.ruleId} ${entry.subject}: ${entry.message}`
+      `${entry.severity.toUpperCase()} ${entry.ruleId} ${entry.subject}: ${entry.message}`,
     );
     if (entry.remediation !== undefined) {
       renderRemediationCommand(entry.remediation, lines, renderedRemediations);

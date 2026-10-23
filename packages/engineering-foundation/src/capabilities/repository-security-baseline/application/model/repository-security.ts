@@ -11,11 +11,7 @@ function isLocalWorkflowUse(value: string): boolean {
 }
 
 export function isSafeLocalWorkflowUse(value: string): boolean {
-  return (
-    isLocalWorkflowUse(value) &&
-    !value.split("/").includes("..") &&
-    !value.includes("${{")
-  );
+  return isLocalWorkflowUse(value) && !value.split("/").includes("..") && !value.includes("${{");
 }
 
 export function isPinnedExternalWorkflowUse(value: string): boolean {
@@ -103,7 +99,7 @@ export interface RepositorySecurityToolPolicies {
 }
 
 export function configuredRepositorySecurityTools(
-  policies: RepositorySecurityToolPolicies | undefined
+  policies: RepositorySecurityToolPolicies | undefined,
 ): readonly { readonly policy: RepositorySecurityToolPolicy; readonly tool: SecurityToolName }[] {
   if (policies === undefined) {
     return [];
@@ -113,7 +109,7 @@ export function configuredRepositorySecurityTools(
     { tool: "zizmor", policy: policies.zizmor },
     ...(policies.codeql === undefined
       ? []
-      : [{ tool: "codeql" as const, policy: policies.codeql }])
+      : [{ tool: "codeql" as const, policy: policies.codeql }]),
   ];
 }
 
@@ -123,14 +119,12 @@ interface BaseRepositorySecurityToolEvidence {
   readonly tool: SecurityToolName;
 }
 
-interface MissingRepositorySecurityToolEvidence
-  extends BaseRepositorySecurityToolEvidence {
+interface MissingRepositorySecurityToolEvidence extends BaseRepositorySecurityToolEvidence {
   readonly kind: "missing";
   readonly missing: "evidence" | "result";
 }
 
-export interface PresentRepositorySecurityToolEvidence
-  extends BaseRepositorySecurityToolEvidence {
+export interface PresentRepositorySecurityToolEvidence extends BaseRepositorySecurityToolEvidence {
   readonly actualConfigDigest: string;
   readonly actualResultDigest: string;
   readonly actualWorkflowDigest: string;
@@ -157,7 +151,7 @@ export interface AllowedWorkflowUseEntry {
 }
 
 export function flattenAllowedWorkflowUses(
-  entries: readonly AllowedWorkflowUse[]
+  entries: readonly AllowedWorkflowUse[],
 ): readonly AllowedWorkflowUseEntry[] {
   const flattened: AllowedWorkflowUseEntry[] = [];
   const append = (candidates: readonly AllowedWorkflowUse[], direct: boolean): void => {

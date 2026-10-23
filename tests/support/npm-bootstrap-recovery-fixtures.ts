@@ -90,3 +90,12 @@ export function step(steps: WorkflowStep[], id: string): WorkflowStep {
   assert.ok(selected);
   return selected;
 }
+
+export function assertOrdered(source: string, values: readonly string[]): void {
+  let offset = 0;
+  for (const value of values) {
+    const index = source.indexOf(value, offset);
+    assert.notEqual(index, -1, `Missing ordered workflow evidence: ${value}`);
+    offset = index + value.length;
+  }
+}

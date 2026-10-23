@@ -14,13 +14,17 @@ import {
 
 export async function writeV3File(root, path, contents) {
   await mkdir(dirname(join(root, path)), { recursive: true });
-  await writeFile(join(root, path), typeof contents === "string"
-    ? contents : `${JSON.stringify(contents, null, 2)}\n`);
+  await writeFile(
+    join(root, path),
+    typeof contents === "string" ? contents : `${JSON.stringify(contents, null, 2)}\n`,
+  );
 }
 
 export function v3Boundary(id, path) {
   return {
-    id, roots: [path], entrypoints: [`${path}/index.ts`],
+    id,
+    roots: [path],
+    entrypoints: [`${path}/index.ts`],
     allow: { boundaries: [], packages: [], builtins: [], runtimeReferences: [] },
   };
 }
@@ -33,29 +37,39 @@ export async function saveV3Policy(root, policy) {
 export async function withV3Fixture(callback, { rootOnly = false } = {}) {
   return withCopiedFixture("v2-valid", async (root) => {
     await rm(join(root, "packages"), { recursive: true });
-    const roots = rootOnly ? ["tooling/task/src"] : [
-      "packages/domain/src", "packages/contexts/supply/src", "tooling/task/src",
-    ];
+    const roots = rootOnly
+      ? ["tooling/task/src"]
+      : ["packages/domain/src", "packages/contexts/supply/src", "tooling/task/src"];
     await writeV3File(root, "package.json", {
-      name: "@fixture/root", private: true, type: "module",
+      name: "@fixture/root",
+      private: true,
+      type: "module",
       dependencies: { "@fixture/domain": "workspace:*" },
     });
-    await writeV3File(root, "pnpm-workspace.yaml",
-      "packages:\n  - packages/*\n  - packages/contexts/*\n  - apps/*\n");
+    await writeV3File(
+      root,
+      "pnpm-workspace.yaml",
+      "packages:\n  - packages/*\n  - packages/contexts/*\n  - apps/*\n",
+    );
     if (!rootOnly) {
       for (const [path, name] of [
-        ["packages/domain", "domain"], ["packages/contexts/supply", "supply"],
+        ["packages/domain", "domain"],
+        ["packages/contexts/supply", "supply"],
       ]) {
         await writeV3File(root, `${path}/package.json`, {
-          name: `@fixture/${name}`, private: true, type: "module",
+          name: `@fixture/${name}`,
+          private: true,
+          type: "module",
           exports: { ".": "./src/index.ts" },
         });
       }
     }
     const policy = {
-      schemaVersion: 3, workspace: { kind: "pnpm", manifest: "pnpm-workspace.yaml" },
+      schemaVersion: 3,
+      workspace: { kind: "pnpm", manifest: "pnpm-workspace.yaml" },
       packageRoots: rootOnly ? [] : ["packages", "packages/contexts"],
-      rootPackage: true, governedRoots: roots,
+      rootPackage: true,
+      governedRoots: roots,
       boundaries: roots.map((path, index) => v3Boundary(`surface${index}`, path)),
     };
     for (const path of roots) {
@@ -63,10 +77,13 @@ export async function withV3Fixture(callback, { rootOnly = false } = {}) {
     }
     await saveV3Policy(root, policy);
     await writeV3File(root, "foundation.config.yaml", {
-      schemaVersion: 1, project: { id: "source-v3-fixture" },
-      capabilities: { "architecture.source-dependencies": {
-        configPath: "architecture/foundation/source-dependencies.yaml",
-      } },
+      schemaVersion: 1,
+      project: { id: "source-v3-fixture" },
+      capabilities: {
+        "architecture.source-dependencies": {
+          configPath: "architecture/foundation/source-dependencies.yaml",
+        },
+      },
     });
     return callback(root, policy);
   });
@@ -75,7 +92,9 @@ export async function withV3Fixture(callback, { rootOnly = false } = {}) {
 export function checkV3(root, outcome = "passed", requestedVersion = 3) {
   const cli = join(process.env.LOADER_PACKED_PACKAGE_ROOT ?? foundationPackageRoot, "dist/cli.js");
   const result = spawnSync(process.execPath, [cli, "check", "--consumer", root, "--json"], {
-    cwd: root, encoding: "utf8", timeout: 30_000,
+    cwd: root,
+    encoding: "utf8",
+    timeout: 30_000,
   });
   assert.equal(result.error, undefined);
   assert.equal(result.signal, null);
@@ -86,7 +105,11 @@ export function checkV3(root, outcome = "passed", requestedVersion = 3) {
   assert.equal(capability.capabilityId, "architecture.source-dependencies");
   assert.equal(capability.outcome, outcome, result.stdout);
   assert.equal(capability.capabilityConfigSchemaVersion, requestedVersion, result.stdout);
-  assert.equal(result.status, { passed: 0, violations: 1, "invalid-input": 2 }[outcome], result.stdout);
+  assert.equal(
+    result.status,
+    { passed: 0, violations: 1, "invalid-input": 2 }[outcome],
+    result.stdout,
+  );
   if (outcome === "passed") {
     assert.deepEqual(capability.diagnostics, []);
   }
@@ -95,9 +118,14 @@ export function checkV3(root, outcome = "passed", requestedVersion = 3) {
 
 export function assertV3Rule(root, rule, path) {
   const report = checkV3(root, "violations");
-  assert.ok(report.diagnostics.some((diagnostic) =>
-    diagnostic.ruleId === `architecture.source-dependencies.${rule}` &&
-    (diagnostic.location?.path === path || diagnostic.subject === path)), JSON.stringify(report));
+  assert.ok(
+    report.diagnostics.some(
+      (diagnostic) =>
+        diagnostic.ruleId === `architecture.source-dependencies.${rule}` &&
+        (diagnostic.location?.path === path || diagnostic.subject === path),
+    ),
+    JSON.stringify(report),
+  );
   return report;
 }
 
@@ -112,11 +140,18 @@ export function assertV3Problem(root, code, path) {
 
 export async function inspectV3Topology(root, dependencies = {}, signal) {
   const distRoot = process.env.FOUNDATION_DIST_ROOT ?? join(foundationPackageRoot, "dist");
-  const { PnpmSourceWorkspaceTopologyInspector } = await import(pathToFileURL(join(
-    distRoot,
-    "capabilities/source-dependencies/adapters/outbound/node/pnpm-source-workspace-topology-inspector.js",
-  )).href);
-  const policy = await loadCapabilityConfig(root, "architecture/foundation/source-dependencies.yaml");
+  const { PnpmSourceWorkspaceTopologyInspector } = await import(
+    pathToFileURL(
+      join(
+        distRoot,
+        "capabilities/source-dependencies/adapters/outbound/node/pnpm-source-workspace-topology-inspector.js",
+      ),
+    ).href
+  );
+  const policy = await loadCapabilityConfig(
+    root,
+    "architecture/foundation/source-dependencies.yaml",
+  );
   return new PnpmSourceWorkspaceTopologyInspector({
     inventoryReader: createWorkspaceInventoryReader(),
     ...sourceTopologyAdapters(),
@@ -126,9 +161,12 @@ export async function inspectV3Topology(root, dependencies = {}, signal) {
     workspaceManifestPath: policy.workspaceManifestPath,
     packageRoots: policy.packageRoots,
     governedRoots: policy.governedRoots,
-    boundaryRoots: policy.boundaries.flatMap((boundary) => boundary.roots.map((path) => ({
-      boundaryId: boundary.id, path,
-    }))),
+    boundaryRoots: policy.boundaries.flatMap((boundary) =>
+      boundary.roots.map((path) => ({
+        boundaryId: boundary.id,
+        path,
+      })),
+    ),
     v3: { includeRootPackage: policy.includeRootPackage },
     ...(signal === undefined ? {} : { signal }),
   });

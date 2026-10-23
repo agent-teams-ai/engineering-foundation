@@ -3,10 +3,10 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "dependencies": {
-    "@fixture/core": "workspace:*"
-  },
   "exports": {
     ".": "./dist/index.js"
+  },
+  "dependencies": {
+    "@fixture/core": "workspace:*"
   }
 }

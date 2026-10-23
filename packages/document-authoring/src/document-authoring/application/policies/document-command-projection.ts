@@ -4,7 +4,7 @@ import type {
   DocumentCommandDiagnostic,
   DocumentCommandExecution,
   DocumentCommandId,
-  DocumentCommandOutcome
+  DocumentCommandOutcome,
 } from "../model/document-command.js";
 import type { DocumentReceiptContract as DocumentReceipt } from "../model/document-receipt.js";
 import { DocumentPlanningError } from "../model/document-planning-error.js";
@@ -23,37 +23,46 @@ export function commandExecution<Result>(input: {
       command: input.command,
       outcome: input.outcome,
       diagnostics: Object.freeze((input.diagnostics ?? []).slice(0, MAXIMUM_DIAGNOSTICS)),
-      result: Object.freeze(input.result)
+      result: Object.freeze(input.result),
     }),
-    exitCode: exitCodeForDocumentCommandOutcome(input.outcome)
+    exitCode: exitCodeForDocumentCommandOutcome(input.outcome),
   });
 }
 
-function exitCodeForDocumentCommandOutcome(
-  outcome: DocumentCommandOutcome
-): 0 | 1 | 2 | 3 | 130 {
+function exitCodeForDocumentCommandOutcome(outcome: DocumentCommandOutcome): 0 | 1 | 2 | 3 | 130 {
   switch (outcome) {
-    case "success": return 0;
+    case "success":
+      return 0;
     case "authority-stale":
     case "conflict":
     case "recovery-required":
-    case "violation": return 1;
-    case "invalid-input": return 2;
-    case "execution-failure": return 3;
-    case "cancelled": return 130;
+    case "violation":
+      return 1;
+    case "invalid-input":
+      return 2;
+    case "execution-failure":
+      return 3;
+    case "cancelled":
+      return 130;
   }
 }
 
 export function receiptOutcome(receipt: DocumentReceipt): DocumentCommandOutcome {
   switch (receipt.outcome) {
     case "applied":
-    case "already-applied": return "success";
-    case "authority-stale": return "authority-stale";
-    case "rejected": return "conflict";
+    case "already-applied":
+      return "success";
+    case "authority-stale":
+      return "authority-stale";
+    case "rejected":
+      return "conflict";
     case "recovery-required":
-    case "manual-recovery-required": return "recovery-required";
-    case "failed-before-publication": return "execution-failure";
-    case "cancelled": return "cancelled";
+    case "manual-recovery-required":
+      return "recovery-required";
+    case "failed-before-publication":
+      return "execution-failure";
+    case "cancelled":
+      return "cancelled";
   }
 }
 
@@ -72,48 +81,60 @@ export function projectDocumentCommandFailure(input: {
   readonly outcome: DocumentCommandOutcome;
 } {
   const { command, error, phase, subject } = input;
-  if (input.allowCancellation !== false && (
-    (error instanceof CapabilityInputError &&
-      error.problem.code === "EXECUTION_CANCELLED") ||
-    (error instanceof Error && error.name === "AbortError")
-  )) {
+  if (
+    input.allowCancellation !== false &&
+    ((error instanceof CapabilityInputError && error.problem.code === "EXECUTION_CANCELLED") ||
+      (error instanceof Error && error.name === "AbortError"))
+  ) {
     return {
       diagnostic: {
-        ruleId: `${command}.cancelled`, severity: "error", phase,
-        subject, message: message(error)
+        ruleId: `${command}.cancelled`,
+        severity: "error",
+        phase,
+        subject,
+        message: message(error),
       },
-      outcome: "cancelled"
+      outcome: "cancelled",
     };
   }
   if (error instanceof DocumentPlanningError) {
-    const outcome = error.code === "DOCUMENT_PLANNING_AUTHORITY_CHANGED"
-      ? "authority-stale" as const
-      : error.code === "DOCUMENT_PLANNING_CONFLICT"
-        ? "conflict" as const
-        : "invalid-input" as const;
+    const outcome =
+      error.code === "DOCUMENT_PLANNING_AUTHORITY_CHANGED"
+        ? ("authority-stale" as const)
+        : error.code === "DOCUMENT_PLANNING_CONFLICT"
+          ? ("conflict" as const)
+          : ("invalid-input" as const);
     return {
       diagnostic: {
-        ruleId: `${command}.${outcome}`, severity: "error",
+        ruleId: `${command}.${outcome}`,
+        severity: "error",
         phase: outcome === "authority-stale" ? "authority" : phase,
-        subject, message: message(error)
+        subject,
+        message: message(error),
       },
-      outcome
+      outcome,
     };
   }
   if (error instanceof CapabilityInputError || error instanceof DocumentAuthoringError) {
     return {
       diagnostic: {
-        ruleId: `${command}.invalid-input`, severity: "error", phase: "input",
-        subject, message: message(error)
+        ruleId: `${command}.invalid-input`,
+        severity: "error",
+        phase: "input",
+        subject,
+        message: message(error),
       },
-      outcome: "invalid-input"
+      outcome: "invalid-input",
     };
   }
   return {
     diagnostic: {
-      ruleId: `${command}.execution-failure`, severity: "error", phase,
-      subject, message: message(error)
+      ruleId: `${command}.execution-failure`,
+      severity: "error",
+      phase,
+      subject,
+      message: message(error),
     },
-    outcome: "execution-failure"
+    outcome: "execution-failure",
   };
 }

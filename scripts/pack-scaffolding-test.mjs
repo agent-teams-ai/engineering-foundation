@@ -15,7 +15,7 @@ async function runScaffoldingCommand(fixture, consumerRoot, arguments_) {
   const { stdout } = await runCommand(
     process.execPath,
     [fixture.toolEntrypoints.foundationCli, ...arguments_],
-    consumerRoot
+    consumerRoot,
   );
   return JSON.parse(stdout);
 }
@@ -25,7 +25,7 @@ async function verifyPackedLibraryRecipe(fixture, repositoryRoot) {
     repositoryRoot,
     "tests",
     "fixtures",
-    "scaffolding-library-consumer"
+    "scaffolding-library-consumer",
   );
   const libraryRoot = join(fixture.consumerRoot, "library-consumer");
   await copyScaffoldingFixture(libraryFixtureRoot, libraryRoot);
@@ -34,28 +34,25 @@ async function verifyPackedLibraryRecipe(fixture, repositoryRoot) {
     "intents/create-beta.yaml",
     "--consumer",
     libraryRoot,
-    "--json"
+    "--json",
   ]);
   await mkdir(join(libraryRoot, "plans"), { recursive: true });
   await writeFile(
     join(libraryRoot, "plans", "library.json"),
-    `${JSON.stringify(libraryPlan, null, 2)}\n`
+    `${JSON.stringify(libraryPlan, null, 2)}\n`,
   );
   const libraryReceipt = await runScaffoldingCommand(fixture, libraryRoot, [
     "scaffold-apply",
     "plans/library.json",
     "--consumer",
     libraryRoot,
-    "--json"
+    "--json",
   ]);
   if (libraryReceipt.outcome !== "applied") {
     throw new Error("Packed library recipe did not apply its reviewed Plan.");
   }
   const libraryManifest = JSON.parse(
-    await readFile(
-      join(libraryRoot, "packages", "deep", "nested", "beta", "package.json"),
-      "utf8"
-    )
+    await readFile(join(libraryRoot, "packages", "deep", "nested", "beta", "package.json"), "utf8"),
   );
   if (
     libraryManifest.name !== "@fixture/beta-library" ||
@@ -65,16 +62,8 @@ async function verifyPackedLibraryRecipe(fixture, repositoryRoot) {
   }
 }
 
-export async function verifyPackedAuthorityScaffolding({
-  fixture,
-  repositoryRoot
-}) {
-  const fixtureRoot = join(
-    repositoryRoot,
-    "tests",
-    "fixtures",
-    "scaffolding-authority-consumer"
-  );
+export async function verifyPackedAuthorityScaffolding({ fixture, repositoryRoot }) {
+  const fixtureRoot = join(repositoryRoot, "tests", "fixtures", "scaffolding-authority-consumer");
   await verifyInstalledTransactionBarrier({
     cliPath: fixture.toolEntrypoints.foundationCli,
     consumerRoot: join(fixture.consumerRoot, "transaction-barrier-consumer"),
@@ -87,26 +76,26 @@ export async function verifyPackedAuthorityScaffolding({
     "intents/create-fixture.yaml",
     "--consumer",
     authorityRoot,
-    "--json"
+    "--json",
   ]);
   await mkdir(join(authorityRoot, "plans"), { recursive: true });
   await writeFile(
     join(authorityRoot, "plans", "pack-fixture.json"),
-    `${JSON.stringify(plan, null, 2)}\n`
+    `${JSON.stringify(plan, null, 2)}\n`,
   );
   const receipt = await runScaffoldingCommand(fixture, authorityRoot, [
     "scaffold-apply",
     "plans/pack-fixture.json",
     "--consumer",
     authorityRoot,
-    "--json"
+    "--json",
   ]);
   if (receipt.outcome !== "applied") {
     throw new Error("Packed scaffolding CLI did not apply its deterministic Plan.");
   }
   await writeFile(
     join(authorityRoot, "plans", "pack-receipt.json"),
-    `${JSON.stringify(receipt, null, 2)}\n`
+    `${JSON.stringify(receipt, null, 2)}\n`,
   );
 
   const programmaticRoot = join(fixture.consumerRoot, "programmatic-consumer");
@@ -180,27 +169,18 @@ if (recovered?.outcome !== "failed-recovered") process.exit(9);
 await validateScaffoldReceipt(recovered, recoveryPlan);
 if ((await recoverFilesystemScaffold(scopedRecoveryRoot, recoveryScope)) !== undefined) process.exit(10);
 process.stdout.write(JSON.stringify({ outcome: "passed" }));
-`
+`,
   );
   const { stdout: programmaticOutput } = await runCommand(
     process.execPath,
     [join(fixture.consumerRoot, "pack-scaffolding-consumer.mjs")],
-    fixture.consumerRoot
+    fixture.consumerRoot,
   );
   if (JSON.parse(programmaticOutput).outcome !== "passed") {
     throw new Error("Packed ESM scaffolding API did not pass its consumer flow.");
   }
   const generatedManifest = JSON.parse(
-    await readFile(
-      join(
-        authorityRoot,
-        "packages",
-        "testing",
-        "generated",
-        "package.json"
-      ),
-      "utf8"
-    )
+    await readFile(join(authorityRoot, "packages", "testing", "generated", "package.json"), "utf8"),
   );
   if (generatedManifest.name !== "@fixture/generated") {
     throw new Error("Packed scaffolding CLI generated an unexpected package.");

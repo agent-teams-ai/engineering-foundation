@@ -25,11 +25,11 @@ packages/stock/src/
 
 The explicit edges are:
 
-| Caller | Allowed target |
-| --- | --- |
-| Domain | No outside boundary |
-| Application | Availability domain API |
-| Memory adapter | Availability application API |
+| Caller             | Allowed target                                        |
+| ------------------ | ----------------------------------------------------- |
+| Domain             | No outside boundary                                   |
+| Application        | Availability domain API                               |
+| Memory adapter     | Availability application API                          |
 | Module composition | Availability application API and named memory adapter |
 
 The versioned configuration and executable source fixture are in

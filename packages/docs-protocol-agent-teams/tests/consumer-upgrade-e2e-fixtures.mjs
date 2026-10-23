@@ -6,11 +6,9 @@ import { join } from "node:path";
 import {
   canonicalCallerWorkflow,
   canonicalDocsScripts,
-  digestBytes
+  digestBytes,
 } from "../dist/consumer-integration/application/policies/consumer-integration-assets.js";
-import {
-  loadPackageConsumerAssetCatalog
-} from "../dist/consumer-integration/adapters/package-consumer-asset-catalog.js";
+import { loadPackageConsumerAssetCatalog } from "../dist/consumer-integration/adapters/package-consumer-asset-catalog.js";
 
 export const packageRoot = join(import.meta.dirname, "..");
 export const foundationRoot = join(packageRoot, "..", "engineering-foundation");
@@ -19,8 +17,11 @@ export const repositoryMutationRoot = join(packageRoot, "..", "repository-mutati
 const INTEGRITY = `sha512-${"A".repeat(86)}==`;
 
 function restoreEnvironment(name, value) {
-  if (value === undefined) { delete process.env[name]; }
-  else { process.env[name] = value; }
+  if (value === undefined) {
+    delete process.env[name];
+  } else {
+    process.env[name] = value;
+  }
 }
 
 export function runGit(root, args) {
@@ -66,52 +67,57 @@ export function lockfileObjectForV2(cohort) {
     "@agent-teams/document-authoring": cohort.packages.documentAuthoring,
     "@agent-teams/docs-protocol": cohort.packages.docsProtocol,
     "@agent-teams/docs-protocol-agent-teams": cohort.packages.docsProtocolAgentTeams,
-    "@agent-teams/engineering-foundation": cohort.packages.engineeringFoundation
+    "@agent-teams/engineering-foundation": cohort.packages.engineeringFoundation,
   };
   const entry = (name) => ({
     specifier: packages[name].version,
-    version: packages[name].version
+    version: packages[name].version,
   });
   const locator = (name) => `${name}@${packages[name].version}`;
   return {
     lockfileVersion: "9.0",
     settings: { autoInstallPeers: true, excludeLinksFromLockfile: false },
-    importers: { ".": { devDependencies: {
-      "@agent-teams/docs-protocol": entry("@agent-teams/docs-protocol"),
-      "@agent-teams/docs-protocol-agent-teams":
-        entry("@agent-teams/docs-protocol-agent-teams"),
-      "@agent-teams/engineering-foundation": entry("@agent-teams/engineering-foundation")
-    } } },
-    packages: Object.fromEntries(Object.entries(packages).map(([name, coordinate]) => [
-      locator(name),
-      { resolution: { integrity: coordinate.integrity } }
-    ])),
+    importers: {
+      ".": {
+        devDependencies: {
+          "@agent-teams/docs-protocol": entry("@agent-teams/docs-protocol"),
+          "@agent-teams/docs-protocol-agent-teams": entry("@agent-teams/docs-protocol-agent-teams"),
+          "@agent-teams/engineering-foundation": entry("@agent-teams/engineering-foundation"),
+        },
+      },
+    },
+    packages: Object.fromEntries(
+      Object.entries(packages).map(([name, coordinate]) => [
+        locator(name),
+        { resolution: { integrity: coordinate.integrity } },
+      ]),
+    ),
     snapshots: {
       [locator("@agent-teams/repository-mutation")]: {},
       [locator("@agent-teams/document-authoring")]: {
         dependencies: {
-          "@agent-teams/repository-mutation": packages["@agent-teams/repository-mutation"].version
-        }
+          "@agent-teams/repository-mutation": packages["@agent-teams/repository-mutation"].version,
+        },
       },
       [locator("@agent-teams/docs-protocol")]: {
         dependencies: {
           "@agent-teams/document-authoring": packages["@agent-teams/document-authoring"].version,
-          "@agent-teams/repository-mutation": packages["@agent-teams/repository-mutation"].version
-        }
+          "@agent-teams/repository-mutation": packages["@agent-teams/repository-mutation"].version,
+        },
       },
       [locator("@agent-teams/docs-protocol-agent-teams")]: {
         dependencies: {
           "@agent-teams/docs-protocol": packages["@agent-teams/docs-protocol"].version,
-          "@agent-teams/repository-mutation": packages["@agent-teams/repository-mutation"].version
-        }
+          "@agent-teams/repository-mutation": packages["@agent-teams/repository-mutation"].version,
+        },
       },
       [locator("@agent-teams/engineering-foundation")]: {
         dependencies: {
           "@agent-teams/document-authoring": packages["@agent-teams/document-authoring"].version,
-          "@agent-teams/repository-mutation": packages["@agent-teams/repository-mutation"].version
-        }
-      }
-    }
+          "@agent-teams/repository-mutation": packages["@agent-teams/repository-mutation"].version,
+        },
+      },
+    },
   };
 }
 
@@ -128,9 +134,9 @@ export function sourceManifestV2(cohort, profilePath) {
     devDependencies: {
       "@agent-teams/docs-protocol": cohort.packages.docsProtocol.version,
       "@agent-teams/docs-protocol-agent-teams": cohort.packages.docsProtocolAgentTeams.version,
-      "@agent-teams/engineering-foundation": cohort.packages.engineeringFoundation.version
+      "@agent-teams/engineering-foundation": cohort.packages.engineeringFoundation.version,
     },
-    untouched: { retained: true }
+    untouched: { retained: true },
   };
 }
 
@@ -142,10 +148,9 @@ export function sourceManifest(cohort, profilePath) {
     scripts: canonicalDocsScripts(profilePath),
     devDependencies: {
       "@agent-teams/docs-protocol": cohort.packages.docsProtocol.version,
-      "@agent-teams/engineering-foundation":
-        cohort.packages.engineeringFoundation.version
+      "@agent-teams/engineering-foundation": cohort.packages.engineeringFoundation.version,
     },
-    untouched: { retained: true }
+    untouched: { retained: true },
   };
 }
 
@@ -157,7 +162,7 @@ export async function cleanupOneCommandSandbox({
   originalManaged,
   originalDocumentAuthoring,
   originalRepositoryMutation,
-  restoreGitHubIdentity
+  restoreGitHubIdentity,
 }) {
   restoreEnvironment("PATH", originalPath);
   restoreEnvironment("DOCS_UPGRADE_TEST_DOCS_PACKAGE", originalDocs);
@@ -338,17 +343,24 @@ for (const [name, source] of packageSources) {
 
 export function assertCanonicalMigrationAssets(plan, prior, target) {
   const expected = [["managed-state", "replace"]];
-  if (digestBytes(prior.skill) !== target.assets.skillDigest) { expected.unshift(["skill", "replace"]); }
-  if (digestBytes(prior.callerWorkflow) !== target.assets.callerWorkflowDigest) { expected.splice(expected.length - 1, 0, ["caller-workflow", "replace"]); }
+  if (digestBytes(prior.skill) !== target.assets.skillDigest) {
+    expected.unshift(["skill", "replace"]);
+  }
+  if (digestBytes(prior.callerWorkflow) !== target.assets.callerWorkflowDigest) {
+    expected.splice(expected.length - 1, 0, ["caller-workflow", "replace"]);
+  }
   assert.deepEqual(plan.issues, []);
-  assert.deepEqual(plan.assets.filter(({ action }) => action !== "none").map(({ id, action }) => [id, action]), expected);
+  assert.deepEqual(
+    plan.assets.filter(({ action }) => action !== "none").map(({ id, action }) => [id, action]),
+    expected,
+  );
 }
 
 export async function sourceCohort() {
   const [docsManifest, foundationManifest, catalog] = await Promise.all([
     readFile(join(packageRoot, "package.json"), "utf8").then(JSON.parse),
     readFile(join(foundationRoot, "package.json"), "utf8").then(JSON.parse),
-    loadPackageConsumerAssetCatalog()
+    loadPackageConsumerAssetCatalog(),
   ]);
   const provisional = {
     schemaVersion: 1,
@@ -361,29 +373,31 @@ export async function sourceCohort() {
     rollbackTo: [],
     packages: {
       docsProtocol: { version: docsManifest.version, integrity: INTEGRITY },
-      engineeringFoundation: { version: foundationManifest.version, integrity: INTEGRITY }
+      engineeringFoundation: { version: foundationManifest.version, integrity: INTEGRITY },
     },
     workflow: {
       repository: "agent-teams-ai/.github",
       path: ".github/workflows/docs-protocol-check.yml",
       revision: "3".repeat(40),
-      blobSha: "4".repeat(40)
+      blobSha: "4".repeat(40),
     },
     assets: {
-      skillDigest: digestBytes(Buffer.from(await readFile(join(packageRoot, "skills/docs/SKILL.md")))),
+      skillDigest: digestBytes(
+        Buffer.from(await readFile(join(packageRoot, "skills/docs/SKILL.md"))),
+      ),
       callerWorkflowDigest: `sha256:${"0".repeat(64)}`,
       assetCatalogDigest: catalog.catalogDigest,
-      transitionCatalogDigest: catalog.transitionCatalogDigest
+      transitionCatalogDigest: catalog.transitionCatalogDigest,
     },
     schemas: { consumerIntegration: 1, managedState: 1, docsProtocol: 1 },
     runtime: {
       node: ">=24.18.0 <25",
       pnpm: ">=11.17.0 <12",
-      runtimeClosureDigest: `sha256:${"5".repeat(64)}`
-    }
+      runtimeClosureDigest: `sha256:${"5".repeat(64)}`,
+    },
   };
-  provisional.assets.callerWorkflowDigest = digestBytes(Buffer.from(
-    canonicalCallerWorkflow(provisional)
-  ));
+  provisional.assets.callerWorkflowDigest = digestBytes(
+    Buffer.from(canonicalCallerWorkflow(provisional)),
+  );
   return { cohort: provisional, catalog };
 }

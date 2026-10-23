@@ -505,6 +505,14 @@ boundaries:
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-runtime-archive.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-runtime-identity.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-runtime-process.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/managed-runtime-scope-support.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/managed-probe-support.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/managed-probe-operation.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/managed-install-support.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/managed-attempt-support.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/consumer-upgrade-sandbox-support.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/consumer-upgrade-projector-support.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/cohort-authority-fetch.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-runtime.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/package-consumer-asset-catalog.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/pnpm-lockfile-policy-v1.ts
@@ -685,11 +693,33 @@ boundaries:
     dependencyMode: development
     roots:
       - packages/docs-protocol-agent-teams/tests/canonical-managed-state-v2.test.mjs
+      - packages/docs-protocol-agent-teams/tests/restoration-fixture-environment.ts
+      - packages/docs-protocol-agent-teams/tests/managed-runtime-observation-assertions.ts
+      - packages/docs-protocol-agent-teams/tests/consumer-restoration-native-cases.ts
+      - packages/docs-protocol-agent-teams/tests/consumer-restoration-authority-cases.ts
       - packages/docs-protocol-agent-teams/tests/consumer-execution-schema-fixtures.mjs
       - packages/docs-protocol-agent-teams/tests/consumer-integration-authority-response-streaming.test.mjs
       - packages/docs-protocol-agent-teams/tests/consumer-integration-characterization.test.mjs
       - packages/docs-protocol-agent-teams/tests/consumer-cli-json.test.mjs
       - packages/docs-protocol-agent-teams/tests/consumer-integration-e2e.test.mjs
+      - packages/docs-protocol-agent-teams/tests/unselected-cohort-fixture.ts
+      - packages/docs-protocol-agent-teams/tests/restoration-lock-fixture.ts
+      - packages/docs-protocol-agent-teams/tests/managed-runtime-probe-fixture.ts
+      - packages/docs-protocol-agent-teams/tests/managed-runtime-parent-settings.ts
+      - packages/docs-protocol-agent-teams/tests/managed-runtime-install-fixture.ts
+      - packages/docs-protocol-agent-teams/tests/consumer-reconciliation-mutations.ts
+      - packages/docs-protocol-agent-teams/tests/consumer-plan-v3-fixture.ts
+      - packages/docs-protocol-agent-teams/tests/consumer-plan-fixture.ts
+      - packages/docs-protocol-agent-teams/tests/consumer-package-asset-assertions.ts
+      - packages/docs-protocol-agent-teams/tests/consumer-lockfile-cycle-fixture.ts
+      - packages/docs-protocol-agent-teams/tests/consumer-history-assertions.ts
+      - packages/docs-protocol-agent-teams/tests/consumer-e2e-sandbox.ts
+      - packages/docs-protocol-agent-teams/tests/consumer-e2e-cli-assertions.ts
+      - packages/docs-protocol-agent-teams/tests/consumer-characterization-fixture.ts
+      - packages/docs-protocol-agent-teams/tests/consumer-authority-registry-fixture.ts
+      - packages/docs-protocol-agent-teams/tests/consumer-authority-drift-mutations.ts
+      - packages/docs-protocol-agent-teams/tests/consumer-authority-canary-mutations.ts
+      - packages/docs-protocol-agent-teams/tests/authority-streaming-fixture.ts
       - packages/docs-protocol-agent-teams/tests/consumer-integration-plan-v3.test.mjs
       - packages/docs-protocol-agent-teams/tests/consumer-integration-history.test.mjs
       - packages/docs-protocol-agent-teams/tests/consumer-integration-plan.test.mjs
@@ -772,6 +802,7 @@ boundaries:
     dependencyMode: development
     roots:
       - packages/docs-protocol-agent-teams/tests/restoration-lock-inputs.test.mts
+      - packages/docs-protocol-agent-teams/tests/restoration-lock-input-fixture.ts
     allow:
       boundaries:
         - docs-protocol-agent-teams.qualification.adapters
@@ -788,6 +819,7 @@ boundaries:
   - id: docs-protocol-agent-teams.tests.qualification-provenance
     dependencyMode: development
     roots:
+      - packages/docs-protocol-agent-teams/tests/qualification-scenario-fixture.ts
       - packages/docs-protocol-agent-teams/tests/qualification-application.test.mjs
     allow:
       boundaries:
@@ -933,7 +965,7 @@ boundaries:
         - foundation.core
         - foundation.validation-reporting.application
         - foundation.process-execution.application
-      packages: [ "@agent-teams/repository-mutation" ]
+      packages: ["@agent-teams/repository-mutation"]
       builtins: []
       runtimeReferences: []
     entrypoints:
@@ -1072,7 +1104,7 @@ boundaries:
         - capability.quality-gate-runner.application
         - foundation.core
         - foundation.process-execution.application
-      packages: [ "@agent-teams/repository-mutation" ]
+      packages: ["@agent-teams/repository-mutation"]
       builtins:
         - node:fs/promises
         - node:path
@@ -1082,6 +1114,7 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/inbound/node-test-execution/command.ts
+      - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/inbound/node-test-execution/contract-validation.ts
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/inbound/configuration/load-quality-gate-policy.ts
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/inbound/cli/node-signal-cancellation-source.ts
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/inbound/cli/quality-gate-cli.ts
@@ -1719,6 +1752,7 @@ boundaries:
       - packages/document-authoring/src/document-authoring/application/use-cases/plan-documentation-document.ts
       - packages/document-authoring/src/document-authoring/application/use-cases/recapture-directory-receipt-evidence.ts
       - packages/document-authoring/src/document-authoring/application/use-cases/recover-document-transaction.ts
+      - packages/document-authoring/src/document-authoring/application/use-cases/document-recovery-observation.ts
       - packages/document-authoring/src/document-authoring/application/use-cases/run-document-doctor.ts
       - packages/document-authoring/src/document-authoring/application/use-cases/run-document-new.ts
       - packages/document-authoring/src/document-authoring/application/use-cases/run-document-recover.ts
@@ -2311,7 +2345,7 @@ boundaries:
         - foundation.process-execution.application
         - foundation.validation-reporting.error
         - foundation.core
-      packages: [ "node-or-bun" ]
+      packages: ["node-or-bun"]
       builtins:
         - node:child_process
         - node:events
@@ -2442,6 +2476,7 @@ boundaries:
       builtins: []
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/policies/validate-growth-authority-primitives.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/ports/growth-workspace.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/ports/growth-report-writer.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/model/growth-configuration.ts
@@ -2479,6 +2514,14 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/model/growth-authority.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/ports/growth-authority.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/policies/validate-growth-authority.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/ports/public-api-signature-equivalence.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/policies/growth-authority-digests.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/policies/growth-authority-grant-evidence.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/policies/growth-authority-grant.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/policies/growth-authority-packed-evidence.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/policies/growth-authority-receipt.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/policies/growth-authority-released-evidence.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/policies/growth-authority-request.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/policies/validate-growth-metadata-root.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/use-cases/qualify-sdk-growth.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/model/growth-report.ts
@@ -2573,6 +2616,13 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/native-public-api-engine.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/native-public-api-inputs.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/native-public-api-model.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/native-type-parenthesis-equivalence.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/native-audit-configuration.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/native-audit-context.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/native-audit-evidence.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/native-audit-model.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/native-audit-session.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/native-public-api-descriptors.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/native-public-api-excerpt.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/native-public-api-item.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/native-public-api-reference.ts
@@ -2601,6 +2651,7 @@ boundaries:
         - node:url
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/native-type-parenthesis-equivalence.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/inbound/configuration/load-public-api-audit.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/inbound/configuration/parse-growth-config.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/filesystem/growth-invocation.ts
@@ -2848,6 +2899,7 @@ boundaries:
       - packages/engineering-foundation/tests/source-dependency-aliases.test.mjs
       - packages/engineering-foundation/tests/workspace-dependency-declarations.test.mjs
       - packages/engineering-foundation/tests/support/dependency-fixtures.mjs
+      - packages/engineering-foundation/tests/workspace-dependency-alias-normalization-cases.ts
     allow:
       boundaries: []
       packages:
@@ -3079,7 +3131,7 @@ boundaries:
       boundaries:
         - capability.executable-specifications.application
         - foundation.core
-      packages: [ "@agent-teams/repository-mutation" ]
+      packages: ["@agent-teams/repository-mutation"]
       builtins:
         - node:crypto
         - node:path
@@ -4009,6 +4061,8 @@ boundaries:
     roots:
       - packages/engineering-foundation/tests/public-api-artifact-inventory.test.mjs
       - packages/engineering-foundation/tests/fixtures/public-api-artifact-fixture.mjs
+      - packages/engineering-foundation/tests/public-api-artifact-release-cases.ts
+      - packages/engineering-foundation/tests/public-api-artifact-captured-byte-cases.ts
     allow:
       boundaries:
         - foundation.source-inventory.composition
@@ -4072,12 +4126,19 @@ boundaries:
       - packages/engineering-foundation/tests/public-api-audit-command.test.mjs
       - packages/engineering-foundation/tests/public-api-audit-inputs.test.mjs
       - packages/engineering-foundation/tests/public-api-audit-observer.test.ts
+      - packages/engineering-foundation/tests/public-api-authority-codec.test.ts
       - packages/engineering-foundation/tests/public-api-audit-alias.test.ts
       - packages/engineering-foundation/tests/public-api-audit-policy.test.mjs
       - packages/engineering-foundation/tests/public-api-audit-projection.test.ts
       - packages/engineering-foundation/tests/public-api-native-extraction.test.ts
       - packages/engineering-foundation/tests/public-api-native-projection.test.ts
+      - packages/engineering-foundation/tests/public-api-native-spelling-cases.ts
       - packages/engineering-foundation/tests/public-api-native-transition.test.ts
+      - packages/engineering-foundation/tests/public-api-audit-binding-cases.ts
+      - packages/engineering-foundation/tests/public-api-audit-environment-cases.ts
+      - packages/engineering-foundation/tests/public-api-audit-history-cases.ts
+      - packages/engineering-foundation/tests/public-api-audit-baseline-bound-cases.ts
+      - packages/engineering-foundation/tests/public-api-audit-command-fixture.ts
     allow:
       boundaries:
         - capability.public-api-compatibility.application
@@ -4132,7 +4193,7 @@ boundaries:
         - foundation.quality-coverage.application
       packages:
         - oxc-parser
-        - '@agent-teams/repository-mutation'
+        - "@agent-teams/repository-mutation"
       builtins:
         - node:crypto
         - node:path
@@ -4252,6 +4313,8 @@ boundaries:
       - packages/feature-module-standard/src/features/conformance-fixtures/testing
     entrypoints:
       - packages/feature-module-standard/src/features/conformance-fixtures/testing/conformance-cases.ts
+      - packages/feature-module-standard/src/features/conformance-fixtures/testing/conformance-case-inputs.ts
+      - packages/feature-module-standard/src/features/conformance-fixtures/testing/conformance-cases-later.ts
       - packages/feature-module-standard/src/features/conformance-fixtures/testing/example-tree.ts
       - packages/feature-module-standard/src/features/conformance-fixtures/testing/example-sources.ts
     allow:
@@ -4441,6 +4504,7 @@ boundaries:
   - id: release-checks.conformance
     roots:
       - packages/release-checks/src/features/candidate-checking/conformance.ts
+      - packages/release-checks/src/features/candidate-checking/conformance-inputs.ts
     entrypoints:
       - packages/release-checks/src/features/candidate-checking/conformance.ts
     packageExports:

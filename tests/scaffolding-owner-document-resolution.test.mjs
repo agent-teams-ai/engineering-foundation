@@ -8,12 +8,7 @@ import test from "node:test";
 import { planScaffoldFromFile } from "../packages/engineering-foundation/dist/scaffolding/index.js";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
-const fixtureRoot = join(
-  repositoryRoot,
-  "tests",
-  "fixtures",
-  "scaffolding-authority-consumer"
-);
+const fixtureRoot = join(repositoryRoot, "tests", "fixtures", "scaffolding-authority-consumer");
 
 async function createConsumer() {
   const root = await mkdtemp(join(tmpdir(), "foundation-owner-resolution-"));
@@ -24,7 +19,7 @@ async function createConsumer() {
 function plan(root) {
   return planScaffoldFromFile({
     consumerRoot: root,
-    intentPath: "intents/create-fixture.yaml"
+    intentPath: "intents/create-fixture.yaml",
   });
 }
 
@@ -46,20 +41,20 @@ test("rejects malformed UTF-8 in every canonical authority source role", async (
       role: "config",
       repositoryPath: "architecture/foundation/scaffolding.yaml",
       path: configPath,
-      malformedBytes: [0xc3, 0x28]
+      malformedBytes: [0xc3, 0x28],
     },
     {
       role: "target-catalog",
       repositoryPath: "architecture/package-catalog.yaml",
       path: catalogPath,
-      malformedBytes: [0xe2, 0x82]
+      malformedBytes: [0xe2, 0x82],
     },
     {
       role: "owner-document",
       repositoryPath: "docs/decisions/adr-0060.md",
       path: ownerPath,
-      malformedBytes: [0x80]
-    }
+      malformedBytes: [0x80],
+    },
   ];
 
   for (const source of sources) {
@@ -68,7 +63,7 @@ test("rejects malformed UTF-8 in every canonical authority source role", async (
       const path = source.path(root);
       await writeFile(
         path,
-        Buffer.concat([await readFile(path), Buffer.from(source.malformedBytes)])
+        Buffer.concat([await readFile(path), Buffer.from(source.malformedBytes)]),
       );
       await assert.rejects(plan(root), (error) => {
         assert.equal(error?.code, "SCAFFOLD_INPUT_INVALID", source.role);
@@ -86,20 +81,20 @@ test("rejects missing, overlapping, and out-of-scope authority document roots", 
   const scenarios = [
     {
       roots: "[missing-docs]",
-      pattern: /Cannot index configured authority document roots/u
+      pattern: /Cannot index configured authority document roots/u,
     },
     {
       roots: "[architecture]",
-      pattern: /must resolve exactly once/u
+      pattern: /must resolve exactly once/u,
     },
     {
       roots: "[docs, docs/decisions]",
-      pattern: /cannot overlap/u
+      pattern: /cannot overlap/u,
     },
     {
       roots: "[docs, docs-empty, docs/empty]",
-      pattern: /cannot overlap/u
-    }
+      pattern: /cannot overlap/u,
+    },
   ];
   for (const scenario of scenarios) {
     const root = await createConsumer();
@@ -108,9 +103,9 @@ test("rejects missing, overlapping, and out-of-scope authority document roots", 
         configPath(root),
         (await readFile(configPath(root), "utf8")).replace(
           "documentRoots: [docs]",
-          `documentRoots: ${scenario.roots}`
+          `documentRoots: ${scenario.roots}`,
         ),
-        "utf8"
+        "utf8",
       );
       await assert.rejects(plan(root), scenario.pattern);
     } finally {
@@ -126,12 +121,11 @@ test("rejects the superseded duplicated owner-document catalog fields", async ()
       catalogPath(root),
       (await readFile(catalogPath(root), "utf8")).replace(
         "owner_document: ADR-0060",
-        [
-          "owner_document_id: ADR-0060",
-          "    owner_document_path: docs/decisions/adr-0060.md"
-        ].join("\n")
+        ["owner_document_id: ADR-0060", "    owner_document_path: docs/decisions/adr-0060.md"].join(
+          "\n",
+        ),
       ),
-      "utf8"
+      "utf8",
     );
     await assert.rejects(plan(root), /additional properties|required/u);
   } finally {
@@ -143,7 +137,7 @@ test("bounds authority document traversal depth", async () => {
   const root = await createConsumer();
   try {
     await mkdir(join(root, "docs", ...Array.from({ length: 34 }, () => "d")), {
-      recursive: true
+      recursive: true,
     });
     await assert.rejects(plan(root), /cannot exceed 32 directory levels/u);
   } finally {
@@ -154,18 +148,15 @@ test("bounds authority document traversal depth", async () => {
 test("bounds projected authority metadata before indexing", async () => {
   const scenarios = [
     ["id: ADR-0060", `id: ${"A".repeat(161)}`],
-    ["status: accepted", `status: ${"a".repeat(161)}`]
+    ["status: accepted", `status: ${"a".repeat(161)}`],
   ];
   for (const [current, replacement] of scenarios) {
     const root = await createConsumer();
     try {
       await writeFile(
         ownerPath(root),
-        (await readFile(ownerPath(root), "utf8")).replace(
-          current,
-          replacement
-        ),
-        "utf8"
+        (await readFile(ownerPath(root), "utf8")).replace(current, replacement),
+        "utf8",
       );
       await assert.rejects(plan(root), /normalized id and status strings/u);
     } finally {
@@ -181,18 +172,15 @@ test("treats extra owner metadata as inert and validates the authority projectio
       ownerPath(root),
       (await readFile(ownerPath(root), "utf8")).replace(
         "status: accepted",
-        "status: accepted\nrevoked: true"
+        "status: accepted\nrevoked: true",
       ),
-      "utf8"
+      "utf8",
     );
     await assert.doesNotReject(plan(root));
     await writeFile(
       ownerPath(root),
-      (await readFile(ownerPath(root), "utf8")).replace(
-        "status: accepted",
-        "status: [accepted]"
-      ),
-      "utf8"
+      (await readFile(ownerPath(root), "utf8")).replace("status: accepted", "status: [accepted]"),
+      "utf8",
     );
     await assert.rejects(plan(root), /normalized id and status strings/u);
   } finally {

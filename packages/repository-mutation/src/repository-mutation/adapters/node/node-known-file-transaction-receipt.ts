@@ -4,7 +4,7 @@ import type { KnownFileTransactionJournalV1 } from "../../application/model/know
 import { KnownFileTransactionError } from "../../application/model/known-file-transaction-error.js";
 
 export function compileRolledBackReceipt(
-  journal: KnownFileTransactionJournalV1
+  journal: KnownFileTransactionJournalV1,
 ): KnownFileTransactionReceiptV1 {
   const operations = journal.operations.map((entry, index) => {
     const planOperation = journal.plan.operations[index]!;
@@ -12,25 +12,25 @@ export function compileRolledBackReceipt(
       return Object.freeze({
         path: entry.path,
         outcome: "already-satisfied" as const,
-        resultDigest: planOperation.postimage.digest
+        resultDigest: planOperation.postimage.digest,
       });
     }
     if (planOperation.precondition.state === "absent") {
       return Object.freeze({
         path: entry.path,
-        outcome: "rolled-back-to-absent" as const
+        outcome: "rolled-back-to-absent" as const,
       });
     }
     if (entry.matchedPreimage === undefined) {
       throw new KnownFileTransactionError(
         "KNOWN_FILE_JOURNAL_INVALID",
-        `Replacement preimage binding is absent: ${entry.path}.`
+        `Replacement preimage binding is absent: ${entry.path}.`,
       );
     }
     return Object.freeze({
       path: entry.path,
       outcome: "rolled-back-to-preimage" as const,
-      resultDigest: planOperation.precondition.acceptedPreimages[entry.matchedPreimage]!.digest
+      resultDigest: planOperation.precondition.acceptedPreimages[entry.matchedPreimage]!.digest,
     });
   });
   const body = {
@@ -38,13 +38,13 @@ export function compileRolledBackReceipt(
     protocol: "agent-teams.repository-mutation.known-file/v1" as const,
     planDigest: journal.plan.planDigest,
     outcome: "rolled-back" as const,
-    operations: Object.freeze(operations)
+    operations: Object.freeze(operations),
   };
   return Object.freeze({
     ...body,
     receiptDigest: sha256Json({
       domain: "agent-teams.repository-mutation.known-file-receipt/v1",
-      body
-    })
+      body,
+    }),
   });
 }

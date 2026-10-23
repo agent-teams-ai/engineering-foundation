@@ -30,6 +30,7 @@ export const SCRIPT_IDS = new Set([
   "foundation:check:built",
   "lint",
   "toolchain:doctor",
+  "format:check",
   "lint:fast",
   "lint:fast:files",
   "lint:typed",
@@ -197,6 +198,11 @@ export const TOOL_COMMANDS: Readonly<Record<string, ToolCommand>> = Object.freez
   "toolchain:doctor": {
     entry: "node_modules/stack-toolchain/dist/cli.js",
     args: ["doctor", "--json"],
+    role: "node-tool",
+  },
+  "format:check": {
+    entry: "node_modules/stack-toolchain/dist/cli.js",
+    args: ["format:check"],
     role: "node-tool",
   },
   typecheck: {

@@ -4,15 +4,18 @@ import {
   pathIsInside,
   portablePathIsInside,
   portableRepositoryPathIdentity,
-  portableRepositoryPathProblem
+  portableRepositoryPathProblem,
 } from "../../../application/model/repository-path.js";
 import type {
   ArchitectureBoundaryPolicy,
   SourceArchitectureConfigSchemaVersion,
-  SourceArchitecturePolicy
+  SourceArchitecturePolicy,
 } from "../../../application/model/source-workspace.js";
 
-import { configurationInputError as inputError, ambiguousConfigurationBoundary } from "../../../application/configuration-input.js";
+import {
+  configurationInputError as inputError,
+  ambiguousConfigurationBoundary,
+} from "../../../application/configuration-input.js";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -57,10 +60,7 @@ function sortedStrings(value: unknown, field: string): readonly string[] {
   return Object.freeze(strings(value, field).toSorted());
 }
 
-function priorAncestor<T>(
-  path: string,
-  valuesByPath: ReadonlyMap<string, T>
-): T | undefined {
+function priorAncestor<T>(path: string, valuesByPath: ReadonlyMap<string, T>): T | undefined {
   let candidate = path;
   for (;;) {
     const value = valuesByPath.get(candidate);
@@ -81,10 +81,7 @@ interface PortableOwnedRoot {
   readonly root: string;
 }
 
-function comparePortableOwnedRoots(
-  left: PortableOwnedRoot,
-  right: PortableOwnedRoot
-): number {
+function comparePortableOwnedRoots(left: PortableOwnedRoot, right: PortableOwnedRoot): number {
   return (
     compareBinaryStrings(left.identity, right.identity) ||
     compareBinaryStrings(left.root, right.root) ||
@@ -92,24 +89,19 @@ function comparePortableOwnedRoots(
   );
 }
 
-function portableOwnedRoot(
-  root: string,
-  boundaryId?: string
-): PortableOwnedRoot {
+function portableOwnedRoot(root: string, boundaryId?: string): PortableOwnedRoot {
   return {
     ...(boundaryId === undefined ? {} : { boundaryId }),
     identity: portableRepositoryPathIdentity(root),
-    root
+    root,
   };
 }
 
 function sortedOverlapPair(
   left: PortableOwnedRoot,
-  right: PortableOwnedRoot
+  right: PortableOwnedRoot,
 ): readonly [PortableOwnedRoot, PortableOwnedRoot] {
-  return comparePortableOwnedRoots(left, right) <= 0
-    ? [left, right]
-    : [right, left];
+  return comparePortableOwnedRoots(left, right) <= 0 ? [left, right] : [right, left];
 }
 
 function validateGovernedRootOverlap(policy: SourceArchitecturePolicy): void {
@@ -125,7 +117,7 @@ function validateGovernedRootOverlap(policy: SourceArchitecturePolicy): void {
     if (overlap !== undefined) {
       const [first, second] = sortedOverlapPair(overlap, root);
       inputError(
-        `Schema v2 governed roots overlap under portable path identity: ${first.root} and ${second.root}.`
+        `Schema v2 governed roots overlap under portable path identity: ${first.root} and ${second.root}.`,
       );
     }
     priorRoots.set(root.identity, root);
@@ -137,7 +129,7 @@ function validateBoundaryRootOverlap(
   ownedBoundaryRoots: readonly {
     readonly boundaryId: string;
     readonly root: string;
-  }[]
+  }[],
 ): void {
   if (policy.schemaVersion === 1) {
     return;
@@ -150,7 +142,9 @@ function validateBoundaryRootOverlap(
     const overlap = priorAncestor(root.identity, priorRoots);
     if (overlap !== undefined) {
       const [first, second] = sortedOverlapPair(overlap, root);
-      ambiguousConfigurationBoundary(`Schema v2 architecture boundary roots overlap under portable path identity: ${first.boundaryId}:${first.root} and ${second.boundaryId}:${second.root}.`);
+      ambiguousConfigurationBoundary(
+        `Schema v2 architecture boundary roots overlap under portable path identity: ${first.boundaryId}:${first.root} and ${second.boundaryId}:${second.root}.`,
+      );
     }
     priorRoots.set(root.identity, root);
   }
@@ -159,7 +153,7 @@ function validateBoundaryRootOverlap(
 function validatePortableV2Path(path: string, field: string): void {
   if (portableRepositoryPathProblem(path) !== undefined) {
     inputError(
-      `Schema v2 ${field} must use a normalized portable repository-relative path: ${path}.`
+      `Schema v2 ${field} must use a normalized portable repository-relative path: ${path}.`,
     );
   }
 }
@@ -167,7 +161,7 @@ function validatePortableV2Path(path: string, field: string): void {
 function normalizePolicyPaths(
   value: unknown,
   field: string,
-  version: SourceArchitectureConfigSchemaVersion
+  version: SourceArchitectureConfigSchemaVersion,
 ): readonly string[] {
   return Object.freeze(
     sortedStrings(value, field).map((path) => {
@@ -175,7 +169,7 @@ function normalizePolicyPaths(
         validatePortableV2Path(path, field);
       }
       return normalizeRepositoryPath(path);
-    })
+    }),
   );
 }
 
@@ -211,13 +205,14 @@ function validatePackageRootOverlap(policy: SourceArchitecturePolicy): void {
     .map((root) => portableOwnedRoot(root))
     .toSorted(comparePortableOwnedRoots);
   for (const root of roots) {
-    const overlap = policy.schemaVersion === 3
-      ? priorRoots.get(root.identity)
-      : priorAncestor(root.identity, priorRoots);
+    const overlap =
+      policy.schemaVersion === 3
+        ? priorRoots.get(root.identity)
+        : priorAncestor(root.identity, priorRoots);
     if (overlap !== undefined) {
       const [first, second] = sortedOverlapPair(overlap, root);
       inputError(
-        `Schema v2 package roots overlap under portable path identity: ${first.root} and ${second.root}.`
+        `Schema v2 package roots overlap under portable path identity: ${first.root} and ${second.root}.`,
       );
     }
     priorRoots.set(root.identity, root);
@@ -228,7 +223,7 @@ function policyPathIsInside(
   policy: SourceArchitecturePolicy,
   path: string,
   root: string,
-  pathIdentities: Map<string, string>
+  pathIdentities: Map<string, string>,
 ): boolean {
   if (policy.schemaVersion === 1) {
     return pathIsInside(path, root);
@@ -259,7 +254,7 @@ function validateBoundaryLocations(input: BoundaryLocationValidationInput): void
     }
     if (
       !policy.governedRoots.some((governedRoot) =>
-        policyPathIsInside(policy, root, governedRoot, input.pathIdentities)
+        policyPathIsInside(policy, root, governedRoot, input.pathIdentities),
       )
     ) {
       inputError(`Architecture boundary root is outside governed roots: ${root}.`);
@@ -276,11 +271,11 @@ function validateBoundaryLocations(input: BoundaryLocationValidationInput): void
     }
     if (
       !boundary.roots.some((root) =>
-        policyPathIsInside(policy, entrypoint, root, input.pathIdentities)
+        policyPathIsInside(policy, entrypoint, root, input.pathIdentities),
       )
     ) {
       inputError(
-        `Architecture boundary entrypoint is outside its boundary roots: ${boundary.id}:${entrypoint}.`
+        `Architecture boundary entrypoint is outside its boundary roots: ${boundary.id}:${entrypoint}.`,
       );
     }
     input.boundaryEntrypoints.add(entrypoint);
@@ -319,21 +314,23 @@ function validatePolicy(policy: SourceArchitecturePolicy): void {
       boundaryRoots,
       ownedBoundaryRoots,
       policy,
-      pathIdentities
+      pathIdentities,
     });
   }
   validateBoundaryRootOverlap(policy, ownedBoundaryRoots);
   for (const boundary of policy.boundaries) {
     for (const target of boundary.allowedBoundaries) {
       if (target === boundary.id || !boundaryIds.has(target)) {
-        inputError(`Boundary edge must target another declared boundary: ${boundary.id} -> ${target}.`);
+        inputError(
+          `Boundary edge must target another declared boundary: ${boundary.id} -> ${target}.`,
+        );
       }
     }
   }
   for (const governedRoot of policy.governedRoots) {
     if (
       ![...boundaryRoots].some((root) =>
-        policyPathIsInside(policy, root, governedRoot, pathIdentities)
+        policyPathIsInside(policy, root, governedRoot, pathIdentities),
       )
     ) {
       inputError(`Governed root has no architecture boundary: ${governedRoot}.`);
@@ -344,7 +341,7 @@ function validatePolicy(policy: SourceArchitecturePolicy): void {
 function mapBoundary(
   value: unknown,
   index: number,
-  version: SourceArchitectureConfigSchemaVersion
+  version: SourceArchitectureConfigSchemaVersion,
 ): ArchitectureBoundaryPolicy {
   const indexedField = `boundaries[${index}]`;
   const boundary = record(value, indexedField);
@@ -354,7 +351,7 @@ function mapBoundary(
   const entrypoints = normalizePolicyPaths(
     boundary["entrypoints"],
     `${field}.entrypoints`,
-    version
+    version,
   );
   const dependencyMode = boundary["dependencyMode"] ?? "runtime";
   if (dependencyMode !== "runtime" && dependencyMode !== "development") {
@@ -363,31 +360,19 @@ function mapBoundary(
   return Object.freeze({
     id,
     dependencyMode,
-    packageExports: version !== 1
-      ? normalizePackageExports(boundary["packageExports"] ?? [], `${field}.packageExports`)
-      : Object.freeze([]),
-    roots: normalizePolicyPaths(
-      boundary["roots"],
-      `${field}.roots`,
-      version
-    ),
+    packageExports:
+      version !== 1
+        ? normalizePackageExports(boundary["packageExports"] ?? [], `${field}.packageExports`)
+        : Object.freeze([]),
+    roots: normalizePolicyPaths(boundary["roots"], `${field}.roots`, version),
     entrypoints,
-    allowedBoundaries: sortedStrings(
-      allow["boundaries"],
-      `${field}.allow.boundaries`
-    ),
-    allowedPackages: sortedStrings(
-      allow["packages"],
-      `${field}.allow.packages`
-    ),
-    allowedBuiltins: sortedStrings(
-      allow["builtins"],
-      `${field}.allow.builtins`
-    ),
+    allowedBoundaries: sortedStrings(allow["boundaries"], `${field}.allow.boundaries`),
+    allowedPackages: sortedStrings(allow["packages"], `${field}.allow.packages`),
+    allowedBuiltins: sortedStrings(allow["builtins"], `${field}.allow.builtins`),
     allowedRuntimeReferences: sortedStrings(
       allow["runtimeReferences"],
-      `${field}.allow.runtimeReferences`
-    ) as readonly ("commonjs" | "dynamic" | "type-query")[]
+      `${field}.allow.runtimeReferences`,
+    ) as readonly ("commonjs" | "dynamic" | "type-query")[],
   });
 }
 
@@ -396,13 +381,17 @@ export interface SourceArchitectureConfigurationHeader {
   readonly version: SourceArchitectureConfigSchemaVersion;
 }
 
-export function readSourceArchitectureHeader(input: unknown): SourceArchitectureConfigurationHeader {
+export function readSourceArchitectureHeader(
+  input: unknown,
+): SourceArchitectureConfigurationHeader {
   const root = record(input, "source architecture config");
   const version = schemaVersion(root["schemaVersion"]);
   return { root, version };
 }
 
-export function parseSourceArchitecturePolicy(header: SourceArchitectureConfigurationHeader): SourceArchitecturePolicy {
+export function parseSourceArchitecturePolicy(
+  header: SourceArchitectureConfigurationHeader,
+): SourceArchitecturePolicy {
   const { root, version } = header;
   const workspace = record(root["workspace"], "workspace");
   const boundaryInput = root["boundaries"];
@@ -415,16 +404,12 @@ export function parseSourceArchitecturePolicy(header: SourceArchitectureConfigur
   const common = {
     schemaVersion: version,
     workspaceManifestPath: "pnpm-workspace.yaml",
-    governedRoots: normalizePolicyPaths(
-      root["governedRoots"],
-      "governedRoots",
-      version
-    ),
+    governedRoots: normalizePolicyPaths(root["governedRoots"], "governedRoots", version),
     boundaries: Object.freeze(
       boundaryInput
         .map((boundary, index) => mapBoundary(boundary, index, version))
-        .toSorted((left, right) => compareBinaryStrings(left.id, right.id))
-    )
+        .toSorted((left, right) => compareBinaryStrings(left.id, right.id)),
+    ),
   } as const;
   const policy: SourceArchitecturePolicy =
     version === 1
@@ -434,11 +419,7 @@ export function parseSourceArchitecturePolicy(header: SourceArchitectureConfigur
           ...(version === 3
             ? { schemaVersion: 3 as const, includeRootPackage: root["rootPackage"] === true }
             : { schemaVersion: 2 as const }),
-          packageRoots: normalizePolicyPaths(
-            root["packageRoots"],
-            "packageRoots",
-            version
-          )
+          packageRoots: normalizePolicyPaths(root["packageRoots"], "packageRoots", version),
         });
   validatePolicy(policy);
   return policy;

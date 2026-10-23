@@ -16,7 +16,6 @@ export interface CommandInvocation {
   readonly qualificationOnly?: boolean;
 }
 
-
 export function defaultCommandConfigPath(): string {
   return DEFAULT_SCAFFOLDING_CONFIG_PATH;
 }

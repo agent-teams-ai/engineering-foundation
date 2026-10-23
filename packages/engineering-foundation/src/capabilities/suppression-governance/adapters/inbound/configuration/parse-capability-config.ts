@@ -2,11 +2,13 @@ import { isoDateToEpochDay } from "../../../application/model/iso-date.js";
 import type {
   SuppressionGovernancePolicy,
   SuppressionWaiver,
-  WaiverableDirective
+  WaiverableDirective,
 } from "../../../application/model/suppression-governance.js";
 
-import { configurationInputError as inputError, assertConfigRepositoryRelativePath } from "../../../application/configuration-input.js";
-
+import {
+  configurationInputError as inputError,
+  assertConfigRepositoryRelativePath,
+} from "../../../application/configuration-input.js";
 
 function record(value: unknown, field: string): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -65,7 +67,7 @@ function mapWaiver(value: unknown, index: number): SuppressionWaiver {
     reason: string(waiver["reason"], `${field}.reason`),
     createdOn,
     expiresOn,
-    decisionRef: string(waiver["decisionRef"], `${field}.decisionRef`)
+    decisionRef: string(waiver["decisionRef"], `${field}.decisionRef`),
   });
 }
 
@@ -101,9 +103,9 @@ export function parseCapabilityConfig(input: unknown): SuppressionGovernancePoli
   const policy: SuppressionGovernancePolicy = Object.freeze({
     governedRoots: Object.freeze([...governedRoots]),
     nonWaivableRulePrefixes: Object.freeze(
-      strings(root["nonWaivableRulePrefixes"], "nonWaivableRulePrefixes")
+      strings(root["nonWaivableRulePrefixes"], "nonWaivableRulePrefixes"),
     ),
-    waivers: Object.freeze(waiverInputs.map(mapWaiver))
+    waivers: Object.freeze(waiverInputs.map(mapWaiver)),
   });
   validatePolicy(policy);
   return policy;

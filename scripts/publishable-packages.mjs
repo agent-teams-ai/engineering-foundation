@@ -1,5 +1,9 @@
 import { readFileSync } from "node:fs";
-import { compareVersionCore, parsePublishedVersion, parseStableVersion } from "./release-publish-registry-version.mjs";
+import {
+  compareVersionCore,
+  parsePublishedVersion,
+  parseStableVersion,
+} from "./release-publish-registry-version.mjs";
 
 const PACKAGE_NAME = /^(?:@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*|[a-z0-9][a-z0-9._-]*)$/u;
 const PORTABLE_PATH = /^(?!\/)(?!.*\\)(?!.*(?:^|\/)\.{1,2}(?:\/|$))[A-Za-z0-9._@/-]+$/u;
@@ -135,7 +139,8 @@ function manifestFor(manifestsByName, entry) {
 
 // Explicit stable caret branches retain the supported windows when the workspace advances.
 export function workspacePeerRange(reference, workspaceVersion) {
-  const version = typeof workspaceVersion === "string" ? parsePublishedVersion(workspaceVersion) : undefined;
+  const version =
+    typeof workspaceVersion === "string" ? parsePublishedVersion(workspaceVersion) : undefined;
   if (version === undefined) {
     fail("optional workspace peer requires an actual workspace version");
   }
@@ -143,20 +148,32 @@ export function workspacePeerRange(reference, workspaceVersion) {
     return `^${workspaceVersion}`;
   }
   const branches = reference.startsWith("workspace:^")
-    ? reference.slice("workspace:".length).split(" || ") : [];
-  const minimums = branches.map(branch => branch.startsWith("^")
-    ? parseStableVersion(branch.slice(1)) : undefined);
-  if (minimums.length === 0 || minimums.some(minimum => minimum === undefined) || version.iteration !== undefined) {
-    fail(`optional workspace peer ${reference} does not admit workspace version ${workspaceVersion}`);
+    ? reference.slice("workspace:".length).split(" || ")
+    : [];
+  const minimums = branches.map((branch) =>
+    branch.startsWith("^") ? parseStableVersion(branch.slice(1)) : undefined,
+  );
+  if (
+    minimums.length === 0 ||
+    minimums.some((minimum) => minimum === undefined) ||
+    version.iteration !== undefined
+  ) {
+    fail(
+      `optional workspace peer ${reference} does not admit workspace version ${workspaceVersion}`,
+    );
   }
-  const admitted = minimums.some(minimum => {
+  const admitted = minimums.some((minimum) => {
     const [major, minor, patch] = minimum;
-    const upper = major > 0n ? [major + 1n, 0n, 0n]
-      : minor > 0n ? [0n, minor + 1n, 0n] : [0n, 0n, patch + 1n];
-    return compareVersionCore(version.core, minimum) >= 0 && compareVersionCore(version.core, upper) < 0;
+    const upper =
+      major > 0n ? [major + 1n, 0n, 0n] : minor > 0n ? [0n, minor + 1n, 0n] : [0n, 0n, patch + 1n];
+    return (
+      compareVersionCore(version.core, minimum) >= 0 && compareVersionCore(version.core, upper) < 0
+    );
   });
   if (!admitted) {
-    fail(`optional workspace peer ${reference} does not admit workspace version ${workspaceVersion}`);
+    fail(
+      `optional workspace peer ${reference} does not admit workspace version ${workspaceVersion}`,
+    );
   }
   return reference.slice("workspace:".length);
 }
@@ -166,10 +183,13 @@ export function workspacePeerRange(reference, workspaceVersion) {
 // (devDependencies workspace:*); the pair is one ordering edge, recorded under peerDependencies.
 function internalDeclaration(ownerName, name, uses, optionalPeer, workspaceVersion) {
   const peer = uses.find(({ section }) => section === "peerDependencies");
-  const pair = uses.length === 2 &&
+  const pair =
+    uses.length === 2 &&
     optionalPeer === true &&
     peer?.reference.startsWith("workspace:^") &&
-    uses.some(({ reference, section }) => section === "devDependencies" && reference === "workspace:*");
+    uses.some(
+      ({ reference, section }) => section === "devDependencies" && reference === "workspace:*",
+    );
   if (pair) {
     workspacePeerRange(peer.reference, workspaceVersion);
     return Object.freeze({ name, section: "peerDependencies" });
@@ -210,10 +230,19 @@ function dependencyDeclarations(manifest, ownerName, qualifiedNames, manifestsBy
     }
   }
   const declarations = [...found].map(([name, uses]) =>
-    internalDeclaration(ownerName, name, uses, manifest.peerDependenciesMeta?.[name]?.optional,
-      manifestsByName.get(name)?.version));
-  return Object.freeze(declarations.toSorted((left, right) =>
-    left.name < right.name ? -1 : left.name > right.name ? 1 : 0));
+    internalDeclaration(
+      ownerName,
+      name,
+      uses,
+      manifest.peerDependenciesMeta?.[name]?.optional,
+      manifestsByName.get(name)?.version,
+    ),
+  );
+  return Object.freeze(
+    declarations.toSorted((left, right) =>
+      left.name < right.name ? -1 : left.name > right.name ? 1 : 0,
+    ),
+  );
 }
 
 function topologicalOrder(catalogByName, dependencies) {
@@ -247,7 +276,10 @@ function topologicalOrder(catalogByName, dependencies) {
     }
   }
   if (ordered.length !== catalogByName.size) {
-    const cyclic = [...remaining].filter(([, count]) => count > 0).map(([name]) => name).toSorted();
+    const cyclic = [...remaining]
+      .filter(([, count]) => count > 0)
+      .map(([name]) => name)
+      .toSorted();
     fail(`internal dependency cycle includes ${cyclic.join(", ")}`);
   }
   return Object.freeze(ordered);
@@ -270,12 +302,20 @@ export function derivePublishablePackageProjection({ catalog, manifestsByName })
       fail(`duplicate manifest identity ${manifest.name}`);
     }
     identities.add(manifest.name);
-    declarations[entry.name] = dependencyDeclarations(manifest, entry.name, qualifiedNames, manifestsByName);
-    dependencies[entry.name] = Object.freeze(declarations[entry.name]
-      .filter(({ section }) => section === "dependencies")
-      .map(({ name }) => name));
-    orderingDependencies[entry.name] = Object.freeze(declarations[entry.name]
-      .map(({ name }) => name));
+    declarations[entry.name] = dependencyDeclarations(
+      manifest,
+      entry.name,
+      qualifiedNames,
+      manifestsByName,
+    );
+    dependencies[entry.name] = Object.freeze(
+      declarations[entry.name]
+        .filter(({ section }) => section === "dependencies")
+        .map(({ name }) => name),
+    );
+    orderingDependencies[entry.name] = Object.freeze(
+      declarations[entry.name].map(({ name }) => name),
+    );
   }
   const frozenDependencies = Object.freeze(dependencies);
   return Object.freeze({
@@ -286,13 +326,20 @@ export function derivePublishablePackageProjection({ catalog, manifestsByName })
 }
 
 function loadManifests(catalog) {
-  return new Map(catalog.map((entry) => {
-    try {
-      return [entry.name, JSON.parse(readFileSync(new URL(`../${entry.manifestPath}`, import.meta.url), "utf8"))];
-    } catch (error) {
-      return fail(`cannot load ${entry.manifestPath}: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }));
+  return new Map(
+    catalog.map((entry) => {
+      try {
+        return [
+          entry.name,
+          JSON.parse(readFileSync(new URL(`../${entry.manifestPath}`, import.meta.url), "utf8")),
+        ];
+      } catch (error) {
+        return fail(
+          `cannot load ${entry.manifestPath}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }),
+  );
 }
 
 const projection = derivePublishablePackageProjection({

@@ -1,0 +1,31 @@
+{
+  "baselineEntries": 2783,
+  "entries": 2871,
+  "addedEntries": 88,
+  "removedEntries": 0,
+  "compilerArtifacts": [".d.ts", ".d.ts.map", ".js", ".js.map"],
+  "productionModuleStems": [
+    "dist/capabilities/public-api-compatibility/adapters/inbound/authority/growth-authority-tooling-input",
+    "dist/capabilities/public-api-compatibility/adapters/outbound/api-extractor/native-audit-configuration",
+    "dist/capabilities/public-api-compatibility/adapters/outbound/api-extractor/native-audit-context",
+    "dist/capabilities/public-api-compatibility/adapters/outbound/api-extractor/native-audit-evidence",
+    "dist/capabilities/public-api-compatibility/adapters/outbound/api-extractor/native-audit-model",
+    "dist/capabilities/public-api-compatibility/adapters/outbound/api-extractor/native-audit-session",
+    "dist/capabilities/public-api-compatibility/adapters/outbound/api-extractor/native-public-api-descriptors",
+    "dist/capabilities/public-api-compatibility/adapters/outbound/api-extractor/native-type-parenthesis-equivalence",
+    "dist/capabilities/public-api-compatibility/application/policies/growth-authority-digests",
+    "dist/capabilities/public-api-compatibility/application/policies/growth-authority-grant",
+    "dist/capabilities/public-api-compatibility/application/policies/growth-authority-grant-evidence",
+    "dist/capabilities/public-api-compatibility/application/policies/growth-authority-packed-evidence",
+    "dist/capabilities/public-api-compatibility/application/policies/growth-authority-receipt",
+    "dist/capabilities/public-api-compatibility/application/policies/growth-authority-released-evidence",
+    "dist/capabilities/public-api-compatibility/application/policies/growth-authority-request",
+    "dist/capabilities/public-api-compatibility/application/ports/public-api-signature-equivalence",
+    "dist/capabilities/quality-gate-runner/adapters/inbound/node-test-execution/contract-file",
+    "dist/capabilities/quality-gate-runner/adapters/inbound/node-test-execution/contract-validation",
+    "dist/capabilities/quality-gate-runner/adapters/inbound/node-test-execution/event-evidence",
+    "dist/capabilities/quality-gate-runner/adapters/inbound/node-test-execution/failure-diagnostics",
+    "dist/features/command-host/adapters/inbound/cli/cli-output",
+    "dist/features/quality-coverage/adapters/consumer-gate-mappings"
+  ]
+}

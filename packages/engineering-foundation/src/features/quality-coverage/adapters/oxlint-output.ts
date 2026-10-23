@@ -10,8 +10,13 @@ function malformed(): never {
 
 function normalizeSelectedPath(value: string): string {
   const path = value.replaceAll("\\", "/");
-  if (path.length === 0 || path.length > 1024 || path.includes(":") || path.split("").some((character) => character < " ") ||
-    path.split("/").some((segment) => segment === "" || segment === "." || segment === "..")) {
+  if (
+    path.length === 0 ||
+    path.length > 1024 ||
+    path.includes(":") ||
+    path.split("").some((character) => character < " ") ||
+    path.split("/").some((segment) => segment === "" || segment === "." || segment === "..")
+  ) {
     malformed();
   }
   return path;
@@ -20,7 +25,9 @@ function normalizeSelectedPath(value: string): string {
 export function parseOxlintSelection(stdout: string): readonly string[] {
   const lines = stdout.replace(/\r?\n$/u, "").split(/\r?\n/u);
   const paths = lines.map(normalizeSelectedPath);
-  if (paths.length === 0 || new Set(paths).size !== paths.length) { malformed(); }
+  if (paths.length === 0 || new Set(paths).size !== paths.length) {
+    malformed();
+  }
   return paths.toSorted();
 }
 
@@ -31,30 +38,69 @@ interface OxlintEntry {
 }
 
 /** The exit status and JSON envelope must agree; a tool failure is never a lint finding. */
-function parseOxlintEnvelope(stdout: string, exitCode: number, minimumFiles = 1): { readonly files: number; readonly entries: readonly OxlintEntry[] } {
+function parseOxlintEnvelope(
+  stdout: string,
+  exitCode: number,
+  minimumFiles = 1,
+): { readonly files: number; readonly entries: readonly OxlintEntry[] } {
   let value: unknown;
-  try { value = JSON.parse(stdout); } catch { malformed(); }
-  if (!record(value) || !Array.isArray(value["diagnostics"]) ||
-    typeof value["number_of_files"] !== "number" || !Number.isSafeInteger(value["number_of_files"]) ||
-    value["number_of_files"] < minimumFiles || ![0, 1].includes(exitCode)) { malformed(); }
+  try {
+    value = JSON.parse(stdout);
+  } catch {
+    malformed();
+  }
+  if (
+    !record(value) ||
+    !Array.isArray(value["diagnostics"]) ||
+    typeof value["number_of_files"] !== "number" ||
+    !Number.isSafeInteger(value["number_of_files"]) ||
+    value["number_of_files"] < minimumFiles ||
+    ![0, 1].includes(exitCode)
+  ) {
+    malformed();
+  }
   const entries = value["diagnostics"].map((input: unknown): OxlintEntry => {
-    if (!record(input) || typeof input["filename"] !== "string" ||
-      typeof input["code"] !== "string" || !/^[a-z][a-z-]*\([a-z][a-z0-9-]*\)$/u.test(input["code"]) ||
-      (input["severity"] !== "error" && input["severity"] !== "warning")) { malformed(); }
-    return { path: normalizeSelectedPath(input["filename"]), code: input["code"], message: typeof input["message"] === "string" ? input["message"] : "" };
+    if (
+      !record(input) ||
+      typeof input["filename"] !== "string" ||
+      typeof input["code"] !== "string" ||
+      !/^[a-z][a-z-]*\([a-z][a-z0-9-]*\)$/u.test(input["code"]) ||
+      (input["severity"] !== "error" && input["severity"] !== "warning")
+    ) {
+      malformed();
+    }
+    return {
+      path: normalizeSelectedPath(input["filename"]),
+      code: input["code"],
+      message: typeof input["message"] === "string" ? input["message"] : "",
+    };
   });
-  if ((exitCode === 0) !== (entries.length === 0)) { malformed(); }
+  if ((exitCode === 0) !== (entries.length === 0)) {
+    malformed();
+  }
   return { files: value["number_of_files"], entries };
 }
 
-export function parseOxlintDiagnostics(stdout: string, exitCode: number): {
+export function parseOxlintDiagnostics(
+  stdout: string,
+  exitCode: number,
+): {
   readonly files: number;
   readonly diagnostics: readonly ReturnType<typeof qualityDiagnostic>[];
 } {
   const { files, entries } = parseOxlintEnvelope(stdout, exitCode);
   const diagnostics = entries.map(({ path, code }) => {
-    const diagnostic = qualityDiagnostic("lint-violation", path, `${path}:${code}`, "no lint violations", code);
-    return { ...diagnostic, evidence: [...diagnostic.evidence, { kind: "tool-rule", value: code }] };
+    const diagnostic = qualityDiagnostic(
+      "lint-violation",
+      path,
+      `${path}:${code}`,
+      "no lint violations",
+      code,
+    );
+    return {
+      ...diagnostic,
+      evidence: [...diagnostic.evidence, { kind: "tool-rule", value: code }],
+    };
   });
   return { files, diagnostics };
 }
@@ -65,7 +111,11 @@ export function parseOxlintDiagnostics(stdout: string, exitCode: number): {
  * A measured rule carries its value in the first
  * parenthesized integer of its message ("... too many lines (612). Maximum allowed is 500.").
  */
-export function parseOxlintFindings(stdout: string, exitCode: number, measuredRules: ReadonlySet<string>): OxlintFindings {
+export function parseOxlintFindings(
+  stdout: string,
+  exitCode: number,
+  measuredRules: ReadonlySet<string>,
+): OxlintFindings {
   const groups = new Map<string, { path: string; rule: string; count: number; max?: number }>();
   const { files, entries } = parseOxlintEnvelope(stdout, exitCode, 0);
   for (const { path, code, message } of entries) {
@@ -75,7 +125,9 @@ export function parseOxlintFindings(stdout: string, exitCode: number, measuredRu
     group.count += 1;
     if (measuredRules.has(rule)) {
       const measured = /\((\d{1,15})\)/u.exec(message)?.[1];
-      if (measured === undefined) { throw new OxlintMeasuredValueMissingError(rule); }
+      if (measured === undefined) {
+        throw new OxlintMeasuredValueMissingError(rule);
+      }
       group.max = Math.max(group.max ?? 0, Number(measured));
     }
     groups.set(key, group);

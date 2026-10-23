@@ -2,16 +2,16 @@ import {
   capabilityFailureReport,
   capabilityReport,
   type CapabilityDefinition,
-  type CapabilityInvocation
+  type CapabilityInvocation,
 } from "../../features/validation-reporting/api.js";
 import { FilesystemExecutableSpecificationInspector } from "./adapters/outbound/filesystem/filesystem-executable-specification-inspector.js";
 import { analyzeExecutableSpecifications } from "./application/use-cases/analyze-executable-specifications.js";
-import {
-  CAPABILITY_CONFIG_SCHEMA_VERSION,
-  CAPABILITY_ID
-} from "./contract/config.js";
+import { CAPABILITY_CONFIG_SCHEMA_VERSION, CAPABILITY_ID } from "./contract/config.js";
 
-import { loadCapabilityConfig, type ExecutableConfigurationDependencies } from "./adapters/inbound/configuration/load-capability-config.js";
+import {
+  loadCapabilityConfig,
+  type ExecutableConfigurationDependencies,
+} from "./adapters/inbound/configuration/load-capability-config.js";
 import { loadStrictYamlFile } from "../../features/configuration-input/node.js";
 import { readContainedRegularFile } from "../../source-inventory/node.js";
 import type { ExecutableArtifactFileReader } from "./api.js";
@@ -28,14 +28,11 @@ export type {
   GeneratedTypeBinding,
   NoStateModel,
   ObservedGateBinding,
-  XstateStateModel
+  XstateStateModel,
 } from "./api.js";
 export { evaluateExecutableSpecifications } from "./api.js";
 export type { ExecutableSpecificationInspector } from "./api.js";
-export {
-  EXECUTABLE_SPECIFICATION_RULES,
-  EXECUTABLE_SPECIFICATION_RULES_BY_ID
-} from "./api.js";
+export { EXECUTABLE_SPECIFICATION_RULES, EXECUTABLE_SPECIFICATION_RULES_BY_ID } from "./api.js";
 export { analyzeExecutableSpecifications } from "./api.js";
 export type { JsonSchemaInspectorFactory } from "./api.js";
 export type { WorkspaceManifestPathReader } from "./api.js";
@@ -46,7 +43,9 @@ export function createExecutableSpecificationsCapability(dependencies: {
   readonly createJsonSchemaInspector: import("./application/ports/json-schema-inspector-factory.js").JsonSchemaInspectorFactory;
 }): CapabilityDefinition {
   const inspector = new FilesystemExecutableSpecificationInspector(
-    dependencies.workspaceManifestPathReader, dependencies.createJsonSchemaInspector, artifactFiles
+    dependencies.workspaceManifestPathReader,
+    dependencies.createJsonSchemaInspector,
+    artifactFiles,
   );
   return Object.freeze({
     id: CAPABILITY_ID,
@@ -54,10 +53,14 @@ export function createExecutableSpecificationsCapability(dependencies: {
     async run(invocation: CapabilityInvocation) {
       try {
         const catalog = await loadCapabilityConfig(
-          { readYaml: loadStrictYamlFile, readFile: readContainedRegularFile, assertSchema: dependencies.assertSchema },
+          {
+            readYaml: loadStrictYamlFile,
+            readFile: readContainedRegularFile,
+            assertSchema: dependencies.assertSchema,
+          },
           invocation.consumerRoot,
           invocation.configPath,
-          invocation.signal
+          invocation.signal,
         );
         return capabilityReport({
           capabilityId: CAPABILITY_ID,
@@ -66,19 +69,19 @@ export function createExecutableSpecificationsCapability(dependencies: {
             {
               consumerRoot: invocation.consumerRoot,
               catalog,
-              ...(invocation.signal === undefined ? {} : { signal: invocation.signal })
+              ...(invocation.signal === undefined ? {} : { signal: invocation.signal }),
             },
-            inspector
-          )
+            inspector,
+          ),
         });
       } catch (error) {
         return capabilityFailureReport({
           capabilityId: CAPABILITY_ID,
           capabilityConfigSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
           error,
-          phase: "executable-specification-execution"
+          phase: "executable-specification-execution",
         });
       }
-    }
+    },
   });
 }

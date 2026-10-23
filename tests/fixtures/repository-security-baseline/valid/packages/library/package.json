@@ -1,7 +1,11 @@
 {
   "name": "@fixture/library",
   "version": "1.0.0",
-  "files": ["dist", "LICENSE", "README.md"],
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
   "publishConfig": {
     "access": "public",
     "provenance": true

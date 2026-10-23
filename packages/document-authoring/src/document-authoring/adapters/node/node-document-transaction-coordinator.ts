@@ -2,18 +2,18 @@ import {
   acquireMutationLease,
   releaseMutationLease,
   retainMutationBarrier,
-  type MutationLease
+  type MutationLease,
 } from "@agent-teams/repository-mutation/node";
 
 import type {
   DocumentTransactionCoordinator,
   DocumentTransactionLease,
-  DocumentTransactionStatus
+  DocumentTransactionStatus,
 } from "../../application/ports/document-transaction-coordinator.js";
 import { inspectDocumentTransactionV2 } from "./inspect-document-transaction.js";
 
 function projected(
-  inspection: Awaited<ReturnType<typeof inspectDocumentTransactionV2>>
+  inspection: Awaited<ReturnType<typeof inspectDocumentTransactionV2>>,
 ): DocumentTransactionStatus {
   if (inspection.state === "idle") {
     return { state: "idle" };
@@ -35,7 +35,9 @@ export class NodeDocumentTransactionCoordinator implements DocumentTransactionCo
     return projected(await inspectDocumentTransactionV2(this.#consumerRoot));
   }
 
-  async acquire(_request: { readonly mode: "apply" | "recover" }): Promise<DocumentTransactionLease> {
+  async acquire(_request: {
+    readonly mode: "apply" | "recover";
+  }): Promise<DocumentTransactionLease> {
     const lease: MutationLease = await acquireMutationLease(this.#consumerRoot);
     let held = true;
     try {
@@ -59,7 +61,7 @@ export class NodeDocumentTransactionCoordinator implements DocumentTransactionCo
           }
           await releaseMutationLease(lease);
           held = false;
-        }
+        },
       };
     } catch (error) {
       retainMutationBarrier(lease);
@@ -71,7 +73,7 @@ export class NodeDocumentTransactionCoordinator implements DocumentTransactionCo
 }
 
 export function createNodeDocumentTransactionCoordinator(
-  consumerRoot: string
+  consumerRoot: string,
 ): DocumentTransactionCoordinator {
   return new NodeDocumentTransactionCoordinator(consumerRoot);
 }

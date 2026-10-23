@@ -1,7 +1,7 @@
 import type {
   DocumentCommandDiagnostic,
   DocumentCommandExecution,
-  DocumentNewResult
+  DocumentNewResult,
 } from "../model/document-command.js";
 import type { DocumentPlanContract as DocumentPlan } from "../model/document-planning.js";
 import type { DocumentReceiptContract as DocumentReceipt } from "../model/document-receipt.js";
@@ -13,7 +13,7 @@ import type { PlanDocumentationDocumentRequest } from "./plan-documentation-docu
 import {
   commandExecution,
   projectDocumentCommandFailure,
-  receiptOutcome
+  receiptOutcome,
 } from "../policies/document-command-projection.js";
 import { projectSimilarDocumentAdvice } from "../policies/project-similar-document-advice.js";
 import { projectDocumentCommandConsumerRoot } from "../policies/document-command-consumer-root.js";
@@ -41,56 +41,64 @@ function signalOption(signal: AbortSignal | undefined): { readonly signal?: Abor
 
 function transactionDiagnostic(
   inspection: Exclude<DocumentTransactionInspection, { readonly state: "idle" }>,
-  consumerRoot: string
+  consumerRoot: string,
 ): DocumentCommandDiagnostic {
-  const recovery = inspection.state === "recoverable"
-    ? {
-        commandId: "docs.recover" as const,
-        args: {
-          consumerRoot: projectDocumentCommandConsumerRoot(consumerRoot),
-          exactFoundationVersion: inspection.recovery.exactFoundationVersion,
-          exactFoundationBuildIdentity: inspection.recovery.exactFoundationBuildIdentity
-        }
-      }
-    : inspection.recovery === undefined
-      ? undefined
-      : {
-          commandId: inspection.recovery.commandId === "docs-recover"
-            ? "docs.recover" as const : inspection.recovery.commandId,
+  const recovery =
+    inspection.state === "recoverable"
+      ? {
+          commandId: "docs.recover" as const,
           args: {
-            ...inspection.recovery.args,
-            consumerRoot: projectDocumentCommandConsumerRoot(consumerRoot)
+            consumerRoot: projectDocumentCommandConsumerRoot(consumerRoot),
+            exactFoundationVersion: inspection.recovery.exactFoundationVersion,
+            exactFoundationBuildIdentity: inspection.recovery.exactFoundationBuildIdentity,
           },
-        };
+        }
+      : inspection.recovery === undefined
+        ? undefined
+        : {
+            commandId:
+              inspection.recovery.commandId === "docs-recover"
+                ? ("docs.recover" as const)
+                : inspection.recovery.commandId,
+            args: {
+              ...inspection.recovery.args,
+              consumerRoot: projectDocumentCommandConsumerRoot(consumerRoot),
+            },
+          };
   return {
     ruleId: "document.new.transaction-active",
     severity: "error",
     phase: "recovery",
     subject: "document.transaction",
-    message: inspection.state === "recoverable"
-      ? "A recoverable Foundation document transaction must be completed first."
-      : inspection.reason,
+    message:
+      inspection.state === "recoverable"
+        ? "A recoverable Foundation document transaction must be completed first."
+        : inspection.reason,
     ...(recovery === undefined ? {} : { remediation: recovery }),
   };
 }
 
 function receiptDiagnostics(
   receipt: DocumentReceipt,
-  consumerRoot: string
+  consumerRoot: string,
 ): readonly DocumentCommandDiagnostic[] {
   return receipt.diagnostics.map((entry) => ({
     ...entry,
     ...(receipt.outcome === "recovery-required"
-      ? { remediation: {
-          commandId: "docs.recover" as const,
-          args: { consumerRoot: projectDocumentCommandConsumerRoot(consumerRoot) }
-        } }
+      ? {
+          remediation: {
+            commandId: "docs.recover" as const,
+            args: { consumerRoot: projectDocumentCommandConsumerRoot(consumerRoot) },
+          },
+        }
       : receipt.outcome === "manual-recovery-required"
-        ? { remediation: {
-          commandId: "docs.doctor" as const,
-          args: { consumerRoot: projectDocumentCommandConsumerRoot(consumerRoot) }
-        } }
-      : {})
+        ? {
+            remediation: {
+              commandId: "docs.doctor" as const,
+              args: { consumerRoot: projectDocumentCommandConsumerRoot(consumerRoot) },
+            },
+          }
+        : {}),
   }));
 }
 
@@ -122,14 +130,14 @@ export class RunDocumentNew {
   }
 
   async execute(
-    request: RunDocumentNewRequest
+    request: RunDocumentNewRequest,
   ): Promise<DocumentCommandExecution<DocumentNewResult>> {
     let publicationCommitted = false;
     let committedDocumentPath: string | undefined;
     let committedWriteState: "already-applied" | "applied" | undefined;
-    let projectedReachability: Awaited<ReturnType<
-      DocumentReachabilityProjector["project"]
-    >> | undefined;
+    let projectedReachability:
+      | Awaited<ReturnType<DocumentReachabilityProjector["project"]>>
+      | undefined;
     let advisoryDiagnostics: readonly DocumentCommandDiagnostic[] = [];
     try {
       request.signal?.throwIfAborted();
@@ -140,14 +148,14 @@ export class RunDocumentNew {
           command: "docs.new",
           diagnostics: [transactionDiagnostic(inspection, request.consumerRoot)],
           outcome: "recovery-required",
-          result: { kind: "new", reservation: "none" }
+          result: { kind: "new", reservation: "none" },
         });
       }
       const plan = await this.#dependencies.plan({
         consumerRoot: request.consumerRoot,
         profilePath: request.profilePath,
         intent: request.intent,
-        ...signalOption(request.signal)
+        ...signalOption(request.signal),
       });
       advisoryDiagnostics = await similarDocumentDiagnostics({
         dependencies: this.#dependencies,
@@ -158,7 +166,7 @@ export class RunDocumentNew {
       request.signal?.throwIfAborted();
       const reachability = await this.#dependencies.reachability.project({
         consumerRoot: request.consumerRoot,
-        plan
+        plan,
       });
       projectedReachability = reachability;
       request.signal?.throwIfAborted();
@@ -172,29 +180,27 @@ export class RunDocumentNew {
             documentPath: plan.destination,
             writeState: "preview",
             reservation: "none",
-            reachability
-          }
+            reachability,
+          },
         });
       }
       const receipt = await this.#dependencies.apply({
         consumerRoot: request.consumerRoot,
         plan,
-        ...signalOption(request.signal)
+        ...signalOption(request.signal),
       });
       const outcome = receiptOutcome(receipt);
-      publicationCommitted = receipt.outcome === "applied" ||
-        receipt.outcome === "already-applied";
+      publicationCommitted = receipt.outcome === "applied" || receipt.outcome === "already-applied";
       if (publicationCommitted) {
         committedDocumentPath = plan.destination;
-        committedWriteState = receipt.outcome === "already-applied"
-          ? "already-applied" : "applied";
+        committedWriteState = receipt.outcome === "already-applied" ? "already-applied" : "applied";
       }
       if (outcome !== "success") {
         return commandExecution({
           command: "docs.new",
           diagnostics: [
             ...advisoryDiagnostics,
-            ...receiptDiagnostics(receipt, request.consumerRoot)
+            ...receiptDiagnostics(receipt, request.consumerRoot),
           ],
           outcome,
           result: {
@@ -202,14 +208,14 @@ export class RunDocumentNew {
             documentPath: plan.destination,
             reservation: "none",
             receiptOutcome: receipt.outcome,
-            reachability
-          }
+            reachability,
+          },
         });
       }
       const verification = await this.#dependencies.structure.verify({
         consumerRoot: request.consumerRoot,
         plan,
-        ...signalOption(request.signal)
+        ...signalOption(request.signal),
       });
       const diagnostics: readonly DocumentCommandDiagnostic[] = [
         ...advisoryDiagnostics,
@@ -217,8 +223,8 @@ export class RunDocumentNew {
         ...verification.diagnostics.map((entry) => ({
           ...entry,
           phase: "apply" as const,
-          severity: "error" as const
-        }))
+          severity: "error" as const,
+        })),
       ];
       return commandExecution({
         command: "docs.new",
@@ -227,46 +233,49 @@ export class RunDocumentNew {
         result: {
           kind: "new",
           documentPath: plan.destination,
-          writeState: receipt.outcome === "already-applied"
-            ? "already-applied" : "applied",
+          writeState: receipt.outcome === "already-applied" ? "already-applied" : "applied",
           reservation: "none",
           receiptOutcome: receipt.outcome,
-          reachability
-        }
+          reachability,
+        },
       });
     } catch (error) {
       if (publicationCommitted) {
         return commandExecution({
           command: "docs.new",
-          diagnostics: [...advisoryDiagnostics, {
-            ruleId: "document.new.post-publication-verification",
-            severity: "error",
-            phase: "apply",
-            subject: "document.new",
-            message: "The document was published, but post-publication structural verification failed. The created output was preserved."
-          }],
+          diagnostics: [
+            ...advisoryDiagnostics,
+            {
+              ruleId: "document.new.post-publication-verification",
+              severity: "error",
+              phase: "apply",
+              subject: "document.new",
+              message:
+                "The document was published, but post-publication structural verification failed. The created output was preserved.",
+            },
+          ],
           outcome: "violation",
           result: {
             kind: "new",
-            ...(committedDocumentPath === undefined
-              ? {} : { documentPath: committedDocumentPath }),
-            ...(committedWriteState === undefined
-              ? {} : { writeState: committedWriteState }),
-            ...(projectedReachability === undefined
-              ? {} : { reachability: projectedReachability }),
-            reservation: "none"
-          }
+            ...(committedDocumentPath === undefined ? {} : { documentPath: committedDocumentPath }),
+            ...(committedWriteState === undefined ? {} : { writeState: committedWriteState }),
+            ...(projectedReachability === undefined ? {} : { reachability: projectedReachability }),
+            reservation: "none",
+          },
         });
       }
       const failure = projectDocumentCommandFailure({
-        command: "docs.new", error, phase: "planning", subject: "document.new",
-        allowCancellation: true
+        command: "docs.new",
+        error,
+        phase: "planning",
+        subject: "document.new",
+        allowCancellation: true,
       });
       return commandExecution({
         command: "docs.new",
         diagnostics: [...advisoryDiagnostics, failure.diagnostic],
         outcome: failure.outcome,
-        result: { kind: "new", reservation: "none" }
+        result: { kind: "new", reservation: "none" },
       });
     }
   }

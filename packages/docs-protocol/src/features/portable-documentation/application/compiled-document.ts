@@ -10,16 +10,21 @@ export function compiledDocument(
     readonly anchors: readonly DocsCodeAnchor[];
     readonly blockedBy: readonly string[];
     readonly related: readonly string[];
-  }
+  },
 ): DocsCompiledDocumentV1 {
   const { content, frontmatter, metadata } = decoded;
   assertDocumentMetadata(metadata);
   return Object.freeze({
     schemaVersion: 1,
-    document: Object.freeze({ content, digest: output.digest, mediaType: output.mediaType, size: output.size }),
+    document: Object.freeze({
+      content,
+      digest: output.digest,
+      mediaType: output.mediaType,
+      size: output.size,
+    }),
     frontmatter,
     metadata: Object.freeze({ ...metadata }),
     relations: Object.freeze({ blockedBy: input.blockedBy, related: input.related }),
-    anchors: Object.freeze(input.anchors.map((anchor) => Object.freeze({ ...anchor })))
+    anchors: Object.freeze(input.anchors.map((anchor) => Object.freeze({ ...anchor }))),
   });
 }

@@ -20,19 +20,19 @@ export class LocalPackageLifecycle {
     this.#now = options.now;
   }
 
-  async #readStatus(
-    consumerPath: string,
-    ignoreOperationLock: boolean
-  ): Promise<FoundationStatus> {
+  async #readStatus(consumerPath: string, ignoreOperationLock: boolean): Promise<FoundationStatus> {
     const status = await this.#ports.inspection.mode(consumerPath, {
-      ignoreOperationLock
+      ignoreOperationLock,
     });
     if (status.mode !== "LOCAL" || status.linkState === undefined) {
       return status;
     }
 
     try {
-      const git = await this.#ports.target.git(status.consumerRoot, status.linkState.targetPackageRoot);
+      const git = await this.#ports.target.git(
+        status.consumerRoot,
+        status.linkState.targetPackageRoot,
+      );
       return { ...status, sourceGitCommit: git.gitCommit, sourceGitDirty: git.gitDirty };
     } catch (error) {
       return {
@@ -42,8 +42,8 @@ export class LocalPackageLifecycle {
           ...status.issues,
           `Local foundation Git evidence is unavailable: ${
             error instanceof Error ? error.message : String(error)
-          }`
-        ]
+          }`,
+        ],
       };
     }
   }
@@ -52,41 +52,33 @@ export class LocalPackageLifecycle {
     return await this.#readStatus(consumerPath, false);
   }
 
-  async attach(
-    consumerPath: string,
-    targetPath: string
-  ): Promise<AttachResult> {
+  async attach(consumerPath: string, targetPath: string): Promise<AttachResult> {
     return await attachFoundation({
       consumerPath,
       targetPath,
       ports: this.#ports,
       now: this.#now,
       readStatus: async (path, ignoreOperationLock) =>
-        await this.#readStatus(path, ignoreOperationLock)
+        await this.#readStatus(path, ignoreOperationLock),
     });
   }
 
   async detach(consumerPath: string): Promise<FoundationStatus> {
     const before = await this.#ports.inspection.mode(consumerPath);
-    if (
-      before.dependencySpec === undefined ||
-      !isExactVersion(before.dependencySpec)
-    ) {
+    if (before.dependencySpec === undefined || !isExactVersion(before.dependencySpec)) {
       throw new FoundationError(
         "CONSUMER_INVALID",
-        `Consumer must retain an exact ${FOUNDATION_PACKAGE_NAME} registry dependency.`
+        `Consumer must retain an exact ${FOUNDATION_PACKAGE_NAME} registry dependency.`,
       );
     }
-    const coordinator = await this.#ports.coordinator(
-      before.consumerRoot
-    );
+    const coordinator = await this.#ports.coordinator(before.consumerRoot);
     const lease = await coordinator.acquire({
       requestedMutation: "detach",
-      allowRecoveryOf: "local-mode"
+      allowRecoveryOf: "local-mode",
     });
     try {
       const current = await this.#ports.inspection.mode(before.consumerRoot, {
-        ignoreOperationLock: true
+        ignoreOperationLock: true,
       });
       if (
         current.consumerRoot !== before.consumerRoot ||
@@ -96,7 +88,7 @@ export class LocalPackageLifecycle {
       ) {
         throw new FoundationError(
           "LOCAL_STATE_INVALID",
-          "Consumer foundation dependency changed before detach acquired its operation lock."
+          "Consumer foundation dependency changed before detach acquired its operation lock.",
         );
       }
       if (current.mode === "REGISTRY") {
@@ -105,20 +97,19 @@ export class LocalPackageLifecycle {
       if (current.linkState !== undefined) {
         await this.#ports.state.write(before.consumerRoot, {
           ...current.linkState,
-          phase: "DETACHING"
+          phase: "DETACHING",
         });
       }
       await this.#ports.links.restore(
         before.consumerRoot,
         current.dependencySpec,
-        current.linkState
+        current.linkState,
       );
       await this.#ports.state.remove(before.consumerRoot);
     } finally {
       await releaseFoundationTransactionLeaseSafely({
         lease,
-        inspectRetainTransactionBarrier: async () =>
-          (await coordinator.inspect()).state !== "idle"
+        inspectRetainTransactionBarrier: async () => (await coordinator.inspect()).state !== "idle",
       });
     }
 
@@ -126,7 +117,7 @@ export class LocalPackageLifecycle {
     if (after.mode !== "REGISTRY") {
       throw new FoundationError(
         "LOCAL_STATE_INVALID",
-        `Registry restoration failed: ${after.issues.join(" ")}`
+        `Registry restoration failed: ${after.issues.join(" ")}`,
       );
     }
     return after;
@@ -137,20 +128,18 @@ export class LocalPackageLifecycle {
     if (status.mode !== "REGISTRY") {
       throw new FoundationError(
         "REGISTRY_MODE_REQUIRED",
-        `Registry foundation mode required: ${status.issues.join(" ") || status.mode}`
+        `Registry foundation mode required: ${status.issues.join(" ") || status.mode}`,
       );
     }
     return status;
   }
 
-  async assertDevOnly(
-    consumerPath: string
-  ): Promise<FoundationDevOnlyStatus> {
+  async assertDevOnly(consumerPath: string): Promise<FoundationDevOnlyStatus> {
     const status = await this.#ports.inspection.devOnly(consumerPath);
     if (status.issues.length > 0) {
       throw new FoundationError(
         "CONSUMER_INVALID",
-        `Development-only foundation dependency required: ${status.issues.join(" ")}`
+        `Development-only foundation dependency required: ${status.issues.join(" ")}`,
       );
     }
     return status;

@@ -1,11 +1,20 @@
+import {
+  registerSignatureAndRetryCases,
+  registerRegistryBoundaryCases,
+} from "./support/release-ordered-reconciliation-cases.ts";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
-  DOCUMENT_AUTHORING_PACKAGE, DOCS_PACKAGE, DOCS_MCP_PACKAGE, FOUNDATION_PACKAGE,
-  REGISTRY_OBSERVATION_ATTEMPTS, REGISTRY_OBSERVATION_RETRY_MILLISECONDS,
-  REGISTRY_VISIBILITY_TIMEOUT_MILLISECONDS, tarballIntegrity,
+  DOCUMENT_AUTHORING_PACKAGE,
+  DOCS_PACKAGE,
+  DOCS_MCP_PACKAGE,
+  FOUNDATION_PACKAGE,
+  REGISTRY_OBSERVATION_ATTEMPTS,
+  REGISTRY_OBSERVATION_RETRY_MILLISECONDS,
+  REGISTRY_VISIBILITY_TIMEOUT_MILLISECONDS,
+  tarballIntegrity,
 } from "../scripts/release-publish-ordered.mjs";
 import {
   assertDownloadedTarballIntegrity,
@@ -17,14 +26,33 @@ import {
   npmPublishArguments,
   npmSignatureInstallArguments,
   provenanceFrom,
-  reconcileGithubRelease,
   verifiedProvenanceFromNpmAudit,
 } from "../scripts/release-publish-ordered-runtime.mjs";
 
-import { main as runPublishedCompatibility } from "../scripts/published-compatibility-e2e.mjs";
-
 import {
-  STACK_TOOLCHAIN_PACKAGE, stackToolchain, source, MUTATION_PACKAGE, DOCS_ADAPTER_PACKAGE, CI_INPUT_PROOF_PACKAGE, ciInputProof, RELEASE_CHECKS_PACKAGE, releaseChecks, FEATURE_MODULE_STANDARD_PACKAGE, featureModuleStandard, mutation, authoring, foundation, docs, docsAdapter, docsMcp, artifact, argumentField, artifactProvenance, auditEvidence, present, publishedState, harness, run,
+  STACK_TOOLCHAIN_PACKAGE,
+  stackToolchain,
+  source,
+  MUTATION_PACKAGE,
+  DOCS_ADAPTER_PACKAGE,
+  CI_INPUT_PROOF_PACKAGE,
+  ciInputProof,
+  RELEASE_CHECKS_PACKAGE,
+  releaseChecks,
+  FEATURE_MODULE_STANDARD_PACKAGE,
+  featureModuleStandard,
+  mutation,
+  authoring,
+  foundation,
+  docs,
+  docsAdapter,
+  docsMcp,
+  artifactProvenance,
+  auditEvidence,
+  present,
+  publishedState,
+  harness,
+  run,
 } from "./support/release-publish-ordered-fixtures.mjs";
 
 test("allows bounded npm provenance propagation without a failed publish attempt", () => {
@@ -43,47 +71,82 @@ test("bounds idempotent GitHub release reconciliation during transient outages",
 
 test("accepts delayed visibility beyond six minutes with one publish and unchanged downstream gates", async () => {
   let elapsed = 0;
-  const runtime = harness(publishedState(stackToolchain, mutation, authoring, docs, docsAdapter, docsMcp, foundation, featureModuleStandard, releaseChecks));
+  const runtime = harness(
+    publishedState(
+      stackToolchain,
+      mutation,
+      authoring,
+      docs,
+      docsAdapter,
+      docsMcp,
+      foundation,
+      featureModuleStandard,
+      releaseChecks,
+    ),
+  );
   const snapshot = publishedState(ciInputProof)[ciInputProof.name];
   const publish = runtime.publish;
   runtime.publish = async (value, tag) => {
     await publish(value, tag);
-    runtime.states.set(value.name, () => elapsed < 7 * 60_000 ? { status: "absent" } : snapshot);
+    runtime.states.set(value.name, () => (elapsed < 7 * 60_000 ? { status: "absent" } : snapshot));
   };
   const progress = [];
-  await run(runtime, { visibilityTimeoutMilliseconds: undefined, retryDelayMilliseconds: 60_000,
-    now: () => elapsed, wait: async milliseconds => { elapsed += milliseconds; },
-    reportProgress: record => progress.push(record) });
-  assert.equal(runtime.calls.filter(call => call.startsWith("publish:")).length, 1);
-  assert.equal(runtime.calls.filter(call => call.startsWith("signature:")).length, 10);
-  assert.equal(runtime.calls.filter(call => call.startsWith("release:")).length, 10);
+  await run(runtime, {
+    visibilityTimeoutMilliseconds: undefined,
+    retryDelayMilliseconds: 60_000,
+    now: () => elapsed,
+    wait: async (milliseconds) => {
+      elapsed += milliseconds;
+    },
+    reportProgress: (record) => progress.push(record),
+  });
+  assert.equal(runtime.calls.filter((call) => call.startsWith("publish:")).length, 1);
+  assert.equal(runtime.calls.filter((call) => call.startsWith("signature:")).length, 10);
+  assert.equal(runtime.calls.filter((call) => call.startsWith("release:")).length, 10);
   assert.ok(elapsed > 360_000 && elapsed < REGISTRY_VISIBILITY_TIMEOUT_MILLISECONDS);
-  assert.ok(progress.some(record => record.stage === "npm-publish" && record.status === "acknowledged"));
-  assert.ok(progress.some(record => record.stage === "visibility" && record.status === "verified"));
+  assert.ok(
+    progress.some((record) => record.stage === "npm-publish" && record.status === "acknowledged"),
+  );
+  assert.ok(
+    progress.some((record) => record.stage === "visibility" && record.status === "verified"),
+  );
 });
 
 for (const returnedAt of [10, 11]) {
-test(`rejects a present reply returned at elapsed ${returnedAt} with deadline 10`, async () => {
-  let elapsed = 0;
-  const runtime = harness();
-  const inspect = runtime.inspect;
-  const budgets = [];
-  runtime.inspect = async (value, budget) => {
-    if (budget !== undefined) {
-      budgets.push(budget.remainingMilliseconds);
-      if (budgets.length === 1) { return { status: "absent" }; }
-      elapsed = returnedAt;
-      return publishedState(value)[value.name];
-    }
-    return inspect(value);
-  };
-  await assert.rejects(run(runtime, { visibilityTimeoutMilliseconds: 10, retryDelayMilliseconds: 9,
-    now: () => elapsed, wait: async milliseconds => { elapsed += milliseconds; } }),
-    /visibility deadline exceeded/u);
-  assert.deepEqual(budgets, [10, 1]);
-  assert.equal(runtime.calls.filter(call => call.startsWith("publish:")).length, 1);
-  assert.equal(runtime.calls.some(call => /^(signature|release):/u.test(call)), false);
-});
+  test(`rejects a present reply returned at elapsed ${returnedAt} with deadline 10`, async () => {
+    let elapsed = 0;
+    const runtime = harness();
+    const inspect = runtime.inspect;
+    const budgets = [];
+    runtime.inspect = async (value, budget) => {
+      if (budget !== undefined) {
+        budgets.push(budget.remainingMilliseconds);
+        if (budgets.length === 1) {
+          return { status: "absent" };
+        }
+        elapsed = returnedAt;
+        return publishedState(value)[value.name];
+      }
+      return inspect(value);
+    };
+    await assert.rejects(
+      run(runtime, {
+        visibilityTimeoutMilliseconds: 10,
+        retryDelayMilliseconds: 9,
+        now: () => elapsed,
+        wait: async (milliseconds) => {
+          elapsed += milliseconds;
+        },
+      }),
+      /visibility deadline exceeded/u,
+    );
+    assert.deepEqual(budgets, [10, 1]);
+    assert.equal(runtime.calls.filter((call) => call.startsWith("publish:")).length, 1);
+    assert.equal(
+      runtime.calls.some((call) => /^(signature|release):/u.test(call)),
+      false,
+    );
+  });
 }
 
 test("rejects source validation finishing at the strict visibility deadline", async () => {
@@ -95,27 +158,49 @@ test("rejects source validation finishing at the strict visibility deadline", as
     await publish(value, tag);
     invoked = true;
   };
-  const timedSource = { ...source, isTrustedCommit: async commit => {
-    if (invoked) { elapsed = 10; }
-    return source.isTrustedCommit(commit);
-  } };
-  await assert.rejects(run(runtime, { source: timedSource,
-    visibilityTimeoutMilliseconds: 10, now: () => elapsed }), /visibility deadline exceeded/u);
-  assert.equal(runtime.calls.filter(call => call.startsWith("publish:")).length, 1);
-  assert.equal(runtime.calls.some(call => /^(signature|release):/u.test(call)), false);
+  const timedSource = {
+    ...source,
+    isTrustedCommit: async (commit) => {
+      if (invoked) {
+        elapsed = 10;
+      }
+      return source.isTrustedCommit(commit);
+    },
+  };
+  await assert.rejects(
+    run(runtime, { source: timedSource, visibilityTimeoutMilliseconds: 10, now: () => elapsed }),
+    /visibility deadline exceeded/u,
+  );
+  assert.equal(runtime.calls.filter((call) => call.startsWith("publish:")).length, 1);
+  assert.equal(
+    runtime.calls.some((call) => /^(signature|release):/u.test(call)),
+    false,
+  );
 });
 
 test("persistent unknown visibility expires without another write or provider text in diagnostics", async () => {
   const runtime = harness();
   const inspect = runtime.inspect;
-  runtime.inspect = async (value, budget) => budget === undefined ? inspect(value)
-    : { status: "unknown", stage: "credential-secret", error: new Error("Bearer credential-secret") };
+  runtime.inspect = async (value, budget) =>
+    budget === undefined
+      ? inspect(value)
+      : {
+          status: "unknown",
+          stage: "credential-secret",
+          error: new Error("Bearer credential-secret"),
+        };
   const records = [];
-  await assert.rejects(run(runtime, { reportProgress: record => records.push(record) }),
-    error => /remained unknown; visibility deadline exceeded/u.test(error.message) &&
-      !error.message.includes("credential-secret"));
-  assert.equal(runtime.calls.filter(call => call.startsWith("publish:")).length, 1);
-  assert.equal(runtime.calls.some(call => /^(signature|release):/u.test(call)), false);
+  await assert.rejects(
+    run(runtime, { reportProgress: (record) => records.push(record) }),
+    (error) =>
+      /remained unknown; visibility deadline exceeded/u.test(error.message) &&
+      !error.message.includes("credential-secret"),
+  );
+  assert.equal(runtime.calls.filter((call) => call.startsWith("publish:")).length, 1);
+  assert.equal(
+    runtime.calls.some((call) => /^(signature|release):/u.test(call)),
+    false,
+  );
   assert.doesNotMatch(JSON.stringify(records), /credential-secret|Bearer/u);
 });
 
@@ -126,10 +211,15 @@ test("rejects a conflicting visible artifact before waiting or downstream writes
     await publish(value, tag);
     runtime.states.get(value.name).integrity = tarballIntegrity(Buffer.from("conflict"));
   };
-  await assert.rejects(run(runtime, { wait: async () => assert.fail("must reject without waiting") }),
-    /different tarball SRI/u);
-  assert.equal(runtime.calls.filter(call => call.startsWith("publish:")).length, 1);
-  assert.equal(runtime.calls.some(call => /^(signature|release):/u.test(call)), false);
+  await assert.rejects(
+    run(runtime, { wait: async () => assert.fail("must reject without waiting") }),
+    /different tarball SRI/u,
+  );
+  assert.equal(runtime.calls.filter((call) => call.startsWith("publish:")).length, 1);
+  assert.equal(
+    runtime.calls.some((call) => /^(signature|release):/u.test(call)),
+    false,
+  );
 });
 
 test("a long visibility wait never authorizes a downstream write after main advances", async () => {
@@ -140,22 +230,35 @@ test("a long visibility wait never authorizes a downstream write after main adva
   runtime.publish = async (value, tag) => {
     await publish(value, tag);
     const snapshot = runtime.states.get(value.name);
-    runtime.states.set(value.name, () => elapsed < 7 * 60_000 ? { status: "absent" } : snapshot);
+    runtime.states.set(value.name, () => (elapsed < 7 * 60_000 ? { status: "absent" } : snapshot));
   };
   const signature = runtime.verifySignature;
-  runtime.verifySignature = async value => {
+  runtime.verifySignature = async (value) => {
     const result = await signature(value);
     advanced = true;
     return result;
   };
   runtime.authorizePublish = () => {
-    if (advanced) { throw new Error("protected main advanced"); }
+    if (advanced) {
+      throw new Error("protected main advanced");
+    }
   };
-  await assert.rejects(run(runtime, { visibilityTimeoutMilliseconds: undefined,
-    retryDelayMilliseconds: 60_000, now: () => elapsed,
-    wait: async milliseconds => { elapsed += milliseconds; } }), /protected main advanced/u);
-  assert.equal(runtime.calls.filter(call => call.startsWith("publish:")).length, 1);
-  assert.equal(runtime.calls.some(call => call.startsWith("release:")), false);
+  await assert.rejects(
+    run(runtime, {
+      visibilityTimeoutMilliseconds: undefined,
+      retryDelayMilliseconds: 60_000,
+      now: () => elapsed,
+      wait: async (milliseconds) => {
+        elapsed += milliseconds;
+      },
+    }),
+    /protected main advanced/u,
+  );
+  assert.equal(runtime.calls.filter((call) => call.startsWith("publish:")).length, 1);
+  assert.equal(
+    runtime.calls.some((call) => call.startsWith("release:")),
+    false,
+  );
 });
 
 test("publishes the exact derived ten-package dependency graph in order", async () => {
@@ -165,7 +268,9 @@ test("publishes the exact derived ten-package dependency graph in order", async 
   const ciInputProofSignature = runtime.calls.indexOf(`signature:${CI_INPUT_PROOF_PACKAGE}`);
   const releaseChecksPublish = runtime.calls.indexOf(`publish:${RELEASE_CHECKS_PACKAGE}:latest`);
   const releaseChecksSignature = runtime.calls.indexOf(`signature:${RELEASE_CHECKS_PACKAGE}`);
-  const standardPublish = runtime.calls.indexOf(`publish:${FEATURE_MODULE_STANDARD_PACKAGE}:latest`);
+  const standardPublish = runtime.calls.indexOf(
+    `publish:${FEATURE_MODULE_STANDARD_PACKAGE}:latest`,
+  );
   const standardSignature = runtime.calls.indexOf(`signature:${FEATURE_MODULE_STANDARD_PACKAGE}`);
   const mutationPublish = runtime.calls.indexOf(`publish:${MUTATION_PACKAGE}:latest`);
   const mutationSignature = runtime.calls.indexOf(`signature:${MUTATION_PACKAGE}`);
@@ -182,12 +287,25 @@ test("publishes the exact derived ten-package dependency graph in order", async 
   const firstRelease = runtime.calls.indexOf(`release:${FOUNDATION_PACKAGE}`);
   const foundationFinalInspect = runtime.calls.lastIndexOf(`inspect:${FOUNDATION_PACKAGE}`);
   const docsFinalInspect = runtime.calls.lastIndexOf(`inspect:${DOCS_PACKAGE}`);
-  assert.deepEqual(runtime.calls.filter((entry) => entry.startsWith("publish:")), [
-    CI_INPUT_PROOF_PACKAGE, RELEASE_CHECKS_PACKAGE, MUTATION_PACKAGE, DOCUMENT_AUTHORING_PACKAGE,
-    DOCS_PACKAGE, DOCS_ADAPTER_PACKAGE, DOCS_MCP_PACKAGE, FOUNDATION_PACKAGE, FEATURE_MODULE_STANDARD_PACKAGE, STACK_TOOLCHAIN_PACKAGE,
-  ].map((name) => `publish:${name}:latest`));
+  assert.deepEqual(
+    runtime.calls.filter((entry) => entry.startsWith("publish:")),
+    [
+      CI_INPUT_PROOF_PACKAGE,
+      RELEASE_CHECKS_PACKAGE,
+      MUTATION_PACKAGE,
+      DOCUMENT_AUTHORING_PACKAGE,
+      DOCS_PACKAGE,
+      DOCS_ADAPTER_PACKAGE,
+      DOCS_MCP_PACKAGE,
+      FOUNDATION_PACKAGE,
+      FEATURE_MODULE_STANDARD_PACKAGE,
+      STACK_TOOLCHAIN_PACKAGE,
+    ].map((name) => `publish:${name}:latest`),
+  );
   assert.ok(ciInputProofPublish >= 0 && ciInputProofPublish < ciInputProofSignature);
-  assert.ok(ciInputProofSignature < releaseChecksPublish && releaseChecksPublish < releaseChecksSignature);
+  assert.ok(
+    ciInputProofSignature < releaseChecksPublish && releaseChecksPublish < releaseChecksSignature,
+  );
   assert.ok(releaseChecksSignature < mutationPublish);
   assert.ok(ciInputProofSignature < mutationPublish);
   assert.ok(foundationSignature < standardPublish && standardPublish < standardSignature);
@@ -200,23 +318,43 @@ test("publishes the exact derived ten-package dependency graph in order", async 
   assert.ok(adapterSignature < mcpPublish && mcpPublish < mcpSignature);
   assert.ok(docsSignature < docsFinalInspect && docsFinalInspect < foundationFinalInspect);
   assert.ok(foundationFinalInspect < firstRelease);
-  assert.equal(runtime.calls.some((entry) => /^(?:tag|untag):/u.test(entry)), false);
+  assert.equal(
+    runtime.calls.some((entry) => /^(?:tag|untag):/u.test(entry)),
+    false,
+  );
 });
 
 test("publishes an RC wave directly on rc without moving latest", async () => {
   const runtime = harness();
   await run(runtime, { finalTag: "rc" });
-  for (const value of [ciInputProof, releaseChecks, featureModuleStandard, mutation, authoring,
-    foundation, docs, docsAdapter, docsMcp, stackToolchain]) {
+  for (const value of [
+    ciInputProof,
+    releaseChecks,
+    featureModuleStandard,
+    mutation,
+    authoring,
+    foundation,
+    docs,
+    docsAdapter,
+    docsMcp,
+    stackToolchain,
+  ]) {
     assert.equal(runtime.states.get(value.name).distTags.rc, value.version, `${value.name}: rc`);
-    assert.equal(runtime.states.get(value.name).distTags.latest, undefined, `${value.name}: latest`);
+    assert.equal(
+      runtime.states.get(value.name).distTags.latest,
+      undefined,
+      `${value.name}: latest`,
+    );
   }
 });
 
 test("refuses every non-governed npm tag before publication", async () => {
   const runtime = harness();
   await assert.rejects(run(runtime, { finalTag: "beta" }), /exactly latest or rc/u);
-  assert.equal(runtime.calls.some((entry) => entry.startsWith("publish:")), false);
+  assert.equal(
+    runtime.calls.some((entry) => entry.startsWith("publish:")),
+    false,
+  );
 });
 
 test("refuses the first npm write when protected main advanced during qualification", async () => {
@@ -225,7 +363,10 @@ test("refuses the first npm write when protected main advanced during qualificat
     throw new Error("protected main advanced");
   };
   await assert.rejects(run(runtime), /protected main advanced/u);
-  assert.equal(runtime.calls.some((entry) => entry.startsWith("publish:")), false);
+  assert.equal(
+    runtime.calls.some((entry) => entry.startsWith("publish:")),
+    false,
+  );
 });
 
 test("refuses downstream publication when protected main advances after Document Authoring", async () => {
@@ -245,9 +386,18 @@ test("refuses downstream publication when protected main advances after Document
     return provenance;
   };
   await assert.rejects(run(runtime), /protected main advanced/u);
-  assert.equal(runtime.calls.some((entry) => entry.startsWith(`publish:${DOCUMENT_AUTHORING_PACKAGE}`)), true);
-  assert.equal(runtime.calls.some((entry) => entry.startsWith(`publish:${FOUNDATION_PACKAGE}`)), false);
-  assert.equal(runtime.calls.some((entry) => entry.startsWith(`publish:${DOCS_PACKAGE}`)), false);
+  assert.equal(
+    runtime.calls.some((entry) => entry.startsWith(`publish:${DOCUMENT_AUTHORING_PACKAGE}`)),
+    true,
+  );
+  assert.equal(
+    runtime.calls.some((entry) => entry.startsWith(`publish:${FOUNDATION_PACKAGE}`)),
+    false,
+  );
+  assert.equal(
+    runtime.calls.some((entry) => entry.startsWith(`publish:${DOCS_PACKAGE}`)),
+    false,
+  );
 });
 
 function exactMain() {
@@ -255,11 +405,15 @@ function exactMain() {
 }
 
 test("live-main verifier accepts only the exact protected-main commit", () => {
-  assert.doesNotThrow(() => assertLiveMainHead("agent-teams-ai/engineering-foundation", source.commit, exactMain));
+  assert.doesNotThrow(() =>
+    assertLiveMainHead("agent-teams-ai/engineering-foundation", source.commit, exactMain),
+  );
   assert.throws(
-    () => assertLiveMainHead("agent-teams-ai/engineering-foundation", source.commit, () => ({
-      object: { sha: "b".repeat(40), type: "commit" }, ref: "refs/heads/main",
-    })),
+    () =>
+      assertLiveMainHead("agent-teams-ai/engineering-foundation", source.commit, () => ({
+        object: { sha: "b".repeat(40), type: "commit" },
+        ref: "refs/heads/main",
+      })),
     /protected main advanced/u,
   );
 });
@@ -281,7 +435,10 @@ test("emits the exact deterministic lines parsed by the pinned Changesets action
   );
   const pinnedChangesetsActionPattern = /New tag:\s+(@[^/]+\/[^@]+|[^/]+)@([^\s]+)/gu;
   assert.deepEqual(
-    [...output.matchAll(pinnedChangesetsActionPattern)].map((match) => ({ name: match[1], version: match[2] })),
+    [...output.matchAll(pinnedChangesetsActionPattern)].map((match) => ({
+      name: match[1],
+      version: match[2],
+    })),
     [
       { name: FOUNDATION_PACKAGE, version: foundation.version },
       { name: DOCS_PACKAGE, version: docs.version },
@@ -293,7 +450,8 @@ test("emits the exact deterministic lines parsed by the pinned Changesets action
 test("rejects downloaded tarball bytes that do not match registry SRI", () => {
   const bytes = Buffer.from("downloaded tarball");
   assert.doesNotThrow(() =>
-    assertDownloadedTarballIntegrity(bytes, tarballIntegrity(bytes), FOUNDATION_PACKAGE));
+    assertDownloadedTarballIntegrity(bytes, tarballIntegrity(bytes), FOUNDATION_PACKAGE),
+  );
   assert.throws(
     () => assertDownloadedTarballIntegrity(bytes, foundation.integrity, FOUNDATION_PACKAGE),
     /downloaded tarball SRI differs from registry metadata/u,
@@ -316,42 +474,53 @@ test("accepts only exact npm-verified signature and provenance evidence", () => 
     /cryptographically verify signature and provenance/u,
   );
   const forged = auditEvidence(foundation, {
-    ...artifactProvenance(foundation), subjectName: "pkg:npm/forged@1.0.0",
+    ...artifactProvenance(foundation),
+    subjectName: "pkg:npm/forged@1.0.0",
   });
-  assert.throws(
-    () => verifiedProvenanceFromNpmAudit(forged, foundation, source),
-    /not bound/u,
-  );
+  assert.throws(() => verifiedProvenanceFromNpmAudit(forged, foundation, source), /not bound/u);
 });
 
 test("parses only one exact npm SLSA source dependency", () => {
   const statement = {
     _type: "https://in-toto.io/Statement/v1",
-    predicate: { buildDefinition: {
-      externalParameters: { workflow: {
-        path: source.workflow, ref: source.ref, repository: source.repository,
-      } },
-      resolvedDependencies: [{
-        digest: { gitCommit: source.commit },
-        uri: `git+${source.repository}@${source.ref}`,
-      }],
-    } },
+    predicate: {
+      buildDefinition: {
+        externalParameters: {
+          workflow: {
+            path: source.workflow,
+            ref: source.ref,
+            repository: source.repository,
+          },
+        },
+        resolvedDependencies: [
+          {
+            digest: { gitCommit: source.commit },
+            uri: `git+${source.repository}@${source.ref}`,
+          },
+        ],
+      },
+    },
     predicateType: "https://slsa.dev/provenance/v1",
     subject: [{ digest: { sha512: "ab".repeat(64) }, name: "package" }],
   };
   assert.equal(provenanceFrom(statement).commit, source.commit);
   assert.equal(provenanceFrom(statement).dependencyUri, `git+${source.repository}@${source.ref}`);
   assert.equal(provenanceFrom({ ...statement, _type: "forged" }), undefined);
-  assert.equal(provenanceFrom({
-    ...statement,
-    predicate: { buildDefinition: {
-      ...statement.predicate.buildDefinition,
-      resolvedDependencies: [
-        ...statement.predicate.buildDefinition.resolvedDependencies,
-        { digest: { gitCommit: "b".repeat(40) }, uri: "git+https://example.test/extra" },
-      ],
-    } },
-  }), undefined);
+  assert.equal(
+    provenanceFrom({
+      ...statement,
+      predicate: {
+        buildDefinition: {
+          ...statement.predicate.buildDefinition,
+          resolvedDependencies: [
+            ...statement.predicate.buildDefinition.resolvedDependencies,
+            { digest: { gitCommit: "b".repeat(40) }, uri: "git+https://example.test/extra" },
+          ],
+        },
+      },
+    }),
+    undefined,
+  );
 });
 
 test("uses only OIDC-capable direct npm publish with the final tag", () => {
@@ -361,13 +530,25 @@ test("uses only OIDC-capable direct npm publish with the final tag", () => {
     registry: "https://registry.npmjs.org/",
   };
   assert.deepEqual(npmPublishArguments(releaseArtifact, "rc"), [
-    "publish", releaseArtifact.archivePath, "--access", "public", "--tag", "rc",
-    "--provenance", "--ignore-scripts", "--registry=https://registry.npmjs.org/",
+    "publish",
+    releaseArtifact.archivePath,
+    "--access",
+    "public",
+    "--tag",
+    "rc",
+    "--provenance",
+    "--ignore-scripts",
+    "--registry=https://registry.npmjs.org/",
   ]);
   assert.equal(npmPublishArguments(releaseArtifact, "rc").includes("dist-tag"), false);
   assert.deepEqual(npmSignatureInstallArguments(releaseArtifact), [
-    "install", "--ignore-scripts", "--no-audit", "--fund=false", "--save-exact",
-    "--registry=https://registry.npmjs.org/", `${FOUNDATION_PACKAGE}@${foundation.version}`,
+    "install",
+    "--ignore-scripts",
+    "--no-audit",
+    "--fund=false",
+    "--save-exact",
+    "--registry=https://registry.npmjs.org/",
+    `${FOUNDATION_PACKAGE}@${foundation.version}`,
   ]);
 });
 
@@ -390,30 +571,74 @@ test("current runbook isolates the one-time token bootstrap from ordinary OIDC r
     releaseDocs,
     /All ordinary releases of packages in the reviewed public-package catalog use\s+npm Trusted Publishing/u,
   );
-  assert.match(releaseDocs, /sole exception is the reviewed one-time\s+namespace bootstrap in ADR-0044/u);
+  assert.match(
+    releaseDocs,
+    /sole exception is the reviewed one-time\s+namespace bootstrap in ADR-0044/u,
+  );
   assert.match(releaseDocs, /expires within 24 hours/u);
   assert.match(releaseDocs, /fresh token for each package/u);
   assert.match(releaseDocs, /revoke its one-package token immediately/u);
   assert.match(releaseDocs, /never creates,\s+removes, or moves either tag explicitly/u);
-  assert.match(releaseDocs, /final required phase resolves the canonical public Docs Protocol coordinates/u);
-  assert.match(releaseDocs, /derives the\s+publication order by topologically sorting the exact internal dependencies/u);
-  assert.match(releaseDocs, /closed\s+package DAG owned solely by `scripts\/publishable-packages\.mjs`/u);
+  assert.match(
+    releaseDocs,
+    /final required phase resolves the canonical public Docs Protocol coordinates/u,
+  );
+  assert.match(
+    releaseDocs,
+    /derives the\s+publication order by topologically sorting the exact internal dependencies/u,
+  );
+  assert.match(
+    releaseDocs,
+    /closed\s+package DAG owned solely by `scripts\/publishable-packages\.mjs`/u,
+  );
   assert.doesNotMatch(releaseDocs, /five-package dependency DAG/u);
   assert.match(releaseDocs, /missing dependency-closed set in\s+reviewed topological order/u);
-  assert.match(releaseDocs, /published package whose required\s+upstream dependency is missing is quarantined/u);
+  assert.match(
+    releaseDocs,
+    /published package whose required\s+upstream dependency is missing is quarantined/u,
+  );
   assert.doesNotMatch(releaseDocs, /long-lived npm credentials|npm login|NPM_TOKEN/iu);
 });
 
 test("resumes a Foundation-only prior publish without republishing it", async () => {
-  const runtime = harness(publishedState(stackToolchain, ciInputProof, releaseChecks, featureModuleStandard, mutation, authoring, foundation));
+  const runtime = harness(
+    publishedState(
+      stackToolchain,
+      ciInputProof,
+      releaseChecks,
+      featureModuleStandard,
+      mutation,
+      authoring,
+      foundation,
+    ),
+  );
   const released = await run(runtime);
-  assert.equal(runtime.calls.some((entry) => entry.startsWith(`publish:${FOUNDATION_PACKAGE}`)), false);
-  assert.equal(runtime.calls.some((entry) => entry.startsWith(`publish:${DOCS_PACKAGE}`)), true);
-  assert.match(changesetsReleaseOutput(released), new RegExp(`New tag: ${FOUNDATION_PACKAGE}`, "u"));
+  assert.equal(
+    runtime.calls.some((entry) => entry.startsWith(`publish:${FOUNDATION_PACKAGE}`)),
+    false,
+  );
+  assert.equal(
+    runtime.calls.some((entry) => entry.startsWith(`publish:${DOCS_PACKAGE}`)),
+    true,
+  );
+  assert.match(
+    changesetsReleaseOutput(released),
+    new RegExp(`New tag: ${FOUNDATION_PACKAGE}`, "u"),
+  );
 });
 
 test("later protected main may publish missing Docs against a verified reusable Foundation", async () => {
-  const runtime = harness(publishedState(stackToolchain, ciInputProof, releaseChecks, featureModuleStandard, mutation, authoring, foundation));
+  const runtime = harness(
+    publishedState(
+      stackToolchain,
+      ciInputProof,
+      releaseChecks,
+      featureModuleStandard,
+      mutation,
+      authoring,
+      foundation,
+    ),
+  );
   const currentCommit = "b".repeat(40);
   const laterSource = {
     ...source,
@@ -429,10 +654,14 @@ test("later protected main may publish missing Docs against a verified reusable 
 
   const released = await run(runtime, { source: laterSource });
 
-  assert.equal(runtime.calls.some((entry) =>
-    entry.startsWith(`publish:${FOUNDATION_PACKAGE}`)), false);
-  assert.equal(runtime.calls.some((entry) =>
-    entry.startsWith(`publish:${DOCS_PACKAGE}:latest`)), true);
+  assert.equal(
+    runtime.calls.some((entry) => entry.startsWith(`publish:${FOUNDATION_PACKAGE}`)),
+    false,
+  );
+  assert.equal(
+    runtime.calls.some((entry) => entry.startsWith(`publish:${DOCS_PACKAGE}:latest`)),
+    true,
+  );
   assert.equal(
     changesetsReleaseOutput(released),
     `New tag: ${DOCS_PACKAGE}@${docs.version}\n` +
@@ -442,21 +671,36 @@ test("later protected main may publish missing Docs against a verified reusable 
 });
 
 test("reused Foundation cannot publish missing Docs after protected main advances", async () => {
-  const runtime = harness(publishedState(stackToolchain, ciInputProof, releaseChecks, featureModuleStandard, mutation, authoring, foundation));
+  const runtime = harness(
+    publishedState(
+      stackToolchain,
+      ciInputProof,
+      releaseChecks,
+      featureModuleStandard,
+      mutation,
+      authoring,
+      foundation,
+    ),
+  );
   const currentCommit = "b".repeat(40);
   runtime.authorizePublish = () => {
     throw new Error("protected main advanced");
   };
 
   await assert.rejects(
-    run(runtime, { source: {
-      ...source,
-      commit: currentCommit,
-      isTrustedCommit: async (commit) => [source.commit, currentCommit].includes(commit),
-    } }),
+    run(runtime, {
+      source: {
+        ...source,
+        commit: currentCommit,
+        isTrustedCommit: async (commit) => [source.commit, currentCommit].includes(commit),
+      },
+    }),
     /protected main advanced/u,
   );
-  assert.equal(runtime.calls.some((entry) => entry.startsWith("publish:")), false);
+  assert.equal(
+    runtime.calls.some((entry) => entry.startsWith("publish:")),
+    false,
+  );
 });
 
 test("Docs-only ancestor state is quarantined before any Foundation npm write", async () => {
@@ -484,18 +728,33 @@ test("Docs-only ancestor state is quarantined before any Foundation npm write", 
 });
 
 test("fails when raw registry provenance disagrees with the verified npm audit bundle", async () => {
-  const runtime = harness(publishedState(stackToolchain, ciInputProof, releaseChecks, featureModuleStandard, mutation, authoring, foundation));
+  const runtime = harness(
+    publishedState(
+      stackToolchain,
+      ciInputProof,
+      releaseChecks,
+      featureModuleStandard,
+      mutation,
+      authoring,
+      foundation,
+    ),
+  );
   const currentCommit = "b".repeat(40);
   runtime.verifySignature = async (value) => artifactProvenance(value, currentCommit);
   await assert.rejects(
-    run(runtime, { source: {
-      ...source,
-      commit: currentCommit,
-      isTrustedCommit: async (commit) => [source.commit, currentCommit].includes(commit),
-    } }),
+    run(runtime, {
+      source: {
+        ...source,
+        commit: currentCommit,
+        isTrustedCommit: async (commit) => [source.commit, currentCommit].includes(commit),
+      },
+    }),
     /raw registry provenance disagrees/u,
   );
-  assert.equal(runtime.calls.some((entry) => entry.startsWith("publish:")), false);
+  assert.equal(
+    runtime.calls.some((entry) => entry.startsWith("publish:")),
+    false,
+  );
 });
 
 test("reconciles an unknown npm publish response only after exact registry evidence appears", async () => {
@@ -508,7 +767,10 @@ test("reconciles an unknown npm publish response only after exact registry evide
     }
   };
   await run(runtime);
-  assert.equal(runtime.calls.some((entry) => entry.startsWith(`publish:${DOCS_PACKAGE}`)), true);
+  assert.equal(
+    runtime.calls.some((entry) => entry.startsWith(`publish:${DOCS_PACKAGE}`)),
+    true,
+  );
 });
 
 test("CI Input Proof signature failure prevents downstream publication", async () => {
@@ -519,323 +781,31 @@ test("CI Input Proof signature failure prevents downstream publication", async (
     throw new Error("CI Input Proof signature invalid");
   };
   await assert.rejects(run(runtime), /signature invalid/u);
-  assert.equal(runtime.calls.some((entry) => entry.startsWith(`publish:${CI_INPUT_PROOF_PACKAGE}`)), true);
-  assert.equal(runtime.calls.some((entry) => entry.startsWith(`publish:${RELEASE_CHECKS_PACKAGE}`)), false);
-  assert.equal(runtime.calls.some((entry) => entry.startsWith(`publish:${FEATURE_MODULE_STANDARD_PACKAGE}`)), false);
-  assert.equal(runtime.calls.some((entry) => entry.startsWith(`publish:${MUTATION_PACKAGE}`)), false);
-  assert.equal(runtime.calls.some((entry) => entry.startsWith(`publish:${DOCS_PACKAGE}`)), false);
-  assert.equal(runtime.calls.some((entry) => entry.startsWith("release:")), false);
-});
-
-test("Docs signature failure prevents GitHub release reconciliation and cohort-ready output", async () => {
-  const runtime = harness();
-  runtime.verifySignature = async (value) => {
-    runtime.calls.push(`signature:${value.name}`);
-    if (value.name === DOCS_PACKAGE) {
-      throw new Error("Docs signature invalid");
-    }
-    return structuredClone(runtime.states.get(value.name).provenance);
-  };
-  await assert.rejects(run(runtime), /signature invalid/u);
-  assert.equal(runtime.calls.some((entry) => entry.startsWith(`publish:${DOCS_PACKAGE}`)), true);
-  assert.equal(runtime.calls.some((entry) => entry.startsWith("release:")), false);
-});
-
-for (const [drift, mutate, pattern] of [
-  ["final tag", (state) => { state.distTags.latest = "9.9.9"; }, /not the exact latest/u],
-  ["tarball SRI", (state) => { state.integrity = tarballIntegrity(Buffer.from("drift")); }, /different tarball SRI/u],
-  ["provenance", (state) => { state.provenance.commit = "c".repeat(40); }, /provenance is absent/u],
-]) {
-  test(`post-signature snapshot rejects ${drift} drift before GitHub reconciliation`, async () => {
-    const runtime = harness();
-    runtime.verifySignature = async (value) => {
-      runtime.calls.push(`signature:${value.name}`);
-      const provenance = structuredClone(runtime.states.get(value.name).provenance);
-      if (value.name === DOCS_PACKAGE) {
-        mutate(runtime.states.get(DOCUMENT_AUTHORING_PACKAGE));
-      }
-      return provenance;
-    };
-    await assert.rejects(run(runtime), pattern);
-    assert.equal(runtime.calls.some((entry) => entry.startsWith("release:")), false);
-  });
-}
-
-for (const reason of ["signature timeout", "signature result unknown"]) {
-  test(`fails closed on ${reason}`, async () => {
-    const runtime = harness();
-    runtime.verifySignature = async () => {
-      throw new Error(reason);
-    };
-    await assert.rejects(run(runtime), new RegExp(reason, "u"));
-    assert.equal(runtime.calls.some((entry) => entry.startsWith(`publish:${DOCS_PACKAGE}`)), false);
-  });
-}
-
-test("retries signature verification without republishing Foundation", async () => {
-  const runtime = harness();
-  let attempts = 0;
-  runtime.verifySignature = async (value) => {
-    runtime.calls.push(`signature:${value.name}`);
-    if (value.name === FOUNDATION_PACKAGE && ++attempts === 1) {
-      throw new Error("signature service timeout");
-    }
-    return structuredClone(runtime.states.get(value.name).provenance);
-  };
-  await assert.rejects(run(runtime), /signature service timeout/u);
-  await run(runtime);
   assert.equal(
-    runtime.calls.filter((entry) => entry.startsWith(`publish:${FOUNDATION_PACKAGE}`)).length,
-    1,
+    runtime.calls.some((entry) => entry.startsWith(`publish:${CI_INPUT_PROOF_PACKAGE}`)),
+    true,
+  );
+  assert.equal(
+    runtime.calls.some((entry) => entry.startsWith(`publish:${RELEASE_CHECKS_PACKAGE}`)),
+    false,
+  );
+  assert.equal(
+    runtime.calls.some((entry) => entry.startsWith(`publish:${FEATURE_MODULE_STANDARD_PACKAGE}`)),
+    false,
+  );
+  assert.equal(
+    runtime.calls.some((entry) => entry.startsWith(`publish:${MUTATION_PACKAGE}`)),
+    false,
+  );
+  assert.equal(
+    runtime.calls.some((entry) => entry.startsWith(`publish:${DOCS_PACKAGE}`)),
+    false,
+  );
+  assert.equal(
+    runtime.calls.some((entry) => entry.startsWith("release:")),
+    false,
   );
 });
 
-test("ten published npm versions reach reconciliation after preflight on a later main without npm writes", async () => {
-  const runtime = harness(publishedState(
-    stackToolchain,
-    ciInputProof,
-    releaseChecks,
-    featureModuleStandard,
-    mutation,
-    authoring,
-    foundation,
-    docs,
-    docsAdapter,
-    docsMcp,
-  ));
-  const historical = [];
-  await runPublishedCompatibility({
-    args: [],
-    qualifyPublicDocs: async () => { throw new Error("GitHub tags remain absent before reconciliation"); },
-    ...Object.fromEntries(["verifyBootstrap", "verifyTransactions", "verifyAuthoring", "verifyScaffolding"].map(
-      (name) => [name, async () => {
-        historical.push(name);
-        return name === "verifyBootstrap" ? { pending: [], verified: [] } : [];
-      }],
-    )),
-    write: () => {},
-  });
-  assert.deepEqual(historical, ["verifyBootstrap", "verifyTransactions", "verifyAuthoring", "verifyScaffolding"]);
-  const laterSource = {
-    ...source,
-    commit: "b".repeat(40),
-    isTrustedCommit: async (commit) => commit === source.commit,
-  };
-  const released = await run(runtime, {
-    source: laterSource,
-  });
-  assert.equal(runtime.calls.filter((call) => call.startsWith("release:")).length, 10);
-  assert.equal(changesetsReleaseOutput(released), "");
-  assert.equal(runtime.calls.some((entry) => /^(?:publish|tag|untag):/u.test(entry)), false);
-});
-
-test("emits only the package released by the current commit when Foundation is an older ancestor", async () => {
-  const initial = publishedState(stackToolchain, ciInputProof, releaseChecks, featureModuleStandard, mutation, authoring, foundation, docs, docsAdapter, docsMcp);
-  const currentCommit = "b".repeat(40);
-  initial[DOCS_PACKAGE].provenance.commit = currentCommit;
-  const runtime = harness(initial);
-  const mixedSource = {
-    ...source,
-    commit: currentCommit,
-    isTrustedCommit: async (commit) => [source.commit, currentCommit].includes(commit),
-  };
-  const released = await run(runtime, {
-    source: mixedSource,
-  });
-  assert.equal(changesetsReleaseOutput(released), `New tag: ${DOCS_PACKAGE}@${docs.version}\n`);
-  assert.equal(runtime.calls.some((entry) => /^(?:publish|tag|untag):/u.test(entry)), false);
-});
-
-test("reconciles a partial GitHub release boundary exactly once per package", async () => {
-  const runtime = harness();
-  const created = new Set();
-  const writes = [];
-  let failDocs = true;
-  runtime.reconcileRelease = async (value) => {
-    if (created.has(value.name)) {
-      return;
-    }
-    if (value.name === DOCS_PACKAGE && failDocs) {
-      failDocs = false;
-      throw new Error("GitHub release response lost");
-    }
-    created.add(value.name);
-    writes.push(value.name);
-  };
-  await assert.rejects(run(runtime), /GitHub release response lost/u);
-  await run(runtime);
-  assert.deepEqual(writes, [
-    CI_INPUT_PROOF_PACKAGE,
-    RELEASE_CHECKS_PACKAGE,
-    MUTATION_PACKAGE,
-    DOCUMENT_AUTHORING_PACKAGE,
-    DOCS_PACKAGE,
-    DOCS_ADAPTER_PACKAGE,
-    DOCS_MCP_PACKAGE,
-    FOUNDATION_PACKAGE,
-    FEATURE_MODULE_STANDARD_PACKAGE,
-    STACK_TOOLCHAIN_PACKAGE,
-  ]);
-  assert.equal(runtime.calls.filter((entry) => entry.startsWith("publish:")).length, 10);
-});
-
-test("production GitHub reconciliation repairs a lost release response idempotently", async () => {
-  const repository = "agent-teams-ai/engineering-foundation";
-  const releaseArtifact = { ...foundation, releaseNotes: "Exact release notes" };
-  const tag = `${releaseArtifact.name}@${releaseArtifact.version}`;
-  let ref;
-  let release;
-  let loseFirstReleaseResponse = true;
-  const writes = [];
-  const request = (args) => {
-    const route = args[0] === "--method" ? args[2] : args[0];
-    if (route.includes("/git/ref/tags/")) {
-      return ref;
-    }
-    if (route.endsWith("/git/refs")) {
-      ref = { object: { sha: argumentField(args, "sha="), type: "commit" } };
-      writes.push("tag");
-      return ref;
-    }
-    if (route.includes("/releases/tags/")) {
-      return release;
-    }
-    if (route.endsWith("/releases")) {
-      release = {
-        body: argumentField(args, "body="),
-        draft: argumentField(args, "draft=") === "true",
-        name: argumentField(args, "name="),
-        prerelease: argumentField(args, "prerelease=") === "true",
-        tag_name: argumentField(args, "tag_name="),
-      };
-      writes.push("release");
-      if (loseFirstReleaseResponse) {
-        loseFirstReleaseResponse = false;
-        throw new Error("GitHub response lost");
-      }
-      return release;
-    }
-    throw new Error(`Unexpected fake GitHub route: ${route}`);
-  };
-  await assert.rejects(
-    reconcileGithubRelease(releaseArtifact, source.commit, { repository, request }),
-    /response lost/u,
-  );
-  await reconcileGithubRelease(releaseArtifact, source.commit, { repository, request });
-  await reconcileGithubRelease(releaseArtifact, source.commit, { repository, request });
-  assert.deepEqual(writes, ["tag", "release"]);
-  assert.equal(release.tag_name, tag);
-  release.draft = true;
-  await assert.rejects(
-    reconcileGithubRelease(releaseArtifact, source.commit, { repository, request }),
-    /differs from the reviewed changelog evidence/u,
-  );
-});
-
-test("production GitHub reconciliation re-observes state after a transient 503", async () => {
-  const repository = "agent-teams-ai/engineering-foundation";
-  const releaseArtifact = { ...foundation, releaseNotes: "Exact release notes" };
-  let ref;
-  let release;
-  let transient = true;
-  const writes = [];
-  const waits = [];
-  const request = (args) => {
-    const route = args[0] === "--method" ? args[2] : args[0];
-    if (route.includes("/git/ref/tags/")) {return ref;}
-    if (route.endsWith("/git/refs")) {
-      ref = { object: { sha: argumentField(args, "sha="), type: "commit" } };
-      writes.push("tag");
-      return ref;
-    }
-    if (route.includes("/releases/tags/")) {return release;}
-    if (route.endsWith("/releases")) {
-      release = {
-        body: argumentField(args, "body="),
-        draft: false,
-        name: argumentField(args, "name="),
-        prerelease: releaseArtifact.version.includes("-"),
-        tag_name: argumentField(args, "tag_name="),
-      };
-      writes.push("release");
-      if (transient) {
-        transient = false;
-        throw new Error("gh api failed: HTTP 503");
-      }
-      return release;
-    }
-    throw new Error(`Unexpected fake GitHub route: ${route}`);
-  };
-  await reconcileGithubRelease(releaseArtifact, source.commit, {
-    attempts: 2,
-    repository,
-    request,
-    retryDelayMilliseconds: 7,
-    wait: async (milliseconds) => waits.push(milliseconds),
-  });
-  assert.deepEqual(writes, ["tag", "release"]);
-  assert.deepEqual(waits, [7]);
-});
-
-for (const [name, state] of [
-  ["timeout", () => { throw new Error("timeout"); }],
-  ["5xx", { error: new Error("registry returned 503"), status: "unknown" }],
-  ["unknown shape", { status: "indeterminate" }],
-]) {
-  test(`fails closed before publish on ${name}`, async () => {
-    const runtime = harness({ [FOUNDATION_PACKAGE]: state });
-    await assert.rejects(run(runtime), /unknown|invalid state/iu);
-    assert.equal(runtime.calls.some((entry) => entry.startsWith("publish:")), false);
-  });
-}
-
-test("does not guess after persistent 404 following publish", async () => {
-  const runtime = harness();
-  runtime.publish = async (value, tag) => {
-    runtime.calls.push(`publish:${value.name}:${tag}`);
-  };
-  await assert.rejects(run(runtime), /remained absent/iu);
-  assert.equal(runtime.calls.some((entry) => entry.startsWith(`publish:${DOCS_PACKAGE}`)), false);
-});
-
-test("rejects immutable-version mismatch and requires quarantine/new version", async () => {
-  const mismatch = present(foundation, "2026-01-01T00:00:00.000Z");
-  mismatch.integrity = tarballIntegrity(Buffer.from("different"));
-  const runtime = harness({ [FOUNDATION_PACKAGE]: mismatch });
-  await assert.rejects(run(runtime), /different tarball SRI.*quarantine.*new version/iu);
-  assert.equal(runtime.calls.some((entry) => entry.startsWith("publish:")), false);
-});
-
-test("rejects Docs published before Document Authoring without reconciling GitHub releases", async () => {
-  const initial = publishedState(stackToolchain, ciInputProof, releaseChecks, featureModuleStandard, mutation, authoring, foundation, docs);
-  initial[DOCS_PACKAGE].publishedAt = "2026-01-01T00:00:00.500Z";
-  const runtime = harness(initial);
-  await assert.rejects(run(runtime), /docs-protocol.*published before.*document-authoring/iu);
-  assert.equal(runtime.calls.some((entry) => entry.startsWith("release:")), false);
-});
-
-test("refuses an existing immutable version when the final tag no longer targets it", async () => {
-  const foundationState = present(foundation, "2026-01-01T00:00:00.000Z");
-  foundationState.distTags.latest = "9.9.9";
-  const runtime = harness({ [FOUNDATION_PACKAGE]: foundationState });
-  await assert.rejects(run(runtime), /not the exact latest dist-tag target/u);
-  assert.equal(runtime.calls.some((entry) => entry.startsWith("publish:")), false);
-});
-
-test("rejects local and published Docs manifests without the exact Document Authoring dependency", async () => {
-  const badDocs = artifact(DOCS_PACKAGE, docs.version, {
-    [DOCUMENT_AUTHORING_PACKAGE]: "^0.1.0",
-    [MUTATION_PACKAGE]: mutation.version,
-  });
-  await assert.rejects(
-    run(harness(), { artifacts: [stackToolchain, ciInputProof, releaseChecks, featureModuleStandard, mutation, authoring, foundation, badDocs, docsAdapter, docsMcp] }),
-    /docs-protocol.*exact.*document-authoring/iu,
-  );
-
-  const publishedDocs = present(docs, "2026-01-01T00:00:01.000Z");
-  publishedDocs.manifest.dependencies[DOCUMENT_AUTHORING_PACKAGE] = "^0.1.0";
-  const initial = publishedState(stackToolchain, ciInputProof, releaseChecks, featureModuleStandard, mutation, authoring, foundation);
-  initial[DOCS_PACKAGE] = publishedDocs;
-  const runtime = harness(initial);
-  await assert.rejects(run(runtime), /different packed manifest/iu);
-});
+registerSignatureAndRetryCases();
+registerRegistryBoundaryCases();

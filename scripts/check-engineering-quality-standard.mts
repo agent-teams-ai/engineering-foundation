@@ -13,27 +13,29 @@ const expected = Object.freeze({
   size: 19951,
 });
 
-const cmsPrefix = 'docs/architecture/evidence/doctor-guidance-20261022/common-assembly';
+const cmsPrefix = "docs/architecture/evidence/doctor-guidance-20261022/common-assembly";
 const cmsExpected = Object.freeze({
-  repository: 'agent-teams-ai/get-modular', path: 'docs/architecture/common-assembly.md',
-  anchor: 'consumer-module-standard', commit: '7131d0d7a6bb5dd4c3e8906ccac065c0be0e0333',
-  blob: 'dad8b6280cf999d9079d3106094e5626b63d83f4',
-  sha256: 'a6dac5d303adf80be3151c6703c919b715fd880a941a4ad68e927c87a7ee5882',
+  repository: "agent-teams-ai/get-modular",
+  path: "docs/architecture/common-assembly.md",
+  anchor: "consumer-module-standard",
+  commit: "7131d0d7a6bb5dd4c3e8906ccac065c0be0e0333",
+  blob: "dad8b6280cf999d9079d3106094e5626b63d83f4",
+  sha256: "a6dac5d303adf80be3151c6703c919b715fd880a941a4ad68e927c87a7ee5882",
   size: 81946,
 });
 
 const runtimeSeam = Object.freeze({
   currentPins: Object.freeze({
-    'CMS guidance commit': cmsExpected.commit,
-    'CMS guidance SHA-256': cmsExpected.sha256,
-    'EQS guidance commit': expected.commit,
-    'EQS guidance SHA-256': expected.sha256,
-    'Workflow boundary': 'existing-static-adapter',
-    'Workflow owner': 'engineering-foundation/repository-agent-workflow',
-    'Workflow lifecycle': 'Host custody and cleanup; no Assembly or lifecycle-kernel adoption',
-    'Doctor boundary': 'existing-static-adapter',
-    'Doctor owner': 'stack-toolchain/toolchain-execution',
-    'Doctor lifecycle': 'caller-owned process budget and cleanup; no Assembly adoption',
+    "CMS guidance commit": cmsExpected.commit,
+    "CMS guidance SHA-256": cmsExpected.sha256,
+    "EQS guidance commit": expected.commit,
+    "EQS guidance SHA-256": expected.sha256,
+    "Workflow boundary": "existing-static-adapter",
+    "Workflow owner": "engineering-foundation/repository-agent-workflow",
+    "Workflow lifecycle": "Host custody and cleanup; no Assembly or lifecycle-kernel adoption",
+    "Doctor boundary": "existing-static-adapter",
+    "Doctor owner": "stack-toolchain/toolchain-execution",
+    "Doctor lifecycle": "caller-owned process budget and cleanup; no Assembly adoption",
   }),
   tokens: Object.freeze([
     "Status: `not-adopted`; closed static selection only",
@@ -102,16 +104,23 @@ export async function checkEngineeringQualityStandard(root: string): Promise<voi
     throw new Error("EQS retained delta does not match the reviewed input");
   }
   const currentEqsDelta = await readFile(
-    resolve(root, "docs/architecture/evidence/f3-guidance-20261023/engineering-quality-standard.diff"),
+    resolve(
+      root,
+      "docs/architecture/evidence/f3-guidance-20261023/engineering-quality-standard.diff",
+    ),
   );
-  if (createHash("sha256").update(currentEqsDelta).digest("hex") !==
-      "0e6c05f963f2c65a2e04b85fc1075b835cd247d7d7dca497e4721f211f9a533d") {
+  if (
+    createHash("sha256").update(currentEqsDelta).digest("hex") !==
+    "0e6c05f963f2c65a2e04b85fc1075b835cd247d7d7dca497e4721f211f9a533d"
+  ) {
     throw new Error("EQS current retained delta does not match the reviewed input");
   }
   const delta = await readFile(resolve(root, `${cmsPrefix}.diff`));
-  if (createHash('sha256').update(delta).digest('hex') !==
-      '1caa65055dcde91309e2317d70faf339cd82b2ba42f16a8902bc3025cf4f1bf3') {
-    throw new Error('CMS retained delta does not match the reviewed input');
+  if (
+    createHash("sha256").update(delta).digest("hex") !==
+    "1caa65055dcde91309e2317d70faf339cd82b2ba42f16a8902bc3025cf4f1bf3"
+  ) {
+    throw new Error("CMS retained delta does not match the reviewed input");
   }
   const seam = await readFile(
     resolve(root, "docs/architecture/runtime-profile-static-seam.md"),

@@ -1,19 +1,21 @@
 import type {
   ManagedProcessExecutor,
   ManagedProcessRequest,
-  ManagedProcessResult
+  ManagedProcessResult,
 } from "../../packages/engineering-foundation/dist/process-execution/api.js";
 
 export class RecordingManagedProcessExecutor implements ManagedProcessExecutor {
   readonly requests: ManagedProcessRequest[] = [];
   readonly result: ManagedProcessResult;
 
-  constructor(result: ManagedProcessResult = {
+  constructor(
+    result: ManagedProcessResult = {
       exitCode: 0,
       signal: null,
       stdout: "",
-      stderr: ""
-    }) {
+      stderr: "",
+    },
+  ) {
     this.result = result;
   }
 

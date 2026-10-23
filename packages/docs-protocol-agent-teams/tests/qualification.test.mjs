@@ -5,9 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { Ajv2020 } from "ajv/dist/2020.js";
 
-import {
-  overlayLocalDevelopmentSkill
-} from "../dist/qualification/adapters/outbound/node-managed-qualification.js";
+import { overlayLocalDevelopmentSkill } from "../dist/qualification/adapters/outbound/node-managed-qualification.js";
 
 import { runDocsProtocolQualificationV2 } from "../dist/qualification/index.js";
 
@@ -16,23 +14,44 @@ const fixtureRoot = new URL("./fixtures/qualification", import.meta.url).pathnam
 test("managed qualification rejects an unverified released-Cohort fixture", async () => {
   await assert.rejects(
     runDocsProtocolQualificationV2({ consumerRoot: fixtureRoot }),
-    /Consumer root must equal the Git repository top-level directory|current exact managed integration|exact executing Agent Teams adapter/u
+    /Consumer root must equal the Git repository top-level directory|current exact managed integration|exact executing Agent Teams adapter/u,
   );
 });
 
 test("managed qualification imports the portable public contract and marks local evidence non-admissible", async () => {
-  const receipt = await runDocsProtocolQualificationV2({ consumerRoot: fixtureRoot, localDevelopment: true });
+  const receipt = await runDocsProtocolQualificationV2({
+    consumerRoot: fixtureRoot,
+    localDevelopment: true,
+  });
   assert.equal(receipt.schemaVersion, 2);
   assert.equal(receipt.evidenceClass, "local-development");
   assert.equal(receipt.cohortAdmissible, false);
   assert.match(receipt.receiptDigest, /^sha256:[0-9a-f]{64}$/u);
   assert.equal(receipt.checks.includes("golden"), false);
-  assert.deepEqual(receipt.scenarios.map(({ type }) => type), ["adr"]);
-  assert.equal(receipt.derived.contractPath, "architecture/foundation/docs-protocol-qualification.json");
+  assert.deepEqual(
+    receipt.scenarios.map(({ type }) => type),
+    ["adr"],
+  );
+  assert.equal(
+    receipt.derived.contractPath,
+    "architecture/foundation/docs-protocol-qualification.json",
+  );
   assert.equal(receipt.derived.gateCommand, "pnpm docs:protocol:check");
-  const schema = JSON.parse(await readFile(new URL("../schemas/docs-protocol-qualification-receipt/v2.schema.json", import.meta.url), "utf8"));
-  const integrationSchema = JSON.parse(await readFile(new URL("../schemas/docs-consumer-integration-profile/v2.schema.json", import.meta.url), "utf8"));
-  const validate = new Ajv2020({ allErrors: true, strict: true }).addSchema(integrationSchema).compile(schema);
+  const schema = JSON.parse(
+    await readFile(
+      new URL("../schemas/docs-protocol-qualification-receipt/v2.schema.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const integrationSchema = JSON.parse(
+    await readFile(
+      new URL("../schemas/docs-consumer-integration-profile/v2.schema.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const validate = new Ajv2020({ allErrors: true, strict: true })
+    .addSchema(integrationSchema)
+    .compile(schema);
   assert.equal(validate(receipt), true, JSON.stringify(validate.errors));
 });
 
@@ -48,7 +67,7 @@ test("managed local-development Skill overlay rejects a symlink without touching
     await symlink(outside, skill, "file");
     await assert.rejects(
       overlayLocalDevelopmentSkill(temporary, ".agents/skills/docs-authoring/SKILL.md", true),
-      /Local-development qualification Skill target must be one stable, non-hardlinked regular file/u
+      /Local-development qualification Skill target must be one stable, non-hardlinked regular file/u,
     );
     assert.equal(await readFile(outside, "utf8"), sentinel);
   } finally {
@@ -68,7 +87,7 @@ test("managed local-development Skill overlay rejects a hardlink without touchin
     await link(outside, skill);
     await assert.rejects(
       overlayLocalDevelopmentSkill(temporary, ".agents/skills/docs-authoring/SKILL.md", true),
-      /Local-development qualification Skill target must be one stable, non-hardlinked regular file/u
+      /Local-development qualification Skill target must be one stable, non-hardlinked regular file/u,
     );
     assert.equal(await readFile(outside, "utf8"), sentinel);
   } finally {
@@ -80,8 +99,12 @@ test("managed qualification honors pre-cancellation before disposable mutation",
   const controller = new AbortController();
   controller.abort(new DOMException("cancelled", "AbortError"));
   await assert.rejects(
-    runDocsProtocolQualificationV2({ consumerRoot: fixtureRoot, localDevelopment: true, signal: controller.signal }),
-    { name: "AbortError" }
+    runDocsProtocolQualificationV2({
+      consumerRoot: fixtureRoot,
+      localDevelopment: true,
+      signal: controller.signal,
+    }),
+    { name: "AbortError" },
   );
 });
 
@@ -89,12 +112,40 @@ test("managed qualification excludes transient cache and tagged build output fro
   const temporary = await mkdtemp(join(tmpdir(), "agent-teams-docs-transient-evidence-"));
   const consumerRoot = join(temporary, "consumer");
   try {
-    await cp(fixtureRoot, consumerRoot, { recursive: true, errorOnExist: true, force: false, dereference: false });
+    await cp(fixtureRoot, consumerRoot, {
+      recursive: true,
+      errorOnExist: true,
+      force: false,
+      dereference: false,
+    });
     await mkdir(join(consumerRoot, ".cache", "docs-tools"), { recursive: true });
-    await mkdir(join(consumerRoot, "agent-runtime", "experiments", "rust-system-boundaries", "target"), { recursive: true });
+    await mkdir(
+      join(consumerRoot, "agent-runtime", "experiments", "rust-system-boundaries", "target"),
+      { recursive: true },
+    );
     await writeFile(join(consumerRoot, ".cache", "docs-tools", "binary"), "cache\n");
-    await writeFile(join(consumerRoot, "agent-runtime", "experiments", "rust-system-boundaries", "target", "CACHEDIR.TAG"), "Signature: 8a477f597d28d172789f06886806bc55\n# Cargo build cache\n");
-    await writeFile(join(consumerRoot, "agent-runtime", "experiments", "rust-system-boundaries", "target", "artifact"), "build\n");
+    await writeFile(
+      join(
+        consumerRoot,
+        "agent-runtime",
+        "experiments",
+        "rust-system-boundaries",
+        "target",
+        "CACHEDIR.TAG",
+      ),
+      "Signature: 8a477f597d28d172789f06886806bc55\n# Cargo build cache\n",
+    );
+    await writeFile(
+      join(
+        consumerRoot,
+        "agent-runtime",
+        "experiments",
+        "rust-system-boundaries",
+        "target",
+        "artifact",
+      ),
+      "build\n",
+    );
     const receipt = await runDocsProtocolQualificationV2({ consumerRoot, localDevelopment: true });
     assert.equal(receipt.evidenceClass, "local-development");
     assert.equal(receipt.cohortAdmissible, false);

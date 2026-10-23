@@ -1,6 +1,6 @@
 import type {
   EffectiveInstructionDirectoryObservation,
-  EffectiveInstructionDiscovery
+  EffectiveInstructionDiscovery,
 } from "../model/effective-instructions.js";
 
 export interface EffectiveInstructionsReader {

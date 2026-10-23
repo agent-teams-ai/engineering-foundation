@@ -1,84 +1,118 @@
-import assert from 'node:assert/strict';
-import { execFile } from 'node:child_process';
-import { cp, lstat, mkdir, mkdtemp, readFile, readdir, rename, rm, symlink, unlink, writeFile } from 'node:fs/promises';
-import { basename, dirname, join, relative, resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
-import { promisify } from 'node:util';
-import type { FoundationPilotRequest, Observation, ScopeCategory } from '../../scripts/ci-input-proof-foundation-adapter.mts';
-import { collectFoundationPilotObservation } from '../../scripts/ci-input-proof-foundation-pilot.mts';
-import { runCiInputProofAdapter } from '../../scripts/ci-input-proof-foundation-adapter.mts';
-import type { InputLeaf } from '../../packages/ci-input-proof/dist/index.js';
-import { collectorFixtureInstallerPath } from './ci-input-proof-collector-install.ts';
+import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
+import {
+  cp,
+  lstat,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rename,
+  rm,
+  symlink,
+  unlink,
+  writeFile,
+} from "node:fs/promises";
+import { basename, dirname, join, relative, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+import { promisify } from "node:util";
+import type {
+  FoundationPilotRequest,
+  Observation,
+  ScopeCategory,
+} from "../../scripts/ci-input-proof-foundation-adapter.mts";
+import { collectFoundationPilotObservation } from "../../scripts/ci-input-proof-foundation-pilot.mts";
+import { runCiInputProofAdapter } from "../../scripts/ci-input-proof-foundation-adapter.mts";
+import type { InputLeaf } from "../../packages/ci-input-proof/dist/index.js";
+import { collectorFixtureInstallerPath } from "./ci-input-proof-collector-install.ts";
 
 export const scopeCategories: readonly ScopeCategory[] = [
-  'source', 'helpers', 'fixtures', 'config', 'lock', 'toolchain', 'installedGraph',
+  "source",
+  "helpers",
+  "fixtures",
+  "config",
+  "lock",
+  "toolchain",
+  "installedGraph",
 ];
-export const adapterLeaf = (category: ScopeCategory, content = '1'.repeat(64), membership: 'closed' | 'structural' = 'closed'): InputLeaf =>
-  ({ path: `${category}/input.ts`, type: 'file', mode: '100644', membership, content });
+export const adapterLeaf = (
+  category: ScopeCategory,
+  content = "1".repeat(64),
+  membership: "closed" | "structural" = "closed",
+): InputLeaf => ({
+  path: `${category}/input.ts`,
+  type: "file",
+  mode: "100644",
+  membership,
+  content,
+});
 export const adapterObservation = (
   boundaryId: string,
-  inputs: readonly InputLeaf[] = scopeCategories.map(category => adapterLeaf(category)),
+  inputs: readonly InputLeaf[] = scopeCategories.map((category) => adapterLeaf(category)),
   scope: Readonly<Record<ScopeCategory, readonly string[]>> = Object.freeze({
-    source: Object.freeze(['source/input.ts']),
-    helpers: Object.freeze(['helpers/input.ts']),
-    fixtures: Object.freeze(['fixtures/input.ts']),
-    config: Object.freeze(['config/input.ts']),
-    lock: Object.freeze(['lock/input.ts']),
-    toolchain: Object.freeze(['toolchain/input.ts']),
-    installedGraph: Object.freeze(['installedGraph/input.ts']),
+    source: Object.freeze(["source/input.ts"]),
+    helpers: Object.freeze(["helpers/input.ts"]),
+    fixtures: Object.freeze(["fixtures/input.ts"]),
+    config: Object.freeze(["config/input.ts"]),
+    lock: Object.freeze(["lock/input.ts"]),
+    toolchain: Object.freeze(["toolchain/input.ts"]),
+    installedGraph: Object.freeze(["installedGraph/input.ts"]),
   }),
-): Observation => Object.freeze({
-  schemaVersion: 1,
-  boundaryId,
-  scopeId: 'foundation.ci-input-proof.focus.v1',
-  scope,
-  inventory: Object.freeze({ version: 1, digestScheme: 'sha256', inputs }),
-});
+): Observation =>
+  Object.freeze({
+    schemaVersion: 1,
+    boundaryId,
+    scopeId: "foundation.ci-input-proof.focus.v1",
+    scope,
+    inventory: Object.freeze({ version: 1, digestScheme: "sha256", inputs }),
+  });
 export const adapterRequest = (
   current: Observation,
-  fullArgs: readonly string[] = ['-e', 'process.stdout.write("FULL-PASS")'],
-): FoundationPilotRequest => Object.freeze({
-  schemaVersion: 1,
-  pilotId: 'foundation.ci-input-proof.focus.v1',
-  tuple: Object.freeze({
-    headSha: '1'.repeat(40),
-    baseSha: '2'.repeat(40),
-    mergeTuple: 'refs/heads/TEST-ci-input-proof',
-  }),
-  before: adapterObservation('before'),
-  current,
-  permittedContentChanges: Object.freeze([]),
-  full: Object.freeze({
-    command: process.execPath,
-    args: fullArgs,
-    cwd: resolve(process.cwd()),
-    timeoutMs: 30_000,
-  }),
-});
-
+  fullArgs: readonly string[] = ["-e", 'process.stdout.write("FULL-PASS")'],
+): FoundationPilotRequest =>
+  Object.freeze({
+    schemaVersion: 1,
+    pilotId: "foundation.ci-input-proof.focus.v1",
+    tuple: Object.freeze({
+      headSha: "1".repeat(40),
+      baseSha: "2".repeat(40),
+      mergeTuple: "refs/heads/TEST-ci-input-proof",
+    }),
+    before: adapterObservation("before"),
+    current,
+    permittedContentChanges: Object.freeze([]),
+    full: Object.freeze({
+      command: process.execPath,
+      args: fullArgs,
+      cwd: resolve(process.cwd()),
+      timeoutMs: 30_000,
+    }),
+  });
 
 const execFileAsync = promisify(execFile);
 const boundedProcess = Object.freeze({ timeout: 30_000, maxBuffer: 1_048_576 });
 
 export const readOptionalText = async (path: string): Promise<string | null> => {
   try {
-    return await readFile(path, 'utf8');
+    return await readFile(path, "utf8");
   } catch (error) {
-    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
       return null;
     }
     throw error;
   }
 };
 
-const directoryLinkType = process.platform === 'win32' ? 'junction' : 'dir';
+const directoryLinkType = process.platform === "win32" ? "junction" : "dir";
 
 async function withExternalDirectoryReplacementLink<T>(
   collectionRoot: string,
   sourcePath: string,
   action: () => Promise<T>,
 ): Promise<T> {
-  const externalRoot = await mkdtemp(join(dirname(collectionRoot), 'ci-input-proof-external-dist-TEST-'));
+  const externalRoot = await mkdtemp(
+    join(dirname(collectionRoot), "ci-input-proof-external-dist-TEST-"),
+  );
   const externalTarget = join(externalRoot, basename(sourcePath));
   let linked = false;
   await rename(sourcePath, externalTarget);
@@ -109,72 +143,98 @@ async function withDirectoryAlias<T>(
 }
 
 export async function assertAncestorDirectoryLinkPolicy(temporaryRoot: string): Promise<void> {
-  const distPath = resolve(temporaryRoot, 'packages', 'ci-input-proof', 'dist');
-  const fullMarker = resolve(temporaryRoot, 'ancestor-independent-full-marker');
-  const regularBefore = await collectFoundationPilotObservation(temporaryRoot, 'regular-before');
-  const regularIndexBefore = regularBefore.observation.inventory.inputs.find(input => input.path === 'packages/ci-input-proof/dist/index.js');
+  const distPath = resolve(temporaryRoot, "packages", "ci-input-proof", "dist");
+  const fullMarker = resolve(temporaryRoot, "ancestor-independent-full-marker");
+  const regularBefore = await collectFoundationPilotObservation(temporaryRoot, "regular-before");
+  const regularIndexBefore = regularBefore.observation.inventory.inputs.find(
+    (input) => input.path === "packages/ci-input-proof/dist/index.js",
+  );
   assert.ok(regularIndexBefore);
   await withExternalDirectoryReplacementLink(temporaryRoot, distPath, async () => {
     await assert.rejects(
-      collectFoundationPilotObservation(temporaryRoot, 'external-directory-link'),
+      collectFoundationPilotObservation(temporaryRoot, "external-directory-link"),
       /unsupported symlink ancestor closure packages\/ci-input-proof\/dist/u,
     );
-    const blocking = await runCiInputProofAdapter({
-      ...adapterRequest(adapterObservation('ancestor-admission-unavailable')),
-      full: Object.freeze({
-        command: process.execPath,
-        args: Object.freeze([
-          '-e',
-          `require("node:fs").writeFileSync(${JSON.stringify(fullMarker)}, "executed"); process.exit(23)`,
-        ]),
-        cwd: temporaryRoot,
-        timeoutMs: 30_000,
-      }),
-    }, () => { throw new Error('comparator-import-unavailable'); });
+    const blocking = await runCiInputProofAdapter(
+      {
+        ...adapterRequest(adapterObservation("ancestor-admission-unavailable")),
+        full: Object.freeze({
+          command: process.execPath,
+          args: Object.freeze([
+            "-e",
+            `require("node:fs").writeFileSync(${JSON.stringify(fullMarker)}, "executed"); process.exit(23)`,
+          ]),
+          cwd: temporaryRoot,
+          timeoutMs: 30_000,
+        }),
+      },
+      () => {
+        throw new Error("comparator-import-unavailable");
+      },
+    );
     assert.equal(blocking.exitCode, 23);
-    assert.equal(blocking.report.execution.status, 'failed');
+    assert.equal(blocking.report.execution.status, "failed");
     assert.equal(blocking.report.execution.full.exitCode, 23);
     assert.deepEqual(blocking.report.omission, {
-      status: 'not-attempted',
-      reason: 'shadow-executes-full',
+      status: "not-attempted",
+      reason: "shadow-executes-full",
       reportedSeparatelyFromPass: true,
     });
-    assert.equal(blocking.report.selection.decision, 'full');
-    assert.equal(await readFile(fullMarker, 'utf8'), 'executed');
+    assert.equal(blocking.report.selection.decision, "full");
+    assert.equal(await readFile(fullMarker, "utf8"), "executed");
   });
-  const regularAfter = await collectFoundationPilotObservation(temporaryRoot, 'regular-after');
-  const regularIndexAfter = regularAfter.observation.inventory.inputs.find(input => input.path === 'packages/ci-input-proof/dist/index.js');
+  const regularAfter = await collectFoundationPilotObservation(temporaryRoot, "regular-after");
+  const regularIndexAfter = regularAfter.observation.inventory.inputs.find(
+    (input) => input.path === "packages/ci-input-proof/dist/index.js",
+  );
   assert.deepEqual(regularIndexAfter, regularIndexBefore);
   const rootAlias = join(dirname(temporaryRoot), `${basename(temporaryRoot)}-root-link`);
   await withDirectoryAlias(temporaryRoot, rootAlias, async () => {
     await assert.rejects(
-      collectFoundationPilotObservation(rootAlias, 'root-directory-link'),
+      collectFoundationPilotObservation(rootAlias, "root-directory-link"),
       /unsupported symlink ancestor closure <collection-root>/u,
     );
   });
   const outsideAlias = join(dirname(temporaryRoot), `${basename(temporaryRoot)}-outside-alias`);
   await withDirectoryAlias(dirname(temporaryRoot), outsideAlias, async () => {
     const aliasedRoot = join(outsideAlias, basename(temporaryRoot));
-    const aliased = await collectFoundationPilotObservation(aliasedRoot, 'outside-root-alias');
-    assert.deepEqual(aliased.observation.inventory.inputs, regularAfter.observation.inventory.inputs);
+    const aliased = await collectFoundationPilotObservation(aliasedRoot, "outside-root-alias");
+    assert.deepEqual(
+      aliased.observation.inventory.inputs,
+      regularAfter.observation.inventory.inputs,
+    );
   });
 }
 
 async function collectorFixtureEnvironment(root: string): Promise<NodeJS.ProcessEnv> {
   const environment: NodeJS.ProcessEnv = {
-    PATH: process.env.PATH ?? '', CI: 'true', COREPACK_ENABLE_NETWORK: '0',
-    GIT_CONFIG_NOSYSTEM: '1', GIT_TERMINAL_PROMPT: '0',
+    PATH: process.env.PATH ?? "",
+    CI: "true",
+    COREPACK_ENABLE_NETWORK: "0",
+    GIT_CONFIG_NOSYSTEM: "1",
+    GIT_TERMINAL_PROMPT: "0",
   };
-  for (const key of ['SystemRoot', 'WINDIR', 'ComSpec', 'PATHEXT', 'SystemDrive',
-    'AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE', 'AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT']) {
+  for (const key of [
+    "SystemRoot",
+    "WINDIR",
+    "ComSpec",
+    "PATHEXT",
+    "SystemDrive",
+    "AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE",
+    "AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT",
+  ]) {
     if (process.env[key] !== undefined) {
       environment[key] = process.env[key];
     }
   }
   for (const [name, keys] of [
-    ['home', ['HOME', 'USERPROFILE']], ['appdata', ['APPDATA']], ['localappdata', ['LOCALAPPDATA']],
-    ['tmp', ['TMPDIR', 'TMP', 'TEMP']], ['cache', ['XDG_CACHE_HOME', 'npm_config_cache']],
-    ['config', ['XDG_CONFIG_HOME']], ['store', ['npm_config_store_dir']],
+    ["home", ["HOME", "USERPROFILE"]],
+    ["appdata", ["APPDATA"]],
+    ["localappdata", ["LOCALAPPDATA"]],
+    ["tmp", ["TMPDIR", "TMP", "TEMP"]],
+    ["cache", ["XDG_CACHE_HOME", "npm_config_cache"]],
+    ["config", ["XDG_CONFIG_HOME"]],
+    ["store", ["npm_config_store_dir"]],
   ] as const) {
     const path = join(root, name);
     await mkdir(path, { recursive: true });
@@ -183,11 +243,13 @@ async function collectorFixtureEnvironment(root: string): Promise<NodeJS.Process
     }
   }
   for (const [name, key] of [
-    ['npmrc', 'NPM_CONFIG_USERCONFIG'], ['npmrc-global', 'NPM_CONFIG_GLOBALCONFIG'],
-    ['gitconfig', 'GIT_CONFIG_GLOBAL'], ['gitconfig-system', 'GIT_CONFIG_SYSTEM'],
+    ["npmrc", "NPM_CONFIG_USERCONFIG"],
+    ["npmrc-global", "NPM_CONFIG_GLOBALCONFIG"],
+    ["gitconfig", "GIT_CONFIG_GLOBAL"],
+    ["gitconfig-system", "GIT_CONFIG_SYSTEM"],
   ] as const) {
     const path = join(root, name);
-    await writeFile(path, '');
+    await writeFile(path, "");
     environment[key] = path;
   }
   return environment;
@@ -196,48 +258,85 @@ async function collectorFixtureEnvironment(root: string): Promise<NodeJS.Process
 async function installCollectorFixture(sourceRoot: string, destinationRoot: string): Promise<void> {
   // The standalone TEST graph generates its own locks; copied repository locks
   // describe a different project and must not enter its offline resolution.
-  await rm(join(destinationRoot, 'pnpm-lock.yaml'));
-  await rm(join(destinationRoot, 'bun.lock'));
-  const toolingRoot = join(destinationRoot, '.collector-test-tooling');
+  await rm(join(destinationRoot, "pnpm-lock.yaml"));
+  await rm(join(destinationRoot, "bun.lock"));
+  const toolingRoot = join(destinationRoot, ".collector-test-tooling");
   await mkdir(toolingRoot);
-  await execFileAsync(process.execPath, [collectorFixtureInstallerPath, sourceRoot, destinationRoot], {
-    ...boundedProcess, cwd: destinationRoot, env: await collectorFixtureEnvironment(toolingRoot),
-  });
-  for (const path of ['node_modules/.package-map.json', 'node_modules/.pnpm/lock.yaml']) {
+  await execFileAsync(
+    process.execPath,
+    [collectorFixtureInstallerPath, sourceRoot, destinationRoot],
+    {
+      ...boundedProcess,
+      cwd: destinationRoot,
+      env: await collectorFixtureEnvironment(toolingRoot),
+    },
+  );
+  for (const path of ["node_modules/.package-map.json", "node_modules/.pnpm/lock.yaml"]) {
     assert.equal((await lstat(join(destinationRoot, path))).isFile(), true);
   }
-  const installed = JSON.parse(await readFile(join(destinationRoot, 'node_modules/@agent-teams/ci-input-proof/package.json'), 'utf8')) as { name: string; version: string };
-  const target = JSON.parse(await readFile(join(destinationRoot, 'packages/ci-input-proof/package.json'), 'utf8')) as { name: string; version: string };
+  const installed = JSON.parse(
+    await readFile(
+      join(destinationRoot, "node_modules/@agent-teams/ci-input-proof/package.json"),
+      "utf8",
+    ),
+  ) as { name: string; version: string };
+  const target = JSON.parse(
+    await readFile(join(destinationRoot, "packages/ci-input-proof/package.json"), "utf8"),
+  ) as { name: string; version: string };
   assert.equal(installed.name, target.name);
   assert.equal(installed.version, target.version);
 }
 
-export async function copyCollectorFixture(sourceRoot: string, destinationRoot: string): Promise<void> {
-  const targetRoot = 'packages/ci-input-proof';
-  const targetFiles = ['package.json', ...(await readdir(join(sourceRoot, targetRoot, 'dist'), { recursive: true }))
-    .map(path => join('dist', path))];
-  const sourceFiles = ['package.json', 'bun.lock', 'pnpm-lock.yaml'];
+export async function copyCollectorFixture(
+  sourceRoot: string,
+  destinationRoot: string,
+): Promise<void> {
+  const targetRoot = "packages/ci-input-proof";
+  const targetFiles = [
+    "package.json",
+    ...(await readdir(join(sourceRoot, targetRoot, "dist"), { recursive: true })).map((path) =>
+      join("dist", path),
+    ),
+  ];
+  const sourceFiles = ["package.json", "bun.lock", "pnpm-lock.yaml"];
   for (const path of targetFiles) {
     if ((await lstat(join(sourceRoot, targetRoot, path))).isFile()) {
       sourceFiles.push(join(targetRoot, path));
     }
   }
-  const before = await Promise.all(sourceFiles.map(path => readFile(join(sourceRoot, path))));
-  const metadataPaths = ['node_modules/.package-map.json', 'node_modules/.pnpm/lock.yaml'];
-  const metadataBefore = await Promise.all(metadataPaths.map(path => readOptionalText(join(sourceRoot, path))));
+  const before = await Promise.all(sourceFiles.map((path) => readFile(join(sourceRoot, path))));
+  const metadataPaths = ["node_modules/.package-map.json", "node_modules/.pnpm/lock.yaml"];
+  const metadataBefore = await Promise.all(
+    metadataPaths.map((path) => readOptionalText(join(sourceRoot, path))),
+  );
   await cp(sourceRoot, destinationRoot, {
     recursive: true,
     force: true,
-    filter: sourcePath => {
+    filter: (sourcePath) => {
       const relativePath = relative(sourceRoot, sourcePath);
-      return !relativePath.split(/[\\/]/u).some(
-        part => ['.cache', '.git', '.nx', '.worker-tmp', '.agent-teams-runtime-profile.json', 'node_modules'].includes(part),
-      );
+      return !relativePath
+        .split(/[\\/]/u)
+        .some((part) =>
+          [
+            ".cache",
+            ".git",
+            ".nx",
+            ".worker-tmp",
+            ".agent-teams-runtime-profile.json",
+            "node_modules",
+          ].includes(part),
+        );
     },
   });
   await installCollectorFixture(sourceRoot, destinationRoot);
-  assert.deepEqual(await Promise.all(sourceFiles.map(path => readFile(join(sourceRoot, path)))), before);
-  assert.deepEqual(await Promise.all(metadataPaths.map(path => readOptionalText(join(sourceRoot, path)))), metadataBefore);
+  assert.deepEqual(
+    await Promise.all(sourceFiles.map((path) => readFile(join(sourceRoot, path)))),
+    before,
+  );
+  assert.deepEqual(
+    await Promise.all(metadataPaths.map((path) => readOptionalText(join(sourceRoot, path)))),
+    metadataBefore,
+  );
   for (const [index, path] of sourceFiles.entries()) {
     if (path.startsWith(targetRoot)) {
       assert.deepEqual(await readFile(join(destinationRoot, path)), before[index]);
@@ -245,48 +344,58 @@ export async function copyCollectorFixture(sourceRoot: string, destinationRoot: 
   }
 }
 
-async function writeReplacementRaceDriver(temporaryRoot: string): Promise<Readonly<{ preload: string; driver: string }>> {
-  const preload = resolve(temporaryRoot, 'input-proof-replacement-race.preload.mts');
-  const driver = resolve(temporaryRoot, 'input-proof-replacement-race.driver.mts');
+async function writeReplacementRaceDriver(
+  temporaryRoot: string,
+): Promise<Readonly<{ preload: string; driver: string }>> {
+  const preload = resolve(temporaryRoot, "input-proof-replacement-race.preload.mts");
+  const driver = resolve(temporaryRoot, "input-proof-replacement-race.driver.mts");
   await Promise.all([
-    writeFile(preload, [
-      'import { renameSync, writeFileSync } from "node:fs";',
-      'import { createRequire, syncBuiltinESMExports } from "node:module";',
-      'const require = createRequire(import.meta.url);',
-      'const fs = require("node:fs/promises");',
-      'const target = process.env.CI_INPUT_PROOF_RACE_TARGET;',
-      'const replacement = process.env.CI_INPUT_PROOF_RACE_REPLACEMENT;',
-      'const marker = process.env.CI_INPUT_PROOF_RACE_MARKER;',
-      'const kind = process.env.CI_INPUT_PROOF_RACE_KIND;',
-      'const stage = process.env.CI_INPUT_PROOF_RACE_STAGE;',
-      'const original = { lstat: fs.lstat, open: fs.open };',
-      'let swapped = false;',
-      'const swap = () => {',
-      '  if (swapped) return;',
-      '  renameSync(replacement, target);',
-      '  writeFileSync(marker, `swapped:${kind}:${stage}`);',
-      '  swapped = true;',
-      '};',
-      'fs.lstat = async function(path, ...args) {',
-      '  const stat = await original.lstat.call(fs, path, ...args);',
-      '  if (path === target && (kind === "fifo" || (kind === "regular" && stage === "before-open"))) swap();',
-      '  return stat;',
-      '};',
-      'fs.open = async function(path, ...args) {',
-      '  const handle = await original.open.call(fs, path, ...args);',
-      '  if (kind === "regular" && stage === "after-open" && path === target) swap();',
-      '  return handle;',
-      '};',
-      'syncBuiltinESMExports();',
-    ].join('\n'), 'utf8'),
-    writeFile(driver, [
-      'import { resolve } from "node:path";',
-      'import { pathToFileURL } from "node:url";',
-      'const repositoryRoot = process.env.CI_INPUT_PROOF_REPOSITORY_ROOT;',
-      'const collector = await import(pathToFileURL(resolve(repositoryRoot, "scripts/ci-input-proof-foundation-pilot.mts")).href);',
-      'await collector.collectFoundationPilotObservation(repositoryRoot, "replacement-race");',
-      'process.stdout.write("collected\\n");',
-    ].join('\n'), 'utf8'),
+    writeFile(
+      preload,
+      [
+        'import { renameSync, writeFileSync } from "node:fs";',
+        'import { createRequire, syncBuiltinESMExports } from "node:module";',
+        "const require = createRequire(import.meta.url);",
+        'const fs = require("node:fs/promises");',
+        "const target = process.env.CI_INPUT_PROOF_RACE_TARGET;",
+        "const replacement = process.env.CI_INPUT_PROOF_RACE_REPLACEMENT;",
+        "const marker = process.env.CI_INPUT_PROOF_RACE_MARKER;",
+        "const kind = process.env.CI_INPUT_PROOF_RACE_KIND;",
+        "const stage = process.env.CI_INPUT_PROOF_RACE_STAGE;",
+        "const original = { lstat: fs.lstat, open: fs.open };",
+        "let swapped = false;",
+        "const swap = () => {",
+        "  if (swapped) return;",
+        "  renameSync(replacement, target);",
+        "  writeFileSync(marker, `swapped:${kind}:${stage}`);",
+        "  swapped = true;",
+        "};",
+        "fs.lstat = async function(path, ...args) {",
+        "  const stat = await original.lstat.call(fs, path, ...args);",
+        '  if (path === target && (kind === "fifo" || (kind === "regular" && stage === "before-open"))) swap();',
+        "  return stat;",
+        "};",
+        "fs.open = async function(path, ...args) {",
+        "  const handle = await original.open.call(fs, path, ...args);",
+        '  if (kind === "regular" && stage === "after-open" && path === target) swap();',
+        "  return handle;",
+        "};",
+        "syncBuiltinESMExports();",
+      ].join("\n"),
+      "utf8",
+    ),
+    writeFile(
+      driver,
+      [
+        'import { resolve } from "node:path";',
+        'import { pathToFileURL } from "node:url";',
+        "const repositoryRoot = process.env.CI_INPUT_PROOF_REPOSITORY_ROOT;",
+        'const collector = await import(pathToFileURL(resolve(repositoryRoot, "scripts/ci-input-proof-foundation-pilot.mts")).href);',
+        'await collector.collectFoundationPilotObservation(repositoryRoot, "replacement-race");',
+        'process.stdout.write("collected\\n");',
+      ].join("\n"),
+      "utf8",
+    ),
   ]);
   return Object.freeze({ preload, driver });
 }
@@ -299,45 +408,53 @@ async function assertRegularReplacementRace(
   temporaryRoot: string,
   raceTarget: string,
   raceDriver: Readonly<{ preload: string; driver: string }>,
-  stage: 'before-open' | 'after-open',
+  stage: "before-open" | "after-open",
 ): Promise<void> {
-  const raceReplacement = resolve(temporaryRoot, 'packages', 'ci-input-proof', `LICENSE.race-${stage}`);
+  const raceReplacement = resolve(
+    temporaryRoot,
+    "packages",
+    "ci-input-proof",
+    `LICENSE.race-${stage}`,
+  );
   const raceMarker = resolve(temporaryRoot, `replacement-race-${stage}-marker`);
   const replacementContent = `replacement actual file at ${stage} with different bytes\n`;
   const targetInodeBefore = await replacementRaceInode(raceTarget);
-  await writeFile(raceReplacement, replacementContent, 'utf8');
+  await writeFile(raceReplacement, replacementContent, "utf8");
   const replacementInodeBefore = await replacementRaceInode(raceReplacement);
   assert.notEqual(replacementInodeBefore, targetInodeBefore);
   await assert.rejects(
-    execFileAsync(process.execPath, [
-      '--import',
-      pathToFileURL(raceDriver.preload).href,
-      raceDriver.driver,
-    ], {
-      ...boundedProcess,
-      cwd: temporaryRoot,
-      encoding: 'utf8',
-      env: {
-        ...process.env,
-        CI_INPUT_PROOF_REPOSITORY_ROOT: temporaryRoot,
-        CI_INPUT_PROOF_RACE_TARGET: raceTarget,
-        CI_INPUT_PROOF_RACE_REPLACEMENT: raceReplacement,
-        CI_INPUT_PROOF_RACE_MARKER: raceMarker,
-        CI_INPUT_PROOF_RACE_KIND: 'regular',
-        CI_INPUT_PROOF_RACE_STAGE: stage,
+    execFileAsync(
+      process.execPath,
+      ["--import", pathToFileURL(raceDriver.preload).href, raceDriver.driver],
+      {
+        ...boundedProcess,
+        cwd: temporaryRoot,
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          CI_INPUT_PROOF_REPOSITORY_ROOT: temporaryRoot,
+          CI_INPUT_PROOF_RACE_TARGET: raceTarget,
+          CI_INPUT_PROOF_RACE_REPLACEMENT: raceReplacement,
+          CI_INPUT_PROOF_RACE_MARKER: raceMarker,
+          CI_INPUT_PROOF_RACE_KIND: "regular",
+          CI_INPUT_PROOF_RACE_STAGE: stage,
+        },
       },
-    }),
+    ),
     (error: unknown) => {
       const childError = error as NodeJS.ErrnoException & { stdout: string; stderr: string };
       assert.equal(childError.code, 1);
-      assert.equal(childError.stdout, '');
-      assert.match(childError.stderr, /uncertain input identity or content packages\/ci-input-proof\/LICENSE/u);
+      assert.equal(childError.stdout, "");
+      assert.match(
+        childError.stderr,
+        /uncertain input identity or content packages\/ci-input-proof\/LICENSE/u,
+      );
       return true;
     },
   );
-  assert.equal(await readFile(raceMarker, 'utf8'), `swapped:regular:${stage}`);
-  assert.equal(await readFile(raceTarget, 'utf8'), replacementContent);
-  await assert.rejects(readFile(raceReplacement, 'utf8'), { code: 'ENOENT' });
+  assert.equal(await readFile(raceMarker, "utf8"), `swapped:regular:${stage}`);
+  assert.equal(await readFile(raceTarget, "utf8"), replacementContent);
+  await assert.rejects(readFile(raceReplacement, "utf8"), { code: "ENOENT" });
   assert.equal(await replacementRaceInode(raceTarget), replacementInodeBefore);
   assert.notEqual(await replacementRaceInode(raceTarget), targetInodeBefore);
 }
@@ -347,50 +464,56 @@ async function assertFifoReplacementRace(
   raceTarget: string,
   raceDriver: Readonly<{ preload: string; driver: string }>,
 ): Promise<void> {
-  const fifoReplacement = resolve(temporaryRoot, 'packages', 'ci-input-proof', 'LICENSE.race-fifo');
-  const raceMarker = resolve(temporaryRoot, 'replacement-race-fifo-marker');
-  await execFileAsync('mkfifo', [fifoReplacement], {
+  const fifoReplacement = resolve(temporaryRoot, "packages", "ci-input-proof", "LICENSE.race-fifo");
+  const raceMarker = resolve(temporaryRoot, "replacement-race-fifo-marker");
+  await execFileAsync("mkfifo", [fifoReplacement], {
     cwd: temporaryRoot,
     timeout: 5_000,
     maxBuffer: 65_536,
   });
   await assert.rejects(
-    execFileAsync(process.execPath, [
-      '--import',
-      pathToFileURL(raceDriver.preload).href,
-      raceDriver.driver,
-    ], {
-      ...boundedProcess,
-      cwd: temporaryRoot,
-      encoding: 'utf8',
-      env: {
-        ...process.env,
-        CI_INPUT_PROOF_REPOSITORY_ROOT: temporaryRoot,
-        CI_INPUT_PROOF_RACE_TARGET: raceTarget,
-        CI_INPUT_PROOF_RACE_REPLACEMENT: fifoReplacement,
-        CI_INPUT_PROOF_RACE_MARKER: raceMarker,
-        CI_INPUT_PROOF_RACE_KIND: 'fifo',
-        CI_INPUT_PROOF_RACE_STAGE: 'before-open',
+    execFileAsync(
+      process.execPath,
+      ["--import", pathToFileURL(raceDriver.preload).href, raceDriver.driver],
+      {
+        ...boundedProcess,
+        cwd: temporaryRoot,
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          CI_INPUT_PROOF_REPOSITORY_ROOT: temporaryRoot,
+          CI_INPUT_PROOF_RACE_TARGET: raceTarget,
+          CI_INPUT_PROOF_RACE_REPLACEMENT: fifoReplacement,
+          CI_INPUT_PROOF_RACE_MARKER: raceMarker,
+          CI_INPUT_PROOF_RACE_KIND: "fifo",
+          CI_INPUT_PROOF_RACE_STAGE: "before-open",
+        },
       },
-    }),
+    ),
     (error: unknown) => {
       const childError = error as NodeJS.ErrnoException & { stdout: string; stderr: string };
       assert.equal(childError.code, 1);
-      assert.equal(childError.stdout, '');
-      assert.match(childError.stderr, /scope input is not a file or symlink packages\/ci-input-proof\/LICENSE/u);
+      assert.equal(childError.stdout, "");
+      assert.match(
+        childError.stderr,
+        /scope input is not a file or symlink packages\/ci-input-proof\/LICENSE/u,
+      );
       return true;
     },
   );
-  assert.equal(await readFile(raceMarker, 'utf8'), 'swapped:fifo:before-open');
+  assert.equal(await readFile(raceMarker, "utf8"), "swapped:fifo:before-open");
 }
 
-export async function assertCollectorReplacementRejection(temporaryRoot: string, raceTarget: string): Promise<void> {
+export async function assertCollectorReplacementRejection(
+  temporaryRoot: string,
+  raceTarget: string,
+): Promise<void> {
   const raceDriver = await writeReplacementRaceDriver(temporaryRoot);
-  await assertRegularReplacementRace(temporaryRoot, raceTarget, raceDriver, 'before-open');
-  if (process.platform !== 'win32') {
-    await assertRegularReplacementRace(temporaryRoot, raceTarget, raceDriver, 'after-open');
+  await assertRegularReplacementRace(temporaryRoot, raceTarget, raceDriver, "before-open");
+  if (process.platform !== "win32") {
+    await assertRegularReplacementRace(temporaryRoot, raceTarget, raceDriver, "after-open");
   }
-  if (process.platform === 'linux') {
+  if (process.platform === "linux") {
     await assertFifoReplacementRace(temporaryRoot, raceTarget, raceDriver);
   }
 }

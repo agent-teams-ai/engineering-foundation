@@ -14,14 +14,21 @@ import { assertSchema } from "../packages/document-authoring/dist/document-autho
 test("reachability projection constructs only the three closed strategy variants", () => {
   for (const value of [
     { kind: "manual-fixed-index", indexPath: "docs/README.md" },
-    { kind: "manual-colocated-index", pathPrefix: "before-required-segments", indexBasename: "README.md" },
-    { kind: "not-required", reason: "indexed by hierarchy" }
+    {
+      kind: "manual-colocated-index",
+      pathPrefix: "before-required-segments",
+      indexBasename: "README.md",
+    },
+    { kind: "not-required", reason: "indexed by hierarchy" },
   ]) {
     assert.deepEqual(freezeReachability(value), value);
     assert.equal(Object.isFrozen(freezeReachability(value)), true);
     assert.throws(() => freezeReachability({ ...value, unexpected: true }), /strategy is invalid/u);
   }
-  assert.throws(() => freezeReachability({ kind: "manual-fixed-index", indexPath: 1 }), /strategy is invalid/u);
+  assert.throws(
+    () => freezeReachability({ kind: "manual-fixed-index", indexPath: 1 }),
+    /strategy is invalid/u,
+  );
 });
 
 const fixturePath = fileURLToPath(
@@ -49,13 +56,27 @@ test("closed v2 schema validates the complete profile directly", async () => {
   await assertSchema("document-authoring-profile/v2", valid, "profile-v2-test");
 
   for (const mutate of [
-    (value) => { value.unknown = true; },
-    (value) => { value.catalog.metadataSidecar.unknown = true; },
-    (value) => { value.authoring.artifactTypes[0].unknown = true; },
-    (value) => { delete value.authoring.artifactTypes[0].allowedOwnerIds; },
-    (value) => { value.authoring.artifactTypes[0].allowedOwnerIds = []; },
-    (value) => { value.authoring.artifactTypes[0].allowedOwnerIds = ["architecture", "architecture"]; },
-    (value) => { value.authoring.artifactTypes[0].allowedOwnerIds = ["bad owner"]; },
+    (value) => {
+      value.unknown = true;
+    },
+    (value) => {
+      value.catalog.metadataSidecar.unknown = true;
+    },
+    (value) => {
+      value.authoring.artifactTypes[0].unknown = true;
+    },
+    (value) => {
+      delete value.authoring.artifactTypes[0].allowedOwnerIds;
+    },
+    (value) => {
+      value.authoring.artifactTypes[0].allowedOwnerIds = [];
+    },
+    (value) => {
+      value.authoring.artifactTypes[0].allowedOwnerIds = ["architecture", "architecture"];
+    },
+    (value) => {
+      value.authoring.artifactTypes[0].allowedOwnerIds = ["bad owner"];
+    },
   ]) {
     const invalid = profileV2();
     mutate(invalid);
@@ -92,10 +113,10 @@ test("v2 loader uses direct schema validation and preserves v1 compatibility", a
       path: "profile.json",
     });
     assert.equal(loaded.profile.schemaVersion, 2);
-    assert.deepEqual(
-      loaded.profile.authoring.artifactTypes[0].allowedOwnerIds,
-      ["architecture", "platform/runtime"],
-    );
+    assert.deepEqual(loaded.profile.authoring.artifactTypes[0].allowedOwnerIds, [
+      "architecture",
+      "platform/runtime",
+    ]);
     const planning = await new NodeDocumentPlanningProfileReader(readContainedRegularFile).read({
       consumerRoot: root,
       path: "profile.json",
@@ -120,10 +141,12 @@ test("v2 loader uses direct schema validation and preserves v1 compatibility", a
 
     await writeFile(join(root, "profile.json"), `${JSON.stringify(fixture.profile)}\n`);
     assert.equal(
-      (await loadValidatedDocumentAuthoringProfileV2(readContainedRegularFile, {
-        consumerRoot: root,
-        path: "profile.json",
-      })).profile.schemaVersion,
+      (
+        await loadValidatedDocumentAuthoringProfileV2(readContainedRegularFile, {
+          consumerRoot: root,
+          path: "profile.json",
+        })
+      ).profile.schemaVersion,
       1,
     );
   } finally {
@@ -157,7 +180,10 @@ test("v3 resolves one versioned local owner set without changing v2 authority", 
     profile.authoring.artifactTypes[0].ownerSetId = "missing";
     await writeFile(join(root, "profile.json"), `${JSON.stringify(profile)}\n`);
     await assert.rejects(
-      new NodeDocumentPlanningProfileReader(readContainedRegularFile).read({ consumerRoot: root, path: "profile.json" }),
+      new NodeDocumentPlanningProfileReader(readContainedRegularFile).read({
+        consumerRoot: root,
+        path: "profile.json",
+      }),
       /unknown ownerSetId/u,
     );
   } finally {
@@ -182,13 +208,24 @@ test("planning rejects an owner outside the selected v2 artifact allowlist", asy
   const planner = new PlanDocumentationDocument({
     catalog: {},
     compiler: {},
-    contracts: { async validateIntent() { return intent; } },
+    contracts: {
+      async validateIntent() {
+        return intent;
+      },
+    },
     metadata: {},
     owners: {},
     policies: {
-      normalizeDocumentIntent(value) { return value; },
-      selectDocumentArtifact() { return artifact; },
-      resolveDocumentAuthoring() { resolved = true; throw new Error("unexpected"); },
+      normalizeDocumentIntent(value) {
+        return value;
+      },
+      selectDocumentArtifact() {
+        return artifact;
+      },
+      resolveDocumentAuthoring() {
+        resolved = true;
+        throw new Error("unexpected");
+      },
     },
     profile: {
       async read() {
@@ -227,20 +264,40 @@ function descriptionEvidence(path) {
 }
 
 test("description projects independent authority observations and preserves reader failures", async () => {
-  const { projectDescription } = await import("../packages/document-authoring/dist/document-authoring/application/policies/project-document-authoring-description.js");
-  const { describeDocumentAuthoringProfile } = await import("../packages/document-authoring/dist/document-authoring/application/use-cases/describe-document-authoring-profile.js");
+  const { projectDescription } =
+    await import("../packages/document-authoring/dist/document-authoring/application/policies/project-document-authoring-description.js");
+  const { describeDocumentAuthoringProfile } =
+    await import("../packages/document-authoring/dist/document-authoring/application/use-cases/describe-document-authoring-profile.js");
   const profile = profileV2();
-  const ownerIds = [...new Set(profile.authoring.artifactTypes.flatMap(type => type.allowedOwnerIds))];
+  const ownerIds = [
+    ...new Set(profile.authoring.artifactTypes.flatMap((type) => type.allowedOwnerIds)),
+  ];
   const authority = {
     profile,
     profileEvidence: descriptionEvidence("profile.json"),
-    metadata: { evidence: descriptionEvidence("metadata.json"), requiredProperties: ["zeta", "id", "alpha"] },
+    metadata: {
+      evidence: descriptionEvidence("metadata.json"),
+      requiredProperties: ["zeta", "id", "alpha"],
+    },
     ownerCatalog: { evidence: descriptionEvidence("owners.json"), ids: ownerIds.toReversed() },
-    templateEvidenceByPath: new Map(profile.authoring.artifactTypes.map(type => [type.template.path, descriptionEvidence(type.template.path)]))
+    templateEvidenceByPath: new Map(
+      profile.authoring.artifactTypes.map((type) => [
+        type.template.path,
+        descriptionEvidence(type.template.path),
+      ]),
+    ),
   };
   const first = projectDescription(authority);
   assert.deepEqual(first.ownerIds, ownerIds.toSorted());
-  assert.deepEqual(first.types[0].requiredMetadata, ["alpha", "id", "owner", "status", "summary", "type", "zeta"]);
+  assert.deepEqual(first.types[0].requiredMetadata, [
+    "alpha",
+    "id",
+    "owner",
+    "status",
+    "summary",
+    "type",
+    "zeta",
+  ]);
   assert.ok(Object.isFrozen(first.types[0].requiredMetadata));
   const permutation = structuredClone(authority);
   permutation.profile.authoring.artifactTypes.reverse();
@@ -249,38 +306,69 @@ test("description projects independent authority observations and preserves read
   assert.deepEqual(projectDescription(permutation), first);
   const calls = [];
   const request = { consumerRoot: "/unmounted-fake", profilePath: "profile.json" };
-  assert.deepEqual(await describeDocumentAuthoringProfile(request, 2, async (input, version) => {
-    calls.push([input, version]); return authority;
-  }), first);
-  assert.deepEqual(calls, [[request, 2], [request, 2]]);
+  assert.deepEqual(
+    await describeDocumentAuthoringProfile(request, 2, async (input, version) => {
+      calls.push([input, version]);
+      return authority;
+    }),
+    first,
+  );
+  assert.deepEqual(calls, [
+    [request, 2],
+    [request, 2],
+  ]);
   const ioFailure = new Error("Fake authority read failed");
-  await assert.rejects(describeDocumentAuthoringProfile(request, 2, async () => { throw ioFailure; }), error => error === ioFailure);
+  await assert.rejects(
+    describeDocumentAuthoringProfile(request, 2, async () => {
+      throw ioFailure;
+    }),
+    (error) => error === ioFailure,
+  );
   let read = 0;
-  await assert.rejects(describeDocumentAuthoringProfile(request, 2, async () => {
-    read += 1;
-    return read === 1 ? authority : { ...authority, profileEvidence: { ...authority.profileEvidence, digest: `sha256:${"b".repeat(64)}` } };
-  }), error => error.code === "DOCUMENT_CATALOG_AUTHORITY_CHANGED");
+  await assert.rejects(
+    describeDocumentAuthoringProfile(request, 2, async () => {
+      read += 1;
+      return read === 1
+        ? authority
+        : {
+            ...authority,
+            profileEvidence: { ...authority.profileEvidence, digest: `sha256:${"b".repeat(64)}` },
+          };
+    }),
+    (error) => error.code === "DOCUMENT_CATALOG_AUTHORITY_CHANGED",
+  );
 });
 
 test("profile readers consume independent bounded-file observations and retain IO diagnostics", async () => {
-  const { ContainedFileReadError } = await import("../packages/document-authoring/dist/documentation-observation/api.js");
+  const { ContainedFileReadError } =
+    await import("../packages/document-authoring/dist/documentation-observation/api.js");
   const requests = [];
   const bytes = new TextEncoder().encode(JSON.stringify(profileV2()));
-  const loaded = await new NodeDocumentPlanningProfileReader(async request => {
+  const loaded = await new NodeDocumentPlanningProfileReader(async (request) => {
     requests.push(request);
     return bytes;
   }).read({ consumerRoot: "/unmounted-fake", path: "profile.json" });
   assert.equal(loaded.schemaVersion, 2);
-  assert.deepEqual(requests, [{ root: "/unmounted-fake", candidate: resolve("/unmounted-fake", "profile.json"), maxBytes: 1024 * 1024 }]);
+  assert.deepEqual(requests, [
+    {
+      root: "/unmounted-fake",
+      candidate: resolve("/unmounted-fake", "profile.json"),
+      maxBytes: 1024 * 1024,
+    },
+  ]);
   for (const kind of ["missing", "changed", "symlink", "escape", "invalid", "unavailable"]) {
     const failure = new ContainedFileReadError(kind);
-    await assert.rejects(new NodeDocumentPlanningProfileReader(async () => { throw failure; })
-      .read({ consumerRoot: "/unmounted-fake", path: "profile.json" }), error => {
+    await assert.rejects(
+      new NodeDocumentPlanningProfileReader(async () => {
+        throw failure;
+      }).read({ consumerRoot: "/unmounted-fake", path: "profile.json" }),
+      (error) => {
         assert.equal(error.code, "DOCUMENT_PLANNING_AUTHORITY_UNAVAILABLE");
         assert.equal(error.cause.code, "DOCUMENT_CATALOG_AUTHORITY_UNAVAILABLE");
         assert.equal(error.cause.cause, failure);
         assert.ok(error.message.endsWith(": profile.json."));
         return true;
-      });
+      },
+    );
   }
 });

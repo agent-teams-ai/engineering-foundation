@@ -1,27 +1,41 @@
-import { classifyDocumentTransactionInspection, projectDocumentTransactionInspectionV1, unsafeDocumentTransactionInspection } from "../../application/policies/project-document-transaction-inspection.js";
+import {
+  classifyDocumentTransactionInspection,
+  projectDocumentTransactionInspectionV1,
+  unsafeDocumentTransactionInspection,
+} from "../../application/policies/project-document-transaction-inspection.js";
 import { lstat, opendir, realpath } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
-import { NodeDocumentJournalStore, NodeDocumentJournalStoreError } from "./node-document-journal-store.js";
+import {
+  NodeDocumentJournalStore,
+  NodeDocumentJournalStoreError,
+} from "./node-document-journal-store.js";
 import { recaptureDocumentPublicationPaths } from "./recapture-document-publication-paths.js";
 import type {
   DocumentTransactionInspectionV1,
-  DocumentTransactionInspectionV2
+  DocumentTransactionInspectionV2,
 } from "../../application/model/document-transaction-inspection.js";
-import { installedDocumentAuthoringBuildIdentity, installedDocumentMutationArtifact } from "./installed-artifact-identity.js";
+import {
+  installedDocumentAuthoringBuildIdentity,
+  installedDocumentMutationArtifact,
+} from "./installed-artifact-identity.js";
 import { installedDocumentAuthoringVersion } from "./package-version.js";
-import { FOUNDATION_TRANSACTION_FILE, LOCAL_STATE_DIRECTORY } from "../../application/model/state-contract.js";
+import {
+  FOUNDATION_TRANSACTION_FILE,
+  LOCAL_STATE_DIRECTORY,
+} from "../../application/model/state-contract.js";
 
 const maximumStateEntries = 1024;
 const transitionNames = new Set([
   `${FOUNDATION_TRANSACTION_FILE}.tmp`,
   `${FOUNDATION_TRANSACTION_FILE}.known-file.tmp`,
-  `${FOUNDATION_TRANSACTION_FILE}.document-transition`
+  `${FOUNDATION_TRANSACTION_FILE}.document-transition`,
 ]);
 
 function missing(error: unknown): boolean {
-  return error instanceof Error && "code" in error &&
-    (error as NodeJS.ErrnoException).code === "ENOENT";
+  return (
+    error instanceof Error && "code" in error && (error as NodeJS.ErrnoException).code === "ENOENT"
+  );
 }
 
 async function hasForeignEvidence(stateDirectory: string): Promise<boolean> {
@@ -37,9 +51,11 @@ async function hasForeignEvidence(stateDirectory: string): Promise<boolean> {
       if (count > maximumStateEntries) {
         return true;
       }
-      if (transitionNames.has(entry.name) ||
+      if (
+        transitionNames.has(entry.name) ||
         entry.name.startsWith(`${FOUNDATION_TRANSACTION_FILE}.document-quarantine.`) ||
-        entry.name.startsWith(`${FOUNDATION_TRANSACTION_FILE}.document-retired.`)) {
+        entry.name.startsWith(`${FOUNDATION_TRANSACTION_FILE}.document-retired.`)
+      ) {
         return true;
       }
     }
@@ -51,17 +67,20 @@ async function hasForeignEvidence(stateDirectory: string): Promise<boolean> {
 async function inspectV2(consumerRoot: string): Promise<DocumentTransactionInspectionV2> {
   const root = await realpath(resolve(consumerRoot));
   const stateDirectory = join(root, LOCAL_STATE_DIRECTORY);
-  try { await lstat(stateDirectory); }
-  catch (error) {
+  try {
+    await lstat(stateDirectory);
+  } catch (error) {
     if (missing(error)) {
       return { schemaVersion: 2, state: "idle", diagnostics: [] };
     }
-    return unsafeDocumentTransactionInspection("Document transaction evidence path cannot be inspected safely.");
+    return unsafeDocumentTransactionInspection(
+      "Document transaction evidence path cannot be inspected safely.",
+    );
   }
   try {
     await recaptureDocumentPublicationPaths({
       consumerRoot: root,
-      destination: `${LOCAL_STATE_DIRECTORY}/${FOUNDATION_TRANSACTION_FILE}`
+      destination: `${LOCAL_STATE_DIRECTORY}/${FOUNDATION_TRANSACTION_FILE}`,
     });
   } catch {
     try {
@@ -71,7 +90,9 @@ async function inspectV2(consumerRoot: string): Promise<DocumentTransactionInspe
         return { schemaVersion: 2, state: "idle", diagnostics: [] };
       }
     }
-    return unsafeDocumentTransactionInspection("Document transaction evidence path is redirected or cannot be inspected safely.");
+    return unsafeDocumentTransactionInspection(
+      "Document transaction evidence path is redirected or cannot be inspected safely.",
+    );
   }
 
   const journalPath = join(stateDirectory, FOUNDATION_TRANSACTION_FILE);
@@ -84,33 +105,40 @@ async function inspectV2(consumerRoot: string): Promise<DocumentTransactionInspe
   try {
     stored = await new NodeDocumentJournalStore(journalPath).read();
   } catch (error) {
-    return unsafeDocumentTransactionInspection(error instanceof NodeDocumentJournalStoreError
-      ? error.message
-      : "Transaction evidence is foreign, corrupt, incompatible, or has transition residue; it was preserved.");
+    return unsafeDocumentTransactionInspection(
+      error instanceof NodeDocumentJournalStoreError
+        ? error.message
+        : "Transaction evidence is foreign, corrupt, incompatible, or has transition residue; it was preserved.",
+    );
   }
   if (stored === undefined) {
-    return await hasForeignEvidence(stateDirectory)
-      ? unsafeDocumentTransactionInspection("Transaction transition evidence requires exact owner-package recovery.")
+    return (await hasForeignEvidence(stateDirectory))
+      ? unsafeDocumentTransactionInspection(
+          "Transaction transition evidence requires exact owner-package recovery.",
+        )
       : { schemaVersion: 2, state: "idle", diagnostics: [] };
   }
   const envelope = stored.envelope;
   const [version, buildIdentity, kernelArtifact] = await Promise.all([
-    installedDocumentAuthoringVersion(), installedDocumentAuthoringBuildIdentity(),
-    installedDocumentMutationArtifact()
+    installedDocumentAuthoringVersion(),
+    installedDocumentAuthoringBuildIdentity(),
+    installedDocumentMutationArtifact(),
   ]);
   return classifyDocumentTransactionInspection(
-    envelope, { id: "@agent-teams/document-authoring", version, buildIdentity }, kernelArtifact
+    envelope,
+    { id: "@agent-teams/document-authoring", version, buildIdentity },
+    kernelArtifact,
   );
 }
 
 export async function inspectDocumentTransactionV2(
-  consumerRoot: string
+  consumerRoot: string,
 ): Promise<DocumentTransactionInspectionV2> {
   return inspectV2(consumerRoot);
 }
 
 export async function inspectDocumentTransactionV1(
-  consumerRoot: string
+  consumerRoot: string,
 ): Promise<DocumentTransactionInspectionV1> {
   const observed = await inspectV2(consumerRoot);
   return projectDocumentTransactionInspectionV1(observed);

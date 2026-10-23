@@ -57,10 +57,7 @@ export async function stageQualificationPackage(input) {
   }
   const stagedRoot = join(input.destination, "disposable-package");
   await cp(sourceRoot, stagedRoot, { recursive: true });
-  await copyFile(
-    join(input.repositoryRoot, "LICENSE"),
-    join(stagedRoot, "LICENSE"),
-  );
+  await copyFile(join(input.repositoryRoot, "LICENSE"), join(stagedRoot, "LICENSE"));
   const stagedManifest = await readManifest(stagedRoot);
   if (
     stagedManifest.name !== DOCS_PROTOCOL_PACKAGE_NAME ||

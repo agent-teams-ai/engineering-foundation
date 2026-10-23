@@ -21,8 +21,5 @@
     "verbatimModuleSyntax": true
   },
   "include": ["src/**/*.ts"],
-  "references": [
-    { "path": "../document-authoring" },
-    { "path": "../repository-mutation" }
-  ]
+  "references": [{ "path": "../document-authoring" }, { "path": "../repository-mutation" }]
 }

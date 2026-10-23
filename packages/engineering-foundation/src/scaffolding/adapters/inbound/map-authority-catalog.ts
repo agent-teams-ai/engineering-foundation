@@ -11,9 +11,7 @@ interface UnresolvedAuthorityScaffoldTargetCatalog {
   readonly packages: readonly UnresolvedAuthorityScaffoldTarget[];
 }
 
-export function mapAuthorityCatalog(
-  value: unknown
-): UnresolvedAuthorityScaffoldTargetCatalog {
+export function mapAuthorityCatalog(value: unknown): UnresolvedAuthorityScaffoldTargetCatalog {
   const raw = value as {
     readonly version: 1;
     readonly packages: readonly {
@@ -33,9 +31,9 @@ export function mapAuthorityCatalog(
           role: entry.role,
           path: entry.path,
           packageName: entry.package_name,
-          ownerDocumentId: entry.owner_document
-        })
-      )
-    )
+          ownerDocumentId: entry.owner_document,
+        }),
+      ),
+    ),
   });
 }

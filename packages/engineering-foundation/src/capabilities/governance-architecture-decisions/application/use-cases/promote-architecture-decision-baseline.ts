@@ -1,22 +1,25 @@
-import { CapabilityInputError,assertNotCancelled } from "../../../../features/validation-reporting/api.js";
+import {
+  CapabilityInputError,
+  assertNotCancelled,
+} from "../../../../features/validation-reporting/api.js";
 import type {
   AcceptedArchitectureDecisionBaseline,
-  ArchitectureDecisionPolicy
+  ArchitectureDecisionPolicy,
 } from "../model/architecture-decision.js";
 import {
   buildAcceptedArchitectureDecisionBaseline,
   findHistoricalArchitectureDecisionBaselineViolation,
-  parseAcceptedArchitectureDecisionBaseline
+  parseAcceptedArchitectureDecisionBaseline,
 } from "../policies/accepted-architecture-decision-baseline.js";
 import type { ArchitectureDecisionFingerprint } from "../ports/architecture-decision-fingerprint.js";
 import type {
   ArchitectureDecisionBaselineExpectedState,
   ArchitectureDecisionBaselineRepository,
-  ArchitectureDecisionBaselineWriteResult
+  ArchitectureDecisionBaselineWriteResult,
 } from "../ports/architecture-decision-baseline-repository.js";
 import {
   inspectArchitectureDecisionCatalog,
-  type InspectArchitectureDecisionCatalogDependencies
+  type InspectArchitectureDecisionCatalogDependencies,
 } from "./inspect-architecture-decision-catalog.js";
 
 export interface ArchitectureDecisionBaselinePromotion {
@@ -30,8 +33,7 @@ export interface PromoteArchitectureDecisionBaselineInput {
   readonly signal?: AbortSignal;
 }
 
-export interface PromoteArchitectureDecisionBaselineDependencies
-  extends InspectArchitectureDecisionCatalogDependencies {
+export interface PromoteArchitectureDecisionBaselineDependencies extends InspectArchitectureDecisionCatalogDependencies {
   readonly baselineRepository: ArchitectureDecisionBaselineRepository;
   readonly fingerprint: ArchitectureDecisionFingerprint;
 }
@@ -41,7 +43,7 @@ function promotionError(code: string, message: string): never {
     code,
     message,
     phase: "architecture-decision-baseline-promotion",
-    retryable: false
+    retryable: false,
   });
 }
 
@@ -55,7 +57,7 @@ function expectedBaselineState(input: {
   if (input.revision === undefined) {
     promotionError(
       "ARCHITECTURE_DECISION_BASELINE_PROMOTION_INVALID_STATE",
-      "The accepted-decision baseline is missing its concurrency revision."
+      "The accepted-decision baseline is missing its concurrency revision.",
     );
   }
   return { kind: "valid", revision: input.revision };
@@ -73,19 +75,19 @@ function validateHistoricalBaseline(input: {
     case "missing":
       promotionError(
         "ARCHITECTURE_DECISION_BASELINE_PROMOTION_HISTORICAL_ENTRY_MISSING",
-        `Historical ADR ${violation.id} is absent from the current accepted or superseded ADR catalog.`
+        `Historical ADR ${violation.id} is absent from the current accepted or superseded ADR catalog.`,
       );
       break;
     case "path-mismatch":
       promotionError(
         "ARCHITECTURE_DECISION_BASELINE_PROMOTION_HISTORICAL_ENTRY_MOVED",
-        `Historical ADR ${violation.id} moved from ${violation.expectedPath} to ${violation.actualPath}.`
+        `Historical ADR ${violation.id} moved from ${violation.expectedPath} to ${violation.actualPath}.`,
       );
       break;
     case "digest-mismatch":
       promotionError(
         "ARCHITECTURE_DECISION_BASELINE_PROMOTION_HISTORICAL_ENTRY_MUTATED",
-        `Historical ADR ${violation.id} differs from immutable baseline digest ${violation.expectedDigest}.`
+        `Historical ADR ${violation.id} differs from immutable baseline digest ${violation.expectedDigest}.`,
       );
       break;
   }
@@ -93,7 +95,7 @@ function validateHistoricalBaseline(input: {
 
 export async function promoteArchitectureDecisionBaseline(
   input: PromoteArchitectureDecisionBaselineInput,
-  dependencies: PromoteArchitectureDecisionBaselineDependencies
+  dependencies: PromoteArchitectureDecisionBaselineDependencies,
 ): Promise<ArchitectureDecisionBaselinePromotion> {
   assertNotCancelled(input.signal);
   const catalog = await inspectArchitectureDecisionCatalog(input, dependencies);
@@ -105,19 +107,19 @@ export async function promoteArchitectureDecisionBaseline(
       .join(", ");
     promotionError(
       "ARCHITECTURE_DECISION_BASELINE_PROMOTION_CATALOG_INVALID",
-      `ADR catalog must pass parse, identity, lifecycle, and index validation before baseline promotion${subjects.length === 0 ? "." : `: ${subjects}.`}`
+      `ADR catalog must pass parse, identity, lifecycle, and index validation before baseline promotion${subjects.length === 0 ? "." : `: ${subjects}.`}`,
     );
   }
 
   const baseline = buildAcceptedArchitectureDecisionBaseline({
     decisions: catalog.decisions,
-    fingerprint: dependencies.fingerprint
+    fingerprint: dependencies.fingerprint,
   });
   assertNotCancelled(input.signal);
   const existing = await dependencies.baselineRepository.read({
     consumerRoot: input.consumerRoot,
     path: input.policy.acceptedBaselinePath,
-    ...(input.signal === undefined ? {} : { signal: input.signal })
+    ...(input.signal === undefined ? {} : { signal: input.signal }),
   });
 
   let expected: ArchitectureDecisionBaselineExpectedState;
@@ -128,7 +130,7 @@ export async function promoteArchitectureDecisionBaseline(
     if (historical === undefined) {
       promotionError(
         "ARCHITECTURE_DECISION_BASELINE_PROMOTION_EXISTING_INVALID",
-        "The existing accepted-decision baseline has an invalid immutable shape."
+        "The existing accepted-decision baseline has an invalid immutable shape.",
       );
     }
     validateHistoricalBaseline({ existing: historical, next: baseline });
@@ -136,7 +138,7 @@ export async function promoteArchitectureDecisionBaseline(
   } else {
     promotionError(
       "ARCHITECTURE_DECISION_BASELINE_PROMOTION_EXISTING_UNSAFE",
-      `The existing accepted-decision baseline cannot be safely promoted: ${existing.message}`
+      `The existing accepted-decision baseline cannot be safely promoted: ${existing.message}`,
     );
   }
 
@@ -146,7 +148,7 @@ export async function promoteArchitectureDecisionBaseline(
     consumerRoot: input.consumerRoot,
     expected,
     path: input.policy.acceptedBaselinePath,
-    ...(input.signal === undefined ? {} : { signal: input.signal })
+    ...(input.signal === undefined ? {} : { signal: input.signal }),
   });
   return Object.freeze({ baseline, writeResult });
 }

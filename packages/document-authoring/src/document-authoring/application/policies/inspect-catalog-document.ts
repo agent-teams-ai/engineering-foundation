@@ -1,6 +1,6 @@
 import {
   markdownSourceWithoutFrontmatter,
-  type MarkdownDocumentObservation
+  type MarkdownDocumentObservation,
 } from "../../../documentation-observation/api.js";
 import type {
   DocumentDescriptor,
@@ -9,18 +9,18 @@ import type {
   DocumentMetadataObject,
   DocumentationCatalogDiagnostic,
   DocumentSearchCorpusEntry,
-  DocumentSearchCorpusEntryV2
+  DocumentSearchCorpusEntryV2,
 } from "../model/document-catalog.js";
 import type { MetadataSchemaSnapshot } from "../ports/metadata-instance-validator.js";
 import { catalogDiagnostic } from "./document-catalog-diagnostics.js";
 import {
   documentTitle,
   inspectDocumentFields,
-  invalidDocumentPathInspection
+  invalidDocumentPathInspection,
 } from "./document-catalog-fields.js";
 import {
   CatalogMetadataProjectionError,
-  projectCatalogMetadata
+  projectCatalogMetadata,
 } from "./project-catalog-metadata.js";
 
 export interface InspectedCatalogDocument {
@@ -45,15 +45,15 @@ export function inspectCatalogDocument(
   document: MarkdownDocumentObservation,
   metadata: MetadataSchemaSnapshot,
   ownerIds: ReadonlySet<string>,
-  source: DocumentDescriptor["source"]
+  source: DocumentDescriptor["source"],
 ): InspectedCatalogDocument {
   if (document.source.startsWith("\uFEFF") || document.source.includes("\u0000")) {
     return {
       diagnostic: catalogDiagnostic(
         "document.catalog.source-invalid",
         document.repositoryPath,
-        "Catalog Markdown must not contain a UTF-8 BOM or NUL characters."
-      )
+        "Catalog Markdown must not contain a UTF-8 BOM or NUL characters.",
+      ),
     };
   }
   const pathInspection = invalidDocumentPathInspection(document);
@@ -65,8 +65,8 @@ export function inspectCatalogDocument(
       diagnostic: catalogDiagnostic(
         "document.catalog.frontmatter-required",
         document.repositoryPath,
-        "Catalog documents must contain strict YAML frontmatter."
-      )
+        "Catalog documents must contain strict YAML frontmatter.",
+      ),
     };
   }
   if (document.frontmatter.kind === "invalid") {
@@ -74,8 +74,8 @@ export function inspectCatalogDocument(
       diagnostic: catalogDiagnostic(
         "document.catalog.frontmatter-invalid",
         document.repositoryPath,
-        document.frontmatter.message
-      )
+        document.frontmatter.message,
+      ),
     };
   }
   if (!isRecord(document.frontmatter.value)) {
@@ -83,24 +83,19 @@ export function inspectCatalogDocument(
       diagnostic: catalogDiagnostic(
         "document.catalog.frontmatter-invalid",
         document.repositoryPath,
-        "Document frontmatter must be an object."
-      )
+        "Document frontmatter must be an object.",
+      ),
     };
   }
-  const fieldInspection = inspectDocumentFields(
-    document,
-    document.frontmatter.value
-  );
+  const fieldInspection = inspectDocumentFields(document, document.frontmatter.value);
   if (fieldInspection.fields === undefined) {
     return {
       diagnostic: catalogDiagnostic(
         "document.catalog.descriptor-invalid",
         document.repositoryPath,
-        "Document metadata must provide bounded id, type, status, owner, and summary strings."
+        "Document metadata must provide bounded id, type, status, owner, and summary strings.",
       ),
-      ...(fieldInspection.identity === undefined
-        ? {}
-        : { identity: fieldInspection.identity })
+      ...(fieldInspection.identity === undefined ? {} : { identity: fieldInspection.identity }),
     };
   }
   const { fields, identity } = fieldInspection;
@@ -110,9 +105,9 @@ export function inspectCatalogDocument(
       diagnostic: catalogDiagnostic(
         "document.catalog.metadata-invalid",
         document.repositoryPath,
-        validation.messages.join("; ") || "Document metadata is invalid."
+        validation.messages.join("; ") || "Document metadata is invalid.",
       ),
-      identity
+      identity,
     };
   }
   if (!ownerIds.has(fields.owner)) {
@@ -120,9 +115,9 @@ export function inspectCatalogDocument(
       diagnostic: catalogDiagnostic(
         "document.catalog.owner-unknown",
         document.repositoryPath,
-        `Document owner is absent from the owner catalog: ${fields.owner}.`
+        `Document owner is absent from the owner catalog: ${fields.owner}.`,
       ),
-      identity
+      identity,
     };
   }
   const title = documentTitle(document);
@@ -131,16 +126,16 @@ export function inspectCatalogDocument(
       diagnostic: catalogDiagnostic(
         "document.catalog.title-invalid",
         document.repositoryPath,
-        "Catalog documents must contain a bounded level-one heading."
+        "Catalog documents must contain a bounded level-one heading.",
       ),
-      identity
+      identity,
     };
   }
   const descriptor: DocumentDescriptor = Object.freeze({
     ...fields,
     repositoryPath: document.repositoryPath,
     source,
-    title
+    title,
   });
   return {
     descriptor,
@@ -148,8 +143,8 @@ export function inspectCatalogDocument(
     searchEntry: Object.freeze({
       body: markdownSourceWithoutFrontmatter(document),
       descriptor,
-      headings: Object.freeze(document.headings.map((heading) => heading.text))
-    })
+      headings: Object.freeze(document.headings.map((heading) => heading.text)),
+    }),
   };
 }
 
@@ -158,49 +153,43 @@ export function inspectCatalogDocumentV2(
   metadata: MetadataSchemaSnapshot,
   ownerIds: ReadonlySet<string>,
   source: DocumentDescriptor["source"],
-  metadataOverride?: DocumentMetadataObject
+  metadataOverride?: DocumentMetadataObject,
 ): InspectedCatalogDocumentV2 {
-  const inspectedDocument = metadataOverride === undefined
-    ? document
-    : Object.freeze({
-        ...document,
-        frontmatter: Object.freeze({
-          endOffset: document.frontmatter.endOffset,
-          kind: "valid" as const,
-          value: metadataOverride
-        })
-      });
-  const inspected = inspectCatalogDocument(
-    inspectedDocument,
-    metadata,
-    ownerIds,
-    source
-  );
+  const inspectedDocument =
+    metadataOverride === undefined
+      ? document
+      : Object.freeze({
+          ...document,
+          frontmatter: Object.freeze({
+            endOffset: document.frontmatter.endOffset,
+            kind: "valid" as const,
+            value: metadataOverride,
+          }),
+        });
+  const inspected = inspectCatalogDocument(inspectedDocument, metadata, ownerIds, source);
   if (inspected.descriptor === undefined || inspected.searchEntry === undefined) {
     return Object.freeze({
-      ...(inspected.diagnostic === undefined
-        ? {}
-        : { diagnostic: inspected.diagnostic }),
-      ...(inspected.identity === undefined ? {} : { identity: inspected.identity })
+      ...(inspected.diagnostic === undefined ? {} : { diagnostic: inspected.diagnostic }),
+      ...(inspected.identity === undefined ? {} : { identity: inspected.identity }),
     });
   }
   try {
     const projectedMetadata = projectCatalogMetadata(
       inspectedDocument.frontmatter.kind === "valid"
         ? inspectedDocument.frontmatter.value
-        : undefined
+        : undefined,
     );
     const descriptor: DocumentDescriptorV2 = Object.freeze({
       ...inspected.descriptor,
-      metadata: projectedMetadata
+      metadata: projectedMetadata,
     });
     return Object.freeze({
       descriptor,
       ...(inspected.identity === undefined ? {} : { identity: inspected.identity }),
       searchEntry: Object.freeze({
         ...inspected.searchEntry,
-        descriptor
-      })
+        descriptor,
+      }),
     });
   } catch (error) {
     if (!(error instanceof CatalogMetadataProjectionError)) {
@@ -210,9 +199,9 @@ export function inspectCatalogDocumentV2(
       diagnostic: catalogDiagnostic(
         "document.catalog.metadata-projection-invalid",
         document.repositoryPath,
-        error.message
+        error.message,
       ),
-      ...(inspected.identity === undefined ? {} : { identity: inspected.identity })
+      ...(inspected.identity === undefined ? {} : { identity: inspected.identity }),
     });
   }
 }

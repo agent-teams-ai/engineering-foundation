@@ -7,7 +7,7 @@ import {
   journalSlotResidueNames,
   observeJournalSlotAuthority,
   prepareJournalSlotCandidate,
-  readJournalSlot
+  readJournalSlot,
 } from "./node-journal-slot-evidence.js";
 import {
   classifyCleanJournalSlotMutation,
@@ -22,11 +22,11 @@ import {
   type JournalSlotSyncRole,
   type JournalSlotSyncStage,
   type PendingJournalSlotMutation,
-  type StoredJournalSlot
+  type StoredJournalSlot,
 } from "../../application/journal-slot-profile.js";
 import {
   assertTerminalEvidenceDirectory,
-  ensureTerminalEvidenceDirectory
+  ensureTerminalEvidenceDirectory,
 } from "./node-terminal-evidence-directory.js";
 
 interface PrivateEvidence {
@@ -92,7 +92,7 @@ export class NodeJournalSlotStore<TJournal> {
       return {
         ...(canonical === undefined ? {} : { canonical }),
         outcome: "recovery-required",
-        residueNames
+        residueNames,
       };
     }
     const pending = this.#pending;
@@ -111,10 +111,7 @@ export class NodeJournalSlotStore<TJournal> {
     return this.#mutate("create", undefined, journal);
   }
 
-  public replace(
-    expected: JournalSlotAuthority,
-    journal: TJournal
-  ): Promise<JournalSlotAuthority> {
+  public replace(expected: JournalSlotAuthority, journal: TJournal): Promise<JournalSlotAuthority> {
     return this.#mutate("replace", expected, journal);
   }
 
@@ -129,7 +126,7 @@ export class NodeJournalSlotStore<TJournal> {
       evidence: "previous",
       mutation: "remove",
       path: previous.path,
-      sourceDirectory: previous.directory
+      sourceDirectory: previous.directory,
     });
     await this.#finishRemoval();
     this.#endPending();
@@ -138,7 +135,7 @@ export class NodeJournalSlotStore<TJournal> {
   async #mutate(
     mutation: "create" | "replace",
     expected: JournalSlotAuthority | undefined,
-    journal: TJournal
+    journal: TJournal,
   ): Promise<JournalSlotAuthority> {
     this.#assertStabilized(mutation);
     await this.#assertNoResidue(mutation);
@@ -156,16 +153,15 @@ export class NodeJournalSlotStore<TJournal> {
     if (this.#pending !== undefined && this.#pending.kind !== "remove") {
       this.#pending.intendedAuthority = candidate;
     }
-    const previous = expected === undefined
-      ? undefined
-      : await this.#quarantineCanonical(expected, "replace");
+    const previous =
+      expected === undefined ? undefined : await this.#quarantineCanonical(expected, "replace");
     await this.#publishCandidate(candidate, mutation);
     await this.#retire({
       authority: candidate,
       evidence: "candidate",
       mutation,
       path: this.#profile.naming.candidatePath,
-      sourceDirectory: this.#parent
+      sourceDirectory: this.#parent,
     });
     if (previous !== undefined) {
       await this.#retire({
@@ -173,7 +169,7 @@ export class NodeJournalSlotStore<TJournal> {
         evidence: "previous",
         mutation,
         path: previous.path,
-        sourceDirectory: previous.directory
+        sourceDirectory: previous.directory,
       });
     }
     await this.#finishPublication(candidate, mutation);
@@ -183,13 +179,13 @@ export class NodeJournalSlotStore<TJournal> {
 
   async #prepareCandidate(
     bytes: Buffer,
-    mutation: "create" | "replace"
+    mutation: "create" | "replace",
   ): Promise<JournalSlotAuthority> {
     const { candidatePath } = this.#profile.naming;
     const candidate = await prepareJournalSlotCandidate({
       bytes,
       candidatePath,
-      failure: this.#profile.failure
+      failure: this.#profile.failure,
     });
     await this.#prove(candidatePath, candidate, "candidate");
     await this.#syncDirectory(this.#parent, mutation, "state-parent", "candidate");
@@ -200,14 +196,13 @@ export class NodeJournalSlotStore<TJournal> {
 
   async #quarantineCanonical(
     expected: JournalSlotAuthority,
-    mutation: "remove" | "replace"
+    mutation: "remove" | "replace",
   ): Promise<PrivateEvidence> {
     await this.#prove(this.canonicalPath, expected, "canonical");
     await this.#fault({ mutation, path: this.canonicalPath, phase: "before-quarantine-directory" });
     await this.#prove(this.canonicalPath, expected, "canonical");
-    const quarantine = await createPrivateJournalSlotDirectory(
-      this.#parent,
-      () => this.#profile.naming.quarantineDirectoryName(expected)
+    const quarantine = await createPrivateJournalSlotDirectory(this.#parent, () =>
+      this.#profile.naming.quarantineDirectoryName(expected),
     );
     await this.#fault({ mutation, path: this.canonicalPath, phase: "before-shared-quarantine" });
     await this.#prove(this.canonicalPath, expected, "canonical");
@@ -224,7 +219,7 @@ export class NodeJournalSlotStore<TJournal> {
 
   async #publishCandidate(
     candidate: JournalSlotAuthority,
-    mutation: "create" | "replace"
+    mutation: "create" | "replace",
   ): Promise<void> {
     const { candidatePath } = this.#profile.naming;
     await this.#fault({ mutation, phase: "before-canonical-link" });
@@ -234,7 +229,11 @@ export class NodeJournalSlotStore<TJournal> {
     } catch (error) {
       throw this.#profile.failure("publication-conflict", { cause: error, mutation });
     }
-    await this.#prove(this.canonicalPath, candidate, mutation === "replace" ? "replacement" : "canonical");
+    await this.#prove(
+      this.canonicalPath,
+      candidate,
+      mutation === "replace" ? "replacement" : "canonical",
+    );
     await this.#fault({ mutation, phase: "after-canonical-linked" });
     await this.#syncDirectory(this.#parent, mutation, "state-parent", "publication");
     await this.#fault({ mutation, phase: "after-canonical-synced" });
@@ -247,7 +246,7 @@ export class NodeJournalSlotStore<TJournal> {
     await this.#prove(path, authority, "evidence", evidence);
     const retired = await createPrivateJournalSlotDirectory(
       this.#parent,
-      this.#profile.naming.retiredDirectoryName
+      this.#profile.naming.retiredDirectoryName,
     );
     await this.#fault({ evidence, mutation, path, phase: "before-private-retirement" });
     await this.#fault({ evidence, mutation, path, phase: "before-private-retirement-rename" });
@@ -255,7 +254,12 @@ export class NodeJournalSlotStore<TJournal> {
     await rename(path, retired.path);
     await this.#syncRenameBoundary(retired.directory, sourceDirectory, mutation);
     await this.#prove(retired.path, authority, "retired-evidence", evidence);
-    await this.#fault({ evidence, mutation, path: retired.path, phase: "before-logical-retirement" });
+    await this.#fault({
+      evidence,
+      mutation,
+      path: retired.path,
+      phase: "before-logical-retirement",
+    });
     await this.#prove(retired.path, authority, "retired-evidence", evidence);
     const terminalRoot = join(this.#parent, this.#profile.naming.terminalRootName);
     const terminalAuthority = await ensureTerminalEvidenceDirectory(terminalRoot);
@@ -273,7 +277,7 @@ export class NodeJournalSlotStore<TJournal> {
 
   async #finishPublication(
     candidate: JournalSlotAuthority,
-    mutation: "create" | "replace"
+    mutation: "create" | "replace",
   ): Promise<void> {
     const subject = mutation === "replace" ? "replacement" : "canonical";
     await this.#prove(this.canonicalPath, candidate, subject);
@@ -309,7 +313,7 @@ export class NodeJournalSlotStore<TJournal> {
     return journalSlotResidueNames({
       failure: this.#profile.failure,
       matchers: this.#profile.naming.residues,
-      parent: this.#parent
+      parent: this.#parent,
     });
   }
 
@@ -318,7 +322,7 @@ export class NodeJournalSlotStore<TJournal> {
       failure: this.#profile.failure,
       maximumBytes: this.#profile.maximumBytes,
       parse: this.#profile.codec.parse,
-      path: this.canonicalPath
+      path: this.canonicalPath,
     });
   }
 
@@ -353,21 +357,22 @@ export class NodeJournalSlotStore<TJournal> {
     path: string,
     expected: JournalSlotAuthority,
     subject: JournalSlotSubject,
-    evidence?: JournalSlotEvidence
+    evidence?: JournalSlotEvidence,
   ): Promise<void> {
     const observed = await observeJournalSlotAuthority(path, expected, this.#profile.maximumBytes);
     if (observed !== "match") {
       throw this.#profile.failure("changed", {
         ...(evidence === undefined ? {} : { evidence }),
-        subject
+        subject,
       });
     }
   }
 
   async #proveMissing(): Promise<void> {
-    const present = this.#profile.canonicalInspection === "authority"
-      ? await journalSlotPathExists(this.canonicalPath, this.#profile.maximumBytes)
-      : (await this.#readCanonical()) !== undefined;
+    const present =
+      this.#profile.canonicalInspection === "authority"
+        ? await journalSlotPathExists(this.canonicalPath, this.#profile.maximumBytes)
+        : (await this.#readCanonical()) !== undefined;
     if (present) {
       throw this.#profile.failure("canonical-recreated", { subject: "canonical" });
     }
@@ -377,7 +382,7 @@ export class NodeJournalSlotStore<TJournal> {
     path: string,
     mutation: JournalSlotMutation,
     role: JournalSlotSyncRole,
-    stage: JournalSlotSyncStage
+    stage: JournalSlotSyncStage,
   ): Promise<void> {
     if (this.#profile.observableSyncStages.includes(stage)) {
       await this.#fault({ mutation, path, phase: "before-directory-sync", role, stage });
@@ -388,7 +393,7 @@ export class NodeJournalSlotStore<TJournal> {
   async #syncRenameBoundary(
     destination: string,
     source: string,
-    mutation: JournalSlotMutation
+    mutation: JournalSlotMutation,
   ): Promise<void> {
     await this.#syncDirectory(destination, mutation, "destination", "transition");
     if (source !== destination) {

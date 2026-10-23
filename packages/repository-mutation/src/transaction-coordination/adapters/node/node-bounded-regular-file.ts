@@ -3,7 +3,7 @@ import { constants, lstat, open, type FileHandle } from "node:fs/promises";
 import type {
   BoundedRegularFileRead,
   PathIdentityMatch,
-  PortablePathIdentity
+  PortablePathIdentity,
 } from "../../../path-identity.js";
 
 export type { BoundedRegularFileRead } from "../../../path-identity.js";
@@ -21,23 +21,19 @@ function identityFromStat(metadata: {
   return {
     birthtimeNs: metadata.birthtimeNs,
     dev: metadata.dev,
-    ino: metadata.ino
+    ino: metadata.ino,
   };
 }
 
 function isMissing(error: unknown): boolean {
   return (
-    error instanceof Error &&
-    "code" in error &&
-    (error as NodeJS.ErrnoException).code === "ENOENT"
+    error instanceof Error && "code" in error && (error as NodeJS.ErrnoException).code === "ENOENT"
   );
 }
 
 function hasErrorCode(error: unknown, code: string): boolean {
   return (
-    error instanceof Error &&
-    "code" in error &&
-    (error as NodeJS.ErrnoException).code === code
+    error instanceof Error && "code" in error && (error as NodeJS.ErrnoException).code === code
   );
 }
 
@@ -60,10 +56,7 @@ interface BigIntFileObservation {
   readonly size: bigint;
 }
 
-function sameFileObservation(
-  left: BigIntFileObservation,
-  right: BigIntFileObservation
-): boolean {
+function sameFileObservation(left: BigIntFileObservation, right: BigIntFileObservation): boolean {
   return (
     left.dev === right.dev &&
     left.ino === right.ino &&
@@ -75,10 +68,7 @@ function sameFileObservation(
   );
 }
 
-async function readAtMost(
-  handle: FileHandle,
-  maximumBytes: number
-): Promise<Buffer | undefined> {
+async function readAtMost(handle: FileHandle, maximumBytes: number): Promise<Buffer | undefined> {
   const chunks: Buffer[] = [];
   let total = 0;
   while (total <= maximumBytes) {
@@ -97,7 +87,7 @@ async function readAtMost(
 export async function readBoundedRegularFileWithFaults(
   path: string,
   maximumBytes: number,
-  faultInjector?: BoundedRegularFileReadFaultInjector
+  faultInjector?: BoundedRegularFileReadFaultInjector,
 ): Promise<BoundedRegularFileRead> {
   if (!Number.isSafeInteger(maximumBytes) || maximumBytes < 0) {
     throw new TypeError("maximumBytes must be a non-negative safe integer.");
@@ -111,10 +101,7 @@ export async function readBoundedRegularFileWithFaults(
   try {
     handle = await open(path, constants.O_RDONLY | noFollow | nonBlocking);
   } catch (error) {
-    if (
-      hasErrorCode(error, "ELOOP") ||
-      (await isExistingNonRegularPath(path))
-    ) {
+    if (hasErrorCode(error, "ELOOP") || (await isExistingNonRegularPath(path))) {
       return { outcome: "invalid" };
     }
     throw error;
@@ -128,7 +115,7 @@ export async function readBoundedRegularFileWithFaults(
 
 export function readBoundedRegularFile(
   path: string,
-  maximumBytes: number
+  maximumBytes: number,
 ): Promise<BoundedRegularFileRead> {
   return readBoundedRegularFileWithFaults(path, maximumBytes);
 }
@@ -137,7 +124,7 @@ export async function readBoundedRegularFileHandle(
   handle: FileHandle,
   path: string,
   maximumBytes: number,
-  faultInjector?: BoundedRegularFileReadFaultInjector
+  faultInjector?: BoundedRegularFileReadFaultInjector,
 ): Promise<BoundedRegularFileRead> {
   if (!Number.isSafeInteger(maximumBytes) || maximumBytes < 0) {
     throw new TypeError("maximumBytes must be a non-negative safe integer.");
@@ -166,19 +153,17 @@ export async function readBoundedRegularFileHandle(
     bytes,
     identity,
     linkCount: after.nlink,
-    mode: Number(after.mode)
+    mode: Number(after.mode),
   };
 }
 
-export async function captureFileHandleIdentity(
-  handle: FileHandle
-): Promise<PortablePathIdentity> {
+export async function captureFileHandleIdentity(handle: FileHandle): Promise<PortablePathIdentity> {
   return identityFromStat(await handle.stat({ bigint: true }));
 }
 
 export async function pathMatchesRegularFileIdentity(
   path: string,
-  expected: PortablePathIdentity
+  expected: PortablePathIdentity,
 ): Promise<PathIdentityMatch> {
   try {
     const metadata = await lstat(path, { bigint: true });

@@ -2,5 +2,5 @@
 export type WorkspaceConfigurationSchemaAssertion = (
   schemaId: "workspace-dependency-declarations/v1" | "workspace-dependency-declarations/v2",
   input: unknown,
-  phase: string
+  phase: string,
 ) => Promise<void>;

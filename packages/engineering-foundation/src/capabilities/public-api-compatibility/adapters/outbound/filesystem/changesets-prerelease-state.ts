@@ -1,6 +1,9 @@
 import { resolve } from "node:path";
 
-import { publicApiFileFailure, publicApiInputError } from "../../../application/policies/public-api-evidence-errors.js";
+import {
+  publicApiFileFailure,
+  publicApiInputError,
+} from "../../../application/policies/public-api-evidence-errors.js";
 import type { PublicApiFileReader } from "../../../application/ports/public-api-evidence.js";
 import { isExactVersion } from "../../../../../semantic-version.js";
 import { parseStrictJson } from "@agent-teams/repository-mutation/serialization";
@@ -21,12 +24,16 @@ function record(value: unknown, field: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-async function readState(root: string, path: string, files: PublicApiFileReader): Promise<Buffer | undefined> {
+async function readState(
+  root: string,
+  path: string,
+  files: PublicApiFileReader,
+): Promise<Buffer | undefined> {
   try {
     const bytes = await files.read({
       candidate: resolve(root, path),
       maxBytes: 1024 * 1024,
-      root
+      root,
     });
     if (bytes.byteLength > 1024 * 1024) {
       invalid(`Changesets prerelease state is unavailable or changed: ${path}.`);
@@ -43,11 +50,14 @@ async function readState(root: string, path: string, files: PublicApiFileReader)
   }
 }
 
-export async function readChangesetsPrereleaseState(input: {
-  readonly directory: string;
-  readonly packageName: string;
-  readonly root: string;
-}, files: PublicApiFileReader): Promise<Readonly<ChangesetsPrereleaseState> | undefined> {
+export async function readChangesetsPrereleaseState(
+  input: {
+    readonly directory: string;
+    readonly packageName: string;
+    readonly root: string;
+  },
+  files: PublicApiFileReader,
+): Promise<Readonly<ChangesetsPrereleaseState> | undefined> {
   const path = `${input.directory}/pre.json`;
   const source = await readState(input.root, path, files);
   if (source === undefined) {
@@ -70,10 +80,7 @@ export async function readChangesetsPrereleaseState(input: {
   if (typeof tag !== "string" || !/^(?!\d+$)[0-9A-Za-z-]+$/u.test(tag)) {
     invalid(`Changesets prerelease state has an invalid tag: ${path}.`);
   }
-  const initialVersions = record(
-    state["initialVersions"],
-    "Changesets prerelease initialVersions"
-  );
+  const initialVersions = record(state["initialVersions"], "Changesets prerelease initialVersions");
   const initialVersion = initialVersions[input.packageName];
   if (typeof initialVersion !== "string" || !isExactVersion(initialVersion)) {
     invalid(`Changesets prerelease state lacks an exact initial version for ${input.packageName}.`);

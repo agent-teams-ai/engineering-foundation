@@ -2,13 +2,16 @@ import { open, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { CapabilityInputError,assertNotCancelled } from "../../../../../../features/validation-reporting/api.js";
+import {
+  CapabilityInputError,
+  assertNotCancelled,
+} from "../../../../../../features/validation-reporting/api.js";
 import { readContainedRegularFile } from "../../../../../../source-inventory/node.js";
 import { bufQualificationInvocationPlan } from "../../../../application/model/buf-breaking-qualification.js";
 import type {
   BufQualificationRunner,
   BufQualificationRunInput,
-  BufQualificationRunResult
+  BufQualificationRunResult,
 } from "../../../ports/buf-qualification-runner.js";
 import type { BufExecutable } from "../../../ports/buf-executable.js";
 import { verifyPinnedBufVersion } from "../../../use-cases/verify-pinned-buf-version.js";
@@ -20,7 +23,7 @@ function inputError(code: string, message: string): never {
     code,
     message,
     phase: "protobuf-buf-qualification-process",
-    retryable: false
+    retryable: false,
   });
 }
 
@@ -40,12 +43,12 @@ async function readBoundedDescriptor(root: string, path: string): Promise<Uint8A
     descriptor = await readContainedRegularFile({
       candidate: path,
       maxBytes: MAX_DESCRIPTOR_BYTES,
-      root
+      root,
     });
   } catch {
     inputError(
       "BUF_CANDIDATE_DESCRIPTOR_INVALID",
-      "Buf candidate descriptor is unavailable, unsafe, or exceeds the supported size limit."
+      "Buf candidate descriptor is unavailable, unsafe, or exceeds the supported size limit.",
     );
   }
   if (descriptor.length === 0) {
@@ -67,12 +70,12 @@ export class ProcessBufQualificationRunner implements BufQualificationRunner {
       {
         invocation: {
           executablePath: input.executablePath,
-          workingDirectory: input.workingDirectory
+          workingDirectory: input.workingDirectory,
         },
         expectedVersion: input.expectedVersion,
-        ...(input.signal === undefined ? {} : { signal: input.signal })
+        ...(input.signal === undefined ? {} : { signal: input.signal }),
       },
-      this.#executable
+      this.#executable,
     );
     const temporaryRoot = await mkdtemp(join(tmpdir(), "agent-teams-buf-qualification-"));
     const baselinePath = join(temporaryRoot, "baseline.binpb");
@@ -81,7 +84,7 @@ export class ProcessBufQualificationRunner implements BufQualificationRunner {
       baselineDescriptorPath: baselinePath,
       bufConfigPath: input.bufConfigPath,
       candidateDescriptorPath: candidatePath,
-      modulePath: input.modulePath
+      modulePath: input.modulePath,
     });
     try {
       await writePrivateFile(baselinePath, input.baselineDescriptorImage);
@@ -89,15 +92,15 @@ export class ProcessBufQualificationRunner implements BufQualificationRunner {
         {
           executablePath: input.executablePath,
           workingDirectory: input.workingDirectory,
-          arguments: invocation.buildArguments
+          arguments: invocation.buildArguments,
         },
-        input.signal
+        input.signal,
       );
       assertNotCancelled(input.signal);
       if (build.exitCode !== 0 || build.stdout.length !== 0 || build.stderr.length !== 0) {
         inputError(
           "BUF_BUILD_FAILED",
-          `Buf candidate descriptor build failed or emitted unexpected output: ${build.stderr.trim() || build.stdout.trim() || `exit ${build.exitCode}`}.`
+          `Buf candidate descriptor build failed or emitted unexpected output: ${build.stderr.trim() || build.stdout.trim() || `exit ${build.exitCode}`}.`,
         );
       }
       const candidateDescriptorImage = await readBoundedDescriptor(temporaryRoot, candidatePath);
@@ -105,21 +108,21 @@ export class ProcessBufQualificationRunner implements BufQualificationRunner {
         {
           executablePath: input.executablePath,
           workingDirectory: input.workingDirectory,
-          arguments: invocation.breakingArguments
+          arguments: invocation.breakingArguments,
         },
-        input.signal
+        input.signal,
       );
       assertNotCancelled(input.signal);
       if ((breaking.exitCode !== 0 && breaking.exitCode !== 100) || breaking.stderr.length !== 0) {
         inputError(
           "BUF_BREAKING_EXECUTION_FAILED",
-          `Buf breaking qualification failed: ${breaking.stderr.trim() || `exit ${breaking.exitCode}`}.`
+          `Buf breaking qualification failed: ${breaking.stderr.trim() || `exit ${breaking.exitCode}`}.`,
         );
       }
       return Object.freeze({
         status: breaking.exitCode === 0 ? "compatible" : "breaking",
         candidateDescriptorImage,
-        rawOutput: breaking.stdout
+        rawOutput: breaking.stdout,
       });
     } finally {
       await rm(temporaryRoot, { force: true, recursive: true });

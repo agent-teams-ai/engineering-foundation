@@ -10,13 +10,15 @@ const LAUNCH_POLL_INTERVAL_MS = 10;
 export async function waitForWindowsCommandLaunch(
   child: Pick<ChildProcess, "exitCode" | "signalCode">,
   launchPath: string,
-  shouldStopWaiting: () => boolean
+  shouldStopWaiting: () => boolean,
 ): Promise<void> {
   const deadline = performance.now() + COMMAND_LAUNCH_TIMEOUT_MS;
   let exitObservedAt: number | undefined;
   for (;;) {
     // Hand interruption back to the generic executor without classifying it.
-    if (shouldStopWaiting()) { return; }
+    if (shouldStopWaiting()) {
+      return;
+    }
     let marker: string | undefined;
     try {
       marker = await readFile(launchPath, "utf8");
@@ -25,7 +27,9 @@ export async function waitForWindowsCommandLaunch(
         throw error;
       }
     }
-    if (marker === "STARTED") { return; }
+    if (marker === "STARTED") {
+      return;
+    }
     if (marker === "FAILED") {
       throw new Error("The contained Windows command could not be started.");
     }

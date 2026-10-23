@@ -21,8 +21,5 @@
     "verbatimModuleSyntax": true
   },
   "include": ["src/**/*.ts"],
-  "references": [
-    { "path": "../repository-mutation" },
-    { "path": "../docs-protocol" }
-  ]
+  "references": [{ "path": "../repository-mutation" }, { "path": "../docs-protocol" }]
 }

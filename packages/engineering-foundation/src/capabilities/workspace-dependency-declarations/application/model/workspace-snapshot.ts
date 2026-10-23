@@ -1,4 +1,4 @@
 export type {
   DependencyDeclaration,
-  WorkspaceInventory as WorkspaceSnapshot
+  WorkspaceInventory as WorkspaceSnapshot,
 } from "../../../../workspace-inventory/api.js";

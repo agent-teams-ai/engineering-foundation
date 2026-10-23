@@ -3,7 +3,7 @@ import type { DocumentReceiptContract as DocumentReceipt } from "../model/docume
 import type { DocumentOwnedTemporary } from "../model/document-transaction.js";
 import type {
   ApplyDocumentPlanDependencies,
-  ApplyDocumentPlanRequest
+  ApplyDocumentPlanRequest,
 } from "./apply-document-plan.js";
 import type { ActiveDocumentJournal } from "./document-transaction-continuation.js";
 import { recoveryReceipt } from "./document-transaction-receipts.js";
@@ -21,22 +21,21 @@ export async function applyRecoveryReceipt(
   request: ApplyDocumentPlanRequest,
   plan: DocumentPlan,
   state: ApplyExecutionState,
-  options: Parameters<typeof recoveryReceipt>[2]
+  options: Parameters<typeof recoveryReceipt>[2],
 ): Promise<DocumentReceipt> {
-  const captured = state.active === undefined
-    ? { current: true as const }
-    : await recaptureDirectoryReceiptEvidence(
-        dependencies.parentMaterializer,
-        request.consumerRoot,
-        state.active
-      );
+  const captured =
+    state.active === undefined
+      ? { current: true as const }
+      : await recaptureDirectoryReceiptEvidence(
+          dependencies.parentMaterializer,
+          request.consumerRoot,
+          state.active,
+        );
   if (!captured.current) {
     state.retainTransactionBarrier = true;
   }
   return recoveryReceipt(dependencies.schema, plan, {
     ...options,
-    ...(captured.evidence === undefined
-      ? {}
-      : { directoryEvidence: captured.evidence })
+    ...(captured.evidence === undefined ? {} : { directoryEvidence: captured.evidence }),
   });
 }

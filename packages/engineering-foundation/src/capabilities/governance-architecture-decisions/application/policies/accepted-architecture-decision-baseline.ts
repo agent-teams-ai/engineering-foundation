@@ -3,7 +3,7 @@ import {
   immutableArchitectureDecisionPayload,
   type AcceptedArchitectureDecisionBaseline,
   type AcceptedArchitectureDecisionBaselineEntry,
-  type ArchitectureDecision
+  type ArchitectureDecision,
 } from "../model/architecture-decision.js";
 import type { ArchitectureDecisionFingerprint } from "../ports/architecture-decision-fingerprint.js";
 import { parseAcceptedArchitectureDecisionBaselineValue } from "./parse-accepted-architecture-decision-baseline.js";
@@ -29,12 +29,9 @@ export type HistoricalArchitectureDecisionBaselineViolation =
 
 function entryComparison(
   left: AcceptedArchitectureDecisionBaselineEntry,
-  right: AcceptedArchitectureDecisionBaselineEntry
+  right: AcceptedArchitectureDecisionBaselineEntry,
 ): number {
-  return (
-    compareBinaryStrings(left.id, right.id) ||
-    compareBinaryStrings(left.path, right.path)
-  );
+  return compareBinaryStrings(left.id, right.id) || compareBinaryStrings(left.path, right.path);
 }
 
 /**
@@ -43,7 +40,7 @@ function entryComparison(
  * synchronous and defensive when a consumer has malformed historical input.
  */
 export function parseAcceptedArchitectureDecisionBaseline(
-  value: unknown
+  value: unknown,
 ): AcceptedArchitectureDecisionBaseline | undefined {
   return parseAcceptedArchitectureDecisionBaselineValue(value);
 }
@@ -57,17 +54,15 @@ export function buildAcceptedArchitectureDecisionBaseline(input: {
     .map((decision) =>
       Object.freeze({
         id: decision.id,
-        immutableDigest: input.fingerprint.digest(
-          immutableArchitectureDecisionPayload(decision)
-        ),
-        path: decision.document.repositoryPath
-      })
+        immutableDigest: input.fingerprint.digest(immutableArchitectureDecisionPayload(decision)),
+        path: decision.document.repositoryPath,
+      }),
     )
     .toSorted(entryComparison);
   return Object.freeze({
     algorithm: "sha256",
     decisions: Object.freeze(decisions),
-    schemaVersion: 1
+    schemaVersion: 1,
   });
 }
 
@@ -94,7 +89,7 @@ export function findHistoricalArchitectureDecisionBaselineViolation(input: {
         actualPath: current.path,
         expectedPath: existing.path,
         id: existing.id,
-        kind: "path-mismatch"
+        kind: "path-mismatch",
       };
     }
     if (current.immutableDigest !== existing.immutableDigest) {
@@ -102,7 +97,7 @@ export function findHistoricalArchitectureDecisionBaselineViolation(input: {
         actualDigest: current.immutableDigest,
         expectedDigest: existing.immutableDigest,
         id: existing.id,
-        kind: "digest-mismatch"
+        kind: "digest-mismatch",
       };
     }
   }

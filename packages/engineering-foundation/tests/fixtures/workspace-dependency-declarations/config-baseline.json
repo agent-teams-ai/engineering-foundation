@@ -8,16 +8,9 @@
         "packageManagerKind": "pnpm",
         "workspaceManifestPath": "pnpm-workspace.yaml",
         "policy": {
-          "reservedScopes": [
-            "@fixture/"
-          ],
-          "developmentOnlyPackages": [
-            "oxlint",
-            "typescript"
-          ],
-          "exactRegistryDevelopmentOnlyPackages": [
-            "@agent-teams/engineering-foundation"
-          ]
+          "reservedScopes": ["@fixture/"],
+          "developmentOnlyPackages": ["oxlint", "typescript"],
+          "exactRegistryDevelopmentOnlyPackages": ["@agent-teams/engineering-foundation"]
         }
       }
     },

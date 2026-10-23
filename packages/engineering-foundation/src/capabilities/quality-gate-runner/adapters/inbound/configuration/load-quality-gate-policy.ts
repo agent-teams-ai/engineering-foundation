@@ -3,8 +3,17 @@ import { configurationInputError as inputError } from "../../../application/conf
 import { parseQualityGatePolicy } from "./parse-quality-gate-policy.js";
 
 export interface QualityGateConfigurationDependencies {
-  readonly readYaml: (consumerRoot: string, configPath: string, phase: string, signal?: AbortSignal) => Promise<unknown>;
-  readonly assertSchema: (schemaId: "quality-gate-runner/v1" | "quality-gate-runner/v2", input: unknown, phase: string) => Promise<void>;
+  readonly readYaml: (
+    consumerRoot: string,
+    configPath: string,
+    phase: string,
+    signal?: AbortSignal,
+  ) => Promise<unknown>;
+  readonly assertSchema: (
+    schemaId: "quality-gate-runner/v1" | "quality-gate-runner/v2",
+    input: unknown,
+    phase: string,
+  ) => Promise<void>;
 }
 
 function schemaVersion(input: unknown): 1 | 2 {
@@ -22,20 +31,18 @@ export async function loadQualityGatePolicy(
   dependencies: QualityGateConfigurationDependencies,
   consumerRoot: string,
   configPath: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<NormalizedQualityGatePolicy> {
   const input = await dependencies.readYaml(
     consumerRoot,
     configPath,
     "quality-gate-runner-config",
-    signal
+    signal,
   );
   await dependencies.assertSchema(
-    schemaVersion(input) === 2
-      ? "quality-gate-runner/v2"
-      : "quality-gate-runner/v1",
+    schemaVersion(input) === 2 ? "quality-gate-runner/v2" : "quality-gate-runner/v1",
     input,
-    "quality-gate-runner-config"
+    "quality-gate-runner-config",
   );
   return parseQualityGatePolicy(input);
 }

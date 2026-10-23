@@ -11,14 +11,22 @@ const policyPath = "architecture/foundation/docs-protocol-current-policy-v3.json
 const schemaPath = "architecture/contracts/docs-protocol-current-policy/v3.schema.json";
 const assetPath = "packages/docs-protocol-agent-teams/assets/runtime-policy.v1.json";
 const historicalDigests = new Map([
-  ["architecture/foundation/docs-protocol-current-policy.json",
-    "sha256:b446075de07aa2655561e0cba7d15ed13cc2062b91303e961f06b6afddb18efc"],
-  ["architecture/contracts/docs-protocol-current-policy/v1.schema.json",
-    "sha256:3067433b3e5b8f964049f5b83dc29ac06bb32d6c88ac3d39eee3ad7769bd6f70"],
-  ["architecture/foundation/docs-protocol-current-policy-v2.json",
-    "sha256:4db0b267a08c75d22eeddde9bdf69b70c0da0b165bb13e18d6e685df4a5cd801"],
-  ["architecture/contracts/docs-protocol-current-policy/v2.schema.json",
-    "sha256:2c764ddd8065ca06ee55b1e7a09947d4fe8ab70125c1533bc5d9213e79842733"],
+  [
+    "architecture/foundation/docs-protocol-current-policy.json",
+    "sha256:b446075de07aa2655561e0cba7d15ed13cc2062b91303e961f06b6afddb18efc",
+  ],
+  [
+    "architecture/contracts/docs-protocol-current-policy/v1.schema.json",
+    "sha256:3067433b3e5b8f964049f5b83dc29ac06bb32d6c88ac3d39eee3ad7769bd6f70",
+  ],
+  [
+    "architecture/foundation/docs-protocol-current-policy-v2.json",
+    "sha256:4db0b267a08c75d22eeddde9bdf69b70c0da0b165bb13e18d6e685df4a5cd801",
+  ],
+  [
+    "architecture/contracts/docs-protocol-current-policy/v2.schema.json",
+    "sha256:2c764ddd8065ca06ee55b1e7a09947d4fe8ab70125c1533bc5d9213e79842733",
+  ],
 ]);
 const digest = (bytes) => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 
@@ -35,14 +43,27 @@ test("Windows-style CRLF checkout preserves current policy and exact historical 
       await writeFile(join(directory, path), await readFile(new URL(path, root)));
     }
     await writeFile(join(directory, "line-ending-control.txt"), "control\n");
-    git("-c", "core.autocrlf=false", "add", "--", ".gitattributes", ...checkoutPaths,
-      "line-ending-control.txt");
+    git(
+      "-c",
+      "core.autocrlf=false",
+      "add",
+      "--",
+      ".gitattributes",
+      ...checkoutPaths,
+      "line-ending-control.txt",
+    );
     for (const path of checkoutPaths) {
       await rm(join(directory, path));
     }
     await rm(join(directory, "line-ending-control.txt"));
-    git("-c", "core.autocrlf=true", "checkout-index", "--", ...checkoutPaths,
-      "line-ending-control.txt");
+    git(
+      "-c",
+      "core.autocrlf=true",
+      "checkout-index",
+      "--",
+      ...checkoutPaths,
+      "line-ending-control.txt",
+    );
 
     assert.equal(await readFile(join(directory, "line-ending-control.txt"), "utf8"), "control\r\n");
     const checkedOutPolicy = await readFile(join(directory, policyPath));
@@ -51,7 +72,11 @@ test("Windows-style CRLF checkout preserves current policy and exact historical 
     assert.equal(digest(checkedOutPolicy), digest(await readFile(new URL(policyPath, root))));
     for (const [path, expected] of historicalDigests) {
       assert.equal(digest(await readFile(new URL(path, root))), expected, `${path} source digest`);
-      assert.equal(digest(await readFile(join(directory, path))), expected, `${path} checkout digest`);
+      assert.equal(
+        digest(await readFile(join(directory, path))),
+        expected,
+        `${path} checkout digest`,
+      );
     }
   } finally {
     await rm(directory, { recursive: true, force: true });

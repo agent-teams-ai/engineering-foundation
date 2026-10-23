@@ -7,11 +7,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import {
-  createPnpmRunner,
-  runCommand,
-  runNpmCommand,
-} from "../scripts/pack-test-support.mjs";
+import { createPnpmRunner, runCommand, runNpmCommand } from "../scripts/pack-test-support.mjs";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const requireFromRepository = createRequire(import.meta.url);
@@ -161,10 +157,7 @@ test("type-aware Oxlint preset rejects unsafe promise handling", async () => {
     (projectRoot) => {
       const result = runTypeAwareLint(projectRoot);
       assert.notEqual(result.status, 0);
-      assert.match(
-        `${result.stdout}${result.stderr}`,
-        /typescript\(no-floating-promises\)/u,
-      );
+      assert.match(`${result.stdout}${result.stderr}`, /typescript\(no-floating-promises\)/u);
     },
   );
 });
@@ -175,10 +168,7 @@ test("type-aware Oxlint policy cannot be bypassed with ESLint directives", async
     (projectRoot) => {
       const result = runTypeAwareLint(projectRoot);
       assert.notEqual(result.status, 0);
-      assert.match(
-        `${result.stdout}${result.stderr}`,
-        /typescript\(no-floating-promises\)/u,
-      );
+      assert.match(`${result.stdout}${result.stderr}`, /typescript\(no-floating-promises\)/u);
     },
   );
 });
@@ -213,22 +203,16 @@ test("Oxlint rejects an AggregateError that discards the caught error", async ()
     (projectRoot) => {
       const result = runTypeAwareLint(projectRoot);
       assert.notEqual(result.status, 0);
-      assert.match(
-        `${result.stdout}${result.stderr}`,
-        /preserve-caught-error/u,
-      );
+      assert.match(`${result.stdout}${result.stderr}`, /preserve-caught-error/u);
     },
   );
 });
 
 test("Oxlint leaves compiler diagnostics to the pinned TypeScript gate", async () => {
-  await withTypeScriptProject(
-    `const value: string = 42;\nvoid value;\n`,
-    (projectRoot) => {
-      const result = runTypeAwareLint(projectRoot);
-      assert.equal(result.status, 0, `${result.stdout}${result.stderr}`);
-    },
-  );
+  await withTypeScriptProject(`const value: string = 42;\nvoid value;\n`, (projectRoot) => {
+    const result = runTypeAwareLint(projectRoot);
+    assert.equal(result.status, 0, `${result.stdout}${result.stderr}`);
+  });
 });
 
 test("production maintainability preset enforces all five budgets", async () => {
@@ -284,9 +268,14 @@ ${Array.from({ length: 180 }, () => "  result += 1;").join("\n")}
 test("packaging package-manager runners ignore executable environment overrides", async (t) => {
   const root = await mkdtemp(join(tmpdir(), "packaging-manager-custody-"));
   t.after(() => rm(root, { recursive: true, force: true }));
-  await writeFile(join(root, "package.json"), JSON.stringify({
-    name: "packaging-manager-custody-test", private: true, packageManager: "pnpm@11.20.0"
-  }));
+  await writeFile(
+    join(root, "package.json"),
+    JSON.stringify({
+      name: "packaging-manager-custody-test",
+      private: true,
+      packageManager: "pnpm@11.20.0",
+    }),
+  );
   const environment = {
     ...process.env,
     ComSpec: join(repositoryRoot, "attacker-cmd.exe"),
@@ -295,13 +284,20 @@ test("packaging package-manager runners ignore executable environment overrides"
   };
   const pnpm = await createPnpmRunner()(["--version"], root, { environment });
   const npm = await runNpmCommand(["--version"], root, { environment });
-  const executed = await createPnpmRunner()([
-    "--reporter=silent", "exec", "node", "--eval",
-    'process.stdout.write(JSON.stringify({ nodePath: process.env.NODE_PATH, marker: "PACKAGING-PNPM-EXEC" }))'
-  ], root, { environment });
+  const executed = await createPnpmRunner()(
+    [
+      "--reporter=silent",
+      "exec",
+      "node",
+      "--eval",
+      'process.stdout.write(JSON.stringify({ nodePath: process.env.NODE_PATH, marker: "PACKAGING-PNPM-EXEC" }))',
+    ],
+    root,
+    { environment },
+  );
   assert.deepEqual(JSON.parse(executed.stdout), {
     ...(process.env.NODE_PATH === undefined ? {} : { nodePath: process.env.NODE_PATH }),
-    marker: "PACKAGING-PNPM-EXEC"
+    marker: "PACKAGING-PNPM-EXEC",
   });
   assert.match(pnpm.stdout, /^11\.20\.0\s*$/u);
   assert.match(npm.stdout, /^11\./u);
@@ -316,9 +312,7 @@ test("packaging subprocesses have a bounded deadline", async () => {
       { timeoutMs: 200 },
     ),
     (error) =>
-      error?.timedOut === true &&
-      error?.killed === true &&
-      error?.terminationConfirmed === true,
+      error?.timedOut === true && error?.killed === true && error?.terminationConfirmed === true,
   );
 });
 
@@ -343,9 +337,14 @@ test("packaging aborts a real subprocess and confirms termination", async () => 
   );
   await wait(0);
   controller.abort(new Error("TEST abort"));
-  await assert.rejects(command, (error) =>
-    error?.killed === true && error?.timedOut === false &&
-    error?.terminationConfirmed === true && error?.cause?.message === "TEST abort");
+  await assert.rejects(
+    command,
+    (error) =>
+      error?.killed === true &&
+      error?.timedOut === false &&
+      error?.terminationConfirmed === true &&
+      error?.cause?.message === "TEST abort",
+  );
 });
 
 async function assertDarwinRetainedGroup(persistent, context) {
@@ -356,10 +355,18 @@ async function assertDarwinRetainedGroup(persistent, context) {
   let record;
   let settled = false;
   const command = runCommand(
-    "python3", [join(processFixtureRoot, "darwin-retained-group.py"), root],
-    repositoryRoot, { timeoutMs: 5_000 },
-  ).then((value) => ({ value }), (error) => ({ error }));
-  void command.then((outcome) => { settled = true; return outcome; });
+    "python3",
+    [join(processFixtureRoot, "darwin-retained-group.py"), root],
+    repositoryRoot,
+    { timeoutMs: 5_000 },
+  ).then(
+    (value) => ({ value }),
+    (error) => ({ error }),
+  );
+  void command.then((outcome) => {
+    settled = true;
+    return outcome;
+  });
   try {
     record = await readProcessRecord(join(root, "ready.json"));
     assert.equal(record.sid, record.parent);
@@ -396,7 +403,7 @@ async function assertDarwinRetainedGroup(persistent, context) {
     await writeFile(join(root, "release"), "");
     await writeFile(join(root, "exit"), "");
     await command;
-    const custody = record ?? await readProcessRecord(join(root, "custodian.json"));
+    const custody = record ?? (await readProcessRecord(join(root, "custodian.json")));
     await assertProcessExited(custody.custodian);
     const reaped = await readProcessRecord(join(root, "reaped.json"));
     if (record !== undefined) {
@@ -409,11 +416,17 @@ async function assertDarwinRetainedGroup(persistent, context) {
   }
 }
 
-test("packaging Darwin transient zombie succeeds only after group ESRCH",
-  { skip: process.platform !== "darwin" }, async (context) => assertDarwinRetainedGroup(false, context));
+test(
+  "packaging Darwin transient zombie succeeds only after group ESRCH",
+  { skip: process.platform !== "darwin" },
+  async (context) => assertDarwinRetainedGroup(false, context),
+);
 
-test("packaging Darwin persistent zombie rejects code zero with cleanup debt",
-  { skip: process.platform !== "darwin" }, async (context) => assertDarwinRetainedGroup(true, context));
+test(
+  "packaging Darwin persistent zombie rejects code zero with cleanup debt",
+  { skip: process.platform !== "darwin" },
+  async (context) => assertDarwinRetainedGroup(true, context),
+);
 
 test("packaging rejects unsupported deadlines before process creation", async () => {
   await assert.rejects(
@@ -431,12 +444,9 @@ test("packaging subprocess output is bounded by cumulative bytes", async () => {
   const source =
     "const chunk = 'x'.repeat(1024 * 1024); for (let i = 0; i < 17; i += 1) process.stdout.write(chunk);";
   await assert.rejects(
-    runCommand(
-      process.execPath,
-      ["--input-type=module", "--eval", source],
-      repositoryRoot,
-      { timeoutMs: 5_000 },
-    ),
+    runCommand(process.execPath, ["--input-type=module", "--eval", source], repositoryRoot, {
+      timeoutMs: 5_000,
+    }),
     /stdout exceeded 16777216 bytes/u,
   );
 });
@@ -489,11 +499,7 @@ test("clean removes incremental state and permits a full rebuild", async () => {
   const packageRoot = join(fixtureRoot, "packages", "engineering-foundation");
   const sourceRoot = join(packageRoot, "src");
   const cleanScript = join(fixtureRoot, "scripts", "clean.mjs");
-  const publishablePackagesScript = join(
-    fixtureRoot,
-    "scripts",
-    "publishable-packages.mjs",
-  );
+  const publishablePackagesScript = join(fixtureRoot, "scripts", "publishable-packages.mjs");
   const tsconfigPath = join(packageRoot, "tsconfig.json");
   const outputPath = join(packageRoot, "dist", "index.js");
   const buildInfoPath = join(packageRoot, "tsconfig.tsbuildinfo");
@@ -513,37 +519,62 @@ test("clean removes incremental state and permits a full rebuild", async () => {
       ["release-checks", "@agent-teams/release-checks", {}],
       ["feature-module-standard", "@agent-teams/feature-module-standard", {}],
       ["repository-mutation", "@agent-teams/repository-mutation", {}],
-      ["document-authoring", "@agent-teams/document-authoring", {
-        "@agent-teams/repository-mutation": "workspace:*",
-      }],
-      ["engineering-foundation", "@agent-teams/engineering-foundation", {
-        "@agent-teams/document-authoring": "workspace:*",
-        "@agent-teams/repository-mutation": "workspace:*",
-      }],
-      ["docs-protocol", "@agent-teams/docs-protocol", {
-        "@agent-teams/document-authoring": "workspace:*",
-        "@agent-teams/repository-mutation": "workspace:*",
-      }],
-      ["docs-protocol-mcp", "@agent-teams/docs-protocol-mcp", {
-        "@agent-teams/docs-protocol": "workspace:*",
-      }],
-      ["docs-protocol-agent-teams", "@agent-teams/docs-protocol-agent-teams", {
-        "@agent-teams/docs-protocol": "workspace:*",
-        "@agent-teams/repository-mutation": "workspace:*",
-      }],
+      [
+        "document-authoring",
+        "@agent-teams/document-authoring",
+        {
+          "@agent-teams/repository-mutation": "workspace:*",
+        },
+      ],
+      [
+        "engineering-foundation",
+        "@agent-teams/engineering-foundation",
+        {
+          "@agent-teams/document-authoring": "workspace:*",
+          "@agent-teams/repository-mutation": "workspace:*",
+        },
+      ],
+      [
+        "docs-protocol",
+        "@agent-teams/docs-protocol",
+        {
+          "@agent-teams/document-authoring": "workspace:*",
+          "@agent-teams/repository-mutation": "workspace:*",
+        },
+      ],
+      [
+        "docs-protocol-mcp",
+        "@agent-teams/docs-protocol-mcp",
+        {
+          "@agent-teams/docs-protocol": "workspace:*",
+        },
+      ],
+      [
+        "docs-protocol-agent-teams",
+        "@agent-teams/docs-protocol-agent-teams",
+        {
+          "@agent-teams/docs-protocol": "workspace:*",
+          "@agent-teams/repository-mutation": "workspace:*",
+        },
+      ],
     ];
-    await Promise.all(fixturePackages.map(([slug]) =>
-      mkdir(join(fixtureRoot, "packages", slug), { recursive: true })));
+    await Promise.all(
+      fixturePackages.map(([slug]) =>
+        mkdir(join(fixtureRoot, "packages", slug), { recursive: true }),
+      ),
+    );
     await mkdir(sourceRoot, { recursive: true });
     await mkdir(dirname(cleanScript), { recursive: true });
     await Promise.all([
       writeFile(join(sourceRoot, "index.ts"), "export const built = true;\n", "utf8"),
       writeFile(join(packageRoot, "LICENSE"), "generated", "utf8"),
-      ...fixturePackages.map(([slug, name, dependencies]) => writeFile(
-        join(fixtureRoot, "packages", slug, "package.json"),
-        `${JSON.stringify({ dependencies, name, type: "module" })}\n`,
-        "utf8",
-      )),
+      ...fixturePackages.map(([slug, name, dependencies]) =>
+        writeFile(
+          join(fixtureRoot, "packages", slug, "package.json"),
+          `${JSON.stringify({ dependencies, name, type: "module" })}\n`,
+          "utf8",
+        ),
+      ),
       writeFile(tsconfigPath, `${JSON.stringify(packageConfig)}\n`, "utf8"),
       writeFile(
         cleanScript,
@@ -552,15 +583,15 @@ test("clean removes incremental state and permits a full rebuild", async () => {
       ),
       writeFile(
         publishablePackagesScript,
-        await readFile(
-          join(repositoryRoot, "scripts", "publishable-packages.mjs"),
-          "utf8",
-        ),
+        await readFile(join(repositoryRoot, "scripts", "publishable-packages.mjs"), "utf8"),
         "utf8",
       ),
       writeFile(
         join(fixtureRoot, "scripts", "release-publish-registry-version.mjs"),
-        await readFile(join(repositoryRoot, "scripts", "release-publish-registry-version.mjs"), "utf8"),
+        await readFile(
+          join(repositoryRoot, "scripts", "release-publish-registry-version.mjs"),
+          "utf8",
+        ),
         "utf8",
       ),
     ]);
@@ -584,11 +615,7 @@ test("clean removes incremental state and permits a full rebuild", async () => {
       encoding: "utf8",
     });
     assert.equal(clean.status, 0, `${clean.stdout}${clean.stderr}`);
-    for (const path of [
-      outputPath,
-      join(packageRoot, "LICENSE"),
-      buildInfoPath,
-    ]) {
+    for (const path of [outputPath, join(packageRoot, "LICENSE"), buildInfoPath]) {
       await assert.rejects(readFile(path), (error) => error?.code === "ENOENT");
     }
 

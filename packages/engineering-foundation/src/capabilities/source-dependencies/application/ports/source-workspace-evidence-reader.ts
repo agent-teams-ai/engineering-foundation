@@ -10,5 +10,5 @@ export type SourceWorkspaceManifestLoader = (
   consumerRoot: string,
   repositoryPath: string,
   phase: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ) => Promise<unknown>;

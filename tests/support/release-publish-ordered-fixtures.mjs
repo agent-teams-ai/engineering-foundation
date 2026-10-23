@@ -1,6 +1,11 @@
 import {
-  DOCUMENT_AUTHORING_PACKAGE, DOCS_PACKAGE, DOCS_MCP_PACKAGE, FOUNDATION_PACKAGE,
-  npmPurlName, orderedRelease, tarballIntegrity,
+  DOCUMENT_AUTHORING_PACKAGE,
+  DOCS_PACKAGE,
+  DOCS_MCP_PACKAGE,
+  FOUNDATION_PACKAGE,
+  npmPurlName,
+  orderedRelease,
+  tarballIntegrity,
 } from "../../scripts/release-publish-ordered.mjs";
 
 const source = {
@@ -52,7 +57,12 @@ const RELEASE_TIMESTAMPS = new Map([
 
 function artifact(name, version, dependencies) {
   const manifest = { dependencies, name, version };
-  return { integrity: tarballIntegrity(Buffer.from(JSON.stringify(manifest))), manifest, name, version };
+  return {
+    integrity: tarballIntegrity(Buffer.from(JSON.stringify(manifest))),
+    manifest,
+    name,
+    version,
+  };
 }
 
 function argumentField(args, prefix) {
@@ -74,37 +84,59 @@ function artifactProvenance(value, commit = source.commit) {
 function provenanceStatement(value, provenance = artifactProvenance(value)) {
   return {
     _type: "https://in-toto.io/Statement/v1",
-    predicate: { buildDefinition: {
-      externalParameters: { workflow: {
-        path: provenance.workflow, ref: provenance.ref, repository: provenance.repository,
-      } },
-      resolvedDependencies: [{
-        digest: { gitCommit: provenance.commit }, uri: provenance.dependencyUri,
-      }],
-    } },
+    predicate: {
+      buildDefinition: {
+        externalParameters: {
+          workflow: {
+            path: provenance.workflow,
+            ref: provenance.ref,
+            repository: provenance.repository,
+          },
+        },
+        resolvedDependencies: [
+          {
+            digest: { gitCommit: provenance.commit },
+            uri: provenance.dependencyUri,
+          },
+        ],
+      },
+    },
     predicateType: "https://slsa.dev/provenance/v1",
-    subject: [{
-      digest: { sha512: provenance.sha512 }, name: provenance.subjectName,
-    }],
+    subject: [
+      {
+        digest: { sha512: provenance.sha512 },
+        name: provenance.subjectName,
+      },
+    ],
   };
 }
 
 function auditEvidence(value, provenance = artifactProvenance(value)) {
-  const payload = Buffer.from(JSON.stringify(provenanceStatement(value, provenance))).toString("base64");
+  const payload = Buffer.from(JSON.stringify(provenanceStatement(value, provenance))).toString(
+    "base64",
+  );
   return {
     invalid: [],
     missing: [],
-    verified: [{
-      attestations: { provenance: { predicateType: "https://slsa.dev/provenance/v1" } },
-      attestationBundles: [
-        { predicateType: "https://github.com/npm/attestation/tree/main/specs/publish/v0.1" },
-        { bundle: { dsseEnvelope: {
-          payload, payloadType: "application/vnd.in-toto+json",
-        } }, predicateType: "https://slsa.dev/provenance/v1" },
-      ],
-      name: value.name,
-      version: value.version,
-    }],
+    verified: [
+      {
+        attestations: { provenance: { predicateType: "https://slsa.dev/provenance/v1" } },
+        attestationBundles: [
+          { predicateType: "https://github.com/npm/attestation/tree/main/specs/publish/v0.1" },
+          {
+            bundle: {
+              dsseEnvelope: {
+                payload,
+                payloadType: "application/vnd.in-toto+json",
+              },
+            },
+            predicateType: "https://slsa.dev/provenance/v1",
+          },
+        ],
+        name: value.name,
+        version: value.version,
+      },
+    ],
   };
 }
 
@@ -120,10 +152,9 @@ function present(value, publishedAt, tag = "latest") {
 }
 
 function publishedState(...values) {
-  return Object.fromEntries(values.map((value) => [
-    value.name,
-    present(value, RELEASE_TIMESTAMPS.get(value.name)),
-  ]));
+  return Object.fromEntries(
+    values.map((value) => [value.name, present(value, RELEASE_TIMESTAMPS.get(value.name))]),
+  );
 }
 
 function harness(initial = {}) {
@@ -164,16 +195,56 @@ function harness(initial = {}) {
 async function run(runtime, overrides = {}) {
   let elapsed = 0;
   return await orderedRelease({
-    artifacts: [stackToolchain, docsMcp, docsAdapter, docs, foundation, authoring, mutation, featureModuleStandard, releaseChecks, ciInputProof],
+    artifacts: [
+      stackToolchain,
+      docsMcp,
+      docsAdapter,
+      docs,
+      foundation,
+      authoring,
+      mutation,
+      featureModuleStandard,
+      releaseChecks,
+      ciInputProof,
+    ],
     visibilityTimeoutMilliseconds: 2,
     finalTag: "latest",
     retryDelayMilliseconds: 1,
     now: () => elapsed,
-    wait: async (milliseconds) => { elapsed += milliseconds; },
+    wait: async (milliseconds) => {
+      elapsed += milliseconds;
+    },
     source,
     ...runtime,
     ...overrides,
   });
 }
 
-export { STACK_TOOLCHAIN_PACKAGE, stackToolchain, source, MUTATION_PACKAGE, DOCS_ADAPTER_PACKAGE, CI_INPUT_PROOF_PACKAGE, ciInputProof, RELEASE_CHECKS_PACKAGE, releaseChecks, FEATURE_MODULE_STANDARD_PACKAGE, featureModuleStandard, mutation, authoring, foundation, docs, docsAdapter, docsMcp, RELEASE_TIMESTAMPS, artifact, argumentField, artifactProvenance, auditEvidence, present, publishedState, harness, run };
+export {
+  STACK_TOOLCHAIN_PACKAGE,
+  stackToolchain,
+  source,
+  MUTATION_PACKAGE,
+  DOCS_ADAPTER_PACKAGE,
+  CI_INPUT_PROOF_PACKAGE,
+  ciInputProof,
+  RELEASE_CHECKS_PACKAGE,
+  releaseChecks,
+  FEATURE_MODULE_STANDARD_PACKAGE,
+  featureModuleStandard,
+  mutation,
+  authoring,
+  foundation,
+  docs,
+  docsAdapter,
+  docsMcp,
+  RELEASE_TIMESTAMPS,
+  artifact,
+  argumentField,
+  artifactProvenance,
+  auditEvidence,
+  present,
+  publishedState,
+  harness,
+  run,
+};

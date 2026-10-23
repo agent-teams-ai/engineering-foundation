@@ -39,12 +39,7 @@ function envelopeFor(state) {
     plan: structuredClone(fixture.plan),
     destination: {
       path: fixture.plan.destination,
-      state:
-        state === "PREPARED"
-          ? "pending"
-          : state === "PUBLISHING"
-            ? "publishing"
-            : "published",
+      state: state === "PREPARED" ? "pending" : state === "PUBLISHING" ? "publishing" : "published",
     },
   };
   envelope.journal.plan.compiler = {
@@ -116,10 +111,7 @@ test("fails closed for a different installed build and never admits zero physica
       installedBuildIdentity: `sha256:${"3".repeat(64)}`,
     }).inspect();
     assert.equal(mismatch.state, "manual-recovery-required");
-    assert.equal(
-      mismatch.diagnostics[0]?.code,
-      "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED",
-    );
+    assert.equal(mismatch.diagnostics[0]?.code, "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED");
 
     const zero = envelopeFor("PUBLISHING");
     zero.journal.ownedTemporary.identity.ino = "0";
@@ -155,13 +147,24 @@ test("coordinator rejects historical document pending claims even with matching 
     diagnostics: [{ code: "FOUNDATION_TRANSACTION_ACTIVE", message: "pending" }],
   };
   const coordinator = new FoundationTransactionCoordinator({
-    lock: { async acquire() { return async () => {}; } },
-    slot: { async inspect() { return exact; } },
+    lock: {
+      async acquire() {
+        return async () => {};
+      },
+    },
+    slot: {
+      async inspect() {
+        return exact;
+      },
+    },
   });
-  await assert.rejects(coordinator.acquire({
-    requestedMutation: "document-authoring",
-    allowRecoveryOf: "document-authoring",
-  }), (error) => error?.code === "FOUNDATION_TRANSACTION_ACTIVE");
+  await assert.rejects(
+    coordinator.acquire({
+      requestedMutation: "document-authoring",
+      allowRecoveryOf: "document-authoring",
+    }),
+    (error) => error?.code === "FOUNDATION_TRANSACTION_ACTIVE",
+  );
   await assert.rejects(
     coordinator.acquire({
       requestedMutation: "attach",
@@ -171,15 +174,21 @@ test("coordinator rejects historical document pending claims even with matching 
   );
   await assert.rejects(
     new FoundationTransactionCoordinator({
-      lock: { async acquire() { return async () => {}; } },
+      lock: {
+        async acquire() {
+          return async () => {};
+        },
+      },
       slot: {
         async inspect() {
           return {
             ...exact,
-            diagnostics: [{
-              code: "FOUNDATION_TRANSACTION_VERSION_MISMATCH",
-              message: "wrong build",
-            }],
+            diagnostics: [
+              {
+                code: "FOUNDATION_TRANSACTION_VERSION_MISMATCH",
+                message: "wrong build",
+              },
+            ],
           };
         },
       },
@@ -191,7 +200,11 @@ test("coordinator rejects historical document pending claims even with matching 
   );
   await assert.rejects(
     new FoundationTransactionCoordinator({
-      lock: { async acquire() { return async () => {}; } },
+      lock: {
+        async acquire() {
+          return async () => {};
+        },
+      },
       slot: {
         async inspect() {
           return {
@@ -226,14 +239,13 @@ test("transition residue alone is preserved and blocks every Foundation mutation
     const status = await slot.inspect();
     assert.equal(status.state, "manual-recovery-required");
     assert.equal(status.reason, "journal-transition-residue");
-    for (const requestedMutation of [
-      "attach",
-      "detach",
-      "document-authoring",
-      "scaffolding",
-    ]) {
+    for (const requestedMutation of ["attach", "detach", "document-authoring", "scaffolding"]) {
       const coordinator = new FoundationTransactionCoordinator({
-        lock: { async acquire() { return async () => {}; } },
+        lock: {
+          async acquire() {
+            return async () => {};
+          },
+        },
         slot,
       });
       await assert.rejects(
@@ -274,11 +286,14 @@ test("common coordinator discovers every operation-neutral transition residue af
         assert.equal(status.reason, "journal-transition-residue");
         await assert.rejects(
           new FoundationTransactionCoordinator({
-            lock: { async acquire() { return async () => {}; } },
+            lock: {
+              async acquire() {
+                return async () => {};
+              },
+            },
             slot,
           }).acquire({ requestedMutation: "scaffolding" }),
-          (error) =>
-            error?.code === "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED",
+          (error) => error?.code === "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED",
         );
         assert.deepEqual(await readFile(residue), before);
       } finally {
@@ -348,9 +363,10 @@ test("retired journal evidence blocks every Foundation mutation without deletion
         } else {
           await writeFile(residue, "retired evidence\n", "utf8");
         }
-        const before = kind === "directory"
-          ? await readFile(join(residue, "evidence"))
-          : await readFile(residue);
+        const before =
+          kind === "directory"
+            ? await readFile(join(residue, "evidence"))
+            : await readFile(residue);
         const slot = createNodeFoundationTransactionSlot({
           consumerRoot: root,
           installedVersion: version,
@@ -362,13 +378,16 @@ test("retired journal evidence blocks every Foundation mutation without deletion
 
         for (const requestedMutation of ["document-authoring", "scaffolding"]) {
           const coordinator = new FoundationTransactionCoordinator({
-            lock: { async acquire() { return async () => {}; } },
+            lock: {
+              async acquire() {
+                return async () => {};
+              },
+            },
             slot,
           });
           await assert.rejects(
             coordinator.acquire({ requestedMutation }),
-            (error) =>
-              error?.code === "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED",
+            (error) => error?.code === "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED",
           );
         }
 

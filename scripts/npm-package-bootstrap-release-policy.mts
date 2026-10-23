@@ -65,12 +65,17 @@ export function assertProvenanceBinding({
   if (profile.approval === null) {
     return refuse(`${profile.name} has no reviewed provenance approval.`);
   }
-  if (profile.recovery !== undefined && expectedCommit !== undefined &&
-      expectedCommit !== profile.recovery.sourceCommit) {
+  if (
+    profile.recovery !== undefined &&
+    expectedCommit !== undefined &&
+    expectedCommit !== profile.recovery.sourceCommit
+  ) {
     return refuse("recovery source differs from the closed publication authority.");
   }
   const repository: unknown = NPM_PACKAGE_BOOTSTRAP.repository;
-  if (typeof repository !== "string") {return refuse("bootstrap repository authority is malformed.");}
+  if (typeof repository !== "string") {
+    return refuse("bootstrap repository authority is malformed.");
+  }
   let provenance: VerifiedProvenance;
   try {
     const result: unknown = verifiedProvenanceFromNpmAudit(
@@ -84,9 +89,11 @@ export function assertProvenanceBinding({
         ref: profile.provenance.ref,
         repository,
         workflow: profile.provenance.workflowPath,
-        ...(profile.recovery === undefined ? {} : {
-          expectedInvocation: `${repository}/actions/runs/${profile.recovery.runId}/attempts/${profile.recovery.runAttempt}`,
-        }),
+        ...(profile.recovery === undefined
+          ? {}
+          : {
+              expectedInvocation: `${repository}/actions/runs/${profile.recovery.runId}/attempts/${profile.recovery.runAttempt}`,
+            }),
       },
     );
     provenance = result as VerifiedProvenance;
@@ -113,7 +120,9 @@ export function reviewedSuccessorPredecessor(
   }
   const target = parsePublishedVersion(releaseVersion);
   const predecessor = parsePublishedVersion(profile.releasePredecessor.version);
-  return target !== undefined && predecessor !== undefined && comparePublishedVersions(target, predecessor) > 0
+  return target !== undefined &&
+    predecessor !== undefined &&
+    comparePublishedVersions(target, predecessor) > 0
     ? profile.releasePredecessor
     : null;
 }
@@ -150,8 +159,9 @@ export function assertBootstrapReleasePolicy(
   registryState: RegistryState,
   catalog: { packages: readonly BootstrapProfile[] } = NPM_PACKAGE_BOOTSTRAP,
 ): void {
-  const manifests = [...state.packages.private, ...state.packages.public]
-    .map((entry) => JSON.parse(entry.manifestBytes) as { name: string; version: string });
+  const manifests = [...state.packages.private, ...state.packages.public].map(
+    (entry) => JSON.parse(entry.manifestBytes) as { name: string; version: string },
+  );
   for (const profile of catalog.packages) {
     const manifest = manifests.find((entry) => entry.name === profile.name);
     if (manifest === undefined) {
@@ -166,9 +176,7 @@ export function assertBootstrapReleasePolicy(
     }
     assertBootstrapRegistryVersionHistory(profile, registry.versions);
     const predecessor = reviewedSuccessorPredecessor(profile, manifest.version);
-    const baselineVersion = predecessor !== null
-      ? predecessor.version
-      : profile.bootstrapVersion;
+    const baselineVersion = predecessor !== null ? predecessor.version : profile.bootstrapVersion;
     if (!registry.versions.includes(baselineVersion)) {
       fail(`${profile.name} release requires its immutable ${baselineVersion} npm baseline.`);
     }
@@ -197,7 +205,11 @@ export async function verifySuccessorReleaseBaseline({
     releasePredecessor: null,
   }) as BootstrapProfile;
   const observation = { ...observationOptions, retryNotFound: true };
-  const initialEvidence = await livePackageEvidence(predecessorProfile, fetchImplementation, observation);
+  const initialEvidence = await livePackageEvidence(
+    predecessorProfile,
+    fetchImplementation,
+    observation,
+  );
   if (initialEvidence === null) {
     return refuse(`${predecessor.name}@${predecessor.version} predecessor is absent from npm.`);
   }
@@ -207,13 +219,19 @@ export async function verifySuccessorReleaseBaseline({
   const auditEvidence = await auditPackage(predecessorProfile, temporaryRoot);
   const evidence = await livePackageEvidence(predecessorProfile, fetchImplementation, observation);
   if (evidence === null) {
-    return refuse(`${predecessor.name}@${predecessor.version} predecessor became absent during verification.`);
+    return refuse(
+      `${predecessor.name}@${predecessor.version} predecessor became absent during verification.`,
+    );
   }
   if (!evidence.metadata.versions.includes(predecessor.version)) {
-    return refuse(`${predecessor.name}@${predecessor.version} predecessor became absent during verification.`);
+    return refuse(
+      `${predecessor.name}@${predecessor.version} predecessor became absent during verification.`,
+    );
   }
   if (evidence.integrity !== predecessor.archiveIntegrity) {
-    return refuse(`${predecessor.name}@${predecessor.version} predecessor archive SRI differs from reviewed evidence.`);
+    return refuse(
+      `${predecessor.name}@${predecessor.version} predecessor archive SRI differs from reviewed evidence.`,
+    );
   }
   const provenanceResult: unknown = verifiedProvenanceFromNpmAudit(
     auditEvidence,
@@ -230,10 +248,14 @@ export async function verifySuccessorReleaseBaseline({
   );
   const provenance = provenanceResult as VerifiedProvenance;
   if (evidence.gitHead !== null && evidence.gitHead !== provenance.commit) {
-    return refuse(`${predecessor.name}@${predecessor.version} predecessor npm gitHead contradicts signed provenance.`);
+    return refuse(
+      `${predecessor.name}@${predecessor.version} predecessor npm gitHead contradicts signed provenance.`,
+    );
   }
   if (provenance.commit !== predecessor.provenance.sourceCommit) {
-    return refuse(`${predecessor.name}@${predecessor.version} predecessor source commit differs from reviewed provenance.`);
+    return refuse(
+      `${predecessor.name}@${predecessor.version} predecessor source commit differs from reviewed provenance.`,
+    );
   }
   const observed = {
     archiveIntegrity: predecessor.archiveIntegrity,
@@ -248,7 +270,9 @@ export async function verifySuccessorReleaseBaseline({
   };
   const provenanceArchiveIntegrity = `sha512-${Buffer.from(provenance.sha512, "hex").toString("base64")}`;
   if (provenanceArchiveIntegrity !== evidence.integrity) {
-    return refuse(`${predecessor.name}@${predecessor.version} predecessor archive SRI differs from signed provenance.`);
+    return refuse(
+      `${predecessor.name}@${predecessor.version} predecessor archive SRI differs from signed provenance.`,
+    );
   }
   return assertPredecessorInventory(predecessor, observed);
 }

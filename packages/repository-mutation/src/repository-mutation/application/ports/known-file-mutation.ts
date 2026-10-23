@@ -1,5 +1,8 @@
 import type {
-  MutationClaim, MutationIntent, MutationLease, MutationObservation
+  MutationClaim,
+  MutationIntent,
+  MutationLease,
+  MutationObservation,
 } from "../../../transaction-coordination/application-api.js";
 import type { KnownFileTransactionPlanV1 } from "../model/known-file-transaction.js";
 
@@ -9,8 +12,15 @@ export interface KnownFileMutationPort {
   readonly installedRepositoryMutationVersion: () => Promise<string>;
   readonly acquireMutationLease: (root: string) => Promise<MutationLease>;
   readonly observeMutationState: (lease: MutationLease) => Promise<MutationObservation>;
-  readonly claimMutation: (lease: MutationLease, observation: MutationObservation, intent: MutationIntent) => Promise<MutationClaim>;
-  readonly consumeMutationClaim: (claim: MutationClaim, expectedKind: MutationIntent["kind"]) => Promise<string>;
+  readonly claimMutation: (
+    lease: MutationLease,
+    observation: MutationObservation,
+    intent: MutationIntent,
+  ) => Promise<MutationClaim>;
+  readonly consumeMutationClaim: (
+    claim: MutationClaim,
+    expectedKind: MutationIntent["kind"],
+  ) => Promise<string>;
   readonly mutationClaimIntent: (claim: MutationClaim) => MutationIntent;
   readonly retainMutationClaimBarrierOnEvidence: (claim: MutationClaim) => Promise<void>;
   readonly retainMutationBarrierOnEvidence: (lease: MutationLease) => Promise<boolean>;

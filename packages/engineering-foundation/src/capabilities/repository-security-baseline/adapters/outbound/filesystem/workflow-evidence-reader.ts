@@ -6,21 +6,24 @@ import type {
   CompositeActionEvidence,
   RepositorySecurityPolicy,
   WorkflowEvidence,
-  WorkflowUseEvidence
+  WorkflowUseEvidence,
 } from "../../../application/model/repository-security.js";
 import { isSafeLocalWorkflowUse } from "../../../application/model/repository-security.js";
 import { digestWorkflowSources } from "./repository-security-digests.js";
 import {
   readOptionalEvidenceFile,
   readRequiredEvidenceFile,
-  resolveSafeEvidencePath
+  resolveSafeEvidencePath,
 } from "./repository-security-filesystem.js";
-import { assertSecurityObservationActive, repositorySecurityInputError } from "../../../application/policies/repository-security-input.js";
+import {
+  assertSecurityObservationActive,
+  repositorySecurityInputError,
+} from "../../../application/policies/repository-security-input.js";
 import {
   collectCompositeActionWorkflowUses,
   collectCompositeActionUses,
   collectWorkflowUses,
-  parseWorkflow
+  parseWorkflow,
 } from "./workflow-evidence-parser.js";
 
 interface WorkflowDirectoryEvidence {
@@ -44,7 +47,7 @@ function isReusableWorkflowUse(use: string, workflowDirectory: string): boolean 
 async function readCompositeActionDescriptor(
   observation: SecurityEvidenceObservation,
   root: string,
-  localUse: string
+  localUse: string,
 ): Promise<{ readonly path: string; readonly source: Uint8Array }> {
   const actionDirectory = localUse.slice(2);
   await resolveSafeEvidencePath(observation, root, actionDirectory);
@@ -53,22 +56,22 @@ async function readCompositeActionDescriptor(
       const path = `${actionDirectory}/${name}`;
       const source = await readOptionalEvidenceFile(observation, root, path);
       return source === undefined ? undefined : { path, source };
-    })
+    }),
   );
   const descriptors = candidates.flatMap((candidate) =>
-    candidate === undefined ? [] : [candidate]
+    candidate === undefined ? [] : [candidate],
   );
   if (descriptors.length !== 1) {
     repositorySecurityInputError(
       "REPOSITORY_SECURITY_LOCAL_ACTION_INVALID",
-      `Local action must declare exactly one action.yml or action.yaml descriptor: ${localUse}.`
+      `Local action must declare exactly one action.yml or action.yaml descriptor: ${localUse}.`,
     );
   }
   const descriptor = descriptors[0];
   if (descriptor === undefined) {
     repositorySecurityInputError(
       "REPOSITORY_SECURITY_LOCAL_ACTION_INVALID",
-      `Local action descriptor is unavailable: ${localUse}.`
+      `Local action descriptor is unavailable: ${localUse}.`,
     );
   }
   return descriptor;
@@ -78,11 +81,11 @@ async function readLocalCompositeActions(
   observation: SecurityEvidenceObservation,
   root: string,
   workflowDirectory: string,
-  rootUses: readonly WorkflowUseEvidence[]
+  rootUses: readonly WorkflowUseEvidence[],
 ): Promise<LocalCompositeActionEvidence> {
   const pending = rootUses
     .filter(
-      ({ uses }) => isSafeLocalWorkflowUse(uses) && !isReusableWorkflowUse(uses, workflowDirectory)
+      ({ uses }) => isSafeLocalWorkflowUse(uses) && !isReusableWorkflowUse(uses, workflowDirectory),
     )
     .toSorted(({ uses: left }, { uses: right }) => compareBinaryStrings(left, right));
   const visited = new Set<string>();
@@ -97,7 +100,11 @@ async function readLocalCompositeActions(
     visited.add(next.uses);
     const descriptor = await readCompositeActionDescriptor(observation, root, next.uses);
     sourceEntries.push(descriptor);
-    const discovered = collectCompositeActionUses(observation.parseYaml, descriptor.path, descriptor.source);
+    const discovered = collectCompositeActionUses(
+      observation.parseYaml,
+      descriptor.path,
+      descriptor.source,
+    );
     compositeActions.push(discovered);
     const discoveredUses = collectCompositeActionWorkflowUses(discovered);
     nestedUses.push(...discoveredUses);
@@ -113,7 +120,7 @@ async function readLocalCompositeActions(
   return Object.freeze({
     compositeActions: Object.freeze(compositeActions),
     sourceEntries: Object.freeze(sourceEntries),
-    workflowUses: Object.freeze(nestedUses)
+    workflowUses: Object.freeze(nestedUses),
   });
 }
 
@@ -121,7 +128,7 @@ export async function readWorkflowDirectoryEvidence(
   observation: SecurityEvidenceObservation,
   root: string,
   policy: RepositorySecurityPolicy,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<WorkflowDirectoryEvidence> {
   const directory = await resolveSafeEvidencePath(observation, root, policy.workflowDirectory);
   const names: string[] = [];
@@ -131,7 +138,7 @@ export async function readWorkflowDirectoryEvidence(
     if (entry.isSymbolicLink() || !entry.isFile() || !/\.ya?ml$/iu.test(entry.name)) {
       repositorySecurityInputError(
         "REPOSITORY_SECURITY_WORKFLOW_ENTRY_INVALID",
-        `Workflow directory contains an unsupported entry: ${entry.name}.`
+        `Workflow directory contains an unsupported entry: ${entry.name}.`,
       );
     }
     names.push(entry.name);
@@ -149,7 +156,7 @@ export async function readWorkflowDirectoryEvidence(
     observation,
     root,
     policy.workflowDirectory,
-    rootUses
+    rootUses,
   );
   return Object.freeze({
     compositeActions: localCompositeActions.compositeActions,
@@ -157,7 +164,7 @@ export async function readWorkflowDirectoryEvidence(
     workflowUses: Object.freeze([...rootUses, ...localCompositeActions.workflowUses]),
     workflowDigest: await digestWorkflowSources([
       ...sourceEntries,
-      ...localCompositeActions.sourceEntries
-    ])
+      ...localCompositeActions.sourceEntries,
+    ]),
   });
 }

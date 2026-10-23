@@ -5,8 +5,11 @@ function isRecord(value) {
 }
 
 function sameStrings(left, right) {
-  return Array.isArray(left) && left.length === right.length &&
-    left.every((value, index) => value === right[index]);
+  return (
+    Array.isArray(left) &&
+    left.length === right.length &&
+    left.every((value, index) => value === right[index])
+  );
 }
 
 export function exactChangesetPreState(preState) {
@@ -21,9 +24,10 @@ export function exactChangesetPreState(preState) {
 }
 
 export function assertExactChangesetInventory(inventory, preState) {
-  const expectedMetadata = preState === undefined
-    ? ["README.md", "config.json"]
-    : ["README.md", "config.json", "pre.json"];
+  const expectedMetadata =
+    preState === undefined
+      ? ["README.md", "config.json"]
+      : ["README.md", "config.json", "pre.json"];
   const expectedPending = exactChangesetPreState(preState)
     ? preState.changesets.map((id) => `${id}.md`).toSorted()
     : [];

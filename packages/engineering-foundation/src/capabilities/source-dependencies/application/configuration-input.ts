@@ -6,16 +6,15 @@ export function configurationInputError(message: string): never {
     code: "SOURCE_ARCHITECTURE_CONFIG_INVALID",
     message,
     phase: "source-architecture-config",
-    retryable: false
+    retryable: false,
   });
 }
-
 
 export function ambiguousConfigurationBoundary(message: string): never {
   throw new CapabilityInputError({
     code: "SOURCE_BOUNDARY_AMBIGUOUS",
     message,
     phase: "source-boundary-classification",
-    retryable: false
+    retryable: false,
   });
 }

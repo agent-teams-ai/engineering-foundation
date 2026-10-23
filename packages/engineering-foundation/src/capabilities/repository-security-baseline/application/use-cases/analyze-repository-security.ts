@@ -10,11 +10,11 @@ export async function analyzeRepositorySecurity(
     readonly policy: RepositorySecurityPolicy;
     readonly signal?: AbortSignal;
   },
-  reader: RepositorySecurityReader
+  reader: RepositorySecurityReader,
 ): Promise<readonly FoundationDiagnostic[]> {
   assertNotCancelled(input.signal);
   return evaluateRepositorySecurity(
     input.policy,
-    await reader.read(input.consumerRoot, input.policy, input.signal)
+    await reader.read(input.consumerRoot, input.policy, input.signal),
   );
 }

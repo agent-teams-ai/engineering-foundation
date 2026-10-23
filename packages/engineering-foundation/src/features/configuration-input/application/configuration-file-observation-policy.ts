@@ -1,4 +1,7 @@
-import { assertRepositoryRelativePath, ContainedFileReadError } from "../../../source-inventory/api.js";
+import {
+  assertRepositoryRelativePath,
+  ContainedFileReadError,
+} from "../../../source-inventory/api.js";
 import { rejectConfigurationFile } from "./configuration-file-problem.js";
 
 export function assertConfigurationRelativePath(path: string, phase: string): void {

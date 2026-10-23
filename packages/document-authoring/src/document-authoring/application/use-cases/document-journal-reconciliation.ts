@@ -21,8 +21,11 @@ export class DocumentJournalReconciliationError extends Error {
 }
 
 function sameEnvelope(left: DocumentTransactionEnvelope, right: DocumentTransactionEnvelope) {
-  return left.envelopeDigest === right.envelopeDigest &&
-    left.payloadDigest === right.payloadDigest && left.state === right.state;
+  return (
+    left.envelopeDigest === right.envelopeDigest &&
+    left.payloadDigest === right.payloadDigest &&
+    left.state === right.state
+  );
 }
 
 async function evidence(runtime: ReconciliationRuntime) {
@@ -33,25 +36,33 @@ async function evidence(runtime: ReconciliationRuntime) {
 function failure(operation: string, primary: unknown, inspection?: unknown) {
   return new DocumentJournalReconciliationError(
     `${operation} reported failure and durable state is ${inspection === undefined ? "different" : "unverifiable"}.`,
-    { cause: inspection === undefined
-      ? primary
-      : new AggregateError([primary, inspection], `${operation} and reconciliation failed.`) }
+    {
+      cause:
+        inspection === undefined
+          ? primary
+          : new AggregateError([primary, inspection], `${operation} and reconciliation failed.`),
+    },
   );
 }
 
 export async function createJournalReconciled(
   runtime: ReconciliationRuntime,
-  envelope: DocumentTransactionEnvelope
+  envelope: DocumentTransactionEnvelope,
 ): Promise<JournalAuthority> {
   try {
     return await runtime.journal.create(envelope);
   } catch (primary) {
     let observed;
-    try { observed = await evidence(runtime); } catch (inspection) {
+    try {
+      observed = await evidence(runtime);
+    } catch (inspection) {
       throw failure("Journal creation", primary, inspection);
     }
-    if (observed.status.state === "recoverable" && observed.stored !== undefined &&
-      sameEnvelope(observed.stored.envelope, envelope)) {
+    if (
+      observed.status.state === "recoverable" &&
+      observed.stored !== undefined &&
+      sameEnvelope(observed.stored.envelope, envelope)
+    ) {
       assertNonzeroDocumentPhysicalIdentity(observed.stored.authority.identity);
       return observed.stored.authority;
     }
@@ -65,13 +76,15 @@ export async function createJournalReconciled(
 export async function replaceJournalReconciled(
   runtime: ReconciliationRuntime,
   active: ActiveJournalEvidence,
-  envelope: DocumentTransactionEnvelope
+  envelope: DocumentTransactionEnvelope,
 ): Promise<JournalAuthority> {
   try {
     return await runtime.journal.replace({ envelope, expectedAuthority: active.authority });
   } catch (primary) {
     let observed;
-    try { observed = await evidence(runtime); } catch (inspection) {
+    try {
+      observed = await evidence(runtime);
+    } catch (inspection) {
       throw failure("Journal replacement", primary, inspection);
     }
     if (observed.status.state !== "manual-recovery-required" && observed.stored !== undefined) {
@@ -79,11 +92,13 @@ export async function replaceJournalReconciled(
         assertNonzeroDocumentPhysicalIdentity(observed.stored.authority.identity);
         return observed.stored.authority;
       }
-      if (sameEnvelope(observed.stored.envelope, active.envelope) &&
+      if (
+        sameEnvelope(observed.stored.envelope, active.envelope) &&
         observed.stored.authority.authorityDigest === active.authority.authorityDigest &&
         observed.stored.authority.identity.dev === active.authority.identity.dev &&
         observed.stored.authority.identity.ino === active.authority.identity.ino &&
-        observed.stored.authority.identity.birthtimeNs === active.authority.identity.birthtimeNs) {
+        observed.stored.authority.identity.birthtimeNs === active.authority.identity.birthtimeNs
+      ) {
         throw primary;
       }
     }
@@ -93,11 +108,15 @@ export async function replaceJournalReconciled(
 
 export async function removeJournalReconciled(
   runtime: ReconciliationRuntime,
-  active: ActiveJournalEvidence
+  active: ActiveJournalEvidence,
 ): Promise<void> {
-  try { await runtime.journal.remove(active.authority); } catch (primary) {
+  try {
+    await runtime.journal.remove(active.authority);
+  } catch (primary) {
     let observed;
-    try { observed = await evidence(runtime); } catch (inspection) {
+    try {
+      observed = await evidence(runtime);
+    } catch (inspection) {
       throw failure("Journal removal", primary, inspection);
     }
     if (observed.status.state === "idle" && observed.stored === undefined) {

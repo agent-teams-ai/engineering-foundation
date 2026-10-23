@@ -38,9 +38,7 @@ export function pathIsInside(path: string, root: string): boolean {
  * deliberately retain the original case-sensitive path semantics.
  */
 export function portableRepositoryPathIdentity(path: string): string {
-  return normalizeRepositoryPath(path)
-    .normalize("NFC")
-    .toLocaleLowerCase("en-US");
+  return normalizeRepositoryPath(path).normalize("NFC").toLocaleLowerCase("en-US");
 }
 
 export function indexPortableRoots(roots: readonly string[]): ReadonlyMap<string, number> {
@@ -57,7 +55,7 @@ export function indexPortableRoots(roots: readonly string[]): ReadonlyMap<string
 /** pathIdentity must be produced by portableRepositoryPathIdentity. */
 export function matchingPortableRootSpecificity(
   pathIdentity: string,
-  roots: ReadonlyMap<string, number>
+  roots: ReadonlyMap<string, number>,
 ): number | undefined {
   let best = roots.get(".");
   let candidate = pathIdentity;
@@ -117,7 +115,7 @@ export function portableRepositoryPathProblem(path: string): string | undefined 
         /[<>"|?*]/u.test(segment) ||
         segment.endsWith(".") ||
         segment.endsWith(" ") ||
-        WINDOWS_RESERVED_SEGMENT.test(segment)
+        WINDOWS_RESERVED_SEGMENT.test(segment),
     ) ||
     normalizeRepositoryPath(path) !== path
   ) {
@@ -126,10 +124,7 @@ export function portableRepositoryPathProblem(path: string): string | undefined 
   return undefined;
 }
 
-function reusedPortablePathIdentity(
-  path: string,
-  identities?: Map<string, string>
-): string {
+function reusedPortablePathIdentity(path: string, identities?: Map<string, string>): string {
   const prior = identities?.get(path);
   if (prior !== undefined) {
     return prior;
@@ -142,7 +137,7 @@ function reusedPortablePathIdentity(
 export function portablePathIsInside(
   path: string,
   root: string,
-  identities?: Map<string, string>
+  identities?: Map<string, string>,
 ): boolean {
   const pathIdentity = reusedPortablePathIdentity(path, identities);
   const rootIdentity = reusedPortablePathIdentity(root, identities);

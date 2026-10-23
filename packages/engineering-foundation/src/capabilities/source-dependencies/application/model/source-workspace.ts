@@ -12,7 +12,7 @@ const SOURCE_DEPENDENCY_KINDS = [
   "import-equals-type",
   "static",
   "static-type",
-  "type-query"
+  "type-query",
 ] as const;
 
 export type SourceDependencyKind = (typeof SOURCE_DEPENDENCY_KINDS)[number];

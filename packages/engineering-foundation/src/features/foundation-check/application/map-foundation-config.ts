@@ -8,7 +8,7 @@ function inputError(message: string): never {
     code: "FOUNDATION_CONFIG_INVALID",
     message,
     phase: "foundation-config",
-    retryable: false
+    retryable: false,
   });
 }
 
@@ -33,7 +33,7 @@ function string(value: unknown, field: string): string {
 /** Maps schema-validated, inert input; this function has no filesystem authority. */
 export function mapFoundationConfig(
   input: unknown,
-  supportedCapabilityIds: ReadonlySet<string>
+  supportedCapabilityIds: ReadonlySet<string>,
 ): FoundationSettings {
   const root = record(input, "foundation config");
   const project = record(root["project"], "project");
@@ -46,13 +46,13 @@ export function mapFoundationConfig(
     const declaration = record(declarationInput, `capabilities.${id}`);
     declaredCapabilities.push({
       id,
-      configPath: string(declaration["configPath"], `capabilities.${id}.configPath`)
+      configPath: string(declaration["configPath"], `capabilities.${id}.configPath`),
     });
   }
   return Object.freeze({
     projectId: string(project["id"], "project.id"),
     declaredCapabilities: Object.freeze(
-      declaredCapabilities.toSorted((left, right) => compareBinaryStrings(left.id, right.id))
-    )
+      declaredCapabilities.toSorted((left, right) => compareBinaryStrings(left.id, right.id)),
+    ),
   });
 }

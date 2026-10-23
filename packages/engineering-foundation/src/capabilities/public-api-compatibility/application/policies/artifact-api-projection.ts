@@ -15,7 +15,7 @@ export function artifactApiProjection(snapshot: PublicApiArtifactSnapshot): Publ
           canonicalReference: "pattern",
           kind: "WildcardTarget",
           parentKind: "EntryPoint",
-          signature: entry.targetPattern
+          signature: entry.targetPattern,
         },
         ...entry.members.map((path) => {
           const schema = schemas.get(path);
@@ -25,10 +25,10 @@ export function artifactApiProjection(snapshot: PublicApiArtifactSnapshot): Publ
             parentKind: "EntryPoint",
             // The digest covers discriminator and constraint bytes; descriptive
             // inventory object ordering is not part of the exported contract.
-            signature: JSON.stringify({ path, id: schema?.id, digest: schema?.digest })
+            signature: JSON.stringify({ path, id: schema?.id, digest: schema?.digest }),
           };
-        })
-      ]
-    }))
+        }),
+      ],
+    })),
   };
 }

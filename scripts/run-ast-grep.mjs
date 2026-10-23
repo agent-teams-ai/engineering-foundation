@@ -10,7 +10,7 @@ if (binaryPath === null) {
   process.exitCode = 1;
 } else {
   const result = spawnSync(binaryPath, process.argv.slice(2), {
-    stdio: "inherit"
+    stdio: "inherit",
   });
   if (result.error !== undefined) {
     throw result.error;

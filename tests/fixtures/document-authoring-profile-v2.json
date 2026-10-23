@@ -24,10 +24,7 @@
       {
         "type": "adr",
         "initialStatus": "proposed",
-        "allowedOwnerIds": [
-          "architecture",
-          "platform/runtime"
-        ],
+        "allowedOwnerIds": ["architecture", "platform/runtime"],
         "identity": {
           "kind": "explicit",
           "format": "adr-four-digits"

@@ -9,13 +9,7 @@ import { sha256Json } from "../../packages/engineering-foundation/dist/scaffoldi
 const repositoryRoot = fileURLToPath(new URL("../..", import.meta.url));
 const documentFixture = JSON.parse(
   await readFile(
-    join(
-      repositoryRoot,
-      "tests",
-      "fixtures",
-      "document-authoring-contracts",
-      "valid-v1.json",
-    ),
+    join(repositoryRoot, "tests", "fixtures", "document-authoring-contracts", "valid-v1.json"),
     "utf8",
   ),
 );
@@ -72,10 +66,7 @@ async function observeEvidence(path) {
   }
 }
 
-function buildDocumentEnvelope(
-  version = "0.12.0",
-  buildIdentity = installedBuildIdentity,
-) {
+function buildDocumentEnvelope(version = "0.12.0", buildIdentity = installedBuildIdentity) {
   const envelope = structuredClone(documentFixture.documentEnvelope);
   envelope.foundation.version = version;
   envelope.foundation.buildIdentity = buildIdentity;
@@ -110,4 +101,12 @@ function coordinatorWith(status) {
   };
 }
 
-export { createRoot, slotPath, writeJson, observeEvidence, buildDocumentEnvelope, coordinatorWith, installedBuildIdentity };
+export {
+  createRoot,
+  slotPath,
+  writeJson,
+  observeEvidence,
+  buildDocumentEnvelope,
+  coordinatorWith,
+  installedBuildIdentity,
+};

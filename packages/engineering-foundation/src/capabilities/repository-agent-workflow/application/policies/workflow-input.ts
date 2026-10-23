@@ -1,12 +1,19 @@
-import { ContainedFileReadError, assertRepositoryRelativePath } from "../../../../source-inventory/api.js";
-import { CapabilityInputError, FoundationError, assertNotCancelled } from "../../../../features/validation-reporting/api.js";
+import {
+  ContainedFileReadError,
+  assertRepositoryRelativePath,
+} from "../../../../source-inventory/api.js";
+import {
+  CapabilityInputError,
+  FoundationError,
+  assertNotCancelled,
+} from "../../../../features/validation-reporting/api.js";
 
 export function rejectEffectiveInstructionInput(code: string, message: string): never {
   throw new CapabilityInputError({
     code,
     message,
     phase: "repository-agent-workflow-effective-instructions",
-    retryable: false
+    retryable: false,
   });
 }
 
@@ -15,7 +22,7 @@ export function rejectWorkflowEvidence(code: string, message: string): never {
     code,
     message,
     phase: "repository-agent-workflow-evidence",
-    retryable: false
+    retryable: false,
   });
 }
 
@@ -38,7 +45,7 @@ export function rejectWorkflowBunExecutor(): never {
 export function rejectWorkflowExecutor(): never {
   throw new FoundationError(
     "PROCESS_FAILED",
-    "Unable to resolve a shell-free pnpm entrypoint on Windows."
+    "Unable to resolve a shell-free pnpm entrypoint on Windows.",
   );
 }
 

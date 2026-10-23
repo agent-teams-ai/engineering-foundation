@@ -39,9 +39,10 @@ function artifactType(input: {
   readonly template: string;
   readonly type: string;
 }): string {
-  const reachability = input.type === "adr"
-    ? "{kind: manual-fixed-index, indexPath: docs/decisions/README.md}"
-    : "{kind: not-required, reason: Deterministic catalog and context projection provide reachability without duplicating manual indexes.}";
+  const reachability =
+    input.type === "adr"
+      ? "{kind: manual-fixed-index, indexPath: docs/decisions/README.md}"
+      : "{kind: not-required, reason: Deterministic catalog and context projection provide reachability without duplicating manual indexes.}";
   const heading = input.type === "adr" ? "id-colon-title" : "title";
   return `    - type: ${input.type}
       initialStatus: proposed
@@ -76,37 +77,44 @@ ${artifactType({ type: "adr", directory: "docs/decisions", template: "adr", iden
 function metadataSchema(ownerId: string): string {
   const commonStatuses = ["proposed", "active", "deprecated", "superseded"];
   const nonAdrTypes = ["tutorial", "how-to", "reference", "explanation", "index"];
-  return `${JSON.stringify({
-    $schema: "https://json-schema.org/draft/2020-12/schema",
-    type: "object",
-    additionalProperties: false,
-    required: ["id", "type", "status", "owner", "summary"],
-    properties: {
-      id: { type: "string", minLength: 1, maxLength: 214 },
-      type: { enum: ["adr", "tutorial", "how-to", "reference", "explanation", "index"] },
-      status: { type: "string" },
-      owner: { const: ownerId },
-      summary: { type: "string", minLength: 1, maxLength: 500 },
-      related: { type: "array", uniqueItems: true, items: { type: "string" } },
-      blocked_by: { type: "array", uniqueItems: true, items: { type: "string" } },
-      code_anchors: { type: "array", uniqueItems: true, items: { type: "object" } }
+  return `${JSON.stringify(
+    {
+      $schema: "https://json-schema.org/draft/2020-12/schema",
+      type: "object",
+      additionalProperties: false,
+      required: ["id", "type", "status", "owner", "summary"],
+      properties: {
+        id: { type: "string", minLength: 1, maxLength: 214 },
+        type: { enum: ["adr", "tutorial", "how-to", "reference", "explanation", "index"] },
+        status: { type: "string" },
+        owner: { const: ownerId },
+        summary: { type: "string", minLength: 1, maxLength: 500 },
+        related: { type: "array", uniqueItems: true, items: { type: "string" } },
+        blocked_by: { type: "array", uniqueItems: true, items: { type: "string" } },
+        code_anchors: { type: "array", uniqueItems: true, items: { type: "object" } },
+      },
+      oneOf: [
+        {
+          type: "object",
+          required: ["type", "status"],
+          properties: {
+            type: { const: "adr" },
+            status: { enum: [...commonStatuses, "accepted"] },
+          },
+        },
+        {
+          type: "object",
+          required: ["type", "status"],
+          properties: {
+            type: { enum: nonAdrTypes },
+            status: { enum: commonStatuses },
+          },
+        },
+      ],
     },
-    oneOf: [{
-      type: "object",
-      required: ["type", "status"],
-      properties: {
-        type: { const: "adr" },
-        status: { enum: [...commonStatuses, "accepted"] }
-      }
-    }, {
-      type: "object",
-      required: ["type", "status"],
-      properties: {
-        type: { enum: nonAdrTypes },
-        status: { enum: commonStatuses }
-      }
-    }]
-  }, undefined, 2)}\n`;
+    undefined,
+    2,
+  )}\n`;
 }
 
 function template(type: string, title: string, sections: readonly string[]): string {
@@ -179,37 +187,114 @@ export function portableBootstrapManagedBlock(eol: string): string {
   return [
     PORTABLE_BOOTSTRAP_BEGIN_MARKER,
     `Use [${SKILL_PATH}](${SKILL_PATH}) for documentation.`,
-    PORTABLE_BOOTSTRAP_END_MARKER
+    PORTABLE_BOOTSTRAP_END_MARKER,
   ].join(eol);
 }
 
 export function portableBootstrapDesiredFiles(
   projectId: string,
-  ownerId: string
+  ownerId: string,
 ): readonly PortableBootstrapDesiredFile[] {
   const textFiles: readonly [string, string][] = [
     ["docs.config.yaml", docsConfig()],
     [".docs-protocol/document-authoring.yaml", documentAuthoringProfile(projectId, ownerId)],
     [".docs-protocol/metadata.schema.json", metadataSchema(ownerId)],
-    [".docs-protocol/owners.yaml", `version: 1\nowners:\n  ${yamlScalar(ownerId)}:\n    kind: documentation\n`],
-    [".docs-protocol/templates/adr.md", template("adr", "ADR-NNNN: Decision title", ["Context", "Decision", "Consequences"])],
-    [".docs-protocol/templates/tutorial.md", template("tutorial", "Tutorial title", ["Goal", "Prerequisites", "Steps", "Next steps"])],
-    [".docs-protocol/templates/how-to.md", template("how-to", "How to achieve a goal", ["Before you begin", "Procedure", "Verification"])],
-    [".docs-protocol/templates/reference.md", template("reference", "Reference title", ["Overview", "Contract", "Examples"])],
-    [".docs-protocol/templates/explanation.md", template("explanation", "Explanation title", ["Context", "Concept", "Trade-offs"])],
-    ["docs/README.md", indexReadme({ id: "docs.index", ownerId, title: "Documentation", description: "Use tutorials to learn, how-to guides to complete tasks, reference for exact facts, explanations for understanding, and decision records for architectural choices." })],
-    ["docs/decisions/README.md", indexReadme({ id: "docs.decisions.index", ownerId, title: "Architecture decisions", description: "MADR-compatible decision records capture durable architectural choices, their context, and their consequences." })],
-    ["docs/tutorials/README.md", indexReadme({ id: "docs.tutorials.index", ownerId, title: "Tutorials", description: "Tutorials are learning-oriented lessons that guide a reader to a successful first result." })],
-    ["docs/how-to/README.md", indexReadme({ id: "docs.how-to.index", ownerId, title: "How-to guides", description: "How-to guides are goal-oriented procedures for readers who already understand the basics." })],
-    ["docs/reference/README.md", indexReadme({ id: "docs.reference.index", ownerId, title: "Reference", description: "Reference documentation is precise, complete, and organized for lookup." })],
-    ["docs/explanation/README.md", indexReadme({ id: "docs.explanation.index", ownerId, title: "Explanation", description: "Explanations build understanding by describing concepts, context, and trade-offs." })],
-    [SKILL_PATH, skill()]
+    [
+      ".docs-protocol/owners.yaml",
+      `version: 1\nowners:\n  ${yamlScalar(ownerId)}:\n    kind: documentation\n`,
+    ],
+    [
+      ".docs-protocol/templates/adr.md",
+      template("adr", "ADR-NNNN: Decision title", ["Context", "Decision", "Consequences"]),
+    ],
+    [
+      ".docs-protocol/templates/tutorial.md",
+      template("tutorial", "Tutorial title", ["Goal", "Prerequisites", "Steps", "Next steps"]),
+    ],
+    [
+      ".docs-protocol/templates/how-to.md",
+      template("how-to", "How to achieve a goal", [
+        "Before you begin",
+        "Procedure",
+        "Verification",
+      ]),
+    ],
+    [
+      ".docs-protocol/templates/reference.md",
+      template("reference", "Reference title", ["Overview", "Contract", "Examples"]),
+    ],
+    [
+      ".docs-protocol/templates/explanation.md",
+      template("explanation", "Explanation title", ["Context", "Concept", "Trade-offs"]),
+    ],
+    [
+      "docs/README.md",
+      indexReadme({
+        id: "docs.index",
+        ownerId,
+        title: "Documentation",
+        description:
+          "Use tutorials to learn, how-to guides to complete tasks, reference for exact facts, explanations for understanding, and decision records for architectural choices.",
+      }),
+    ],
+    [
+      "docs/decisions/README.md",
+      indexReadme({
+        id: "docs.decisions.index",
+        ownerId,
+        title: "Architecture decisions",
+        description:
+          "MADR-compatible decision records capture durable architectural choices, their context, and their consequences.",
+      }),
+    ],
+    [
+      "docs/tutorials/README.md",
+      indexReadme({
+        id: "docs.tutorials.index",
+        ownerId,
+        title: "Tutorials",
+        description:
+          "Tutorials are learning-oriented lessons that guide a reader to a successful first result.",
+      }),
+    ],
+    [
+      "docs/how-to/README.md",
+      indexReadme({
+        id: "docs.how-to.index",
+        ownerId,
+        title: "How-to guides",
+        description:
+          "How-to guides are goal-oriented procedures for readers who already understand the basics.",
+      }),
+    ],
+    [
+      "docs/reference/README.md",
+      indexReadme({
+        id: "docs.reference.index",
+        ownerId,
+        title: "Reference",
+        description: "Reference documentation is precise, complete, and organized for lookup.",
+      }),
+    ],
+    [
+      "docs/explanation/README.md",
+      indexReadme({
+        id: "docs.explanation.index",
+        ownerId,
+        title: "Explanation",
+        description:
+          "Explanations build understanding by describing concepts, context, and trade-offs.",
+      }),
+    ],
+    [SKILL_PATH, skill()],
   ];
-  const files = textFiles.map(([path, source]) => Object.freeze({
-    path,
-    ownership: "create-only" as const,
-    bytes: Buffer.from(source, "utf8")
-  }));
+  const files = textFiles.map(([path, source]) =>
+    Object.freeze({
+      path,
+      ownership: "create-only" as const,
+      bytes: Buffer.from(source, "utf8"),
+    }),
+  );
   if (files.length + 1 > MAXIMUM_BOOTSTRAP_FILES) {
     throw new TypeError(`Portable bootstrap exceeds ${MAXIMUM_BOOTSTRAP_FILES} files.`);
   }

@@ -10,8 +10,9 @@ type SettledExecution<T> =
   | { readonly state: "fulfilled"; readonly execution: DocumentTransactionExecution<T> }
   | { readonly state: "rejected"; readonly error: unknown };
 
-async function settle<T>(operation: () => Promise<DocumentTransactionExecution<T>>):
-Promise<SettledExecution<T>> {
+async function settle<T>(
+  operation: () => Promise<DocumentTransactionExecution<T>>,
+): Promise<SettledExecution<T>> {
   try {
     return { execution: await operation(), state: "fulfilled" };
   } catch (error) {
@@ -20,20 +21,18 @@ Promise<SettledExecution<T>> {
 }
 
 function primaryFailure<T>(settled: SettledExecution<T>): unknown {
-  return settled.state === "rejected"
-    ? settled.error
-    : settled.execution.primaryFailure;
+  return settled.state === "rejected" ? settled.error : settled.execution.primaryFailure;
 }
 
 /** Releases a lease without allowing release control flow to replace the primary outcome. */
 export async function executeWithDocumentTransactionLease<T>(
   lease: DocumentTransactionLease,
   operation: () => Promise<DocumentTransactionExecution<T>>,
-  jointFailureMessage: string
+  jointFailureMessage: string,
 ): Promise<T> {
   const settled = await settle(operation);
-  const retainTransactionBarrier = settled.state === "rejected" ||
-    settled.execution.retainTransactionBarrier;
+  const retainTransactionBarrier =
+    settled.state === "rejected" || settled.execution.retainTransactionBarrier;
   let releaseFailure: unknown;
   try {
     await lease.release({ retainTransactionBarrier });
@@ -43,7 +42,7 @@ export async function executeWithDocumentTransactionLease<T>(
   const primary = primaryFailure(settled);
   if (releaseFailure !== undefined && primary !== undefined) {
     throw new AggregateError([primary, releaseFailure], jointFailureMessage, {
-      cause: primary
+      cause: primary,
     });
   }
   if (releaseFailure !== undefined) {

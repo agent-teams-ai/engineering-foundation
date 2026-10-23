@@ -55,7 +55,10 @@ function normalizedField(value: unknown, subject: string): string {
     throw new CommunityContextError(`${subject} must be a string.`);
   }
   const normalized = value.normalize("NFC");
-  if (normalized.includes("\u0000") || Buffer.byteLength(normalized, "utf8") > MAXIMUM_FIELD_BYTES) {
+  if (
+    normalized.includes("\u0000") ||
+    Buffer.byteLength(normalized, "utf8") > MAXIMUM_FIELD_BYTES
+  ) {
     throw new CommunityContextError(`${subject} is outside the bounded text contract.`);
   }
   return normalized;
@@ -65,7 +68,9 @@ function normalizedStringArray(value: unknown, subject: string): readonly string
   if (!Array.isArray(value)) {
     throw new CommunityContextError(`${subject} must be an array of strings.`);
   }
-  return Object.freeze(value.map((entry, index) => normalizedField(entry, `${subject}[${String(index)}]`)));
+  return Object.freeze(
+    value.map((entry, index) => normalizedField(entry, `${subject}[${String(index)}]`)),
+  );
 }
 
 function normalizeDocument(document: DocsFindDocument, index: number): DocsFindDocument {
@@ -82,7 +87,7 @@ function normalizeDocument(document: DocsFindDocument, index: number): DocsFindD
     // Metadata remains opaque consumer authority. Never spread or index its keys.
     metadata: document.metadata,
     related: normalizedStringArray(document.related, `${subject}.related`),
-    blockedBy: normalizedStringArray(document.blockedBy, `${subject}.blockedBy`)
+    blockedBy: normalizedStringArray(document.blockedBy, `${subject}.blockedBy`),
   });
 }
 
@@ -93,7 +98,9 @@ function compareDocuments(left: DocsFindDocument, right: DocsFindDocument): numb
 
 function normalizedCorpus(documents: readonly DocsFindDocument[]): readonly DocsFindDocument[] {
   if (documents.length > MAXIMUM_DOCUMENTS) {
-    throw new CommunityContextError(`Document corpus exceeds ${String(MAXIMUM_DOCUMENTS)} entries.`);
+    throw new CommunityContextError(
+      `Document corpus exceeds ${String(MAXIMUM_DOCUMENTS)} entries.`,
+    );
   }
   const normalized = documents.map(normalizeDocument).toSorted(compareDocuments);
   const ids = new Set<string>();
@@ -103,7 +110,9 @@ function normalizedCorpus(documents: readonly DocsFindDocument[]): readonly Docs
       throw new CommunityContextError(`Duplicate canonical document id: ${document.id}.`);
     }
     if (paths.has(document.repositoryPath)) {
-      throw new CommunityContextError(`Duplicate canonical document path: ${document.repositoryPath}.`);
+      throw new CommunityContextError(
+        `Duplicate canonical document path: ${document.repositoryPath}.`,
+      );
     }
     ids.add(document.id);
     paths.add(document.repositoryPath);
@@ -112,9 +121,13 @@ function normalizedCorpus(documents: readonly DocsFindDocument[]): readonly Docs
 }
 
 function maximumResults(value: number | undefined, corpusSize: number): number {
-  if (value === undefined) {return corpusSize;}
+  if (value === undefined) {
+    return corpusSize;
+  }
   if (!Number.isSafeInteger(value) || value < 0 || value > MAXIMUM_DOCUMENTS) {
-    throw new CommunityContextError(`maxResults must be an integer from 0 through ${String(MAXIMUM_DOCUMENTS)}.`);
+    throw new CommunityContextError(
+      `maxResults must be an integer from 0 through ${String(MAXIMUM_DOCUMENTS)}.`,
+    );
   }
   return value;
 }
@@ -129,19 +142,28 @@ function searchRecord(document: DocsFindDocument): CommunitySearchRecord {
     type: document.type,
     status: document.status,
     related: document.related.join("\n"),
-    blockedBy: document.blockedBy.join("\n")
+    blockedBy: document.blockedBy.join("\n"),
   });
 }
 
-export function rankCommunityDocuments(input: RankCommunityDocumentsInput): readonly CommunityRankedDocument[] {
+export function rankCommunityDocuments(
+  input: RankCommunityDocumentsInput,
+): readonly CommunityRankedDocument[] {
   const documents = normalizedCorpus(input.documents);
   const limit = maximumResults(input.maxResults, documents.length);
-  if (documents.length === 0 || limit === 0) {return Object.freeze([]);}
+  if (documents.length === 0 || limit === 0) {
+    return Object.freeze([]);
+  }
 
   const query = normalizedField(input.query, "query").trim();
   if (query.length === 0) {
-    return Object.freeze(documents.slice(0, limit).map((document) =>
-      Object.freeze({ document, score: 0, ranking: "binary-default" as const })));
+    return Object.freeze(
+      documents
+        .slice(0, limit)
+        .map((document) =>
+          Object.freeze({ document, score: 0, ranking: "binary-default" as const }),
+        ),
+    );
   }
   if (input.searchIndex === undefined) {
     throw new CommunityContextError("A searchIndex is required for a non-empty fuzzy query.");
@@ -157,12 +179,20 @@ export function rankCommunityDocuments(input: RankCommunityDocumentsInput): read
     const id = hit.id.normalize("NFC");
     const document = byId.get(id);
     if (document === undefined || seenHits.has(id)) {
-      throw new CommunityContextError(`Search hit ${String(index)} has an unknown or duplicate id.`);
+      throw new CommunityContextError(
+        `Search hit ${String(index)} has an unknown or duplicate id.`,
+      );
     }
     seenHits.add(id);
     return Object.freeze({ document, score: hit.score, ranking: "fuzzy-advisory" as const });
   });
 
-  return Object.freeze(ranked.toSorted((left, right) =>
-    right.score - left.score || compareDocuments(left.document, right.document)).slice(0, limit));
+  return Object.freeze(
+    ranked
+      .toSorted(
+        (left, right) =>
+          right.score - left.score || compareDocuments(left.document, right.document),
+      )
+      .slice(0, limit),
+  );
 }

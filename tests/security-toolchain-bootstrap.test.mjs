@@ -9,7 +9,7 @@ import {
   AQUA_VERSION,
   AquaChecksumMismatchError,
   AquaExecutableChecksumMismatchError,
-  UnsupportedAquaPlatformError
+  UnsupportedAquaPlatformError,
 } from "../scripts/security-toolchain-artifact.mjs";
 import { ensurePinnedAqua } from "../scripts/security-toolchain.mjs";
 
@@ -20,7 +20,7 @@ function fixtureArtifact(contents = FIXTURE_AQUA, executableContents = contents)
     executableSha256: createHash("sha256").update(executableContents).digest("hex"),
     fileName: "fixture-aqua.tar.gz",
     sha256: createHash("sha256").update(contents).digest("hex"),
-    url: "https://fixtures.invalid/aqua"
+    url: "https://fixtures.invalid/aqua",
   };
 }
 
@@ -50,11 +50,11 @@ function bootstrapOptions(cacheDirectory, overrides = {}) {
     lock: {
       retryMs: 5,
       staleAfterMs: 1_000,
-      timeoutMs: 2_000
+      timeoutMs: 2_000,
     },
     platform: "linux",
     validateAqua: fixtureValidate,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -67,17 +67,17 @@ test("fails closed before extraction when the pinned Aqua checksum differs", asy
           download: async () => Buffer.from("unexpected Aqua archive"),
           extract: async () => {
             extractionAttempted = true;
-          }
-        })
+          },
+        }),
       ),
       (error) =>
         error instanceof AquaChecksumMismatchError &&
-        error.code === "SECURITY_TOOLCHAIN_CHECKSUM_MISMATCH"
+        error.code === "SECURITY_TOOLCHAIN_CHECKSUM_MISMATCH",
     );
     assert.equal(extractionAttempted, false);
     assert.deepEqual(
       (await readdir(cacheDirectory)).filter((entry) => entry.startsWith(".aqua-stage-")),
-      []
+      [],
     );
   });
 });
@@ -88,20 +88,17 @@ test("fails closed before executing a downloaded binary with the wrong executabl
     await assert.rejects(
       ensurePinnedAqua(
         bootstrapOptions(cacheDirectory, {
-          artifact: fixtureArtifact(
-            FIXTURE_AQUA,
-            Buffer.from("different expected executable")
-          ),
+          artifact: fixtureArtifact(FIXTURE_AQUA, Buffer.from("different expected executable")),
           download: async () => FIXTURE_AQUA,
           validateAqua: async () => {
             validationAttempted = true;
             return true;
-          }
-        })
+          },
+        }),
       ),
       (error) =>
         error instanceof AquaExecutableChecksumMismatchError &&
-        error.code === "SECURITY_TOOLCHAIN_EXECUTABLE_CHECKSUM_MISMATCH"
+        error.code === "SECURITY_TOOLCHAIN_EXECUTABLE_CHECKSUM_MISMATCH",
     );
     assert.equal(validationAttempted, false);
   });
@@ -116,12 +113,12 @@ test("reports an explicit precondition for unsupported platforms", async () => {
         downloadAttempted = true;
         return FIXTURE_AQUA;
       },
-      platform: "win32"
+      platform: "win32",
     }),
     (error) =>
       error instanceof UnsupportedAquaPlatformError &&
       error.code === "SECURITY_TOOLCHAIN_UNSUPPORTED_PLATFORM" &&
-      error.message.includes("Windows CI")
+      error.message.includes("Windows CI"),
   );
   assert.equal(downloadAttempted, false);
 });
@@ -133,7 +130,7 @@ test("does not trust an ambient Aqua command or a tampered cache binary", async 
       download: async () => {
         downloadCount += 1;
         return FIXTURE_AQUA;
-      }
+      },
     });
     const first = await ensurePinnedAqua(options);
     assert.notEqual(first.executable, "aqua");

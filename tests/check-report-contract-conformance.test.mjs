@@ -9,18 +9,10 @@ import test from "node:test";
 
 const execFileAsync = promisify(execFile);
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
-const distRoot = process.env.FOUNDATION_DIST_ROOT ?? join(
-  repositoryRoot,
-  "packages",
-  "engineering-foundation",
-  "dist",
-);
-const schemaRoot = join(
-  repositoryRoot,
-  "packages",
-  "engineering-foundation",
-  "schemas",
-);
+const distRoot =
+  process.env.FOUNDATION_DIST_ROOT ??
+  join(repositoryRoot, "packages", "engineering-foundation", "dist");
+const schemaRoot = join(repositoryRoot, "packages", "engineering-foundation", "schemas");
 
 function schemaType(schema, root, referenceStack = []) {
   if (schema.$ref !== undefined) {
@@ -66,9 +58,10 @@ async function assertSchemaConformance({ declarationName, declarationPath, schem
   const temporaryRoot = await mkdtemp(join(temporaryBase, ".foundation-report-conformance-"));
   const sourcePath = join(temporaryRoot, "contract-conformance.ts");
   const relativeDeclarationPath = relative(temporaryRoot, declarationPath).split(sep).join("/");
-  const declarationSpecifier = isAbsolute(relativeDeclarationPath) || relativeDeclarationPath.startsWith(".")
-    ? relativeDeclarationPath
-    : `./${relativeDeclarationPath}`;
+  const declarationSpecifier =
+    isAbsolute(relativeDeclarationPath) || relativeDeclarationPath.startsWith(".")
+      ? relativeDeclarationPath
+      : `./${relativeDeclarationPath}`;
   const source = [
     `import type { ${declarationName} } from ${JSON.stringify(declarationSpecifier)};`,
     `type SchemaContract = ${schemaType(schema, schema)};`,

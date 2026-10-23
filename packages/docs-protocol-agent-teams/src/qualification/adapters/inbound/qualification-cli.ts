@@ -1,15 +1,12 @@
-import {
-  DOCS_PROTOCOL_ID,
-  DOCS_PROTOCOL_VERSION
-} from "@agent-teams/docs-protocol";
+import { DOCS_PROTOCOL_ID, DOCS_PROTOCOL_VERSION } from "@agent-teams/docs-protocol";
 
 import {
   assertManagedQualificationEnvelopeSchema,
-  type ManagedQualificationEnvelope
+  type ManagedQualificationEnvelope,
 } from "./managed-command-envelope-validator.js";
 import type {
   DocsProtocolQualificationReceiptV2,
-  DocsProtocolQualificationV2Request
+  DocsProtocolQualificationV2Request,
 } from "../../application-api.js";
 import { Arguments, CliInputError } from "./managed-cli-input.js";
 
@@ -27,7 +24,10 @@ interface QualificationFailure {
 }
 
 function errorCode(error: unknown): string | undefined {
-  return typeof error === "object" && error !== null && "code" in error && typeof error.code === "string"
+  return typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    typeof error.code === "string"
     ? error.code
     : undefined;
 }
@@ -43,17 +43,34 @@ function qualificationFailure(error: unknown): QualificationFailure {
   const cancelled = error instanceof Error && error.name === "AbortError";
   const code = errorCode(error);
   const invalidOutput = error instanceof QualificationOutputError;
-  const inputInvalid = !invalidOutput && (error instanceof CliInputError || error instanceof SyntaxError || error instanceof TypeError);
-  const operational = code !== undefined && /^(?:EACCES|EISDIR|ELOOP|EMFILE|ENAMETOOLONG|ENOENT|ENOSPC|ENOTDIR|EPERM|EROFS)$/u.test(code);
-  const outcome = cancelled ? "cancelled" as const
-    : inputInvalid ? "invalid-input" as const
-      : operational || invalidOutput ? "execution-failure" as const
-        : "violation" as const;
-  const exitCode = cancelled ? 130 as const : inputInvalid ? 2 as const : operational || invalidOutput ? 3 as const : 1 as const;
-  const ruleId = cancelled ? "docs.qualification.cancelled"
-    : inputInvalid ? "docs.qualification.invalid-input"
-      : operational ? "docs.qualification.execution-failure.filesystem"
-        : invalidOutput ? "docs.qualification.execution-failure.internal"
+  const inputInvalid =
+    !invalidOutput &&
+    (error instanceof CliInputError || error instanceof SyntaxError || error instanceof TypeError);
+  const operational =
+    code !== undefined &&
+    /^(?:EACCES|EISDIR|ELOOP|EMFILE|ENAMETOOLONG|ENOENT|ENOSPC|ENOTDIR|EPERM|EROFS)$/u.test(code);
+  const outcome = cancelled
+    ? ("cancelled" as const)
+    : inputInvalid
+      ? ("invalid-input" as const)
+      : operational || invalidOutput
+        ? ("execution-failure" as const)
+        : ("violation" as const);
+  const exitCode = cancelled
+    ? (130 as const)
+    : inputInvalid
+      ? (2 as const)
+      : operational || invalidOutput
+        ? (3 as const)
+        : (1 as const);
+  const ruleId = cancelled
+    ? "docs.qualification.cancelled"
+    : inputInvalid
+      ? "docs.qualification.invalid-input"
+      : operational
+        ? "docs.qualification.execution-failure.filesystem"
+        : invalidOutput
+          ? "docs.qualification.execution-failure.internal"
           : violationRuleId(message);
   return {
     exitCode,
@@ -63,9 +80,17 @@ function qualificationFailure(error: unknown): QualificationFailure {
       protocol: { id: DOCS_PROTOCOL_ID, version: DOCS_PROTOCOL_VERSION },
       command: "docs.qualify",
       outcome,
-      diagnostics: [{ ruleId, severity: "error", phase: inputInvalid ? "input" : "authority", subject: "docs.qualify", message }],
-      result: Object.freeze({})
-    }
+      diagnostics: [
+        {
+          ruleId,
+          severity: "error",
+          phase: inputInvalid ? "input" : "authority",
+          subject: "docs.qualify",
+          message,
+        },
+      ],
+      result: Object.freeze({}),
+    },
   };
 }
 
@@ -76,32 +101,39 @@ function qualificationHelpText(): string {
 async function qualificationSuccess(
   args: Arguments,
   signal: AbortSignal,
-  operations: QualificationCliOperations
+  operations: QualificationCliOperations,
 ): Promise<{
   readonly envelope: ManagedQualificationEnvelope<DocsProtocolQualificationReceiptV2>;
   readonly exitCode: 0;
 }> {
   const localDevelopment = args.flag("--local-development");
   const consumerRoot = args.one("--consumer") ?? ".";
-  const integrationPath = args.one("--integration") ??
-    "architecture/foundation/docs-consumer-integration.json";
-  if (args.positionals().length !== 0) {throw new CliInputError("qualify accepts no positional arguments.");}
+  const integrationPath =
+    args.one("--integration") ?? "architecture/foundation/docs-consumer-integration.json";
+  if (args.positionals().length !== 0) {
+    throw new CliInputError("qualify accepts no positional arguments.");
+  }
   const input = await operations.readProfile(consumerRoot, integrationPath);
   const integration = input.profile;
-  if (integration.schemaVersion !== 1 && integration.schemaVersion !== 2 &&
-    integration.schemaVersion !== 3) {
-    throw new CliInputError("Managed qualification requires explicit integration profile schemaVersion 1, 2, or 3.");
+  if (
+    integration.schemaVersion !== 1 &&
+    integration.schemaVersion !== 2 &&
+    integration.schemaVersion !== 3
+  ) {
+    throw new CliInputError(
+      "Managed qualification requires explicit integration profile schemaVersion 1, 2, or 3.",
+    );
   }
   if (integration.schemaVersion === 3) {
     throw new CliInputError(
-      "Qualification profile v3 requires a trusted registry/canary receipt produced outside the consumer CLI."
+      "Qualification profile v3 requires a trusted registry/canary receipt produced outside the consumer CLI.",
     );
   }
   const receipt = await operations.qualify({
     consumerRoot: input.consumerRoot,
     localDevelopment,
     signal,
-    integrationPath
+    integrationPath,
   });
   return {
     exitCode: 0,
@@ -111,26 +143,35 @@ async function qualificationSuccess(
       command: "docs.qualify",
       outcome: "success",
       diagnostics: [],
-      result: receipt
-    }
+      result: receipt,
+    },
   };
 }
 
 function renderQualificationSuccess(
-  execution: { readonly envelope: ManagedQualificationEnvelope<DocsProtocolQualificationReceiptV2> },
-  json: boolean
+  execution: {
+    readonly envelope: ManagedQualificationEnvelope<DocsProtocolQualificationReceiptV2>;
+  },
+  json: boolean,
 ): string {
-  if (json) {return `${JSON.stringify(execution.envelope)}\n`;}
+  if (json) {
+    return `${JSON.stringify(execution.envelope)}\n`;
+  }
   const receipt = execution.envelope.result;
   return `docs.qualify: success\nProject: ${receipt.projectId}\nScenarios: ${receipt.scenarios.length}\nEvidence: ${receipt.evidenceClass}\n`;
 }
 
 interface QualificationCliOperations {
-  readonly readProfile: (consumerRoot: string, integrationPath: string) => Promise<{
+  readonly readProfile: (
+    consumerRoot: string,
+    integrationPath: string,
+  ) => Promise<{
     readonly consumerRoot: string;
     readonly profile: { readonly schemaVersion?: unknown };
   }>;
-  readonly qualify: (request: DocsProtocolQualificationV2Request) => Promise<DocsProtocolQualificationReceiptV2>;
+  readonly qualify: (
+    request: DocsProtocolQualificationV2Request,
+  ) => Promise<DocsProtocolQualificationReceiptV2>;
 }
 
 export function createQualificationCli(operations: QualificationCliOperations) {
@@ -140,7 +181,11 @@ export function createQualificationCli(operations: QualificationCliOperations) {
       return 0;
     }
     const controller = new AbortController();
-    const cancel = () => { controller.abort(new DOMException("Documentation qualification was cancelled.", "AbortError")); };
+    const cancel = () => {
+      controller.abort(
+        new DOMException("Documentation qualification was cancelled.", "AbortError"),
+      );
+    };
     process.once("SIGINT", cancel);
     process.once("SIGTERM", cancel);
     let json = values.includes("--json");
@@ -149,15 +194,24 @@ export function createQualificationCli(operations: QualificationCliOperations) {
       json = args.flag("--json");
       const execution = await qualificationSuccess(args, controller.signal, operations);
       if (json) {
-        try {await assertManagedQualificationEnvelopeSchema(execution.envelope);}
-        catch {throw new QualificationOutputError();}
+        try {
+          await assertManagedQualificationEnvelopeSchema(execution.envelope);
+        } catch {
+          throw new QualificationOutputError();
+        }
       }
       process.stdout.write(renderQualificationSuccess(execution, json));
       return 0;
     } catch (error) {
       const failure = qualificationFailure(error);
-      if (json) {await assertManagedQualificationEnvelopeSchema(failure.envelope);}
-      process.stdout.write(json ? `${JSON.stringify(failure.envelope)}\n` : `docs.qualify: ${failure.envelope.outcome}\n${failure.message}\n`);
+      if (json) {
+        await assertManagedQualificationEnvelopeSchema(failure.envelope);
+      }
+      process.stdout.write(
+        json
+          ? `${JSON.stringify(failure.envelope)}\n`
+          : `docs.qualify: ${failure.envelope.outcome}\n${failure.message}\n`,
+      );
       return failure.exitCode;
     } finally {
       process.off("SIGINT", cancel);

@@ -5,7 +5,7 @@ import { portableRepositoryPathIdentity } from "../model/repository-path.js";
 import type { SourceWorkspacePackageTopology } from "../model/source-workspace-topology.js";
 
 function packageByPortableRoot(
-  packages: readonly WorkspacePackage[]
+  packages: readonly WorkspacePackage[],
 ): ReadonlyMap<string, WorkspacePackage> {
   const byRoot = new Map<string, WorkspacePackage>();
   for (const workspacePackage of packages) {
@@ -14,7 +14,7 @@ function packageByPortableRoot(
     if (existing !== undefined) {
       inputError(
         "WORKSPACE_PACKAGE_ROOT_DUPLICATE",
-        `Workspace package roots share a portable identity: ${existing.rootPath} and ${workspacePackage.rootPath}.`
+        `Workspace package roots share a portable identity: ${existing.rootPath} and ${workspacePackage.rootPath}.`,
       );
     }
     byRoot.set(identity, workspacePackage);
@@ -22,22 +22,20 @@ function packageByPortableRoot(
   return byRoot;
 }
 
-function packageRootIdentities(
-  manifestPaths: readonly string[]
-): ReadonlySet<string> {
+function packageRootIdentities(manifestPaths: readonly string[]): ReadonlySet<string> {
   return new Set(
     manifestPaths.map((manifestPath) =>
       portableRepositoryPathIdentity(
-        manifestPath === "package.json" ? "." : manifestPath.slice(0, -"/package.json".length)
-      )
-    )
+        manifestPath === "package.json" ? "." : manifestPath.slice(0, -"/package.json".length),
+      ),
+    ),
   );
 }
 
 function owningPackage(
   path: string,
   packagesByRoot: ReadonlyMap<string, WorkspacePackage>,
-  ownershipRoots: ReadonlySet<string>
+  ownershipRoots: ReadonlySet<string>,
 ): WorkspacePackage | undefined {
   let candidate = portableRepositoryPathIdentity(path);
   for (;;) {
@@ -55,7 +53,7 @@ function owningPackage(
 export function buildSelectedPackageSourceTopology(
   packages: readonly WorkspacePackage[],
   sourcePaths: readonly string[],
-  allManifestPaths: readonly string[]
+  allManifestPaths: readonly string[],
 ): readonly Omit<SourceWorkspacePackageTopology, "filesystemIdentity">[] {
   const packagesByRoot = packageByPortableRoot(packages);
   const ownershipRoots = packageRootIdentities(allManifestPaths);
@@ -66,9 +64,7 @@ export function buildSelectedPackageSourceTopology(
   for (const path of sourcePaths) {
     const workspacePackage = owningPackage(path, packagesByRoot, ownershipRoots);
     if (workspacePackage !== undefined) {
-      pathsByRoot
-        .get(portableRepositoryPathIdentity(workspacePackage.rootPath))
-        ?.push(path);
+      pathsByRoot.get(portableRepositoryPathIdentity(workspacePackage.rootPath))?.push(path);
     }
   }
   return Object.freeze(
@@ -80,25 +76,25 @@ export function buildSelectedPackageSourceTopology(
           name: workspacePackage.name,
           rootPath: workspacePackage.rootPath,
           sourcePaths: Object.freeze(
-            (pathsByRoot.get(
-              portableRepositoryPathIdentity(workspacePackage.rootPath)
-            ) ?? []).toSorted(compareBinaryStrings)
-          )
-        })
-      )
+            (
+              pathsByRoot.get(portableRepositoryPathIdentity(workspacePackage.rootPath)) ?? []
+            ).toSorted(compareBinaryStrings),
+          ),
+        }),
+      ),
   );
 }
 
 export function rootOutsideSelectedPackages(
   repositoryPath: string,
   packages: readonly WorkspacePackage[],
-  allManifestPaths: readonly string[]
+  allManifestPaths: readonly string[],
 ): boolean {
   return (
     owningPackage(
       repositoryPath,
       packageByPortableRoot(packages),
-      packageRootIdentities(allManifestPaths)
+      packageRootIdentities(allManifestPaths),
     ) === undefined
   );
 }

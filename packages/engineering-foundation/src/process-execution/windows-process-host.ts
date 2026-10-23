@@ -64,7 +64,7 @@ if (process.platform !== "win32") {
         detached: false,
         shell: false,
         stdio: ["ignore", "inherit", "inherit"],
-        windowsHide: true
+        windowsHide: true,
       });
     } catch (error) {
       reportLaunchFailure(request, error);
@@ -79,7 +79,7 @@ if (process.platform !== "win32") {
         } catch (error) {
           child.kill("SIGKILL");
           process.stderr.write(
-            `Managed command launch could not be confirmed: ${error instanceof Error ? error.message : String(error)}\n`
+            `Managed command launch could not be confirmed: ${error instanceof Error ? error.message : String(error)}\n`,
           );
           process.exitCode = 1;
         }

@@ -22,27 +22,31 @@ function childDirectory(input: {
   readonly entryName: string;
   readonly path: string;
 }): { readonly absolute: string; readonly relative: string; readonly depth: number } | undefined {
-  if (SKIPPED_DIRECTORIES.has(input.entryName)) {return undefined;}
+  if (SKIPPED_DIRECTORIES.has(input.entryName)) {
+    return undefined;
+  }
   if (input.depth >= MAXIMUM_DEPTH) {
     throw new TypeError(`Repository topology exceeds ${MAXIMUM_DEPTH} directory levels.`);
   }
   return {
     absolute: join(input.absolute, input.entryName),
     relative: input.path,
-    depth: input.depth + 1
+    depth: input.depth + 1,
   };
 }
 
 export async function scanConsumerRepositoryTopology(
-  root: string
+  root: string,
 ): Promise<ConsumerRepositoryTopology> {
   const agents: string[] = [];
   const integrationProfiles: string[] = [];
   const lockfiles: string[] = [];
   const pnpmfiles: string[] = [];
-  const pending: { readonly absolute: string; readonly relative: string; readonly depth: number }[] = [
-    { absolute: root, relative: "", depth: 0 }
-  ];
+  const pending: {
+    readonly absolute: string;
+    readonly relative: string;
+    readonly depth: number;
+  }[] = [{ absolute: root, relative: "", depth: 0 }];
   let observed = 0;
   while (pending.length > 0) {
     const directory = pending.pop()!;
@@ -53,23 +57,37 @@ export async function scanConsumerRepositoryTopology(
         throw new TypeError(`Repository topology exceeds ${MAXIMUM_ENTRIES} entries.`);
       }
       const path = directory.relative === "" ? entry.name : `${directory.relative}/${entry.name}`;
-      if (entry.isSymbolicLink()) {continue;}
+      if (entry.isSymbolicLink()) {
+        continue;
+      }
       if (entry.isDirectory()) {
         const child = childDirectory({
           absolute: directory.absolute,
           depth: directory.depth,
           entryName: entry.name,
-          path
+          path,
         });
-        if (child !== undefined) {pending.push(child);}
+        if (child !== undefined) {
+          pending.push(child);
+        }
         continue;
       }
-      if (!entry.isFile()) {continue;}
-      if (entry.name === "AGENTS.md") {agents.push(path);}
-      if (entry.name === "pnpm-lock.yaml") {lockfiles.push(path);}
-      if (entry.name === ".pnpmfile.cjs") {pnpmfiles.push(path);}
-      if (path === "architecture/foundation/docs-consumer-integration.json" ||
-        path.endsWith("/architecture/foundation/docs-consumer-integration.json")) {
+      if (!entry.isFile()) {
+        continue;
+      }
+      if (entry.name === "AGENTS.md") {
+        agents.push(path);
+      }
+      if (entry.name === "pnpm-lock.yaml") {
+        lockfiles.push(path);
+      }
+      if (entry.name === ".pnpmfile.cjs") {
+        pnpmfiles.push(path);
+      }
+      if (
+        path === "architecture/foundation/docs-consumer-integration.json" ||
+        path.endsWith("/architecture/foundation/docs-consumer-integration.json")
+      ) {
         integrationProfiles.push(path);
       }
     }
@@ -78,6 +96,6 @@ export async function scanConsumerRepositoryTopology(
     agents: sorted(agents),
     integrationProfiles: sorted(integrationProfiles),
     lockfiles: sorted(lockfiles),
-    pnpmfiles: sorted(pnpmfiles)
+    pnpmfiles: sorted(pnpmfiles),
   });
 }

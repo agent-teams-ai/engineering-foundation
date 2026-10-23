@@ -8,28 +8,40 @@ import { fileURLToPath } from "node:url";
 
 import { NodeDocumentTransactionCoordinator } from "../packages/document-authoring/dist/document-authoring/adapters/node/node-document-transaction-coordinator.js";
 import { canonicalJson, sha256Json } from "../packages/repository-mutation/dist/index.js";
-import { installedDocumentAuthoringBuildIdentity, installedDocumentMutationArtifact } from "../packages/document-authoring/dist/document-authoring/adapters/node/installed-artifact-identity.js";
+import {
+  installedDocumentAuthoringBuildIdentity,
+  installedDocumentMutationArtifact,
+} from "../packages/document-authoring/dist/document-authoring/adapters/node/installed-artifact-identity.js";
 import { installedDocumentAuthoringVersion } from "../packages/document-authoring/dist/document-authoring/adapters/node/package-version.js";
 import { documentPlanDigest } from "../packages/document-authoring/dist/document-authoring/application/policies/document-contract-digests.js";
 import { createCurrentDocumentEnvelopeV3 as createDocumentEnvelopeV3 } from "./support/current-document-contract-fixture.mjs";
 
-const contract = JSON.parse(await readFile(
-  new URL("fixtures/document-authoring-contracts/valid-v1.json", import.meta.url),
-  "utf8",
-));
+const contract = JSON.parse(
+  await readFile(
+    new URL("fixtures/document-authoring-contracts/valid-v1.json", import.meta.url),
+    "utf8",
+  ),
+);
 const stateDirectory = ".agent-teams-local";
 const journalName = "scaffolding-transaction.json";
 const lockName = "foundation-operation.lock";
 
 for (const operation of ["apply", "recover"]) {
   test(`${operation} composition preserves the microtask before writer initialization`, () => {
-    const child = spawnSync(process.execPath, [
-      "--experimental-test-module-mocks",
-      fileURLToPath(new URL(
-        "../packages/document-authoring/tests/fixtures/writer-scheduling.mjs", import.meta.url
-      )),
-      operation
-    ], { encoding: "utf8", timeout: 30_000 });
+    const child = spawnSync(
+      process.execPath,
+      [
+        "--experimental-test-module-mocks",
+        fileURLToPath(
+          new URL(
+            "../packages/document-authoring/tests/fixtures/writer-scheduling.mjs",
+            import.meta.url,
+          ),
+        ),
+        operation,
+      ],
+      { encoding: "utf8", timeout: 30_000 },
+    );
     assert.equal(child.error, undefined);
     assert.equal(child.status, 0, child.stdout + child.stderr);
     assert.deepEqual(JSON.parse(child.stdout), { operation, outcome: "passed" });
@@ -105,9 +117,7 @@ test("acquires an idle apply lease and an exact document recovery lease", async 
     const coordinator = new NodeDocumentTransactionCoordinator(root);
     const applyLease = await coordinator.acquire({ mode: "apply" });
     assert.deepEqual(applyLease.status, { state: "idle" });
-    const active = JSON.parse(await readFile(
-      join(root, stateDirectory, lockName), "utf8",
-    ));
+    const active = JSON.parse(await readFile(join(root, stateDirectory, lockName), "utf8"));
     assert.equal(active.kind, "active");
     await applyLease.release();
     await assert.rejects(readFile(join(root, stateDirectory, lockName)), {
@@ -117,13 +127,12 @@ test("acquires an idle apply lease and an exact document recovery lease", async 
 
   await withRoot(async (root) => {
     await persistEnvelope(root, await installedEnvelope());
-    const recoverLease = await new NodeDocumentTransactionCoordinator(root)
-      .acquire({ mode: "recover" });
+    const recoverLease = await new NodeDocumentTransactionCoordinator(root).acquire({
+      mode: "recover",
+    });
     assert.deepEqual(recoverLease.status, { state: "recoverable" });
     await recoverLease.release();
-    const retained = JSON.parse(await readFile(
-      join(root, stateDirectory, lockName), "utf8",
-    ));
+    const retained = JSON.parse(await readFile(join(root, stateDirectory, lockName), "utf8"));
     assert.equal(retained.kind, "transaction-barrier");
   });
 });
@@ -134,9 +143,7 @@ test("releases normally only after all transaction evidence is durably gone", as
     const lease = await coordinator.acquire({ mode: "apply" });
     await persistEnvelope(root, await installedEnvelope());
     await lease.release();
-    const retained = JSON.parse(await readFile(
-      join(root, stateDirectory, lockName), "utf8",
-    ));
+    const retained = JSON.parse(await readFile(join(root, stateDirectory, lockName), "utf8"));
     assert.equal(retained.kind, "transaction-barrier");
     await lease.release();
   });
@@ -147,9 +154,7 @@ test("an explicit release retention request leaves the transaction barrier", asy
     const coordinator = new NodeDocumentTransactionCoordinator(root);
     const lease = await coordinator.acquire({ mode: "apply" });
     await lease.release({ retainTransactionBarrier: true });
-    const retained = JSON.parse(await readFile(
-      join(root, stateDirectory, lockName), "utf8",
-    ));
+    const retained = JSON.parse(await readFile(join(root, stateDirectory, lockName), "utf8"));
     assert.equal(retained.kind, "transaction-barrier");
   });
 });

@@ -1,11 +1,6 @@
 export const FOUNDATION_REPORT_SCHEMA_VERSION = 1 as const;
 
-export type FoundationOutcome =
-  | "passed"
-  | "violations"
-  | "invalid-input"
-  | "failed"
-  | "cancelled";
+export type FoundationOutcome = "passed" | "violations" | "invalid-input" | "failed" | "cancelled";
 
 export type FoundationCheckCoverage = "full" | "selected";
 
@@ -77,4 +72,3 @@ export interface RuleExplanation {
   readonly remediation: string;
   readonly documentation: string;
 }
-

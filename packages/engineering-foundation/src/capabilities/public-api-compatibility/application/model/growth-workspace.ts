@@ -1,5 +1,9 @@
 /** Policy-facing, inert export evidence; condition and fallback order is semantic. */
-export type GrowthExportTarget = string | null | readonly GrowthExportTarget[] | { readonly [condition: string]: GrowthExportTarget };
+export type GrowthExportTarget =
+  | string
+  | null
+  | readonly GrowthExportTarget[]
+  | { readonly [condition: string]: GrowthExportTarget };
 export interface GrowthWorkspacePackage {
   readonly name: string;
   readonly rootPath: string;

@@ -134,7 +134,7 @@ async function producerFixture(t: TestContext, { failBuild = false } = {}) {
     join(source, "packages", "engineering-foundation"),
     process.platform === "win32" ? "junction" : "dir");
   await symlink(join(repositoryRoot, "node_modules"), join(source, "node_modules"), process.platform === "win32" ? "junction" : "dir");
-  for (const name of ["LICENSE", ".node-version", "pnpm-lock.yaml", ".pnpmfile.cjs"]) {
+  for (const name of ["LICENSE", ".node-version", "bunfig.toml", "pnpm-lock.yaml", ".pnpmfile.cjs"]) {
     await copyFile(join(repositoryRoot, name), join(source, name));
   }
   // The real pack command imports runtime admission and reads its pinned policy.
@@ -250,16 +250,17 @@ test("producer failure admits zero consumers", async t => {
 
 test("packed failure, downstream tampering and source drift prevent registry effects", async t => {
   const fixture = await producerFixture(t);
-  for (const failure of ["consumer", "tamper", "drift", "toolchain-pin"]) {
+  for (const failure of ["consumer", "tamper", "drift", "toolchain-pin", "bun-config"]) {
     let registryCalls = 0;
     const source = failure === "toolchain-pin"
       ? join(fixture.source, ".node-version")
+      : failure === "bun-config" ? join(fixture.source, "bunfig.toml")
       : join(fixture.source, "packages", "a", "README.md");
     const original = await readFile(source);
     await assert.rejects(fixture.api.withQualifiedPackageArtifacts("combined", async handle => {
       await fixture.api.runQualifiedArtifactConsumer(handle, "packed", async ({ artifacts }) => {
         if (failure === "consumer") { throw new Error("TEST packed failure"); }
-        if (failure === "drift" || failure === "toolchain-pin") { await writeFile(source, "TEST changed relevant input"); }
+        if (failure === "drift" || failure === "toolchain-pin" || failure === "bun-config") { await writeFile(source, "TEST changed relevant input"); }
         else {
           const record = Object.values(artifacts)[0];
           await chmod(record.archivePath, 0o644);

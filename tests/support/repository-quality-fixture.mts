@@ -43,3 +43,32 @@ export async function writeRepositoryQualityFixture(root: string, repositoryRoot
     capabilities: { "quality.source-coverage": { configPath: "quality.yaml" },
       "architecture.source-dependencies": { configPath: "source.yaml" } } });
 }
+
+/** Explicit installed-preset variant; leaves existing fixture callers unchanged. */
+export async function writeInstalledRepositoryQualityFixture(root: string, repositoryRoot: string): Promise<void> {
+  await writeRepositoryQualityFixture(root, repositoryRoot);
+  const lintPath = join(root, "lint.json");
+  const lint = JSON.parse(await readFile(lintPath, "utf8")) as { extends: string[] };
+  lint.extends = [
+    "./node_modules/stack-toolchain/presets/oxlint/type-aware.json",
+    "./node_modules/stack-toolchain/presets/oxlint/maintainability.json"
+  ];
+  await writeFile(lintPath, JSON.stringify(lint));
+  await writeFile(join(root, "packages/worker/src/baseline.mjs"), "export const baseline = 1;\n");
+}
+
+/** Second-phase fixture script records the dispatcher's admitted runtime bindings. */
+export async function writeRuntimeBindingObservationFixture(root: string): Promise<void> {
+  await writeFile(join(root, "observe.mts"), [
+    'import { writeFileSync } from "node:fs";',
+    'writeFileSync("runtime-binding.json", JSON.stringify({',
+    'node: process.env["AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE"],',
+    'bun: process.env["AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE"],',
+    'leafNodeVersion: process.versions.node }));'
+  ].join("\n"));
+  const manifest = JSON.parse(await readFile(join(root, "package.json"), "utf8")) as {
+    scripts: Record<string, string>;
+  };
+  manifest.scripts["check"] = "node observe.mts";
+  await writeFile(join(root, "package.json"), JSON.stringify(manifest));
+}

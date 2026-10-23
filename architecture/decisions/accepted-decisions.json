@@ -316,6 +316,11 @@
       "id": "ADR-0066",
       "path": "docs/decisions/0066-qualified-existing-npm-bootstrap-recovery.md",
       "immutableDigest": "sha256:a292b640e0268b269c5cfe5f2745c71124240773fe9abba90afe830afafef0e8"
+    },
+    {
+      "id": "ADR-0067",
+      "path": "docs/decisions/0067-foundation-three-preset-export-removal.md",
+      "immutableDigest": "sha256:3775a92f1ab66ad01f2a6d11756491c9f95573cf01d20cf6bd5f8683031b7614"
     }
   ]
 }

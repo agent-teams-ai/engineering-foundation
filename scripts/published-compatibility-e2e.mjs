@@ -19,11 +19,14 @@ export async function main({
   verifyBootstrap = verifyLiveBootstrapBaselines,
   verifyScaffolding = verifyPublishedScaffoldingCompatibility,
   verifyTransactions = verifyOldFoundationTransactionBarrier,
+  removeTemporaryRoot = rm,
   write = (line) => process.stdout.write(line),
 } = {}) {
   const temporaryRoot = await mkdtemp(
     resolve(tmpdir(), "foundation-published-compatibility-e2e-"),
   );
+  const failures = [];
+  let result;
   try {
     const bootstrapBaselines = await verifyBootstrap({ temporaryRoot });
     // Current public completion depends on the ordered publisher reconciling GitHub.
@@ -56,10 +59,16 @@ export async function main({
     write(
       `Published compatibility PASS: verified bootstrap baselines ${bootstrapBaselines.join(", ") || "none required"}; public Docs Protocol exact-coordinate qualification ${publicDocs.status}${publicDocs.status === "deferred" ? " to required post-reconciliation public-docs-release:e2e" : ""}; published operation boundaries 0.11.0/0.12.0/0.14.0 preserved; current CLI matches the published 0.12.0 scaffolding operations outside release identity fields.\n`,
     );
-    return { bootstrapBaselines, publicDocs };
+    result = { bootstrapBaselines, publicDocs };
+  } catch (error) {
+    failures.push(error);
   } finally {
-    await rm(temporaryRoot, { force: true, recursive: true });
+    try { await removeTemporaryRoot(temporaryRoot, { force: true, recursive: true }); }
+    catch (error) { failures.push(error); }
   }
+  if (failures.length === 1) { throw failures[0]; }
+  if (failures.length > 1) { throw new AggregateError(failures, "Published compatibility and cleanup failed.", { cause: failures[0] }); }
+  return result;
 }
 
 if (process.argv[1] !== undefined && import.meta.filename === process.argv[1]) {

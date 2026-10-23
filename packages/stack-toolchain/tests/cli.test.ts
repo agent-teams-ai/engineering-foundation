@@ -3,7 +3,6 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
-  realpathSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -14,6 +13,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { installedDependency } from "./installed-dependency.ts";
 const entry = fileURLToPath(new URL("../dist/cli.js", import.meta.url));
 function run(args: readonly string[]) {
   return spawnSync(process.execPath, [entry, ...args], { encoding: "utf8", timeout: 10_000 });
@@ -119,11 +119,7 @@ function lintFixture() {
     }),
   );
   for (const name of ["node-or-bun", "typescript", "oxlint", "jsonc-parser"]) {
-    symlinkSync(
-      realpathSync(join(packageRoot, "node_modules", name)),
-      join(tool, "node_modules", name),
-      "junction",
-    );
+    symlinkSync(installedDependency(name), join(tool, "node_modules", name), "junction");
   }
   writeFileSync(
     join(consumer, "tsconfig.json"),
@@ -159,7 +155,7 @@ function lintFixture() {
     });
   const companion = () => {
     symlinkSync(
-      realpathSync(join(packageRoot, "node_modules/oxlint-tsgolint")),
+      installedDependency("oxlint-tsgolint"),
       join(tool, "node_modules/oxlint-tsgolint"),
       "junction",
     );

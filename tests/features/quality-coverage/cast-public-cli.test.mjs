@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
-import { chmod, cp, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -20,10 +20,6 @@ async function governedDistFixture(t) {
     await writeFile(join(root, path), typeof value === "string" ? value : JSON.stringify(value));
   };
   const pins = await copyPinnedToolchain(root);
-  for (const name of ["base", "node", "type-aware", "maintainability"]) {
-    await mkdir(join(root, "presets"), { recursive: true });
-    await cp(join(repository, "packages/stack-toolchain/presets/oxlint", `${name}.json`), join(root, "presets", `${name}.json`));
-  }
   await put("package.json", { name: "governed-dist-test", private: true, type: "module",
     scripts: { "check:fast": "pnpm quality:scope", check: "pnpm lint:typed",
       "quality:scope": "agent-teams-foundation quality check --consumer . --scope-only",
@@ -32,11 +28,12 @@ async function governedDistFixture(t) {
   await put("pnpm-workspace.yaml", "packages: ['packages/*']\n");
   await put("packages/worker/package.json", { name: "@fixture/worker", private: true, type: "module" });
   await put("packages/worker/src/main.ts", "export const value = 1;\n");
+  await put("packages/worker/src/baseline.mjs", "export const javascriptValue = 1;\n");
   await put("config/production.json", { compilerOptions: { strict: true, target: "ES2022", module: "NodeNext", types: [], noEmit: true },
     include: ["../packages/worker/src/**/*.ts", "../packages/worker/dist/**/*.ts"] });
   await put("suppressions.yaml", { schemaVersion: 1, governedRoots: ["packages/worker/src", "packages/worker/dist"], nonWaivableRulePrefixes: [], waivers: [] });
   await put("lint.json", { options: { respectEslintDisableDirectives: false, reportUnusedDisableDirectives: "error" },
-    extends: ["./presets/type-aware.json", "./presets/maintainability.json"] });
+    extends: ["./node_modules/stack-toolchain/presets/oxlint/type-aware.json", "./node_modules/stack-toolchain/presets/oxlint/maintainability.json"] });
   await put("quality.yaml", { schemaVersion: 1, sourcePolicyPath: "source.yaml", suppressionPolicyPath: "suppressions.yaml",
     featureProfilePath: "features.json", lintConfigPath: "lint.json", compilerProjects: ["config/production.json"],
     scripts: { fast: "check:fast", full: "check", scope: "quality:scope", typed: "lint:typed" } });
@@ -140,11 +137,6 @@ test("built public quality check rejects unknown chains and accepts exact eviden
       await writeFile(target, typeof value === "string" ? value : JSON.stringify(value));
     };
     const pins = await copyPinnedToolchain(root);
-    await mkdir(join(root, "presets"));
-    for (const name of ["base", "node", "type-aware", "maintainability"]) {
-      await cp(join(repository, "packages/stack-toolchain/presets/oxlint", `${name}.json`),
-        join(root, "presets", `${name}.json`));
-    }
     const moduleRoot = "packages/worker";
     const sourceRoot = `${moduleRoot}/src`;
     const main = `${sourceRoot}/main.ts`;
@@ -167,7 +159,7 @@ test("built public quality check rejects unknown chains and accepts exact eviden
         allow: { boundaries: [], packages: [], builtins: [], runtimeReferences: [] } }] });
     await put("suppressions.yaml", { schemaVersion: 1, governedRoots: [sourceRoot], nonWaivableRulePrefixes: [], waivers: [] });
     await put("lint.json", { options: { respectEslintDisableDirectives: false, reportUnusedDisableDirectives: "error" },
-      extends: ["./presets/type-aware.json", "./presets/maintainability.json"] });
+      extends: ["./node_modules/stack-toolchain/presets/oxlint/type-aware.json", "./node_modules/stack-toolchain/presets/oxlint/maintainability.json"] });
     await put("quality.yaml", { schemaVersion: 1, sourcePolicyPath: "source.yaml", suppressionPolicyPath: "suppressions.yaml",
       featureProfilePath: "features.json", lintConfigPath: "lint.json", compilerProjects: ["config/production.json"],
       scripts: { fast: "check:fast", full: "check", scope: "quality:scope", typed: "lint:typed" } });
@@ -183,6 +175,7 @@ test("built public quality check rejects unknown chains and accepts exact eviden
         return { code: error.code, report: JSON.parse(error.stdout) };
       }
     };
+    await put(`${sourceRoot}/baseline.mjs`, "export const javascriptValue = 1;\n");
     await put(main, cast);
     if (process.env.EF331_INSTALLED_CLI) {
       const physicalOld = await realpath(dirname(process.env.EF331_INSTALLED_CLI));
@@ -263,7 +256,7 @@ test("built public quality check rejects unknown chains and accepts exact eviden
       scripts: { fast: "check:fast", full: "check", scope: "quality:scope", typed: "lint:typed" } });
     assert.equal((await invoke()).code, 0);
     await put("lint.json", { options: { respectEslintDisableDirectives: false, reportUnusedDisableDirectives: "error" },
-      extends: ["./presets/type-aware.json", "./presets/maintainability.json"], jsPlugins: ["./plugin.mjs"] });
+      extends: ["./node_modules/stack-toolchain/presets/oxlint/type-aware.json", "./node_modules/stack-toolchain/presets/oxlint/maintainability.json"], jsPlugins: ["./plugin.mjs"] });
     const unsupportedPlugin = await invoke();
     assert.equal(unsupportedPlugin.code, 2);
     assert.match(JSON.stringify(unsupportedPlugin.report), /Executable Oxlint plugins are outside this qualified configuration form/u);

@@ -54,7 +54,34 @@ test("SDK source bindings preserve accepted bytes under CRLF checkout filters", 
     "packedQualification",
     "qualificationPolicy",
   ]);
-  const sources = Object.values(candidate.currentSources);
+  const formatterPaths = [
+    "packages/stack-toolchain/src/index.ts",
+    "scripts/release-changelog-notes.ts",
+    "tools/git-environment.ts",
+    "tests/support/npm-bootstrap-recovery-fixtures.ts",
+    "toolchain.config.json",
+    "tsconfig.quality.json",
+  ];
+  const rawLockPath =
+    "packages/docs-protocol-agent-teams/tests/fixtures/restoration-lock-v1/actual-lock.yaml";
+  // Deliberate CRLF and binary probes must survive the directory-wide LF rules.
+  const preservedInputs = new Map([
+    [rawLockPath, Buffer.from("raw-lock: preserved\r\n", "utf8")],
+    ["packages/formatter-checkout-binary.dat", Buffer.from([0, 13, 10, 255])],
+  ]);
+  const sources = [
+    ...Object.values(candidate.currentSources),
+    ...(await Promise.all(
+      formatterPaths.map(async (path) => ({
+        path,
+        contentDigest: `sha256:${sha256(await readFile(join(repositoryRoot, path)))}`,
+      })),
+    )),
+    ...Array.from(preservedInputs, ([path, bytes]) => ({
+      path,
+      contentDigest: `sha256:${sha256(bytes)}`,
+    })),
+  ];
   // The fixture puts this historical blob in shallow checkouts. Normalize only
   // checkout line endings before authenticating the accepted Git blob bytes.
   const fixturePath = "tests/fixtures/sdk-growth-v2/public-api-compatibility-0e93ab31.yaml";
@@ -75,7 +102,7 @@ test("SDK source bindings preserve accepted bytes under CRLF checkout filters", 
   const acceptedSourceBytes = (source) =>
     source.path === "architecture/foundation/public-api-compatibility.yaml"
       ? historicalPolicyBytes
-      : readFile(join(repositoryRoot, source.path));
+      : (preservedInputs.get(source.path) ?? readFile(join(repositoryRoot, source.path)));
 
   await writeFile(
     join(root, ".gitattributes"),

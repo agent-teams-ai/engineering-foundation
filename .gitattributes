@@ -2,6 +2,15 @@
 tests/** -linguist-detectable
 packages/*/tests/** -linguist-detectable
 
+# The required formatter compares canonical LF bytes on every platform.
+# Keep later raw-artifact overrides authoritative; binary files stay binary.
+packages/** text=auto eol=lf
+scripts/** text=auto eol=lf
+tools/** text=auto eol=lf
+tests/** text=auto eol=lf
+toolchain.config.json text eol=lf
+tsconfig.quality.json text eol=lf
+
 architecture/public-api/*.json text eol=lf
 docs/reference/sdk-growth-c0.md text eol=lf
 docs/reference/sdk-growth-c0/*.json text eol=lf

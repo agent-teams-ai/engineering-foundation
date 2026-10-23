@@ -574,6 +574,13 @@ formatting their JSON or YAML changes the evidence. Active TypeScript remains
 in scope. Test fixture transformations must tolerate formatter-owned whitespace
 in mutable input profiles.
 
+The four formatted source directories and two root configuration files use LF
+in Git checkout, including on Windows with `core.autocrlf=true`. Directory rules
+retain automatic binary detection;
+later explicit raw-fixture overrides keep their original bytes. The checkout
+regression checks staged and checked-out bytes, raw and binary preservation,
+and an ungoverned CRLF control. This is repository-owned checkout policy.
+
 Oxlint is the only JavaScript/TypeScript linter until a concrete missing rule
 proves that ESLint is required. The published presets enable correctness,
 suspicious, import, promise, Node, Unicorn, Oxc, and type-aware TypeScript rules.

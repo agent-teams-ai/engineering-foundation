@@ -773,3 +773,42 @@ readiness before admission merge. Anonymous registry readback at
 No branch ref, provider configuration, protected merge or publication was
 changed by these retries. The prepared commits require authenticated owner Git
 transport and a connected npm maintainer session to continue public delivery.
+
+
+### Current owner continuation and replacement writer review
+
+The transfer/access limits above describe historical attempts. Owner-authenticated
+Git transport recovered the retained canonical-identity commits and pushed
+`1aed30220e0dfa778f89ad979bafb5b3a8581566` to the same PR421, integrating main
+`17520f7d84d364f5bb40195785c2b7a9269663a0`. Independent integration review passed.
+The current [npm readiness record](evidence/release-checks/integration-20261023/npm-maintainer-readiness.json)
+confirms the actual npm organization owner and accessible interactive granular
+credential form. No timed token, bootstrap activation or publication was created.
+
+PR Feedback run `40010350884` passed on this head/base. Its public changed
+selection chose the fast-full `check:fast` route. It is not a successful literal
+C1/private full command. Current repository rules use complete final-head/base
+native CI as the merge qualification, without a duplicate sequential local
+`verify`. The separately prepared hosted diagnostic did not launch because its
+actual storage guard rejected capacity; no guard was bypassed or test weakened.
+
+Native run `40010522856`, attempt 1, remains unsuccessful evidence. Its package
+checks passed, but approved writer reproduction correctly rejected the earlier
+SRI. Independent [replacement archive review](evidence/release-checks/integration-20261023/ubuntu-writer-replacement-review.md)
+binds actual Ubuntu artifact `12527205945`, job `120610925843`, source merge
+`55b9d1ee2dab5f9dbd241c39dcc416e6b974ded7` and unchanged package tree
+`76a214bd459937b28786880b4deb08cb20916da7`. The only changed member is
+`package/package.json` key ordering, explained by explicit canonical packing-hook
+use. All other 39 payloads and parsed manifest semantics are identical. That
+review approves the replacement SRI recorded in the catalog on this same PR;
+it does not qualify final source or replace fresh approved-writer reproduction.
+
+The first Linux test pair also exposed an old exact module-count expectation:
+release-checks is the tenth admitted feature module, so its architecture test
+now expects exactly ten and retains every ownership/violation assertion.
+Separate CodeQL security findings require opened-handle file observation and
+diagnostic reads; current independent security review and fresh exact-head
+CodeQL/full native qualification must complete before merge. No old run or
+partial successful lane is represented as final qualification. Protected-main
+CI, timed bootstrap, credential cleanup, supported publication and all external
+consumer routes remain pending.

@@ -199,6 +199,7 @@ export async function runTestShardTests(
   if (timingDirectory !== undefined) {
     await requireTimingOutsideCoverage(timingDirectory, evidenceDirectory, root);
   }
+  const timingRoot = timingDirectory === undefined ? undefined : await realpath(root);
   const records = [];
   const options =
     timingDirectory === undefined
@@ -207,7 +208,18 @@ export async function runTestShardTests(
           ...runOptions,
           setup(stream) {
             const result = runOptions.setup?.(stream);
-            attachTestTiming(stream, (record) => records.push(record));
+            attachTestTiming(stream, (record) => {
+              records.push(record);
+              if (record.kind === "file") {
+                process.stdout.write(
+                  `Advisory test file: ${JSON.stringify({
+                    file: relative(timingRoot, record.file),
+                    outcome: record.outcome,
+                    durationMs: record.durationMs,
+                  })}\n`,
+                );
+              }
+            });
             return result;
           },
         };

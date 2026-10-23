@@ -127,6 +127,16 @@ console.log('SETUP_RESULT ' + JSON.stringify({ ready, calls, dispatched })); pro
         observation.dispatched.every(Boolean),
         "setup must settle before any file or test dispatch",
       );
+      const progress = result.stdout
+        .split("\n")
+        .filter((line) => line.startsWith("Advisory test file: "))
+        .map((line) => JSON.parse(line.slice("Advisory test file: ".length)));
+      assert.equal(progress.length, timingDirectory === undefined ? 0 : 1);
+      if (timingDirectory !== undefined) {
+        assert.equal(progress[0].file, "cases.test.mjs");
+        assert.equal(progress[0].outcome, "pass");
+        assert.ok(progress[0].durationMs >= 0);
+      }
       if (timingDirectory !== undefined) {
         const rows = (await readFile(join(timingDirectory, "events.jsonl"), "utf8"))
           .trim()

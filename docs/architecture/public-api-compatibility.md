@@ -299,7 +299,7 @@ This is a syntax proof, never an assignability or reference-rebinding claim.
 The same closed native parse also admits spelling changes of string-literal
 quotes when their decoded values agree. Only actual `StringLiteral` AST nodes
 are replaced in a temporary comparison string with their canonical quoted
-values; every byte outside those literal spans must match. Template bodies,
+values; every byte outside those literal spans must match. Template text,
 identifiers, modifiers, optional markers and declaration structure are preserved
 exactly. Changed literal values remain breaking. Raw excerpts and stored
 snapshots are never changed by this comparison.
@@ -315,9 +315,12 @@ fingerprint bytes are normalized or rewritten by either proof.
 One synchronous native session owns each differing signature pair, using only a
 closed in-memory project with no standard libraries or host-filesystem fallback.
 Each signature is limited to 10,000 characters; AST work is limited to 20,000
-nodes and depth 128. Interpolated template forms, multiple declarations, malformed
-or unsupported syntax, a budget failure or a failed SDK/cleanup operation provide
-no proof. Snapshot disposal and session close run in nested `finally` blocks.
+nodes and depth 128. The parenthesis proof refuses interpolated template forms.
+The quote spelling proof permits them only when every non-string-literal byte,
+including all template text spans, remains identical. Multiple declarations,
+malformed or unsupported syntax, a budget failure or a failed SDK/cleanup
+operation provide no proof. Snapshot disposal and session close run in nested
+`finally` blocks.
 These input/work bounds do not promise preemption inside a native SDK query.
 The actual Get Modular `IsUnion` and `ValidDeclaration` formatter regressions and
 precedence/metadata counterexamples are retained in native projection tests.
@@ -634,6 +637,15 @@ bind the one added concrete schema export to its exact S1 value and transition.
 They are unverified admission proposals. Their content-addressed source tree
 contains only the named qualification script, not a repository commit; packed
 qualification and trusted approval remain distinct claims.
+
+The [source-formatting candidate](../../architecture/contracts/sdk-growth-v2/source-formatting-candidate-evidence.json)
+records refreshed current loader and packed-qualifier source bindings in a new
+immutable sidecar. The original current-candidate record and all retained history
+remain unchanged; the current schema-release policy selects the new evidence
+digest. Existing role-substitution and source-identity tests check its bindings.
+This is local loader evidence and a packed-qualifier source binding, not a new
+packed execution, release approval or S3 trust claim. The release-owned-file
+gate admits the new sidecar and protects it from later ordinary PR mutations.
 
 The capability owns a private `GrowthReportWriter` port and filesystem adapter
 for one replaceable report slot. Parent directories must exist, all path

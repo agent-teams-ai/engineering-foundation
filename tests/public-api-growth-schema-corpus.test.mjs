@@ -210,7 +210,21 @@ test("v2 first-surface decision matches the real schema wildcard projection and 
     decision.changeFingerprint,
   );
   const candidate = JSON.parse(
+    await readFile(
+      "architecture/contracts/sdk-growth-v2/source-formatting-candidate-evidence.json",
+    ),
+  );
+  const precedingCandidate = JSON.parse(
     await readFile("architecture/contracts/sdk-growth-v2/current-candidate-evidence.json"),
+  );
+  assert.deepEqual(
+    { ...candidate, currentSources: precedingCandidate.currentSources },
+    precedingCandidate,
+    "new source binding must preserve every prior evidence claim",
+  );
+  assert.deepEqual(
+    candidate.currentSources.qualificationPolicy,
+    precedingCandidate.currentSources.qualificationPolicy,
   );
   const retainedBinding = candidate.retainedHistory.firstSurfaceEvidence;
   assert.equal(
@@ -253,7 +267,7 @@ test("v2 release-owned family baseline and real loader consumer evidence pass th
   );
   const historical = JSON.parse(historicalBytes);
   const candidateBytes = await readFile(
-    "architecture/contracts/sdk-growth-v2/current-candidate-evidence.json",
+    "architecture/contracts/sdk-growth-v2/source-formatting-candidate-evidence.json",
   );
   const candidate = JSON.parse(candidateBytes);
   assert.equal(hash(candidateBytes), policy.currentConsumerEvidence[0].evidenceDigest);
@@ -331,7 +345,8 @@ test("v2 release-owned family baseline and real loader consumer evidence pass th
 });
 
 test("current SDK v2 source roles reject valid tuple substitution after refreshing the candidate digest", async () => {
-  const candidatePath = "architecture/contracts/sdk-growth-v2/current-candidate-evidence.json";
+  const candidatePath =
+    "architecture/contracts/sdk-growth-v2/source-formatting-candidate-evidence.json";
   const candidate = JSON.parse(await readFile(candidatePath));
   const policy = JSON.parse(
     await readFile("architecture/foundation/sdk-growth-json-schema-releases.json"),

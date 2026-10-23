@@ -42,7 +42,10 @@ test("SDK source bindings preserve accepted bytes under CRLF checkout filters", 
   const repositoryRoot = join(import.meta.dirname, "..");
   const candidate = JSON.parse(
     await readFile(
-      join(repositoryRoot, "architecture/contracts/sdk-growth-v2/current-candidate-evidence.json"),
+      join(
+        repositoryRoot,
+        "architecture/contracts/sdk-growth-v2/source-formatting-candidate-evidence.json",
+      ),
       "utf8",
     ),
   );

@@ -33,13 +33,13 @@
   "currentSources": {
     "packedQualification": {
       "path": "scripts/pack-sdk-growth-test.mjs",
-      "blob": "4f588decc1da03432683e5569a229a35b1da18f0",
-      "contentDigest": "sha256:3461c2558808d03532ce4260aabf5d8a7d4ba082b33a34e364f3a5e4b2a6c9b4"
+      "blob": "00fa895ca60ee4cd4ee62edf60cc402502c7b7d4",
+      "contentDigest": "sha256:277743e72740b73fa7ff7d25876f2c3ce15478d97a80c4f2be3247b257f138fd"
     },
     "loaderTest": {
       "path": "tests/public-api-configuration.test.mjs",
-      "blob": "04f29d4990684c38780ca1e65c5b8ebb65977705",
-      "contentDigest": "sha256:cf27008983b67c94218c9e311e2e962293ca4f2bef9bf9ef66d1597dd462bbc5"
+      "blob": "73de3477bb8fe4bf3fdf4a1acc47f3ca71593e33",
+      "contentDigest": "sha256:2c70f46bd88e9d799d895da4d6f616b02d1c7e7b62ef0174a0ee8f2d34d38a77"
     },
     "qualificationPolicy": {
       "path": "architecture/foundation/public-api-compatibility.yaml",

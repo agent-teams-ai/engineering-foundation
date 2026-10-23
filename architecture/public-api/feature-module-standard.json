@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/feature-module-standard",
-  "packageVersion": "0.2.4",
+  "packageVersion": "0.3.0",
   "extractorVersion": "typescript-native/7.0.2",
   "entrypoints": [
     {

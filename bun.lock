@@ -113,7 +113,7 @@
     },
     "packages/engineering-foundation": {
       "name": "@agent-teams/engineering-foundation",
-      "version": "2.1.2",
+      "version": "3.0.0",
       "bin": {
         "agent-teams-foundation": "./dist/cli.js",
         "agent-teams-node-test": "./dist/node-test-cli.js",
@@ -139,7 +139,7 @@
     },
     "packages/feature-module-standard": {
       "name": "@agent-teams/feature-module-standard",
-      "version": "0.2.4",
+      "version": "0.3.0",
       "devDependencies": {
         "@agent-teams/engineering-foundation": "workspace:*",
         "typescript": "catalog:",

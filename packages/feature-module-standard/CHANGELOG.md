@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.3.0
+
+### Minor Changes
+
+- [#443](https://github.com/agent-teams-ai/engineering-foundation/pull/443) [`17520f7`](https://github.com/agent-teams-ai/engineering-foundation/commit/17520f7d84d364f5bb40195785c2b7a9269663a0) Thanks [@777genius](https://github.com/777genius)! - Admit Foundation `^3.0.0` for the optional Node runner peer while preserving
+  the `^1.8.0` minimum and `^2.0.0` window. Foundation 3 relocates technical
+  presets and evolves quality coverage; the runner continues to use only the
+  public source-graph observation and ratchet budget contracts. Keep the pure
+  entries dependency-free and retain the exact current-workspace development link.
+
+  Ship this compatible peer expansion as a new 0.x minor before migrating a
+  consumer to Foundation 3. Follow the companion migration and final packed
+  installed-consumer qualification in
+  `docs/development/feature-module-standard-foundation-3-migration.md`.
+
 ## 0.2.4
 
 ### Patch Changes

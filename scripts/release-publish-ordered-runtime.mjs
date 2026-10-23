@@ -160,6 +160,10 @@ export function assertDownloadedTarballIntegrity(bytes, expectedIntegrity, packa
   }
 }
 
+function attestationBundlesFrom(entry) {
+  return Array.isArray(entry?.attestationBundles) ? entry.attestationBundles : [];
+}
+
 function exactVerifiedAuditEntry(evidence, artifact) {
   if (!Array.isArray(evidence?.invalid) || evidence.invalid.length !== 0 ||
       !Array.isArray(evidence?.missing) || evidence.missing.length !== 0 ||
@@ -169,7 +173,7 @@ function exactVerifiedAuditEntry(evidence, artifact) {
   const matches = evidence.verified.filter(
     (entry) => entry?.name === artifact.name && entry.version === artifact.version,
   );
-  const bundles = matches[0]?.attestationBundles;
+  const bundles = attestationBundlesFrom(matches[0]);
   const provenanceBundles = bundles?.filter(
     (bundle) => bundle?.predicateType === "https://slsa.dev/provenance/v1",
   );
@@ -281,7 +285,7 @@ function isExactAttestationE404(result, expectedUrl) {
 }
 
 async function auditNpmSignature(artifact, source, temporary, registry) {
-  const args = ["audit", "signatures", "--json", "--include-attestations", `--registry=${registry}`];
+  const args = ["audit", "signatures", "--json", "--include-attestations", "--prefer-online", `--registry=${registry}`];
   const endpoint = registryUrl(
     artifact, `-/npm/v1/attestations/${encodeURIComponent(artifact.name)}@${artifact.version}`,
   );
@@ -293,6 +297,7 @@ async function auditNpmSignature(artifact, source, temporary, registry) {
     const result = runTimedAudit("npm", args, {
       cwd: temporary, timeout: Math.min(120_000, remaining),
     });
+    let incompleteAttestations = false;
     if (result.error === undefined && result.status === 0) {
       let evidence;
       try {
@@ -300,16 +305,25 @@ async function auditNpmSignature(artifact, source, temporary, registry) {
       } catch {
         throw new Error("npm signature audit returned malformed JSON; raw output omitted.");
       }
-      return verifiedProvenanceFromNpmAudit(evidence, artifact, source);
+      // npm can verify registry signatures before the packument exposes any
+      // attestations. Only that exact empty result is a retryable observation.
+      incompleteAttestations = ["invalid", "missing", "verified"].every(
+        (key) => Array.isArray(evidence?.[key]) && evidence[key].length === 0,
+      );
+      if (!incompleteAttestations) {
+        return verifiedProvenanceFromNpmAudit(evidence, artifact, source);
+      }
     }
-    const retryable = isExactAttestationE404(result, endpoint);
+    const retryable = incompleteAttestations || isExactAttestationE404(result, endpoint);
     const timedOutAfterExactE404 = observedExactE404 && result.error?.code === "ETIMEDOUT" &&
       !result.stderr;
     const wait = Math.min(REGISTRY_OBSERVATION_RETRY_MILLISECONDS, deadline - performance.now());
     if (!retryable || wait <= 0 || attempt + 1 >= REGISTRY_OBSERVATION_ATTEMPTS) {
-      throw new Error(`npm signature audit failed; code=${retryable || timedOutAfterExactE404 ? "E404" : "unknown-or-non-transient"}; raw output omitted.`);
+      const code = incompleteAttestations ? "attestations-not-yet-verified"
+        : retryable || timedOutAfterExactE404 ? "E404" : "unknown-or-non-transient";
+      throw new Error(`npm signature audit failed; code=${code}; raw output omitted.`);
     }
-    observedExactE404 = true;
+    if (!incompleteAttestations) { observedExactE404 = true; }
     const { promise, resolve: finishWait } = Promise.withResolvers();
     setTimeout(finishWait, wait);
     await promise;

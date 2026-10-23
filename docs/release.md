@@ -538,9 +538,11 @@ guarantee. [Release run `39451813115`](https://github.com/agent-teams-ai/enginee
 first exhausted its visibility wait for
 Document Authoring `0.3.3`, then for Foundation `1.10.2`; in both cases the
 qualified immutable artifact became visible after the attempt had failed. The
-npm signature audit retains its independent six-minute deadline, retries only
-the exact package attestation E404, and keeps the 120-second subprocess bound
-and forced termination. The Release job remains bounded to 60 minutes overall;
+npm signature audit retains its independent six-minute deadline and requests
+fresh metadata with `--prefer-online`. It retries the exact package attestation
+E404 or a successful audit whose `invalid`, `missing` and `verified` arrays are
+all empty. Every other result must pass the complete cryptographic checks
+immediately. The audit keeps the 120-second subprocess bound and forced termination. The Release job remains bounded to 60 minutes overall;
 eight worst-case visibility waits need not fit in one run. A failed partial
 train still requires fresh state review and exact immutable reuse before an
 owner-controlled continuation; availability alone does not complete the

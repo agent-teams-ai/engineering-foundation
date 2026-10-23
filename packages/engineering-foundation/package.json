@@ -42,19 +42,11 @@
       "import": "./dist/sdk-growth-authority.js"
     },
     "./schemas/*": "./schemas/*",
-    "./presets/*": "./presets/*",
     "./package.json": "./package.json"
   },
   "files": [
     "dist",
     "assets/transaction-coordination/historical/document-plan-v1.schema.json",
-    "presets/oxlint/base.json",
-    "presets/oxlint/maintainability-tests.json",
-    "presets/oxlint/maintainability.json",
-    "presets/oxlint/node.json",
-    "presets/oxlint/type-aware.json",
-    "presets/typescript/base.json",
-    "presets/typescript/node.json",
     "schemas/architecture-source-dependencies/v1.schema.json",
     "schemas/architecture-source-dependencies/v2.schema.json",
     "schemas/architecture-source-dependencies/v3.schema.json",
@@ -85,6 +77,7 @@
     "schemas/quality-source-coverage/v1.schema.json",
     "schemas/quality-source-coverage/v2.schema.json",
     "schemas/quality-source-coverage/v3.schema.json",
+    "schemas/quality-source-coverage/v4.schema.json",
     "schemas/quality-suppression-governance/v1.schema.json",
     "schemas/quality-findings-baseline/v1.schema.json",
     "schemas/repository-agent-workflow/v1.schema.json",

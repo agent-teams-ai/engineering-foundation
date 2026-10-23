@@ -359,7 +359,7 @@ function oxlintArguments(fixture, configName) {
 
 async function assertBasePresets(fixture) {
   await writeJson(join(fixture.consumerRoot, "tsconfig.json"), {
-    extends: "@agent-teams/engineering-foundation/presets/typescript/node.json",
+    extends: "stack-toolchain/presets/typescript/node.json",
     compilerOptions: { noEmit: true },
     include: ["src/**/*.ts", "type-consumer/**/*.ts"]
   });
@@ -369,7 +369,7 @@ async function assertBasePresets(fixture) {
     fixture.consumerRoot
   );
   await writeJson(join(fixture.consumerRoot, ".oxlintrc.json"), {
-    extends: ["./node_modules/@agent-teams/engineering-foundation/presets/oxlint/node.json"]
+    extends: ["./node_modules/stack-toolchain/presets/oxlint/node.json"]
   });
   await runCommand(process.execPath, oxlintArguments(fixture, ".oxlintrc.json"), fixture.consumerRoot);
 }
@@ -378,8 +378,8 @@ async function assertMaintainabilityPresets(fixture) {
   const source = `export function packedHelper(a, b, c, d, e, f) {\n  let result = a + b + c + d + e + f;\n${Array.from({ length: 180 }, () => "  result += 1;").join("\n")}\n  return result;\n}\n`;
   await writeJson(join(fixture.consumerRoot, ".oxlintrc.maintainability.json"), {
     extends: [
-      "./node_modules/@agent-teams/engineering-foundation/presets/oxlint/node.json",
-      "./node_modules/@agent-teams/engineering-foundation/presets/oxlint/maintainability.json"
+      "./node_modules/stack-toolchain/presets/oxlint/node.json",
+      "./node_modules/stack-toolchain/presets/oxlint/maintainability.json"
     ]
   });
   await writeFile(join(fixture.sourceRoot, "index.ts"), source, "utf8");
@@ -399,8 +399,8 @@ async function assertMaintainabilityPresets(fixture) {
   }
   await writeJson(join(fixture.consumerRoot, ".oxlintrc.maintainability-tests.json"), {
     extends: [
-      "./node_modules/@agent-teams/engineering-foundation/presets/oxlint/node.json",
-      "./node_modules/@agent-teams/engineering-foundation/presets/oxlint/maintainability-tests.json"
+      "./node_modules/stack-toolchain/presets/oxlint/node.json",
+      "./node_modules/stack-toolchain/presets/oxlint/maintainability-tests.json"
     ]
   });
   await runCommand(
@@ -413,7 +413,7 @@ async function assertMaintainabilityPresets(fixture) {
 async function assertTypeAwarePreset(fixture) {
   await writeJson(join(fixture.consumerRoot, ".oxlintrc.type-aware.json"), {
     extends: [
-      "./node_modules/@agent-teams/engineering-foundation/presets/oxlint/type-aware.json"
+      "./node_modules/stack-toolchain/presets/oxlint/type-aware.json"
     ]
   });
   await writeFile(

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createHash } from "node:crypto";
 import { lstat, readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { gzipSync, gunzipSync } from "node:zlib";
@@ -174,7 +175,7 @@ test("applies the same Foundation budget to archive listings", () => {
   }), /too many entries: 2790/u);
 });
 
-test("admits the complete built Foundation package inventory and rejects one additional member", async () => {
+test("admits the exact built Foundation inventory and rejects growth beyond its unchanged budget", async () => {
   await preparePackages();
   const root = "packages/engineering-foundation";
   const manifest = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
@@ -190,7 +191,14 @@ test("admits the complete built Foundation package inventory and rejects one add
     }
   }
   for (const path of manifest.files) { await visit(path); }
-  assert.equal(paths.size, 2_789, "Requalify the complete package inventory when its membership changes");
+  // Seven Foundation-owned presets moved to Stack; source coverage v4 adds one schema.
+  // The archive safety ceiling remains 2,789; exact membership is qualified separately.
+  assert.equal(paths.size, 2_783, "Requalify the complete package inventory when its membership changes");
+  assert.equal(createHash("sha256").update([...paths].toSorted().join("\n") + "\n").digest("hex"),
+    "b1453000a63c496094a05d24e68e02c627c896f5f9350217ad0c4200c97d3f51",
+    "Requalify exact artifact membership, even when the count stays unchanged");
+  assert.equal([...paths].some(path => path.startsWith("presets/")), false);
+  assert.ok(paths.has("schemas/quality-source-coverage/v4.schema.json"));
   assert.ok(paths.has("schemas/quality-source-coverage/v3.schema.json"));
   assert.ok(paths.has("schemas/package-public-api-native-transition/v1.schema.json"));
   for (const path of EXPECTED_NEW_MODULE_ARTIFACTS) {
@@ -200,8 +208,11 @@ test("admits the complete built Foundation package inventory and rejects one add
   const input = { archiveBytes: Buffer.from("inventory"), packageName: FOUNDATION_PACKAGE,
     requiredArtifactPaths: [...paths], allowedArtifactPaths: manifest.files, verboseListing: "" };
   assert.doesNotThrow(() => assertArchiveSafety({ ...input, listing: listing.join("\n") }));
+  const atLimit = [...listing, ...Array.from({ length: 6 },
+    (_, index) => `package/dist/budget-headroom-${index}.js`)];
+  assert.doesNotThrow(() => assertArchiveSafety({ ...input, listing: atLimit.join("\n") }));
   assert.throws(() => assertArchiveSafety({ ...input,
-    listing: [...listing, "package/dist/over-limit.js"].join("\n") }), /too many entries: 2790/u);
+    listing: [...atLimit, "package/dist/over-limit.js"].join("\n") }), /too many entries: 2790/u);
 });
 
 test("rejects complete payload blocks without an observed two-zero-block terminator", () => {

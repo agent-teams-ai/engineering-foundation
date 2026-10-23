@@ -77,8 +77,11 @@ conformance test, run the same data.
 
 `@agent-teams/feature-module-standard/node` checks a module on disk. It reads the declared roots through
 `@agent-teams/engineering-foundation/source-graph`, runs the kernel and compares the per-feature metrics with
-growth budgets from `@agent-teams/engineering-foundation/ratchet` (warnings only). Engineering Foundation `^1.8.0 || ^2.0.0` is an
+growth budgets from `@agent-teams/engineering-foundation/ratchet` (warnings only). Engineering Foundation `^1.8.0 || ^2.0.0 || ^3.0.0` is an
 optional peer dependency: users of `.` and `./fixtures` do not need it.
+The Foundation 3 window is prepared for the companion release. See the
+[migration and qualification record](../../docs/development/feature-module-standard-foundation-3-migration.md)
+for the unchanged runner contracts and the required final installed-artifact gate.
 
 ```ts
 import { checkFeatureModuleOnDisk, formatNodeReport } from '@agent-teams/feature-module-standard/node';

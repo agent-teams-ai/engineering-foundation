@@ -62,6 +62,14 @@
     "scripts/npm-registry-history.ts",
     "scripts/npm-bootstrap-recovery.ts",
     "tests/npm-bootstrap-recovery.test.ts",
-    "tests/support/npm-bootstrap-recovery-fixtures.ts"
+    "tests/support/npm-bootstrap-recovery-fixtures.ts",
+    "scripts/packed-quality-layout.ts",
+    "scripts/packed-quality-lint-protections.ts",
+    "tools/repository-tool-catalog.ts",
+    "tests/features/quality-coverage/source-observation-fixture.ts",
+    "tests/features/quality-coverage/source-census-cases.ts",
+    "tests/features/quality-coverage/source-discovery-cases.ts",
+    "tools/producer-source-dependencies.ts",
+    "tests/producer-source-dependencies.test.ts"
   ]
 }

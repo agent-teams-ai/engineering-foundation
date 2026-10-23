@@ -22,6 +22,7 @@ import {
 } from "./helpers/local-mode-boundaries.ts";
 import { spawnSync } from "node:child_process";
 import { installedFoundationVersion } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/installed-foundation-version.js";
+import { verifyInstalledTransactionBarrier } from "../scripts/transaction-barrier-e2e.mjs";
 
 import { createNodeFoundationTransactionCoordinator } from "../packages/engineering-foundation/dist/composition/node-foundation-transaction-coordinator.js";
 import { FoundationTransactionCoordinator } from "../packages/engineering-foundation/dist/transaction-coordination/application/foundation-transaction-coordinator.js";
@@ -465,7 +466,7 @@ test("installed lifecycle, reporting and coordination retain identities and rela
     const source = join(repositoryRoot, "packages/engineering-foundation");
     const installed = join(root, "node_modules/@agent-teams/engineering-foundation");
     await mkdir(installed, { recursive: true });
-    for (const path of ["dist", "schemas", "presets", "assets", "package.json"]) {
+    for (const path of ["dist", "schemas", "assets", "package.json"]) {
       await cp(join(source, path), join(installed, path), { recursive: true });
     }
     const manifest = JSON.parse(await readFile(join(installed, "package.json"), "utf8"));
@@ -514,6 +515,11 @@ test("installed lifecycle, reporting and coordination retain identities and rela
     const cli = spawnSync(process.execPath, [join(installed, "dist/cli.js"), "self-check", "--json"], { cwd: root, encoding: "utf8" });
     assert.equal(cli.status, 0, cli.stderr);
     assert.equal(JSON.parse(cli.stdout).packageVersion, "6.7.8-installed.2");
+    await verifyInstalledTransactionBarrier({
+      cliPath: join(installed, "dist/cli.js"),
+      consumerRoot: join(root, "foreign-transaction-consumer"),
+      fixtureRoot: join(repositoryRoot, "tests/fixtures/scaffolding-authority-consumer"),
+    });
   } finally {
     await rm(root, { recursive: true, force: true });
   }

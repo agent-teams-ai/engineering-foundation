@@ -54,9 +54,9 @@ require unrelated filename or architecture migrations.
 ### Current integration disposition — 2026-10-23
 
 The table above retains the original preflight inputs. Current Foundation main
-is `97f7b16f25823149f8f884db761edb9ffb43a535`; its released Stack Toolchain
-`0.1.0`, accepted ADR-0064/0065/0066, bootstrap recovery and complete inventories
-remain authoritative. Release-checks admission now uses ADR-0067, preserving
+is `17520f7d84d364f5bb40195785c2b7a9269663a0`; its released Stack Toolchain
+`0.1.0`, accepted ADR-0064/0065/0066/0067, bootstrap recovery and complete inventories
+remain authoritative. Release-checks admission now uses ADR-0068, preserving
 the earlier branch record in Git history. The package coordinate remains the
 owner's explicit `@agent-teams/release-checks` choice.
 

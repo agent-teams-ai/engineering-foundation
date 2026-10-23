@@ -12,7 +12,7 @@ async function createRoot(prefix) {
 
 async function prepareBuild(root) {
   await Promise.all(
-    ["dist", "schemas", "presets", "assets/transaction-coordination/historical"].map((path) =>
+    ["dist", "schemas", "assets/transaction-coordination/historical"].map((path) =>
       mkdir(join(root, path), { recursive: true }),
     ),
   );
@@ -20,7 +20,6 @@ async function prepareBuild(root) {
     writeFile(join(root, "dist", "runtime.js"), "export const value = 1;\n"),
     writeFile(join(root, "dist", "ignored.d.ts"), "export {};\n"),
     writeFile(join(root, "schemas", "contract.json"), "{}\n"),
-    writeFile(join(root, "presets", "base.json"), "{}\n"),
     writeFile(join(root, "assets/transaction-coordination/historical/document-plan-v1.schema.json"), "{}\n"),
     writeFile(
       join(root, "package.json"),

@@ -7,10 +7,7 @@ import { dirname, join } from "node:path";
 import test from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import {
-  NPM_PACKAGE_BOOTSTRAP,
-  bootstrapPackageById,
-} from "../scripts/npm-package-bootstrap.mjs";
+import { NPM_PACKAGE_BOOTSTRAP, bootstrapPackageById } from "../scripts/npm-package-bootstrap.mjs";
 import { PUBLISHABLE_PACKAGE_DEPENDENCIES, PUBLISHABLE_PACKAGES, publishablePackageByName } from "../scripts/publishable-packages.mjs";
 import { DOCS_MCP_PACKAGE } from "../scripts/release-publish-ordered.mjs";
 import { commandEnvironment, commandShim, publicLeafFixture } from "./support/release-publish-policy-fixtures.mjs";
@@ -382,6 +379,7 @@ async function fixture(root, registry) {
   await writeFile(join(root, "pnpm-workspace.yaml"), "packages:\n  - packages/*\n  - spikes/*\n");
   await writeFile(join(root, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
   await writeFile(join(root, ".npmrc"), "registry=https://registry.npmjs.org/\n");
+  await writeFile(join(root, "bunfig.toml"), "[install]\nlinkWorkspacePackages = false\n");
   await writeFile(join(root, ".node-version"), "24.6.0\n");
   await writeFile(join(root, ".pnpmfile.cjs"), "module.exports = { hooks: {} };\n");
   await publicLeafFixture(root, ciInputProof, registry, "proof");
@@ -541,6 +539,8 @@ test("publish entrypoint independently rejects every publish-control drift bound
     },
     payload: (root) =>
       writeFile(join(root, "packages/engineering-foundation/dist.js"), "export const build = 2;\n"),
+    bunInstallPolicy: (root) =>
+      writeFile(join(root, "bunfig.toml"), "[install]\nlinkWorkspacePackages = true\n"),
     packingHook: (root) =>
       writeFile(join(root, ".pnpmfile.cjs"), "module.exports = { hooks: { beforePacking: () => ({}) } };\n"),
     workspace: (root) =>

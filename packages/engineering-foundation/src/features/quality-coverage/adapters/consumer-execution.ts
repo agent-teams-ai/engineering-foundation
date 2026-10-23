@@ -9,10 +9,10 @@ import {
   type ManagedProcessExecutor, type QualityFileReader,
   type QualityObservationPorts, type QualityToolProvider, type ExplicitUnknownFinding
 } from "../api.js";
-import type { QualityConfigurationReader } from "./consumer-observations.js";
+import { readConfiguredQualityProfile, type QualityConfigurationReader } from "./consumer-observations.js";
 import { inspectConsumerToolchain } from "./consumer-toolchain.js";
 import { createOxlintSession } from "./oxlint-session.js";
-import { invalidQualityInput, mapQualityProfile, mapQualityTopology } from "./profile-input.js";
+import { invalidQualityInput, mapQualityTopology } from "./profile-input.js";
 
 /** Bind one invocation to consumer-local tools and the module-owned compiler projects. */
 export function createQualityToolProvider(input: {
@@ -28,7 +28,7 @@ export function createQualityToolProvider(input: {
       assertNotCancelled(signal);
       const value = await input.configuration.read(consumerRoot, configPath, "quality-profile", signal);
       await input.configuration.assertProfile(value);
-      const profile = mapQualityProfile(value);
+      const profile = await readConfiguredQualityProfile(value, consumerRoot, input.configuration, signal);
       const topology = mapQualityTopology(
         await input.configuration.read(consumerRoot, profile.featureProfilePath, "quality-topology", signal),
         profile.sourcePolicyPath

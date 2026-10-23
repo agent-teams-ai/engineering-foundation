@@ -55,6 +55,9 @@
         "scripts/feature-modules/commands.mjs",
         "tests/**/*.mjs",
         "tests/**/*.ts"
+      ],
+      "ignoreDependencies": [
+        "stack-toolchain"
       ]
     },
     "packages/engineering-foundation": {
@@ -108,8 +111,6 @@
     },
     "packages/stack-toolchain": {
       "ignoreDependencies": [
-        "oxlint",
-        "oxlint-tsgolint",
         "oxfmt"
       ]
     }

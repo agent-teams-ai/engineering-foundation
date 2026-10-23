@@ -195,6 +195,9 @@ importers:
       semver:
         specifier: 'catalog:'
         version: 7.8.5
+      stack-toolchain:
+        specifier: 0.1.0
+        version: 0.1.0
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
@@ -3501,6 +3504,11 @@ packages:
   sshpk@1.18.0:
     resolution: {integrity: sha512-2p2KJZTSqQ/I3+HX42EpYOa2l3f8Erv8MWKsy2I9uf4wA7yFIkXRffYdsx86y6z4vHtV8u7g+pPlr8/4ouAxsQ==}
     engines: {node: '>=0.10.0'}
+    hasBin: true
+
+  stack-toolchain@0.1.0:
+    resolution: {integrity: sha512-HU+yLceArzkSYmd42JyAfKONn29L779EWroBzkVYVXZY+/7dYhvvMuO25dW1fjs+WRc8tsOAJW+qSocC0RdZCw==}
+    engines: {node: ^24.18.0 || ^26.0.0}
     hasBin: true
 
   statuses@2.0.2:
@@ -7003,6 +7011,22 @@ snapshots:
       jsbn: 0.1.1
       safer-buffer: 2.1.2
       tweetnacl: 0.14.5
+
+  stack-toolchain@0.1.0:
+    dependencies:
+      jsonc-parser: 3.3.1
+      node-or-bun: 0.2.2
+      oxfmt: 0.74.0
+      oxlint: 1.83.0(oxlint-tsgolint@7.0.2001)
+      oxlint-tsgolint: 7.0.2001
+      typescript: 7.0.2
+    optionalDependencies:
+      bun: 1.4.3
+      tsrs: 0.18.0-ts7.1.0-dev.20260929
+    transitivePeerDependencies:
+      - '@astrojs/compiler-rs'
+      - svelte
+      - vite-plus
 
   statuses@2.0.2: {}
 

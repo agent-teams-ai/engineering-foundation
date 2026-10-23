@@ -91,7 +91,7 @@ data-only and cannot load consumer code. See the
 [ADR-0043](../decisions/0043-new-only-portable-documentation-package-boundary.md),
 with the independent-node amendments of
 [ADR-0062](../decisions/0062-feature-module-standard-package-admission.md) and
-[ADR-0067](../decisions/0067-release-checks-package-admission.md),
+[ADR-0068](../decisions/0068-release-checks-package-admission.md),
 defines the implemented new-only package ownership boundary and is the sole
 authority for the package dependency DAG:
 

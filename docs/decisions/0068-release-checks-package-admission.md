@@ -1,11 +1,11 @@
 ---
-id: ADR-0067
+id: ADR-0068
 status: accepted
 supersedes: []
 superseded_by: []
 ---
 
-# ADR-0067: Release Checks Package Admission
+# ADR-0068: Release Checks Package Admission
 
 Status: Accepted. Decision owner: Product owner. Date: 2026-10-23.
 
@@ -27,8 +27,10 @@ admits expected reuse with shared conformance, a disposable project and at least
 one real consumer in the same delivery.
 
 The owner accepted this scope on 2026-10-20. Integration with protected main
-`97f7b16f25823149f8f884db761edb9ffb43a535` assigns it ADR-0067 because that
-history already owns ADR-0064 through ADR-0066. The former branch-only record
+`17520f7d84d364f5bb40195785c2b7a9269663a0` assigns it ADR-0068 because that
+history already owns ADR-0064 through ADR-0067. The prior integration record
+remains at `e20a04e20b1850f1223001009f4872351de82b6d`, path
+`docs/decisions/0067-release-checks-package-admission.md`. The former branch-only record
 remains unchanged at commit `e162299f0505b95af02adca4edf9a363c91a731a`, path
 `docs/decisions/0064-release-checks-package-admission.md`. This record does not
 supersede Stack Toolchain's ADR-0064. The package retains the exact coordinate

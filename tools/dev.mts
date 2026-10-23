@@ -1,3 +1,4 @@
+import { projectProducerSourceDependencies } from "./producer-source-dependencies.ts";
 import { spawn } from "node:child_process";
 import { mkdir, readFile, readdir, realpath, rm, stat, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
@@ -227,6 +228,7 @@ async function install(profile: Profile): Promise<number> {
   if (status !== 0) {
     return status;
   }
+  if (profile === "bun") { await projectProducerSourceDependencies(profileRoot); }
   if (profile === "bun") {
     const initialization = [
       [resolve(profileRoot, "node_modules/@ast-grep/cli/postinstall.js")],

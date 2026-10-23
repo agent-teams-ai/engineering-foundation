@@ -37,14 +37,16 @@ is byte-identical to that historical input. Another retained Foundation record u
 `49d08b6d1762e94308157fb59b3aa82ac1630c91f529f6efcd4915dfffee7ba7`.
 The older `6b31f20...` QGR input remains historical evidence and is not rewritten.
 
-EQS guidance commit: `f5653f5630057524a4ee44e50c16e138442a9b42`
+EQS guidance commit: `1a692c151d11fb9b917513a3a6875fdec6fc9ed3`
 
-EQS guidance SHA-256: `a65fb5150837b010a71abe36cefd26c32709eb9b9e89f3938498a647e72f5587`
+EQS guidance SHA-256: `f6bc3c93d9ce31ee48df2eeb423edd7d11374af56d9ea3c001a982e20fc07c22`
 
-These are Foundation's existing accepted organization Engineering Quality
-Standard identities in `standards/engineering-quality-standard.provenance.json`.
-Organization `main` at `a34ecc6bc9bb165771f3962dccd25970dd5c0d98` was checked
-on 2026-10-20 and has identical EQS document bytes. The historical
+These are the reviewed organization Engineering Quality Standard identities in
+`standards/engineering-quality-standard.provenance.json`, observed on upstream
+`main` on 2026-10-23. The prior full input and current reviewed delta remain in
+[review evidence](evidence/f3-guidance-20261023/README.md); the earlier universal-tooling
+comparison remains in [historical evidence](evidence/toolchain-guidance-20261021/README.md).
+The historical
 `f9f4c8ad381254fb07cba737d6443542348395c1` and
 `66d6d3d2c2643edac414ded48c0ee0586774dd07` inputs shared SHA-256
 `d55f9f498da213dfa7b14aeac5df5b2fcf37b2cfed4c63dd88b51bde6f56ebe8`;
@@ -59,7 +61,7 @@ oracles. Module examples, layout checks, prototype-port rejection, codemods and
 per-root smoke/wiring/namespace guidance now follow those forms. Static module
 lists remain supported; being static alone is not a reason to reject Assembly.
 
-The current delta adds observation communication rules and signal-bound
+The preceding reviewed delta adds observation communication rules and signal-bound
 subscription detachment before cleanup, keeps resources in composition,
 restricts observation testing imports to tests and requires subscription leak
 checks. This seam introduces no observation store or subscription. Its existing
@@ -252,3 +254,55 @@ from the previous `300e7e1c459c08f5e271627e4ca7d2486bdf5e1f` pin requires retain
 observation load drain after escalation; this static diagnostic adapter owns no
 observation loader or subscription. All previous accepted ADR and guidance
 evidence bytes remain immutable. The scope remains `not-adopted`.
+
+## npm recovery source helpers
+
+The private fixed helpers `scripts/npm-registry-read.ts`,
+`scripts/npm-registry-history.ts` and `scripts/npm-bootstrap-recovery.ts` belong
+to the existing repository-development-tooling release/bootstrap owner. They
+provide bounded registry observation, closed history classification and the
+reviewed existing-artifact recovery policy through static imports. They add no
+independent composition boundary, public runtime contract or lifecycle owner.
+The required `tsconfig.ci-tooling.json` and nearest `scripts/tsconfig.json` include
+all three exact paths; the existing standards, test-manifest and recovery
+regressions remain the blocking checks. Stack Toolchain's dependency direction
+to node-or-bun is unchanged.
+
+The retained CMS pin was compared to upstream
+`eadd9d391657ae6f508a874dd30e923bdc4054f0`: the complete document is byte-identical
+to the retained `7131d0d7a6bb5dd4c3e8906ccac065c0be0e0333` input. This comparison
+does not move the accepted pin or expand the static adoption scope.
+
+## F3 current guidance comparison, 2026-10-23
+
+The explicit EQS pin migration from `1b17053bc92766742fec2329ee153171395e658e`
+to `1a692c151d11fb9b917513a3a6875fdec6fc9ed3` adds only the backend-stack
+navigation row. The preceding F3 pin already includes the accepted universal
+tooling and discoverability direction. The full previous input, provenance and
+exact reviewed delta remain in [comparison evidence](evidence/f3-guidance-20261023/README.md).
+This navigation change does not adopt a backend stack or change consumer policy.
+The current CMS document at Get Modular `eadd9d391657ae6f508a874dd30e923bdc4054f0`
+is byte-identical to the retained doctor guidance; the reviewed `7131d0d7a6bb5dd4c3e8906ccac065c0be0e0333`
+pin and all doctor evidence remain unchanged.
+
+
+## Release-checks integration classification, 2026-10-23
+
+The independent `packages/release-checks` pure `candidate-checking` feature and
+its fixed repository release adapters (`scripts/release-candidate-host.ts` and
+`scripts/release-candidate-observation.ts`) retain their existing semantic owners.
+They introduce no independently constructed runtime capability, configurable
+relationship, subscription or lifecycle scope. The leaf is a fixed library
+dependency of development tooling; its public package and source boundaries
+remain governed by the source and Feature Module Standard profiles. The
+repository Host owns Git/engine observation, cleanup and release effects.
+This scope remains `not-adopted` for Assembly, with the existing review trigger
+for a future configurable or independently lived composition boundary.
+
+On 2026-10-23 the full CMS document was fetched from exact current upstream
+`eadd9d391657ae6f508a874dd30e923bdc4054f0`. Its SHA-256 is
+`a6dac5d303adf80be3151c6703c919b715fd880a941a4ad68e927c87a7ee5882`,
+identical to the retained reviewed `7131d0d7a6bb5dd4c3e8906ccac065c0be0e0333`
+pin; there is no upstream content delta to migrate. Integration preserves the
+existing blocking standards checker and its rejecting tests. No CMS mechanism
+or shared guidance changes in this merge.

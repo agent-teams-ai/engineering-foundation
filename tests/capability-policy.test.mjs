@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import {
   readFile,
   mkdir,
@@ -678,7 +679,18 @@ test("registered config admission snapshots capability IDs at composition", asyn
 });
 
 test("schema contribution assembly preserves every published source byte and dependency registration", async () => {
-  assert.equal(FOUNDATION_SCHEMA_IDS.length, 44);
+  const released = JSON.parse(await readFile("architecture/public-api/engineering-foundation.artifacts.json", "utf8"));
+  const releasedIds = released.jsonSchemas.map(schema => schema.path.replace(/^schemas\//u, "").replace(/\.schema\.json$/u, ""));
+  assert.equal(new Set(releasedIds).size, releasedIds.length);
+  assert.equal(releasedIds.filter(id => id !== "quality-source-coverage/v4").length, 44);
+  const expectedIds = new Set([...releasedIds, "quality-source-coverage/v4"]);
+  assert.equal(expectedIds.size, 45);
+  assert.deepEqual(FOUNDATION_SCHEMA_IDS.toSorted(), [...expectedIds].toSorted());
+  for (const schema of released.jsonSchemas) {
+    const bytes = await readFile(`packages/engineering-foundation/${schema.path}`);
+    assert.equal(`sha256:${createHash("sha256").update(bytes).digest("hex")}`, schema.digest,
+      `${schema.path} must preserve its released bytes`);
+  }
   assert.ok(FOUNDATION_SCHEMA_IDS.includes("workspace-dependency-declarations/v2"));
   assert.ok(FOUNDATION_SCHEMA_IDS.includes("repository-agent-workflow/v1"));
   assert.ok(FOUNDATION_SCHEMA_IDS.includes("repository-agent-workflow/v2"));

@@ -244,8 +244,11 @@ test("validates the release-owned public API baseline and freezes the package ex
         "export declare function recoverFilesystemScaffold(consumerRoot: string): Promise<ScaffoldReceipt | undefined>;",
     },
   );
+  // ADR-0067 removes only the relocated preset wildcard; the frozen vector stays unchanged.
+  const { ["./presets/*"]: relocatedPresets, ...retainedExports } = vector.publicApi.exports;
+  assert.equal(relocatedPresets, "./presets/*");
   assert.deepEqual(packageManifest.exports, {
-    ...vector.publicApi.exports,
+    ...retainedExports,
     "./scaffolding/qualification": {
       types: "./dist/scaffolding/qualification.d.ts",
       import: "./dist/scaffolding/qualification.js"
@@ -291,6 +294,7 @@ test("freezes the runtime, filesystem, and published schema allowlists", async (
     "schemas/quality-source-coverage/v1.schema.json",
     "schemas/quality-source-coverage/v2.schema.json",
     "schemas/quality-source-coverage/v3.schema.json",
+    "schemas/quality-source-coverage/v4.schema.json",
     "schemas/repository-agent-workflow/v2.schema.json",
     "schemas/workspace-dependency-declarations/v2.schema.json",
   ].toSorted();

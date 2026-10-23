@@ -1,7 +1,7 @@
 # Release Checks source admission
 
 `@agent-teams/release-checks` is an independent development library admitted by
-[ADR-0067](../decisions/0067-release-checks-package-admission.md) under
+[ADR-0068](../decisions/0068-release-checks-package-admission.md) under
 [ADR-0061](../decisions/0061-library-first-foundation-boundary-evolution.md).
 The [accepted delivery plan](release-checks-delivery-plan.md) and
 [review record](../research/release-checks-plan-review.md) retain the completed
@@ -90,9 +90,11 @@ The implementation branch incorporates that owner release and retains all its
 baseline, manifest, changelog and Bun-lock bytes. Those upstream baseline
 promotions are distinct from the initial-admission evidence above. The
 2026-10-23 integration advances to main
-`97f7b16f25823149f8f884db761edb9ffb43a535`, preserving released Stack Toolchain
+`17520f7d84d364f5bb40195785c2b7a9269663a0`, preserving released Stack Toolchain
 `0.1.0`, its bootstrap recovery and all accepted main ADRs. Release-checks uses
-ADR-0067; the former branch record remains in Git history. Fresh final PR
+ADR-0068; prior branch records ADR-0064 and ADR-0067 remain in Git history.
+The incoming main keeps accepted ADR-0067, the Stack Toolchain command catalog,
+Foundation 3 intent, and the complete toolchain-backed quality scope. Fresh final PR
 qualification must use the integrated head and actual current base, retaining
 consumed intents as history and never relabeling earlier CI.
 

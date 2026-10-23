@@ -24,7 +24,7 @@ async function installNodeConsumer({
   }, null, 2)}\n`);
   if (foundation.kind === "qualified-current-archive") {
     await writeFile(join(directory, "pnpm-workspace.yaml"), `overrides:\n${
-      ["engineering-foundation", "repository-mutation", "document-authoring"].map(localName =>
+      ["repository-mutation", "document-authoring"].map(localName =>
         `  "@agent-teams/${localName}": ${JSON.stringify(artifacts[`@agent-teams/${localName}`].archiveFileSpecifier)}`).join("\n")
     }\n`);
   } else {
@@ -32,8 +32,10 @@ async function installNodeConsumer({
   }
   await runPnpm(["install", "--ignore-scripts", "--strict-peer-dependencies",
     "--registry=https://registry.npmjs.org/"], directory);
+  const lock = parse(await readFile(join(directory, "pnpm-lock.yaml"), "utf8"));
+  assert.equal(lock.overrides?.[foundationName], undefined,
+    "The direct Foundation peer must be admitted without an override.");
   if (foundation.kind === "published-minimum") {
-    const lock = parse(await readFile(join(directory, "pnpm-lock.yaml"), "utf8"));
     assert.equal(lock.importers["."].devDependencies[foundationName].specifier, foundation.version);
     assert.equal(lock.packages[`${foundationName}@${foundation.version}`].resolution.integrity, foundation.integrity);
     assert.equal(lock.overrides, undefined, "The minimum peer must not use current workspace overrides.");
@@ -42,9 +44,13 @@ async function installNodeConsumer({
 }
 
 // Uses the caller's already qualified archives. No build or pack occurs here.
-export async function verifyPackedFeatureModuleStandard({
-  artifacts, temporaryRoot, packageManager, typescript, runPnpm,
-}) {
+function assertNodeSourceChecks(report) {
+  if (report.status !== "passed" || report.cases.length !== 11) {
+    throw new Error("Packed Feature Module Standard did not complete its public source checks.");
+  }
+}
+
+export async function verifyPackedFeatureModuleStandard({ artifacts, temporaryRoot, packageManager, typescript, runPnpm }) {
   const name = "@agent-teams/feature-module-standard";
   const artifact = artifacts[name];
   const pureDirectory = join(temporaryRoot, "feature-module-standard-pure-consumer");
@@ -112,6 +118,9 @@ console.log(JSON.stringify({ status: "passed", cases: ["pure-entries-without-fou
   const foundationManifest = JSON.parse(await readFile(fileURLToPath(foundationResolution), "utf8"));
   assert.equal(foundationManifest.name, "@agent-teams/engineering-foundation");
   assert.equal(foundationManifest.version, process.argv[2]);
+  const standardManifest = JSON.parse(await readFile(fileURLToPath(import.meta.resolve("@agent-teams/feature-module-standard/package.json")), "utf8"));
+  assert.equal(standardManifest.peerDependencies["@agent-teams/engineering-foundation"], "^1.8.0 || ^2.0.0 || ^3.0.0");
+  assert.equal(standardManifest.peerDependenciesMeta["@agent-teams/engineering-foundation"].optional, true);
   const fromFms = createRequire(import.meta.resolve("@agent-teams/feature-module-standard/node"));
   assert.equal(fromFms.resolve("@agent-teams/engineering-foundation/package.json"), fileURLToPath(foundationResolution));
   const expected = exampleModule();
@@ -179,9 +188,7 @@ console.log(JSON.stringify({ status: "passed", cases: ["pure-entries-without-fou
   `);
     const runtime = await runPnpm(["exec", "node", "check.mjs", foundation.version], directory);
     const report = JSON.parse(runtime.stdout);
-    if (report.status !== "passed" || report.cases.length !== 11) {
-      throw new Error("Packed Feature Module Standard did not complete its public source checks.");
-    }
+    assertNodeSourceChecks(report);
     const evidence = { ...report, foundation, cases: [...pureReport.cases, ...report.cases],
       packageName: artifact.packageName, packageVersion: artifact.packageVersion,
       archiveSha256: createHash("sha256").update(await readFile(artifact.archivePath)).digest("hex"), typescript,

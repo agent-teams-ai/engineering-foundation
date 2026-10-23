@@ -263,3 +263,22 @@ hide product source. Evidence that no longer has a physical counterpart stays
 unqualified and fails ordinary coverage; no persisted transaction format changes.
 The source implementation and focused fixtures do not establish release, registry
 adoption or a successful complete consumer gate.
+
+
+## Toolchain-owned tools and project authority (v4)
+
+The `quality-source-coverage/v4` profile replaces `compilerProjects` with
+`toolchainConfigPath`, pointing to the consumer-owned data-only Stack Toolchain
+configuration. Its `typecheck.projects` is the single project list used by both
+quality observation and execution. Existing v1–v3 schema bytes remain unchanged.
+
+Foundation resolves the exact root development dependency `stack-toolchain` and
+reads its installed `toolchain-manifest.json`. Tool versions must agree with that
+package's declared exact dependency graph; tools resolve from that package, never
+from PATH, ancestor installations or an independent Foundation version table.
+The consumer retains ownership of project paths, source boundaries and exceptions.
+
+Quality lint source inventory uses `--listFilesOnly`, not semantic typechecking.
+The sequential source-only checker does not replace the existing explicit build
+gate for project-reference graphs. Native, source coverage and public API gates
+continue to apply independently.

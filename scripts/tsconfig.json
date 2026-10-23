@@ -9,6 +9,10 @@
     "npm-registry-history.ts",
     "npm-bootstrap-recovery.ts",
     "release-candidate-*.ts",
-    "packed-release-checks.ts"
+    "packed-release-checks.ts",
+    "pack-quality-assets.ts",
+    "packed-quality-layout.ts",
+    "packed-quality-lint-protections.ts",
+    "packed-stack-toolchain-qualification.ts"
   ]
 }

@@ -1,13 +1,20 @@
 import { createRequire } from "node:module";
 import { realpath } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, sep } from "node:path";
-import { CapabilityInputError, assertNotCancelled, type QualityDependencyDeclaration, type QualityFileReader } from "../api.js";
-
-// This is the qualified adapter version set, not a dependency installer or a range resolver.
-const SUPPORTED = { oxlint: "1.83.0", "oxlint-tsgolint": "7.0.2001", typescript: "7.0.2" } as const;
+import {
+  CapabilityInputError,
+  assertNotCancelled,
+  type QualityDependencyDeclaration,
+  type QualityFileReader,
+} from "../api.js";
 
 function reject(name: string, reason: string): never {
-  throw new CapabilityInputError({ code: "QUALITY_TOOLCHAIN_INVALID", message: `${name}: ${reason}`, phase: "quality-toolchain", retryable: false });
+  throw new CapabilityInputError({
+    code: "QUALITY_TOOLCHAIN_INVALID",
+    message: `${name}: ${reason}`,
+    phase: "quality-toolchain",
+    retryable: false,
+  });
 }
 
 function record(value: unknown): value is Record<string, unknown> {
@@ -22,34 +29,59 @@ function within(root: string, path: string): boolean {
 function declaration(name: string, dependencies: readonly QualityDependencyDeclaration[]): string {
   const matches = dependencies.filter(({ dependencyName }) => dependencyName === name);
   const candidate = matches[0];
-  if (matches.length !== 1 || candidate === undefined || candidate.section !== "devDependencies" ||
-    candidate.targetPackageName !== name || candidate.normalizationProblem !== undefined ||
-    !/^\d+\.\d+\.\d+$/u.test(candidate.effectiveVersionSpecifier)) {
+  if (
+    matches.length !== 1 ||
+    candidate === undefined ||
+    candidate.section !== "devDependencies" ||
+    candidate.targetPackageName !== name ||
+    candidate.normalizationProblem !== undefined ||
+    !/^\d+\.\d+\.\d+$/u.test(candidate.effectiveVersionSpecifier)
+  ) {
     reject(name, "requires one exact consumer root development dependency.");
   }
   return candidate.effectiveVersionSpecifier;
 }
 
 async function observeInstalledPackage(
-  root: string, name: string, version: string, read: QualityFileReader,
-  options: { readonly bin?: string; readonly from?: string } = {}
+  root: string,
+  name: string,
+  version: string,
+  read: QualityFileReader,
+  options: { readonly bin?: string; readonly from?: string } = {},
 ): Promise<string> {
   let manifestPath: string;
   try {
-    manifestPath = await realpath(createRequire(options.from ?? join(root, "package.json")).resolve(`${name}/package.json`));
-  } catch { reject(name, "is not installed in the consumer toolchain."); }
-  if (!within(join(root, "node_modules"), manifestPath)) { reject(name, "resolved outside consumer node_modules."); }
-  const value: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(await read({ root, candidate: manifestPath, maxBytes: 2 * 1024 * 1024 })));
+    manifestPath = await realpath(
+      createRequire(options.from ?? join(root, "package.json")).resolve(`${name}/package.json`),
+    );
+  } catch {
+    reject(name, "is not installed in the consumer toolchain.");
+  }
+  if (!within(join(root, "node_modules"), manifestPath)) {
+    reject(name, "resolved outside consumer node_modules.");
+  }
+  const value: unknown = JSON.parse(
+    new TextDecoder("utf-8", { fatal: true }).decode(
+      await read({ root, candidate: manifestPath, maxBytes: 2 * 1024 * 1024 }),
+    ),
+  );
   if (!record(value) || value["name"] !== name || value["version"] !== version) {
     reject(name, "installed identity does not match the exact declared pin.");
   }
-  if (options.bin === undefined) { return manifestPath; }
+  if (options.bin === undefined) {
+    return manifestPath;
+  }
   const binaries = value["bin"];
-  const target = typeof binaries === "string" ? binaries : record(binaries) ? binaries[options.bin] : undefined;
-  if (typeof target !== "string" || target.length === 0 || isAbsolute(target)) { reject(name, "has no supported executable entrypoint."); }
+  const target =
+    typeof binaries === "string" ? binaries : record(binaries) ? binaries[options.bin] : undefined;
+  if (typeof target !== "string" || target.length === 0 || isAbsolute(target)) {
+    reject(name, "has no supported executable entrypoint.");
+  }
   const packageRoot = dirname(manifestPath);
   const executable = await realpath(join(packageRoot, target));
-  if (!within(packageRoot, executable)) { reject(name, "executable escapes its installed package."); }
+  if (!within(packageRoot, executable)) {
+    reject(name, "executable escapes its installed package.");
+  }
   await read({ root, candidate: executable, maxBytes: 16 * 1024 * 1024 });
   return executable;
 }
@@ -60,24 +92,108 @@ export async function inspectConsumerToolchain(input: {
   readonly dependencies: readonly QualityDependencyDeclaration[];
   readonly read: QualityFileReader;
   readonly signal?: AbortSignal;
-}): Promise<{ readonly oxlintEntrypoint: string; readonly compilerEntrypoint: string; readonly typedEntrypoint: string }> {
+}): Promise<{
+  readonly oxlintEntrypoint: string;
+  readonly compilerEntrypoint: string;
+  readonly typedEntrypoint: string;
+}> {
   assertNotCancelled(input.signal);
   const root = await realpath(input.consumerRoot);
-  for (const [name, version] of Object.entries(SUPPORTED)) {
-    if (declaration(name, input.dependencies) !== version) { reject(name, `unsupported version; this adapter qualifies ${version}.`); }
+  const toolchainVersion = declaration("stack-toolchain", input.dependencies);
+  const toolchainManifest = await observeInstalledPackage(
+    root,
+    "stack-toolchain",
+    toolchainVersion,
+    input.read,
+  );
+  const packageValue: unknown = JSON.parse(
+    new TextDecoder("utf-8", { fatal: true }).decode(
+      await input.read({ root, candidate: toolchainManifest, maxBytes: 2 * 1024 * 1024 }),
+    ),
+  );
+  if (!record(packageValue) || !record(packageValue["dependencies"])) {
+    reject("stack-toolchain", "has no declared dependency graph.");
   }
-  const oxlintEntrypoint = await observeInstalledPackage(root, "oxlint", SUPPORTED.oxlint, input.read, { bin: "oxlint" });
-  const compilerEntrypoint = await observeInstalledPackage(root, "typescript", SUPPORTED.typescript, input.read, { bin: "tsc" });
-  const typedWrapper = await observeInstalledPackage(root, "oxlint-tsgolint", SUPPORTED["oxlint-tsgolint"], input.read, { bin: "tsgolint" });
+  const graph = packageValue["dependencies"];
+  const pinsPath = await realpath(join(dirname(toolchainManifest), "toolchain-manifest.json"));
+  if (!within(dirname(toolchainManifest), pinsPath)) {
+    reject("stack-toolchain", "version manifest escapes its package.");
+  }
+  const pins: unknown = JSON.parse(
+    new TextDecoder("utf-8", { fatal: true }).decode(
+      await input.read({ root, candidate: pinsPath, maxBytes: 2 * 1024 * 1024 }),
+    ),
+  );
+  if (!record(pins) || pins["schemaVersion"] !== 1) {
+    reject("stack-toolchain", "unsupported version manifest.");
+  }
+  const versions = qualifiedVersions(pins, graph);
+  const oxlintEntrypoint = await observeInstalledPackage(
+    root,
+    "oxlint",
+    versions["oxlint"]!,
+    input.read,
+    { bin: "oxlint", from: toolchainManifest },
+  );
+  const compilerEntrypoint = await observeInstalledPackage(
+    root,
+    "typescript",
+    versions["typescript"]!,
+    input.read,
+    { bin: "tsc", from: toolchainManifest },
+  );
+  const typedWrapper = await observeInstalledPackage(
+    root,
+    "oxlint-tsgolint",
+    versions["oxlint-tsgolint"]!,
+    input.read,
+    { bin: "tsgolint", from: toolchainManifest },
+  );
   const nativeName = `@oxlint-tsgolint/${process.platform}-${process.arch}`;
-  const nativeManifest = await observeInstalledPackage(root, nativeName, SUPPORTED["oxlint-tsgolint"], input.read, { from: typedWrapper });
+  const nativeManifest = await observeInstalledPackage(
+    root,
+    nativeName,
+    versions["oxlint-tsgolint"]!,
+    input.read,
+    { from: typedWrapper },
+  );
   const nativeRoot = dirname(nativeManifest);
-  const typedEntrypoint = await realpath(join(nativeRoot, process.platform === "win32" ? "tsgolint.exe" : "tsgolint"));
-  if (!within(nativeRoot, typedEntrypoint)) { reject(nativeName, "executable escapes its installed package."); }
+  const typedEntrypoint = await realpath(
+    join(nativeRoot, process.platform === "win32" ? "tsgolint.exe" : "tsgolint"),
+  );
+  if (!within(nativeRoot, typedEntrypoint)) {
+    reject(nativeName, "executable escapes its installed package.");
+  }
   await input.read({ root, candidate: typedEntrypoint, maxBytes: 128 * 1024 * 1024 });
-  for (const dependency of input.dependencies.filter(({ dependencyName }) => dependencyName.startsWith("@types/"))) {
-    await observeInstalledPackage(root, dependency.dependencyName, declaration(dependency.dependencyName, input.dependencies), input.read);
+  for (const dependency of input.dependencies.filter(({ dependencyName }) =>
+    dependencyName.startsWith("@types/"),
+  )) {
+    await observeInstalledPackage(
+      root,
+      dependency.dependencyName,
+      declaration(dependency.dependencyName, input.dependencies),
+      input.read,
+    );
   }
   assertNotCancelled(input.signal);
   return { oxlintEntrypoint, compilerEntrypoint, typedEntrypoint };
+}
+
+function qualifiedVersions(
+  pins: Record<string, unknown>,
+  graph: Record<string, unknown>,
+): Record<string, string> {
+  const versions: Record<string, string> = {};
+  for (const name of ["oxlint", "oxlint-tsgolint", "typescript"]) {
+    const version = pins[name];
+    if (
+      typeof version !== "string" ||
+      !/^\d+\.\d+\.\d+$/u.test(version) ||
+      graph[name] !== version
+    ) {
+      reject(name, "toolchain version manifest disagrees with its exact dependency graph.");
+    }
+    versions[name] = version;
+  }
+  return versions;
 }

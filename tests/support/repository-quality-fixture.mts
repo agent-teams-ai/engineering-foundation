@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 import { copyPinnedToolchain } from "../features/quality-coverage/copied-toolchain.mjs";
 
 /** Finite real-quality consumer fixture; copies pinned local tools without installs. */
-export async function writeRepositoryQualityFixture(root: string, repositoryRoot: string): Promise<void> {
+async function writeRepositoryQualityFixture(root: string, repositoryRoot: string): Promise<void> {
   const put = async (path: string, value: unknown) => {
     await mkdir(dirname(join(root, path)), { recursive: true });
     await writeFile(join(root, path), typeof value === "string" ? value : JSON.stringify(value));
@@ -11,7 +11,7 @@ export async function writeRepositoryQualityFixture(root: string, repositoryRoot
   const pins = await copyPinnedToolchain(root);
   for (const name of ["base", "node", "type-aware", "maintainability"]) {
     await put(`presets/${name}.json`, await readFile(
-      join(repositoryRoot, "packages/engineering-foundation/presets/oxlint", `${name}.json`), "utf8"));
+      join(repositoryRoot, "packages/stack-toolchain/presets/oxlint", `${name}.json`), "utf8"));
   }
   await put("package.json", { name: "test-bun-quality-binding", private: true, type: "module",
     packageManager: "bun@1.4.3",
@@ -42,4 +42,33 @@ export async function writeRepositoryQualityFixture(root: string, repositoryRoot
   await put("foundation.config.yaml", { schemaVersion: 2, project: { id: "test-bun-quality-binding" },
     capabilities: { "quality.source-coverage": { configPath: "quality.yaml" },
       "architecture.source-dependencies": { configPath: "source.yaml" } } });
+}
+
+/** Explicit installed-preset variant; leaves existing fixture callers unchanged. */
+export async function writeInstalledRepositoryQualityFixture(root: string, repositoryRoot: string): Promise<void> {
+  await writeRepositoryQualityFixture(root, repositoryRoot);
+  const lintPath = join(root, "lint.json");
+  const lint = JSON.parse(await readFile(lintPath, "utf8")) as { extends: string[] };
+  lint.extends = [
+    "./node_modules/stack-toolchain/presets/oxlint/type-aware.json",
+    "./node_modules/stack-toolchain/presets/oxlint/maintainability.json"
+  ];
+  await writeFile(lintPath, JSON.stringify(lint));
+  await writeFile(join(root, "packages/worker/src/baseline.mjs"), "export const baseline = 1;\n");
+}
+
+/** Second-phase fixture script records the dispatcher's admitted runtime bindings. */
+export async function writeRuntimeBindingObservationFixture(root: string): Promise<void> {
+  await writeFile(join(root, "observe.mts"), [
+    'import { writeFileSync } from "node:fs";',
+    'writeFileSync("runtime-binding.json", JSON.stringify({',
+    'node: process.env["AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE"],',
+    'bun: process.env["AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE"],',
+    'leafNodeVersion: process.versions.node }));'
+  ].join("\n"));
+  const manifest = JSON.parse(await readFile(join(root, "package.json"), "utf8")) as {
+    scripts: Record<string, string>;
+  };
+  manifest.scripts["check"] = "node observe.mts";
+  await writeFile(join(root, "package.json"), JSON.stringify(manifest));
 }

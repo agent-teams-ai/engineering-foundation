@@ -213,3 +213,25 @@ test("historical check failures still stop compatibility before reconciliation",
     assert.equal(calls.some((line) => line.includes("PASS")), false);
   }
 });
+
+test("published compatibility preserves its primary failure when cleanup also fails", async () => {
+  const primary = new Error("scaffolding operation failed");
+  const cleanup = Object.assign(new Error("directory not empty"), { code: "ENOTEMPTY" });
+  let root;
+  try {
+    await assert.rejects(runPublishedCompatibility({
+      ...compatibilityChecks([]),
+      verifyScaffolding: async ({ temporaryRoot }) => { root = temporaryRoot; throw primary; },
+      removeTemporaryRoot: async temporaryRoot => {
+        assert.equal(temporaryRoot, root);
+        throw cleanup;
+      },
+    }), error => {
+      assert.ok(error instanceof AggregateError);
+      assert.deepEqual(error.errors, [primary, cleanup]);
+      return true;
+    });
+  } finally {
+    if (root !== undefined) { await rm(root, { recursive: true, force: true }); }
+  }
+});

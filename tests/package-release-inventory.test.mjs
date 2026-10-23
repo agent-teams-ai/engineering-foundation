@@ -491,7 +491,7 @@ test("package self-check rejects a symlinked required artifact", async () => {
       },
       recursive: true,
     });
-    const target = join(packageRoot, "presets", "oxlint", "base.json");
+    const target = join(packageRoot, "schemas", "quality-source-coverage", "v4.schema.json");
     const source = `${target}.original`;
     await cp(target, source);
     await rm(target);
@@ -500,7 +500,7 @@ test("package self-check rejects a symlinked required artifact", async () => {
       inspectFoundationPackage(packageRoot),
       (error) =>
         error?.code === "PACKAGE_INVALID" &&
-        /presets\/oxlint\/base\.json/u.test(error.message),
+        /schemas\/quality-source-coverage\/v4\.schema\.json/u.test(error.message),
     );
   } finally {
     await rm(root, { force: true, recursive: true });

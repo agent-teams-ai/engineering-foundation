@@ -18,6 +18,10 @@
     "support/process-runtime-cancellation-fixture.ts",
     "github-release-reconciliation.test.ts",
     "npm-bootstrap-recovery.test.ts",
-    "support/npm-bootstrap-recovery-fixtures.ts"
+    "support/npm-bootstrap-recovery-fixtures.ts",
+    "features/quality-coverage/source-observation-fixture.ts",
+    "features/quality-coverage/source-census-cases.ts",
+    "features/quality-coverage/source-discovery-cases.ts",
+    "producer-source-dependencies.test.ts"
   ]
 }

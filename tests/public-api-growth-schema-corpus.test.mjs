@@ -43,13 +43,22 @@ const assertCandidateSources = async candidate => {
       const currentPackages = parseCapabilityConfig(parse(await readFile(path, "utf8"))).packages;
       const evidencedFoundationPolicy = foundationPackage(historicalPackages);
       assert.ok(evidencedFoundationPolicy);
-      const { entrypoints: currentEntrypoints, approvedBreakingChanges: currentApprovals, ...currentRest } = foundationPackage(currentPackages);
-      const { entrypoints: evidencedEntrypoints, approvedBreakingChanges: evidencedApprovals, ...evidencedRest } = evidencedFoundationPolicy;
-      // ADR-0063 authorizes only the later workflow schema mutation; retained evidence stays exact.
-      assert.deepEqual(currentApprovals, [...evidencedApprovals, {
+      const { entrypoints: currentEntrypoints, nonTypeExports: currentExports, approvedBreakingChanges: currentApprovals, ...currentRest } = foundationPackage(currentPackages);
+      const { entrypoints: evidencedEntrypoints, nonTypeExports: evidencedExports, approvedBreakingChanges: evidencedApprovals, ...evidencedRest } = evidencedFoundationPolicy;
+      // Later approvals are exact additions; retained qualification evidence stays unchanged.
+      assert.deepEqual(currentApprovals, [{
+        decisionId: "ADR-0067",
+        fingerprint: "sha256:5deff3b19edcdf86f219f5f9e23b15372386bfb3e238ea74bc2d375596f036f6"
+      }, ...evidencedApprovals, {
         decisionId: "ADR-0063",
         fingerprint: "sha256:bf6fd082d951c6857f0de414d4472cfbeae3b7357004c3d3911d9820b3b516e6"
       }]);
+      // Foundation 3 relocates only technical presets to Stack Toolchain; schema selection stays exact.
+      assert.deepEqual(evidencedExports.filter(entry => entry.exportPath === "./presets/*"), [
+        { exportPath: "./presets/*", kind: "wildcard" }
+      ]);
+      assert.deepEqual(currentExports, evidencedExports.filter(entry => entry.exportPath !== "./presets/*"),
+        "SDK v2 qualification policy may remove only the relocated preset wildcard");
       assert.deepEqual(currentRest, evidencedRest,
         "SDK v2 qualification policy must preserve the evidenced Foundation package configuration");
       assert.ok(evidencedEntrypoints.every((entry) => currentEntrypoints.some((current) =>

@@ -441,7 +441,7 @@ integrity and package tree remain in the historical catalog; the runner and its
 first supported `0.1.0` release pass the normal release gates.
 The dependency-free `@agent-teams/release-checks` is an independent source
 package outside that Cohort, admitted by
-[ADR-0067](decisions/0067-release-checks-package-admission.md). Its source
+[ADR-0068](decisions/0068-release-checks-package-admission.md). Its source
 manifest is `0.0.0` with minor Changesets intent; the
 [admission record](development/release-checks-admission.md) distinguishes its
 current source, installed qualification and pending publication. Its exact

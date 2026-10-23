@@ -87,6 +87,7 @@ test("managed implementation retains fail-closed transaction boundaries", async 
     "src/consumer-integration/adapters/foundation-known-file-transaction.ts",
     "src/consumer-integration/adapters/node-consumer-integration-repository.ts",
     "src/consumer-integration/adapters/node-consumer-upgrade-sandbox.ts",
+    "src/consumer-integration/adapters/consumer-upgrade-sandbox-support.ts",
     "src/consumer-integration/adapters/bounded-repository-topology.ts",
     "src/consumer-integration/adapters/agents-route-adapter-v1.ts",
     "src/qualification/adapters/outbound/node-managed-qualification.ts",

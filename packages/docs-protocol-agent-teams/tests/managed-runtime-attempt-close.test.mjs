@@ -63,6 +63,14 @@ const deferred = () => {
   return { promise, resolve: finish };
 };
 const live = (child) => child && child.exitCode === null && child.signalCode === null;
+async function waitForSelectedChild(entered, installation) {
+  await Promise.race([
+    entered,
+    installation.then((result) => {
+      throw new Error(`Installation settled before child barrier: ${JSON.stringify(result)}`);
+    }),
+  ]);
+}
 function holdCloseAtExternalRoot(x) {
   const original = fsPromises.realpath;
   const entered = deferred();
@@ -155,6 +163,16 @@ async function peerAcquisition(x) {
   );
 }
 
+test("child barrier rejects an early installation refusal instead of waiting forever", async () => {
+  await assert.rejects(
+    waitForSelectedChild(
+      new Promise(() => {}),
+      Promise.resolve({ outcome: "refused", code: "identity-changed" }),
+    ),
+    /Installation settled before child barrier:.*identity-changed/u,
+  );
+});
+
 test("issued attempt close reserves before IO and refuses a later install", async () => {
   const x = await setup(
     process.versions.node.startsWith("24.") ? "node24" : "node26",
@@ -187,7 +205,7 @@ test("issued attempt close waits for the real selected install child to settle",
   let installation;
   try {
     installation = x.scope.install(x.input);
-    await barrier.entered;
+    await waitForSelectedChild(barrier.entered, installation);
     assert.equal(live(barrier.child()), true);
     const record = JSON.parse(await readFile(x.acquisition.attempt.evidencePath, "utf8"));
     assert.equal(record.phase, "running");

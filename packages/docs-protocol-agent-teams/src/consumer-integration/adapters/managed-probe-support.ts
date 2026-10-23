@@ -14,7 +14,7 @@ export const MAX_OUTPUT = 1024 * 1024;
 export const MAX_HANDSHAKE = 8 * 1024;
 export const PROBE_DEADLINE = 30_000;
 export const CLEANUP_WAIT = 1000;
-export const PROBE_SHA256 = "3a1004a4a7aad25c4a96b12d58f541ef4d720bd9d3351a8bfa17e6fedb14ff50";
+export const PROBE_SHA256 = "f58760bde33f2869917e747e19c7a78459f5df6a0c9a7cf078339e3620ddd26b";
 export const scrubbedEnvironment = (cwd: string): NodeJS.ProcessEnv => ({
   CI: "true",
   LANG: "C",

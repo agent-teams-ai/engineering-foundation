@@ -40,18 +40,18 @@ so a profile can compare it with the digest it pins. Applicability follows decla
 sub-feature exists only where `featureRoots` declares it, so in any other module
 a `features` directory inside a feature keeps its v1 meaning.
 
-| Rules | Diagnostic codes |
-| --- | --- |
-| Tree: feature roots at `<features root>/<name>` and `<parent>/features/<name>`, one container name, only role directories, the container and mapped files below a feature root | `feature-root-placement`, `feature-duplicate`, `feature-undeclared`, `container-file`, `container-empty`, `entry-unmapped` |
-| Test ownership: a test belongs to the deepest feature, sub-feature tests live in the mirrored test root, and a test uses another visible feature only through public, internal API and testing surfaces | `test-unowned`, `test-misplaced` (warnings: the standard says SHOULD), `not-visible`, `deep-import` |
-| Visibility and curated surfaces: a sub-feature is visible to its parent and the parent's descendants; no deep imports | `not-visible`, `deep-import`, `surface-unowned` |
-| Layer direction (v1): domain and application never import contracts; adapters reach siblings through the application core | `layer-direction` |
-| Composition contracts (module-level composition is named by `moduleComposition`): they are composition code, only composition code depends on them, visible features only | `composition-contract-misplaced`, `composition-contract-layer`, `not-visible` |
-| Assembly: only a parent's composition wires its direct sub-feature, and it wires every one that exposes a composition surface | `assembly-misplaced`, `assembly-missing` |
-| Republication: declared, from a direct sub-feature, one level at a time | `republication-undeclared`, `republication-skips-level`, `republication-invalid`, `republication-mismatch`, `republication-not-sub-feature` |
-| Declared use edges, when the consumer has a profile | `use-undeclared`, `use-edge-invalid` |
-| Cycles: downward and lateral use edges, runtime and type-only alike; load-time cycles between files of different features | `feature-cycle`, `load-cycle` |
-| Growth: depth warning and per-feature metrics (files, tests, sub-features, consumer file groups) | `depth-warning` |
+| Rules                                                                                                                                                                                                   | Diagnostic codes                                                                                                                            |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tree: feature roots at `<features root>/<name>` and `<parent>/features/<name>`, one container name, only role directories, the container and mapped files below a feature root                          | `feature-root-placement`, `feature-duplicate`, `feature-undeclared`, `container-file`, `container-empty`, `entry-unmapped`                  |
+| Test ownership: a test belongs to the deepest feature, sub-feature tests live in the mirrored test root, and a test uses another visible feature only through public, internal API and testing surfaces | `test-unowned`, `test-misplaced` (warnings: the standard says SHOULD), `not-visible`, `deep-import`                                         |
+| Visibility and curated surfaces: a sub-feature is visible to its parent and the parent's descendants; no deep imports                                                                                   | `not-visible`, `deep-import`, `surface-unowned`                                                                                             |
+| Layer direction (v1): domain and application never import contracts; adapters reach siblings through the application core                                                                               | `layer-direction`                                                                                                                           |
+| Composition contracts (module-level composition is named by `moduleComposition`): they are composition code, only composition code depends on them, visible features only                               | `composition-contract-misplaced`, `composition-contract-layer`, `not-visible`                                                               |
+| Assembly: only a parent's composition wires its direct sub-feature, and it wires every one that exposes a composition surface                                                                           | `assembly-misplaced`, `assembly-missing`                                                                                                    |
+| Republication: declared, from a direct sub-feature, one level at a time                                                                                                                                 | `republication-undeclared`, `republication-skips-level`, `republication-invalid`, `republication-mismatch`, `republication-not-sub-feature` |
+| Declared use edges, when the consumer has a profile                                                                                                                                                     | `use-undeclared`, `use-edge-invalid`                                                                                                        |
+| Cycles: downward and lateral use edges, runtime and type-only alike; load-time cycles between files of different features                                                                               | `feature-cycle`, `load-cycle`                                                                                                               |
+| Growth: depth warning and per-feature metrics (files, tests, sub-features, consumer file groups)                                                                                                        | `depth-warning`                                                                                                                             |
 
 Every code is in `ERROR_CODES` or `WARNING_CODES`; a MUST of the standard is an error and a SHOULD a warning
 that does not fail the module. Diagnostics are sorted and stable. `invalid-path` reports any input path that is
@@ -84,16 +84,22 @@ The Foundation 3 window is prepared for the companion release. See the
 for the unchanged runner contracts and the required final installed-artifact gate.
 
 ```ts
-import { checkFeatureModuleOnDisk, formatNodeReport } from '@agent-teams/feature-module-standard/node';
+import {
+  checkFeatureModuleOnDisk,
+  formatNodeReport,
+} from "@agent-teams/feature-module-standard/node";
 
 const report = await checkFeatureModuleOnDisk({
   consumerRoot: process.cwd(),
-  sourceRoots: ['src'],
-  testRoots: ['tests/features'],
-  testFeaturesRoot: 'tests/features',
-  structure: { featuresRoot: 'src/features', roleDirectories: { domain: 'domain', application: 'application' } },
-  surfaces: { public: ['src/features/orders/contracts/public.ts'] },
-  budgets: [{ metric: 'sourceFiles', max: 40 }],
+  sourceRoots: ["src"],
+  testRoots: ["tests/features"],
+  testFeaturesRoot: "tests/features",
+  structure: {
+    featuresRoot: "src/features",
+    roleDirectories: { domain: "domain", application: "application" },
+  },
+  surfaces: { public: ["src/features/orders/contracts/public.ts"] },
+  budgets: [{ metric: "sourceFiles", max: 40 }],
 });
 process.stdout.write(formatNodeReport(report));
 ```

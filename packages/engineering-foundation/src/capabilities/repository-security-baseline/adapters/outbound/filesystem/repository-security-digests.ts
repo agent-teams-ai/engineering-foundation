@@ -12,7 +12,7 @@ async function digestParts(parts: readonly Uint8Array[]): Promise<string> {
   if (!Number.isSafeInteger(totalBytes) || totalBytes > MAX_WORKFLOW_DIGEST_BYTES) {
     repositorySecurityInputError(
       "REPOSITORY_SECURITY_EVIDENCE_TOO_LARGE",
-      "Security workflow sources exceed the supported digest input size."
+      "Security workflow sources exceed the supported digest input size.",
     );
   }
   const source = new Uint8Array(totalBytes);
@@ -30,17 +30,19 @@ export async function digestEvidence(source: Uint8Array): Promise<string> {
 }
 
 export async function digestWorkflowSources(
-  entries: readonly { readonly path: string; readonly source: Uint8Array }[]
+  entries: readonly { readonly path: string; readonly source: Uint8Array }[],
 ): Promise<string> {
   const parts: Uint8Array[] = [encode("repository-security-workflows-v1\u0000")];
-  for (const entry of entries.toSorted((left, right) => compareBinaryStrings(left.path, right.path))) {
+  for (const entry of entries.toSorted((left, right) =>
+    compareBinaryStrings(left.path, right.path),
+  )) {
     parts.push(
       encode(entry.path),
       encode("\u0000"),
       encode(String(entry.source.byteLength)),
       encode("\u0000"),
       entry.source,
-      encode("\u0000")
+      encode("\u0000"),
     );
   }
   return digestParts(parts);

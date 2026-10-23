@@ -177,10 +177,7 @@ test("release is idempotent and an old releaser cannot delete a successor", asyn
     const successor = activeEvidence(process.pid);
     await writeEvidence(root, successor);
     await assert.rejects(release(), (error) => error.code === "MUTATION_LEASE_INVALID");
-    assert.deepEqual(
-      JSON.parse(await readFile(target.lock, "utf8")),
-      successor,
-    );
+    assert.deepEqual(JSON.parse(await readFile(target.lock, "utf8")), successor);
     assert.equal((await lstat(displaced)).isFile(), true);
   } finally {
     await rm(root, { force: true, recursive: true });
@@ -210,17 +207,9 @@ test("release preserves a foreign predictable retirement destination", async () 
 
     await release();
 
-    assert.equal(
-      await readFile(legacyDestination, "utf8"),
-      "foreign retirement evidence\n",
-    );
-    const terminalRoot = join(
-      target.directory,
-      "foundation-operation-lock.completed-evidence",
-    );
-    const retirement = (await readdir(terminalRoot)).find((entry) =>
-      entry.startsWith("released."),
-    );
+    assert.equal(await readFile(legacyDestination, "utf8"), "foreign retirement evidence\n");
+    const terminalRoot = join(target.directory, "foundation-operation-lock.completed-evidence");
+    const retirement = (await readdir(terminalRoot)).find((entry) => entry.startsWith("released."));
     assert.ok(retirement);
     assert.equal(retirement.includes(owned.token), false);
     assert.deepEqual(
@@ -264,15 +253,12 @@ test("successful releases keep state-directory cardinality constant", async () =
       const release = await new NodeMutationOperationLock(root).acquire();
       await release();
     }
-    assert.deepEqual(
-      await readdir(target.directory),
-      ["foundation-operation-lock.completed-evidence"],
-    );
+    assert.deepEqual(await readdir(target.directory), [
+      "foundation-operation-lock.completed-evidence",
+    ]);
     assert.equal(
-      (await readdir(join(
-        target.directory,
-        "foundation-operation-lock.completed-evidence",
-      ))).length,
+      (await readdir(join(target.directory, "foundation-operation-lock.completed-evidence")))
+        .length,
       8,
     );
   } finally {
@@ -290,10 +276,7 @@ test("retained transaction barrier survives its owner and is claimable by a new 
     assert.equal(barrier.kind, "transaction-barrier");
     const successorRelease = await new NodeMutationOperationLock(root).acquire();
     await successorRelease({ retainTransactionBarrier: true });
-    assert.equal(
-      JSON.parse(await readFile(target.lock, "utf8")).kind,
-      "transaction-barrier",
-    );
+    assert.equal(JSON.parse(await readFile(target.lock, "utf8")).kind, "transaction-barrier");
   } finally {
     await rm(root, { force: true, recursive: true });
   }

@@ -1,15 +1,37 @@
+import {
+  freshDecisionInput,
+  foundation,
+  ciInputProof,
+  featureModuleStandard,
+  repositoryMutation,
+  documentAuthoring,
+  privateSpike,
+  docsBootstrap,
+  docsProtocol,
+  docsProtocolMcp,
+  docsProtocolMcpBaselineVersion,
+  docsProtocolAdapter,
+  freshPreState,
+} from "./support/release-policy-identities.ts";
+import {
+  changesetsFixture,
+  json,
+  writeDocsMcpManifest,
+} from "./support/release-policy-changesets-fixture.ts";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { NPM_PACKAGE_BOOTSTRAP, bootstrapPackageById } from "../scripts/npm-package-bootstrap.mjs";
-import { PUBLISHABLE_PACKAGE_DEPENDENCIES, PUBLISHABLE_PACKAGES, publishablePackageByName } from "../scripts/publishable-packages.mjs";
-import { DOCS_MCP_PACKAGE } from "../scripts/release-publish-ordered.mjs";
+import { NPM_PACKAGE_BOOTSTRAP } from "../scripts/npm-package-bootstrap.mjs";
+import {
+  PUBLISHABLE_PACKAGE_DEPENDENCIES,
+  PUBLISHABLE_PACKAGES,
+} from "../scripts/publishable-packages.mjs";
 import { commandEnvironment, commandShim } from "./support/release-publish-policy-fixtures.mjs";
 import {
   changesetsPublishArguments,
@@ -19,42 +41,6 @@ import {
   releasePublishPolicy,
   releaseState,
 } from "../scripts/release-publish.mjs";
-
-const foundation = { name: "@agent-teams/engineering-foundation", version: "0.16.0" };
-const ciInputProof = { name: "@agent-teams/ci-input-proof", version: "0.0.0" };
-const featureModuleStandard = { name: "@agent-teams/feature-module-standard", version: "0.0.0" };
-const repositoryMutation = { name: publishablePackageByName("@agent-teams/repository-mutation").name, version: "0.0.0" };
-const documentAuthoring = { name: publishablePackageByName("@agent-teams/document-authoring").name, version: "0.0.0" };
-const privateSpike = { name: "@agent-teams/source-dependency-parser-spike", version: "0.0.0" };
-const docsBootstrap = bootstrapPackageById("docs-protocol");
-const docsProtocol = {
-  name: docsBootstrap.name,
-  version: docsBootstrap.bootstrapVersion,
-};
-const docsProtocolMcp = { name: publishablePackageByName(DOCS_MCP_PACKAGE).name, version: "0.1.0-rc.0" };
-const docsProtocolMcpBaselineVersion = "0.0.0";
-const docsProtocolAdapter = { name: publishablePackageByName("@agent-teams/docs-protocol-agent-teams").name, version: "0.0.0" };
-const freshPreState = {
-  mode: "pre",
-  tag: "rc",
-  initialVersions: {
-    [foundation.name]: foundation.version,
-    [privateSpike.name]: privateSpike.version,
-  },
-  changesets: [],
-};
-
-function freshDecisionInput() {
-  return {
-    inventory: {
-      metadata: ["README.md", "config.json", "pre.json"],
-      pending: [],
-      unexpected: [],
-    },
-    packages: { private: [privateSpike], public: [foundation] },
-    preState: freshPreState,
-  };
-}
 
 test("skips only an exact fresh prerelease state for the complete public package set", () => {
   const input = freshDecisionInput();
@@ -193,7 +179,10 @@ test("routes an exact Changesets rc version to the rc npm dist-tag", () => {
 });
 test("resolves release publishing without shell mode on Windows", () => {
   assert.deepEqual(
-    releasePublishInvocation({ commandInterpreter: "C:\\Windows\\System32\\cmd.exe", platform: "win32" }),
+    releasePublishInvocation({
+      commandInterpreter: "C:\\Windows\\System32\\cmd.exe",
+      platform: "win32",
+    }),
     {
       args: ["/d", "/s", "/c", "pnpm.cmd changeset publish"],
       command: "C:\\Windows\\System32\\cmd.exe",
@@ -205,10 +194,9 @@ test("resolves release publishing without shell mode on Windows", () => {
   });
 });
 test("keeps ordinary stable releases on the default dist-tag", () => {
-  assert.deepEqual(
-    releasePublishPolicy({ packageVersion: "0.16.0", preState: undefined }),
-    { tag: undefined },
-  );
+  assert.deepEqual(releasePublishPolicy({ packageVersion: "0.16.0", preState: undefined }), {
+    tag: undefined,
+  });
   assert.deepEqual(changesetsPublishArguments(), ["changeset", "publish"]);
 });
 
@@ -228,36 +216,34 @@ for (const scenario of [
 }
 
 const releaseScript = fileURLToPath(new URL("../scripts/release-publish.mjs", import.meta.url));
-const changesetsCli = fileURLToPath(new URL("../node_modules/@changesets/cli/bin.js", import.meta.url));
+const changesetsCli = fileURLToPath(
+  new URL("../node_modules/@changesets/cli/bin.js", import.meta.url),
+);
 const noop = async () => {};
 
-async function json(path, value) {
-  await mkdir(dirname(path), { recursive: true });
-  await writeFile(path, `${JSON.stringify(value, null, 2)}\n`);
-}
-
 test("canonicalizes Windows PATH and removes inherited package-manager routing", () => {
-  const environment = commandEnvironment(
-    "C:\\fixture",
-    "C:\\publish.marker",
-    "win32",
-    {
-      COREPACK_HOME: "C:\\corepack",
-      HOME: "C:\\real-home",
-      HOMEDRIVE: "C:",
-      HOMEPATH: "\\real-home",
-      npm_config_user_agent: "pnpm/10",
-      npm_execpath: "C:\\real\\npm-cli.js",
-      PATH: "C:\\wrong",
-      Path: "C:\\inherited",
-      pathext: ".EXE",
-      SAFE_VALUE: "kept",
-      USERPROFILE: "C:\\real-profile",
-    },
+  const environment = commandEnvironment("C:\\fixture", "C:\\publish.marker", "win32", {
+    COREPACK_HOME: "C:\\corepack",
+    HOME: "C:\\real-home",
+    HOMEDRIVE: "C:",
+    HOMEPATH: "\\real-home",
+    npm_config_user_agent: "pnpm/10",
+    npm_execpath: "C:\\real\\npm-cli.js",
+    PATH: "C:\\wrong",
+    Path: "C:\\inherited",
+    pathext: ".EXE",
+    SAFE_VALUE: "kept",
+    USERPROFILE: "C:\\real-profile",
+  });
+  assert.deepEqual(
+    Object.keys(environment).filter((key) => key.toLowerCase() === "path"),
+    ["Path"],
   );
-  assert.deepEqual(Object.keys(environment).filter((key) => key.toLowerCase() === "path"), ["Path"]);
   assert.equal(environment.Path, join("C:\\fixture", "bin"));
-  assert.deepEqual(Object.keys(environment).filter((key) => key.toLowerCase() === "pathext"), ["PATHEXT"]);
+  assert.deepEqual(
+    Object.keys(environment).filter((key) => key.toLowerCase() === "pathext"),
+    ["PATHEXT"],
+  );
   assert.equal(environment.PATHEXT, ".COM;.EXE;.BAT;.CMD");
   assert.equal(environment.HOME, join("C:\\fixture", "home"));
   assert.equal(environment.USERPROFILE, environment.HOME);
@@ -267,8 +253,11 @@ test("canonicalizes Windows PATH and removes inherited package-manager routing",
   assert.equal(environment.NPM_CONFIG_GLOBALCONFIG, join(environment.HOME, "global.npmrc"));
   assert.equal(environment.SAFE_VALUE, "kept");
   assert.equal(
-    Object.keys(environment).some((key) =>
-      /^(?:pnpm|corepack)_/iu.test(key) || (/^npm_/iu.test(key) && !/npm_config_(?:user|global)config/iu.test(key))),
+    Object.keys(environment).some(
+      (key) =>
+        /^(?:pnpm|corepack)_/iu.test(key) ||
+        (/^npm_/iu.test(key) && !/npm_config_(?:user|global)config/iu.test(key)),
+    ),
     false,
   );
 });
@@ -292,14 +281,16 @@ async function runRelease(root, marker) {
   const approvedBootstrapCatalog = {
     ...NPM_PACKAGE_BOOTSTRAP,
     packages: NPM_PACKAGE_BOOTSTRAP.packages.map((profile) =>
-      profile.state !== "candidate" ? profile : {
-        ...profile,
-        approval: {
-          archiveIntegrity: `sha512-${Buffer.alloc(64).toString("base64")}`,
-          packageTree: "0".repeat(40),
-        },
-        state: "approved",
-      },
+      profile.state !== "candidate"
+        ? profile
+        : {
+            ...profile,
+            approval: {
+              archiveIntegrity: `sha512-${Buffer.alloc(64).toString("base64")}`,
+              packageTree: "0".repeat(40),
+            },
+            state: "approved",
+          },
     ),
   };
   await writeFile(
@@ -359,17 +350,12 @@ async function runChangesets(root, marker, arguments_) {
   });
 }
 
-async function writeDocsMcpManifest(root, version = docsProtocolMcp.version) {
-  await json(join(root, "packages/docs-protocol-mcp/package.json"), {
-    name: docsProtocolMcp.name, version,
-    dependencies: Object.fromEntries(PUBLISHABLE_PACKAGE_DEPENDENCIES[docsProtocolMcp.name]
-      .map((name) => [name, "workspace:*"])),
-    publishConfig: { access: "public", provenance: true, registry: NPM_PACKAGE_BOOTSTRAP.registry },
-  });
-}
-
 async function fixture(root, registry) {
-  await json(join(root, "packages/stack-toolchain/package.json"), { name: "stack-toolchain", version: "0.0.0", publishConfig: { registry } });
+  await json(join(root, "packages/stack-toolchain/package.json"), {
+    name: "stack-toolchain",
+    version: "0.0.0",
+    publishConfig: { registry },
+  });
   await json(join(root, "package.json"), {
     name: "release-fixture",
     private: true,
@@ -381,41 +367,72 @@ async function fixture(root, registry) {
   await writeFile(join(root, "bunfig.toml"), "[install]\nlinkWorkspacePackages = false\n");
   await writeFile(join(root, ".node-version"), "24.6.0\n");
   await writeFile(join(root, ".pnpmfile.cjs"), "module.exports = { hooks: {} };\n");
-  await json(join(root, "packages/ci-input-proof/package.json"), { ...ciInputProof, publishConfig: { registry } });
-  await writeFile(join(root, "packages/ci-input-proof/dist.js"), "export const proof = 1;\n");
-  await json(join(root, "packages/feature-module-standard/package.json"), { ...featureModuleStandard, publishConfig: { registry } });
-  await writeFile(join(root, "packages/feature-module-standard/dist.js"), "export const standard = 1;\n");
-  await json(join(root, "packages/document-authoring/package.json"), {
-    ...documentAuthoring,
-    dependencies: Object.fromEntries(PUBLISHABLE_PACKAGE_DEPENDENCIES[documentAuthoring.name]
-      .map((name) => [name, "workspace:*"])),
+  await json(join(root, "packages/ci-input-proof/package.json"), {
+    ...ciInputProof,
     publishConfig: { registry },
   });
-  await writeFile(join(root, "packages/document-authoring/dist.js"), "export const authoring = 1;\n");
+  await writeFile(join(root, "packages/ci-input-proof/dist.js"), "export const proof = 1;\n");
+  await json(join(root, "packages/feature-module-standard/package.json"), {
+    ...featureModuleStandard,
+    publishConfig: { registry },
+  });
+  await writeFile(
+    join(root, "packages/feature-module-standard/dist.js"),
+    "export const standard = 1;\n",
+  );
+  await json(join(root, "packages/document-authoring/package.json"), {
+    ...documentAuthoring,
+    dependencies: Object.fromEntries(
+      PUBLISHABLE_PACKAGE_DEPENDENCIES[documentAuthoring.name].map((name) => [name, "workspace:*"]),
+    ),
+    publishConfig: { registry },
+  });
+  await writeFile(
+    join(root, "packages/document-authoring/dist.js"),
+    "export const authoring = 1;\n",
+  );
   await json(join(root, "packages/engineering-foundation/package.json"), {
     ...foundation,
-    dependencies: Object.fromEntries(PUBLISHABLE_PACKAGE_DEPENDENCIES[foundation.name]
-      .map((name) => [name, "workspace:*"])),
+    dependencies: Object.fromEntries(
+      PUBLISHABLE_PACKAGE_DEPENDENCIES[foundation.name].map((name) => [name, "workspace:*"]),
+    ),
     publishConfig: { registry },
     version: docsBootstrap.dependencies[0].version,
   });
-  await writeFile(join(root, "packages/engineering-foundation/dist.js"), "export const build = 1;\n");
-  await json(join(root, "packages/repository-mutation/package.json"), { ...repositoryMutation, publishConfig: { registry } });
-  await writeFile(join(root, "packages/repository-mutation/dist.js"), "export const mutation = 1;\n");
+  await writeFile(
+    join(root, "packages/engineering-foundation/dist.js"),
+    "export const build = 1;\n",
+  );
+  await json(join(root, "packages/repository-mutation/package.json"), {
+    ...repositoryMutation,
+    publishConfig: { registry },
+  });
+  await writeFile(
+    join(root, "packages/repository-mutation/dist.js"),
+    "export const mutation = 1;\n",
+  );
   await json(join(root, "packages/docs-protocol/package.json"), {
     ...docsProtocol,
-    dependencies: Object.fromEntries(PUBLISHABLE_PACKAGE_DEPENDENCIES[docsProtocol.name]
-      .map((name) => [name, "workspace:*"])),
+    dependencies: Object.fromEntries(
+      PUBLISHABLE_PACKAGE_DEPENDENCIES[docsProtocol.name].map((name) => [name, "workspace:*"]),
+    ),
     publishConfig: { access: "public", provenance: true, registry: NPM_PACKAGE_BOOTSTRAP.registry },
   });
   await writeFile(join(root, "packages/docs-protocol/dist.js"), "export const docs = 1;\n");
   await json(join(root, "packages/docs-protocol-agent-teams/package.json"), {
     ...docsProtocolAdapter,
-    dependencies: Object.fromEntries(PUBLISHABLE_PACKAGE_DEPENDENCIES[docsProtocolAdapter.name]
-      .map((name) => [name, "workspace:*"])),
+    dependencies: Object.fromEntries(
+      PUBLISHABLE_PACKAGE_DEPENDENCIES[docsProtocolAdapter.name].map((name) => [
+        name,
+        "workspace:*",
+      ]),
+    ),
     publishConfig: { registry },
   });
-  await writeFile(join(root, "packages/docs-protocol-agent-teams/dist.js"), "export const adapter = 1;\n");
+  await writeFile(
+    join(root, "packages/docs-protocol-agent-teams/dist.js"),
+    "export const adapter = 1;\n",
+  );
   await writeDocsMcpManifest(root);
   await writeFile(join(root, "packages/docs-protocol-mcp/dist.js"), "export const mcp = 1;\n");
   await json(join(root, "spikes/source-dependency-parser/package.json"), {
@@ -429,7 +446,8 @@ async function fixture(root, registry) {
     ...freshPreState,
     changesets: ["consumed"],
     initialVersions: {
-      ...freshPreState.initialVersions, "stack-toolchain": "0.0.0",
+      ...freshPreState.initialVersions,
+      "stack-toolchain": "0.0.0",
       [ciInputProof.name]: ciInputProof.version,
       [featureModuleStandard.name]: featureModuleStandard.version,
       [docsProtocol.name]: docsProtocol.version,
@@ -454,45 +472,9 @@ async function fixture(root, registry) {
   );
   await commandShim(root, "pnpm", {
     posix:
-      "#!/bin/sh\n[ -n \"$COMMAND_SHIM_MARKER\" ] || exit 97\nprintf 'pnpm %s\\n' \"$*\" >> \"$COMMAND_SHIM_MARKER\"\nprintf '%s' \"$*\" > \"$PUBLISH_MARKER\"\n",
+      '#!/bin/sh\n[ -n "$COMMAND_SHIM_MARKER" ] || exit 97\nprintf \'pnpm %s\\n\' "$*" >> "$COMMAND_SHIM_MARKER"\nprintf \'%s\' "$*" > "$PUBLISH_MARKER"\n',
     windows:
-      "@echo off\r\nif not defined COMMAND_SHIM_MARKER exit /b 97\r\n>> \"%COMMAND_SHIM_MARKER%\" echo pnpm %*\r\n<nul set /p \"=%*\" >\"%PUBLISH_MARKER%\"\r\nexit /b 0\r\n",
-  });
-}
-
-async function changesetsFixture(root) {
-  await json(join(root, "package.json"), {
-    name: "release-fixture",
-    packageManager: "npm@11.19.0",
-    private: true,
-    workspaces: ["packages/*"],
-  });
-  await json(join(root, "packages/engineering-foundation/package.json"), {
-    name: foundation.name,
-    publishConfig: { access: "public", registry: "http://127.0.0.1:9/" },
-    version: "0.17.0-rc.0",
-  });
-  await json(join(root, ".changeset/config.json"), {
-    access: "public",
-    baseBranch: "main",
-    changelog: false,
-    commit: false,
-    fixed: [],
-    ignore: [],
-    linked: [],
-    updateInternalDependencies: "patch",
-  });
-  await json(join(root, ".changeset/pre.json"), {
-    changesets: [],
-    initialVersions: {},
-    mode: "pre",
-    tag: "rc",
-  });
-  await commandShim(root, "npm", {
-    posix:
-      "#!/bin/sh\n[ -n \"$COMMAND_SHIM_MARKER\" ] || exit 97\nprintf 'npm %s\\n' \"$*\" >> \"$COMMAND_SHIM_MARKER\"\nif [ \"$1\" = profile ]; then printf '{}\\n'; exit 0; fi\nif [ \"$1\" = info ]; then exit 0; fi\nif [ \"$1\" = publish ]; then printf '%s\\n' \"$@\" > \"$PUBLISH_MARKER\"; printf '{\"id\":\"foundation\"}\\n'; exit 0; fi\nexit 1\n",
-    windows:
-      "@echo off\r\nif not defined COMMAND_SHIM_MARKER exit /b 97\r\n>> \"%COMMAND_SHIM_MARKER%\" echo npm %*\r\nif /I \"%~1\"==\"profile\" goto profile\r\nif /I \"%~1\"==\"info\" goto info\r\nif /I \"%~1\"==\"publish\" goto publish\r\nexit /b 1\r\n:profile\r\necho {}\r\nexit /b 0\r\n:info\r\nexit /b 0\r\n:publish\r\ntype nul >\"%PUBLISH_MARKER%\"\r\ncall :recordArgs %*\r\necho {\"id\":\"foundation\"}\r\nexit /b 0\r\n:recordArgs\r\nif \"%~1\"==\"\" exit /b 0\r\n>>\"%PUBLISH_MARKER%\" echo(%~1\r\nshift\r\ngoto recordArgs\r\n",
+      '@echo off\r\nif not defined COMMAND_SHIM_MARKER exit /b 97\r\n>> "%COMMAND_SHIM_MARKER%" echo pnpm %*\r\n<nul set /p "=%*" >"%PUBLISH_MARKER%"\r\nexit /b 0\r\n',
   });
 }
 
@@ -500,7 +482,7 @@ test("pinned Changesets CLI derives rc and rejects a custom tag in pre mode", as
   const root = await mkdtemp(join(tmpdir(), "foundation-changesets-cli-"));
   const marker = join(root, "publish.marker");
   t.after(() => rm(root, { force: true, recursive: true }));
-  await changesetsFixture(root);
+  await changesetsFixture(root, foundation.name);
   const derived = await runChangesets(root, marker, ["publish", "--no-git-tag"]);
   const shimCalls = await readFile(join(root, "command-shim.marker"), "utf8");
   assert.match(shimCalls, /^npm "?info"? "?@agent-teams\/engineering-foundation"?\s/mu);
@@ -513,19 +495,8 @@ test("pinned Changesets CLI derives rc and rejects a custom tag in pre mode", as
     await realpath(publishArguments[1]),
     await realpath(join(root, "packages/engineering-foundation")),
   );
-  assert.deepEqual(publishArguments.slice(2), [
-    "--access",
-    "public",
-    "--tag",
-    "rc",
-    "--json",
-  ]);
-  const custom = await runChangesets(root, marker, [
-    "publish",
-    "--no-git-tag",
-    "--tag",
-    "rc",
-  ]);
+  assert.deepEqual(publishArguments.slice(2), ["--access", "public", "--tag", "rc", "--json"]);
+  const custom = await runChangesets(root, marker, ["publish", "--no-git-tag", "--tag", "rc"]);
   assert.notEqual(custom.status, 0);
   assert.match(`${custom.stdout}\n${custom.stderr}`, /custom tag is not allowed in pre mode/iu);
 });
@@ -542,7 +513,10 @@ test("publish entrypoint independently rejects every publish-control drift bound
     bunInstallPolicy: (root) =>
       writeFile(join(root, "bunfig.toml"), "[install]\nlinkWorkspacePackages = true\n"),
     packingHook: (root) =>
-      writeFile(join(root, ".pnpmfile.cjs"), "module.exports = { hooks: { beforePacking: () => ({}) } };\n"),
+      writeFile(
+        join(root, ".pnpmfile.cjs"),
+        "module.exports = { hooks: { beforePacking: () => ({}) } };\n",
+      ),
     workspace: (root) =>
       writeFile(join(root, "pnpm-workspace.yaml"), "packages:\n  - packages/other-*\n"),
   };
@@ -580,9 +554,17 @@ test("publish entrypoint independently rejects every publish-control drift bound
 });
 
 test("real release entrypoint proves multi-package registry state and fails closed on drift", async (t) => {
-  const versions = new Map([["stack-toolchain", new Set(["0.0.0"])],
-    ...[ciInputProof, featureModuleStandard, docsProtocol, docsProtocolAdapter, documentAuthoring, foundation, repositoryMutation]
-      .map((item) => [item.name, new Set([item.version])]),
+  const versions = new Map([
+    ["stack-toolchain", new Set(["0.0.0"])],
+    ...[
+      ciInputProof,
+      featureModuleStandard,
+      docsProtocol,
+      docsProtocolAdapter,
+      documentAuthoring,
+      foundation,
+      repositoryMutation,
+    ].map((item) => [item.name, new Set([item.version])]),
     [docsProtocolMcp.name, new Set([docsProtocolMcpBaselineVersion])],
   ]);
   let registryRequestHook = noop;
@@ -597,7 +579,9 @@ test("real release entrypoint proves multi-package registry state and fails clos
     }
     response.writeHead(200, { "content-type": "application/json" });
     response.end(
-      JSON.stringify({ versions: Object.fromEntries([...available].map((version) => [version, {}])) }),
+      JSON.stringify({
+        versions: Object.fromEntries([...available].map((version) => [version, {}])),
+      }),
     );
   });
   await new Promise((resolve) => {
@@ -778,7 +762,10 @@ test("real release entrypoint proves multi-package registry state and fails clos
       (root) => rm(join(root, "packages/engineering-foundation"), { force: true, recursive: true }),
     ],
     ["unexpected-entry", (root) => writeFile(join(root, ".changeset/foreign.txt"), "drift\n")],
-    ["unconsumed-changeset", (root) => writeFile(join(root, ".changeset/unconsumed.md"), "drift\n")],
+    [
+      "unconsumed-changeset",
+      (root) => writeFile(join(root, ".changeset/unconsumed.md"), "drift\n"),
+    ],
     [
       "missing-consumed-changeset",
       async (root) => {

@@ -12,10 +12,12 @@ import { createNodeFoundationTransactionSlot } from "../packages/engineering-fou
 import { sha256Json } from "../packages/repository-mutation/dist/serialization.js";
 import { createDocumentEnvelopeV3 } from "./fixtures/document-authoring-envelope-v3.mjs";
 
-const fixture = JSON.parse(await readFile(fileURLToPath(new URL(
-  "fixtures/document-authoring-contracts/valid-v1.json",
-  import.meta.url,
-)), "utf8"));
+const fixture = JSON.parse(
+  await readFile(
+    fileURLToPath(new URL("fixtures/document-authoring-contracts/valid-v1.json", import.meta.url)),
+    "utf8",
+  ),
+);
 
 async function inspectPublishingEnvelope(temporaryPath, mutateIdentity = () => {}) {
   const root = await mkdtemp(join(tmpdir(), "document-authoring-temporary-"));
@@ -57,23 +59,40 @@ async function inspectPublishingEnvelope(temporaryPath, mutateIdentity = () => {
 
 test("accepts the exact digest-derived bounded document temporary", async () => {
   const status = await inspectPublishingEnvelope((plan) =>
-    documentTemporaryPath(plan.destination, plan.planDigest));
+    documentTemporaryPath(plan.destination, plan.planDigest),
+  );
   assert.equal(status.state, "manual-recovery-required");
   assert.equal(status.reason, "recovery-handler-unavailable");
 });
 
 test("rejects a document temporary that is not the exact derived path", async () => {
-  const status = await inspectPublishingEnvelope((plan) =>
-    `${plan.destination}.foundation-document.tmp`);
+  const status = await inspectPublishingEnvelope(
+    (plan) => `${plan.destination}.foundation-document.tmp`,
+  );
   assert.equal(status.state, "manual-recovery-required");
   assert.equal(status.reason, "corrupt-or-incompatible");
 });
 
 test("rejects a forged or missing temporary physical identity", async (context) => {
   for (const [name, mutate] of [
-    ["missing", (identity) => { delete identity.adapter; }],
-    ["forged adapter", (identity) => { identity.adapter = "forged"; }],
-    ["non-canonical inode", (identity) => { identity.ino = "01"; }],
+    [
+      "missing",
+      (identity) => {
+        delete identity.adapter;
+      },
+    ],
+    [
+      "forged adapter",
+      (identity) => {
+        identity.adapter = "forged";
+      },
+    ],
+    [
+      "non-canonical inode",
+      (identity) => {
+        identity.ino = "01";
+      },
+    ],
   ]) {
     await context.test(name, async () => {
       const status = await inspectPublishingEnvelope((plan) => {
@@ -88,7 +107,9 @@ test("rejects a forged or missing temporary physical identity", async (context) 
 test("preserves a canonical zero identity as unverifiable manual evidence", async () => {
   const status = await inspectPublishingEnvelope(
     (plan) => documentTemporaryPath(plan.destination, plan.planDigest),
-    (identity) => { identity.ino = "0"; },
+    (identity) => {
+      identity.ino = "0";
+    },
   );
   assert.equal(status.state, "manual-recovery-required");
   assert.equal(status.reason, "physical-identity-unverifiable");
@@ -99,10 +120,30 @@ test("preserves a canonical zero identity as unverifiable manual evidence", asyn
 
 test("schema requires a closed creator-handle identity", async (context) => {
   for (const [name, mutate] of [
-    ["missing", (identity) => { delete identity.adapter; }],
-    ["forged adapter", (identity) => { identity.adapter = "forged"; }],
-    ["non-canonical zero inode", (identity) => { identity.ino = "00"; }],
-    ["open shape", (identity) => { identity.extra = "open"; }],
+    [
+      "missing",
+      (identity) => {
+        delete identity.adapter;
+      },
+    ],
+    [
+      "forged adapter",
+      (identity) => {
+        identity.adapter = "forged";
+      },
+    ],
+    [
+      "non-canonical zero inode",
+      (identity) => {
+        identity.ino = "00";
+      },
+    ],
+    [
+      "open shape",
+      (identity) => {
+        identity.extra = "open";
+      },
+    ],
   ]) {
     await context.test(name, async () => {
       const envelope = createDocumentEnvelopeV3(fixture, "PUBLISHING");
@@ -120,8 +161,11 @@ test("schema requires a closed creator-handle identity", async (context) => {
 test("schema accepts canonical unsigned zero identity fields", async () => {
   const envelope = createDocumentEnvelopeV3(fixture, "PUBLISHING");
   envelope.journal.ownedTemporary.identity = {
-    adapter: "node-filesystem", version: 1,
-    dev: "0", ino: "0", birthtimeNs: "0",
+    adapter: "node-filesystem",
+    version: 1,
+    dev: "0",
+    ino: "0",
+    birthtimeNs: "0",
   };
   await assertSchema("foundation-transaction-envelope/v3", envelope, "zero-identity");
 });

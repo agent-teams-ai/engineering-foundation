@@ -1,11 +1,15 @@
-import { CapabilityInputError, FoundationError, assertNotCancelled } from "../../../../features/validation-reporting/api.js";
+import {
+  CapabilityInputError,
+  FoundationError,
+  assertNotCancelled,
+} from "../../../../features/validation-reporting/api.js";
 
 export function rejectPackageScriptCatalog(message: string): never {
   throw new CapabilityInputError({
     code: "QUALITY_GATE_RUNNER_PACKAGE_INVALID",
     message,
     phase: "quality-gate-runner-package-catalog",
-    retryable: false
+    retryable: false,
   });
 }
 
@@ -40,10 +44,7 @@ export function rejectQualityGateBunExecutor(): never {
 }
 
 export function rejectQualityGateExecutor(): never {
-  throw new FoundationError(
-    "PROCESS_FAILED",
-    "Unable to resolve a shell-free pnpm entrypoint."
-  );
+  throw new FoundationError("PROCESS_FAILED", "Unable to resolve a shell-free pnpm entrypoint.");
 }
 
 export function requireQualityGateProfile(profileId: string | undefined): string {
@@ -54,21 +55,20 @@ export function requireQualityGateProfile(profileId: string | undefined): string
 }
 
 export function requireQualityGateConfigPath(
-  declarations: readonly { readonly id: string; readonly configPath: string }[]
+  declarations: readonly { readonly id: string; readonly configPath: string }[],
 ): string {
   const declaration = declarations.find(({ id }) => id === "quality.gate-runner");
   if (declaration === undefined) {
     throw new FoundationError(
       "CONSUMER_INVALID",
-      "The consumer must declare quality.gate-runner before using gate run."
+      "The consumer must declare quality.gate-runner before using gate run.",
     );
   }
   return declaration.configPath;
 }
 
 export function isQualityGateExecutionCancellation(error: unknown): boolean {
-  return error instanceof CapabilityInputError &&
-    error.problem.code === "EXECUTION_CANCELLED";
+  return error instanceof CapabilityInputError && error.problem.code === "EXECUTION_CANCELLED";
 }
 
 export function qualityGateSetupCancellationFailure(): Error {
@@ -76,6 +76,6 @@ export function qualityGateSetupCancellationFailure(): Error {
     code: "EXECUTION_CANCELLED",
     message: "Quality gate execution was cancelled.",
     phase: "quality-gate-runner-command",
-    retryable: false
+    retryable: false,
   });
 }

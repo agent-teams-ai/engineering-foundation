@@ -1,7 +1,7 @@
 import type {
   MarkdownDocumentObservation,
   MarkdownReferenceResolution,
-  MarkdownRepositoryObservation
+  MarkdownRepositoryObservation,
 } from "../model/markdown-document.js";
 
 export interface ObserveMarkdownRepositoryRequest {
@@ -19,10 +19,6 @@ export interface ResolveMarkdownReferenceRequest {
 }
 
 export interface MarkdownRepository {
-  observe(
-    request: ObserveMarkdownRepositoryRequest
-  ): Promise<MarkdownRepositoryObservation>;
-  resolveReference(
-    request: ResolveMarkdownReferenceRequest
-  ): Promise<MarkdownReferenceResolution>;
+  observe(request: ObserveMarkdownRepositoryRequest): Promise<MarkdownRepositoryObservation>;
+  resolveReference(request: ResolveMarkdownReferenceRequest): Promise<MarkdownReferenceResolution>;
 }

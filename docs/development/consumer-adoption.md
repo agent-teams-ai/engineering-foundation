@@ -188,6 +188,11 @@ versions retain their upstream identities and must be labelled as external.
 
 ## Shared presets
 
+For the planned Foundation 3 breaking release, follow the
+[coordinated preset and dependency migration](toolchain-adoption.md#consumer-migration-for-the-planned-foundation-3-release).
+It applies to quality coverage profiles v1–v3 too; upgrading to v4 is optional.
+The release and its compatible companion train are not yet published.
+
 Node TypeScript projects extend:
 
 ```json
@@ -201,9 +206,7 @@ ignore patterns or project-specific additions in the consumer:
 
 ```json
 {
-  "extends": [
-    "./node_modules/stack-toolchain/presets/oxlint/node.json"
-  ]
+  "extends": ["./node_modules/stack-toolchain/presets/oxlint/node.json"]
 }
 ```
 

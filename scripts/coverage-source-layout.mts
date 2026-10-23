@@ -23,7 +23,10 @@ export interface CoverageTestSource {
   testPath: string;
 }
 
-export type CoverageTestIdentifier = (report: CoverageReport, filename: string) => CoverageTestSource;
+export type CoverageTestIdentifier = (
+  report: CoverageReport,
+  filename: string,
+) => CoverageTestSource;
 export type CoverageProjector = (value: unknown) => unknown;
 
 export interface ValidatedCoverageArtifact {

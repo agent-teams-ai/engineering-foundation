@@ -1,13 +1,19 @@
 import { lstat, realpath, stat } from "node:fs/promises";
 import { isAbsolute, join, posix, relative, sep, win32 } from "node:path";
 
-import { assertEffectiveInstructionRepositoryPath, assertWorkflowObservationActive, effectiveInstructionFailureDetail, rejectEffectiveInstructionInput, isWorkflowInputFailure } from "../../../application/policies/workflow-input.js";
+import {
+  assertEffectiveInstructionRepositoryPath,
+  assertWorkflowObservationActive,
+  effectiveInstructionFailureDetail,
+  rejectEffectiveInstructionInput,
+  isWorkflowInputFailure,
+} from "../../../application/policies/workflow-input.js";
 import type { EffectiveInstructionFileObservation } from "../../../application/ports/effective-instruction-file-observation.js";
 
 import type {
   EffectiveInstructionCandidateObservation,
   EffectiveInstructionDirectoryObservation,
-  EffectiveInstructionDiscovery
+  EffectiveInstructionDiscovery,
 } from "../../../application/model/effective-instructions.js";
 import { EFFECTIVE_INSTRUCTION_CANDIDATE_NAMES } from "../../../application/model/effective-instructions.js";
 import type { EffectiveInstructionsReader } from "../../../application/ports/effective-instructions-reader.js";
@@ -15,14 +21,17 @@ import type { EffectiveInstructionsReader } from "../../../application/ports/eff
 const MAXIMUM_INSTRUCTION_SOURCE_BYTES = 256 * 1024;
 
 function isMissing(error: unknown): boolean {
-  return error instanceof Error && "code" in error &&
-    (error as NodeJS.ErrnoException).code === "ENOENT";
+  return (
+    error instanceof Error && "code" in error && (error as NodeJS.ErrnoException).code === "ENOENT"
+  );
 }
 
 function contained(root: string, candidate: string): boolean {
   const relation = relative(root, candidate);
-  return relation === "" ||
-    (!isAbsolute(relation) && relation !== ".." && !relation.startsWith(`..${sep}`));
+  return (
+    relation === "" ||
+    (!isAbsolute(relation) && relation !== ".." && !relation.startsWith(`..${sep}`))
+  );
 }
 
 function hasUnsafeDisplayCharacter(value: string): boolean {
@@ -52,7 +61,7 @@ async function resolveConsumerRoot(consumerRoot: string): Promise<string> {
     if (!(await stat(root)).isDirectory()) {
       rejectEffectiveInstructionInput(
         "REPOSITORY_AGENT_WORKFLOW_ROOT_INVALID",
-        "The consumer root must be an existing directory."
+        "The consumer root must be an existing directory.",
       );
     }
     return root;
@@ -62,14 +71,14 @@ async function resolveConsumerRoot(consumerRoot: string): Promise<string> {
     }
     rejectEffectiveInstructionInput(
       "REPOSITORY_AGENT_WORKFLOW_ROOT_UNAVAILABLE",
-      "The consumer root is unavailable."
+      "The consumer root is unavailable.",
     );
   }
 }
 
 async function safeTargetDirectories(
   root: string,
-  targetDirectory: string
+  targetDirectory: string,
 ): Promise<readonly { readonly absolute: string; readonly repositoryPath: string }[]> {
   const directories = [{ absolute: root, repositoryPath: "." }];
   let absolute = root;
@@ -84,36 +93,34 @@ async function safeTargetDirectories(
       if (isMissing(error)) {
         rejectEffectiveInstructionInput(
           "REPOSITORY_AGENT_WORKFLOW_TARGET_DIRECTORY_MISSING",
-          `The target directory does not exist: ${targetDirectory}.`
+          `The target directory does not exist: ${targetDirectory}.`,
         );
       }
       rejectEffectiveInstructionInput(
         "REPOSITORY_AGENT_WORKFLOW_TARGET_DIRECTORY_UNAVAILABLE",
-        `The target directory is unavailable: ${targetDirectory}.`
+        `The target directory is unavailable: ${targetDirectory}.`,
       );
     }
     if (metadata.isSymbolicLink() || !metadata.isDirectory()) {
       rejectEffectiveInstructionInput(
         "REPOSITORY_AGENT_WORKFLOW_TARGET_DIRECTORY_INVALID",
-        `The target path must have only real repository directories: ${targetDirectory}.`
+        `The target path must have only real repository directories: ${targetDirectory}.`,
       );
     }
     const canonical = await realpath(next).catch(() =>
       rejectEffectiveInstructionInput(
         "REPOSITORY_AGENT_WORKFLOW_TARGET_DIRECTORY_UNAVAILABLE",
-        `The target directory is unavailable: ${targetDirectory}.`
-      )
+        `The target directory is unavailable: ${targetDirectory}.`,
+      ),
     );
     if (!contained(root, canonical)) {
       rejectEffectiveInstructionInput(
         "REPOSITORY_AGENT_WORKFLOW_TARGET_DIRECTORY_ESCAPE",
-        `The target directory escapes the consumer repository: ${targetDirectory}.`
+        `The target directory escapes the consumer repository: ${targetDirectory}.`,
       );
     }
     absolute = canonical;
-    repositoryPath = repositoryPath.length === 0
-      ? segment
-      : posix.join(repositoryPath, segment);
+    repositoryPath = repositoryPath.length === 0 ? segment : posix.join(repositoryPath, segment);
     directories.push({ absolute, repositoryPath });
   }
   return Object.freeze(directories);
@@ -123,11 +130,10 @@ async function readCandidate(
   observation: EffectiveInstructionFileObservation,
   root: string,
   directory: { readonly absolute: string; readonly repositoryPath: string },
-  { name, mode }: { readonly name: string; readonly mode: "classify" | "content" | "metadata" }
+  { name, mode }: { readonly name: string; readonly mode: "classify" | "content" | "metadata" },
 ): Promise<EffectiveInstructionCandidateObservation> {
-  const repositoryPath = directory.repositoryPath === "."
-    ? name
-    : posix.join(directory.repositoryPath, name);
+  const repositoryPath =
+    directory.repositoryPath === "." ? name : posix.join(directory.repositoryPath, name);
   const candidate = join(directory.absolute, name);
   let metadata;
   try {
@@ -138,7 +144,7 @@ async function readCandidate(
     }
     rejectEffectiveInstructionInput(
       "REPOSITORY_AGENT_WORKFLOW_INSTRUCTION_UNAVAILABLE",
-      `The instruction candidate is unavailable: ${repositoryPath}.`
+      `The instruction candidate is unavailable: ${repositoryPath}.`,
     );
   }
   if (metadata.isSymbolicLink()) {
@@ -150,7 +156,7 @@ async function readCandidate(
   if (!Number.isSafeInteger(metadata.size) || metadata.size < 0) {
     rejectEffectiveInstructionInput(
       "REPOSITORY_AGENT_WORKFLOW_INSTRUCTION_UNAVAILABLE",
-      `The instruction candidate has an unsupported size: ${repositoryPath}.`
+      `The instruction candidate has an unsupported size: ${repositoryPath}.`,
     );
   }
   if (mode === "classify") {
@@ -158,7 +164,7 @@ async function readCandidate(
       kind: "file",
       path: repositoryPath,
       sourceBytes: metadata.size,
-      bytes: null
+      bytes: null,
     });
   }
   if (mode === "metadata") {
@@ -168,13 +174,13 @@ async function readCandidate(
         kind: "file",
         path: repositoryPath,
         sourceBytes: metadataObservation.size,
-        bytes: null
+        bytes: null,
       });
     } catch (error) {
       const detail = effectiveInstructionFailureDetail(error);
       rejectEffectiveInstructionInput(
         "REPOSITORY_AGENT_WORKFLOW_INSTRUCTION_UNAVAILABLE",
-        `The instruction candidate must remain a stable real repository file: ${repositoryPath} (${detail}).`
+        `The instruction candidate must remain a stable real repository file: ${repositoryPath} (${detail}).`,
       );
     }
   }
@@ -182,19 +188,19 @@ async function readCandidate(
     const bytes = await observation.read({
       candidate,
       maxBytes: MAXIMUM_INSTRUCTION_SOURCE_BYTES,
-      root
+      root,
     });
     return Object.freeze({
       kind: "file",
       path: repositoryPath,
       sourceBytes: bytes.byteLength,
-      bytes
+      bytes,
     });
   } catch (error) {
     const detail = effectiveInstructionFailureDetail(error);
     rejectEffectiveInstructionInput(
       "REPOSITORY_AGENT_WORKFLOW_INSTRUCTION_UNAVAILABLE",
-      `The instruction candidate must be a stable real file no larger than ${MAXIMUM_INSTRUCTION_SOURCE_BYTES} bytes: ${repositoryPath} (${detail}).`
+      `The instruction candidate must be a stable real file no larger than ${MAXIMUM_INSTRUCTION_SOURCE_BYTES} bytes: ${repositoryPath} (${detail}).`,
     );
   }
 }
@@ -215,7 +221,7 @@ export class FilesystemEffectiveInstructionsReader implements EffectiveInstructi
     ) {
       rejectEffectiveInstructionInput(
         "REPOSITORY_AGENT_WORKFLOW_TARGET_PATH_INVALID",
-        "The target path must be a well-formed repository-relative POSIX path in Unicode NFC without control, bidirectional-formatting, or line-separator characters."
+        "The target path must be a well-formed repository-relative POSIX path in Unicode NFC without control, bidirectional-formatting, or line-separator characters.",
       );
     }
     assertEffectiveInstructionRepositoryPath(input.targetPath);
@@ -229,21 +235,20 @@ export class FilesystemEffectiveInstructionsReader implements EffectiveInstructi
       }
       rejectEffectiveInstructionInput(
         "REPOSITORY_AGENT_WORKFLOW_TARGET_UNAVAILABLE",
-        `The target path is unavailable: ${input.targetPath}.`
+        `The target path is unavailable: ${input.targetPath}.`,
       );
     });
-    if (targetMetadata !== null &&
-      (targetMetadata.isSymbolicLink() || !targetMetadata.isFile())) {
+    if (targetMetadata !== null && (targetMetadata.isSymbolicLink() || !targetMetadata.isFile())) {
       rejectEffectiveInstructionInput(
         "REPOSITORY_AGENT_WORKFLOW_TARGET_INVALID",
-        `The target must be a repository file or a planned file path: ${input.targetPath}.`
+        `The target must be a repository file or a planned file path: ${input.targetPath}.`,
       );
     }
     assertWorkflowObservationActive(input.signal);
     return Object.freeze({
       targetPath: input.targetPath,
       targetDirectory,
-      directories: Object.freeze(directories.map(({ repositoryPath }) => repositoryPath))
+      directories: Object.freeze(directories.map(({ repositoryPath }) => repositoryPath)),
     });
   }
 
@@ -263,28 +268,21 @@ export class FilesystemEffectiveInstructionsReader implements EffectiveInstructi
     if (directory === undefined || directory.repositoryPath !== input.directory) {
       rejectEffectiveInstructionInput(
         "REPOSITORY_AGENT_WORKFLOW_TARGET_DIRECTORY_INVALID",
-        `The instruction directory is invalid: ${input.directory}.`
+        `The instruction directory is invalid: ${input.directory}.`,
       );
     }
     const candidates: EffectiveInstructionCandidateObservation[] = [];
     let selected = false;
     for (const name of EFFECTIVE_INSTRUCTION_CANDIDATE_NAMES) {
-      const mode = selected
-        ? "classify"
-        : input.readSelectedBytes ? "content" : "metadata";
-      const candidate = await readCandidate(
-        this.observation,
-        root,
-        directory,
-        { name, mode }
-      );
+      const mode = selected ? "classify" : input.readSelectedBytes ? "content" : "metadata";
+      const candidate = await readCandidate(this.observation, root, directory, { name, mode });
       candidates.push(candidate);
       selected ||= candidate.kind === "file" || candidate.kind === "symlink";
     }
     assertWorkflowObservationActive(input.signal);
     return Object.freeze({
       directory: input.directory,
-      candidates: Object.freeze(candidates)
+      candidates: Object.freeze(candidates),
     });
   }
 }

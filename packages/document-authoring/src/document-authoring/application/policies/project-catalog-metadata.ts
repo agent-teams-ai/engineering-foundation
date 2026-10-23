@@ -1,9 +1,6 @@
 import { compareBinaryStrings } from "../../../binary-string-comparator.js";
 import { canonicalJson } from "@agent-teams/repository-mutation/serialization";
-import type {
-  DocumentMetadataObject,
-  DocumentMetadataValue
-} from "../model/document-catalog.js";
+import type { DocumentMetadataObject, DocumentMetadataValue } from "../model/document-catalog.js";
 
 const MAXIMUM_METADATA_DEPTH = 64;
 const MAXIMUM_METADATA_CONTAINER_ITEMS = 10_000;
@@ -52,9 +49,7 @@ function countValue(budget: ProjectionBudget): void {
   }
 }
 
-function projectScalar(
-  value: unknown
-): DocumentMetadataValue | typeof NOT_SCALAR {
+function projectScalar(value: unknown): DocumentMetadataValue | typeof NOT_SCALAR {
   if (value === null || typeof value === "boolean") {
     return value;
   }
@@ -63,13 +58,9 @@ function projectScalar(
     return value;
   }
   if (typeof value === "number") {
-    if (
-      !Number.isFinite(value) ||
-      !Number.isSafeInteger(value) ||
-      Object.is(value, -0)
-    ) {
+    if (!Number.isFinite(value) || !Number.isSafeInteger(value) || Object.is(value, -0)) {
       invalidMetadata(
-        "Document metadata numbers must be finite safe integers other than negative zero."
+        "Document metadata numbers must be finite safe integers other than negative zero.",
       );
     }
     return value;
@@ -89,9 +80,7 @@ function ownDataKeys(value: object, array: boolean): readonly string[] {
   if (array) {
     if (
       stringKeys.length !== (value as unknown[]).length + 1 ||
-      stringKeys.some(
-        (key) => key !== "length" && !/^(?:0|[1-9][0-9]*)$/u.test(key)
-      )
+      stringKeys.some((key) => key !== "length" && !/^(?:0|[1-9][0-9]*)$/u.test(key))
     ) {
       invalidMetadata("Document metadata arrays must be dense and contain no extra properties.");
     }
@@ -107,7 +96,7 @@ function projectValue(
   value: unknown,
   depth: number,
   seen: WeakSet<object>,
-  budget: ProjectionBudget
+  budget: ProjectionBudget,
 ): DocumentMetadataValue {
   countValue(budget);
   const scalar = projectScalar(value);
@@ -131,11 +120,7 @@ function projectValue(
     const projected: DocumentMetadataValue[] = [];
     for (let index = 0; index < value.length; index += 1) {
       const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
-      if (
-        descriptor === undefined ||
-        !("value" in descriptor) ||
-        descriptor.enumerable !== true
-      ) {
+      if (descriptor === undefined || !("value" in descriptor) || descriptor.enumerable !== true) {
         invalidMetadata("Document metadata arrays must contain enumerable own data items.");
       }
       projected.push(projectValue(descriptor.value, depth + 1, seen, budget));
@@ -155,18 +140,14 @@ function projectValue(
       invalidMetadata(`Document metadata key ${key} is reserved.`);
     }
     const descriptor = Object.getOwnPropertyDescriptor(container, key);
-    if (
-      descriptor === undefined ||
-      !("value" in descriptor) ||
-      descriptor.enumerable !== true
-    ) {
+    if (descriptor === undefined || !("value" in descriptor) || descriptor.enumerable !== true) {
       invalidMetadata("Document metadata mappings must contain enumerable own data properties.");
     }
     Object.defineProperty(projected, key, {
       configurable: false,
       enumerable: true,
       value: projectValue(descriptor.value, depth + 1, seen, budget),
-      writable: false
+      writable: false,
     });
   }
   return Object.freeze(projected);
@@ -186,7 +167,7 @@ export function projectCatalogMetadata(value: unknown): DocumentMetadataObject {
 
 export function mergeCatalogMetadata(
   inline: unknown,
-  sidecar: DocumentMetadataObject
+  sidecar: DocumentMetadataObject,
 ): DocumentMetadataObject {
   const projectedInline = projectCatalogMetadata(inline);
   const merged: Record<string, DocumentMetadataValue> = {};
@@ -195,10 +176,7 @@ export function mergeCatalogMetadata(
   }
   for (const [key, value] of Object.entries(projectedInline)) {
     const sidecarValue = merged[key];
-    if (
-      sidecarValue !== undefined &&
-      canonicalJson(sidecarValue) !== canonicalJson(value)
-    ) {
+    if (sidecarValue !== undefined && canonicalJson(sidecarValue) !== canonicalJson(value)) {
       invalidMetadata(`Inline and sidecar metadata conflict at root key ${key}.`);
     }
     merged[key] = value;

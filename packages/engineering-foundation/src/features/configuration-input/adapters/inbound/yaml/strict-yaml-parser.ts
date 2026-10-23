@@ -1,13 +1,16 @@
 import { isAlias, isMap, isNode, isPair, parseDocument, visit } from "yaml";
 
-import { rejectYamlInput, rejectYamlFeature } from "../../../application/configuration-file-problem.js";
+import {
+  rejectYamlInput,
+  rejectYamlFeature,
+} from "../../../application/configuration-file-problem.js";
 
 export function parseStrictYamlSource(source: string, phase: string): unknown {
   const document = parseDocument(source, {
     customTags: [],
     merge: false,
     schema: "core",
-    uniqueKeys: true
+    uniqueKeys: true,
   });
   if (document.errors.length > 0 || document.warnings.length > 0) {
     const problem = [...document.errors, ...document.warnings]
@@ -28,12 +31,7 @@ export function parseStrictYamlSource(source: string, phase: string): unknown {
       forbidden = "YAML anchors and explicit tags are prohibited.";
       return visit.BREAK;
     }
-    if (
-      isPair(node) &&
-      isNode(node.key) &&
-      "value" in node.key &&
-      node.key.value === "<<"
-    ) {
+    if (isPair(node) && isNode(node.key) && "value" in node.key && node.key.value === "<<") {
       forbidden = "YAML merge keys are prohibited.";
       return visit.BREAK;
     }
@@ -48,4 +46,3 @@ export function parseStrictYamlSource(source: string, phase: string): unknown {
   }
   return document.toJS({ maxAliasCount: 0 }) as unknown;
 }
-

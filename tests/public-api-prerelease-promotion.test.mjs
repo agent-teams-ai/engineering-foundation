@@ -45,10 +45,16 @@ function dependencies(
   writeReleasedBaseline,
 ) {
   return {
-    extractor: { async extract() { return currentSnapshot; } },
+    extractor: {
+      async extract() {
+        return currentSnapshot;
+      },
+    },
     fingerprint: { sha256 },
     repository: {
-      async readReleasedBaseline() { return releasedSnapshot; },
+      async readReleasedBaseline() {
+        return releasedSnapshot;
+      },
       async readReleaseEvidence() {
         return {
           packageName: packagePolicy.packageName,
@@ -71,7 +77,9 @@ test("uses the Changesets initial version within one numbered prerelease train",
   const writes = [];
   const promoted = await promotePublicApiBaselines(
     input,
-    dependencies({ initialVersion: "0.16.1" }, async (...args) => { writes.push(args); }),
+    dependencies({ initialVersion: "0.16.1" }, async (...args) => {
+      writes.push(args);
+    }),
   );
 
   assert.equal(promoted[0].packageVersion, current.packageVersion);
@@ -90,7 +98,9 @@ test("rejects an insufficient numbered prerelease version line", async () => {
           releasedSnapshot: patchReleased,
           currentSnapshot: patchCurrent,
         },
-        async () => { throw new Error("must not write"); },
+        async () => {
+          throw new Error("must not write");
+        },
       ),
     ),
     (error) => error?.problem?.code === "PUBLIC_API_BASELINE_PROMOTION_VERSION_INSUFFICIENT",
@@ -99,12 +109,7 @@ test("rejects an insufficient numbered prerelease version line", async () => {
 
 test("reads the exact initial version from strict Changesets prerelease state", async () => {
   await withPublicApiFixture(async (consumerRoot) => {
-    const baselinePath = join(
-      consumerRoot,
-      "architecture",
-      "public-api",
-      "public-api.json",
-    );
+    const baselinePath = join(consumerRoot, "architecture", "public-api", "public-api.json");
     const baseline = JSON.parse(await readFile(baselinePath, "utf8"));
     baseline.packageVersion = "1.3.0-rc.0";
     await writeFile(baselinePath, `${JSON.stringify(baseline, null, 2)}\n`, "utf8");
@@ -124,12 +129,16 @@ test("reads the exact initial version from strict Changesets prerelease state", 
     );
     await writeFile(
       join(consumerRoot, ".changeset", "pre.json"),
-      `${JSON.stringify({
-        mode: "pre",
-        tag: "rc",
-        initialVersions: { "@fixture/public-api": "1.2.3" },
-        changesets: [],
-      }, null, 2)}\n`,
+      `${JSON.stringify(
+        {
+          mode: "pre",
+          tag: "rc",
+          initialVersions: { "@fixture/public-api": "1.2.3" },
+          changesets: [],
+        },
+        null,
+        2,
+      )}\n`,
       "utf8",
     );
 

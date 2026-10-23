@@ -4,21 +4,13 @@ import type {
   ConfiguredDefinition,
   DefinitionRef,
   ScaffoldFileContribution,
-  ScaffoldRenderingTarget
+  ScaffoldRenderingTarget,
 } from "../application/model/scaffold-compilation.js";
-import type {
-  JsonObject,
-  JsonValue,
-  Sha256Digest
-} from "../application/model/scaffold-values.js";
+import type { JsonObject, JsonValue, Sha256Digest } from "../application/model/scaffold-values.js";
 import { ScaffoldError } from "../scaffold-error.js";
 import { sha256Json } from "./canonical-json.js";
 
-export type ScaffoldDefinitionKind =
-  | "facet"
-  | "policy"
-  | "recipe"
-  | "scaffold-profile";
+export type ScaffoldDefinitionKind = "facet" | "policy" | "recipe" | "scaffold-profile";
 
 export interface ScaffoldDefinitionContext {
   readonly target: ScaffoldRenderingTarget;
@@ -92,7 +84,7 @@ export class ScaffoldDefinitionRegistry {
 
   constructor(
     definitions: readonly ScaffoldDefinition[],
-    parameterValidation: ScaffoldParameterValidation
+    parameterValidation: ScaffoldParameterValidation,
   ) {
     this.#parameterValidation = parameterValidation;
     const entries = new Map<string, ScaffoldDefinition>();
@@ -108,13 +100,13 @@ export class ScaffoldDefinitionRegistry {
 
   resolve<TKind extends ScaffoldDefinitionKind>(
     ref: DefinitionRef,
-    expectedKind: TKind
+    expectedKind: TKind,
   ): Extract<ScaffoldDefinition, { readonly kind: TKind }> {
     const definition = this.#definitions.get(definitionKey(ref));
     if (definition === undefined || definition.kind !== expectedKind) {
       throw new ScaffoldError(
         "SCAFFOLD_INPUT_INVALID",
-        `Unknown ${expectedKind} definition: ${definitionKey(ref)}.`
+        `Unknown ${expectedKind} definition: ${definitionKey(ref)}.`,
       );
     }
     return definition as Extract<ScaffoldDefinition, { readonly kind: TKind }>;
@@ -124,14 +116,14 @@ export class ScaffoldDefinitionRegistry {
     this.#parameterValidation.validate({
       definitionKey: definitionKey(definition.ref),
       schema: definition.parameterSchema,
-      parameters
+      parameters,
     });
   }
 
   assertRecipeRequirements(
     definition: ScaffoldRecipeDefinition,
     profileId: string,
-    context: ScaffoldDefinitionContext
+    context: ScaffoldDefinitionContext,
   ): void {
     if (
       !definition.allowedProfileIds.includes(profileId) ||
@@ -140,7 +132,7 @@ export class ScaffoldDefinitionRegistry {
     ) {
       throw new ScaffoldError(
         "SCAFFOLD_INPUT_INVALID",
-        `Recipe ${definitionKey(definition.ref)} is incompatible with the selected Profile or target role.`
+        `Recipe ${definitionKey(definition.ref)} is incompatible with the selected Profile or target role.`,
       );
     }
     if (
@@ -149,7 +141,7 @@ export class ScaffoldDefinitionRegistry {
     ) {
       throw new ScaffoldError(
         "SCAFFOLD_INPUT_INVALID",
-        `Recipe ${definitionKey(definition.ref)} requires verified owner-document authority.`
+        `Recipe ${definitionKey(definition.ref)} requires verified owner-document authority.`,
       );
     }
   }
@@ -159,7 +151,7 @@ export class ScaffoldDefinitionRegistry {
       kind: definition.kind,
       ref: definition.ref,
       descriptor: definition.descriptor,
-      parameterSchema: definition.parameterSchema
+      parameterSchema: definition.parameterSchema,
     };
     switch (definition.kind) {
       case "facet":
@@ -169,8 +161,8 @@ export class ScaffoldDefinitionRegistry {
           requires: definition.requires.toSorted(compareDefinitionRefs),
           conflicts: definition.conflicts.toSorted(compareDefinitionRefs),
           requiredPolicies: definition.requiredPolicies.toSorted((left, right) =>
-            compareDefinitionRefs(left.ref, right.ref)
-          )
+            compareDefinitionRefs(left.ref, right.ref),
+          ),
         } as unknown as JsonValue);
       case "policy":
         return sha256Json(common as unknown as JsonValue);
@@ -186,16 +178,16 @@ export class ScaffoldDefinitionRegistry {
             ? {}
             : { requiredAuthority: definition.requiredAuthority }),
           requiredPolicies: definition.requiredPolicies.toSorted((left, right) =>
-            compareDefinitionRefs(left.ref, right.ref)
-          )
+            compareDefinitionRefs(left.ref, right.ref),
+          ),
         } as unknown as JsonValue);
       case "scaffold-profile":
         return sha256Json({
           ...common,
           allowedRecipeIds: definition.allowedRecipeIds.toSorted(),
           requiredPolicies: definition.requiredPolicies.toSorted((left, right) =>
-            compareDefinitionRefs(left.ref, right.ref)
-          )
+            compareDefinitionRefs(left.ref, right.ref),
+          ),
         } as unknown as JsonValue);
     }
   }

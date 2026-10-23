@@ -13,7 +13,7 @@ import {
   unstableSourceFile,
   nulSourceFile,
   sourceByteBudgetExceeded,
-  sourceConsumerUnavailable
+  sourceConsumerUnavailable,
 } from "../../../application/policies/source-input-failures.js";
 import { ContainedFileReadError, assertRepositoryRelativePath } from "../../../api.js";
 import { pathTraversesSymbolicLink, readContainedRegularFile } from "./contained-file-reader.js";
@@ -21,16 +21,7 @@ import { pathTraversesSymbolicLink, readContainedRegularFile } from "./contained
 import type { SourceFileSnapshot } from "../../../application/model/source-file-snapshot.js";
 import type { SourceTreeReader } from "../../../application/ports/source-tree-reader.js";
 
-const SOURCE_EXTENSIONS = new Set([
-  ".cjs",
-  ".cts",
-  ".js",
-  ".jsx",
-  ".mjs",
-  ".mts",
-  ".ts",
-  ".tsx"
-]);
+const SOURCE_EXTENSIONS = new Set([".cjs", ".cts", ".js", ".jsx", ".mjs", ".mts", ".ts", ".tsx"]);
 const REPOSITORY_METADATA_DIRECTORY_NAMES = new Set([".git", "node_modules"]);
 const MAX_SOURCE_FILE_BYTES = 4 * 1024 * 1024;
 const MAX_SOURCE_FILES = 100_000;
@@ -53,10 +44,7 @@ function isContained(parent: string, candidate: string): boolean {
   );
 }
 
-async function containedDirectory(
-  canonicalRoot: string,
-  repositoryPath: string
-): Promise<string> {
+async function containedDirectory(canonicalRoot: string, repositoryPath: string): Promise<string> {
   assertRepositoryRelativePath(repositoryPath, "source-discovery");
   const candidate = resolve(canonicalRoot, repositoryPath);
   if (await pathTraversesSymbolicLink(canonicalRoot, candidate)) {
@@ -80,7 +68,7 @@ async function containedDirectory(
 async function discoverSourcePaths(
   canonicalRoot: string,
   governedRoots: readonly string[],
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<readonly string[]> {
   const paths: string[] = [];
   for (const governedRoot of governedRoots) {
@@ -118,7 +106,7 @@ function inspectSourceEntry(
   absoluteEntry: string,
   entry: { isDirectory(): boolean; isFile(): boolean; isSymbolicLink(): boolean; name: string },
   directories: string[],
-  paths: string[]
+  paths: string[],
 ): void {
   if (REPOSITORY_METADATA_DIRECTORY_NAMES.has(entry.name)) {
     return;
@@ -142,7 +130,7 @@ function inspectSourceEntry(
 async function readSourceFiles(
   canonicalRoot: string,
   paths: readonly string[],
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<readonly SourceFileSnapshot[]> {
   const files: SourceFileSnapshot[] = [];
   let totalBytes = 0;
@@ -155,7 +143,7 @@ async function readSourceFiles(
           bytes = await readContainedRegularFile({
             candidate: resolve(canonicalRoot, path),
             maxBytes: MAX_SOURCE_FILE_BYTES,
-            root: canonicalRoot
+            root: canonicalRoot,
           });
         } catch (error) {
           if (error instanceof ContainedFileReadError) {
@@ -168,7 +156,7 @@ async function readSourceFiles(
           nulSourceFile(path);
         }
         return { path, source, bytes: bytes.byteLength };
-      })
+      }),
     );
     for (const file of loaded) {
       totalBytes += file.bytes;
@@ -185,16 +173,14 @@ export class FilesystemSourceTreeReader implements SourceTreeReader {
   async read(
     consumerRoot: string,
     governedRoots: readonly string[],
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ): Promise<readonly SourceFileSnapshot[]> {
     assertSourceReadActive(signal);
-    const canonicalRoot = await realpath(consumerRoot).catch(() =>
-      sourceConsumerUnavailable()
-    );
+    const canonicalRoot = await realpath(consumerRoot).catch(() => sourceConsumerUnavailable());
     return readSourceFiles(
       canonicalRoot,
       await discoverSourcePaths(canonicalRoot, governedRoots, signal),
-      signal
+      signal,
     );
   }
 }

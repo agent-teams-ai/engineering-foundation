@@ -33,8 +33,7 @@ async function inspectEnvelope(envelope, installed = {}) {
     const status = await createNodeFoundationTransactionSlot({
       consumerRoot: root,
       installedVersion: installed.version ?? documentEnvelopeV3Version,
-      installedBuildIdentity:
-        installed.buildIdentity ?? documentEnvelopeV3BuildIdentity,
+      installedBuildIdentity: installed.buildIdentity ?? documentEnvelopeV3BuildIdentity,
     }).inspect();
     assert.deepEqual(await readFile(path), bytes);
     return status;

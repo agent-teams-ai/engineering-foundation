@@ -45,14 +45,14 @@ export function startInjectedQgrCliCommand({
   const entrypoint = createQualityGateCliCommand({
     failureJson: foundationCommandFailureJson,
     cancellationSource,
-    commandFactory: () => createQualityGateCommand({
-      catalogReader: new FilesystemPackageScriptCatalogReader(readContainedRegularFile),
-      clock: performanceMonotonicClock,
-      executor,
-      policyLoader: (root, path, signal) => loadQualityGatePolicy(
-        { readYaml: loadStrictYamlFile, assertSchema }, root, path, signal
-      ),
-    }),
+    commandFactory: () =>
+      createQualityGateCommand({
+        catalogReader: new FilesystemPackageScriptCatalogReader(readContainedRegularFile),
+        clock: performanceMonotonicClock,
+        executor,
+        policyLoader: (root, path, signal) =>
+          loadQualityGatePolicy({ readYaml: loadStrictYamlFile, assertSchema }, root, path, signal),
+      }),
     async foundationConfigLoader() {
       return {
         declaredCapabilities: [{ configPath, id: "quality.gate-runner" }],
@@ -61,7 +61,13 @@ export function startInjectedQgrCliCommand({
     },
   });
   const parsed = parseArguments([
-    "gate", "run", profileId, "--consumer", consumerRoot, "--format", "json",
+    "gate",
+    "run",
+    profileId,
+    "--consumer",
+    consumerRoot,
+    "--format",
+    "json",
   ]);
   return startCapturedQgrCommand(() => entrypoint(parsed, environment));
 }
@@ -70,11 +76,7 @@ function missingFile(error) {
   return error instanceof Error && "code" in error && error.code === "ENOENT";
 }
 
-export function observeFixtureEffect({
-  pollIntervalMs = TEST_HARNESS_POLL_MS,
-  read,
-  subscribe,
-}) {
+export function observeFixtureEffect({ pollIntervalMs = TEST_HARNESS_POLL_MS, read, subscribe }) {
   let closed = false;
   let queued = true;
   let reading = false;
@@ -173,11 +175,15 @@ export async function waitForFixtureEffect(
       let watcher;
       try {
         watcher = watch(dirname(path), { persistent: false }, notify);
-        watcher.once("error", () => { watcher.close(); });
+        watcher.once("error", () => {
+          watcher.close();
+        });
       } catch {
         return NOOP;
       }
-      return () => { watcher.close(); };
+      return () => {
+        watcher.close();
+      };
     },
   });
   const commandClosed = execution.result.then(async (result) => {
@@ -227,7 +233,9 @@ export function createGenerationAwareChangeSignal() {
       if (observedGeneration !== generation) {
         return Promise.resolve(generation);
       }
-      return new Promise((resolve) => { waiters.push({ observedGeneration, resolve }); });
+      return new Promise((resolve) => {
+        waiters.push({ observedGeneration, resolve });
+      });
     },
   };
 }
@@ -246,7 +254,9 @@ async function waitUntil(predicate, changed, timeoutMs, description, onTimeout =
     }
     let timer;
     const timeout = new Promise((resolve) => {
-      timer = setTimeout(() => { resolve("timeout"); }, remaining);
+      timer = setTimeout(() => {
+        resolve("timeout");
+      }, remaining);
     });
     const outcome = await Promise.race([
       changed.wait(observedGeneration).then(() => "changed"),
@@ -267,7 +277,9 @@ function validateExpectedRoles(expectedRoles) {
     expectedRoles.some((role) => typeof role !== "string" || !FIXTURE_ROLE_PATTERN.test(role)) ||
     new Set(expectedRoles).size !== expectedRoles.length
   ) {
-    throw new TypeError("Synthetic fixture boundary expectedRoles must be unique portable role IDs.");
+    throw new TypeError(
+      "Synthetic fixture boundary expectedRoles must be unique portable role IDs.",
+    );
   }
   return new Set(expectedRoles);
 }
@@ -277,7 +289,9 @@ function exactConsumptionFailures(declaredRoles, registrationCounts) {
   for (const role of declaredRoles) {
     const count = registrationCounts.get(role) ?? 0;
     if (count !== 1) {
-      issues.push(new Error(`Expected exactly one registration/invocation for ${role}; observed ${count}.`));
+      issues.push(
+        new Error(`Expected exactly one registration/invocation for ${role}; observed ${count}.`),
+      );
     }
   }
   for (const role of registrationCounts.keys()) {
@@ -297,7 +311,9 @@ function inactiveRoleFailures(declaredRoles, connections) {
 function createFixtureConnectionHandler(context) {
   return (socket) => {
     if (context.isStopping()) {
-      context.recordFailure("Synthetic fixture boundary accepted a new socket after stopping began.");
+      context.recordFailure(
+        "Synthetic fixture boundary accepted a new socket after stopping began.",
+      );
       socket.destroy();
       return;
     }
@@ -392,11 +408,13 @@ function createFixtureConnectionHandler(context) {
         context.changed.notify();
       });
       context.changed.notify();
-      socket.write(`${JSON.stringify({
-        boundaryId: context.boundaryId,
-        command: "registered",
-        role,
-      })}\n`);
+      socket.write(
+        `${JSON.stringify({
+          boundaryId: context.boundaryId,
+          command: "registered",
+          role,
+        })}\n`,
+      );
     });
     socket.once("close", () => {
       clearTimeout(state.timer);
@@ -418,9 +436,7 @@ export async function createSyntheticFixtureBoundary({
 } = {}) {
   const declaredRoles = validateExpectedRoles(expectedRoles);
   const boundaryId = randomUUID();
-  const roleCredentials = new Map(
-    [...declaredRoles].map((role) => [role, randomUUID()]),
-  );
+  const roleCredentials = new Map([...declaredRoles].map((role) => [role, randomUUID()]));
   const credentialRoles = new Map(
     [...roleCredentials].map(([role, credential]) => [credential, role]),
   );
@@ -445,22 +461,27 @@ export async function createSyntheticFixtureBoundary({
   };
   const assertHealthy = () => {
     if (failures.length > 0) {
-      throw new AggregateError([...failures], "Synthetic fixture boundary rejected invalid traffic.");
+      throw new AggregateError(
+        [...failures],
+        "Synthetic fixture boundary rejected invalid traffic.",
+      );
     }
   };
-  const server = createServer(createFixtureConnectionHandler({
-    boundaryId,
-    changed,
-    connections,
-    consumedCredentials,
-    credentialRoles,
-    isStopping: () => stopping,
-    maximumRegistrationBytes,
-    preAuthenticationDwellMs,
-    recordFailure,
-    registrationCounts,
-    sockets,
-  }));
+  const server = createServer(
+    createFixtureConnectionHandler({
+      boundaryId,
+      changed,
+      connections,
+      consumedCredentials,
+      credentialRoles,
+      isStopping: () => stopping,
+      maximumRegistrationBytes,
+      preAuthenticationDwellMs,
+      recordFailure,
+      registrationCounts,
+      sockets,
+    }),
+  );
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
   const address = server.address();
@@ -478,9 +499,7 @@ export async function createSyntheticFixtureBoundary({
         serverClosed = true;
         changed.notify();
       });
-      const authenticatedSockets = new Set(
-        [...connections.values()].map(({ socket }) => socket),
-      );
+      const authenticatedSockets = new Set([...connections.values()].map(({ socket }) => socket));
       for (const [socket, state] of sockets) {
         if (!state.authenticated || !authenticatedSockets.has(socket)) {
           state.boundaryDestroyed = true;
@@ -623,9 +642,11 @@ export async function createSyntheticFixtureBoundaries(
   if (setupFailure === undefined) {
     return boundaries;
   }
-  const cleanupOutcomes = await Promise.allSettled(boundaries.map((boundary) => (
-    typeof boundary.abortSetup === "function" ? boundary.abortSetup() : boundary.stop()
-  )));
+  const cleanupOutcomes = await Promise.allSettled(
+    boundaries.map((boundary) =>
+      typeof boundary.abortSetup === "function" ? boundary.abortSetup() : boundary.stop(),
+    ),
+  );
   const cleanupFailures = cleanupOutcomes
     .filter(({ status }) => status === "rejected")
     .map(({ reason }) => reason);
@@ -640,7 +661,9 @@ export async function createSyntheticFixtureBoundaries(
 }
 
 export async function writeFixtureBoundaryClient(root) {
-  await writeFile(join(root, "fixture-boundary-client.cjs"), `const { once } = require("node:events");
+  await writeFile(
+    join(root, "fixture-boundary-client.cjs"),
+    `const { once } = require("node:events");
 const { createConnection } = require("node:net");
 
 exports.connect = async function connect(
@@ -751,5 +774,7 @@ exports.connect = async function connect(
   await registration;
   return socket;
 };
-`, "utf8");
+`,
+    "utf8",
+  );
 }

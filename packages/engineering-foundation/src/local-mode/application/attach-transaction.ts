@@ -12,7 +12,7 @@ interface AttachTransactionInput {
   readonly now: () => Date;
   readonly readStatus: (
     consumerPath: string,
-    ignoreOperationLock: boolean
+    ignoreOperationLock: boolean,
   ) => Promise<FoundationStatus>;
 }
 
@@ -34,9 +34,11 @@ type AttachPreparationFailureCode = "CONSUMER_INVALID" | "LOCAL_STATE_INVALID";
 async function inspectAttachConsumerState(
   input: AttachTransactionInput,
   failureCode: AttachPreparationFailureCode,
-  expected?: Pick<AttachConsumerState, "consumerRoot" | "dependencySpec">
+  expected?: Pick<AttachConsumerState, "consumerRoot" | "dependencySpec">,
 ): Promise<AttachConsumerState> {
-  const before = await input.ports.inspection.mode(input.consumerPath, { ignoreOperationLock: true });
+  const before = await input.ports.inspection.mode(input.consumerPath, {
+    ignoreOperationLock: true,
+  });
   if (
     before.mode !== "REGISTRY" ||
     before.dependencySpec === undefined ||
@@ -47,7 +49,7 @@ async function inspectAttachConsumerState(
       failureCode,
       failureCode === "CONSUMER_INVALID"
         ? `Consumer must be in valid registry mode with an exact ${FOUNDATION_PACKAGE_NAME} version before attach: ${before.issues.join(" ") || before.mode}.`
-        : "Consumer foundation state changed before attach acquired its operation lock."
+        : "Consumer foundation state changed before attach acquired its operation lock.",
     );
   }
   if (
@@ -57,37 +59,37 @@ async function inspectAttachConsumerState(
   ) {
     throw new FoundationError(
       "LOCAL_STATE_INVALID",
-      "Consumer foundation state changed before attach acquired its operation lock."
+      "Consumer foundation state changed before attach acquired its operation lock.",
     );
   }
   return {
     consumerRoot: before.consumerRoot,
     dependencySpec: before.dependencySpec,
-    registryPackageRoot: before.installedPackageRoot
+    registryPackageRoot: before.installedPackageRoot,
   };
 }
 
 async function prepareAttach(
   input: AttachTransactionInput,
-  consumer: AttachConsumerState
+  consumer: AttachConsumerState,
 ): Promise<AttachPreparation> {
   const target = await input.ports.target.verify(consumer.consumerRoot, input.targetPath);
-  const git = await input.ports.target.git(
-    consumer.consumerRoot,
-    target.targetPackageRoot
-  );
+  const git = await input.ports.target.git(consumer.consumerRoot, target.targetPackageRoot);
   return {
     ...consumer,
     ...target,
-    ...git
+    ...git,
   };
 }
 
 function createAttachingState(
   preparation: AttachPreparation,
   registryPackageRoot: string,
-  entry: { readonly registryEntryKind: FoundationLinkState["registryEntryKind"]; readonly registryBackupPath: string },
-  now: () => Date
+  entry: {
+    readonly registryEntryKind: FoundationLinkState["registryEntryKind"];
+    readonly registryBackupPath: string;
+  },
+  now: () => Date,
 ): FoundationLinkState {
   return {
     schemaVersion: 1,
@@ -100,7 +102,7 @@ function createAttachingState(
     packageVersion: preparation.packageVersion,
     gitCommit: preparation.gitCommit,
     gitDirty: preparation.gitDirty,
-    attachedAt: now().toISOString()
+    attachedAt: now().toISOString(),
   };
 }
 
@@ -108,7 +110,7 @@ async function recoverFailedAttach(
   preparation: AttachPreparation,
   state: FoundationLinkState,
   failure: unknown,
-  ports: LocalPackageLifecyclePorts
+  ports: LocalPackageLifecyclePorts,
 ): Promise<never> {
   const recoveryErrors: unknown[] = [];
   try {
@@ -125,37 +127,36 @@ async function recoverFailedAttach(
     throw new FoundationError(
       "LOCAL_STATE_INVALID",
       "Local attach failed and its registry state could not be fully restored.",
-      { cause: new AggregateError([failure, ...recoveryErrors], "Attach and one or more recovery operations failed.") }
+      {
+        cause: new AggregateError(
+          [failure, ...recoveryErrors],
+          "Attach and one or more recovery operations failed.",
+        ),
+      },
     );
   }
   throw new FoundationError(
     "LOCAL_STATE_INVALID",
     "Local attach failed and the registry installation was restored.",
-    { cause: failure }
+    { cause: failure },
   );
 }
 
 async function commitAttach(
   input: AttachTransactionInput,
-  preflight: AttachConsumerState
+  preflight: AttachConsumerState,
 ): Promise<AttachResult> {
   let preparation: AttachPreparation | undefined;
   let state: FoundationLinkState | undefined;
   try {
-    const consumer = await inspectAttachConsumerState(
-      input,
-      "LOCAL_STATE_INVALID",
-      preflight
-    );
+    const consumer = await inspectAttachConsumerState(input, "LOCAL_STATE_INVALID", preflight);
     preparation = await prepareAttach(input, consumer);
-    const entry = await input.ports.links.prepare(preparation.consumerRoot, preparation.registryPackageRoot);
-    await input.ports.links.ignoreLocalState(preparation.consumerRoot);
-    state = createAttachingState(
-      preparation,
+    const entry = await input.ports.links.prepare(
+      preparation.consumerRoot,
       preparation.registryPackageRoot,
-      entry,
-      input.now
     );
+    await input.ports.links.ignoreLocalState(preparation.consumerRoot);
+    state = createAttachingState(preparation, preparation.registryPackageRoot, entry, input.now);
     await input.ports.state.write(preparation.consumerRoot, state);
     await input.ports.links.replace(state);
     state = { ...state, phase: "LOCAL" };
@@ -164,7 +165,7 @@ async function commitAttach(
     if (status.mode !== "LOCAL") {
       throw new FoundationError(
         "LOCAL_STATE_INVALID",
-        `Local attach verification failed: ${status.issues.join(" ")}`
+        `Local attach verification failed: ${status.issues.join(" ")}`,
       );
     }
     return { status, targetPackageRoot: preparation.targetPackageRoot };
@@ -176,24 +177,16 @@ async function commitAttach(
   }
 }
 
-export async function attachFoundation(
-  input: AttachTransactionInput
-): Promise<AttachResult> {
-  const coordinator = await input.ports.coordinator(
-    input.consumerPath
-  );
+export async function attachFoundation(input: AttachTransactionInput): Promise<AttachResult> {
+  const coordinator = await input.ports.coordinator(input.consumerPath);
   const lease = await coordinator.acquire({ requestedMutation: "attach" });
   try {
-    const preflight = await inspectAttachConsumerState(
-      input,
-      "CONSUMER_INVALID"
-    );
+    const preflight = await inspectAttachConsumerState(input, "CONSUMER_INVALID");
     return await commitAttach(input, preflight);
   } finally {
     await releaseFoundationTransactionLeaseSafely({
       lease,
-      inspectRetainTransactionBarrier: async () =>
-        (await coordinator.inspect()).state !== "idle"
+      inspectRetainTransactionBarrier: async () => (await coordinator.inspect()).state !== "idle",
     });
   }
 }

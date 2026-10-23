@@ -1,11 +1,16 @@
+import { createNativeTypeParenthesisEquivalence } from "./adapters/outbound/api-extractor/native-type-parenthesis-equivalence.js";
 import { createManagedProcessExecutor } from "../../process-execution/module.js";
 import { assertGrowthReportDestination } from "./adapters/inbound/configuration/parse-growth-config.js";
-import { createGrowthGitRunner, readGrowthInvocation, assertGrowthDestination } from "./adapters/outbound/filesystem/growth-invocation.js";
+import {
+  createGrowthGitRunner,
+  readGrowthInvocation,
+  assertGrowthDestination,
+} from "./adapters/outbound/filesystem/growth-invocation.js";
 import {
   capabilityFailureReport,
   capabilityReport,
   type CapabilityDefinition,
-  type CapabilityInvocation
+  type CapabilityInvocation,
 } from "../../features/validation-reporting/api.js";
 import { TypeScriptPublicApiExtractor } from "./adapters/outbound/api-extractor/microsoft-public-api-extractor.js";
 import { NodeChangeFingerprint } from "./adapters/outbound/crypto/node-change-fingerprint.js";
@@ -18,15 +23,18 @@ import { FilesystemPackageArtifactInventory } from "./adapters/outbound/filesyst
 import { ArtifactPublicApiEvidence } from "./adapters/outbound/filesystem/artifact-public-api-evidence.js";
 import type { JsonSchemaSetInspector } from "./application/ports/package-artifact-inventory.js";
 import { publicApiPolicySchemaVersion } from "./application/model/public-api.js";
-import {
-  CAPABILITY_CONFIG_SCHEMA_VERSION,
-  CAPABILITY_ID
-} from "./contract/config.js";
+import { CAPABILITY_CONFIG_SCHEMA_VERSION, CAPABILITY_ID } from "./contract/config.js";
 
-import { loadCapabilityConfig, type PublicApiConfigurationDependencies } from "./adapters/inbound/configuration/load-capability-config.js";
+import {
+  loadCapabilityConfig,
+  type PublicApiConfigurationDependencies,
+} from "./adapters/inbound/configuration/load-capability-config.js";
 import { loadStrictYamlFile } from "../../features/configuration-input/node.js";
 
-import { pathTraversesSymbolicLink, readContainedRegularFile } from "../../source-inventory/node.js";
+import {
+  pathTraversesSymbolicLink,
+  readContainedRegularFile,
+} from "../../source-inventory/node.js";
 import { parseStrictYamlSource } from "../../features/configuration-input/yaml.js";
 import type { PublicApiExtractor } from "./application/ports/public-api-extractor.js";
 import type { PublicApiRepositoryEvidence } from "./application/ports/public-api-evidence.js";
@@ -40,7 +48,7 @@ import { checkSdkGrowth } from "./application/use-cases/check-sdk-growth.js";
 const evidence: PublicApiRepositoryEvidence = {
   files: { read: readContainedRegularFile },
   paths: { traversesSymbolicLink: pathTraversesSymbolicLink },
-  parseYaml: parseStrictYamlSource
+  parseYaml: parseStrictYamlSource,
 };
 
 export { PUBLIC_API_COMPATIBILITY_RULES_BY_ID };
@@ -49,43 +57,70 @@ export function createPublicApiExtractor(): PublicApiExtractor {
   return new TypeScriptPublicApiExtractor(evidence);
 }
 
-export function createPublicApiCompatibilityDependencies(readAcceptedDecisions: import("./application/ports/accepted-decision-evidence.js").AcceptedArchitectureDecisionReader, assertSchema: PublicApiConfigurationDependencies["assertSchema"]) {
+export function createPublicApiCompatibilityDependencies(
+  readAcceptedDecisions: import("./application/ports/accepted-decision-evidence.js").AcceptedArchitectureDecisionReader,
+  assertSchema: PublicApiConfigurationDependencies["assertSchema"],
+) {
   return Object.freeze({
     extractor: createPublicApiExtractor(),
+    signatures: createNativeTypeParenthesisEquivalence(),
     fingerprint: new NodeChangeFingerprint(),
     repository: new FilesystemPublicApiRepository(assertSchema, evidence),
-    acceptedDecisionEvidence: new GovernanceAcceptedDecisionEvidenceAcl(readAcceptedDecisions)
+    acceptedDecisionEvidence: new GovernanceAcceptedDecisionEvidenceAcl(readAcceptedDecisions),
   });
 }
 
-export async function promotePublicApiRelease(input: {
-  readonly consumerRoot: string;
-  readonly configPath: string;
-  readonly signal?: AbortSignal;
-}, readAcceptedDecisions: import("./application/ports/accepted-decision-evidence.js").AcceptedArchitectureDecisionReader, assertSchema: PublicApiConfigurationDependencies["assertSchema"], inspector: JsonSchemaSetInspector) {
+export async function promotePublicApiRelease(
+  input: {
+    readonly consumerRoot: string;
+    readonly configPath: string;
+    readonly signal?: AbortSignal;
+  },
+  readAcceptedDecisions: import("./application/ports/accepted-decision-evidence.js").AcceptedArchitectureDecisionReader,
+  assertSchema: PublicApiConfigurationDependencies["assertSchema"],
+  inspector: JsonSchemaSetInspector,
+) {
   const policy = await loadCapabilityConfig(
     { readYaml: loadStrictYamlFile, assertSchema },
     input.consumerRoot,
     input.configPath,
-    input.signal
+    input.signal,
   );
   if (policy.schemaVersion === 2) {
-    configurationInputError("SDK growth release promotion requires the separately qualified S3 authority route.");
+    configurationInputError(
+      "SDK growth release promotion requires the separately qualified S3 authority route.",
+    );
   }
-  const dependencies = createPublicApiCompatibilityDependencies(readAcceptedDecisions, assertSchema);
-  const artifacts = await createPublicApiArtifactDependencies(input.consumerRoot, policy.packages, dependencies, inspector, input.signal);
+  const dependencies = createPublicApiCompatibilityDependencies(
+    readAcceptedDecisions,
+    assertSchema,
+  );
+  const artifacts = await createPublicApiArtifactDependencies(
+    input.consumerRoot,
+    policy.packages,
+    dependencies,
+    inspector,
+    input.signal,
+  );
   return preflightPublicApiPromotions(
     {
       consumerRoot: input.consumerRoot,
       policy,
-      ...(input.signal === undefined ? {} : { signal: input.signal })
+      ...(input.signal === undefined ? {} : { signal: input.signal }),
     },
-    [dependencies, artifacts]
+    [dependencies, artifacts],
   );
 }
 
-export function createPublicApiCompatibilityCapability(readAcceptedDecisions: import("./application/ports/accepted-decision-evidence.js").AcceptedArchitectureDecisionReader, assertSchema: PublicApiConfigurationDependencies["assertSchema"], inspector: JsonSchemaSetInspector): CapabilityDefinition {
-  const dependencies = createPublicApiCompatibilityDependencies(readAcceptedDecisions, assertSchema);
+export function createPublicApiCompatibilityCapability(
+  readAcceptedDecisions: import("./application/ports/accepted-decision-evidence.js").AcceptedArchitectureDecisionReader,
+  assertSchema: PublicApiConfigurationDependencies["assertSchema"],
+  inspector: JsonSchemaSetInspector,
+): CapabilityDefinition {
+  const dependencies = createPublicApiCompatibilityDependencies(
+    readAcceptedDecisions,
+    assertSchema,
+  );
   const processes = createManagedProcessExecutor();
   return Object.freeze({
     id: CAPABILITY_ID,
@@ -97,50 +132,101 @@ export function createPublicApiCompatibilityCapability(readAcceptedDecisions: im
           { readYaml: loadStrictYamlFile, assertSchema },
           invocation.consumerRoot,
           invocation.configPath,
-          invocation.signal
+          invocation.signal,
         );
         configVersion = policy.schemaVersion;
         if (policy.schemaVersion === 2) {
           await assertGrowthDestination(invocation.consumerRoot, policy.sdkGrowth.reportPath);
-          const inventory = await createWorkspaceGrowthReader(createWorkspaceInventoryReader()).read(invocation.consumerRoot, "pnpm-workspace.yaml", invocation.signal);
-          assertGrowthReportDestination(policy.sdkGrowth.reportPath, inventory.packages.flatMap((pkg) => [pkg.rootPath, pkg.manifestPath]));
-          const identityInputs = { files: evidence.files, runGit: createGrowthGitRunner(processes, invocation.consumerRoot) };
-          return await checkSdkGrowth({ consumerRoot: invocation.consumerRoot, policy,
-            invocation: await readGrowthInvocation(invocation.consumerRoot, inventory, identityInputs, invocation.signal),
-            ...(invocation.signal === undefined ? {} : { signal: invocation.signal }) }, {
-            readInvocation: (cancellation) => readGrowthInvocation(invocation.consumerRoot, inventory, identityInputs, cancellation.signal),
-            repository: dependencies.repository, fingerprint: dependencies.fingerprint, typed: dependencies.extractor,
-            artifact: new FilesystemPackageArtifactInventory(inspector, evidence),
-            workspace: { read: async () => inventory },
-            context: createFilesystemGrowthInputContext({ consumerRoot: invocation.consumerRoot, policy: policy.compatibility }, { ...dependencies, assertSchema }),
-            writer: createFilesystemGrowthReportWriter(invocation.consumerRoot)
-          });
+          const inventory = await createWorkspaceGrowthReader(
+            createWorkspaceInventoryReader(),
+          ).read(invocation.consumerRoot, "pnpm-workspace.yaml", invocation.signal);
+          assertGrowthReportDestination(
+            policy.sdkGrowth.reportPath,
+            inventory.packages.flatMap((pkg) => [pkg.rootPath, pkg.manifestPath]),
+          );
+          const identityInputs = {
+            files: evidence.files,
+            runGit: createGrowthGitRunner(processes, invocation.consumerRoot),
+          };
+          return await checkSdkGrowth(
+            {
+              consumerRoot: invocation.consumerRoot,
+              policy,
+              invocation: await readGrowthInvocation(
+                invocation.consumerRoot,
+                inventory,
+                identityInputs,
+                invocation.signal,
+              ),
+              ...(invocation.signal === undefined ? {} : { signal: invocation.signal }),
+            },
+            {
+              readInvocation: (cancellation) =>
+                readGrowthInvocation(
+                  invocation.consumerRoot,
+                  inventory,
+                  identityInputs,
+                  cancellation.signal,
+                ),
+              repository: dependencies.repository,
+              fingerprint: dependencies.fingerprint,
+              signatures: dependencies.signatures,
+              typed: dependencies.extractor,
+              artifact: new FilesystemPackageArtifactInventory(inspector, evidence),
+              workspace: { read: async () => inventory },
+              context: createFilesystemGrowthInputContext(
+                { consumerRoot: invocation.consumerRoot, policy: policy.compatibility },
+                { ...dependencies, assertSchema },
+              ),
+              writer: createFilesystemGrowthReportWriter(invocation.consumerRoot),
+            },
+          );
         }
-        const artifacts = await createPublicApiArtifactDependencies(invocation.consumerRoot, policy.packages, dependencies, inspector, invocation.signal);
-        const input = { consumerRoot: invocation.consumerRoot, policy, ...(invocation.signal === undefined ? {} : { signal: invocation.signal }) };
+        const artifacts = await createPublicApiArtifactDependencies(
+          invocation.consumerRoot,
+          policy.packages,
+          dependencies,
+          inspector,
+          invocation.signal,
+        );
+        const input = {
+          consumerRoot: invocation.consumerRoot,
+          policy,
+          ...(invocation.signal === undefined ? {} : { signal: invocation.signal }),
+        };
         return capabilityReport({
           capabilityId: CAPABILITY_ID,
           capabilityConfigSchemaVersion: publicApiPolicySchemaVersion(policy),
           diagnostics: [
-            ...await analyzePublicApiCompatibility(input, artifacts),
-            ...await analyzePublicApiCompatibility(input, dependencies)
-          ]
+            ...(await analyzePublicApiCompatibility(input, artifacts)),
+            ...(await analyzePublicApiCompatibility(input, dependencies)),
+          ],
         });
       } catch (error) {
         return capabilityFailureReport({
           capabilityId: CAPABILITY_ID,
           capabilityConfigSchemaVersion: configVersion,
           error,
-          phase: "public-api-compatibility-execution"
+          phase: "public-api-compatibility-execution",
         });
       }
-    }
+    },
   });
 }
 
-export async function createPublicApiArtifactDependencies(root: string, packages: readonly import("./application/model/public-api.js").PublicApiPackagePolicy[], dependencies: ReturnType<typeof createPublicApiCompatibilityDependencies>, inspector: JsonSchemaSetInspector, signal?: AbortSignal) {
+export async function createPublicApiArtifactDependencies(
+  root: string,
+  packages: readonly import("./application/model/public-api.js").PublicApiPackagePolicy[],
+  dependencies: ReturnType<typeof createPublicApiCompatibilityDependencies>,
+  inspector: JsonSchemaSetInspector,
+  signal?: AbortSignal,
+) {
   const inventory = new FilesystemPackageArtifactInventory(inspector, evidence);
-  const artifacts = new ArtifactPublicApiEvidence(dependencies.repository, await inventory.inspect(root, packages, signal), evidence);
+  const artifacts = new ArtifactPublicApiEvidence(
+    dependencies.repository,
+    await inventory.inspect(root, packages, signal),
+    evidence,
+  );
   return { ...dependencies, repository: artifacts, extractor: artifacts };
 }
 

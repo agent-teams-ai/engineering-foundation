@@ -6,17 +6,14 @@ const SHA512_INTEGRITY_PATTERN = /^sha512-[A-Za-z0-9+/]+={0,2}$/;
 const RUNTIME_DEPENDENCY_FIELDS = [
   "dependencies",
   "optionalDependencies",
-  "peerDependencies"
+  "peerDependencies",
 ] as const;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function dependencyValue(
-  container: unknown,
-  dependencyName: string
-): unknown {
+function dependencyValue(container: unknown, dependencyName: string): unknown {
   return isRecord(container) ? container[dependencyName] : undefined;
 }
 
@@ -28,20 +25,14 @@ function targetsFoundation(value: unknown): boolean {
 }
 
 function hasBundledFoundation(value: unknown): boolean {
-  return (
-    Array.isArray(value) &&
-    value.some((candidate) => candidate === FOUNDATION_PACKAGE_NAME)
-  );
+  return Array.isArray(value) && value.some((candidate) => candidate === FOUNDATION_PACKAGE_NAME);
 }
 
 function inspectDependencyPlacement(
   manifest: Record<string, unknown> | undefined,
-  issues: string[]
+  issues: string[],
 ): string | undefined {
-  const candidate = dependencyValue(
-    manifest?.devDependencies,
-    FOUNDATION_PACKAGE_NAME
-  );
+  const candidate = dependencyValue(manifest?.devDependencies, FOUNDATION_PACKAGE_NAME);
   const dependencySpec = typeof candidate === "string" ? candidate : undefined;
   if (dependencySpec === undefined) {
     issues.push(`${FOUNDATION_PACKAGE_NAME} must be declared in devDependencies.`);
@@ -64,7 +55,7 @@ function inspectDependencyPlacement(
 
 function inspectDependencyOverrides(
   manifest: Record<string, unknown> | undefined,
-  issues: string[]
+  issues: string[],
 ): void {
   if (targetsFoundation(manifest?.overrides)) {
     issues.push(`${FOUNDATION_PACKAGE_NAME} must not use npm overrides.`);
@@ -97,20 +88,17 @@ function isSupportedBunManager(value: string): boolean {
 export function inspectConsumerManifest(
   consumerRoot: string,
   manifest: Record<string, unknown> | undefined,
-  inputIssues: readonly string[] = []
+  inputIssues: readonly string[] = [],
 ): ConsumerPolicyInspection {
   const issues = [...inputIssues];
   const dependencySpec = inspectDependencyPlacement(manifest, issues);
   inspectDependencyOverrides(manifest, issues);
 
   const packageManager =
-    typeof manifest?.packageManager === "string"
-      ? manifest.packageManager
-      : undefined;
+    typeof manifest?.packageManager === "string" ? manifest.packageManager : undefined;
   if (
     packageManager === undefined ||
-    (!isSupportedPnpmManager(packageManager) &&
-      !isSupportedBunManager(packageManager))
+    (!isSupportedPnpmManager(packageManager) && !isSupportedBunManager(packageManager))
   ) {
     issues.push("Consumer packageManager must pin an exact pnpm 11 or stable Bun 1 version.");
   }
@@ -119,21 +107,18 @@ export function inspectConsumerManifest(
     consumerRoot,
     ...(dependencySpec === undefined ? {} : { dependencySpec }),
     ...(packageManager === undefined ? {} : { packageManager }),
-    issues
+    issues,
   };
 }
 
 function hasValidPnpmPeerContext(
   lockedVersion: unknown,
-  exactVersion: string
+  exactVersion: string,
 ): lockedVersion is string {
   if (lockedVersion === exactVersion) {
     return true;
   }
-  if (
-    typeof lockedVersion !== "string" ||
-    !lockedVersion.startsWith(`${exactVersion}(`)
-  ) {
+  if (typeof lockedVersion !== "string" || !lockedVersion.startsWith(`${exactVersion}(`)) {
     return false;
   }
 
@@ -171,7 +156,7 @@ export interface LockfileProvenanceInspection {
 function inspectLockfileMetadata(
   lockfile: Record<string, unknown>,
   source: string,
-  issues: string[]
+  issues: string[],
 ): void {
   if (lockfile.lockfileVersion !== "9.0") {
     issues.push(`${source} must use pnpm lockfileVersion 9.0.`);
@@ -187,7 +172,7 @@ function inspectLockfileMetadata(
 function inspectRuntimeImporterDependencies(
   rootImporter: Record<string, unknown>,
   source: string,
-  issues: string[]
+  issues: string[],
 ): void {
   for (const field of RUNTIME_DEPENDENCY_FIELDS) {
     if (dependencyValue(rootImporter[field], FOUNDATION_PACKAGE_NAME) !== undefined) {
@@ -200,21 +185,19 @@ function inspectRegistryResolution(
   lockfile: Record<string, unknown>,
   source: string,
   packageKey: string,
-  issues: string[]
+  issues: string[],
 ): string | undefined {
-  const packageEntry = isRecord(lockfile.packages)
-    ? lockfile.packages[packageKey]
-    : undefined;
+  const packageEntry = isRecord(lockfile.packages) ? lockfile.packages[packageKey] : undefined;
   if (!isRecord(packageEntry) || !isRecord(packageEntry.resolution)) {
     issues.push(`${FOUNDATION_PACKAGE_NAME} must have an npm registry package entry in ${source}.`);
     return undefined;
   }
   const resolution = packageEntry.resolution;
-  const integrity = typeof resolution.integrity === "string"
-    ? resolution.integrity
-    : undefined;
+  const integrity = typeof resolution.integrity === "string" ? resolution.integrity : undefined;
   if (integrity === undefined || !SHA512_INTEGRITY_PATTERN.test(integrity)) {
-    issues.push(`${FOUNDATION_PACKAGE_NAME} ${source} entry must contain sha512 registry integrity.`);
+    issues.push(
+      `${FOUNDATION_PACKAGE_NAME} ${source} entry must contain sha512 registry integrity.`,
+    );
   }
   const tarball = typeof resolution.tarball === "string" ? resolution.tarball : undefined;
   if (tarball !== undefined && !tarball.startsWith("https://registry.npmjs.org/")) {
@@ -222,7 +205,9 @@ function inspectRegistryResolution(
   }
   for (const field of ["commit", "directory", "path", "repo", "type"]) {
     if (resolution[field] !== undefined) {
-      issues.push(`${FOUNDATION_PACKAGE_NAME} ${source} resolution contains forbidden field ${field}.`);
+      issues.push(
+        `${FOUNDATION_PACKAGE_NAME} ${source} resolution contains forbidden field ${field}.`,
+      );
     }
   }
   return integrity;
@@ -231,7 +216,7 @@ function inspectRegistryResolution(
 export function inspectLockfile(
   lockfile: Record<string, unknown>,
   source: string,
-  dependencySpec: string | undefined
+  dependencySpec: string | undefined,
 ): LockfileProvenanceInspection {
   const issues: string[] = [];
   inspectLockfileMetadata(lockfile, source, issues);
@@ -241,10 +226,7 @@ export function inspectLockfile(
     return { issues };
   }
   inspectRuntimeImporterDependencies(rootImporter, source, issues);
-  const lockedDependency = dependencyValue(
-    rootImporter.devDependencies,
-    FOUNDATION_PACKAGE_NAME
-  );
+  const lockedDependency = dependencyValue(rootImporter.devDependencies, FOUNDATION_PACKAGE_NAME);
   if (!isRecord(lockedDependency)) {
     issues.push(`${FOUNDATION_PACKAGE_NAME} must be locked in ${source} root devDependencies.`);
     return { issues };
@@ -254,7 +236,9 @@ export function inspectLockfile(
     lockedDependency.specifier !== dependencySpec ||
     !hasValidPnpmPeerContext(lockedDependency.version, dependencySpec)
   ) {
-    issues.push(`${FOUNDATION_PACKAGE_NAME} ${source} specifier must equal the exact manifest version and its version may contain only a valid pnpm peer context.`);
+    issues.push(
+      `${FOUNDATION_PACKAGE_NAME} ${source} specifier must equal the exact manifest version and its version may contain only a valid pnpm peer context.`,
+    );
     return { issues };
   }
   const packageKey = `${FOUNDATION_PACKAGE_NAME}@${dependencySpec}`;
@@ -267,6 +251,6 @@ export function inspectLockfile(
     packageKey,
     snapshotKey,
     ...(integrity === undefined ? {} : { integrity }),
-    issues
+    issues,
   };
 }

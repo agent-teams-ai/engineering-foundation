@@ -5,5 +5,5 @@ export type {
   GrowthComparison,
   GrowthTransition,
   GrowthValueRef,
-  growthPolicyVersion
+  growthPolicyVersion,
 } from "./application/model/growth-admission.js";

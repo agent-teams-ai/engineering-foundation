@@ -4,7 +4,10 @@ import { invalidCommand } from "../../../application/command-reporting.js";
 
 import { defaultCommandConfigPath } from "../../../application/command-invocation.js";
 
-import type { CommandInvocation as ParsedArguments, OutputFormat } from "../../../application/command-invocation.js";
+import type {
+  CommandInvocation as ParsedArguments,
+  OutputFormat,
+} from "../../../application/command-invocation.js";
 
 export type { CommandInvocation as ParsedArguments } from "../../../application/command-invocation.js";
 
@@ -34,7 +37,7 @@ const MAX_POSITIONAL_ARGUMENTS: Readonly<Record<string, number>> = Object.freeze
   schema: 1,
   "self-check": 0,
   status: 0,
-  version: 0
+  version: 0,
 });
 
 interface ArgumentState {
@@ -55,26 +58,15 @@ interface ArgumentState {
 
 const MAXIMUM_CONSUMER_ROOT_BYTES = 512;
 
-function requiredOptionValue(
-  args: readonly string[],
-  index: number,
-  option: string
-): string {
+function requiredOptionValue(args: readonly string[], index: number, option: string): string {
   const candidate = args[index + 1];
-  if (
-    candidate === undefined ||
-    candidate.length === 0 ||
-    candidate.startsWith("-")
-  ) {
+  if (candidate === undefined || candidate.length === 0 || candidate.startsWith("-")) {
     throw invalidCommand(`${option} requires a value.`);
   }
   return candidate;
 }
 
-function requiredBaseRefValue(
-  args: readonly string[],
-  index: number
-): string {
+function requiredBaseRefValue(args: readonly string[], index: number): string {
   const candidate = args[index + 1];
   if (candidate === undefined || candidate.length === 0) {
     throw invalidCommand("--base requires a Git ref.");
@@ -85,11 +77,7 @@ function requiredBaseRefValue(
   return candidate;
 }
 
-function provideScalarOption(
-  state: ArgumentState,
-  identity: string,
-  displayName: string
-): void {
+function provideScalarOption(state: ArgumentState, identity: string, displayName: string): void {
   if (state.providedOptions.has(identity)) {
     throw invalidCommand(`${displayName} may be specified only once.`);
   }
@@ -99,7 +87,7 @@ function provideScalarOption(
 function consumeQualificationOption(
   args: readonly string[],
   index: number,
-  state: ArgumentState
+  state: ArgumentState,
 ): number | undefined {
   const value = args[index];
   if (value === "--write") {
@@ -119,10 +107,7 @@ function consumeQualificationOption(
   return 1;
 }
 
-function consumePositionalControl(
-  value: string,
-  state: ArgumentState
-): boolean {
+function consumePositionalControl(value: string, state: ArgumentState): boolean {
   if (!state.optionsEnded && value === "--") {
     state.optionsEnded = true;
     return true;
@@ -137,7 +122,7 @@ function consumePositionalControl(
 function consumeOutputFormatOption(
   args: readonly string[],
   index: number,
-  state: ArgumentState
+  state: ArgumentState,
 ): number | undefined {
   const value = args[index];
   if (value === "--json") {
@@ -157,11 +142,7 @@ function consumeOutputFormatOption(
   return 1;
 }
 
-function consumeArgument(
-  args: readonly string[],
-  index: number,
-  state: ArgumentState
-): number {
+function consumeArgument(args: readonly string[], index: number, state: ArgumentState): number {
   const value = args[index];
   if (value === undefined) {
     return 0;
@@ -192,7 +173,9 @@ function consumeArgument(
     provideScalarOption(state, "--consumer", "--consumer");
     const consumerRoot = resolve(candidate);
     if (Buffer.byteLength(consumerRoot, "utf8") > MAXIMUM_CONSUMER_ROOT_BYTES) {
-      throw invalidCommand(`--consumer resolves beyond ${MAXIMUM_CONSUMER_ROOT_BYTES} UTF-8 bytes.`);
+      throw invalidCommand(
+        `--consumer resolves beyond ${MAXIMUM_CONSUMER_ROOT_BYTES} UTF-8 bytes.`,
+      );
     }
     state.consumerRoot = consumerRoot;
     return 1;
@@ -220,8 +203,13 @@ function validateCommandOptions(command: string, state: ArgumentState): void {
   if (state.nativeTransitionPath !== undefined && command !== "public-api-promote-release") {
     throw invalidCommand("--native-transition is supported only by public-api-promote-release.");
   }
-  if (state.qualificationOnly === true && (command !== "public-api-promote-release" || state.nativeTransitionPath === undefined)) {
-    throw invalidCommand("--qualification-only requires public-api-promote-release --native-transition.");
+  if (
+    state.qualificationOnly === true &&
+    (command !== "public-api-promote-release" || state.nativeTransitionPath === undefined)
+  ) {
+    throw invalidCommand(
+      "--qualification-only requires public-api-promote-release --native-transition.",
+    );
   }
   if (command === "baseline" && !state.configPathProvided) {
     throw invalidCommand("baseline requires --config <findings-baseline.yaml>.");
@@ -231,10 +219,7 @@ function validateCommandOptions(command: string, state: ArgumentState): void {
   }
 }
 
-function validateNonDocumentCommandOptions(
-  command: string,
-  state: ArgumentState
-): void {
+function validateNonDocumentCommandOptions(command: string, state: ArgumentState): void {
   if (state.scopeOnly && (command !== "quality" || state.positional[0] !== "check")) {
     throw invalidCommand("--scope-only is supported only by quality check.");
   }
@@ -245,27 +230,30 @@ function validateNonDocumentCommandOptions(
   ) {
     throw invalidCommand("--base is supported only by agent-workflow changed or check-changed.");
   }
-  if (state.configPathProvided && command !== "scaffold-plan" && command !== "public-api-audit" && command !== "baseline") {
-    throw invalidCommand("--config is supported only by scaffold-plan, public-api-audit or baseline.");
+  if (
+    state.configPathProvided &&
+    command !== "scaffold-plan" &&
+    command !== "public-api-audit" &&
+    command !== "baseline"
+  ) {
+    throw invalidCommand(
+      "--config is supported only by scaffold-plan, public-api-audit or baseline.",
+    );
   }
   if (state.write && command !== "protobuf-qualify-breaking") {
     throw invalidCommand("--write is supported only by protobuf-qualify-breaking.");
   }
-  if (
-    state.bufExecutablePath !== undefined &&
-    command !== "protobuf-qualify-breaking"
-  ) {
+  if (state.bufExecutablePath !== undefined && command !== "protobuf-qualify-breaking") {
     throw invalidCommand("--buf-executable is supported only by protobuf-qualify-breaking.");
   }
 }
 
-function validatePositionalArguments(
-  command: string,
-  positional: readonly string[]
-): void {
+function validatePositionalArguments(command: string, positional: readonly string[]): void {
   const maximum = MAX_POSITIONAL_ARGUMENTS[command];
   if (maximum !== undefined && positional.length > maximum) {
-    throw invalidCommand(`${command} accepts at most ${maximum} positional argument${maximum === 1 ? "" : "s"}.`);
+    throw invalidCommand(
+      `${command} accepts at most ${maximum} positional argument${maximum === 1 ? "" : "s"}.`,
+    );
   }
 }
 
@@ -279,12 +267,12 @@ export function parseArguments(args: readonly string[]): ParsedArguments {
     providedOptions: new Set<string>(),
     write: false,
     scopeOnly: false,
-    optionsEnded: false
+    optionsEnded: false,
   };
 
   const command = commandFromArguments(args);
-  const firstArgumentIndex = args[0] === "gate" ||
-    (args[0] === "repo" && args[1] === "check") ? 2 : 1;
+  const firstArgumentIndex =
+    args[0] === "gate" || (args[0] === "repo" && args[1] === "check") ? 2 : 1;
   for (let index = firstArgumentIndex; index < args.length; index += 1) {
     index += consumeArgument(args, index, state);
   }
@@ -300,12 +288,14 @@ export function parseArguments(args: readonly string[]): ParsedArguments {
     format: state.format,
     write: state.write,
     ...(state.scopeOnly ? { scopeOnly: true } : {}),
-    ...(state.nativeTransitionPath === undefined ? {} : { nativeTransitionPath: state.nativeTransitionPath }),
+    ...(state.nativeTransitionPath === undefined
+      ? {}
+      : { nativeTransitionPath: state.nativeTransitionPath }),
     ...(state.qualificationOnly === true ? { qualificationOnly: true } : {}),
     ...(state.baseRef === undefined ? {} : { baseRef: state.baseRef }),
     ...(state.bufExecutablePath === undefined
       ? {}
-      : { bufExecutablePath: state.bufExecutablePath })
+      : { bufExecutablePath: state.bufExecutablePath }),
   });
 }
 

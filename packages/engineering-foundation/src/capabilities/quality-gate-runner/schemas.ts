@@ -2,5 +2,5 @@
 export const QUALITY_GATE_RUNNER_SCHEMA_IDS = [
   "quality-gate-run-report/v1",
   "quality-gate-runner/v1",
-  "quality-gate-runner/v2"
+  "quality-gate-runner/v2",
 ] as const;

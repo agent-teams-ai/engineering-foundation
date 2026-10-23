@@ -12,13 +12,17 @@ export interface CatalogReaderDependencies {
   }) => Promise<Buffer>;
 }
 
-export async function readCatalog(dependencies: CatalogReaderDependencies, consumerRoot: string, catalogPath: string): Promise<unknown> {
+export async function readCatalog(
+  dependencies: CatalogReaderDependencies,
+  consumerRoot: string,
+  catalogPath: string,
+): Promise<unknown> {
   let bytes: Buffer;
   try {
     bytes = await dependencies.readFile({
       candidate: resolve(consumerRoot, catalogPath),
       maxBytes: MAX_CATALOG_BYTES,
-      root: consumerRoot
+      root: consumerRoot,
     });
   } catch (error) {
     catalogReadFailure(error, catalogPath);

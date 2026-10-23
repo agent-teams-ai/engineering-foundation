@@ -37,7 +37,11 @@ export interface PublicApiNonTypeExportPolicy {
   readonly kind: PublicApiNonTypeExportKind;
 }
 
-type PublicApiArtifactBaselineStatus = "historical-bootstrap" | "initial-unreleased" | "release-candidate" | "supported";
+type PublicApiArtifactBaselineStatus =
+  | "historical-bootstrap"
+  | "initial-unreleased"
+  | "release-candidate"
+  | "supported";
 
 export interface PublicApiWildcardExportSnapshot {
   readonly exportPath: string;
@@ -66,7 +70,10 @@ export interface PublicApiArtifactSnapshot {
     readonly integrity: string;
     readonly manifestDigest: `sha256:${string}`;
     readonly sourceCommit: string;
-    readonly memberDigests: readonly { readonly path: string; readonly digest: `sha256:${string}` }[];
+    readonly memberDigests: readonly {
+      readonly path: string;
+      readonly digest: `sha256:${string}`;
+    }[];
   };
 }
 
@@ -96,7 +103,7 @@ export interface PublicApiCompatibilityPolicy {
 }
 
 export function publicApiPolicySchemaVersion(
-  _policy: PublicApiCompatibilityPolicy
+  _policy: PublicApiCompatibilityPolicy,
 ): PublicApiCompatibilityConfigSchemaVersion {
   return 1;
 }
@@ -114,21 +121,17 @@ export interface PublicApiSnapshot {
   readonly entrypoints: readonly PublicApiEntrypointSnapshot[];
 }
 
-export function approvedBreakingChangeReference(
-  approval: ApprovedBreakingChange
-): string {
+export function approvedBreakingChangeReference(approval: ApprovedBreakingChange): string {
   return approval.decisionId;
 }
 
 export function publicApiEntrypoints(
-  policy: PublicApiPackagePolicy
+  policy: PublicApiPackagePolicy,
 ): readonly PublicApiEntrypointPolicy[] {
   return policy.entrypoints;
 }
 
-export function publicApiDeclarationEntryPoint(
-  policy: PublicApiPackagePolicy
-): string {
+export function publicApiDeclarationEntryPoint(policy: PublicApiPackagePolicy): string {
   const entrypoint = policy.entrypoints[0];
   if (entrypoint === undefined) {
     throw new Error(`Public API package ${policy.packageName} has no entry points.`);
@@ -137,7 +140,7 @@ export function publicApiDeclarationEntryPoint(
 }
 
 export function publicApiSnapshotEntrypoints(
-  snapshot: PublicApiSnapshot
+  snapshot: PublicApiSnapshot,
 ): readonly PublicApiEntrypointSnapshot[] {
   return snapshot.entrypoints;
 }

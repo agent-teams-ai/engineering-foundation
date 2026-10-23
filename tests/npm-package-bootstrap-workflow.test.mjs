@@ -1,3 +1,4 @@
+import { assertOrdered } from "./support/npm-bootstrap-recovery-fixtures.ts";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { cp, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
@@ -37,19 +38,29 @@ test("bootstrap CLI runs before build in a clean source checkout", async (contex
     join(repositoryRoot, "tests/fixtures/npm-package-bootstrap/scripts/deny-external-io.mjs"),
     join(temporary, "deny-external-io.mjs"),
   );
-  const run = (args) => spawnSync(process.execPath, [
-    "--import", pathToFileURL(join(temporary, "deny-external-io.mjs")).href,
-    join(temporary, "scripts/npm-package-bootstrap-cli.mjs"), ...args,
-  ], {
-    cwd: temporary,
-    encoding: "utf8",
-    env: { HOME: temporary, PATH: "", SystemRoot: process.env.SystemRoot ?? "" },
-    timeout: 10_000,
-    maxBuffer: 1024 * 1024,
-  });
+  const run = (args) =>
+    spawnSync(
+      process.execPath,
+      [
+        "--import",
+        pathToFileURL(join(temporary, "deny-external-io.mjs")).href,
+        join(temporary, "scripts/npm-package-bootstrap-cli.mjs"),
+        ...args,
+      ],
+      {
+        cwd: temporary,
+        encoding: "utf8",
+        env: { HOME: temporary, PATH: "", SystemRoot: process.env.SystemRoot ?? "" },
+        timeout: 10_000,
+        maxBuffer: 1024 * 1024,
+      },
+    );
   await context.test("token-window succeeds without generated packages", () => {
     const result = run([
-      "token-window", "2026-09-07T00:00:00Z", "2026-09-08T00:00:00Z", "2026-09-07T12:00:00Z",
+      "token-window",
+      "2026-09-07T00:00:00Z",
+      "2026-09-08T00:00:00Z",
+      "2026-09-07T12:00:00Z",
     ]);
     assert.equal(result.error, undefined);
     assert.equal(result.status, 0, result.stderr);
@@ -61,10 +72,13 @@ test("bootstrap CLI runs before build in a clean source checkout", async (contex
     assert.equal(result.error, undefined);
     assert.equal(result.status, 1, result.stderr);
     assert.equal(result.stdout, "");
-    assert.ok(result.stderr.includes(
-      `Error: npm package bootstrap refused: ${candidate.name} cannot advance beyond ` +
-      `${candidate.bootstrapVersion} before reviewed bootstrap approval.`,
-    ), result.stderr);
+    assert.ok(
+      result.stderr.includes(
+        `Error: npm package bootstrap refused: ${candidate.name} cannot advance beyond ` +
+          `${candidate.bootstrapVersion} before reviewed bootstrap approval.`,
+      ),
+      result.stderr,
+    );
     assert.doesNotMatch(result.stderr, /ERR_MODULE_NOT_FOUND|TEST external I\/O/u);
   });
 });
@@ -86,101 +100,46 @@ async function workflow(name) {
   return parseYaml(await readFile(join(repositoryRoot, ".github", "workflows", name), "utf8"));
 }
 
-function assertOrdered(source, values) {
-  let offset = 0;
-  for (const value of values) {
-    const index = source.indexOf(value, offset);
-    assert.notEqual(index, -1, `Missing ordered workflow evidence: ${value}`);
-    offset = index + value.length;
-  }
-}
-
-test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance-verified", async () => {
-  const bootstrap = await workflow("npm-package-bootstrap.yml");
-  const source = await readFile(
-    join(repositoryRoot, ".github", "workflows", "npm-package-bootstrap.yml"),
-    "utf8",
-  );
-  const registrySource = await readFile(
-    join(repositoryRoot, "scripts", "npm-package-bootstrap-registry.mjs"),
-    "utf8",
-  );
-  const cliSource = await readFile(
-    join(repositoryRoot, "scripts", "npm-package-bootstrap-cli.mjs"),
-    "utf8",
-  );
-  const packTestSupportSource = await readFile(
-    join(repositoryRoot, "scripts", "pack-test-support.mjs"),
-    "utf8",
-  );
-  const ci = await workflow("ci.yml");
-  const release = await workflow("release.yml");
-  const repositoryManifest = JSON.parse(await readFile(join(repositoryRoot, "package.json"), "utf8"));
-  const job = bootstrap.jobs.bootstrap;
-  const ciWriter = ci.jobs["linux-package"];
-  const publish = job.steps.find(
-    ({ name }) => name === "Publish, resume, or quarantine the exact bootstrap artifact",
-  );
-  const postconditions = job.steps.find(
-    ({ name }) => name === "Prove registry postconditions and provenance",
-  );
-  const reuseProof = job.steps.find(
-    ({ name }) => name === "Prove an existing artifact before reuse",
-  );
-  const quarantineProof = job.steps.find(
-    ({ name }) => name === "Prove an exact uncertain artifact before quarantine",
-  );
-  const quarantinePostconditions = job.steps.find(
-    ({ name }) => name === "Prove quarantine postconditions",
-  );
-  const reconcile = bootstrap.jobs["reconcile-github"];
-  const reconcileStep = reconcile.steps.find(
-    ({ name }) => name === "Create or reuse the exact tag and prerelease",
-  );
-
-  assert.deepEqual(Object.keys(bootstrap.on), ["workflow_dispatch"]);
-  assert.equal(bootstrap.on.workflow_dispatch.inputs.package_id.type, "string");
-  assert.equal(bootstrap.on.workflow_dispatch.inputs.package_id.options, undefined);
-  assert.deepEqual(bootstrap.on.workflow_dispatch.inputs.operation.options, ["bootstrap", "quarantine"]);
-  assert.equal(bootstrap.on.workflow_dispatch.inputs.expected_commit.required, true);
-  assert.equal(bootstrap.on.workflow_dispatch.inputs.token_created_at.required, true);
-  assert.equal(bootstrap.on.workflow_dispatch.inputs.token_expires_at.required, true);
-  assert.deepEqual(bootstrap.permissions, { contents: "read" });
-  assert.deepEqual(job.permissions, { actions: "read", contents: "read", "id-token": "write" });
-  assert.equal(job.environment, "npm-package-bootstrap");
-  assert.equal(job["runs-on"], "ubuntu-24.04");
-  assert.equal(ciWriter["runs-on"], job["runs-on"]);
-  assert.equal(repositoryManifest.packageManager, "bun@1.4.3");
-  const pnpmSetup = job.steps.find(({ uses }) => uses?.startsWith("pnpm/setup@"));
-  const defaultNode = job.steps.find(({ with: inputs }) => inputs?.["node-version-file"] === ".node-version");
-  assert.equal(pnpmSetup.with.version, "11.20.0");
-  assert.equal(pnpmSetup.with.install, false);
-  // CI also has an explicit Node 24 setup, so select its default setup-node step by its setting, not by index.
-  const ciDefaultNode = ciWriter.steps.find(
-    ({ uses, with: inputs }) => uses?.startsWith("actions/setup-node@") && inputs?.["node-version-file"] === ".node-version",
-  );
-  assert.ok(ciDefaultNode, "CI writer must select the repository default Node through .node-version");
-  assert.equal(ciDefaultNode.with["node-version-file"], defaultNode.with["node-version-file"]);
-  // The tests are not re-run in the privileged job: the exact commit must have a green CI run, proven before any install.
-  const proof = job.steps.findIndex(({ run }) => run === 'node scripts/npm-package-bootstrap-ci-proof-cli.mjs "${EXPECTED_COMMIT}"');
-  const install = job.steps.findIndex(({ run }) => run === "node tools/dev.mts --profile node install");
-  const authority = job.steps.findIndex(({ id }) => id === "authority");
-  assert.ok(authority >= 0 && authority < proof && proof < install);
-  assert.equal(job.steps[proof].env.EXPECTED_COMMIT, "${{ inputs.expected_commit }}");
-  assert.equal(job.steps[proof].env.GH_TOKEN, "${{ github.token }}");
-  // The workflow token is exposed to the proof step only, never to the job or to another step.
-  assert.equal(job.env.GH_TOKEN, undefined);
-  assert.deepEqual(job.steps.flatMap(({ env }, index) => (env?.GH_TOKEN === undefined ? [] : [index])), [proof]);
+function assertBootstrapExecution({
+  job,
+  install,
+  publish,
+  reuseProof,
+  postconditions,
+  quarantineProof,
+  quarantinePostconditions,
+  reconcile,
+  registrySource,
+  cliSource,
+  packTestSupportSource,
+}) {
   assert.equal(job["timeout-minutes"], 45);
   assert.equal(job.steps.filter(({ run }) => run === "pnpm check").length, 0);
-  assert.equal(job.steps[install + 1].run, "pnpm --filter @agent-teams/engineering-foundation build");
-  assert.equal(job.steps[install + 1].if, "${{ steps.authority.outputs.mode == 'existing-artifact-only' }}");
+  assert.equal(
+    job.steps[install + 1].run,
+    "pnpm --filter @agent-teams/engineering-foundation build",
+  );
+  assert.equal(
+    job.steps[install + 1].if,
+    "${{ steps.authority.outputs.mode == 'existing-artifact-only' }}",
+  );
   assert.equal(job.steps[install + 2].run, "pnpm build");
-  assert.equal(job.steps[install + 2].if, "${{ steps.authority.outputs.mode == 'publish-capable' }}");
-  assert.equal(job.steps.find(({ id }) => id === "pack").if, "${{ steps.authority.outputs.mode == 'publish-capable' }}");
-  assert.match(job.steps.find(({ id }) => id === "pack").run, /node scripts\/prepare-package\.mjs[\s\S]*pnpm --filter/u);
-  assert.equal(job.steps.find(({ id }) => id === "pack")["working-directory"],
-    ".worker-tmp/profiles/node-${{ inputs.expected_commit }}");
+  assert.equal(
+    job.steps[install + 2].if,
+    "${{ steps.authority.outputs.mode == 'publish-capable' }}",
+  );
+  assert.equal(
+    job.steps.find(({ id }) => id === "pack").if,
+    "${{ steps.authority.outputs.mode == 'publish-capable' }}",
+  );
+  assert.match(
+    job.steps.find(({ id }) => id === "pack").run,
+    /node scripts\/prepare-package\.mjs[\s\S]*pnpm --filter/u,
+  );
+  assert.equal(
+    job.steps.find(({ id }) => id === "pack")["working-directory"],
+    ".worker-tmp/profiles/node-${{ inputs.expected_commit }}",
+  );
   assert.equal(
     job.if,
     "${{ vars.NPM_PACKAGE_BOOTSTRAP_ENABLED == 'true' && github.ref == 'refs/heads/main' && github.sha == inputs.expected_commit }}",
@@ -197,7 +156,10 @@ test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance
   assert.match(publish.run, /git ls-remote --exit-code origin refs\/heads\/main/u);
   assert.match(publish.run, /assert_token_window/u);
   assert.match(publish.run, /quarantine-final-proof/u);
-  assert.match(publish.run, /npm publish "\$\{ARCHIVE_PATH\}" --tag bootstrap --provenance --ignore-scripts/u);
+  assert.match(
+    publish.run,
+    /npm publish "\$\{ARCHIVE_PATH\}" --tag bootstrap --provenance --ignore-scripts/u,
+  );
   assert.match(publish.run, /mutation-proof/u);
   assert.match(publish.run, /npm deprecate "\$\{PACKAGE_TAG\}"/u);
   const quarantineBranch = publish.run.slice(
@@ -205,23 +167,38 @@ test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance
     publish.run.indexOf('test "${OPERATION}" = "bootstrap"'),
   );
   const publishBranch = publish.run.slice(
-    publish.run.indexOf('elif [[ "${BOOTSTRAP_MODE}" == "publish-capable" && "${REGISTRY_ACTION}" == "publish" ]]'),
+    publish.run.indexOf(
+      'elif [[ "${BOOTSTRAP_MODE}" == "publish-capable" && "${REGISTRY_ACTION}" == "publish" ]]',
+    ),
     publish.run.indexOf('elif [[ "${REGISTRY_ACTION}" != "reuse" ]]'),
   );
   const postPublishBranch = publish.run.slice(publish.run.indexOf("mutation-proof"));
   assertOrdered(quarantineBranch, [
-    "assert_fresh_main_bounded", "quarantine-final-proof", "assert_fresh_main",
-    "assert_token_window", "npm deprecate",
+    "assert_fresh_main_bounded",
+    "quarantine-final-proof",
+    "assert_fresh_main",
+    "assert_token_window",
+    "npm deprecate",
   ]);
   assertOrdered(publishBranch, [
-    "assert_fresh_main_bounded", "registry-final-preflight", "assert_fresh_main",
-    "assert_token_window", "npm publish",
+    "assert_fresh_main_bounded",
+    "registry-final-preflight",
+    "assert_fresh_main",
+    "assert_token_window",
+    "npm publish",
   ]);
   assertOrdered(postPublishBranch, [
-    "mutation-proof", "assert_fresh_main_bounded", "quarantine-final-proof",
-    "assert_fresh_main", "assert_token_window", "npm deprecate",
+    "mutation-proof",
+    "assert_fresh_main_bounded",
+    "quarantine-final-proof",
+    "assert_fresh_main",
+    "assert_token_window",
+    "npm deprecate",
   ]);
-  assert.match(cliSource, /"registry-final-preflight": \(args\) => registryPreflight\(args, \{ attempts: 1 \}\)/u);
+  assert.match(
+    cliSource,
+    /"registry-final-preflight": \(args\) => registryPreflight\(args, \{ attempts: 1 \}\)/u,
+  );
   assert.match(cliSource, /"quarantine-final-proof"[\s\S]*?\{ attempts: 1 \}/u);
   assert.match(reuseProof.if, /steps\.registry\.outputs\.action == 'reuse'/u);
   assert.equal(reuseProof.env.NODE_AUTH_TOKEN, undefined);
@@ -248,6 +225,128 @@ test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance
     packTestSupportSource,
     /process\.platform !== "win32"[\s\S]*?await import\([\s\S]*?windows-managed-process\.js/u,
   );
+}
+
+async function assertLocalWriterEvidence() {
+  const localEvidenceSource = await readFile(
+    join(repositoryRoot, "scripts", "npm-package-bootstrap-local-evidence.mjs"),
+    "utf8",
+  );
+  assert.match(
+    localEvidenceSource,
+    /import \{ preparePackages \} from "\.\/prepare-package\.mjs";/u,
+  );
+  assert.match(localEvidenceSource, /await preparePackages\(\);/u);
+  assert.match(localEvidenceSource, /npm-package-bootstrap-writer-evidence/u);
+}
+
+test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance-verified", async () => {
+  const bootstrap = await workflow("npm-package-bootstrap.yml");
+  const source = await readFile(
+    join(repositoryRoot, ".github", "workflows", "npm-package-bootstrap.yml"),
+    "utf8",
+  );
+  const registrySource = await readFile(
+    join(repositoryRoot, "scripts", "npm-package-bootstrap-registry.mjs"),
+    "utf8",
+  );
+  const cliSource = await readFile(
+    join(repositoryRoot, "scripts", "npm-package-bootstrap-cli.mjs"),
+    "utf8",
+  );
+  const packTestSupportSource = await readFile(
+    join(repositoryRoot, "scripts", "pack-test-support.mjs"),
+    "utf8",
+  );
+  const ci = await workflow("ci.yml");
+  const release = await workflow("release.yml");
+  const repositoryManifest = JSON.parse(
+    await readFile(join(repositoryRoot, "package.json"), "utf8"),
+  );
+  const job = bootstrap.jobs.bootstrap;
+  const ciWriter = ci.jobs["linux-package"];
+  const publish = job.steps.find(
+    ({ name }) => name === "Publish, resume, or quarantine the exact bootstrap artifact",
+  );
+  const postconditions = job.steps.find(
+    ({ name }) => name === "Prove registry postconditions and provenance",
+  );
+  const reuseProof = job.steps.find(
+    ({ name }) => name === "Prove an existing artifact before reuse",
+  );
+  const quarantineProof = job.steps.find(
+    ({ name }) => name === "Prove an exact uncertain artifact before quarantine",
+  );
+  const quarantinePostconditions = job.steps.find(
+    ({ name }) => name === "Prove quarantine postconditions",
+  );
+  const reconcile = bootstrap.jobs["reconcile-github"];
+  const reconcileStep = reconcile.steps.find(
+    ({ name }) => name === "Create or reuse the exact tag and prerelease",
+  );
+
+  assert.deepEqual(Object.keys(bootstrap.on), ["workflow_dispatch"]);
+  assert.equal(bootstrap.on.workflow_dispatch.inputs.package_id.type, "string");
+  assert.equal(bootstrap.on.workflow_dispatch.inputs.package_id.options, undefined);
+  assert.deepEqual(bootstrap.on.workflow_dispatch.inputs.operation.options, [
+    "bootstrap",
+    "quarantine",
+  ]);
+  assert.equal(bootstrap.on.workflow_dispatch.inputs.expected_commit.required, true);
+  assert.equal(bootstrap.on.workflow_dispatch.inputs.token_created_at.required, true);
+  assert.equal(bootstrap.on.workflow_dispatch.inputs.token_expires_at.required, true);
+  assert.deepEqual(bootstrap.permissions, { contents: "read" });
+  assert.deepEqual(job.permissions, { actions: "read", contents: "read", "id-token": "write" });
+  assert.equal(job.environment, "npm-package-bootstrap");
+  assert.equal(job["runs-on"], "ubuntu-24.04");
+  assert.equal(ciWriter["runs-on"], job["runs-on"]);
+  assert.equal(repositoryManifest.packageManager, "bun@1.4.3");
+  const pnpmSetup = job.steps.find(({ uses }) => uses?.startsWith("pnpm/setup@"));
+  const defaultNode = job.steps.find(
+    ({ with: inputs }) => inputs?.["node-version-file"] === ".node-version",
+  );
+  assert.equal(pnpmSetup.with.version, "11.20.0");
+  assert.equal(pnpmSetup.with.install, false);
+  // CI also has an explicit Node 24 setup, so select its default setup-node step by its setting, not by index.
+  const ciDefaultNode = ciWriter.steps.find(
+    ({ uses, with: inputs }) =>
+      uses?.startsWith("actions/setup-node@") && inputs?.["node-version-file"] === ".node-version",
+  );
+  assert.ok(
+    ciDefaultNode,
+    "CI writer must select the repository default Node through .node-version",
+  );
+  assert.equal(ciDefaultNode.with["node-version-file"], defaultNode.with["node-version-file"]);
+  // The tests are not re-run in the privileged job: the exact commit must have a green CI run, proven before any install.
+  const proof = job.steps.findIndex(
+    ({ run }) => run === 'node scripts/npm-package-bootstrap-ci-proof-cli.mjs "${EXPECTED_COMMIT}"',
+  );
+  const install = job.steps.findIndex(
+    ({ run }) => run === "node tools/dev.mts --profile node install",
+  );
+  const authority = job.steps.findIndex(({ id }) => id === "authority");
+  assert.ok(authority >= 0 && authority < proof && proof < install);
+  assert.equal(job.steps[proof].env.EXPECTED_COMMIT, "${{ inputs.expected_commit }}");
+  assert.equal(job.steps[proof].env.GH_TOKEN, "${{ github.token }}");
+  // The workflow token is exposed to the proof step only, never to the job or to another step.
+  assert.equal(job.env.GH_TOKEN, undefined);
+  assert.deepEqual(
+    job.steps.flatMap(({ env }, index) => (env?.GH_TOKEN === undefined ? [] : [index])),
+    [proof],
+  );
+  assertBootstrapExecution({
+    job,
+    install,
+    publish,
+    reuseProof,
+    postconditions,
+    quarantineProof,
+    quarantinePostconditions,
+    reconcile,
+    registrySource,
+    cliSource,
+    packTestSupportSource,
+  });
   assert.equal(reconcile.needs, "bootstrap");
   assert.equal(
     reconcile.if,
@@ -262,39 +361,39 @@ test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance
   assert.equal(reconcileStep.env.GH_TOKEN, "${{ github.token }}");
   assert.equal(reconcileStep.env.NODE_AUTH_TOKEN, undefined);
   assert.match(reconcileStep.run, /scripts\/github-release-reconciliation\.mjs/u);
-  assert.match(reconcileStep.run, /"\$\{TAG\}" "\$\{TITLE\}" "\$\{BODY\}" true "\$\{PUBLISHED_COMMIT\}" "\$\{EXPECTED_COMMIT\}"/u);
+  assert.match(
+    reconcileStep.run,
+    /"\$\{TAG\}" "\$\{TITLE\}" "\$\{BODY\}" true "\$\{PUBLISHED_COMMIT\}" "\$\{EXPECTED_COMMIT\}"/u,
+  );
   assert.doesNotMatch(reconcileStep.run, /gh api|git\/ref\/tags|releases\/tags/u);
   assert.doesNotMatch(source, /on:\s*\n\s+push:/u);
   assert.doesNotMatch(source, /docs-protocol-bootstrap/u);
   assert.equal(
-    release.jobs.release.steps.find(({ name }) => name === "Guard public package bootstrap baselines").run,
+    release.jobs.release.steps.find(
+      ({ name }) => name === "Guard public package bootstrap baselines",
+    ).run,
     "node scripts/npm-package-bootstrap-cli.mjs check-release",
   );
   assert.ok(
     ci.jobs["linux-package"].steps.some(
-      ({ run }) => run === "node scripts/npm-package-bootstrap-local-evidence.mjs --output \"${RUNNER_TEMP}/npm-package-bootstrap-writer-evidence\"",
+      ({ run }) =>
+        run ===
+        'node scripts/npm-package-bootstrap-local-evidence.mjs --output "${RUNNER_TEMP}/npm-package-bootstrap-writer-evidence"',
     ),
   );
-  const writerStep = ci.jobs["linux-package"].steps.find(
+  assert.ok(
+    ci.jobs["linux-package"].steps.some(
+      ({ uses, if: condition }) =>
+        uses?.startsWith("actions/upload-artifact@") && condition === "${{ always() }}",
+    ),
+  );
+  const writerStep = ciWriter.steps.find(
     ({ name }) => name === "Verify approved bootstrap writer evidence",
   );
   assert.equal(writerStep.env.AGENT_TEAMS_FOUNDATION_SOURCE_ROOT, "${{ github.workspace }}");
-  const packageCheckout = ci.jobs["linux-package"].steps.find(
-    ({ uses }) => uses?.startsWith("actions/checkout@"),
-  );
+  const packageCheckout = ciWriter.steps.find(({ uses }) => uses?.startsWith("actions/checkout@"));
   assert.equal(packageCheckout.with["fetch-depth"], 0);
-  assert.ok(
-    ci.jobs["linux-package"].steps.some(({ uses, if: condition }) =>
-      uses?.startsWith("actions/upload-artifact@") && condition === "${{ always() }}",
-    ),
-  );
-  const localEvidenceSource = await readFile(
-    join(repositoryRoot, "scripts", "npm-package-bootstrap-local-evidence.mjs"),
-    "utf8",
-  );
-  assert.match(localEvidenceSource, /import \{ preparePackages \} from "\.\/prepare-package\.mjs";/u);
-  assert.match(localEvidenceSource, /await preparePackages\(\);/u);
-  assert.match(localEvidenceSource, /npm-package-bootstrap-writer-evidence/u);
+  await assertLocalWriterEvidence();
 });
 
 test("shared reconciliation resolves annotated tags and re-reads final exact state", async () => {
@@ -365,16 +464,20 @@ test("shared reconciliation blocks a missing tag when protected main advanced", 
   };
 
   await assert.rejects(
-    reconcileGithubTagRelease({
-      body: "Bootstrap-only artifact. Do not adopt.",
-      prerelease: true,
-      tag: "@agent-teams/docs-protocol-mcp@0.0.0",
-      title: "@agent-teams/docs-protocol-mcp 0.0.0 bootstrap",
-    }, commit, {
-      expectedMainCommit: commit,
-      repository: "agent-teams-ai/engineering-foundation",
-      request,
-    }),
+    reconcileGithubTagRelease(
+      {
+        body: "Bootstrap-only artifact. Do not adopt.",
+        prerelease: true,
+        tag: "@agent-teams/docs-protocol-mcp@0.0.0",
+        title: "@agent-teams/docs-protocol-mcp 0.0.0 bootstrap",
+      },
+      commit,
+      {
+        expectedMainCommit: commit,
+        repository: "agent-teams-ai/engineering-foundation",
+        request,
+      },
+    ),
     /protected main advanced/u,
   );
   assert.equal(writes, 0);
@@ -396,7 +499,13 @@ test("shared reconciliation rejects tag drift on its final read", async () => {
       return { object: { sha: reads === 1 ? commit : "b".repeat(40), type: "commit" } };
     }
     if (route.includes("/releases/tags/")) {
-      return { body: policy.body, draft: false, name: policy.title, prerelease: true, tag_name: policy.tag };
+      return {
+        body: policy.body,
+        draft: false,
+        name: policy.title,
+        prerelease: true,
+        tag_name: policy.tag,
+      };
     }
     throw new Error(`Unexpected fake GitHub route: ${route}`);
   };

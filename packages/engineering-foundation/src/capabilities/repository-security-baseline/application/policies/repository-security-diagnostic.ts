@@ -1,4 +1,7 @@
-import type { DiagnosticSeverity, FoundationDiagnostic } from "../../../../features/validation-reporting/api.js";
+import type {
+  DiagnosticSeverity,
+  FoundationDiagnostic,
+} from "../../../../features/validation-reporting/api.js";
 import type { RepositorySecurityRuleMetadata } from "../rules.js";
 
 export function repositorySecurityDiagnostic(input: {
@@ -18,6 +21,6 @@ export function repositorySecurityDiagnostic(input: {
     relatedLocations: [],
     evidence: input.evidence ?? [],
     remediation: input.rule.remediation,
-    requiresArchitectureReview: input.rule.requiresArchitectureReview
+    requiresArchitectureReview: input.rule.requiresArchitectureReview,
   };
 }

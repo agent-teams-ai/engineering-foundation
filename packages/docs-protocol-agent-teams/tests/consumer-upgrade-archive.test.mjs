@@ -1,6 +1,17 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { chmod, lstat, mkdir, mkdtemp, readFile, readlink, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  lstat,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readlink,
+  realpath,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -8,16 +19,22 @@ import test from "node:test";
 import { extractHead } from "../dist/consumer-integration/adapters/node-consumer-upgrade-archive.js";
 import {
   readStableConsumerFile,
-  sameConsumerFileObservation
+  sameConsumerFileObservation,
 } from "../dist/consumer-integration/adapters/node-consumer-repository-files.js";
 
-const posix = { skip: process.platform === "win32" ? "Native Windows managed mutation is unsupported" : false };
-const execute = (executable, args, cwd) => new Promise((resolve, reject) => {
-  execFile(executable, args, { cwd }, (error, stdout, stderr) => {
-    if (error !== null) {reject(error);}
-    else {resolve({ stdout, stderr });}
+const posix = {
+  skip: process.platform === "win32" ? "Native Windows managed mutation is unsupported" : false,
+};
+const execute = (executable, args, cwd) =>
+  new Promise((resolve, reject) => {
+    execFile(executable, args, { cwd }, (error, stdout, stderr) => {
+      if (error !== null) {
+        reject(error);
+      } else {
+        resolve({ stdout, stderr });
+      }
+    });
   });
-});
 
 async function fixture(t) {
   const temporary = await realpath(await mkdtemp(join(tmpdir(), "docs-upgrade-archive-")));
@@ -38,7 +55,7 @@ async function fixture(t) {
     ["scripts/owner.sh", 0o744],
     ["scripts/group.sh", 0o750],
     ["other-execute.txt", 0o645],
-    ["space and ünicode.txt", 0o644]
+    ["space and ünicode.txt", 0o644],
   ]);
   await mkdir(join(root, "scripts"));
   for (const [path, mode] of files) {
@@ -58,28 +75,44 @@ async function commit(root) {
 // without requiring a privileged test runner; this is not a UID-0 claim.
 for (const semantics of ["ordinary", "superuser-permissions"]) {
   for (const umask of ["022", "027", "077"]) {
-    test(`archive preserves actual source modes under ${semantics}, umask ${umask}`, posix, async (t) => {
-      const { temporary, root, files } = await fixture(t);
-      const head = await commit(root);
-      // Cover Git's default 0002 and a restrictive local override.
-      if (umask !== "022") {await execute("git", ["config", "tar.umask", "077"], root);}
-      assert.equal((await execute("git", ["status", "--porcelain"], root)).stdout, "");
-      const target = join(temporary, "target");
-      await extractHead({ root, head, target }, (executable, args, cwd) => execute(
-        "sh", ["-c", 'umask "$1"; shift; exec "$@"', "archive-test", umask,
-          executable, ...(executable === "tar" && semantics === "superuser-permissions" ? ["-p"] : []),
-          ...args], cwd
-      ));
-      for (const [path, mode] of files) {
-        const source = await readStableConsumerFile(root, path, 1024, true);
-        const extracted = await readStableConsumerFile(target, path, 1024, true);
-        assert.equal(extracted.mode, mode, path);
-        assert.equal(sameConsumerFileObservation(source, extracted), true, path);
-      }
-      assert.equal((await lstat(join(target, "scripts"))).mode & 0o777, 0o755);
-      assert.equal((await execute("git", ["status", "--porcelain"], root)).stdout, "");
-      await assert.rejects(lstat(`${target}.tar`), { code: "ENOENT" });
-    });
+    test(
+      `archive preserves actual source modes under ${semantics}, umask ${umask}`,
+      posix,
+      async (t) => {
+        const { temporary, root, files } = await fixture(t);
+        const head = await commit(root);
+        // Cover Git's default 0002 and a restrictive local override.
+        if (umask !== "022") {
+          await execute("git", ["config", "tar.umask", "077"], root);
+        }
+        assert.equal((await execute("git", ["status", "--porcelain"], root)).stdout, "");
+        const target = join(temporary, "target");
+        await extractHead({ root, head, target }, (executable, args, cwd) =>
+          execute(
+            "sh",
+            [
+              "-c",
+              'umask "$1"; shift; exec "$@"',
+              "archive-test",
+              umask,
+              executable,
+              ...(executable === "tar" && semantics === "superuser-permissions" ? ["-p"] : []),
+              ...args,
+            ],
+            cwd,
+          ),
+        );
+        for (const [path, mode] of files) {
+          const source = await readStableConsumerFile(root, path, 1024, true);
+          const extracted = await readStableConsumerFile(target, path, 1024, true);
+          assert.equal(extracted.mode, mode, path);
+          assert.equal(sameConsumerFileObservation(source, extracted), true, path);
+        }
+        assert.equal((await lstat(join(target, "scripts"))).mode & 0o777, 0o755);
+        assert.equal((await execute("git", ["status", "--porcelain"], root)).stdout, "");
+        await assert.rejects(lstat(`${target}.tar`), { code: "ENOENT" });
+      },
+    );
   }
 }
 
@@ -103,15 +136,20 @@ test("archive keeps symlinks inert and never changes their outside referents", p
   assert.equal((await lstat(join(outside, "sentinel"))).mode & 0o777, 0o600);
 });
 
-test("source modes require committed bytes even if Git hides a worktree change", posix, async (t) => {
-  const { temporary, root } = await fixture(t);
-  const head = await commit(root);
-  await execute("git", ["update-index", "--assume-unchanged", "package.json"], root);
-  await writeFile(join(root, "package.json"), "uncommitted\n");
-  assert.equal((await execute("git", ["status", "--porcelain"], root)).stdout, "");
-  await assert.rejects(extractHead({ root, head, target: join(temporary, "target") }, execute),
-    { code: "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED" });
-});
+test(
+  "source modes require committed bytes even if Git hides a worktree change",
+  posix,
+  async (t) => {
+    const { temporary, root } = await fixture(t);
+    const head = await commit(root);
+    await execute("git", ["update-index", "--assume-unchanged", "package.json"], root);
+    await writeFile(join(root, "package.json"), "uncommitted\n");
+    assert.equal((await execute("git", ["status", "--porcelain"], root)).stdout, "");
+    await assert.rejects(extractHead({ root, head, target: join(temporary, "target") }, execute), {
+      code: "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED",
+    });
+  },
+);
 
 test("source symlink ancestry cannot authorize mode copying", posix, async (t) => {
   const { temporary, root } = await fixture(t);
@@ -123,29 +161,39 @@ test("source symlink ancestry cannot authorize mode copying", posix, async (t) =
   }
   await rm(join(root, "scripts"), { recursive: true });
   await symlink(outside, join(root, "scripts"));
-  await assert.rejects(extractHead({ root, head, target: join(temporary, "target") }, execute),
-    { code: "DOCS_CONSUMER_INPUT_UNSTABLE" });
+  await assert.rejects(extractHead({ root, head, target: join(temporary, "target") }, execute), {
+    code: "DOCS_CONSUMER_INPUT_UNSTABLE",
+  });
   assert.equal((await lstat(join(outside, "run.sh"))).mode & 0o777, 0o644);
 });
 
-test("extraction rejects an existing target symlink before tar can write outside", posix, async (t) => {
-  const { temporary, root } = await fixture(t);
-  const head = await commit(root);
-  const outside = join(temporary, "outside");
-  await mkdir(outside);
-  const target = join(temporary, "target");
-  await symlink(outside, target);
-  await assert.rejects(extractHead({ root, head, target }, execute));
-  await assert.rejects(lstat(join(outside, "package.json")), { code: "ENOENT" });
-});
+test(
+  "extraction rejects an existing target symlink before tar can write outside",
+  posix,
+  async (t) => {
+    const { temporary, root } = await fixture(t);
+    const head = await commit(root);
+    const outside = join(temporary, "outside");
+    await mkdir(outside);
+    const target = join(temporary, "target");
+    await symlink(outside, target);
+    await assert.rejects(extractHead({ root, head, target }, execute));
+    await assert.rejects(lstat(join(outside, "package.json")), { code: "ENOENT" });
+  },
+);
 
 test("archive cleanup runs when extraction fails", posix, async (t) => {
   const { temporary, root } = await fixture(t);
   const head = await commit(root);
   const target = join(temporary, "target");
-  await assert.rejects(extractHead({ root, head, target }, (executable, args, cwd) => {
-    if (executable === "tar") { throw new Error("injected tar failure"); }
-    return execute(executable, args, cwd);
-  }), /injected tar failure/u);
+  await assert.rejects(
+    extractHead({ root, head, target }, (executable, args, cwd) => {
+      if (executable === "tar") {
+        throw new Error("injected tar failure");
+      }
+      return execute(executable, args, cwd);
+    }),
+    /injected tar failure/u,
+  );
   await assert.rejects(lstat(`${target}.tar`), { code: "ENOENT" });
 });

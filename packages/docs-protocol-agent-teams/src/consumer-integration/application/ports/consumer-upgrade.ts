@@ -1,6 +1,4 @@
-import type {
-  KnownFileTransactionOperationInput
-} from "@agent-teams/repository-mutation/known-file";
+import type { KnownFileTransactionOperationInput } from "@agent-teams/repository-mutation/known-file";
 
 import type {
   ConsumerIntegrationDesiredState,
@@ -9,12 +7,10 @@ import type {
   ConsumerIntegrationDigest,
   ConsumerIntegrationSnapshot,
   ConsumerUpgradeAuthorityV1,
-  ConsumerUpgradeAuthorityV2
+  ConsumerUpgradeAuthorityV2,
 } from "../../domain/model.js";
 
-export type ConsumerUpgradeAuthority =
-  | ConsumerUpgradeAuthorityV1
-  | ConsumerUpgradeAuthorityV2;
+export type ConsumerUpgradeAuthority = ConsumerUpgradeAuthorityV1 | ConsumerUpgradeAuthorityV2;
 
 export interface ConsumerUpgradeAuthorityReader {
   read(options: {

@@ -1,20 +1,10 @@
 import { createHash } from "node:crypto";
-import {
-  cp,
-  lstat,
-  mkdir,
-  readFile,
-  readdir,
-  writeFile,
-} from "node:fs/promises";
+import { cp, lstat, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 
-import {
-  createPnpmRunner,
-  runCommand,
-} from "./pack-test-support.mjs";
+import { createPnpmRunner, runCommand } from "./pack-test-support.mjs";
 import { installPublishedFoundation } from "./published-foundation-install.mjs";
 import { publishedFoundationIntegrity } from "./published-foundation-imports.ts";
 import { executePublishedFoundationOperation } from "./published-foundation-operations.ts";
@@ -32,10 +22,16 @@ const runPnpm = createPnpmRunner();
 // another admitted pack, filesystem write or historical operation is still live.
 export async function settleScaffoldingOperations(operations) {
   const results = await Promise.allSettled(operations);
-  const failures = results.filter(result => result.status === "rejected").map(result => result.reason);
-  if (failures.length === 1) { throw failures[0]; }
-  if (failures.length > 1) { throw new AggregateError(failures, "Scaffolding compatibility operations failed."); }
-  return results.map(result => result.value);
+  const failures = results
+    .filter((result) => result.status === "rejected")
+    .map((result) => result.reason);
+  if (failures.length === 1) {
+    throw failures[0];
+  }
+  if (failures.length > 1) {
+    throw new AggregateError(failures, "Scaffolding compatibility operations failed.");
+  }
+  return results.map((result) => result.value);
 }
 
 function canonicalize(value) {
@@ -67,11 +63,20 @@ async function runScaffolding(cliPath, consumerRoot, args) {
 
 async function runPublishedScaffolding(packageRoot, consumerRoot, operation, inputPath) {
   const observation = await executePublishedFoundationOperation({
-    packageRoot, version: publishedVersion, consumerRoot, operation, inputPath,
+    packageRoot,
+    version: publishedVersion,
+    consumerRoot,
+    operation,
+    inputPath,
   });
-  if (observation.outcome !== "returned" || (operation === "apply" &&
-    !["applied", "already-applied", "failed-recovered"].includes(observation.value?.outcome))) {
-    throw new Error(`Published Foundation ${publishedVersion} ${operation} operation failed.`, { cause: observation });
+  if (
+    observation.outcome !== "returned" ||
+    (operation === "apply" &&
+      !["applied", "already-applied", "failed-recovered"].includes(observation.value?.outcome))
+  ) {
+    throw new Error(`Published Foundation ${publishedVersion} ${operation} operation failed.`, {
+      cause: observation,
+    });
   }
   // Serialize the actual public operation result as Plan/Receipt protocol data;
   // this is not an observation of the historical CLI's JSON renderer or exit.
@@ -84,9 +89,7 @@ async function packCurrentPackage({ expectedName, packageRoot, packRoot }) {
     ["pack", "--pack-destination", packRoot, "--config.ignore-scripts=true"],
     packageRoot,
   );
-  const archives = (await readdir(packRoot)).filter((name) =>
-    name.endsWith(".tgz"),
-  );
+  const archives = (await readdir(packRoot)).filter((name) => name.endsWith(".tgz"));
   if (archives.length !== 1) {
     throw new Error(`${expectedName} pack did not produce exactly one archive.`);
   }
@@ -175,20 +178,21 @@ async function installPackedCurrentPackage({
     ],
     installRoot,
   );
-  const [installedCandidate, installedAuthoring, installedRuntime] = await settleScaffoldingOperations([
-    assertInstalledPackageIdentity(installRoot, {
-      name: packageName,
-      version: candidateVersion,
-    }),
-    assertInstalledPackageIdentity(installRoot, {
-      name: authoringPackageName,
-      version: authoring.manifest.version,
-    }),
-    assertInstalledPackageIdentity(installRoot, {
-      name: runtimePackageName,
-      version: runtime.manifest.version,
-    }),
-  ]);
+  const [installedCandidate, installedAuthoring, installedRuntime] =
+    await settleScaffoldingOperations([
+      assertInstalledPackageIdentity(installRoot, {
+        name: packageName,
+        version: candidateVersion,
+      }),
+      assertInstalledPackageIdentity(installRoot, {
+        name: authoringPackageName,
+        version: authoring.manifest.version,
+      }),
+      assertInstalledPackageIdentity(installRoot, {
+        name: runtimePackageName,
+        version: runtime.manifest.version,
+      }),
+    ]);
   if (
     installedCandidate.manifest.dependencies?.[authoringPackageName] !==
       installedAuthoring.manifest.version ||
@@ -257,17 +261,9 @@ async function assertAllPlannedOutputsEqual({
     const currentOperation = currentPlan.operations[index];
     const publishedOperation = publishedPlan.operations[index];
     const currentBytes = await readFile(join(currentConsumer, currentOperation.path));
-    const publishedBytes = await readFile(
-      join(publishedConsumer, publishedOperation.path),
-    );
-    const expectedCurrentBytes = Buffer.from(
-      currentOperation.after.contentBase64,
-      "base64",
-    );
-    const expectedPublishedBytes = Buffer.from(
-      publishedOperation.after.contentBase64,
-      "base64",
-    );
+    const publishedBytes = await readFile(join(publishedConsumer, publishedOperation.path));
+    const expectedCurrentBytes = Buffer.from(currentOperation.after.contentBase64, "base64");
+    const expectedPublishedBytes = Buffer.from(publishedOperation.after.contentBase64, "base64");
     if (
       !currentBytes.equals(publishedBytes) ||
       !currentBytes.equals(expectedCurrentBytes) ||
@@ -287,22 +283,14 @@ export async function verifyPublishedScaffoldingCompatibility({
   currentAuthoringPackageRoot,
   currentPackageRoot,
   currentRuntimePackageRoot,
-  fixtureRoot = join(
-    repositoryRoot,
-    "tests",
-    "fixtures",
-    "scaffolding-authority-consumer",
-  ),
+  fixtureRoot = join(repositoryRoot, "tests", "fixtures", "scaffolding-authority-consumer"),
   installPackage,
   temporaryRoot,
 }) {
   const candidateManifest = JSON.parse(
     await readFile(join(currentPackageRoot, "package.json"), "utf8"),
   );
-  if (
-    candidateManifest.name !== packageName ||
-    typeof candidateManifest.version !== "string"
-  ) {
+  if (candidateManifest.name !== packageName || typeof candidateManifest.version !== "string") {
     throw new Error("Current Foundation source package identity is invalid.");
   }
   const candidateVersion = candidateManifest.version;
@@ -331,18 +319,17 @@ export async function verifyPublishedScaffoldingCompatibility({
       "scaffold-plan",
       "intents/create-fixture.yaml",
     ]),
-    runPublishedScaffolding(published.packageRoot, publishedConsumer, "plan", "intents/create-fixture.yaml"),
+    runPublishedScaffolding(
+      published.packageRoot,
+      publishedConsumer,
+      "plan",
+      "intents/create-fixture.yaml",
+    ),
   ]);
   const currentPlan = JSON.parse(currentPlanBytes);
   const publishedPlan = JSON.parse(publishedPlanBytes);
-  const currentPlanProjection = projectScaffoldPlanCompatibility(
-    currentPlan,
-    candidateVersion,
-  );
-  const publishedPlanProjection = projectScaffoldPlanCompatibility(
-    publishedPlan,
-    publishedVersion,
-  );
+  const currentPlanProjection = projectScaffoldPlanCompatibility(currentPlan, candidateVersion);
+  const publishedPlanProjection = projectScaffoldPlanCompatibility(publishedPlan, publishedVersion);
   if (!isDeepStrictEqual(currentPlanProjection, publishedPlanProjection)) {
     throw new Error(
       `Current packed ScaffoldPlan semantics differ from published Foundation ${publishedVersion}.`,
@@ -354,38 +341,31 @@ export async function verifyPublishedScaffoldingCompatibility({
     mkdir(join(publishedConsumer, "plans"), { recursive: true }),
   ]);
   await settleScaffoldingOperations([
-    writeFile(
-      join(currentConsumer, "plans", "compatibility.json"),
-      currentPlanBytes,
-    ),
-    writeFile(
-      join(publishedConsumer, "plans", "compatibility.json"),
-      publishedPlanBytes,
-    ),
+    writeFile(join(currentConsumer, "plans", "compatibility.json"), currentPlanBytes),
+    writeFile(join(publishedConsumer, "plans", "compatibility.json"), publishedPlanBytes),
   ]);
   const [currentReceipt, publishedReceipt] = await settleScaffoldingOperations([
     runScaffolding(current.cliPath, currentConsumer, [
       "scaffold-apply",
       "plans/compatibility.json",
     ]),
-    runPublishedScaffolding(published.packageRoot, publishedConsumer, "apply", "plans/compatibility.json"),
+    runPublishedScaffolding(
+      published.packageRoot,
+      publishedConsumer,
+      "apply",
+      "plans/compatibility.json",
+    ),
   ]);
   const currentReceiptValue = JSON.parse(currentReceipt);
   const publishedReceiptValue = JSON.parse(publishedReceipt);
-  const currentReceiptProjection = projectScaffoldReceiptCompatibility(
-    currentReceiptValue,
-    {
-      originalPlanDigest: currentPlan.planDigest,
-      projectedPlanDigest: currentPlanProjection.planDigest,
-    },
-  );
-  const publishedReceiptProjection = projectScaffoldReceiptCompatibility(
-    publishedReceiptValue,
-    {
-      originalPlanDigest: publishedPlan.planDigest,
-      projectedPlanDigest: publishedPlanProjection.planDigest,
-    },
-  );
+  const currentReceiptProjection = projectScaffoldReceiptCompatibility(currentReceiptValue, {
+    originalPlanDigest: currentPlan.planDigest,
+    projectedPlanDigest: currentPlanProjection.planDigest,
+  });
+  const publishedReceiptProjection = projectScaffoldReceiptCompatibility(publishedReceiptValue, {
+    originalPlanDigest: publishedPlan.planDigest,
+    projectedPlanDigest: publishedPlanProjection.planDigest,
+  });
   if (!isDeepStrictEqual(currentReceiptProjection, publishedReceiptProjection)) {
     throw new Error(
       `Current packed ScaffoldReceipt semantics differ from published Foundation ${publishedVersion}.`,

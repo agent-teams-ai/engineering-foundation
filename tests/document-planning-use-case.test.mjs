@@ -7,7 +7,7 @@ const digest = (source) => sha256Bytes(new TextEncoder().encode(source));
 const evidence = (path, source) => ({
   path,
   digest: digest(source),
-  size: new TextEncoder().encode(source).byteLength
+  size: new TextEncoder().encode(source).byteLength,
 });
 
 function fixture(overrides = {}) {
@@ -21,7 +21,7 @@ function fixture(overrides = {}) {
     id: "ADR-0083",
     title: "Deterministic planning",
     owner: "architecture/tooling",
-    summary: "Plans exact governed documentation bytes."
+    summary: "Plans exact governed documentation bytes.",
   };
   const artifact = {
     type: "adr",
@@ -30,11 +30,11 @@ function fixture(overrides = {}) {
     placement: {
       kind: "collection",
       directory: "docs/decisions",
-      filename: "numeric-id-slug"
+      filename: "numeric-id-slug",
     },
     template: { kind: "fenced-markdown-body", path: templateEvidence.path },
-    heading: { kind: "id-colon-title" }
-    ,reachability: { kind: "not-required" }
+    heading: { kind: "id-colon-title" },
+    reachability: { kind: "not-required" },
   };
   const profile = {
     artifactTypes: [artifact],
@@ -43,20 +43,20 @@ function fixture(overrides = {}) {
     excludedPrefixes: ["node_modules"],
     metadataSchemaPath: metadataEvidence.path,
     ownerCatalog: { contract: "foundation.owner-map/v1", path: ownerEvidence.path },
-    projectId: "fixture-project"
+    projectId: "fixture-project",
   };
   const catalog = {
     authority: {
       metadataSchema: metadataEvidence,
       ownerCatalog: ownerEvidence,
-      profile: profileEvidence
+      profile: profileEvidence,
     },
     diagnostics: [],
     documents: [],
     identityProjection: [],
     ownerIds: [intent.owner],
     projectId: profile.projectId,
-    status: "complete"
+    status: "complete",
   };
   const calls = [];
   let profileReads = 0;
@@ -65,12 +65,12 @@ function fixture(overrides = {}) {
       async execute() {
         calls.push("catalog");
         return catalog;
-      }
+      },
     },
     compiler: {
       id: "@agent-teams/engineering-foundation",
       version: "0.14.0",
-      buildIdentity: digest("build")
+      buildIdentity: digest("build"),
     },
     contracts: {
       async validateIntent(value) {
@@ -80,7 +80,7 @@ function fixture(overrides = {}) {
       async validatePlan(value) {
         calls.push("validate-plan");
         return value;
-      }
+      },
     },
     metadata: {
       async load() {
@@ -90,15 +90,15 @@ function fixture(overrides = {}) {
           validate(value) {
             calls.push("validate-metadata");
             return { messages: [], valid: value.id === intent.id };
-          }
+          },
         };
-      }
+      },
     },
     owners: {
       async read() {
         calls.push("owners");
         return { evidence: ownerEvidence, ids: [intent.owner] };
-      }
+      },
     },
     policies: {
       normalizeDocumentIntent(value) {
@@ -115,7 +115,7 @@ function fixture(overrides = {}) {
           artifact: selected,
           destination: "docs/decisions/0083-deterministic-planning.md",
           heading: `${value.id}: ${value.title}`,
-          slug: "deterministic-planning"
+          slug: "deterministic-planning",
         };
       },
       isDestinationCoveredByCatalog() {
@@ -126,14 +126,14 @@ function fixture(overrides = {}) {
         calls.push("preimage");
         assert.equal(input.observedBytes, undefined);
         return { identityProjection: catalog.identityProjection, isExactSelf: false };
-      }
+      },
     },
     profile: {
       async read() {
         calls.push("profile");
         profileReads += 1;
         return profile;
-      }
+      },
     },
     renderer: {
       parseTemplate() {
@@ -143,7 +143,7 @@ function fixture(overrides = {}) {
       render(input) {
         calls.push("render");
         return `---\nid: ${input.frontmatter.id}\ntype: adr\nstatus: accepted\nowner: architecture/tooling\nsummary: Plans exact governed documentation bytes.\n---\n\n# ${input.heading}\n\nBody.\n`;
-      }
+      },
     },
     state: {
       async observe() {
@@ -153,17 +153,17 @@ function fixture(overrides = {}) {
           expectedParent: {
             path: "docs/decisions",
             state: "directory",
-            ancestry: "real-directories"
-          }
+            ancestry: "real-directories",
+          },
         };
-      }
+      },
     },
     templates: {
       async read() {
         calls.push("template");
         return { evidence: templateEvidence, source: "template" };
-      }
-    }
+      },
+    },
   };
   Object.assign(dependencies, overrides);
   return { calls, dependencies, intent, profileReads: () => profileReads };
@@ -174,7 +174,7 @@ test("plans exact bytes through read-only ports and recaptures every authority",
   const plan = await new PlanDocumentationDocument(setup.dependencies).execute({
     consumerRoot: "/disposable-fixture",
     profilePath: "architecture/foundation/document-authoring.yaml",
-    intent: setup.intent
+    intent: setup.intent,
   });
 
   assert.equal(plan.destination, "docs/decisions/0083-deterministic-planning.md");
@@ -187,7 +187,10 @@ test("plans exact bytes through read-only ports and recaptures every authority",
   assert.equal(setup.calls.filter((call) => call === "metadata").length, 2);
   assert.equal(setup.calls.filter((call) => call === "owners").length, 2);
   assert.equal(setup.calls.filter((call) => call === "template").length, 3);
-  assert.equal(setup.calls.some((call) => /write|reserve|publish/u.test(call)), false);
+  assert.equal(
+    setup.calls.some((call) => /write|reserve|publish/u.test(call)),
+    false,
+  );
 });
 
 test("fails closed when recaptured authority changes", async () => {
@@ -197,7 +200,7 @@ test("fails closed when recaptured authority changes", async () => {
     reads += 1;
     return {
       evidence: evidence("docs/templates/adr.md", reads === 1 ? "template" : "changed"),
-      source: "template"
+      source: "template",
     };
   };
 
@@ -205,9 +208,9 @@ test("fails closed when recaptured authority changes", async () => {
     new PlanDocumentationDocument(setup.dependencies).execute({
       consumerRoot: "/disposable-fixture",
       profilePath: "architecture/foundation/document-authoring.yaml",
-      intent: setup.intent
+      intent: setup.intent,
     }),
-    (error) => error?.code === "DOCUMENT_PLANNING_AUTHORITY_CHANGED"
+    (error) => error?.code === "DOCUMENT_PLANNING_AUTHORITY_CHANGED",
   );
 });
 
@@ -219,17 +222,18 @@ test("fails closed when the final catalog or destination snapshot changes", asyn
     catalogReads += 1;
     return catalogReads === 1
       ? stableCatalog
-      : { ...stableCatalog, identityProjection: [
-          { id: "ADR-0099", repositoryPath: "docs/decisions/0099-race.md" }
-        ] };
+      : {
+          ...stableCatalog,
+          identityProjection: [{ id: "ADR-0099", repositoryPath: "docs/decisions/0099-race.md" }],
+        };
   };
   await assert.rejects(
     new PlanDocumentationDocument(catalogSetup.dependencies).execute({
       consumerRoot: "/disposable-fixture",
       profilePath: "architecture/foundation/document-authoring.yaml",
-      intent: catalogSetup.intent
+      intent: catalogSetup.intent,
     }),
-    (error) => error?.code === "DOCUMENT_PLANNING_AUTHORITY_CHANGED"
+    (error) => error?.code === "DOCUMENT_PLANNING_AUTHORITY_CHANGED",
   );
 
   const stateSetup = fixture();
@@ -237,23 +241,24 @@ test("fails closed when the final catalog or destination snapshot changes", asyn
   stateSetup.dependencies.state.observe = async () => {
     stateReads += 1;
     return {
-      destination: stateReads === 1
-        ? { state: "absent" }
-        : { state: "regular-file", bytes: new TextEncoder().encode("raced") },
+      destination:
+        stateReads === 1
+          ? { state: "absent" }
+          : { state: "regular-file", bytes: new TextEncoder().encode("raced") },
       expectedParent: {
         path: "docs/decisions",
         state: "directory",
-        ancestry: "real-directories"
-      }
+        ancestry: "real-directories",
+      },
     };
   };
   await assert.rejects(
     new PlanDocumentationDocument(stateSetup.dependencies).execute({
       consumerRoot: "/disposable-fixture",
       profilePath: "architecture/foundation/document-authoring.yaml",
-      intent: stateSetup.intent
+      intent: stateSetup.intent,
     }),
-    (error) => error?.code === "DOCUMENT_PLANNING_AUTHORITY_CHANGED"
+    (error) => error?.code === "DOCUMENT_PLANNING_AUTHORITY_CHANGED",
   );
 });
 
@@ -262,25 +267,29 @@ test("admits decomposed catalog text but catches a third template read drift", a
   const stableCatalog = await catalogSetup.dependencies.catalog.execute();
   catalogSetup.dependencies.catalog.execute = async () => ({
     ...stableCatalog,
-    documents: [{
-      id: "ADR-0001",
-      owner: "architecture/tooling",
-      repositoryPath: "docs/decisions/0001-neighbor.md",
-      source: "markdown-tree",
-      status: "accepted",
-      summary: "Cafe\u0301 is valid catalog text.",
-      title: "Cafe\u0301",
-      type: "adr"
-    }],
-    identityProjection: [{
-      id: "ADR-0001",
-      repositoryPath: "docs/decisions/0001-neighbor.md"
-    }]
+    documents: [
+      {
+        id: "ADR-0001",
+        owner: "architecture/tooling",
+        repositoryPath: "docs/decisions/0001-neighbor.md",
+        source: "markdown-tree",
+        status: "accepted",
+        summary: "Cafe\u0301 is valid catalog text.",
+        title: "Cafe\u0301",
+        type: "adr",
+      },
+    ],
+    identityProjection: [
+      {
+        id: "ADR-0001",
+        repositoryPath: "docs/decisions/0001-neighbor.md",
+      },
+    ],
   });
   await new PlanDocumentationDocument(catalogSetup.dependencies).execute({
     consumerRoot: "/disposable-fixture",
     profilePath: "architecture/foundation/document-authoring.yaml",
-    intent: catalogSetup.intent
+    intent: catalogSetup.intent,
   });
 
   const templateSetup = fixture();
@@ -290,18 +299,18 @@ test("admits decomposed catalog text but catches a third template read drift", a
     return {
       evidence: evidence(
         "docs/templates/adr.md",
-        templateReads < 3 ? "template" : "changed-after-catalog"
+        templateReads < 3 ? "template" : "changed-after-catalog",
       ),
-      source: "template"
+      source: "template",
     };
   };
   await assert.rejects(
     new PlanDocumentationDocument(templateSetup.dependencies).execute({
       consumerRoot: "/disposable-fixture",
       profilePath: "architecture/foundation/document-authoring.yaml",
-      intent: templateSetup.intent
+      intent: templateSetup.intent,
     }),
-    (error) => error?.code === "DOCUMENT_PLANNING_AUTHORITY_CHANGED"
+    (error) => error?.code === "DOCUMENT_PLANNING_AUTHORITY_CHANGED",
   );
 });
 
@@ -314,8 +323,8 @@ test("honors cancellation before dependency calls and before returning", async (
       consumerRoot: "/disposable-fixture",
       profilePath: "architecture/foundation/document-authoring.yaml",
       intent: early.intent,
-      signal: earlyAbort.signal
-    })
+      signal: earlyAbort.signal,
+    }),
   );
   assert.deepEqual(early.calls, []);
 
@@ -330,8 +339,8 @@ test("honors cancellation before dependency calls and before returning", async (
       consumerRoot: "/disposable-fixture",
       profilePath: "architecture/foundation/document-authoring.yaml",
       intent: late.intent,
-      signal: lateAbort.signal
-    })
+      signal: lateAbort.signal,
+    }),
   );
 });
 
@@ -345,18 +354,18 @@ test("rejects a partial catalog before emitting a Plan", async () => {
         message: "Malformed neighbor.",
         ruleId: "document.catalog.invalid",
         severity: "error",
-        subject: "docs/bad.md"
-      }
-    ]
+        subject: "docs/bad.md",
+      },
+    ],
   });
 
   await assert.rejects(
     new PlanDocumentationDocument(setup.dependencies).execute({
       consumerRoot: "/disposable-fixture",
       profilePath: "architecture/foundation/document-authoring.yaml",
-      intent: setup.intent
+      intent: setup.intent,
     }),
-    (error) => error?.code === "DOCUMENT_PLANNING_CATALOG_PARTIAL"
+    (error) => error?.code === "DOCUMENT_PLANNING_CATALOG_PARTIAL",
   );
 });
 
@@ -373,8 +382,8 @@ test("replays only a policy-proven exact logical self", async () => {
     expectedParent: {
       path: "docs/decisions",
       state: "directory",
-      ancestry: "real-directories"
-    }
+      ancestry: "real-directories",
+    },
   });
   setup.dependencies.policies.classifyDocumentLogicalPreimage = (input) => {
     assert.deepEqual(input.observedBytes, input.expectedBytes);
@@ -384,7 +393,7 @@ test("replays only a policy-proven exact logical self", async () => {
   const plan = await new PlanDocumentationDocument(setup.dependencies).execute({
     consumerRoot: "/disposable-fixture",
     profilePath: "architecture/foundation/document-authoring.yaml",
-    intent: setup.intent
+    intent: setup.intent,
   });
   assert.equal(plan.destinationPrecondition.state, "absent");
 });
@@ -396,20 +405,20 @@ test("rejects regular files that policy does not prove as exact self", async () 
     expectedParent: {
       path: "docs/decisions",
       state: "directory",
-      ancestry: "real-directories"
-    }
+      ancestry: "real-directories",
+    },
   });
   setup.dependencies.policies.classifyDocumentLogicalPreimage = () => ({
     identityProjection: [],
-    isExactSelf: false
+    isExactSelf: false,
   });
 
   await assert.rejects(
     new PlanDocumentationDocument(setup.dependencies).execute({
       consumerRoot: "/disposable-fixture",
       profilePath: "architecture/foundation/document-authoring.yaml",
-      intent: setup.intent
+      intent: setup.intent,
     }),
-    (error) => error?.code === "DOCUMENT_PLANNING_CONFLICT"
+    (error) => error?.code === "DOCUMENT_PLANNING_CONFLICT",
   );
 });

@@ -1,12 +1,13 @@
-import { CapabilityInputError,assertNotCancelled } from "../../../../features/validation-reporting/api.js";
+import type { PublicApiSignatureEquivalence } from "../ports/public-api-signature-equivalence.js";
+import {
+  CapabilityInputError,
+  assertNotCancelled,
+} from "../../../../features/validation-reporting/api.js";
 import {
   sameNumberedPrereleaseTrain,
-  semanticVersionBumpBetween
+  semanticVersionBumpBetween,
 } from "../../../../semantic-version.js";
-import type {
-  PublicApiCompatibilityPolicy,
-  PublicApiSnapshot
-} from "../model/public-api.js";
+import type { PublicApiCompatibilityPolicy, PublicApiSnapshot } from "../model/public-api.js";
 import type { PublicApiExtractor } from "../ports/public-api-extractor.js";
 import type { AcceptedDecisionEvidencePort } from "../ports/accepted-decision-evidence.js";
 import type { ChangeFingerprint } from "../ports/change-fingerprint.js";
@@ -15,14 +16,17 @@ import { approvedBreakingChangeReference } from "../model/public-api.js";
 import { isApprovedBreakingChangeAccepted } from "../policies/accepted-breaking-change.js";
 import { classifyPublicApiChange } from "../policies/evaluate-public-api-compatibility.js";
 import { collectUnchangedPublicTypeBindings } from "../policies/default-type-argument-equivalence.js";
-import { evaluateBaselineBootstrapPolicy, initialUnreleasedVersion } from "../policies/evaluate-initial-release.js";
+import {
+  evaluateBaselineBootstrapPolicy,
+  initialUnreleasedVersion,
+} from "../policies/evaluate-initial-release.js";
 
 function promotionError(code: string, message: string): never {
   throw new CapabilityInputError({
     code,
     message,
     phase: "public-api-baseline-promotion",
-    retryable: false
+    retryable: false,
   });
 }
 
@@ -40,15 +44,11 @@ function effectiveReleaseBump(input: {
   }
   const prereleaseLineBump = semanticVersionBumpBetween(
     input.prereleaseInitialVersion,
-    input.candidateVersion
+    input.candidateVersion,
   );
   if (
     prereleaseLineBump === undefined ||
-    !sameNumberedPrereleaseTrain(
-      input.releasedVersion,
-      input.candidateVersion,
-      input.prereleaseTag
-    )
+    !sameNumberedPrereleaseTrain(input.releasedVersion, input.candidateVersion, input.prereleaseTag)
   ) {
     return input.actualBump;
   }
@@ -57,36 +57,38 @@ function effectiveReleaseBump(input: {
 
 function assertReviewedBootstrap(
   packagePolicy: PublicApiCompatibilityPolicy["packages"][number],
-  releaseEvidence: Awaited<ReturnType<PublicApiRepository["readReleaseEvidence"]>>
+  releaseEvidence: Awaited<ReturnType<PublicApiRepository["readReleaseEvidence"]>>,
 ): void {
   const result = evaluateBaselineBootstrapPolicy(packagePolicy.packageName, releaseEvidence);
-  if (result.status === "accepted") { return; }
+  if (result.status === "accepted") {
+    return;
+  }
   if (result.failure === "version-not-initial" || result.failure === "package-mismatch") {
     promotionError(
       "PUBLIC_API_BASELINE_BOOTSTRAP_NOT_INITIAL",
-      `Missing baseline for ${packagePolicy.packageName} can be bootstrapped only for that exact package at the initial unreleased version ${initialUnreleasedVersion}.`
+      `Missing baseline for ${packagePolicy.packageName} can be bootstrapped only for that exact package at the initial unreleased version ${initialUnreleasedVersion}.`,
     );
   }
   if (result.failure === "changeset-missing") {
     promotionError(
       "PUBLIC_API_BASELINE_BOOTSTRAP_CHANGESET_MISSING",
-      `Initial public API baseline for ${packagePolicy.packageName} requires a Changeset.`
+      `Initial public API baseline for ${packagePolicy.packageName} requires a Changeset.`,
     );
   }
   promotionError(
     "PUBLIC_API_BASELINE_BOOTSTRAP_CHANGESET_INSUFFICIENT",
-    `Initial public API baseline for ${packagePolicy.packageName} requires at least a minor Changeset.`
+    `Initial public API baseline for ${packagePolicy.packageName} requires at least a minor Changeset.`,
   );
 }
 
 function assertExtractorVersionMatch(
   released: PublicApiSnapshot,
-  current: PublicApiSnapshot
+  current: PublicApiSnapshot,
 ): void {
   if (released.extractorVersion !== current.extractorVersion) {
     promotionError(
       "PUBLIC_API_BASELINE_PROMOTION_TOOL_MISMATCH",
-      `API Extractor changed from ${released.extractorVersion} to ${current.extractorVersion}; migrate the baseline in an explicitly reviewed tool-upgrade change.`
+      `API Extractor changed from ${released.extractorVersion} to ${current.extractorVersion}; migrate the baseline in an explicitly reviewed tool-upgrade change.`,
     );
   }
 }
@@ -100,7 +102,7 @@ interface PromotionPackage {
 
 async function loadPromotionPackages(
   input: Parameters<typeof promotePublicApiBaselines>[0],
-  dependencies: Parameters<typeof promotePublicApiBaselines>[1]
+  dependencies: Parameters<typeof promotePublicApiBaselines>[1],
 ): Promise<readonly PromotionPackage[]> {
   const packages: PromotionPackage[] = [];
   for (const packagePolicy of input.policy.packages) {
@@ -110,20 +112,20 @@ async function loadPromotionPackages(
         input.consumerRoot,
         packagePolicy,
         input.signal,
-        "release-promotion"
+        "release-promotion",
       ),
       dependencies.repository.readReleaseEvidence(
         input.consumerRoot,
         input.policy.changesetDirectory,
         packagePolicy,
-        input.signal
-      )
+        input.signal,
+      ),
     ]);
     const current = await dependencies.extractor.extract(
       input.consumerRoot,
       packagePolicy,
       releaseEvidence.packageVersion,
-      input.signal
+      input.signal,
     );
     packages.push({ packagePolicy, released, releaseEvidence, current });
   }
@@ -141,7 +143,8 @@ export async function promotePublicApiBaselines(
     readonly fingerprint: ChangeFingerprint;
     readonly repository: PublicApiRepository;
     readonly acceptedDecisionEvidence: AcceptedDecisionEvidencePort;
-  }
+    readonly signatures?: PublicApiSignatureEquivalence;
+  },
 ): Promise<readonly PublicApiSnapshot[]> {
   const promotions: Array<{
     readonly mode: "create" | "replace";
@@ -154,8 +157,8 @@ export async function promotePublicApiBaselines(
   const packages = await loadPromotionPackages(input, dependencies);
   const stableTypeBindings = collectUnchangedPublicTypeBindings(
     packages.flatMap(({ released, current }) =>
-      released === undefined ? [] : [{ released, current }]
-    )
+      released === undefined ? [] : [{ released, current }],
+    ),
   );
   for (const { packagePolicy, released, releaseEvidence, current } of packages) {
     assertNotCancelled(input.signal);
@@ -169,25 +172,26 @@ export async function promotePublicApiBaselines(
       released,
       current,
       dependencies.fingerprint,
-      stableTypeBindings
+      stableTypeBindings,
+      dependencies.signatures,
     );
     if (released.packageVersion === releaseEvidence.packageVersion) {
       if (change.classification !== "none") {
         promotionError(
           "PUBLIC_API_BASELINE_PROMOTION_RELEASE_DRIFT",
-          `Package ${packagePolicy.packageName} changed after baseline ${released.packageVersion} was promoted.`
+          `Package ${packagePolicy.packageName} changed after baseline ${released.packageVersion} was promoted.`,
         );
       }
       continue;
     }
     const actualBump = semanticVersionBumpBetween(
       released.packageVersion,
-      releaseEvidence.packageVersion
+      releaseEvidence.packageVersion,
     );
     if (actualBump === undefined) {
       promotionError(
         "PUBLIC_API_BASELINE_PROMOTION_NOT_RELEASE",
-        `Package ${packagePolicy.packageName} must have a version newer than released baseline ${released.packageVersion}.`
+        `Package ${packagePolicy.packageName} must have a version newer than released baseline ${released.packageVersion}.`,
       );
     }
     const requiredBump =
@@ -201,22 +205,22 @@ export async function promotePublicApiBaselines(
       candidateVersion: releaseEvidence.packageVersion,
       prereleaseInitialVersion: releaseEvidence.prereleaseInitialVersion,
       prereleaseTag: releaseEvidence.prereleaseTag,
-      releasedVersion: released.packageVersion
+      releasedVersion: released.packageVersion,
     });
     if (BUMP_RANK[effectiveBump] < BUMP_RANK[requiredBump]) {
       promotionError(
         "PUBLIC_API_BASELINE_PROMOTION_VERSION_INSUFFICIENT",
-        `API change for ${packagePolicy.packageName} requires ${requiredBump}; release intent advances by ${effectiveBump}.`
+        `API change for ${packagePolicy.packageName} requires ${requiredBump}; release intent advances by ${effectiveBump}.`,
       );
     }
     if (change.classification === "breaking") {
       const approval = packagePolicy.approvedBreakingChanges.find(
-        (candidate) => candidate.fingerprint === change.fingerprint
+        (candidate) => candidate.fingerprint === change.fingerprint,
       );
       if (approval === undefined) {
         promotionError(
           "PUBLIC_API_BASELINE_PROMOTION_UNAPPROVED_BREAK",
-          `Breaking API fingerprint is not approved: ${change.fingerprint ?? "missing"}.`
+          `Breaking API fingerprint is not approved: ${change.fingerprint ?? "missing"}.`,
         );
       }
       const baselinePath = input.policy.acceptedDecisionBaselinePath;
@@ -224,7 +228,7 @@ export async function promotePublicApiBaselines(
       if (governanceConfigPath === undefined) {
         promotionError(
           "PUBLIC_API_BASELINE_PROMOTION_DECISION_EVIDENCE_MISSING",
-          "Breaking API approval requires architecture-governance evidence."
+          "Breaking API approval requires architecture-governance evidence.",
         );
       }
       acceptedDecisionEvidence ??=
@@ -232,12 +236,12 @@ export async function promotePublicApiBaselines(
           consumerRoot: input.consumerRoot,
           baselinePath,
           governanceConfigPath,
-          ...(input.signal === undefined ? {} : { signal: input.signal })
+          ...(input.signal === undefined ? {} : { signal: input.signal }),
         });
       if (!isApprovedBreakingChangeAccepted(approval, acceptedDecisionEvidence)) {
         promotionError(
           "PUBLIC_API_BASELINE_PROMOTION_DECISION_NOT_ACCEPTED",
-          `Breaking API decision is not accepted: ${approvedBreakingChangeReference(approval)}.`
+          `Breaking API decision is not accepted: ${approvedBreakingChangeReference(approval)}.`,
         );
       }
     }
@@ -251,7 +255,7 @@ export async function promotePublicApiBaselines(
       promotion.packagePolicy,
       promotion.snapshot,
       input.signal,
-      promotion.mode
+      promotion.mode,
     );
   }
 

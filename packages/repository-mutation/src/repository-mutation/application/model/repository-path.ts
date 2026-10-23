@@ -4,7 +4,7 @@ const WINDOWS_RESERVED_NAMES = new Set([
   "NUL",
   "PRN",
   ...Array.from({ length: 9 }, (_unused, index) => `COM${index + 1}`),
-  ...Array.from({ length: 9 }, (_unused, index) => `LPT${index + 1}`)
+  ...Array.from({ length: 9 }, (_unused, index) => `LPT${index + 1}`),
 ]);
 
 export type PortableRepositoryPathProblem =
@@ -31,12 +31,9 @@ function isPortableAbsolutePath(repositoryPath: string): boolean {
 }
 
 export function portableRepositoryPathProblem(
-  repositoryPath: string
+  repositoryPath: string,
 ): PortableRepositoryPathProblem | undefined {
-  if (
-    repositoryPath.length > 512 ||
-    new TextEncoder().encode(repositoryPath).byteLength > 512
-  ) {
+  if (repositoryPath.length > 512 || new TextEncoder().encode(repositoryPath).byteLength > 512) {
     return "path-too-long";
   }
   if (isPortableAbsolutePath(repositoryPath)) {
@@ -53,10 +50,7 @@ export function portableRepositoryPathProblem(
     if (segment === "." || segment === "..") {
       return "invalid-segment";
     }
-    if (
-      segment.length > 255 ||
-      new TextEncoder().encode(segment).byteLength > 255
-    ) {
+    if (segment.length > 255 || new TextEncoder().encode(segment).byteLength > 255) {
       return "segment-too-long";
     }
     if (segment.endsWith(".")) {
@@ -88,7 +82,7 @@ export function portableRepositoryPathIdentity(repositoryPath: string): string {
 }
 
 export function findPortableRepositoryPathCollision(
-  repositoryPaths: readonly string[]
+  repositoryPaths: readonly string[],
 ): { readonly first: string; readonly second: string } | undefined {
   const observed = new Map<string, string>();
   for (const repositoryPath of repositoryPaths) {
@@ -103,12 +97,12 @@ export function findPortableRepositoryPathCollision(
 }
 
 export function findPortableRepositoryPathOverlap(
-  repositoryPaths: readonly string[]
+  repositoryPaths: readonly string[],
 ): { readonly ancestor: string; readonly descendant: string } | undefined {
   // A sibling such as "managed-other" can sort between an ancestor and its
   // descendant. Match every segment prefix using the collision identity.
   const pathsByIdentity = new Map(
-    repositoryPaths.map((path) => [portableRepositoryPathIdentity(path), path])
+    repositoryPaths.map((path) => [portableRepositoryPathIdentity(path), path]),
   );
   for (const descendant of repositoryPaths) {
     const segments = portableRepositoryPathIdentity(descendant).split("/");

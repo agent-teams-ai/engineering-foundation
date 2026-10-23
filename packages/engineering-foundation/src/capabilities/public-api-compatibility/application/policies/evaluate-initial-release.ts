@@ -16,7 +16,7 @@ export const initialUnreleasedVersion = "0.0.0" as const;
 /** First-surface release policy; publication absence is independently qualified. */
 export function evaluateInitialReleasePolicy(
   expectedPackageName: string,
-  releaseEvidence: PackageReleaseEvidence
+  releaseEvidence: PackageReleaseEvidence,
 ): InitialReleasePolicyResult {
   if (releaseEvidence.packageName !== expectedPackageName) {
     return { status: "rejected", failure: "package-mismatch" };
@@ -36,9 +36,12 @@ export function evaluateInitialReleasePolicy(
 /** Missing v1 baselines may only be created at the adoption bootstrap version. */
 export function evaluateBaselineBootstrapPolicy(
   expectedPackageName: string,
-  releaseEvidence: PackageReleaseEvidence
+  releaseEvidence: PackageReleaseEvidence,
 ): InitialReleasePolicyResult {
-  if (releaseEvidence.packageName === expectedPackageName && releaseEvidence.packageVersion !== initialUnreleasedVersion) {
+  if (
+    releaseEvidence.packageName === expectedPackageName &&
+    releaseEvidence.packageVersion !== initialUnreleasedVersion
+  ) {
     return { status: "rejected", failure: "version-not-initial" };
   }
   return evaluateInitialReleasePolicy(expectedPackageName, releaseEvidence);

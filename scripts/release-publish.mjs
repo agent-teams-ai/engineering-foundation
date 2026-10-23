@@ -1,6 +1,6 @@
+import { packagePayloadDigest } from "./release-package-payload.ts";
 import { qualifyRegistryHistory } from "./npm-registry-history.ts";
-import { createHash } from "node:crypto";
-import { readFile, readdir, readlink } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { join, relative, sep } from "node:path";
 import { parse as parseYaml } from "yaml";
 
@@ -9,7 +9,10 @@ import {
   assertExactChangesetInventory,
   exactChangesetPreState,
 } from "./release-changeset-state.mjs";
-import { changesetsPublishArguments, releasePublishInvocation } from "./release-publish-command.mjs";
+import {
+  changesetsPublishArguments,
+  releasePublishInvocation,
+} from "./release-publish-command.mjs";
 import {
   NPM_PACKAGE_BOOTSTRAP,
   assertBootstrapRegistryVersionHistory,
@@ -31,7 +34,13 @@ const allowedPrereleaseTag = "rc";
 const changesetMetadataFiles = new Set(["config.json", "pre.json"]);
 const workspacePackageGlobs = Object.freeze(["packages/*", "spikes/*"]);
 const releaseControlPaths = Object.freeze([
-  ".node-version", ".npmrc", ".pnpmfile.cjs", "bunfig.toml", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml",
+  ".node-version",
+  ".npmrc",
+  ".pnpmfile.cjs",
+  "bunfig.toml",
+  "package.json",
+  "pnpm-lock.yaml",
+  "pnpm-workspace.yaml",
 ]);
 const workspaceRoots = Object.freeze(workspacePackageGlobs.map((pattern) => pattern.slice(0, -2)));
 const registryTimeoutMilliseconds = 10_000;
@@ -84,7 +93,9 @@ function validPrereleaseProgression(packageInfo, initialVersion) {
   }
   const initial = parseStableVersion(initialVersion);
   const target = parseRcVersion(packageInfo.version);
-  return initial !== undefined && target !== undefined && compareVersionCore(target.core, initial) > 0;
+  return (
+    initial !== undefined && target !== undefined && compareVersionCore(target.core, initial) > 0
+  );
 }
 
 function exactPrereleasePackageSet(packages, preState) {
@@ -92,14 +103,19 @@ function exactPrereleasePackageSet(packages, preState) {
     return false;
   }
   const workspacePackages = [...packages.private, ...packages.public];
-  const workspaceByName = new Map(workspacePackages.map((packageInfo) => [packageInfo.name, packageInfo]));
+  const workspaceByName = new Map(
+    workspacePackages.map((packageInfo) => [packageInfo.name, packageInfo]),
+  );
   const initialEntries = Object.entries(preState.initialVersions);
   return (
     initialEntries.every(([name]) => workspaceByName.has(name)) &&
     packages.private.every(({ name, version }) => preState.initialVersions[name] === version) &&
     packages.public.every((packageInfo) => {
       const initialVersion = preState.initialVersions[packageInfo.name];
-      return typeof initialVersion === "string" && validPrereleaseProgression(packageInfo, initialVersion);
+      return (
+        typeof initialVersion === "string" &&
+        validPrereleaseProgression(packageInfo, initialVersion)
+      );
     }) &&
     initialEntries.length === workspacePackages.length
   );
@@ -130,7 +146,9 @@ export function releasePublishDecision({ inventory, packages, preState }) {
     throw new Error("Release publication requires at least one cataloged public package.");
   }
   if (preState !== undefined) {
-    const hasRcRelease = packages.public.some(({ version }) => parseRcVersion(version) !== undefined);
+    const hasRcRelease = packages.public.some(
+      ({ version }) => parseRcVersion(version) !== undefined,
+    );
     if (
       !exactChangesetPreState(preState) ||
       preState.mode !== "pre" ||
@@ -145,7 +163,9 @@ export function releasePublishDecision({ inventory, packages, preState }) {
     return { action: "publish", tag: allowedPrereleaseTag };
   }
   if (packages.public.some(({ version }) => parseStableVersion(version) === undefined)) {
-    throw new Error("Stable publication requires strict SemVer release versions and no prereleases.");
+    throw new Error(
+      "Stable publication requires strict SemVer release versions and no prereleases.",
+    );
   }
   return { action: "publish", tag: undefined };
 }
@@ -180,36 +200,6 @@ async function workspaceEntries(cwd, workspaceRoot) {
   }
 }
 
-async function updatePackagePayloadHash(hash, root, directory = "") {
-  const entries = await readdir(join(root, directory), { withFileTypes: true });
-  for (const entry of entries.toSorted((left, right) => left.name.localeCompare(right.name))) {
-    if (entry.name === "node_modules" || entry.name === ".git") {
-      continue;
-    }
-    const relativePath = join(directory, entry.name);
-    const absolutePath = join(root, relativePath);
-    hash.update(`${portablePath(root, absolutePath)}\0`);
-    if (entry.isDirectory()) {
-      hash.update("directory\0");
-      await updatePackagePayloadHash(hash, root, relativePath);
-    } else if (entry.isSymbolicLink()) {
-      hash.update(`symlink\0${await readlink(absolutePath)}\0`);
-    } else if (entry.isFile()) {
-      const bytes = await readFile(absolutePath);
-      hash.update(`file\0${bytes.length}\0`);
-      hash.update(bytes);
-    } else {
-      throw new Error(`Unsupported publish payload entry ${portablePath(root, absolutePath)}.`);
-    }
-  }
-}
-
-async function packagePayloadDigest(root) {
-  const hash = createHash("sha256");
-  await updatePackagePayloadHash(hash, root);
-  return hash.digest("hex");
-}
-
 function validateWorkspaceAuthority(controlFiles) {
   const workspaceBytes = controlFiles.find(({ path }) => path === "pnpm-workspace.yaml")?.bytes;
   const workspace = parseYaml(workspaceBytes);
@@ -220,7 +210,9 @@ function validateWorkspaceAuthority(controlFiles) {
     workspace.packages.some((pattern) => typeof pattern !== "string") ||
     workspace.packages.toSorted().join(",") !== workspacePackageGlobs.toSorted().join(",")
   ) {
-    throw new Error("pnpm workspace package globs must exactly match release package discovery roots.");
+    throw new Error(
+      "pnpm workspace package globs must exactly match release package discovery roots.",
+    );
   }
 }
 
@@ -235,7 +227,9 @@ export async function releasePackages(cwd) {
     const entries = await workspaceEntries(cwd, workspaceRoot);
     for (const entry of entries) {
       if (entry.isSymbolicLink()) {
-        throw new Error(`Symbolic workspace entry ${join(workspaceRoot, entry.name)} is forbidden.`);
+        throw new Error(
+          `Symbolic workspace entry ${join(workspaceRoot, entry.name)} is forbidden.`,
+        );
       }
       if (!entry.isDirectory()) {
         continue;
@@ -247,7 +241,9 @@ export async function releasePackages(cwd) {
       }
       const relativeManifestPath = portablePath(cwd, manifestPath);
       if (typeof manifest.name !== "string" || typeof manifest.version !== "string") {
-        throw new Error(`Workspace manifest ${relativeManifestPath} requires string name and version.`);
+        throw new Error(
+          `Workspace manifest ${relativeManifestPath} requires string name and version.`,
+        );
       }
       if (names.has(manifest.name)) {
         throw new Error(`Duplicate workspace package name ${manifest.name}.`);
@@ -278,7 +274,9 @@ export async function releasePackages(cwd) {
   }
   for (const catalogEntry of PUBLISHABLE_PACKAGES) {
     if (!discoveredCatalogPaths.has(catalogEntry.manifestPath)) {
-      throw new Error(`Required public package ${catalogEntry.name} is missing from its catalog path.`);
+      throw new Error(
+        `Required public package ${catalogEntry.name} is missing from its catalog path.`,
+      );
     }
   }
   return {
@@ -351,7 +349,9 @@ export async function registryPackageMetadata(packageInfo, fetchImplementation =
     return { distTags: {}, exists: false, versions: [] };
   }
   if (!response.ok) {
-    throw new Error(`Registry metadata request for ${packageInfo.name} failed with ${response.status}.`);
+    throw new Error(
+      `Registry metadata request for ${packageInfo.name} failed with ${response.status}.`,
+    );
   }
   const metadata = await response.json();
   if (
@@ -366,8 +366,12 @@ export async function registryPackageMetadata(packageInfo, fetchImplementation =
   return {
     distTags: Object.fromEntries(Object.entries(metadata["dist-tags"] ?? {}).toSorted()),
     exists: true,
-    ...await qualifyRegistryHistory(metadata,
-      NPM_PACKAGE_BOOTSTRAP.packages.find(entry => entry.name === packageInfo.name) ?? packageInfo, fetchImplementation),
+    ...(await qualifyRegistryHistory(
+      metadata,
+      NPM_PACKAGE_BOOTSTRAP.packages.find((entry) => entry.name === packageInfo.name) ??
+        packageInfo,
+      fetchImplementation,
+    )),
   };
 }
 
@@ -384,7 +388,8 @@ async function verifyPublishRegistryState(
   const registryState = [];
   for (const packageInfo of state.packages.public) {
     const metadata = await registryMetadata(packageInfo);
-    const bootstrapProfile = bootstrapCatalog.packages.find((entry) => entry.name === packageInfo.name) ?? packageInfo;
+    const bootstrapProfile =
+      bootstrapCatalog.packages.find((entry) => entry.name === packageInfo.name) ?? packageInfo;
     registryState.push({
       distTags: metadata.distTags,
       exists: metadata.exists,
@@ -397,21 +402,30 @@ async function verifyPublishRegistryState(
     const targetRc = parseRcVersion(packageInfo.version);
     const targetStable = parseStableVersion(packageInfo.version);
     const target =
-      targetRc ?? (targetStable === undefined ? undefined : { core: targetStable, iteration: undefined });
+      targetRc ??
+      (targetStable === undefined ? undefined : { core: targetStable, iteration: undefined });
     if (target === undefined) {
-      throw new Error(`Release ${packageInfo.name}@${packageInfo.version} has an unsupported version.`);
+      throw new Error(
+        `Release ${packageInfo.name}@${packageInfo.version} has an unsupported version.`,
+      );
     }
     if (targetRc !== undefined && (!metadata.exists || metadata.versions.length === 0)) {
       throw new Error(`Prerelease for ${packageInfo.name} requires stable registry history.`);
     }
-    const parsedVersions = assertBootstrapRegistryVersionHistory(bootstrapProfile, metadata.versions).map((version) => ({
+    const parsedVersions = assertBootstrapRegistryVersionHistory(
+      bootstrapProfile,
+      metadata.versions,
+    ).map((version) => ({
       parsed: parsePublishedVersion(version),
       version,
     }));
     if (parsedVersions.some(({ parsed }) => parsed === undefined)) {
       throw new Error(`Registry history for ${packageInfo.name} contains an unsupported version.`);
     }
-    if (targetRc !== undefined && parsedVersions.every(({ parsed }) => parsed.iteration !== undefined)) {
+    if (
+      targetRc !== undefined &&
+      parsedVersions.every(({ parsed }) => parsed.iteration !== undefined)
+    ) {
       throw new Error(
         `Changesets cannot safely preserve the rc tag for prerelease-only package ${packageInfo.name}.`,
       );
@@ -422,7 +436,9 @@ async function verifyPublishRegistryState(
           version !== packageInfo.version && comparePublishedVersions(target, parsed) <= 0,
       )
     ) {
-      throw new Error(`Release ${packageInfo.name}@${packageInfo.version} is not registry-monotonic.`);
+      throw new Error(
+        `Release ${packageInfo.name}@${packageInfo.version} is not registry-monotonic.`,
+      );
     }
   }
   assertBootstrapReleasePolicy(state, registryState, bootstrapCatalog);
@@ -431,9 +447,12 @@ async function verifyPublishRegistryState(
 
 export async function releaseState(cwd) {
   const preState = await readJsonIfPresent(join(cwd, ".changeset", "pre.json"));
-  const controlFiles = await Promise.all(releaseControlPaths.map(async (path) => ({
-    path, bytes: await readFile(join(cwd, path), "utf8"),
-  })));
+  const controlFiles = await Promise.all(
+    releaseControlPaths.map(async (path) => ({
+      path,
+      bytes: await readFile(join(cwd, path), "utf8"),
+    })),
+  );
   validateWorkspaceAuthority(controlFiles);
   return {
     controlFiles,
@@ -450,7 +469,8 @@ export async function main({
   publishOrdered = publishOrderedRelease,
   registryMetadata = registryPackageMetadata,
   verifyBootstrapBaselines = verifyReleaseBootstrapBaselines,
-  verifyRegistry = (state) => verifyPublishRegistryState(state, bootstrapCatalog, { registryMetadata }),
+  verifyRegistry = (state) =>
+    verifyPublishRegistryState(state, bootstrapCatalog, { registryMetadata }),
 } = {}) {
   const initialState = await inspectReleaseState(cwd);
   const decision = releasePublishDecision(initialState);
@@ -465,7 +485,9 @@ export async function main({
     }
     const verifiedState = await inspectReleaseState(cwd);
     if (JSON.stringify(verifiedState) !== JSON.stringify(initialState)) {
-      throw new Error("Release filesystem state changed while prerelease no-op was being verified.");
+      throw new Error(
+        "Release filesystem state changed while prerelease no-op was being verified.",
+      );
     }
     process.stdout.write("Fresh Changesets prerelease state has no releases; publish skipped.\n");
     return;

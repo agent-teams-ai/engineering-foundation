@@ -5,10 +5,10 @@ import { NodeDocumentEnvironmentInspector } from "./node-document-environment-in
 import type { DocumentEnvironmentInspection } from "../../application/ports/document-environment-inspector.js";
 
 export async function inspectDocumentAuthoringEnvironmentV1(
-  request: InspectDocumentAuthoringEnvironmentV1Request
+  request: InspectDocumentAuthoringEnvironmentV1Request,
 ): Promise<DocumentEnvironmentInspection> {
   return new NodeDocumentEnvironmentInspector({
     buildIdentity: installedDocumentAuthoringBuildIdentity,
-    version: installedDocumentAuthoringVersion
+    version: installedDocumentAuthoringVersion,
   }).inspect(request.consumerRoot, request.signal);
 }

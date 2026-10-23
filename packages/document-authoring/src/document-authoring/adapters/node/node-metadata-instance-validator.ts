@@ -2,12 +2,11 @@ import { assertDocumentAuthoringActive } from "../../application/policies/docume
 import type { DocumentFileReader } from "../../application/ports/document-file-reader.js";
 import { Ajv2020, type ErrorObject } from "ajv/dist/2020.js";
 
-
 import { parseStrictJson, StrictJsonError } from "@agent-teams/repository-mutation/serialization";
 import type {
   MetadataInstanceValidator,
   MetadataSchemaSnapshot,
-  MetadataValidationResult
+  MetadataValidationResult,
 } from "../../application/ports/metadata-instance-validator.js";
 import { DocumentCatalogError } from "../../application/model/document-catalog-error.js";
 import { readDocumentAuthorityFile } from "./read-document-authority-file.js";
@@ -22,7 +21,7 @@ function invalidSchema(message: string, cause?: unknown): never {
   throw new DocumentCatalogError(
     "DOCUMENT_CATALOG_INPUT_INVALID",
     message,
-    cause === undefined ? undefined : { cause }
+    cause === undefined ? undefined : { cause },
   );
 }
 
@@ -42,7 +41,7 @@ function assertLocalReferences(value: unknown): void {
     }
     if (["$async", "$dynamicRef", "$recursiveRef"].includes(key)) {
       invalidSchema(
-        "Document metadata schema may not use async, dynamic, or recursive validation."
+        "Document metadata schema may not use async, dynamic, or recursive validation.",
       );
     }
     assertLocalReferences(item);
@@ -54,8 +53,8 @@ function messages(errors: readonly ErrorObject[] | null | undefined): readonly s
     (errors ?? [])
       .slice(0, 16)
       .map((error) =>
-        `${error.instancePath || "/"} ${error.message ?? "is invalid"}`.slice(0, 1000)
-      )
+        `${error.instancePath || "/"} ${error.message ?? "is invalid"}`.slice(0, 1000),
+      ),
   );
 }
 
@@ -70,7 +69,7 @@ export class NodeMetadataInstanceValidator implements MetadataInstanceValidator 
     const file = await readDocumentAuthorityFile(this.readFile, {
       consumerRoot: request.consumerRoot,
       maxBytes: MAX_METADATA_SCHEMA_BYTES,
-      path: request.path
+      path: request.path,
     });
     assertDocumentAuthoringActive(request.signal);
     let schema: unknown;
@@ -94,7 +93,7 @@ export class NodeMetadataInstanceValidator implements MetadataInstanceValidator 
       // annotations for authors/tooling, not runtime-enforced constraints.
       // This is an intentional, accepted schema choice, not a
       // standard-compliance defect.
-      validateFormats: false
+      validateFormats: false,
     });
     let validate;
     try {
@@ -108,15 +107,13 @@ export class NodeMetadataInstanceValidator implements MetadataInstanceValidator 
       ...(Array.isArray(schema["required"]) &&
       schema["required"].every((item) => typeof item === "string")
         ? {
-            requiredProperties: Object.freeze(
-              [...new Set(schema["required"])].toSorted()
-            )
+            requiredProperties: Object.freeze([...new Set(schema["required"])].toSorted()),
           }
         : {}),
       validate(instance: unknown): MetadataValidationResult {
         const valid = validate(instance);
         return Object.freeze({ messages: messages(validate.errors), valid });
-      }
+      },
     });
   }
 }

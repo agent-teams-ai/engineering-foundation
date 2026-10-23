@@ -1,10 +1,31 @@
 import assert from "node:assert/strict";
-import { lstat, mkdir, mkdtemp, opendir, readFile, realpath, rm, stat, symlink, writeFile } from "node:fs/promises";
+import {
+  lstat,
+  mkdir,
+  mkdtemp,
+  opendir,
+  readFile,
+  realpath,
+  rm,
+  stat,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { addWorkspacePackage, configProblem, inspectV2Topology, createWorkspaceInventoryReader, runSourceCapability, sourceArchitectureConfig, sourceConfigPath, withCopiedFixture, withTemporaryDirectory } from "./helpers/source-dependency-v2-fixture.mjs";
+import {
+  addWorkspacePackage,
+  configProblem,
+  inspectV2Topology,
+  createWorkspaceInventoryReader,
+  runSourceCapability,
+  sourceArchitectureConfig,
+  sourceConfigPath,
+  withCopiedFixture,
+  withTemporaryDirectory,
+} from "./helpers/source-dependency-v2-fixture.mjs";
 
 test("pnpm inventory cancellation observes manifest-free excluded traversal", async () => {
   await withCopiedFixture("v2-valid", async (consumerRoot) => {
@@ -26,11 +47,12 @@ test("pnpm inventory cancellation observes manifest-free excluded traversal", as
     });
     const reader = createWorkspaceInventoryReader();
     await assert.rejects(
-      () => reader.discoverManifestPathsFromManifest(
-        consumerRoot,
-        { packages: ["packages/*"] },
-        signal,
-      ),
+      () =>
+        reader.discoverManifestPathsFromManifest(
+          consumerRoot,
+          { packages: ["packages/*"] },
+          signal,
+        ),
       (error) => error?.problem?.code === "EXECUTION_CANCELLED",
     );
     assert.equal(observations > 12, true);
@@ -143,12 +165,8 @@ test("v2 retains the root manifest as inventory evidence without governing it", 
     );
     assert.deepEqual(
       topology.sourceFiles.map(({ path }) => path),
-      [
-        "packages/app/src/index.ts",
-        "packages/core/src/index.ts",
-      ],
+      ["packages/app/src/index.ts", "packages/core/src/index.ts"],
     );
-
   });
 });
 
@@ -159,11 +177,7 @@ test("v2 package roots are independent of pnpm workspace glob selection", async 
     'packages:\n  - "packages/missing-*"\n  - "!../outside"\n',
   ]) {
     await withCopiedFixture("v2-valid", async (consumerRoot) => {
-      await writeFile(
-        join(consumerRoot, "pnpm-workspace.yaml"),
-        workspaceManifest,
-        "utf8",
-      );
+      await writeFile(join(consumerRoot, "pnpm-workspace.yaml"), workspaceManifest, "utf8");
 
       const report = await runSourceCapability(consumerRoot);
       assert.equal(report.outcome, "passed");
@@ -195,11 +209,7 @@ test("v2 rejects pnpm-selected workspace packages outside closed packageRoots", 
     const configuredCoreManifest = join(consumerRoot, "packages", "core", "package.json");
     const configuredCore = JSON.parse(await readFile(configuredCoreManifest, "utf8"));
     configuredCore.name = "@fixture/configured-core";
-    await writeFile(
-      configuredCoreManifest,
-      `${JSON.stringify(configuredCore, null, 2)}\n`,
-      "utf8",
-    );
+    await writeFile(configuredCoreManifest, `${JSON.stringify(configuredCore, null, 2)}\n`, "utf8");
     const appManifestPath = join(consumerRoot, "packages", "app", "package.json");
     const appManifest = JSON.parse(await readFile(appManifestPath, "utf8"));
     appManifest.dependencies = { "@fixture/core": "^1.0.0" };
@@ -304,7 +314,10 @@ test("v2 rejects hostile, aliased, and overlapping package roots", async () => {
       const problem = await configProblem(
         consumerRoot,
         `hostile-package-root-${index}.yaml`,
-        sourceArchitectureConfig(2).replace("  - packages\n", `  - ${JSON.stringify(packageRoot)}\n`),
+        sourceArchitectureConfig(2).replace(
+          "  - packages\n",
+          `  - ${JSON.stringify(packageRoot)}\n`,
+        ),
       );
       assert.ok(
         problem?.code === "SCHEMA_INVALID" ||
@@ -541,13 +554,7 @@ test("v2 reports cancellation during final filesystem revalidation", async () =>
     );
 
     const canonicalRoot = await realpath(consumerRoot);
-    const finalBoundaryPath = join(
-      canonicalRoot,
-      "packages",
-      "final",
-      "src",
-      "index.ts",
-    );
+    const finalBoundaryPath = join(canonicalRoot, "packages", "final", "src", "index.ts");
     const controller = new AbortController();
     let finalBoundaryStats = 0;
     await assert.rejects(
@@ -604,11 +611,7 @@ test("v2 rejects unavailable roots and roots outside selected packages", async (
     ]);
     const configPath = sourceConfigPath(consumerRoot);
     const config = await readFile(configPath, "utf8");
-    await writeFile(
-      configPath,
-      config.replaceAll("packages/core/src", "tools/src"),
-      "utf8",
-    );
+    await writeFile(configPath, config.replaceAll("packages/core/src", "tools/src"), "utf8");
     const report = await runSourceCapability(consumerRoot);
     assert.equal(report.problem.code, "SOURCE_ROOT_OUTSIDE_WORKSPACE");
   });
@@ -730,10 +733,7 @@ test("v2 rejects symlink escapes and duplicate realpaths", async (t) => {
     await writeFile(
       configPath,
       `${config
-        .replace(
-          "  - packages/app/src\n",
-          "  - packages/app/src\n  - packages/app/source-alias\n",
-        )
+        .replace("  - packages/app/src\n", "  - packages/app/src\n  - packages/app/source-alias\n")
         .trimEnd()}\n  - id: app.alias\n    roots:\n      - packages/app/source-alias\n    entrypoints:\n      - packages/app/source-alias/index.ts\n    allow:\n      boundaries: []\n      packages: []\n      builtins: []\n      runtimeReferences: []\n`,
       "utf8",
     );

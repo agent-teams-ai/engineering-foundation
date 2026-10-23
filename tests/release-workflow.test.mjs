@@ -30,15 +30,10 @@ const reviewRouterSecretName =
   "REVIEWROUTER_CODEX_AUTH_JSON_R1316243988_P2410642c6217c966_E10_dd08bd02179b09e1a3d456c9cc962f9d";
 
 async function workflow(name) {
-  return parseYaml(
-    await readFile(join(repositoryRoot, ".github", "workflows", name), "utf8"),
-  );
+  return parseYaml(await readFile(join(repositoryRoot, ".github", "workflows", name), "utf8"));
 }
 
-function assertReviewRouterInteractionRuntime(
-  reviewInteraction,
-  reviewInteractionSource,
-) {
+function assertReviewRouterInteractionRuntime(reviewInteraction, reviewInteractionSource) {
   const interactionJob = reviewInteraction.jobs.interaction;
   assert.deepEqual(interactionJob.permissions, {
     contents: "read",
@@ -64,9 +59,7 @@ function assertReviewRouterInteractionRuntime(
   const interactionCheckout = interactionJob.steps.find(
     ({ name }) => name === "Checkout ReviewRouter interaction runtime",
   );
-  const interactionNodeSetup = interactionJob.steps.find(
-    ({ name }) => name === "Setup Node.js",
-  );
+  const interactionNodeSetup = interactionJob.steps.find(({ name }) => name === "Setup Node.js");
   const interactionPreflight = interactionJob.steps.find(
     ({ name }) => name === "Preflight ReviewRouter interaction",
   );
@@ -114,15 +107,27 @@ function assertReviewRouterInteractionRuntime(
 }
 
 function assertAttestationDeadlineBudget(source, jobTimeoutSeconds) {
-  const seconds = (name) => Number(source.match(
-    new RegExp(`^\\s*${name}=\\$\\(\\(SECONDS \\+ ([0-9]+)\\)\\)$`, "mu"),
-  )[1]);
-  const postStatus = source.slice(source.indexOf("post_status()"), source.indexOf("mark_attestation_error()"));
-  const attempts = postStatus.match(/for attempt in ([0-9 ]+); do/u)[1].trim().split(/\s+/u).length;
-  const requestBounds = [...postStatus.matchAll(/timeout --kill-after=([0-9]+)s ([0-9]+)s gh api/gu)];
+  const seconds = (name) =>
+    Number(source.match(new RegExp(`^\\s*${name}=\\$\\(\\(SECONDS \\+ ([0-9]+)\\)\\)$`, "mu"))[1]);
+  const postStatus = source.slice(
+    source.indexOf("post_status()"),
+    source.indexOf("mark_attestation_error()"),
+  );
+  const attempts = postStatus
+    .match(/for attempt in ([0-9 ]+); do/u)[1]
+    .trim()
+    .split(/\s+/u).length;
+  const requestBounds = [
+    ...postStatus.matchAll(/timeout --kill-after=([0-9]+)s ([0-9]+)s gh api/gu),
+  ];
   assert.equal(requestBounds.length, 3, "bound creator lookup, POST and paginated read-back");
-  const attemptSeconds = requestBounds.reduce((sum, [, grace, timeout]) => sum + Number(grace) + Number(timeout), 0);
-  const [, retryLimit, delay] = postStatus.match(/if \(\( attempt < ([0-9]+) \)\); then sleep ([0-9]+); fi/u);
+  const attemptSeconds = requestBounds.reduce(
+    (sum, [, grace, timeout]) => sum + Number(grace) + Number(timeout),
+    0,
+  );
+  const [, retryLimit, delay] = postStatus.match(
+    /if \(\( attempt < ([0-9]+) \)\); then sleep ([0-9]+); fi/u,
+  );
   assert.equal(Number(retryLimit), attempts);
   const statusSeconds = attempts * attemptSeconds + (attempts - 1) * Number(delay);
   const ciContexts = source.match(/^\s*ci_contexts=\(([^)]+)\)$/mu)[1].split(" ");
@@ -132,22 +137,30 @@ function assertAttestationDeadlineBudget(source, jobTimeoutSeconds) {
   // successful resolution is cached. Include full pending, terminal and recovery
   // passes: the last terminal write may be accepted but never reconciled.
   const publicationSeconds = 3 * contextCount * statusSeconds;
-  const waitSeconds = seconds("selection_deadline") + seconds("deadline") + seconds("final_verification_deadline");
-  const pollingDelays = [...source.slice(source.indexOf("selection_deadline=")).matchAll(/\bsleep ([0-9]+)/gu)];
+  const waitSeconds =
+    seconds("selection_deadline") + seconds("deadline") + seconds("final_verification_deadline");
+  const pollingDelays = [
+    ...source.slice(source.indexOf("selection_deadline=")).matchAll(/\bsleep ([0-9]+)/gu),
+  ];
   const pollingOvershootSeconds = 3 * Math.max(...pollingDelays.map(([, value]) => Number(value)));
   // Explicit allowances for checkout/tool setup, dependency bootstrap, Git/API
   // work and local validation; margin also absorbs scheduling/clock overhead.
   const setupAndOtherWorkSeconds = 180;
   const minimumMarginSeconds = 120;
-  const requiredSeconds = waitSeconds + pollingOvershootSeconds + publicationSeconds +
-    setupAndOtherWorkSeconds + minimumMarginSeconds;
-  assert.ok(jobTimeoutSeconds >= requiredSeconds,
-    `attestation needs ${requiredSeconds}s including a full ${contextCount * statusSeconds}s recovery pass; got ${jobTimeoutSeconds}s`);
+  const requiredSeconds =
+    waitSeconds +
+    pollingOvershootSeconds +
+    publicationSeconds +
+    setupAndOtherWorkSeconds +
+    minimumMarginSeconds;
+  assert.ok(
+    jobTimeoutSeconds >= requiredSeconds,
+    `attestation needs ${requiredSeconds}s including a full ${contextCount * statusSeconds}s recovery pass; got ${jobTimeoutSeconds}s`,
+  );
 }
 
 function assertExactReleaseRunBinding(attestation, release, ci) {
-  const jobTimeoutSeconds =
-    release.jobs["attest-release-pr"]["timeout-minutes"] * 60;
+  const jobTimeoutSeconds = release.jobs["attest-release-pr"]["timeout-minutes"] * 60;
   const requiredContexts = attestation.run.match(/^\s*ci_contexts=\(([^)]+)\)$/mu)[1].split(" ");
   const criticalPathMinutes = (jobId) => {
     const { needs = [], "timeout-minutes": timeout, strategy } = ci.jobs[jobId] ?? {};
@@ -156,23 +169,29 @@ function assertExactReleaseRunBinding(attestation, release, ci) {
     if (strategy?.["max-parallel"] !== undefined) {
       const parallel = strategy["max-parallel"];
       assert.ok(Number.isInteger(parallel) && parallel > 0);
-      assert.ok(!Object.hasOwn(strategy.matrix, "include") && !Object.hasOwn(strategy.matrix, "exclude"),
-        "bounded matrices require explicit finite axes without include/exclude overrides");
+      assert.ok(
+        !Object.hasOwn(strategy.matrix, "include") && !Object.hasOwn(strategy.matrix, "exclude"),
+        "bounded matrices require explicit finite axes without include/exclude overrides",
+      );
       const axes = Object.values(strategy.matrix);
-      assert.ok(axes.length > 0 && axes.every(axis => Array.isArray(axis) && axis.length > 0),
-        "bounded matrices require explicit finite axes without include/exclude overrides");
+      assert.ok(
+        axes.length > 0 && axes.every((axis) => Array.isArray(axis) && axis.length > 0),
+        "bounded matrices require explicit finite axes without include/exclude overrides",
+      );
       const count = axes.reduce((product, axis) => product * axis.length, 1);
       batches = Math.ceil(count / parallel);
     }
     return batches * timeout + Math.max(0, ...[needs].flat().map(criticalPathMinutes));
   };
   const longestRequiredCiPathSeconds = Math.max(...requiredContexts.map(criticalPathMinutes)) * 60;
-  const deadlineEntries = [...attestation.run.matchAll(
-    /^\s*(deadline|final_verification_deadline)=\$\(\(SECONDS \+ ([0-9]+)\)\)$/gmu,
-  )];
-  const deadlines = new Map(deadlineEntries.map(
-    ([, name, seconds]) => [name, Number.parseInt(seconds, 10)],
-  ));
+  const deadlineEntries = [
+    ...attestation.run.matchAll(
+      /^\s*(deadline|final_verification_deadline)=\$\(\(SECONDS \+ ([0-9]+)\)\)$/gmu,
+    ),
+  ];
+  const deadlines = new Map(
+    deadlineEntries.map(([, name, seconds]) => [name, Number.parseInt(seconds, 10)]),
+  );
   const primaryDeadlineSeconds = deadlines.get("deadline");
   const finalVerificationSeconds = deadlines.get("final_verification_deadline");
 
@@ -195,11 +214,7 @@ function assertExactReleaseRunBinding(attestation, release, ci) {
   assert.match(attestation.run, /bound_run_url.*expected_run_url/su);
   assert.match(attestation.run, /actions\/runs\/\$\{bound_run_id\}"/u);
   assert.equal((attestation.run.match(/run_id.*bound_run_id/gu) ?? []).length, 2);
-  assert.equal(
-    (attestation.run.match(/run_path.*\.github\/workflows\/ci\.yml/gu) ?? [])
-      .length,
-    2,
-  );
+  assert.equal((attestation.run.match(/run_path.*\.github\/workflows\/ci\.yml/gu) ?? []).length, 2);
   assert.match(attestation.run, /run_event.*bound_run_event/su);
   assert.match(attestation.run, /run_head_branch.*changeset-release\/main/su);
   assert.match(attestation.run, /run_head_sha.*head_sha/su);
@@ -216,10 +231,7 @@ function assertExactReleaseRunBinding(attestation, release, ci) {
   assert.match(attestation.run, /final_bound_run="\$\(gh api/u);
   assert.match(attestation.run, /final_run_status.*completed/su);
   assert.match(attestation.run, /final_run_conclusion.*success/su);
-  assert.match(
-    attestation.run,
-    /while \(\( SECONDS < final_verification_deadline \)\); do/u,
-  );
+  assert.match(attestation.run, /while \(\( SECONDS < final_verification_deadline \)\); do/u);
   assert.ok(
     attestation.run.lastIndexOf("final_bound_run") <
       attestation.run.lastIndexOf('post_status "${ci_contexts[index]}" success'),
@@ -244,14 +256,20 @@ test("release deadline reserves bounded publication and full recovery time", asy
   // counts and the CI/final windows stay unchanged.
   const slowerRequests = source.replaceAll("--kill-after=1s 3s", "--kill-after=1s 4s");
   assert.notEqual(slowerRequests, source);
-  assert.throws(() => assertAttestationDeadlineBudget(slowerRequests, timeoutSeconds), { code: "ERR_ASSERTION" });
+  assert.throws(() => assertAttestationDeadlineBudget(slowerRequests, timeoutSeconds), {
+    code: "ERR_ASSERTION",
+  });
 });
 
 // Execute local control fragments with the real post_status; gh cannot reach the API.
 function runAttestationFragment(source, fragment, setup = "") {
   const control = source.slice(0, source.indexOf("fetch_paginated_pages()"));
   const remote = mkdtempSync(join(tmpdir(), "release-status-"));
-  const result = spawnSync("bash", ["-c", `
+  const result = spawnSync(
+    "bash",
+    [
+      "-c",
+      `
     timeout() { [[ "$1 $2" == "--kill-after=1s 3s" ]] || return 96; shift 2; "$@"; }
     sleep() { [[ "$1" == 1 ]] || return 96; }
     gh() {
@@ -315,22 +333,40 @@ function runAttestationFragment(source, fragment, setup = "") {
     trap mark_attestation_error ERR
     ${setup}
     ${fragment}
-  `], {
-    encoding: "utf8",
-    timeout: 5000,
-    stdio: ["pipe", "pipe", "pipe", "pipe"],
-    env: { ...process.env, REMOTE: remote, EXPECTED_RELEASE_HEAD_SHA: "a".repeat(40),
-      GITHUB_REPOSITORY: "owner/repo",
-      RELEASE_RUN_URL: "https://github.com/owner/repo/actions/runs/999" },
-  });
-  const latest = new Map(readFileSync(join(remote, "statuses"), "utf8").trim()
-    .split("\n").filter(Boolean).map((line) => JSON.parse(line))
-    .map((status) => [status.context, status.state]));
+  `,
+    ],
+    {
+      encoding: "utf8",
+      timeout: 5000,
+      stdio: ["pipe", "pipe", "pipe", "pipe"],
+      env: {
+        ...process.env,
+        REMOTE: remote,
+        EXPECTED_RELEASE_HEAD_SHA: "a".repeat(40),
+        GITHUB_REPOSITORY: "owner/repo",
+        RELEASE_RUN_URL: "https://github.com/owner/repo/actions/runs/999",
+      },
+    },
+  );
+  const latest = new Map(
+    readFileSync(join(remote, "statuses"), "utf8")
+      .trim()
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => JSON.parse(line))
+      .map((status) => [status.context, status.state]),
+  );
   rmSync(remote, { recursive: true, force: true });
   const attempts = (result.output[3] ?? "").trim().split("\n").filter(Boolean);
-  return { ...result, latest, attempts, stdout: attempts
-    .filter((line) => line.endsWith("|accepted"))
-    .map((line) => line.slice(0, -"|accepted".length)).join("\n") };
+  return {
+    ...result,
+    latest,
+    attempts,
+    stdout: attempts
+      .filter((line) => line.endsWith("|accepted"))
+      .map((line) => line.slice(0, -"|accepted".length))
+      .join("\n"),
+  };
 }
 
 function assertTerminalRecovery(result, contexts) {
@@ -339,8 +375,10 @@ function assertTerminalRecovery(result, contexts) {
   assert.deepEqual([...latest.keys()].toSorted(), contexts.toSorted());
   for (const context of contexts) {
     assert.match(latest.get(context), /^(?:failure|error)$/u, context);
-    assert.ok(result.attempts.some((line) => line.startsWith(`${context}|error|`)),
-      `missing recovery attempt: ${context}`);
+    assert.ok(
+      result.attempts.some((line) => line.startsWith(`${context}|error|`)),
+      `missing recovery attempt: ${context}`,
+    );
   }
 }
 
@@ -352,29 +390,47 @@ function assertAttestationStatusContract(source) {
     assert.ok(from >= 0 && to > from, `missing control block: ${start}`);
     return source.slice(from, to);
   };
-  const pending = source.match(/for context in [^\n]+; do\n\s+post_status "\$\{context\}" pending[^]*?\bdone/u)?.[0];
+  const pending = source.match(
+    /for context in [^\n]+; do\n\s+post_status "\$\{context\}" pending[^]*?\bdone/u,
+  )?.[0];
   assert.ok(pending);
   assert.ok(source.indexOf(pending) < source.indexOf("git fetch --no-tags origin"));
   assert.ok(source.indexOf(pending) < source.indexOf("actions/workflows/ci.yml/dispatches"));
   assert.ok(source.indexOf(pending) < source.indexOf("actions/workflows/codeql.yml/dispatches"));
-  const ciSetup = 'conclusions=(success failure success success); target_urls=(ci1 ci2 ci3 ci4)';
+  const ciSetup = "conclusions=(success failure success success); target_urls=(ci1 ci2 ci3 ci4)";
   for (const [fragment, setup, state, exitCode] of [
     [pending, "", "pending", 0],
     ["false", "", "error", 1],
     ['fail_attestation "invalid evidence"', "", "failure", 1],
     [block("if (( all_completed != 1 )); then", "failed=0"), "all_completed=0", "error", 1],
-    [block("if (( failed != 0 )); then", 'codeql_receipt=""'), `${ciSetup}; failed=1`, "failure", 1],
+    [
+      block("if (( failed != 0 )); then", 'codeql_receipt=""'),
+      `${ciSetup}; failed=1`,
+      "failure",
+      1,
+    ],
   ]) {
     const result = runAttestationFragment(source, fragment, setup);
     assert.equal(result.status, exitCode, result.stderr);
-    assert.deepEqual(result.stdout.trim().split("\n").map((line) => line.split("|").slice(0, 2)),
-      contexts.map((context) => [context, state]));
+    assert.deepEqual(
+      result.stdout
+        .trim()
+        .split("\n")
+        .map((line) => line.split("|").slice(0, 2)),
+      contexts.map((context) => [context, state]),
+    );
   }
   // Even a failed recovery POST must not recurse or prevent the remaining attempts.
-  const recoveryFailure = runAttestationFragment(source, `${pending}\nfalse`,
-    "reject_recovery=analyze:error");
+  const recoveryFailure = runAttestationFragment(
+    source,
+    `${pending}\nfalse`,
+    "reject_recovery=analyze:error",
+  );
   assert.equal(recoveryFailure.status, 1, recoveryFailure.stderr);
-  assert.equal(recoveryFailure.attempts.filter((line) => line.startsWith("analyze|error|")).length, 3);
+  assert.equal(
+    recoveryFailure.attempts.filter((line) => line.startsWith("analyze|error|")).length,
+    3,
+  );
   assert.match(recoveryFailure.stderr, /Recovery incomplete; unreconciled contexts: analyze/u);
   assert.equal(recoveryFailure.latest.get("analyze"), "pending");
   for (const context of contexts.slice(1)) {
@@ -384,9 +440,16 @@ function assertAttestationStatusContract(source) {
   const collected = runAttestationFragment(source, 'printf "%s\\n" "${ci_contexts[@]}"');
   assert.equal(collected.status, 0, collected.stderr);
   assert.deepEqual(collected.output[1].trim().split("\n"), contexts.slice(1));
-  const jobLoops = [...source.matchAll(/for context in ([^\n]+); do\n\s+read -r (?:job_count job_status|conclusion target_url)/gu)];
+  const jobLoops = [
+    ...source.matchAll(
+      /for context in ([^\n]+); do\n\s+read -r (?:job_count job_status|conclusion target_url)/gu,
+    ),
+  ];
   assert.equal(jobLoops.length, 2);
-  assert.deepEqual(jobLoops.map((match) => match[1]), Array(2).fill('"${ci_contexts[@]}"'));
+  assert.deepEqual(
+    jobLoops.map((match) => match[1]),
+    Array(2).fill('"${ci_contexts[@]}"'),
+  );
 
   const finalGate = source.slice(source.indexOf("if (( final_run_verified != 1 )); then"));
   assert.ok(finalGate.startsWith("if (( final_run_verified != 1 )); then"));
@@ -394,13 +457,13 @@ function assertAttestationStatusContract(source) {
   const ordered = [
     'if [[ -z "${codeql_receipt}" ]]; then',
     'observed_pull_request="${post_pull_request}"',
-    'require_final_codeql_snapshot\n',
+    "require_final_codeql_snapshot\n",
     'require_final_release_pr_snapshot "${post_current_main_sha}"',
-    'final_run_verified=1',
-    'if (( final_run_verified != 1 )); then',
+    "final_run_verified=1",
+    "if (( final_run_verified != 1 )); then",
     'post_status "${ci_contexts[index]}" success',
-    'post_status analyze success',
-    'status_finalized=1',
+    "post_status analyze success",
+    "status_finalized=1",
   ];
   let cursor = 0;
   for (const statement of ordered) {
@@ -416,25 +479,36 @@ function assertAttestationStatusContract(source) {
   for (const url of [evidence.run.html_url, evidence.checkRuns.check_runs[0].html_url]) {
     const changed = asFinalEvidence(structuredClone(evidence));
     changed.analyzeCheck.html_url = url;
-    assert.throws(() => validateReleaseCodeqlEvidence(changed, expectation, receipt),
-      /analyze check run identity differs/u);
+    assert.throws(
+      () => validateReleaseCodeqlEvidence(changed, expectation, receipt),
+      /analyze check run identity differs/u,
+    );
   }
   const setup = `conclusions=(success success success success); target_urls=(ci1 ci2 ci3 ci4);
     codeql_evidence_error=/dev/null;
     observed_codeql_analyze_check='${JSON.stringify(evidence.analyzeCheck)}'`;
   const success = runAttestationFragment(source, finalGate, `${setup}; final_run_verified=1`);
   assert.equal(success.status, 0, success.stderr);
-  assert.equal(success.stdout.trim().split("\n").at(-1),
-    `analyze|success|${evidence.analyzeCheck.html_url}`);
-  assert.deepEqual(success.stdout.split("\n").map((line) => line.split("|").slice(0, 2)),
-    [...contexts.slice(1), "analyze"].map((context) => [context, "success"]));
+  assert.equal(
+    success.stdout.trim().split("\n").at(-1),
+    `analyze|success|${evidence.analyzeCheck.html_url}`,
+  );
+  assert.deepEqual(
+    success.stdout.split("\n").map((line) => line.split("|").slice(0, 2)),
+    [...contexts.slice(1), "analyze"].map((context) => [context, "success"]),
+  );
   for (const context of contexts) {
-    const rejected = runAttestationFragment(source, `${pending}\n${finalGate}`,
-      `${setup}; final_run_verified=1; reject_status=${context}:success`);
+    const rejected = runAttestationFragment(
+      source,
+      `${pending}\n${finalGate}`,
+      `${setup}; final_run_verified=1; reject_status=${context}:success`,
+    );
     assertTerminalRecovery(rejected, contexts);
     assert.equal(rejected.attempts.filter((line) => line.endsWith("|rejected")).length, 3);
     const failureIndex = rejected.attempts.findIndex((line) => line.endsWith("|rejected"));
-    assert.ok(rejected.attempts.slice(failureIndex + 3).every((line) => !line.includes("|success|")));
+    assert.ok(
+      rejected.attempts.slice(failureIndex + 3).every((line) => !line.includes("|success|")),
+    );
   }
   const unverified = runAttestationFragment(source, finalGate, `${setup}; final_run_verified=0`);
   assert.equal(unverified.status, 1, unverified.stderr);
@@ -443,17 +517,29 @@ function assertAttestationStatusContract(source) {
   // jq runs for real on missing, empty, non-string, and malformed evidence.
   // A tool failure with valid evidence separately models a failed final extraction.
   for (const extractionSetup of [
-    ...["{}", '{"html_url":""}', '{"html_url":null}', '{"html_url":42}', '{"html_url":false}',
-      '{"html_url":[]}', '{"html_url":{}}', "invalid-json"]
-      .map((value) => `observed_codeql_analyze_check='${value}'`),
+    ...[
+      "{}",
+      '{"html_url":""}',
+      '{"html_url":null}',
+      '{"html_url":42}',
+      '{"html_url":false}',
+      '{"html_url":[]}',
+      '{"html_url":{}}',
+      "invalid-json",
+    ].map((value) => `observed_codeql_analyze_check='${value}'`),
     'jq() { if [[ "$*" == *".html_url | select"* ]]; then return 42; fi; command jq "$@"; }',
   ]) {
-    const rejected = runAttestationFragment(source, `${pending}\n${finalGate}`,
-      `${setup}; final_run_verified=1; ${extractionSetup}`);
+    const rejected = runAttestationFragment(
+      source,
+      `${pending}\n${finalGate}`,
+      `${setup}; final_run_verified=1; ${extractionSetup}`,
+    );
     assert.notEqual(rejected.status, 0, rejected.stderr);
     assert.equal(rejected.signal, null);
-    assert.ok(rejected.attempts.every((line) => !line.includes("|success|")),
-      "failed analyze URL extraction must precede every success POST");
+    assert.ok(
+      rejected.attempts.every((line) => !line.includes("|success|")),
+      "failed analyze URL extraction must precede every success POST",
+    );
     const latest = new Map(rejected.stdout.split("\n").map((line) => line.split("|")));
     for (const context of contexts) {
       assert.equal(latest.get(context), "error");
@@ -465,8 +551,11 @@ function assertAttestationStatusContract(source) {
     [block("if (( all_completed != 1 )); then", "failed=0"), "all_completed=0", "error"],
     [block("if (( failed != 0 )); then", 'codeql_receipt=""'), `${ciSetup}; failed=1`, "failure"],
   ]) {
-    const rejected = runAttestationFragment(source, `${pending}\n${fragment}`,
-      `reject_status=analyze:${state}; ${failureSetup}`);
+    const rejected = runAttestationFragment(
+      source,
+      `${pending}\n${fragment}`,
+      `reject_status=analyze:${state}; ${failureSetup}`,
+    );
     assertTerminalRecovery(rejected, contexts);
     assert.equal(rejected.attempts.filter((line) => line.endsWith("|rejected")).length, 3);
     assert.ok(rejected.attempts.every((line) => !line.includes("|success|")));
@@ -500,7 +589,7 @@ function assertStatusReconciliation(source) {
   for (const transform of [
     '.[0] += [.[0][0] | .state = "pending" | del(.creator)]',
     '.[0] += [.[0][0] | .context = "ANALYZE" | .state = "pending" | del(.creator)]',
-    '.[0] += .[0]',
+    ".[0] += .[0]",
     '.[0] as $entries | [[{context:"unrelated",creator:{id:99}}], $entries, [$entries[0] | .state = "error"]]',
   ]) {
     const result = runAttestationFragment(source, publish, `read_transform='${transform}'`);
@@ -521,8 +610,7 @@ function assertStatusReconciliation(source) {
     assert.match(rejected.stderr, /Unreconciled status: analyze; intended success/u);
     assert.match(rejected.stderr, /Recovery incomplete; unreconciled contexts: analyze\n/u);
 
-    const recovery = runAttestationFragment(source,
-      'return_42() { return 42; }; return_42', setup);
+    const recovery = runAttestationFragment(source, "return_42() { return 42; }; return_42", setup);
     assert.equal(recovery.status, 42, recovery.stderr);
     assert.equal(recovery.attempts.length, 7);
     assert.equal(recovery.attempts.filter((line) => line.startsWith("analyze|error|")).length, 3);
@@ -535,35 +623,36 @@ function assertStatusReconciliation(source) {
   for (const transform of [
     '.[0] = [.[0][0] | .state = "pending"] + .[0]',
     '.[0] as $entries | [[$entries[0] | .state = "pending"], $entries]',
-    'del(.[0][0].creator)',
-    '.[0][0].creator = null',
+    "del(.[0][0].creator)",
+    ".[0][0].creator = null",
     '.[0][0].avatar_url = "https://avatars.githubusercontent.com/in/999?v=4"',
-    'del(.[0][0].avatar_url)',
+    "del(.[0][0].avatar_url)",
     '[{sha:"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",statuses:(.[0] | map(del(.creator)))}]',
-    '[{}]',
-    '[[]]',
-    '.[0] |= {entry:.[0]}',
+    "[{}]",
+    "[[]]",
+    ".[0] |= {entry:.[0]}",
     '.[0][0].state = "pending"',
     '.[0] |= map(.context = "other")',
     '.[0][0].target_url = "other"',
     '.[0][0].description = "other"',
-    '.[0][0].creator.id = 99',
+    ".[0][0].creator.id = 99",
     '.[0][0].creator.login = "impostor"',
     '.[0][0].creator.type = "User"',
-    '.[0] = null',
-    '.[0] += [null]',
+    ".[0] = null",
+    ".[0] += [null]",
     '.[0] += [{"state":"failure"}]',
-    '. += [[null]]',
+    ". += [[null]]",
     '. += [[{"state":"failure"}]]',
     '.[0] += [{"context":42}]',
-    '[]',
+    "[]",
     '"invalid-json-shape"',
   ]) {
     const result = runAttestationFragment(source, publish, `read_transform='${transform}'`);
     assert.equal(result.status, 1, `${transform}: ${result.stderr}`);
     assert.match(result.stderr, /Unreconciled status: analyze/u);
   }
-  const seed = 'for context in "${attestation_contexts[@]}"; do post_status "$context" success "verified" "target"; done';
+  const seed =
+    'for context in "${attestation_contexts[@]}"; do post_status "$context" success "verified" "target"; done';
   // A terminal failure after all successes still retries every recovery context.
   const recovered = runAttestationFragment(source, `${seed}\nfalse`, "recovery_failures=1");
   assertTerminalRecovery(recovered, contexts);
@@ -582,102 +671,173 @@ function assertStatusReconciliation(source) {
   assert.doesNotMatch(result.stderr, /Recovery incomplete/u);
   // A total outage after an ambiguous write cannot be repaired locally. Keep the
   // original exit, try all contexts, and name every unreconciled context.
-  const outage = runAttestationFragment(source, `${seed}
+  const outage = runAttestationFragment(
+    source,
+    `${seed}
     read_failures=999; recovery_failures=999
     fault_context=analyze:success; fault_mode=lost; fault_count=4
-    ${publish}`);
+    ${publish}`,
+  );
   assert.equal(outage.status, 1, outage.stderr);
   assert.equal(outage.attempts.length, 23);
   assert.deepEqual([...outage.latest.values()], Array(5).fill("success"));
-  assert.match(outage.stderr,
-    /Recovery incomplete; unreconciled contexts: analyze check windows-check macos-qualification full-ci/u);
-  const originalExit = runAttestationFragment(source,
-    'return_42() { return 42; }; return_42', "recovery_failures=999");
+  assert.match(
+    outage.stderr,
+    /Recovery incomplete; unreconciled contexts: analyze check windows-check macos-qualification full-ci/u,
+  );
+  const originalExit = runAttestationFragment(
+    source,
+    "return_42() { return 42; }; return_42",
+    "recovery_failures=999",
+  );
   assert.equal(originalExit.status, 42, originalExit.stderr);
   assert.equal(originalExit.attempts.length, 15);
   assert.match(originalExit.stderr, /Recovery incomplete/u);
 }
 
-test("release status publication reconciles bounded distributed failures", {
-  skip: process.platform === "win32" && "attester runs in Ubuntu Bash",
-}, async () => {
-  const release = await workflow("release.yml");
-  assertStatusReconciliation(release.jobs["attest-release-pr"].steps.at(-1).run);
-});
+test(
+  "release status publication reconciles bounded distributed failures",
+  {
+    skip: process.platform === "win32" && "attester runs in Ubuntu Bash",
+  },
+  async () => {
+    const release = await workflow("release.yml");
+    assertStatusReconciliation(release.jobs["attest-release-pr"].steps.at(-1).run);
+  },
+);
 
-test("release reconciliation rejects fail-open mutations", {
-  skip: process.platform === "win32" && "attester runs in Ubuntu Bash",
-}, async (t) => {
-  const release = await workflow("release.yml");
-  const source = release.jobs["attest-release-pr"].steps.at(-1).run;
-  for (const [name, before, after] of [
-    ["unverified POST", 'if statuses="$(trap - ERR; timeout',
-      'return 0\n    if statuses="$(trap - ERR; timeout'],
-    ["omit retries", "for attempt in 1 2 3", "for attempt in 1"],
-    ["ignore creator", ".creator.id == $creator", "true"],
-    ["ignore creator login", '.creator.login == "github-actions[bot]"', "true"],
-    ["ignore creator type", '.creator.type == "Bot"', "true"],
-    ["combined endpoint", "statuses/${head_sha}?per_page=100", "commits/${head_sha}/status?per_page=100"],
-    ["wrong endpoint SHA", "statuses/${head_sha}?per_page=100", "statuses/wrong?per_page=100"],
-    ["ignore app", '.avatar_url == "https://avatars.githubusercontent.com/in/15368?v=4"', "true"],
-    ["oldest context", ".[0] | type", ".[-1] | type"],
-    ["first entry before context", "[.[][] | select((.context | ascii_downcase) == ($context | ascii_downcase))]", "[.[][]][0:1]"],
-    ["case-sensitive context selection", "select((.context | ascii_downcase) == ($context | ascii_downcase))", "select(.context == $context)"],
-    ["ignore exact output context", ".context == $context and", ""],
-    ["ignore state", ".state == $state", "true"],
-    ["ignore target", ".target_url == $target", "true"],
-    ["ignore description", ".description == $description", "true"],
-    ["unique historical context", '.[0] | type == "object"', 'select(length == 1) | .[0] | type == "object"'],
-    ["omit page shape guard", 'all(.[]; type == "array") and', ""],
-    ["omit complete-set shape guard", 'all(.[][]; type == "object" and (.context | type) == "string") and', ""],
-    ["silence recovery exhaustion", 'unreconciled+=("${context}")', ":"],
-    ["erase original exit", 'exit "${exit_code}"', "exit 1"],
-  ]) {
-    await t.test(name, () => {
-      const mutated = source.replace(before, after);
-      assert.notEqual(mutated, source);
-      assert.throws(() => assertStatusReconciliation(mutated), { code: "ERR_ASSERTION" });
-    });
-  }
-});
+test(
+  "release reconciliation rejects fail-open mutations",
+  {
+    skip: process.platform === "win32" && "attester runs in Ubuntu Bash",
+  },
+  async (t) => {
+    const release = await workflow("release.yml");
+    const source = release.jobs["attest-release-pr"].steps.at(-1).run;
+    for (const [name, before, after] of [
+      [
+        "unverified POST",
+        'if statuses="$(trap - ERR; timeout',
+        'return 0\n    if statuses="$(trap - ERR; timeout',
+      ],
+      ["omit retries", "for attempt in 1 2 3", "for attempt in 1"],
+      ["ignore creator", ".creator.id == $creator", "true"],
+      ["ignore creator login", '.creator.login == "github-actions[bot]"', "true"],
+      ["ignore creator type", '.creator.type == "Bot"', "true"],
+      [
+        "combined endpoint",
+        "statuses/${head_sha}?per_page=100",
+        "commits/${head_sha}/status?per_page=100",
+      ],
+      ["wrong endpoint SHA", "statuses/${head_sha}?per_page=100", "statuses/wrong?per_page=100"],
+      ["ignore app", '.avatar_url == "https://avatars.githubusercontent.com/in/15368?v=4"', "true"],
+      ["oldest context", ".[0] | type", ".[-1] | type"],
+      [
+        "first entry before context",
+        "[.[][] | select((.context | ascii_downcase) == ($context | ascii_downcase))]",
+        "[.[][]][0:1]",
+      ],
+      [
+        "case-sensitive context selection",
+        "select((.context | ascii_downcase) == ($context | ascii_downcase))",
+        "select(.context == $context)",
+      ],
+      ["ignore exact output context", ".context == $context and", ""],
+      ["ignore state", ".state == $state", "true"],
+      ["ignore target", ".target_url == $target", "true"],
+      ["ignore description", ".description == $description", "true"],
+      [
+        "unique historical context",
+        '.[0] | type == "object"',
+        'select(length == 1) | .[0] | type == "object"',
+      ],
+      ["omit page shape guard", 'all(.[]; type == "array") and', ""],
+      [
+        "omit complete-set shape guard",
+        'all(.[][]; type == "object" and (.context | type) == "string") and',
+        "",
+      ],
+      ["silence recovery exhaustion", 'unreconciled+=("${context}")', ":"],
+      ["erase original exit", 'exit "${exit_code}"', "exit 1"],
+    ]) {
+      await t.test(name, () => {
+        const mutated = source.replace(before, after);
+        assert.notEqual(mutated, source);
+        assert.throws(() => assertStatusReconciliation(mutated), { code: "ERR_ASSERTION" });
+      });
+    }
+  },
+);
 
-test("release analyze status is fail-closed and separate from CI jobs", {
-  skip: process.platform === "win32" && "attester runs in Ubuntu Bash",
-}, async () => {
-  const release = await workflow("release.yml");
-  assertAttestationStatusContract(release.jobs["attest-release-pr"].steps.at(-1).run);
-});
+test(
+  "release analyze status is fail-closed and separate from CI jobs",
+  {
+    skip: process.platform === "win32" && "attester runs in Ubuntu Bash",
+  },
+  async () => {
+    const release = await workflow("release.yml");
+    assertAttestationStatusContract(release.jobs["attest-release-pr"].steps.at(-1).run);
+  },
+);
 
-test("release status contract rejects fail-open mutations", {
-  skip: process.platform === "win32" && "attester runs in Ubuntu Bash",
-}, async (t) => {
-  const release = await workflow("release.yml");
-  const source = release.jobs["attest-release-pr"].steps.at(-1).run;
-  const extraction = source.match(/^analyze_target_url="\$\(jq[^]*?\)"$/mu)?.[0];
-  assert.ok(extraction);
-  const mutations = [
-    ["remove ERR inheritance", source.replace("set -Eeuo", "set -euo")],
-    ["finalize fail_attestation early", source.replace('local description="$1"\n',
-      'local description="$1"\n  status_finalized=1\n')],
-    ...["if (( all_completed != 1 )); then", "if (( failed != 0 )); then"].map((start) =>
-      [`finalize early: ${start}`, source.replace(start, `${start}\n  status_finalized=1`)]),
-    ["finalize success early", source.replace(extraction, `status_finalized=1\n${extraction}`)],
-    ["inline analyze URL substitution", source.replace(extraction, "")
-      .replace('"${analyze_target_url}"', '"$(jq -r \'.html_url\' <<<"${observed_codeql_analyze_check}")"')],
-    ["accept empty analyze URL", source.replace(
-      '.html_url | select(type == "string" and length > 0)', ".html_url")],
-    ["include analyze in CI contexts", source.replace("ci_contexts=(check", "ci_contexts=(analyze check")],
-    ...[...source.matchAll(/for context in [^\n]+; do\n\s+read -r (?:job_count job_status|conclusion target_url)/gu)]
-      .map(([loop], index) => [`include analyze in CI loop ${index + 1}`,
-        source.replace(loop, loop.replace('"${ci_contexts[@]}"', '"${attestation_contexts[@]}"'))]),
-  ];
-  for (const [name, mutated] of mutations) {
-    await t.test(name, () => {
-      assert.notEqual(mutated, source, "mutation must change the workflow");
-      assert.throws(() => assertAttestationStatusContract(mutated), { code: "ERR_ASSERTION" });
-    });
-  }
-});
+test(
+  "release status contract rejects fail-open mutations",
+  {
+    skip: process.platform === "win32" && "attester runs in Ubuntu Bash",
+  },
+  async (t) => {
+    const release = await workflow("release.yml");
+    const source = release.jobs["attest-release-pr"].steps.at(-1).run;
+    const extraction = source.match(/^analyze_target_url="\$\(jq[^]*?\)"$/mu)?.[0];
+    assert.ok(extraction);
+    const mutations = [
+      ["remove ERR inheritance", source.replace("set -Eeuo", "set -euo")],
+      [
+        "finalize fail_attestation early",
+        source.replace(
+          'local description="$1"\n',
+          'local description="$1"\n  status_finalized=1\n',
+        ),
+      ],
+      ...["if (( all_completed != 1 )); then", "if (( failed != 0 )); then"].map((start) => [
+        `finalize early: ${start}`,
+        source.replace(start, `${start}\n  status_finalized=1`),
+      ]),
+      ["finalize success early", source.replace(extraction, `status_finalized=1\n${extraction}`)],
+      [
+        "inline analyze URL substitution",
+        source
+          .replace(extraction, "")
+          .replace(
+            '"${analyze_target_url}"',
+            '"$(jq -r \'.html_url\' <<<"${observed_codeql_analyze_check}")"',
+          ),
+      ],
+      [
+        "accept empty analyze URL",
+        source.replace('.html_url | select(type == "string" and length > 0)', ".html_url"),
+      ],
+      [
+        "include analyze in CI contexts",
+        source.replace("ci_contexts=(check", "ci_contexts=(analyze check"),
+      ],
+      ...[
+        ...source.matchAll(
+          /for context in [^\n]+; do\n\s+read -r (?:job_count job_status|conclusion target_url)/gu,
+        ),
+      ].map(([loop], index) => [
+        `include analyze in CI loop ${index + 1}`,
+        source.replace(loop, loop.replace('"${ci_contexts[@]}"', '"${attestation_contexts[@]}"')),
+      ]),
+    ];
+    for (const [name, mutated] of mutations) {
+      await t.test(name, () => {
+        assert.notEqual(mutated, source, "mutation must change the workflow");
+        assert.throws(() => assertAttestationStatusContract(mutated), { code: "ERR_ASSERTION" });
+      });
+    }
+  },
+);
 
 function assertFinalCodeqlReadsFailClosed(attestationSource) {
   const immediatelyValidatedReads = [
@@ -696,19 +856,14 @@ function assertFinalCodeqlReadsFailClosed(attestationSource) {
 }
 
 function assertPaginatedEvidenceFailClosed(attestationSource) {
+  assert.equal((attestationSource.match(/paginated_object_collection jobs/gu) ?? []).length, 3);
   assert.equal(
-    (attestationSource.match(/paginated_object_collection jobs/gu) ?? []).length,
-    3,
-  );
-  assert.equal(
-    (attestationSource.match(/paginated_object_collection check_runs/gu) ?? [])
-      .length,
+    (attestationSource.match(/paginated_object_collection check_runs/gu) ?? []).length,
     2,
   );
   assert.equal(
-    (attestationSource.match(
-      /if ! [a-z_]+_analyses="\$\(paginated_array_collection/gu,
-    ) ?? []).length,
+    (attestationSource.match(/if ! [a-z_]+_analyses="\$\(paginated_array_collection/gu) ?? [])
+      .length,
     2,
   );
   assert.match(
@@ -716,48 +871,41 @@ function assertPaginatedEvidenceFailClosed(attestationSource) {
     /fetch_paginated_pages\(\) \{\n\s+gh api --paginate --slurp "\$@"/u,
   );
   assert.equal(
-    (attestationSource.match(
-      /if ! [a-z_]+_pages="\$\(fetch_paginated_pages/gu,
-    ) ?? []).length,
+    (attestationSource.match(/if ! [a-z_]+_pages="\$\(fetch_paginated_pages/gu) ?? []).length,
     6,
   );
   assert.equal(
-    (attestationSource.match(
-      /fail_attestation "Release PR CodeQL pagination evidence is malformed"/gu,
-    ) ?? []).length,
+    (
+      attestationSource.match(
+        /fail_attestation "Release PR CodeQL pagination evidence is malformed"/gu,
+      ) ?? []
+    ).length,
     6,
   );
   assert.match(attestationSource, /incomplete paginated object collection/u);
-  assert.equal(
-    (attestationSource.match(/if ! validate_codeql_collection /gu) ?? []).length,
-    6,
-  );
+  assert.equal((attestationSource.match(/if ! validate_codeql_collection /gu) ?? []).length, 6);
   assert.match(attestationSource, /validate_codeql_observation\(\) \{/u);
   assert.equal(
-    (attestationSource.match(
-      /validate_codeql_observation (?:run|jobs|analyze-check|check-runs|check-suite|analyses)/gu,
-    ) ?? []).length,
+    (
+      attestationSource.match(
+        /validate_codeql_observation (?:run|jobs|analyze-check|check-runs|check-suite|analyses)/gu,
+      ) ?? []
+    ).length,
     6,
   );
   assert.doesNotMatch(attestationSource, /codeql_status_is_pending/u);
   const firstJobsValidation = attestationSource.indexOf(
     'validate_codeql_collection jobs <<<"${codeql_jobs}"',
   );
-  const firstAnalyzeCheckRead = attestationSource.indexOf(
-    'if ! codeql_analyze_check="$(gh api',
-  );
+  const firstAnalyzeCheckRead = attestationSource.indexOf('if ! codeql_analyze_check="$(gh api');
   const firstChecksValidation = attestationSource.indexOf(
     'validate_codeql_collection check-runs <<<"${codeql_checks}"',
   );
-  const firstSuiteRead = attestationSource.indexOf(
-    'if ! codeql_check_suite="$(gh api',
-  );
+  const firstSuiteRead = attestationSource.indexOf('if ! codeql_check_suite="$(gh api');
   const firstAnalysesValidation = attestationSource.indexOf(
     'validate_codeql_collection analyses <<<"${codeql_analyses}"',
   );
-  const initialReceiptValidation = attestationSource.indexOf(
-    'if codeql_receipt="$(jq -n',
-  );
+  const initialReceiptValidation = attestationSource.indexOf('if codeql_receipt="$(jq -n');
   assert.ok(firstJobsValidation < firstAnalyzeCheckRead);
   assert.ok(firstChecksValidation < firstSuiteRead);
   assert.ok(firstAnalysesValidation < initialReceiptValidation);
@@ -765,14 +913,8 @@ function assertPaginatedEvidenceFailClosed(attestationSource) {
     attestationSource.indexOf("validate_codeql_observation run") <
       attestationSource.indexOf("codeql_job_pages"),
   );
-  assert.ok(
-    attestationSource.indexOf("validate_codeql_observation jobs") <
-      firstAnalyzeCheckRead,
-  );
-  assert.ok(
-    attestationSource.indexOf("validate_codeql_observation check-runs") <
-      firstSuiteRead,
-  );
+  assert.ok(attestationSource.indexOf("validate_codeql_observation jobs") < firstAnalyzeCheckRead);
+  assert.ok(attestationSource.indexOf("validate_codeql_observation check-runs") < firstSuiteRead);
   assert.match(
     attestationSource,
     /if codeql_receipt="\$\(jq -n[\s\S]*?then\n\s+break\n\s+fi\n\s+cat "\$\{codeql_evidence_error\}" >&2\n\s+fail_attestation "Release PR exact CodeQL evidence is malformed"/u,
@@ -846,15 +988,13 @@ function exactCodeqlEvidence() {
       check_suite_id: 458,
       check_suite_url:
         "https://api.github.com/repos/agent-teams-ai/engineering-foundation/check-suites/458",
-      url:
-        "https://api.github.com/repos/agent-teams-ai/engineering-foundation/actions/runs/123",
+      url: "https://api.github.com/repos/agent-teams-ai/engineering-foundation/actions/runs/123",
       path: ".github/workflows/codeql.yml",
       event: "workflow_dispatch",
       head_branch: exactRunExpectation.branch,
       head_sha: exactRunExpectation.headSha,
       run_attempt: 1,
-      html_url:
-        "https://github.com/agent-teams-ai/engineering-foundation/actions/runs/123",
+      html_url: "https://github.com/agent-teams-ai/engineering-foundation/actions/runs/123",
       jobs_url:
         "https://api.github.com/repos/agent-teams-ai/engineering-foundation/actions/runs/123/jobs",
       rerun_url:
@@ -868,33 +1008,32 @@ function exactCodeqlEvidence() {
       conclusion: "success",
     },
     jobs: {
-      jobs: [{
-        id: 456,
-        url:
-          "https://api.github.com/repos/agent-teams-ai/engineering-foundation/actions/jobs/456",
-        run_id: 123,
-        run_attempt: 1,
-        run_url:
-          "https://api.github.com/repos/agent-teams-ai/engineering-foundation/actions/runs/123",
-        check_run_url:
-          "https://api.github.com/repos/agent-teams-ai/engineering-foundation/check-runs/456",
-        head_sha: exactRunExpectation.headSha,
-        html_url:
-          "https://github.com/agent-teams-ai/engineering-foundation/actions/runs/123/job/456",
-        name: "analyze",
-        workflow_name: "CodeQL",
-        status: "completed",
-        conclusion: "success",
-        started_at: startedAt,
-        completed_at: completedAt,
-      }],
+      jobs: [
+        {
+          id: 456,
+          url: "https://api.github.com/repos/agent-teams-ai/engineering-foundation/actions/jobs/456",
+          run_id: 123,
+          run_attempt: 1,
+          run_url:
+            "https://api.github.com/repos/agent-teams-ai/engineering-foundation/actions/runs/123",
+          check_run_url:
+            "https://api.github.com/repos/agent-teams-ai/engineering-foundation/check-runs/456",
+          head_sha: exactRunExpectation.headSha,
+          html_url:
+            "https://github.com/agent-teams-ai/engineering-foundation/actions/runs/123/job/456",
+          name: "analyze",
+          workflow_name: "CodeQL",
+          status: "completed",
+          conclusion: "success",
+          started_at: startedAt,
+          completed_at: completedAt,
+        },
+      ],
     },
     analyzeCheck: {
       id: 456,
-      url:
-        "https://api.github.com/repos/agent-teams-ai/engineering-foundation/check-runs/456",
-      html_url:
-        "https://github.com/agent-teams-ai/engineering-foundation/actions/runs/123/job/456",
+      url: "https://api.github.com/repos/agent-teams-ai/engineering-foundation/check-runs/456",
+      html_url: "https://github.com/agent-teams-ai/engineering-foundation/actions/runs/123/job/456",
       name: "analyze",
       app: { id: 15368 },
       check_suite: { id: 458 },
@@ -904,43 +1043,42 @@ function exactCodeqlEvidence() {
       status: "completed",
       conclusion: "success",
     },
-    analyses: [{
-      id: 901,
-      url:
-        "https://api.github.com/repos/agent-teams-ai/engineering-foundation/code-scanning/analyses/901",
-      ref: `refs/heads/${exactRunExpectation.branch}`,
-      commit_sha: exactRunExpectation.headSha,
-      analysis_key: ".github/workflows/codeql.yml:analyze",
-      category: "release-attestation-123-1",
-      environment: "{}",
-      warning: "",
-      tool: { name: "CodeQL" },
-      created_at: analysisCreatedAt,
-      sarif_id: "dde4b0bc-a8a2-11f1-82f5-b5928a50418b",
-    }],
+    analyses: [
+      {
+        id: 901,
+        url: "https://api.github.com/repos/agent-teams-ai/engineering-foundation/code-scanning/analyses/901",
+        ref: `refs/heads/${exactRunExpectation.branch}`,
+        commit_sha: exactRunExpectation.headSha,
+        analysis_key: ".github/workflows/codeql.yml:analyze",
+        category: "release-attestation-123-1",
+        environment: "{}",
+        warning: "",
+        tool: { name: "CodeQL" },
+        created_at: analysisCreatedAt,
+        sarif_id: "dde4b0bc-a8a2-11f1-82f5-b5928a50418b",
+      },
+    ],
     checkRuns: {
-      check_runs: [{
-        id: 789,
-        url:
-          "https://api.github.com/repos/agent-teams-ai/engineering-foundation/check-runs/789",
-        html_url:
-          "https://github.com/agent-teams-ai/engineering-foundation/runs/789",
-        name: "CodeQL",
-        app: { id: 57789 },
-        check_suite: { id: 900 },
-        head_sha: exactRunExpectation.headSha,
-        details_url:
-          "https://github.com/agent-teams-ai/engineering-foundation/runs/789",
-        status: "completed",
-        conclusion: "success",
-        started_at: checkStartedAt,
-        completed_at: checkCompletedAt,
-      }],
+      check_runs: [
+        {
+          id: 789,
+          url: "https://api.github.com/repos/agent-teams-ai/engineering-foundation/check-runs/789",
+          html_url: "https://github.com/agent-teams-ai/engineering-foundation/runs/789",
+          name: "CodeQL",
+          app: { id: 57789 },
+          check_suite: { id: 900 },
+          head_sha: exactRunExpectation.headSha,
+          details_url: "https://github.com/agent-teams-ai/engineering-foundation/runs/789",
+          status: "completed",
+          conclusion: "success",
+          started_at: checkStartedAt,
+          completed_at: checkCompletedAt,
+        },
+      ],
     },
     checkSuite: {
       id: 900,
-      url:
-        "https://api.github.com/repos/agent-teams-ai/engineering-foundation/check-suites/900",
+      url: "https://api.github.com/repos/agent-teams-ai/engineering-foundation/check-suites/900",
       check_runs_url:
         "https://api.github.com/repos/agent-teams-ai/engineering-foundation/check-suites/900/check-runs",
       head_sha: exactRunExpectation.headSha,
@@ -982,10 +1120,7 @@ test("release CodeQL evidence binds one dispatch, analysis, check, and PR tuple"
 
   const noRunAssociation = structuredClone(evidence);
   noRunAssociation.run.pull_requests = [];
-  assert.deepEqual(
-    validateReleaseCodeqlEvidence(noRunAssociation, expectation),
-    receipt,
-  );
+  assert.deepEqual(validateReleaseCodeqlEvidence(noRunAssociation, expectation), receipt);
 
   const attemptTwo = structuredClone(evidence);
   attemptTwo.run.run_attempt = 2;
@@ -1059,11 +1194,8 @@ test("release CodeQL evidence binds one dispatch, analysis, check, and PR tuple"
   );
 
   const aliasedAnalyzeCheck = structuredClone(evidence);
-  aliasedAnalyzeCheck.jobs.jobs[0].check_run_url =
-    aliasedAnalyzeCheck.checkRuns.check_runs[0].url;
-  aliasedAnalyzeCheck.analyzeCheck = structuredClone(
-    aliasedAnalyzeCheck.checkRuns.check_runs[0],
-  );
+  aliasedAnalyzeCheck.jobs.jobs[0].check_run_url = aliasedAnalyzeCheck.checkRuns.check_runs[0].url;
+  aliasedAnalyzeCheck.analyzeCheck = structuredClone(aliasedAnalyzeCheck.checkRuns.check_runs[0]);
   assert.throws(
     () => validateReleaseCodeqlEvidence(aliasedAnalyzeCheck, expectation),
     /analyze job and check identities differ/u,
@@ -1125,8 +1257,7 @@ test("release CodeQL evidence binds one dispatch, analysis, check, and PR tuple"
   delayedCheck.checkRuns.check_runs[0].completed_at = "2026-09-04T12:02:02Z";
   delayedCheck.checkSuite.created_at = "2026-09-04T12:01:59Z";
   delayedCheck.checkSuite.updated_at = "2026-09-04T12:02:03Z";
-  assert.doesNotThrow(() =>
-    validateReleaseCodeqlEvidence(delayedCheck, expectation));
+  assert.doesNotThrow(() => validateReleaseCodeqlEvidence(delayedCheck, expectation));
 
   const replacement = structuredClone(evidence);
   replacement.checkRuns.check_runs[0].id = 790;
@@ -1145,18 +1276,12 @@ test("release CodeQL evidence binds one dispatch, analysis, check, and PR tuple"
   competingCheck.checkRuns.check_runs.push({
     ...structuredClone(competingCheck.checkRuns.check_runs[0]),
     id: 791,
-    url:
-      "https://api.github.com/repos/agent-teams-ai/engineering-foundation/check-runs/791",
+    url: "https://api.github.com/repos/agent-teams-ai/engineering-foundation/check-runs/791",
     conclusion: "failure",
-    details_url:
-      "https://github.com/agent-teams-ai/engineering-foundation/runs/791",
+    details_url: "https://github.com/agent-teams-ai/engineering-foundation/runs/791",
   });
   assert.throws(
-    () => validateReleaseCodeqlEvidence(
-      asFinalEvidence(competingCheck),
-      expectation,
-      receipt,
-    ),
+    () => validateReleaseCodeqlEvidence(asFinalEvidence(competingCheck), expectation, receipt),
     /exactly one matching/u,
   );
 
@@ -1167,8 +1292,7 @@ test("release CodeQL evidence binds one dispatch, analysis, check, and PR tuple"
       return {
         ...structuredClone(evidence.checkRuns.check_runs[0]),
         id,
-        url:
-          `https://api.github.com/repos/agent-teams-ai/engineering-foundation/check-runs/${id}`,
+        url: `https://api.github.com/repos/agent-teams-ai/engineering-foundation/check-runs/${id}`,
         name: `unrelated-${index}`,
         app: { id: 1 },
       };
@@ -1178,11 +1302,12 @@ test("release CodeQL evidence binds one dispatch, analysis, check, and PR tuple"
     structuredClone(competingCheckBeyondFirstPage.checkRuns.check_runs[100]),
   );
   assert.throws(
-    () => validateReleaseCodeqlEvidence(
-      asFinalEvidence(competingCheckBeyondFirstPage),
-      expectation,
-      receipt,
-    ),
+    () =>
+      validateReleaseCodeqlEvidence(
+        asFinalEvidence(competingCheckBeyondFirstPage),
+        expectation,
+        receipt,
+      ),
     /exactly one matching/u,
   );
 
@@ -1190,16 +1315,11 @@ test("release CodeQL evidence binds one dispatch, analysis, check, and PR tuple"
   competingAnalysis.analyses.push({
     ...structuredClone(competingAnalysis.analyses[0]),
     id: 902,
-    url:
-      "https://api.github.com/repos/agent-teams-ai/engineering-foundation/code-scanning/analyses/902",
+    url: "https://api.github.com/repos/agent-teams-ai/engineering-foundation/code-scanning/analyses/902",
     sarif_id: "eed4b0bc-a8a2-11f1-82f5-b5928a50418b",
   });
   assert.throws(
-    () => validateReleaseCodeqlEvidence(
-      asFinalEvidence(competingAnalysis),
-      expectation,
-      receipt,
-    ),
+    () => validateReleaseCodeqlEvidence(asFinalEvidence(competingAnalysis), expectation, receipt),
     /exactly one matching/u,
   );
 
@@ -1210,8 +1330,7 @@ test("release CodeQL evidence binds one dispatch, analysis, check, and PR tuple"
       return {
         ...structuredClone(evidence.analyses[0]),
         id,
-        url:
-          `https://api.github.com/repos/agent-teams-ai/engineering-foundation/code-scanning/analyses/${id}`,
+        url: `https://api.github.com/repos/agent-teams-ai/engineering-foundation/code-scanning/analyses/${id}`,
         ref: `refs/heads/unrelated-${index}`,
       };
     }),
@@ -1220,11 +1339,12 @@ test("release CodeQL evidence binds one dispatch, analysis, check, and PR tuple"
     structuredClone(competingAnalysisBeyondFirstPage.analyses[100]),
   );
   assert.throws(
-    () => validateReleaseCodeqlEvidence(
-      asFinalEvidence(competingAnalysisBeyondFirstPage),
-      expectation,
-      receipt,
-    ),
+    () =>
+      validateReleaseCodeqlEvidence(
+        asFinalEvidence(competingAnalysisBeyondFirstPage),
+        expectation,
+        receipt,
+      ),
     /exactly one matching/u,
   );
 });
@@ -1238,32 +1358,118 @@ test("release CodeQL accepts only fully preexisting or current GHAS timing pairs
   evidence.checkSuite.created_at = "2026-09-03T11:59:59Z";
   evidence.checkSuite.updated_at = "2026-09-03T12:00:03Z";
   const receipt = validateReleaseCodeqlEvidence(evidence, expected);
-  assert.deepEqual(validateReleaseCodeqlEvidence(asFinalEvidence(evidence), expected, receipt), receipt);
+  assert.deepEqual(
+    validateReleaseCodeqlEvidence(asFinalEvidence(evidence), expected, receipt),
+    receipt,
+  );
   for (const phase of ["check-runs", "check-suite", "analyses"]) {
     assert.equal(validateReleaseCodeqlObservation(phase, evidence, expected).state, "completed");
   }
   for (const [mutate, message] of [
-    [(value) => { value.checkRuns.check_runs[0].completed_at = "2026-09-04T12:00:00Z"; }, /outside/u],
-    [(value) => { value.checkSuite.updated_at = "2026-09-04T12:00:01Z"; }, /outside/u],
-    [(value) => { value.checkRuns.check_runs[0].completed_at = "2026-09-04T13:00:00Z"; }, /outside/u],
-    [(value) => { value.checkSuite.updated_at = "2026-09-04T13:00:00Z"; }, /outside/u],
-    [(value) => { value.checkRuns.check_runs[0].completed_at = "2026-09-03T11:59:59Z"; }, /outside/u],
-    [(value) => { value.checkSuite.updated_at = "2026-09-03T11:59:58Z"; }, /outside/u],
-    [(value) => { value.checkSuite = exactCodeqlEvidence().checkSuite; }, /timing shapes differ/u],
-    [(value) => { value.checkRuns = exactCodeqlEvidence().checkRuns; }, /timing shapes differ/u],
-    [(value) => { value.checkRuns.check_runs[0].head_sha = "c".repeat(40); }, /identity differs/u],
-    [(value) => { value.checkSuite.head_sha = "c".repeat(40); }, /identity differs/u],
-    [(value) => { value.checkRuns.check_runs[0].app.id = 15368; }, /exactly one matching/u],
-    [(value) => { value.checkSuite.app.id = 15368; }, /identity differs/u],
-    [(value) => { value.analyses[0].category = "release-attestation-123-2"; }, /exactly one matching/u],
-    [(value) => { value.analyses[0].created_at = check.completed_at; }, /not bound/u],
-    [(value) => { value.analyses = []; }, /exactly one matching/u],
-    [(value) => { value.checkSuite.pull_requests[0].number += 1; }, /provenance differs/u],
+    [
+      (value) => {
+        value.checkRuns.check_runs[0].completed_at = "2026-09-04T12:00:00Z";
+      },
+      /outside/u,
+    ],
+    [
+      (value) => {
+        value.checkSuite.updated_at = "2026-09-04T12:00:01Z";
+      },
+      /outside/u,
+    ],
+    [
+      (value) => {
+        value.checkRuns.check_runs[0].completed_at = "2026-09-04T13:00:00Z";
+      },
+      /outside/u,
+    ],
+    [
+      (value) => {
+        value.checkSuite.updated_at = "2026-09-04T13:00:00Z";
+      },
+      /outside/u,
+    ],
+    [
+      (value) => {
+        value.checkRuns.check_runs[0].completed_at = "2026-09-03T11:59:59Z";
+      },
+      /outside/u,
+    ],
+    [
+      (value) => {
+        value.checkSuite.updated_at = "2026-09-03T11:59:58Z";
+      },
+      /outside/u,
+    ],
+    [
+      (value) => {
+        value.checkSuite = exactCodeqlEvidence().checkSuite;
+      },
+      /timing shapes differ/u,
+    ],
+    [
+      (value) => {
+        value.checkRuns = exactCodeqlEvidence().checkRuns;
+      },
+      /timing shapes differ/u,
+    ],
+    [
+      (value) => {
+        value.checkRuns.check_runs[0].head_sha = "c".repeat(40);
+      },
+      /identity differs/u,
+    ],
+    [
+      (value) => {
+        value.checkSuite.head_sha = "c".repeat(40);
+      },
+      /identity differs/u,
+    ],
+    [
+      (value) => {
+        value.checkRuns.check_runs[0].app.id = 15368;
+      },
+      /exactly one matching/u,
+    ],
+    [
+      (value) => {
+        value.checkSuite.app.id = 15368;
+      },
+      /identity differs/u,
+    ],
+    [
+      (value) => {
+        value.analyses[0].category = "release-attestation-123-2";
+      },
+      /exactly one matching/u,
+    ],
+    [
+      (value) => {
+        value.analyses[0].created_at = check.completed_at;
+      },
+      /not bound/u,
+    ],
+    [
+      (value) => {
+        value.analyses = [];
+      },
+      /exactly one matching/u,
+    ],
+    [
+      (value) => {
+        value.checkSuite.pull_requests[0].number += 1;
+      },
+      /provenance differs/u,
+    ],
   ]) {
     const hostile = structuredClone(evidence);
     mutate(hostile);
     assert.throws(() => validateReleaseCodeqlEvidence(hostile, expected), message);
-    assert.throws(() => validateReleaseCodeqlEvidence(asFinalEvidence(hostile), expected, receipt), message);
+    assert.throws(
+      () => validateReleaseCodeqlEvidence(asFinalEvidence(hostile), expected, receipt),
+      message,
+    );
   }
 });
 
@@ -1280,20 +1486,23 @@ for (const conclusion of ["success", "neutral"]) {
       receipt,
     );
     for (const phase of ["check-runs", "check-suite"]) {
-      assert.equal(
-        validateReleaseCodeqlObservation(phase, evidence, expected).state,
-        "completed",
-      );
+      assert.equal(validateReleaseCodeqlObservation(phase, evidence, expected).state, "completed");
     }
 
     const mixed = structuredClone(evidence);
     mixed.checkSuite.conclusion = conclusion === "success" ? "neutral" : "success";
-    assert.throws(() => validateReleaseCodeqlEvidence(mixed, expected),
-      /check and suite conclusions differ/u);
-    assert.throws(() => validateReleaseCodeqlObservation("check-suite", mixed, expected),
-      /check and suite conclusions differ/u);
-    assert.throws(() => validateReleaseCodeqlEvidence(asFinalEvidence(mixed), expected, receipt),
-      /check and suite conclusions differ/u);
+    assert.throws(
+      () => validateReleaseCodeqlEvidence(mixed, expected),
+      /check and suite conclusions differ/u,
+    );
+    assert.throws(
+      () => validateReleaseCodeqlObservation("check-suite", mixed, expected),
+      /check and suite conclusions differ/u,
+    );
+    assert.throws(
+      () => validateReleaseCodeqlEvidence(asFinalEvidence(mixed), expected, receipt),
+      /check and suite conclusions differ/u,
+    );
 
     for (const [phase, select] of [
       ["check-runs", (value) => value.checkRuns.check_runs[0]],
@@ -1303,41 +1512,111 @@ for (const conclusion of ["success", "neutral"]) {
       select(pending).status = "in_progress";
       select(pending).conclusion = null;
       assert.equal(validateReleaseCodeqlObservation(phase, pending, expected).state, "pending");
-      assert.throws(() => validateReleaseCodeqlEvidence(asFinalEvidence(pending), expected, receipt),
-        /has not completed/u);
+      assert.throws(
+        () => validateReleaseCodeqlEvidence(asFinalEvidence(pending), expected, receipt),
+        /has not completed/u,
+      );
       select(pending).conclusion = conclusion;
-      assert.throws(() => validateReleaseCodeqlObservation(phase, pending, expected),
-        /status is malformed/u);
+      assert.throws(
+        () => validateReleaseCodeqlObservation(phase, pending, expected),
+        /status is malformed/u,
+      );
     }
 
     for (const [mutate, message] of [
-      [(value) => { value.analyses = []; }, /exactly one matching/u],
-      [(value) => { value.analyses[0].warning = "analysis failed"; }, /not bound/u],
-      [(value) => { value.analyses[0].category = "release-attestation-124-1"; }, /exactly one matching/u],
-      [(value) => { value.analyses[0].category = "release-attestation-123-2"; }, /exactly one matching/u],
-      [(value) => { value.analyses[0].commit_sha = "c".repeat(40); }, /exactly one matching/u],
-      [(value) => { value.analyses[0].ref = "refs/heads/main"; }, /exactly one matching/u],
-      [(value) => { value.checkRuns.check_runs[0].app.id = 15368; }, /exactly one matching/u],
-      [(value) => { value.checkSuite.app.id = 15368; }, /suite identity differs/u],
-      [(value) => { value.checkSuite.id += 1; }, /suite identity differs/u],
-      [(value) => { value.checkRuns.check_runs[0].completed_at = "2026-09-04T13:00:00Z"; }, /outside/u],
-      [(value) => { value.run.run_attempt = 2; }, /run identity differs/u],
+      [
+        (value) => {
+          value.analyses = [];
+        },
+        /exactly one matching/u,
+      ],
+      [
+        (value) => {
+          value.analyses[0].warning = "analysis failed";
+        },
+        /not bound/u,
+      ],
+      [
+        (value) => {
+          value.analyses[0].category = "release-attestation-124-1";
+        },
+        /exactly one matching/u,
+      ],
+      [
+        (value) => {
+          value.analyses[0].category = "release-attestation-123-2";
+        },
+        /exactly one matching/u,
+      ],
+      [
+        (value) => {
+          value.analyses[0].commit_sha = "c".repeat(40);
+        },
+        /exactly one matching/u,
+      ],
+      [
+        (value) => {
+          value.analyses[0].ref = "refs/heads/main";
+        },
+        /exactly one matching/u,
+      ],
+      [
+        (value) => {
+          value.checkRuns.check_runs[0].app.id = 15368;
+        },
+        /exactly one matching/u,
+      ],
+      [
+        (value) => {
+          value.checkSuite.app.id = 15368;
+        },
+        /suite identity differs/u,
+      ],
+      [
+        (value) => {
+          value.checkSuite.id += 1;
+        },
+        /suite identity differs/u,
+      ],
+      [
+        (value) => {
+          value.checkRuns.check_runs[0].completed_at = "2026-09-04T13:00:00Z";
+        },
+        /outside/u,
+      ],
+      [
+        (value) => {
+          value.run.run_attempt = 2;
+        },
+        /run identity differs/u,
+      ],
     ]) {
       const hostile = structuredClone(evidence);
       mutate(hostile);
       // Human output cannot authorize otherwise invalid evidence.
-      hostile.checkRuns.check_runs[0].output = { summary: "Normal main configuration was not found" };
+      hostile.checkRuns.check_runs[0].output = {
+        summary: "Normal main configuration was not found",
+      };
       assert.throws(() => validateReleaseCodeqlEvidence(hostile, expected), message);
-      assert.throws(() => validateReleaseCodeqlEvidence(asFinalEvidence(hostile), expected, receipt), message);
+      assert.throws(
+        () => validateReleaseCodeqlEvidence(asFinalEvidence(hostile), expected, receipt),
+        message,
+      );
     }
 
     const drift = asFinalEvidence(evidence);
     drift.postRun.workflow_id += 1;
     drift.postRun.workflow_url = drift.postRun.workflow_url.replace("321", "322");
-    assert.throws(() => validateReleaseCodeqlEvidence(drift, expected, receipt), /changed identity/u);
+    assert.throws(
+      () => validateReleaseCodeqlEvidence(drift, expected, receipt),
+      /changed identity/u,
+    );
     const prDrift = asFinalEvidence(evidence);
     prDrift.postPullRequest.head.sha = "c".repeat(40);
-    assert.throws(() => validateReleaseCodeqlEvidence(prDrift, expected, receipt), /provenance differs/u);
+    assert.throws(
+      () => validateReleaseCodeqlEvidence(prDrift, expected, receipt),
+      /provenance differs/u,
+    );
   });
 }
 
@@ -1347,7 +1626,15 @@ test("release CodeQL keeps unsuccessful producer evidence fail closed", () => {
   evidence.checkRuns.check_runs[0].conclusion = "neutral";
   evidence.checkSuite.conclusion = "neutral";
   const receipt = validateReleaseCodeqlEvidence(evidence, expected);
-  for (const conclusion of ["failure", "cancelled", "skipped", "neutral", "action_required", "stale", "timed_out"]) {
+  for (const conclusion of [
+    "failure",
+    "cancelled",
+    "skipped",
+    "neutral",
+    "action_required",
+    "stale",
+    "timed_out",
+  ]) {
     for (const [phase, select] of [
       ["run", (value) => value.run],
       ["jobs", (value) => value.jobs.jobs[0]],
@@ -1360,13 +1647,22 @@ test("release CodeQL keeps unsuccessful producer evidence fail closed", () => {
       }
       const hostile = structuredClone(evidence);
       select(hostile).conclusion = conclusion;
-      assert.throws(() => validateReleaseCodeqlObservation(phase, hostile, expected), /did not succeed/u);
+      assert.throws(
+        () => validateReleaseCodeqlObservation(phase, hostile, expected),
+        /did not succeed/u,
+      );
       assert.throws(() => validateReleaseCodeqlEvidence(hostile, expected), /did not succeed/u);
-      assert.throws(() => validateReleaseCodeqlEvidence(asFinalEvidence(hostile), expected, receipt), /did not succeed/u);
+      assert.throws(
+        () => validateReleaseCodeqlEvidence(asFinalEvidence(hostile), expected, receipt),
+        /did not succeed/u,
+      );
     }
     const postRunFailure = asFinalEvidence(evidence);
     postRunFailure.postRun.conclusion = conclusion;
-    assert.throws(() => validateReleaseCodeqlEvidence(postRunFailure, expected, receipt), /did not succeed/u);
+    assert.throws(
+      () => validateReleaseCodeqlEvidence(postRunFailure, expected, receipt),
+      /did not succeed/u,
+    );
   }
 });
 
@@ -1390,21 +1686,15 @@ test("release CodeQL receipt retains workflow and run suite identity", () => {
 
   const nearMax = exactCodeqlEvidence();
   nearMax.run.check_suite_id = Number.MAX_SAFE_INTEGER;
-  nearMax.run.check_suite_url =
-    `https://api.github.com/repos/agent-teams-ai/engineering-foundation/check-suites/${Number.MAX_SAFE_INTEGER}`;
+  nearMax.run.check_suite_url = `https://api.github.com/repos/agent-teams-ai/engineering-foundation/check-suites/${Number.MAX_SAFE_INTEGER}`;
   nearMax.analyzeCheck.check_suite.id = Number.MAX_SAFE_INTEGER;
   nearMax.run.workflow_id = Number.MAX_SAFE_INTEGER - 1;
-  nearMax.run.workflow_url =
-    `https://api.github.com/repos/agent-teams-ai/engineering-foundation/actions/workflows/${Number.MAX_SAFE_INTEGER - 1}`;
+  nearMax.run.workflow_url = `https://api.github.com/repos/agent-teams-ai/engineering-foundation/actions/workflows/${Number.MAX_SAFE_INTEGER - 1}`;
   const nearMaxReceipt = validateReleaseCodeqlEvidence(nearMax, expectation);
   assert.equal(nearMaxReceipt.runCheckSuiteId, Number.MAX_SAFE_INTEGER);
   assert.equal(nearMaxReceipt.workflowId, Number.MAX_SAFE_INTEGER - 1);
   assert.deepEqual(
-    validateReleaseCodeqlEvidence(
-      asFinalEvidence(nearMax),
-      expectation,
-      nearMaxReceipt,
-    ),
+    validateReleaseCodeqlEvidence(asFinalEvidence(nearMax), expectation, nearMaxReceipt),
     nearMaxReceipt,
   );
 });
@@ -1446,32 +1736,19 @@ test("release CodeQL collection validation rejects malformed entries before retr
   ];
 
   for (const [kind, collection] of collections) {
-    assert.doesNotThrow(() =>
-      validateReleaseCodeqlCollectionEntries(kind, collection));
+    assert.doesNotThrow(() => validateReleaseCodeqlCollectionEntries(kind, collection));
 
     const nullEntry = structuredClone(collection);
-    const nullEntries = kind === "jobs"
-      ? nullEntry.jobs
-      : kind === "check-runs"
-        ? nullEntry.check_runs
-        : nullEntry;
+    const nullEntries =
+      kind === "jobs" ? nullEntry.jobs : kind === "check-runs" ? nullEntry.check_runs : nullEntry;
     nullEntries.push(null);
-    assert.throws(
-      () => validateReleaseCodeqlCollectionEntries(kind, nullEntry),
-      /malformed/u,
-    );
+    assert.throws(() => validateReleaseCodeqlCollectionEntries(kind, nullEntry), /malformed/u);
 
     const stringId = structuredClone(collection);
-    const stringIdEntries = kind === "jobs"
-      ? stringId.jobs
-      : kind === "check-runs"
-        ? stringId.check_runs
-        : stringId;
+    const stringIdEntries =
+      kind === "jobs" ? stringId.jobs : kind === "check-runs" ? stringId.check_runs : stringId;
     stringIdEntries[0].id = "456";
-    assert.throws(
-      () => validateReleaseCodeqlCollectionEntries(kind, stringId),
-      /ID is malformed/u,
-    );
+    assert.throws(() => validateReleaseCodeqlCollectionEntries(kind, stringId), /ID is malformed/u);
   }
 
   const stringRunId = structuredClone(evidence.jobs);
@@ -1528,28 +1805,22 @@ test("release CodeQL collection validation rejects malformed entries before retr
 test("release CodeQL observations retry only absent or valid pending evidence", () => {
   const evidence = exactCodeqlEvidence();
   const expected = { ...exactRunExpectation, runId: 123 };
-  const observe = (phase, overrides = {}) => validateReleaseCodeqlObservation(
-    phase,
-    {
-      run: evidence.run,
-      jobs: evidence.jobs,
-      analyzeCheck: evidence.analyzeCheck,
-      checkRuns: evidence.checkRuns,
-      checkSuite: evidence.checkSuite,
-      analyses: evidence.analyses,
-      ...overrides,
-    },
-    expected,
-  );
+  const observe = (phase, overrides = {}) =>
+    validateReleaseCodeqlObservation(
+      phase,
+      {
+        run: evidence.run,
+        jobs: evidence.jobs,
+        analyzeCheck: evidence.analyzeCheck,
+        checkRuns: evidence.checkRuns,
+        checkSuite: evidence.checkSuite,
+        analyses: evidence.analyses,
+        ...overrides,
+      },
+      expected,
+    );
 
-  for (const phase of [
-    "run",
-    "jobs",
-    "analyze-check",
-    "check-runs",
-    "check-suite",
-    "analyses",
-  ]) {
+  for (const phase of ["run", "jobs", "analyze-check", "check-runs", "check-suite", "analyses"]) {
     assert.equal(observe(phase).state, "completed");
   }
 
@@ -1558,27 +1829,18 @@ test("release CodeQL observations retry only absent or valid pending evidence", 
   pendingRun.conclusion = null;
   assert.deepEqual(observe("run", { run: pendingRun }), { state: "pending" });
   pendingRun.id = "123";
-  assert.throws(
-    () => observe("run", { run: pendingRun }),
-    /workflow run ID is malformed/u,
-  );
+  assert.throws(() => observe("run", { run: pendingRun }), /workflow run ID is malformed/u);
   for (const field of ["check_suite_id", "workflow_id"]) {
     for (const value of ["321", { value: 321 }, 2 ** 53]) {
       const malformedRunProvenance = structuredClone(evidence.run);
       malformedRunProvenance[field] = value;
-      assert.throws(
-        () => observe("run", { run: malformedRunProvenance }),
-        /ID is malformed/u,
-      );
+      assert.throws(() => observe("run", { run: malformedRunProvenance }), /ID is malformed/u);
     }
   }
   for (const field of ["check_suite_url", "workflow_url"]) {
     const wrongRunUrl = structuredClone(evidence.run);
     wrongRunUrl[field] = `${wrongRunUrl[field]}/wrong`;
-    assert.throws(
-      () => observe("run", { run: wrongRunUrl }),
-      /workflow run identity differs/u,
-    );
+    assert.throws(() => observe("run", { run: wrongRunUrl }), /workflow run identity differs/u);
   }
   const wrongRunSuite = structuredClone(evidence.run);
   wrongRunSuite.check_suite_id = 459;
@@ -1593,21 +1855,11 @@ test("release CodeQL observations retry only absent or valid pending evidence", 
   absentAnalyze.jobs[0].name = "setup";
   assert.equal(observe("jobs", { jobs: absentAnalyze }).state, "pending");
   absentAnalyze.jobs[0].url = "https://example.test/jobs/456";
-  assert.throws(
-    () => observe("jobs", { jobs: absentAnalyze }),
-    /entry 0 identity differs/u,
-  );
-  for (const incompatible of [
-    { run_id: 124 },
-    { run_attempt: 2 },
-    { head_sha: "d".repeat(40) },
-  ]) {
+  assert.throws(() => observe("jobs", { jobs: absentAnalyze }), /entry 0 identity differs/u);
+  for (const incompatible of [{ run_id: 124 }, { run_attempt: 2 }, { head_sha: "d".repeat(40) }]) {
     const unrelatedJob = structuredClone(evidence.jobs);
     unrelatedJob.jobs[0] = { ...unrelatedJob.jobs[0], name: "setup", ...incompatible };
-    assert.throws(
-      () => observe("jobs", { jobs: unrelatedJob }),
-      /entry 0 identity differs/u,
-    );
+    assert.throws(() => observe("jobs", { jobs: unrelatedJob }), /entry 0 identity differs/u);
   }
   const wrongJobWorkflow = structuredClone(evidence.jobs);
   wrongJobWorkflow.jobs[0].name = "setup";
@@ -1616,10 +1868,7 @@ test("release CodeQL observations retry only absent or valid pending evidence", 
     () => validateReleaseCodeqlCollectionEntries("jobs", wrongJobWorkflow),
     /workflow name differs/u,
   );
-  assert.throws(
-    () => observe("jobs", { jobs: wrongJobWorkflow }),
-    /workflow name differs/u,
-  );
+  assert.throws(() => observe("jobs", { jobs: wrongJobWorkflow }), /workflow name differs/u);
   for (const status of [{ value: "queued" }, "unknown"]) {
     const malformedUnrelatedJob = structuredClone(evidence.jobs);
     malformedUnrelatedJob.jobs[0].name = "setup";
@@ -1646,25 +1895,16 @@ test("release CodeQL observations retry only absent or valid pending evidence", 
   pendingAnalyze.jobs[0].conclusion = null;
   assert.equal(observe("jobs", { jobs: pendingAnalyze }).state, "pending");
   pendingAnalyze.jobs[0].id = { value: 456 };
-  assert.throws(
-    () => observe("jobs", { jobs: pendingAnalyze }),
-    /entry 0 ID is malformed/u,
-  );
+  assert.throws(() => observe("jobs", { jobs: pendingAnalyze }), /entry 0 ID is malformed/u);
 
   const failedAnalyze = structuredClone(evidence.jobs);
   failedAnalyze.jobs[0].conclusion = "failure";
-  assert.throws(
-    () => observe("jobs", { jobs: failedAnalyze }),
-    /analyze job did not succeed/u,
-  );
+  assert.throws(() => observe("jobs", { jobs: failedAnalyze }), /analyze job did not succeed/u);
 
   const pendingAnalyzeCheck = structuredClone(evidence.analyzeCheck);
   pendingAnalyzeCheck.status = "pending";
   pendingAnalyzeCheck.conclusion = null;
-  assert.equal(
-    observe("analyze-check", { analyzeCheck: pendingAnalyzeCheck }).state,
-    "pending",
-  );
+  assert.equal(observe("analyze-check", { analyzeCheck: pendingAnalyzeCheck }).state, "pending");
   pendingAnalyzeCheck.id = "456";
   assert.throws(
     () => observe("analyze-check", { analyzeCheck: pendingAnalyzeCheck }),
@@ -1714,10 +1954,7 @@ test("release CodeQL observations retry only absent or valid pending evidence", 
     validUnrelatedCheck.check_runs[0].name = "setup";
     validUnrelatedCheck.check_runs[0].status = status;
     validUnrelatedCheck.check_runs[0].conclusion = conclusion;
-    assert.equal(
-      observe("check-runs", { checkRuns: validUnrelatedCheck }).state,
-      "pending",
-    );
+    assert.equal(observe("check-runs", { checkRuns: validUnrelatedCheck }).state, "pending");
   }
   const aliasedInitialCheck = structuredClone(evidence.checkRuns);
   aliasedInitialCheck.check_runs[0].id = 456;
@@ -1743,10 +1980,7 @@ test("release CodeQL observations retry only absent or valid pending evidence", 
   assert.equal(observe("check-runs", { checkRuns: pendingCheck }).state, "pending");
   pendingCheck.check_runs[0].status = "completed";
   pendingCheck.check_runs[0].conclusion = "failure";
-  assert.throws(
-    () => observe("check-runs", { checkRuns: pendingCheck }),
-    /check did not succeed/u,
-  );
+  assert.throws(() => observe("check-runs", { checkRuns: pendingCheck }), /check did not succeed/u);
 
   const pendingSuite = structuredClone(evidence.checkSuite);
   pendingSuite.status = "waiting";
@@ -1767,10 +2001,7 @@ test("release CodeQL observations retry only absent or valid pending evidence", 
   assert.equal(observe("analyses", { analyses: [] }).state, "pending");
   const absentExactAnalysis = structuredClone(evidence.analyses);
   absentExactAnalysis[0].ref = "refs/heads/unrelated";
-  assert.equal(
-    observe("analyses", { analyses: absentExactAnalysis }).state,
-    "pending",
-  );
+  assert.equal(observe("analyses", { analyses: absentExactAnalysis }).state, "pending");
   absentExactAnalysis[0].url = "https://example.test/analyses/901";
   assert.throws(
     () => observe("analyses", { analyses: absentExactAnalysis }),
@@ -1841,8 +2072,7 @@ test("release CI selection reuses only one exact attempt-1 pull request run", ()
             exactPullRequestRun(),
             exactPullRequestRun({
               id: 124,
-              html_url:
-                "https://github.com/agent-teams-ai/engineering-foundation/actions/runs/124",
+              html_url: "https://github.com/agent-teams-ai/engineering-foundation/actions/runs/124",
             }),
           ],
         },
@@ -1856,12 +2086,18 @@ test("release CI selection reuses only one exact attempt-1 pull request run", ()
 // displace or make ambiguous the actual admitted full request used by release.
 test("release selection excludes unrelated label runs beside one actual full request", () => {
   const unrelated = exactPullRequestRun({
-    id: 124, name: "CI pull_request run 124", display_title: "CI pull_request run 124",
-    status: "completed", conclusion: "success",
+    id: 124,
+    name: "CI pull_request run 124",
+    display_title: "CI pull_request run 124",
+    status: "completed",
+    conclusion: "success",
     html_url: "https://github.com/agent-teams-ai/engineering-foundation/actions/runs/124",
   });
   assert.equal(selectReleaseCiRun({ workflow_runs: [unrelated] }, exactRunExpectation), null);
-  for (const runs of [[unrelated, exactPullRequestRun()], [exactPullRequestRun(), unrelated]]) {
+  for (const runs of [
+    [unrelated, exactPullRequestRun()],
+    [exactPullRequestRun(), unrelated],
+  ]) {
     assert.equal(selectReleaseCiRun({ workflow_runs: runs }, exactRunExpectation).id, 123);
   }
 });
@@ -1869,12 +2105,7 @@ test("release selection excludes unrelated label runs beside one actual full req
 test("CI concurrency isolates pull request checks from attester dispatches", async () => {
   const ci = await workflow("ci.yml");
   const codeql = await workflow("codeql.yml");
-  const requiredLifecycleEvents = [
-    "opened",
-    "synchronize",
-    "reopened",
-    "ready_for_review",
-  ];
+  const requiredLifecycleEvents = ["opened", "synchronize", "reopened", "ready_for_review"];
   const readyPullRequestCondition =
     "${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}";
   assert.deepEqual(ci.on.pull_request.types, ["labeled"]);
@@ -1885,8 +2116,8 @@ test("CI concurrency isolates pull request checks from attester dispatches", asy
   assert.equal(ci.jobs["dependency-review"].if, undefined);
   assert.equal(ci.jobs["linux-static"].if, fullRequestCondition);
   assert.equal(codeql.jobs.analyze.if, readyPullRequestCondition);
-  const codeqlAnalyze = codeql.jobs.analyze.steps.find(
-    ({ uses }) => uses?.startsWith("github/codeql-action/analyze@"),
+  const codeqlAnalyze = codeql.jobs.analyze.steps.find(({ uses }) =>
+    uses?.startsWith("github/codeql-action/analyze@"),
   );
   assert.equal(codeqlAnalyze.id, "analyze");
   assert.equal(
@@ -1901,22 +2132,32 @@ test("CI concurrency isolates pull request checks from attester dispatches", asy
 });
 
 function assertReleaseProfileSteps(releaseJob) {
-  assert.deepEqual([
-    releaseJob.permissions["id-token"],
-    releaseJob.permissions.contents,
-    releaseJob.steps.find(({ name }) => name === "Install the actual Bun source worktree")?.run,
-    releaseJob.steps.find((step) => step.id === "changesets").with.createGithubReleases
-  ], ["write", "write", "node tools/dev.mts install", false]);
+  assert.deepEqual(
+    [
+      releaseJob.permissions["id-token"],
+      releaseJob.permissions.contents,
+      releaseJob.steps.find(({ name }) => name === "Install the actual Bun source worktree")?.run,
+      releaseJob.steps.find((step) => step.id === "changesets").with.createGithubReleases,
+    ],
+    ["write", "write", "node tools/dev.mts install", false],
+  );
   const changesets = releaseJob.steps.find((step) => step.id === "changesets");
-  const sourceInstall = releaseJob.steps.findIndex((step) => step.run === "node tools/dev.mts install");
+  const sourceInstall = releaseJob.steps.findIndex(
+    (step) => step.run === "node tools/dev.mts install",
+  );
   assert.ok(sourceInstall >= 0 && sourceInstall < releaseJob.steps.indexOf(changesets));
-  assert.equal(releaseJob.steps.some((step) => step.run === "node tools/dev.mts --profile node install"), false);
+  assert.equal(
+    releaseJob.steps.some((step) => step.run === "node tools/dev.mts --profile node install"),
+    false,
+  );
   assert.equal(changesets.uses, "changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d");
   assert.equal(changesets.with.setupGitUser, false);
   assert.equal(changesets.with.version, "node tools/release-profile.mts version");
   assert.equal(changesets.with.publish, "node tools/release-profile.mts publish");
-  assert.equal(changesets.env.AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT,
-    "${{ steps.setup-pnpm.outputs.bin-dest }}/pnpm");
+  assert.equal(
+    changesets.env.AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT,
+    "${{ steps.setup-pnpm.outputs.bin-dest }}/pnpm",
+  );
 }
 
 test("release pipeline keeps hosted review separate from generated-diff attestation", async () => {
@@ -1936,11 +2177,11 @@ test("release pipeline keeps hosted review separate from generated-diff attestat
   );
   assert.equal(releaseJob["timeout-minutes"], 60);
   const attestationIndex = attestationSteps.indexOf(attestation);
-  const attestationBunSetupIndex = attestationSteps.findIndex(
-    ({ uses }) => uses?.startsWith("oven-sh/setup-bun@"),
+  const attestationBunSetupIndex = attestationSteps.findIndex(({ uses }) =>
+    uses?.startsWith("oven-sh/setup-bun@"),
   );
-  const attestationNodeSetupIndex = attestationSteps.findIndex(
-    ({ uses }) => uses?.startsWith("actions/setup-node@"),
+  const attestationNodeSetupIndex = attestationSteps.findIndex(({ uses }) =>
+    uses?.startsWith("actions/setup-node@"),
   );
   const attestationInstallIndex = attestationSteps.findIndex(
     ({ run }) => run === "node tools/dev.mts install",
@@ -1965,11 +2206,21 @@ test("release pipeline keeps hosted review separate from generated-diff attestat
       releaseBinding.run.indexOf("printf 'number=%s\\n'"),
   );
   assertReleaseProfileSteps(releaseJob);
-  const releaseNodeIndex = releaseJob.steps.findIndex(({ uses }) => uses?.startsWith("actions/setup-node@"));
-  const releaseNpmIndex = releaseJob.steps.findIndex(({ run }) => run === "npm install --global npm@11.19.0 --ignore-scripts");
-  const releaseNpmGuardIndex = releaseJob.steps.findIndex(({ run }) => /assertNpmVersion\(\)/u.test(run ?? ""));
-  assert.ok(releaseNodeIndex >= 0 && releaseNpmIndex > releaseNodeIndex && releaseNpmGuardIndex > releaseNpmIndex,
-    "release must provision the qualified npm 11.19.0 after Node setup and before its version guard");
+  const releaseNodeIndex = releaseJob.steps.findIndex(({ uses }) =>
+    uses?.startsWith("actions/setup-node@"),
+  );
+  const releaseNpmIndex = releaseJob.steps.findIndex(
+    ({ run }) => run === "npm install --global npm@11.19.0 --ignore-scripts",
+  );
+  const releaseNpmGuardIndex = releaseJob.steps.findIndex(({ run }) =>
+    /assertNpmVersion\(\)/u.test(run ?? ""),
+  );
+  assert.ok(
+    releaseNodeIndex >= 0 &&
+      releaseNpmIndex > releaseNodeIndex &&
+      releaseNpmGuardIndex > releaseNpmIndex,
+    "release must provision the qualified npm 11.19.0 after Node setup and before its version guard",
+  );
   assert.ok(releaseNpmGuardIndex < releaseJob.steps.findIndex((step) => step.id === "changesets"));
   assert.match(attestation.run, /node scripts\/check-release-pr-files\.mjs/u);
   assert.ok(attestationBunSetupIndex > 0);
@@ -1980,10 +2231,7 @@ test("release pipeline keeps hosted review separate from generated-diff attestat
     attestationSteps[attestationBunSetupIndex].uses,
     "oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6",
   );
-  assert.deepEqual(
-    attestationSteps[attestationBunSetupIndex].with,
-    { "bun-version": "1.4.3" },
-  );
+  assert.deepEqual(attestationSteps[attestationBunSetupIndex].with, { "bun-version": "1.4.3" });
   assert.equal(
     attestationSteps[attestationNodeSetupIndex].uses,
     "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
@@ -1997,12 +2245,16 @@ test("release pipeline keeps hosted review separate from generated-diff attestat
   );
   assert.equal(changesetCoverage.run, "bun scripts/check-changeset-coverage.mjs");
   assert.match(changesetCoverage.if, /pull_request[\s\S]*changeset-release\/main/u);
-  assert.match(
-    changesetCoverage.if,
-    /head\.repo\.full_name != github\.repository/u,
+  assert.match(changesetCoverage.if, /head\.repo\.full_name != github\.repository/u);
+  assert.equal(
+    changesetCoverage.env.FOUNDATION_CHANGESET_BASE_SHA,
+    "${{ github.event.pull_request.base.sha }}",
   );
-  assert.equal(changesetCoverage.env.FOUNDATION_CHANGESET_BASE_SHA, "${{ github.event.pull_request.base.sha }}");
-  assert.equal(ci.jobs["linux-static"].steps.find(({ run }) => run === "bun run release-owned-files:check").env.FOUNDATION_PR_HEAD_REPOSITORY, "${{ github.event.pull_request.head.repo.full_name }}");
+  assert.equal(
+    ci.jobs["linux-static"].steps.find(({ run }) => run === "bun run release-owned-files:check").env
+      .FOUNDATION_PR_HEAD_REPOSITORY,
+    "${{ github.event.pull_request.head.repo.full_name }}",
+  );
   assert.equal(
     attestation.env.EXPECTED_RELEASE_BASE_SHA,
     "${{ needs.release.outputs.pullRequestBaseSha }}",
@@ -2012,23 +2264,11 @@ test("release pipeline keeps hosted review separate from generated-diff attestat
     "${{ needs.release.outputs.pullRequestHeadSha }}",
   );
   assert.equal(attestation.env.PROCESSED_MAIN_SHA, "${{ github.sha }}");
-  assert.equal(
-    (attestation.run.match(/check-release-pr-freshness\.mjs/gu) ?? []).length,
-    3,
-  );
-  assert.equal(
-    (attestation.run.match(/git\/ref\/heads\/main/gu) ?? []).length,
-    3,
-  );
+  assert.equal((attestation.run.match(/check-release-pr-freshness\.mjs/gu) ?? []).length, 3);
+  assert.equal((attestation.run.match(/git\/ref\/heads\/main/gu) ?? []).length, 3);
   assert.match(attestation.run, /--arg expectedHeadSha "\$\{head_sha\}"/u);
-  assert.equal(
-    (attestation.run.match(/--arg expectedBaseSha/gu) ?? []).length,
-    3,
-  );
-  assert.equal(
-    (attestation.run.match(/--arg expectedPullRequestNumber/gu) ?? []).length,
-    3,
-  );
+  assert.equal((attestation.run.match(/--arg expectedBaseSha/gu) ?? []).length, 3);
+  assert.equal((attestation.run.match(/--arg expectedPullRequestNumber/gu) ?? []).length, 3);
   assert.match(attestation.run, /--base "\$\{base_sha\}" --head "\$\{head_sha\}"/u);
   assert.match(attestation.run, /selection_deadline=\$\(\(SECONDS \+ 30\)\)/u);
   assert.match(attestation.run, /select-release-ci-run\.mjs/u);
@@ -2048,10 +2288,7 @@ test("release pipeline keeps hosted review separate from generated-diff attestat
     attestation.run.indexOf("actions/workflows/codeql.yml/dispatches") <
       attestation.run.indexOf("deadline=$((SECONDS + 4500))"),
   );
-  assert.equal(
-    (attestation.run.match(/check-release-codeql-evidence\.mjs/gu) ?? []).length,
-    4,
-  );
+  assert.equal((attestation.run.match(/check-release-codeql-evidence\.mjs/gu) ?? []).length, 4);
   assert.match(attestation.run, /check_name=CodeQL/u);
   assert.match(attestation.run, /validate_codeql_observation check-runs/u);
   assert.match(attestation.run, /code-scanning\/analyses/u);
@@ -2065,29 +2302,19 @@ test("release pipeline keeps hosted review separate from generated-diff attestat
   assert.match(attestation.run, /postPullRequest: \$pullRequest/u);
   assert.match(attestation.run, /validate_final_codeql_snapshot\(\) \{/u);
   assert.match(attestation.run, /require_final_codeql_snapshot\(\) \{/u);
-  assert.equal(
-    (attestation.run.match(/^\s+require_final_codeql_snapshot$/gmu) ?? []).length,
-    8,
-  );
+  assert.equal((attestation.run.match(/^\s+require_final_codeql_snapshot$/gmu) ?? []).length, 8);
   assertFinalCodeqlReadsFailClosed(attestation.run);
   assert.match(attestation.run, /require_final_release_pr_snapshot\(\) \{/u);
   assert.equal(
-    (attestation.run.match(/^\s+require_final_release_pr_snapshot /gmu) ?? [])
-      .length,
+    (attestation.run.match(/^\s+require_final_release_pr_snapshot /gmu) ?? []).length,
     2,
   );
   assert.match(
     attestation.run,
     /observed_pull_request="\$\{post_pull_request\}"\n\s+require_final_codeql_snapshot\n\s+require_final_release_pr_snapshot "\$\{final_current_main_sha\}"/u,
   );
-  assert.equal(
-    (attestation.run.match(/--argjson analyzeCheck/gu) ?? []).length,
-    5,
-  );
-  assert.match(
-    attestation.run,
-    /check-runs\/\$\{codeql_analyze_check_id\}/u,
-  );
+  assert.equal((attestation.run.match(/--argjson analyzeCheck/gu) ?? []).length, 5);
+  assert.match(attestation.run, /check-runs\/\$\{codeql_analyze_check_id\}/u);
   assert.match(
     attestation.run,
     /check-release-codeql-evidence\.mjs[\s\S]*?Final release PR CodeQL evidence changed identity/u,
@@ -2105,7 +2332,13 @@ test("release pipeline keeps hosted review separate from generated-diff attestat
       attestation.run.lastIndexOf('post_status "${ci_contexts[index]}" success'),
   );
   assert.match(attestation.run, /run_head_repository.*GITHUB_REPOSITORY/su);
-  assert.equal((attestation.run.match(/pull_request_count\}" != "0"[\s\S]*?pull_request_count\}" != "1"/gu) ?? []).length, 2);
+  assert.equal(
+    (
+      attestation.run.match(/pull_request_count\}" != "0"[\s\S]*?pull_request_count\}" != "1"/gu) ??
+      []
+    ).length,
+    2,
+  );
   assert.match(attestation.run, /run_pull_request_base_sha.*base_sha/su);
   assert.match(attestation.run, /final_run_pull_request_base_sha.*base_sha/su);
   assert.ok(
@@ -2117,21 +2350,23 @@ test("release pipeline keeps hosted review separate from generated-diff attestat
   assert.doesNotMatch(attestation.run, /gh workflow run reviewrouter-release\.yml/u);
   assert.doesNotMatch(attestation.run, /\.context == "ReviewRouter"/u);
   assert.doesNotMatch(attestation.run, /post_status "ReviewRouter"/u);
-  assert.match(
-    attestation.run,
-    /ci_contexts=\(check windows-check macos-qualification full-ci\)/u,
-  );
+  assert.match(attestation.run, /ci_contexts=\(check windows-check macos-qualification full-ci\)/u);
   assertExactReleaseRunBinding(attestation, release, ci);
   const delayedMatrix = structuredClone(ci);
   delayedMatrix.jobs["linux-tests"].strategy["max-parallel"] = 1;
-  assert.throws(() => assertExactReleaseRunBinding(attestation, release, delayedMatrix),
-    { code: "ERR_ASSERTION" }, "release budget must account for every matrix batch");
+  assert.throws(
+    () => assertExactReleaseRunBinding(attestation, release, delayedMatrix),
+    { code: "ERR_ASSERTION" },
+    "release budget must account for every matrix batch",
+  );
   for (const override of ["include", "exclude"]) {
     const ambiguousMatrix = structuredClone(ci);
     ambiguousMatrix.jobs["linux-tests"].strategy["max-parallel"] = 4;
     ambiguousMatrix.jobs["linux-tests"].strategy.matrix[override] = [{ shard: "1" }];
-    assert.throws(() => assertExactReleaseRunBinding(attestation, release, ambiguousMatrix),
-      /bounded matrices require explicit finite axes without include\/exclude overrides/u);
+    assert.throws(
+      () => assertExactReleaseRunBinding(attestation, release, ambiguousMatrix),
+      /bounded matrices require explicit finite axes without include\/exclude overrides/u,
+    );
   }
   assert.match(attestation.run, /for context in "\$\{ci_contexts\[@\]\}"/u);
   assert.deepEqual(release.jobs["attest-release-pr"].permissions, {
@@ -2157,16 +2392,11 @@ test("release pipeline keeps hosted review separate from generated-diff attestat
     review.jobs["codex-review"].secrets.CODEX_AUTH_JSON,
     "${{ secrets." + reviewRouterSecretName + " }}",
   );
-  assertReviewRouterInteractionRuntime(
-    reviewInteraction,
-    reviewInteractionSource,
-  );
+  assertReviewRouterInteractionRuntime(reviewInteraction, reviewInteractionSource);
 });
 
 test("release publishing requires real Buf and hermetic registry qualification", async () => {
-  const manifest = JSON.parse(
-    await readFile(join(repositoryRoot, "package.json"), "utf8"),
-  );
+  const manifest = JSON.parse(await readFile(join(repositoryRoot, "package.json"), "utf8"));
   const coverageRunner = await readFile(
     join(repositoryRoot, "scripts", "run-test-coverage.mjs"),
     "utf8",
@@ -2177,24 +2407,15 @@ test("release publishing requires real Buf and hermetic registry qualification",
     assert.ok(coverageManifest.thresholds[threshold] > 0);
     assert.match(coverageRunner, new RegExp(`config\\.thresholds\\.${threshold}`, "u"));
   }
-  assert.match(manifest.scripts.check, /node tools\/repository-command\.mts script test:coverage:built/u);
+  assert.match(
+    manifest.scripts.check,
+    /node tools\/repository-command\.mts script test:coverage:built/u,
+  );
   const ci = await workflow("ci.yml");
-  assert.match(
-    manifest.scripts["release:publish"],
-    /registry-install-e2e:built/u,
-  );
-  assert.match(
-    manifest.scripts["release:publish"],
-    /buf-qualification:e2e:built/u,
-  );
-  assert.match(
-    manifest.scripts["release:publish"],
-    /published-compatibility:e2e/u,
-  );
-  assert.match(
-    manifest.scripts["release:publish"],
-    /node scripts\/release-publish\.mjs/u,
-  );
+  assert.match(manifest.scripts["release:publish"], /registry-install-e2e:built/u);
+  assert.match(manifest.scripts["release:publish"], /buf-qualification:e2e:built/u);
+  assert.match(manifest.scripts["release:publish"], /published-compatibility:e2e/u);
+  assert.match(manifest.scripts["release:publish"], /node scripts\/release-publish\.mjs/u);
   assert.match(
     manifest.scripts["release:publish"],
     /release-publish\.mjs && node tools\/repository-command\.mts script public-docs-release:e2e$/u,
@@ -2203,7 +2424,10 @@ test("release publishing requires real Buf and hermetic registry qualification",
     manifest.scripts["public-docs-release:e2e"],
     "node tools/repository-command.mts tool public-docs-release:e2e",
   );
-  assert.match(manifest.scripts["release:publish"], /^node tools\/repository-command\.mts script build &&/u);
+  assert.match(
+    manifest.scripts["release:publish"],
+    /^node tools\/repository-command\.mts script build &&/u,
+  );
   assert.doesNotMatch(
     manifest.scripts["release:publish"],
     /(?:^|&&\s*)(?:changeset publish|pnpm check)(?:\s|&&|$)/u,
@@ -2216,10 +2440,14 @@ test("release publishing requires real Buf and hermetic registry qualification",
     manifest.scripts["npm-package-bootstrap:candidate-evidence"],
     "node scripts/npm-package-bootstrap-candidate-evidence.mjs",
   );
-  assert.equal(ci.jobs["linux-registry"].steps.at(-1).run,
-    "node tools/repository-command.mts tool registry-install-e2e:built");
-  assert.equal(ci.jobs["linux-registry"].steps.at(-1)["working-directory"],
-    ".worker-tmp/profiles/node-${{ github.sha }}");
+  assert.equal(
+    ci.jobs["linux-registry"].steps.at(-1).run,
+    "node tools/repository-command.mts tool registry-install-e2e:built",
+  );
+  assert.equal(
+    ci.jobs["linux-registry"].steps.at(-1)["working-directory"],
+    ".worker-tmp/profiles/node-${{ github.sha }}",
+  );
   assert.equal(ci.jobs["linux-registry"]["timeout-minutes"], 30);
   const windowsRegistryCommands = ci.jobs["windows-registry"].steps
     .map((step) => step.run)
@@ -2245,24 +2473,43 @@ test("release publishing requires real Buf and hermetic registry qualification",
     assert.ok(ci.jobs["windows-check"].needs.includes(jobId));
   }
   const macos = ci.jobs["macos-package"];
-  assert.deepEqual(macos.strategy, { "fail-fast": false,
-    matrix: { profile: ["foundation", "npm-docs", "pnpm-docs"] } });
+  assert.deepEqual(macos.strategy, {
+    "fail-fast": false,
+    matrix: { profile: ["foundation", "npm-docs", "pnpm-docs"] },
+  });
   assert.equal(macos["runs-on"], "macos-15");
   assert.equal(macos["continue-on-error"], undefined);
-  assert.equal(macos.steps.at(-1).run, 'node scripts/qualify-package-artifacts.mts "$QUALIFICATION_PROFILE"');
+  assert.equal(
+    macos.steps.at(-1).run,
+    'node scripts/qualify-package-artifacts.mts "$QUALIFICATION_PROFILE"',
+  );
   assert.equal(macos.steps.at(-1).env.QUALIFICATION_PROFILE, "${{ matrix.profile }}");
-  assert.equal(macos.steps.at(-1).env.AGENT_TEAMS_FOUNDATION_SOURCE_ROOT, "${{ github.workspace }}");
-  assert.deepEqual(ci.jobs["macos-qualification"].needs,
-    ["dependency-review", "macos-native", "macos-package"]);
-  assert.equal(ci.jobs["macos-qualification"].if,
-    "${{ always() && (github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:'))) }}");
-  assert.match(ci.jobs["macos-qualification"].steps[0].uses, /^re-actors\/alls-green@[a-f0-9]{40}$/u);
-  const nativeCommands = ci.jobs["macos-native"].steps.flatMap(step => step.run ?? []);
+  assert.equal(
+    macos.steps.at(-1).env.AGENT_TEAMS_FOUNDATION_SOURCE_ROOT,
+    "${{ github.workspace }}",
+  );
+  assert.deepEqual(ci.jobs["macos-qualification"].needs, [
+    "dependency-review",
+    "macos-native",
+    "macos-package",
+  ]);
+  assert.equal(
+    ci.jobs["macos-qualification"].if,
+    "${{ always() && (github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:'))) }}",
+  );
+  assert.match(
+    ci.jobs["macos-qualification"].steps[0].uses,
+    /^re-actors\/alls-green@[a-f0-9]{40}$/u,
+  );
+  const nativeCommands = ci.jobs["macos-native"].steps.flatMap((step) => step.run ?? []);
   assert.ok(nativeCommands.includes("bun tools/dev.mts test:qgr:lifecycle:built"));
   assert.ok(nativeCommands.includes("node scripts/run-selected-tests.mjs tests/tooling.test.mjs"));
-  assert.ok(nativeCommands.some(command => command.includes("tests/document-authoring-scaffolding-race.test.mjs")));
-  assert.equal(manifest.scripts["package:group:built"],
-    "node scripts/qualify-package-group.mts");
+  assert.ok(
+    nativeCommands.some((command) =>
+      command.includes("tests/document-authoring-scaffolding-race.test.mjs"),
+    ),
+  );
+  assert.equal(manifest.scripts["package:group:built"], "node scripts/qualify-package-group.mts");
   assert.ok(ci.jobs["windows-check"].needs.includes("windows-package"));
   assert.ok(ci.jobs["windows-check"].needs.includes("windows-registry"));
   assert.ok(ci.jobs["windows-check"].needs.includes("windows-test-c"));
@@ -2272,27 +2519,40 @@ test("release publishing requires real Buf and hermetic registry qualification",
   );
   for (const name of ["linux-published", "windows-published"]) {
     const step = ci.jobs[name].steps.at(-1);
-    assert.deepEqual([step.run, step.env], [
-      "node tools/repository-command.mts tool published-compatibility:e2e", { GH_TOKEN: "${{ github.token }}" },
-    ]);
+    assert.deepEqual(
+      [step.run, step.env],
+      [
+        "node tools/repository-command.mts tool published-compatibility:e2e",
+        { GH_TOKEN: "${{ github.token }}" },
+      ],
+    );
   }
   for (const lane of ["a", "b", "c", "d", "e"]) {
     const id = `windows-test-${lane}`;
     const job = ci.jobs[id];
     assert.deepEqual(
-      [job.name, job.steps.find(step => step.run?.startsWith("node scripts/run-test-shard.mjs ")).run],
-      [id, `node scripts/run-test-shard.mjs -- --windows-lane ${lane} --timing-output "$env:RUNNER_TEMP/test-timing/${id}"`],
+      [
+        job.name,
+        job.steps.find((step) => step.run?.startsWith("node scripts/run-test-shard.mjs ")).run,
+      ],
+      [
+        id,
+        `node scripts/run-test-shard.mjs -- --windows-lane ${lane} --timing-output "$env:RUNNER_TEMP/test-timing/${id}"`,
+      ],
     );
     assert.ok(ci.jobs["windows-check"].needs.includes(id));
     assert.equal(job["runs-on"], "windows-2022");
     assert.equal(job["continue-on-error"], undefined);
-    assert.equal(job.if, "${{ github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) }}");
+    assert.equal(
+      job.if,
+      "${{ github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) }}",
+    );
   }
   for (const job of [
     ci.jobs["linux-tests"],
-    ...["a", "b", "c", "d", "e"].map(lane => ci.jobs[`windows-test-${lane}`]),
+    ...["a", "b", "c", "d", "e"].map((lane) => ci.jobs[`windows-test-${lane}`]),
   ]) {
-    const checkout = job.steps.find(step => step.uses?.startsWith("actions/checkout@"));
+    const checkout = job.steps.find((step) => step.uses?.startsWith("actions/checkout@"));
     assert.equal(checkout.with["fetch-depth"], 0);
     assert.equal(checkout.with["persist-credentials"], false);
   }
@@ -2383,19 +2643,25 @@ test("release diff policy validates Changesets prerelease consumption", () => {
   const withDocsInitialVersion = {
     ...evidence,
     docsBootstrapInitialVersionAddition: true,
-    headPrereleaseState: { ...evidence.headPrereleaseState, initialVersions: {
-      ...evidence.headPrereleaseState.initialVersions,
-      "@agent-teams/docs-protocol": "0.0.0",
-    } },
+    headPrereleaseState: {
+      ...evidence.headPrereleaseState,
+      initialVersions: {
+        ...evidence.headPrereleaseState.initialVersions,
+        "@agent-teams/docs-protocol": "0.0.0",
+      },
+    },
   };
   assert.deepEqual(releasePullRequestContentViolations(withDocsInitialVersion), []);
   const withMcpInitialVersion = {
     ...evidence,
     initialVersionAdditions: ["@agent-teams/docs-protocol-mcp"],
-    headPrereleaseState: { ...evidence.headPrereleaseState, initialVersions: {
-      ...evidence.headPrereleaseState.initialVersions,
-      "@agent-teams/docs-protocol-mcp": "0.0.0",
-    } },
+    headPrereleaseState: {
+      ...evidence.headPrereleaseState,
+      initialVersions: {
+        ...evidence.headPrereleaseState.initialVersions,
+        "@agent-teams/docs-protocol-mcp": "0.0.0",
+      },
+    },
   };
   assert.deepEqual(releasePullRequestContentViolations(withMcpInitialVersion), []);
   assert.match(
@@ -2457,8 +2723,7 @@ test("release diff policy accepts only an exact prerelease exit", () => {
       version: "0.16.0",
     },
     baseChangelog: "# Changelog\n\n## 0.16.0-rc.0\n",
-    headChangelog:
-      "# Changelog\n\n## 0.16.0\n\nStable release.\n\n## 0.16.0-rc.0\n",
+    headChangelog: "# Changelog\n\n## 0.16.0\n\nStable release.\n\n## 0.16.0-rc.0\n",
     basePrereleaseState,
     headPrereleaseState: undefined,
   };
@@ -2493,8 +2758,11 @@ test("release diff policy accepts only normalized Changesets output", () => {
   assert.deepEqual(releasePullRequestFileViolations(validFiles), []);
   for (const filename of ["bun.lock", "pnpm-lock.yaml"]) {
     for (const status of ["modified", "added", "removed"]) {
-      assert.match(releasePullRequestFileViolations([...validFiles, { filename, status }])[0],
-        /forbidden change/u, `${filename}: ${status}`);
+      assert.match(
+        releasePullRequestFileViolations([...validFiles, { filename, status }])[0],
+        /forbidden change/u,
+        `${filename}: ${status}`,
+      );
     }
   }
   assert.match(
@@ -2541,8 +2809,18 @@ function releaseBunLockFixture(foundation = "1.9.0", docs = "0.5.0") {
 }
 
 const releaseBunVersions = [
-  { root: "packages/engineering-foundation", name: "@agent-teams/engineering-foundation", baseVersion: "1.9.0", headVersion: "1.10.0" },
-  { root: "packages/docs-protocol-agent-teams", name: "@agent-teams/docs-protocol-agent-teams", baseVersion: "0.5.0", headVersion: "0.5.1" },
+  {
+    root: "packages/engineering-foundation",
+    name: "@agent-teams/engineering-foundation",
+    baseVersion: "1.9.0",
+    headVersion: "1.10.0",
+  },
+  {
+    root: "packages/docs-protocol-agent-teams",
+    name: "@agent-teams/docs-protocol-agent-teams",
+    baseVersion: "0.5.0",
+    headVersion: "0.5.1",
+  },
 ];
 
 test("Bun release lock admits only exact public version projection and legacy absence", () => {
@@ -2561,12 +2839,21 @@ test("Bun release lock rejects graph, integrity and private workspace drift", ()
   for (const changed of [
     head.replace("sha512-unchanged", "sha512-forged"),
     head.replace('"catalog": { "example": "1.9.0" }', '"catalog": { "example": "2.0.0" }'),
-    head.replace('"dependencies": { "example": "catalog:" }', '"dependencies": { "foreign": "catalog:" }'),
-    head.replace('"name": "private",\n      "version": "1.9.0"', '"name": "private",\n      "version": "2.0.0"'),
+    head.replace(
+      '"dependencies": { "example": "catalog:" }',
+      '"dependencies": { "foreign": "catalog:" }',
+    ),
+    head.replace(
+      '"name": "private",\n      "version": "1.9.0"',
+      '"name": "private",\n      "version": "2.0.0"',
+    ),
     `${head}\n`,
   ]) {
     assert.notEqual(changed, head);
-    assert.match(releaseBunLockViolations(base, Buffer.from(changed), releaseBunVersions)[0], /only the exact/u);
+    assert.match(
+      releaseBunLockViolations(base, Buffer.from(changed), releaseBunVersions)[0],
+      /only the exact/u,
+    );
   }
 });
 
@@ -2580,11 +2867,23 @@ test("Bun release lock refuses missing, mismatched and duplicate workspace preim
     { ...releaseBunVersions[0], root: "packages/../engineering-foundation" },
     { ...releaseBunVersions[0], headVersion: "1.10.0\nforeign" },
   ]) {
-    assert.match(releaseBunLockViolations(base, head, [changed, releaseBunVersions[1]])[0], /preimages/u);
+    assert.match(
+      releaseBunLockViolations(base, head, [changed, releaseBunVersions[1]])[0],
+      /preimages/u,
+    );
   }
-  assert.match(releaseBunLockViolations(base, head, [...releaseBunVersions, releaseBunVersions[0]])[0], /preimages/u);
-  const duplicate = Buffer.from(base.toString().replace('  "catalog":',
-    '    "packages/engineering-foundation": {\n      "name": "@agent-teams/engineering-foundation",\n      "version": "1.9.0",\n    },\n  "catalog":'));
+  assert.match(
+    releaseBunLockViolations(base, head, [...releaseBunVersions, releaseBunVersions[0]])[0],
+    /preimages/u,
+  );
+  const duplicate = Buffer.from(
+    base
+      .toString()
+      .replace(
+        '  "catalog":',
+        '    "packages/engineering-foundation": {\n      "name": "@agent-teams/engineering-foundation",\n      "version": "1.9.0",\n    },\n  "catalog":',
+      ),
+  );
   assert.match(releaseBunLockViolations(duplicate, head, releaseBunVersions)[0], /preimages/u);
   assert.match(releaseBunLockViolations(base, base, releaseBunVersions)[0], /only the exact/u);
   assert.match(releaseBunLockViolations(base, head, [releaseBunVersions[0]])[0], /only the exact/u);
@@ -2595,11 +2894,20 @@ test("Bun release lock refuses other serializer headers and malformed encoding",
   const head = releaseBunLockFixture("1.10.0", "0.5.1");
   const other = Buffer.from(base.toString().replace('"configVersion": 1', '"configVersion": 2'));
   assert.match(releaseBunLockViolations(other, other, [])[0], /canonical Bun/u);
-  const otherHead = Buffer.from(head.toString().replace('"lockfileVersion": 2', '"lockfileVersion": 3'));
+  const otherHead = Buffer.from(
+    head.toString().replace('"lockfileVersion": 2', '"lockfileVersion": 3'),
+  );
   assert.match(releaseBunLockViolations(base, otherHead, releaseBunVersions)[0], /canonical Bun/u);
   const invalid = Buffer.concat([base, Buffer.from([0xff])]);
   assert.match(releaseBunLockViolations(invalid, invalid, [])[0], /valid UTF-8/u);
-  assert.match(releaseBunLockViolations(base, Buffer.concat([head, Buffer.from([0xff])]), releaseBunVersions)[0], /valid UTF-8/u);
+  assert.match(
+    releaseBunLockViolations(
+      base,
+      Buffer.concat([head, Buffer.from([0xff])]),
+      releaseBunVersions,
+    )[0],
+    /valid UTF-8/u,
+  );
 });
 
 test("release diff policy accepts normalized prerelease Changesets output", () => {
@@ -2630,10 +2938,7 @@ test("release diff policy narrowly allows exit state deletion and rejects privat
     { filename: "packages/engineering-foundation/package.json", status: "modified" },
   ];
 
-  assert.deepEqual(
-    releasePullRequestFileViolations(exitFiles, { prereleaseExit: true }),
-    [],
-  );
+  assert.deepEqual(releasePullRequestFileViolations(exitFiles, { prereleaseExit: true }), []);
   assert.match(
     releasePullRequestFileViolations(exitFiles).join("\n"),
     /forbidden change: \.changeset\/pre\.json/u,
@@ -2664,9 +2969,10 @@ test("release diff policy requires complete pairs from the promoted public catal
   ];
   assert.deepEqual(releasePullRequestFileViolations(validFiles), []);
   assert.match(
-    releasePullRequestFileViolations(
-      [...validFiles, { filename: "packages/docs-protocol/package.json", status: "modified" }],
-    ).join("\n"),
+    releasePullRequestFileViolations([
+      ...validFiles,
+      { filename: "packages/docs-protocol/package.json", status: "modified" },
+    ]).join("\n"),
     /must modify packages\/docs-protocol\/CHANGELOG\.md/u,
   );
 });

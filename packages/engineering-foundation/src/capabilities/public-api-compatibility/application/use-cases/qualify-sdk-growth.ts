@@ -19,10 +19,14 @@ export async function qualifySdkGrowth(
     readonly context: ResolvedGrowthInputContextPort;
     readonly authority: GrowthAuthorityPort;
     readonly fingerprint: ChangeFingerprint;
-  }
+  },
 ): Promise<QualifiedSdkGrowthExecution> {
   const execution = await executeSdkGrowth(input, dependencies);
-  if (execution.report === undefined || execution.reportDigest === undefined || execution.reportByteLength === undefined) {
+  if (
+    execution.report === undefined ||
+    execution.reportDigest === undefined ||
+    execution.reportByteLength === undefined
+  ) {
     return execution;
   }
   const resolved = dependencies.context.resolution();
@@ -30,10 +34,14 @@ export async function qualifySdkGrowth(
   if (digests.coverageDigest !== resolved.grant.requiredCoverageDigest) {
     throw new GrowthObservationInvariantError("growth-authority-coverage-mismatch");
   }
-  const cancellation = { ...(input.signal === undefined ? {} : { signal: input.signal }),
+  const cancellation = {
+    ...(input.signal === undefined ? {} : { signal: input.signal }),
     throwIfCancelled() {
-      if (input.signal?.aborted === true) { throw input.signal.reason; }
-    } };
+      if (input.signal?.aborted === true) {
+        throw input.signal.reason;
+      }
+    },
+  };
   const completion = {
     schemaVersion: growthAuthoritySchemaVersion,
     kind: "completion" as const,
@@ -48,10 +56,13 @@ export async function qualifySdkGrowth(
     verdict: execution.report.verdict,
     releaseEligible: execution.report.releaseEligible,
     publication: "finalized" as const,
-    promotion: { kind: "none" as const }
+    promotion: { kind: "none" as const },
   };
   const receipt = await dependencies.authority.complete(completion, cancellation);
-  if (execution.report.verdict === "admitted" && (receipt.qualification !== "qualified" || !receipt.releaseEligible)) {
+  if (
+    execution.report.verdict === "admitted" &&
+    (receipt.qualification !== "qualified" || !receipt.releaseEligible)
+  ) {
     throw new GrowthObservationInvariantError("growth-authority-qualified-receipt-required");
   }
   return { ...execution, receipt };

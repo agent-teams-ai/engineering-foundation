@@ -1,12 +1,12 @@
 import type {
   RepositoryAgentWorkflowEvidence,
-  RepositoryAgentWorkflowPolicy
+  RepositoryAgentWorkflowPolicy,
 } from "../model/repository-agent-workflow.js";
 
 export interface RepositoryAgentWorkflowReader {
   read(
     consumerRoot: string,
     policy: RepositoryAgentWorkflowPolicy,
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ): Promise<RepositoryAgentWorkflowEvidence>;
 }

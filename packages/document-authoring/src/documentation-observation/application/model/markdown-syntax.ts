@@ -8,4 +8,7 @@ export interface MarkdownSyntaxObservation {
     readonly end: { readonly offset?: number };
   };
 }
-export type MarkdownSyntaxReader = (source: string, kind: "code" | "heading") => readonly MarkdownSyntaxObservation[];
+export type MarkdownSyntaxReader = (
+  source: string,
+  kind: "code" | "heading",
+) => readonly MarkdownSyntaxObservation[];

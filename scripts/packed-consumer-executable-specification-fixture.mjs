@@ -10,14 +10,14 @@ export async function writeExecutableSpecificationFixture(consumerRoot, jsonCont
     type: "object",
     additionalProperties: false,
     required: ["status"],
-    properties: { status: { enum: ["ready"] } }
+    properties: { status: { enum: ["ready"] } },
   };
   await writeJson(
     join(consumerRoot, "architecture", "foundation", "executable-specifications.yaml"),
     {
       schemaVersion: 1,
-      catalogPath: "architecture/specifications/catalog.json"
-    }
+      catalogPath: "architecture/specifications/catalog.json",
+    },
   );
   await writeJson(join(consumerRoot, "architecture", "specifications", "catalog.json"), {
     schemaVersion: 1,
@@ -30,30 +30,30 @@ export async function writeExecutableSpecificationFixture(consumerRoot, jsonCont
         documents: [
           {
             path: "contracts/json-schema/fixtures/valid.json",
-            schemaId: jsonContract.eventSchema.$id
-          }
+            schemaId: jsonContract.eventSchema.$id,
+          },
         ],
         generatedTypes: [
           {
             schemaId: jsonContract.eventSchema.$id,
-            outputPath: "src/generated-event.ts"
-          }
+            outputPath: "src/generated-event.ts",
+          },
         ],
         gateBindings: {
           typeGeneration: {
             packageName: "foundation-pack-consumer",
-            script: "spec:typegen"
+            script: "spec:typegen",
           },
           property: {
             packageName: "foundation-pack-consumer",
-            script: "spec:property"
+            script: "spec:property",
           },
           mutation: {
             packageName: "foundation-pack-consumer",
-            script: "spec:mutation"
-          }
+            script: "spec:mutation",
+          },
         },
-        stateModel: { kind: "none" }
+        stateModel: { kind: "none" },
       },
       {
         id: "pack-consumer-data-only",
@@ -63,36 +63,35 @@ export async function writeExecutableSpecificationFixture(consumerRoot, jsonCont
         documents: [
           {
             path: "architecture/specifications/data-only.json",
-            schemaId: dataOnlySchema.$id
-          }
+            schemaId: dataOnlySchema.$id,
+          },
         ],
         generatedTypes: [],
         gateBindings: {
           property: {
             packageName: "foundation-pack-consumer",
-            script: "spec:property"
+            script: "spec:property",
           },
           mutation: {
             packageName: "foundation-pack-consumer",
-            script: "spec:mutation"
-          }
+            script: "spec:mutation",
+          },
         },
-        stateModel: { kind: "none" }
-      }
-    ]
+        stateModel: { kind: "none" },
+      },
+    ],
   });
   await writeJson(
     join(consumerRoot, "architecture", "specifications", "data-only.schema.json"),
-    dataOnlySchema
+    dataOnlySchema,
   );
-  await writeJson(
-    join(consumerRoot, "architecture", "specifications", "data-only.json"),
-    { status: "ready" }
-  );
+  await writeJson(join(consumerRoot, "architecture", "specifications", "data-only.json"), {
+    status: "ready",
+  });
   await writeFile(
     join(consumerRoot, "docs", "data-only-specification.md"),
     "# Data-only specification\n",
-    "utf8"
+    "utf8",
   );
   await writeFile(
     join(consumerRoot, "src", "generated-event.ts"),
@@ -100,8 +99,8 @@ export async function writeExecutableSpecificationFixture(consumerRoot, jsonCont
       'import { parse } from "jsonc-parser";',
       "export interface GeneratedEvent { readonly contact: string; }",
       "export const parseGeneratedEvent = (source: string) => parse(source);",
-      ""
+      "",
     ].join("\n"),
-    "utf8"
+    "utf8",
   );
 }

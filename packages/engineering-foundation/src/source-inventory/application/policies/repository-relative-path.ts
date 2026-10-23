@@ -14,7 +14,7 @@ export function assertRepositoryRelativePath(path: string, phase: string): void 
       code: "CONFIG_PATH_INVALID",
       message: "Configuration paths must be normalized repository-relative POSIX paths.",
       phase,
-      retryable: false
+      retryable: false,
     });
   }
 }

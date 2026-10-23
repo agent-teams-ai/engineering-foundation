@@ -10,7 +10,5 @@ export interface DocumentTransactionLease {
 
 export interface DocumentTransactionCoordinator {
   inspect(): Promise<DocumentTransactionStatus>;
-  acquire(request: {
-    readonly mode: "apply" | "recover";
-  }): Promise<DocumentTransactionLease>;
+  acquire(request: { readonly mode: "apply" | "recover" }): Promise<DocumentTransactionLease>;
 }

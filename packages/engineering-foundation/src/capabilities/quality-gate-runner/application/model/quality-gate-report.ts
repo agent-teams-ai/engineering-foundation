@@ -1,9 +1,4 @@
-type QualityGateTaskOutcome =
-  | "passed"
-  | "failed"
-  | "timed-out"
-  | "blocked"
-  | "cancelled";
+type QualityGateTaskOutcome = "passed" | "failed" | "timed-out" | "blocked" | "cancelled";
 
 export interface QualityGateTaskReport {
   readonly id: string;

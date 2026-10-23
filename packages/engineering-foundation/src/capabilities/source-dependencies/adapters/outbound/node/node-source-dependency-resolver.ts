@@ -5,34 +5,23 @@ import { posix } from "node:path";
 import { compareBinaryStrings } from "../../../../../binary-string-comparator.js";
 import type {
   DependencyDeclaration,
-  WorkspacePackage
+  WorkspacePackage,
 } from "../../../application/model/workspace-inventory.js";
 import type {
   ResolveSourceDependencyInput,
-  SourceDependencyResolver
+  SourceDependencyResolver,
 } from "../../../application/ports/source-dependency-resolver.js";
-import type {
-  ResolvedSourceDependency
-} from "../../../application/model/source-workspace.js";
+import type { ResolvedSourceDependency } from "../../../application/model/source-workspace.js";
 import {
   normalizeRepositoryPath,
   pathIsInside,
   portableRepositoryPathIdentity,
-  portableRepositoryPathProblem
+  portableRepositoryPathProblem,
 } from "../../../application/model/repository-path.js";
 
 import { generatedOutputFilesystemIsSafe } from "./generated-output-filesystem.js";
 
-const SOURCE_EXTENSIONS = [
-  ".cjs",
-  ".cts",
-  ".js",
-  ".jsx",
-  ".mjs",
-  ".mts",
-  ".ts",
-  ".tsx"
-] as const;
+const SOURCE_EXTENSIONS = [".cjs", ".cts", ".js", ".jsx", ".mjs", ".mts", ".ts", ".tsx"] as const;
 
 function packageNameFromSpecifier(specifier: string): string | undefined {
   if (specifier.startsWith("@")) {
@@ -71,25 +60,29 @@ function isWorkspaceBinding(specifier: string): boolean {
   const value = specifier.slice("workspace:".length);
   const branches = value.split(" || ");
   // Recognize declared bindings only; release policy owns version admission.
-  return specifier.startsWith("workspace:") && (
-    /^(?:[*^~]|[~^]?(?:0|[1-9][0-9]*)(?:[.](?:0|[1-9][0-9]*|[xX*])){0,2}(?:-[0-9A-Za-z]+(?:[.][0-9A-Za-z]+)*)?(?:[+][0-9A-Za-z]+(?:[.][0-9A-Za-z]+)*)?)$/u.test(value) ||
-    (branches.length > 1 && branches.every(branch =>
-      /^\^(?:0|[1-9][0-9]*)[.](?:0|[1-9][0-9]*)[.](?:0|[1-9][0-9]*)$/u.test(branch))));
+  return (
+    specifier.startsWith("workspace:") &&
+    (/^(?:[*^~]|[~^]?(?:0|[1-9][0-9]*)(?:[.](?:0|[1-9][0-9]*|[xX*])){0,2}(?:-[0-9A-Za-z]+(?:[.][0-9A-Za-z]+)*)?(?:[+][0-9A-Za-z]+(?:[.][0-9A-Za-z]+)*)?)$/u.test(
+      value,
+    ) ||
+      (branches.length > 1 &&
+        branches.every((branch) =>
+          /^\^(?:0|[1-9][0-9]*)[.](?:0|[1-9][0-9]*)[.](?:0|[1-9][0-9]*)$/u.test(branch),
+        )))
+  );
 }
 
 function declarationKindV1(
   declarations: readonly DependencyDeclaration[],
-  packageName: string
+  packageName: string,
 ): "development" | "runtime" | "undeclared" {
-  const matching = declarations.filter(
-    (declaration) => declaration.dependencyName === packageName
-  );
+  const matching = declarations.filter((declaration) => declaration.dependencyName === packageName);
   if (
     matching.some(
       (declaration) =>
         declaration.section === "dependencies" ||
         declaration.section === "optionalDependencies" ||
-        declaration.section === "peerDependencies"
+        declaration.section === "peerDependencies",
     )
   ) {
     return "runtime";
@@ -101,18 +94,16 @@ function declarationKindV1(
 
 function declarationKind(
   declarations: readonly DependencyDeclaration[],
-  packageName: string
+  packageName: string,
 ): "development" | "runtime" | "undeclared" {
-  const matching = declarations.filter(
-    (declaration) => declaration.dependencyName === packageName
-  );
+  const matching = declarations.filter((declaration) => declaration.dependencyName === packageName);
   if (
     matching.length === 0 ||
     matching.some(
       (declaration) =>
         declaration.provenance.kind !== "manifest" ||
         declaration.targetPackageName !== packageName ||
-        !isWorkspaceBinding(declaration.specifier)
+        !isWorkspaceBinding(declaration.specifier),
     )
   ) {
     return "undeclared";
@@ -120,23 +111,20 @@ function declarationKind(
   return declarationKindV1(matching, packageName);
 }
 
-function isLocalIdentitySpecifier(
-  declaration: DependencyDeclaration
-): boolean {
+function isLocalIdentitySpecifier(declaration: DependencyDeclaration): boolean {
   return /^(?:workspace|link|file):/u.test(declaration.effectiveSpecifier);
 }
 
 function externalDeclarationKind(
   declarations: readonly DependencyDeclaration[],
-  packageName: string
+  packageName: string,
 ): "development" | "runtime" | "undeclared" {
-  const matching = declarations.filter(
-    (declaration) => declaration.dependencyName === packageName
-  );
-  return matching.some((declaration) =>
-    isLocalIdentitySpecifier(declaration) ||
-    declaration.normalizationProblem !== undefined ||
-    declaration.targetPackageName !== matching[0]?.targetPackageName
+  const matching = declarations.filter((declaration) => declaration.dependencyName === packageName);
+  return matching.some(
+    (declaration) =>
+      isLocalIdentitySpecifier(declaration) ||
+      declaration.normalizationProblem !== undefined ||
+      declaration.targetPackageName !== matching[0]?.targetPackageName,
   )
     ? "undeclared"
     : declarationKindV1(matching, packageName);
@@ -144,7 +132,7 @@ function externalDeclarationKind(
 
 function candidateLocalPaths(importerPath: string, specifier: string): readonly string[] {
   const base = posix.normalize(
-    posix.join(posix.dirname(normalizeRepositoryPath(importerPath)), specifier)
+    posix.join(posix.dirname(normalizeRepositoryPath(importerPath)), specifier),
   );
   const extension = posix.extname(base);
   const candidates = new Set<string>([base]);
@@ -170,25 +158,18 @@ function pathInside(path: string, root: string): boolean {
 
 function containingPackage(
   path: string,
-  packages: readonly WorkspacePackage[]
+  packages: readonly WorkspacePackage[],
 ): WorkspacePackage | undefined {
   return packages
     .filter((workspacePackage) => pathInside(path, workspacePackage.rootPath))
     .toSorted(
       (left, right) =>
-        right.rootPath.length - left.rootPath.length ||
-        compareBinaryStrings(left.name, right.name)
+        right.rootPath.length - left.rootPath.length || compareBinaryStrings(left.name, right.name),
     )[0];
 }
 
-
 function generatedOutputLiteral(raw: string): readonly string[] | undefined {
-  if (
-    raw.includes("\\") ||
-    raw.includes("?") ||
-    raw.includes("#") ||
-    raw.includes("%")
-  ) {
+  if (raw.includes("\\") || raw.includes("?") || raw.includes("#") || raw.includes("%")) {
     return undefined;
   }
   const segments = raw.split("/");
@@ -201,14 +182,11 @@ function generatedOutputLiteral(raw: string): readonly string[] | undefined {
     index === 0 ||
     output[0] !== "dist" ||
     output.length < 2 ||
-    output.some(
-      (segment) => segment === "" || segment === "." || segment === ".."
-    ) ||
+    output.some((segment) => segment === "" || segment === "." || segment === "..") ||
     output.some(
       (segment) =>
         portableRepositoryPathProblem(segment) !== undefined ||
-        portableRepositoryPathIdentity(segment) !==
-          segment.toLocaleLowerCase("en-US")
+        portableRepositoryPathIdentity(segment) !== segment.toLocaleLowerCase("en-US"),
     ) ||
     !/[.]((?:m|c)?js)$/u.test(output.at(-1) ?? "")
   ) {
@@ -218,7 +196,7 @@ function generatedOutputLiteral(raw: string): readonly string[] | undefined {
 }
 
 function generatedOutputCandidate(
-  input: ResolveSourceDependencyInput
+  input: ResolveSourceDependencyInput,
 ): ResolvedSourceDependency | undefined {
   const raw = input.reference.specifier;
   if (generatedOutputLiteral(raw) === undefined) {
@@ -243,7 +221,7 @@ function generatedOutputCandidate(
         ? {}
         : { expectedPackageRootIdentity: input.workspacePackageRootIdentity }),
       packageRoot: owner.rootPath,
-      target: targetPath
+      target: targetPath,
     })
   ) {
     return undefined;
@@ -251,7 +229,7 @@ function generatedOutputCandidate(
   return {
     kind: "generated-output-candidate",
     path: targetPath,
-    workspacePackage: owner
+    workspacePackage: owner,
   };
 }
 
@@ -259,24 +237,21 @@ function resolveLocal(input: ResolveSourceDependencyInput): ResolvedSourceDepend
   if (input.reference.specifier.includes("?") || input.reference.specifier.includes("#")) {
     return {
       kind: "unsupported",
-      reason: "relative specifiers with query strings or fragments are unsupported"
+      reason: "relative specifiers with query strings or fragments are unsupported",
     };
   }
-  const matching = candidateLocalPaths(
-    input.file.path,
-    input.reference.specifier
-  ).filter((path) => input.governedFilePaths.has(normalizeRepositoryPath(path)));
+  const matching = candidateLocalPaths(input.file.path, input.reference.specifier).filter((path) =>
+    input.governedFilePaths.has(normalizeRepositoryPath(path)),
+  );
   if (matching.length !== 1) {
     return {
       kind: "unresolved",
-      reason: `local reference resolved to ${matching.length} governed files`
+      reason: `local reference resolved to ${matching.length} governed files`,
     };
   }
   const path = matching[0] === undefined ? undefined : normalizeRepositoryPath(matching[0]);
   const workspacePackage =
-    path === undefined
-      ? undefined
-      : containingPackage(path, input.inventory.packages);
+    path === undefined ? undefined : containingPackage(path, input.inventory.packages);
   return path === undefined || workspacePackage === undefined
     ? { kind: "unresolved", reason: "local target has no workspace package" }
     : { kind: "local-file", path, workspacePackage };
@@ -285,7 +260,7 @@ function resolveLocal(input: ResolveSourceDependencyInput): ResolvedSourceDepend
 function workspaceTarget(
   input: ResolveSourceDependencyInput,
   target: WorkspacePackage | undefined,
-  slotIsRegistryAlias: boolean
+  slotIsRegistryAlias: boolean,
 ): WorkspacePackage | undefined {
   // Node checks an importing package's own exports before node_modules aliases.
   if (
@@ -309,7 +284,7 @@ function resolvePackage(input: ResolveSourceDependencyInput): ResolvedSourceDepe
   if (isBuiltin(specifier)) {
     return {
       kind: "builtin",
-      specifier: specifier.startsWith("node:") ? specifier : `node:${specifier}`
+      specifier: specifier.startsWith("node:") ? specifier : `node:${specifier}`,
     };
   }
   if (specifier.startsWith("#") || specifier.startsWith("/") || specifier.includes(":")) {
@@ -323,32 +298,26 @@ function resolvePackage(input: ResolveSourceDependencyInput): ResolvedSourceDepe
     return { kind: "unsupported", reason: "invalid package specifier" };
   }
   const inventoryTarget = input.inventory.packages.find(
-    (workspacePackage) => workspacePackage.name === packageName
+    (workspacePackage) => workspacePackage.name === packageName,
   );
   const matchingDeclarations = input.file.workspacePackage.dependencies.filter(
-    (declaration) => declaration.dependencyName === packageName
+    (declaration) => declaration.dependencyName === packageName,
   );
   const slotIsRegistryAlias = matchingDeclarations.some(
     (declaration) =>
       declaration.targetPackageName !== packageName ||
-      declaration.effectiveSpecifier.startsWith("npm:")
+      declaration.effectiveSpecifier.startsWith("npm:"),
   );
   const target = workspaceTarget(input, inventoryTarget, slotIsRegistryAlias);
   const declaration = slotIsRegistryAlias
     ? externalDeclarationKind(matchingDeclarations, packageName)
     : input.enforceWorkspaceBindings === true
-    ? target === undefined
-      ? inventoryTarget === undefined
-        ? externalDeclarationKind(
-            input.file.workspacePackage.dependencies,
-            packageName
-          )
-        : declarationKind(
-            input.file.workspacePackage.dependencies,
-            packageName
-          )
-      : declarationKind(input.file.workspacePackage.dependencies, packageName)
-    : declarationKindV1(input.file.workspacePackage.dependencies, packageName);
+      ? target === undefined
+        ? inventoryTarget === undefined
+          ? externalDeclarationKind(input.file.workspacePackage.dependencies, packageName)
+          : declarationKind(input.file.workspacePackage.dependencies, packageName)
+        : declarationKind(input.file.workspacePackage.dependencies, packageName)
+      : declarationKindV1(input.file.workspacePackage.dependencies, packageName);
   if (target === undefined) {
     return { kind: "external-package", packageName, declaration };
   }
@@ -363,9 +332,9 @@ function resolvePackage(input: ResolveSourceDependencyInput): ResolvedSourceDepe
         packageTypeScopes: input.packageTypeScopes,
         reference: input.reference,
         subpath,
-        target
+        target,
       }),
-      subpath
+      subpath,
     };
   }
   return {
@@ -378,9 +347,9 @@ function resolvePackage(input: ResolveSourceDependencyInput): ResolvedSourceDepe
       packageTypeScopes: input.packageTypeScopes,
       reference: input.reference,
       subpath,
-      target
+      target,
     }),
-    subpath
+    subpath,
   };
 }
 
@@ -391,7 +360,7 @@ export class NodeSourceDependencyResolver implements SourceDependencyResolver {
     }
     const resolved = resolveLocal(input);
     return resolved.kind === "unresolved"
-      ? generatedOutputCandidate(input) ?? resolved
+      ? (generatedOutputCandidate(input) ?? resolved)
       : resolved;
   }
 }

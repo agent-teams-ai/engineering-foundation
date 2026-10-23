@@ -7,7 +7,7 @@ import type {
   CanonicalDocumentRenderer,
   CanonicalFrontmatter,
   CanonicalFrontmatterValue,
-  GovernedTemplateSkeleton
+  GovernedTemplateSkeleton,
 } from "../application/ports/canonical-document-renderer.js";
 
 const MAX_TEMPLATE_BYTES = 256 * 1024;
@@ -18,13 +18,13 @@ const FOUNDATION_FRONTMATTER_KEYS = Object.freeze([
   "status",
   "owner",
   "summary",
-  "related"
+  "related",
 ]);
 const INTENT_RESERVED_KEYS = new Set([
   ...FOUNDATION_FRONTMATTER_KEYS,
   "destination",
   "slug",
-  "title"
+  "title",
 ]);
 const PLACEHOLDER_FRONTMATTER_PATTERN = /^---[ \t]*\n([\s\S]*?)\n---[ \t]*\n+/u;
 export type CanonicalMarkdownFailure =
@@ -65,15 +65,13 @@ function assertCanonicalUnicode(value: string, field: string): void {
 
 function canonicalizeArray(
   value: readonly CanonicalFrontmatterValue[],
-  ancestors: ReadonlySet<object>
+  ancestors: ReadonlySet<object>,
 ): CanonicalFrontmatterValue[] {
   const ownKeys = Reflect.ownKeys(value);
   if (
     ownKeys.length !== value.length + 1 ||
     ownKeys.some(
-      (key) =>
-        typeof key !== "string" ||
-        (key !== "length" && !/^(?:0|[1-9][0-9]*)$/u.test(key))
+      (key) => typeof key !== "string" || (key !== "length" && !/^(?:0|[1-9][0-9]*)$/u.test(key)),
     )
   ) {
     invalidFrontmatter("Frontmatter arrays must be dense and cannot have extra properties.");
@@ -84,16 +82,14 @@ function canonicalizeArray(
     if (item === undefined || !("value" in item) || item.enumerable !== true) {
       invalidFrontmatter("Frontmatter arrays must contain enumerable data items.");
     }
-    output.push(
-      canonicalizeValue(item.value as CanonicalFrontmatterValue, ancestors)
-    );
+    output.push(canonicalizeValue(item.value as CanonicalFrontmatterValue, ancestors));
   }
   return output;
 }
 
 function canonicalizeMap(
   value: Readonly<Record<string, CanonicalFrontmatterValue>>,
-  ancestors: ReadonlySet<object>
+  ancestors: ReadonlySet<object>,
 ): Record<string, CanonicalFrontmatterValue> {
   const prototype = Object.getPrototypeOf(value) as object | null;
   if (prototype !== Object.prototype && prototype !== null) {
@@ -116,23 +112,16 @@ function canonicalizeMap(
     if (item === undefined || !("value" in item) || item.enumerable !== true) {
       invalidFrontmatter("Frontmatter mappings cannot contain accessors.");
     }
-    output[key] = canonicalizeValue(
-      item.value as CanonicalFrontmatterValue,
-      ancestors
-    );
+    output[key] = canonicalizeValue(item.value as CanonicalFrontmatterValue, ancestors);
   }
   return output;
 }
 
 function canonicalizeValue(
   value: CanonicalFrontmatterValue,
-  ancestors: ReadonlySet<object>
+  ancestors: ReadonlySet<object>,
 ): CanonicalFrontmatterValue {
-  if (
-    value === null ||
-    typeof value === "string" ||
-    typeof value === "boolean"
-  ) {
+  if (value === null || typeof value === "string" || typeof value === "boolean") {
     if (typeof value === "string") {
       assertCanonicalUnicode(value, "Frontmatter string");
     }
@@ -157,19 +146,19 @@ function canonicalizeValue(
   }
   return canonicalizeMap(
     value as Readonly<Record<string, CanonicalFrontmatterValue>>,
-    nextAncestors
+    nextAncestors,
   );
 }
 
 function canonicalFrontmatterObject(
-  input: CanonicalFrontmatter
+  input: CanonicalFrontmatter,
 ): Record<string, CanonicalFrontmatterValue> {
   for (const [key, value] of [
     ["id", input.id],
     ["type", input.type],
     ["status", input.status],
     ["owner", input.owner],
-    ["summary", input.summary]
+    ["summary", input.summary],
   ] as const) {
     assertText(value, key);
   }
@@ -218,10 +207,7 @@ function canonicalFrontmatterObject(
     if (item === undefined || !("value" in item) || item.enumerable !== true) {
       invalidFrontmatter("Additional metadata cannot contain accessors.");
     }
-    result[key] = canonicalizeValue(
-      item.value as CanonicalFrontmatterValue,
-      new Set<object>()
-    );
+    result[key] = canonicalizeValue(item.value as CanonicalFrontmatterValue, new Set<object>());
   }
   return result;
 }
@@ -237,22 +223,19 @@ function orderedYamlValue(value: CanonicalFrontmatterValue): unknown {
       Reflect.ownKeys(mapping)
         .map((key) => key as string)
         .toSorted(compareBinaryStrings)
-        .map((key) => [key, orderedYamlValue(mapping[key] as CanonicalFrontmatterValue)])
+        .map((key) => [key, orderedYamlValue(mapping[key] as CanonicalFrontmatterValue)]),
     );
   }
   return value;
 }
 
 function orderedYamlFrontmatter(
-  value: Readonly<Record<string, CanonicalFrontmatterValue>>
+  value: Readonly<Record<string, CanonicalFrontmatterValue>>,
 ): ReadonlyMap<string, unknown> {
   const entries: [string, unknown][] = [];
   for (const key of FOUNDATION_FRONTMATTER_KEYS) {
     if (Object.hasOwn(value, key)) {
-      entries.push([
-        key,
-        orderedYamlValue(value[key] as CanonicalFrontmatterValue)
-      ]);
+      entries.push([key, orderedYamlValue(value[key] as CanonicalFrontmatterValue)]);
     }
   }
   const additionalKeys = Reflect.ownKeys(value)
@@ -260,10 +243,7 @@ function orderedYamlFrontmatter(
     .filter((key) => !FOUNDATION_FRONTMATTER_KEYS.includes(key))
     .toSorted(compareBinaryStrings);
   for (const key of additionalKeys) {
-    entries.push([
-      key,
-      orderedYamlValue(value[key] as CanonicalFrontmatterValue)
-    ]);
+    entries.push([key, orderedYamlValue(value[key] as CanonicalFrontmatterValue)]);
   }
   return new Map(entries);
 }
@@ -273,13 +253,13 @@ export function renderCanonicalFrontmatter(input: CanonicalFrontmatter): string 
   const rendered = stringify(orderedYamlFrontmatter(value), {
     aliasDuplicateObjects: false,
     lineWidth: 0,
-    sortMapEntries: false
+    sortMapEntries: false,
   }).replaceAll("\r\n", "\n");
   const parsed = parseDocument(rendered, {
     customTags: [],
     merge: false,
     schema: "core",
-    uniqueKeys: true
+    uniqueKeys: true,
   });
   if (parsed.errors.length > 0 || parsed.warnings.length > 0) {
     invalidFrontmatter("Canonical YAML failed strict self-validation.");
@@ -287,7 +267,7 @@ export function renderCanonicalFrontmatter(input: CanonicalFrontmatter): string 
   const roundTrip = parsed.toJS({ maxAliasCount: 0 }) as unknown;
   const canonicalRoundTrip = canonicalizeValue(
     roundTrip as CanonicalFrontmatterValue,
-    new Set<object>()
+    new Set<object>(),
   );
   const canonicalExpected = canonicalizeValue(value, new Set<object>());
   if (JSON.stringify(canonicalRoundTrip) !== JSON.stringify(canonicalExpected)) {
@@ -300,7 +280,7 @@ function normalizeTemplateSource(source: string): string {
   if (Buffer.byteLength(source, "utf8") > MAX_TEMPLATE_BYTES) {
     throw new CanonicalMarkdownError(
       "template-limit-exceeded",
-      `Template exceeds the ${MAX_TEMPLATE_BYTES}-byte limit.`
+      `Template exceeds the ${MAX_TEMPLATE_BYTES}-byte limit.`,
     );
   }
   if (source.includes("\0") || /\r(?!\n)/u.test(source)) {
@@ -317,7 +297,7 @@ function assertSafePlaceholderFrontmatter(source: string): void {
     customTags: [],
     merge: false,
     schema: "core",
-    uniqueKeys: true
+    uniqueKeys: true,
   });
   if (document.errors.length > 0 || document.warnings.length > 0) {
     invalidTemplate("Markdown skeleton placeholder frontmatter must be valid strict YAML.");
@@ -331,7 +311,9 @@ function assertSafePlaceholderFrontmatter(source: string): void {
     return;
   });
   if (prohibited.found) {
-    invalidTemplate("Markdown skeleton placeholder frontmatter cannot use tags, anchors, or aliases.");
+    invalidTemplate(
+      "Markdown skeleton placeholder frontmatter cannot use tags, anchors, or aliases.",
+    );
   }
   const value = document.toJS({ maxAliasCount: 0 }) as unknown;
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
@@ -340,9 +322,12 @@ function assertSafePlaceholderFrontmatter(source: string): void {
   canonicalizeValue(value as CanonicalFrontmatterValue, new Set<object>());
 }
 
-function extractMarkdownSkeleton(source: string, markdownNodes: DocumentMarkdownSyntaxReader): string {
+function extractMarkdownSkeleton(
+  source: string,
+  markdownNodes: DocumentMarkdownSyntaxReader,
+): string {
   const candidates = markdownNodes(source, "code").filter(
-    (node) => node.lang === "markdown" && (node.meta === null || node.meta === undefined)
+    (node) => node.lang === "markdown" && (node.meta === null || node.meta === undefined),
   );
   if (candidates.length !== 1) {
     invalidTemplate("Template must contain exactly one fenced markdown skeleton.");
@@ -366,7 +351,10 @@ function extractMarkdownSkeleton(source: string, markdownNodes: DocumentMarkdown
   return fenced.slice(opening[0].length, closingStart - 1);
 }
 
-function leadingH1(source: string, markdownNodes: DocumentMarkdownSyntaxReader): { readonly heading: string; readonly end: number } {
+function leadingH1(
+  source: string,
+  markdownNodes: DocumentMarkdownSyntaxReader,
+): { readonly heading: string; readonly end: number } {
   const headings = markdownNodes(source, "heading").filter((node) => node.depth === 1);
   const first = headings[0];
   const start = first?.position?.start.offset;
@@ -385,7 +373,7 @@ function leadingH1(source: string, markdownNodes: DocumentMarkdownSyntaxReader):
 
 export function parseGovernedTemplateSkeleton(
   source: string,
-  markdownNodes: DocumentMarkdownSyntaxReader
+  markdownNodes: DocumentMarkdownSyntaxReader,
 ): GovernedTemplateSkeleton {
   const normalized = normalizeTemplateSource(source);
   const skeleton = extractMarkdownSkeleton(normalized, markdownNodes);
@@ -404,7 +392,7 @@ export function parseGovernedTemplateSkeleton(
   }
   return Object.freeze({
     body: body.length === 0 ? "" : body.slice(2).replace(/\n+$/u, ""),
-    placeholderHeading
+    placeholderHeading,
   });
 }
 

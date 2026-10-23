@@ -254,6 +254,7 @@
         "tests/public-managed-registry-canary.test.mjs",
         "tests/public-managed-registry-canary-generation3.test.mts",
         "packages/engineering-foundation/tests/public-api-audit-observer.test.ts",
+        "packages/engineering-foundation/tests/public-api-authority-codec.test.ts",
         "packages/engineering-foundation/tests/public-api-audit-alias.test.ts",
         "tests/findings-baseline-ratchet.test.mjs",
         "tests/findings-baseline-rules.test.mjs"
@@ -347,6 +348,7 @@
         "tests/repository-profile-git.test.ts",
         "tests/repository-profile-lint.test.ts",
         "tests/producer-source-dependencies.test.ts",
+        "tests/repository-lint-scope.test.ts",
         "tests/features/quality-coverage/governed-assets.test.ts",
         "packages/stack-toolchain/tests/cli.test.ts",
         "packages/stack-toolchain/tests/configuration.test.ts",

@@ -1,4 +1,4 @@
-````markdown
+```markdown
 ---
 placeholder: true
 ---
@@ -26,4 +26,4 @@ placeholder: true
 ## Conformance fixtures
 
 ## Deprecation plan
-````
+```

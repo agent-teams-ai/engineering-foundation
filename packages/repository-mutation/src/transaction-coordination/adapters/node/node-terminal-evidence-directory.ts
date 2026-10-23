@@ -23,48 +23,32 @@ export type { TerminalEvidenceDirectoryAuthority } from "../../application/file-
 const nodeOperations: TerminalEvidenceDirectoryOperations = {
   lstat: (path) => lstat(path, { bigint: true }),
   mkdir,
-  realpath
+  realpath,
 };
 
-function identityFromStat(
-  metadata: TerminalEvidenceDirectoryStat
-): PortablePathIdentity {
+function identityFromStat(metadata: TerminalEvidenceDirectoryStat): PortablePathIdentity {
   return {
     birthtimeNs: metadata.birthtimeNs,
     dev: metadata.dev,
-    ino: metadata.ino
+    ino: metadata.ino,
   };
 }
 
-function identitiesEqual(
-  left: PortablePathIdentity,
-  right: PortablePathIdentity
-): boolean {
-  return (
-    left.birthtimeNs === right.birthtimeNs &&
-    left.dev === right.dev &&
-    left.ino === right.ino
-  );
+function identitiesEqual(left: PortablePathIdentity, right: PortablePathIdentity): boolean {
+  return left.birthtimeNs === right.birthtimeNs && left.dev === right.dev && left.ino === right.ino;
 }
 
 async function observeTerminalEvidenceDirectory(
   path: string,
-  operations: TerminalEvidenceDirectoryOperations
+  operations: TerminalEvidenceDirectoryOperations,
 ): Promise<PortablePathIdentity> {
   const metadata = await operations.lstat(path);
   if (metadata.isSymbolicLink() || !metadata.isDirectory()) {
-    throw new Error(
-      "Terminal evidence path must be a real operation-owned directory."
-    );
+    throw new Error("Terminal evidence path must be a real operation-owned directory.");
   }
-  const expectedCanonicalPath = join(
-    await operations.realpath(dirname(path)),
-    basename(path)
-  );
+  const expectedCanonicalPath = join(await operations.realpath(dirname(path)), basename(path));
   if ((await operations.realpath(path)) !== expectedCanonicalPath) {
-    throw new Error(
-      "Terminal evidence directory resolves outside its expected path."
-    );
+    throw new Error("Terminal evidence directory resolves outside its expected path.");
   }
   const identity = identityFromStat(metadata);
   const after = await operations.lstat(path);
@@ -80,7 +64,7 @@ async function observeTerminalEvidenceDirectory(
 
 export async function ensureTerminalEvidenceDirectory(
   path: string,
-  operationOverrides: Partial<TerminalEvidenceDirectoryOperations> = {}
+  operationOverrides: Partial<TerminalEvidenceDirectoryOperations> = {},
 ): Promise<TerminalEvidenceDirectoryAuthority> {
   const operations = { ...nodeOperations, ...operationOverrides };
   await operations.mkdir(path, { mode: 0o700 }).catch((error: unknown) => {
@@ -94,19 +78,16 @@ export async function ensureTerminalEvidenceDirectory(
   });
   return {
     identity: await observeTerminalEvidenceDirectory(path, operations),
-    path
+    path,
   };
 }
 
 export async function assertTerminalEvidenceDirectory(
   authority: TerminalEvidenceDirectoryAuthority,
-  operationOverrides: Partial<TerminalEvidenceDirectoryOperations> = {}
+  operationOverrides: Partial<TerminalEvidenceDirectoryOperations> = {},
 ): Promise<void> {
   const operations = { ...nodeOperations, ...operationOverrides };
-  const identity = await observeTerminalEvidenceDirectory(
-    authority.path,
-    operations
-  );
+  const identity = await observeTerminalEvidenceDirectory(authority.path, operations);
   if (!identitiesEqual(identity, authority.identity)) {
     throw new Error("Terminal evidence directory authority changed.");
   }

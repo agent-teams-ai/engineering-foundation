@@ -4,24 +4,22 @@ import {
   capabilityFailureReport,
   capabilityReport,
   type CapabilityDefinition,
-  type CapabilityInvocation
+  type CapabilityInvocation,
 } from "../../features/validation-reporting/api.js";
 import { FilesystemBufBreakingQualificationEvidence } from "./adapters/outbound/qualification/filesystem-buf-breaking-qualification-evidence.js";
-import {
-  CAPABILITY_CONFIG_SCHEMA_VERSION,
-  CAPABILITY_ID
-} from "./contract/config.js";
+import { CAPABILITY_CONFIG_SCHEMA_VERSION, CAPABILITY_ID } from "./contract/config.js";
 import { evaluateProtobufEvolution } from "./application/policies/evaluate-protobuf-evolution.js";
 import type { AcceptedDecisionEvidencePort } from "./application/ports/accepted-decision-evidence.js";
 import type { BufBreakingQualificationEvidencePort } from "./application/ports/buf-breaking-qualification-evidence.js";
 import { resolveProtobufEvolutionPolicy } from "./application/use-cases/resolve-protobuf-evolution-policy.js";
 
-import { loadCapabilityConfig, type ProtobufConfigurationDependencies } from "./adapters/inbound/configuration/load-capability-config.js";
+import {
+  loadCapabilityConfig,
+  type ProtobufConfigurationDependencies,
+} from "./adapters/inbound/configuration/load-capability-config.js";
 import { loadStrictYamlFile } from "../../features/configuration-input/node.js";
 
-export {
-  evaluateProtobufEvolution
-} from "./api.js";
+export { evaluateProtobufEvolution } from "./api.js";
 export type {
   ApprovedProtobufBreakingChange,
   BufBreakingEvidence,
@@ -34,17 +32,14 @@ export type {
   GenerationDriftEvidence,
   ProtobufEvolutionPolicy,
   ReleasedProtobufContractEvidence,
-  Sha256Digest
+  Sha256Digest,
 } from "./api.js";
 export type {
   AcceptedDecisionEvidence,
   AcceptedDecisionEvidencePort,
-  ReadAcceptedDecisionEvidenceInput
+  ReadAcceptedDecisionEvidenceInput,
 } from "./api.js";
-export {
-  PROTOBUF_EVOLUTION_RULES,
-  PROTOBUF_EVOLUTION_RULES_BY_ID
-} from "./api.js";
+export { PROTOBUF_EVOLUTION_RULES, PROTOBUF_EVOLUTION_RULES_BY_ID } from "./api.js";
 
 export interface ProtobufEvolutionCapabilityDependencies {
   readonly assertSchema: ProtobufConfigurationDependencies["assertSchema"];
@@ -53,14 +48,14 @@ export interface ProtobufEvolutionCapabilityDependencies {
 }
 
 export function createProtobufEvolutionCapability(
-  dependencies: ProtobufEvolutionCapabilityDependencies
+  dependencies: ProtobufEvolutionCapabilityDependencies,
 ): CapabilityDefinition {
-  const acceptedDecisionEvidence =
-    dependencies.acceptedDecisionEvidence;
+  const acceptedDecisionEvidence = dependencies.acceptedDecisionEvidence;
   const bufBreakingQualificationEvidence =
     dependencies.bufBreakingQualificationEvidence ??
     new FilesystemBufBreakingQualificationEvidence(dependencies.assertSchema, {
-      read: readContainedRegularFile, parseYaml: parseStrictYamlSource
+      read: readContainedRegularFile,
+      parseYaml: parseStrictYamlSource,
     });
   return Object.freeze({
     id: CAPABILITY_ID,
@@ -71,30 +66,30 @@ export function createProtobufEvolutionCapability(
           { readYaml: loadStrictYamlFile, assertSchema: dependencies.assertSchema },
           invocation.consumerRoot,
           invocation.configPath,
-          invocation.signal
+          invocation.signal,
         );
         const policy = await resolveProtobufEvolutionPolicy(
           {
             consumerRoot: invocation.consumerRoot,
             configuration,
-            ...(invocation.signal === undefined ? {} : { signal: invocation.signal })
+            ...(invocation.signal === undefined ? {} : { signal: invocation.signal }),
           },
-          { acceptedDecisionEvidence, bufBreakingQualificationEvidence }
+          { acceptedDecisionEvidence, bufBreakingQualificationEvidence },
         );
         return capabilityReport({
           capabilityId: CAPABILITY_ID,
           capabilityConfigSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
-          diagnostics: evaluateProtobufEvolution(policy)
+          diagnostics: evaluateProtobufEvolution(policy),
         });
       } catch (error) {
         return capabilityFailureReport({
           capabilityId: CAPABILITY_ID,
           capabilityConfigSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
           error,
-          phase: "protobuf-evolution-execution"
+          phase: "protobuf-evolution-execution",
         });
       }
-    }
+    },
   });
 }
 

@@ -7,7 +7,5 @@ interface DocumentationCatalogReadRequestV2 {
 }
 
 export interface DocumentationCatalogReaderV2 {
-  execute(
-    request: DocumentationCatalogReadRequestV2
-  ): Promise<DocumentationCatalogSnapshotV2>;
+  execute(request: DocumentationCatalogReadRequestV2): Promise<DocumentationCatalogSnapshotV2>;
 }

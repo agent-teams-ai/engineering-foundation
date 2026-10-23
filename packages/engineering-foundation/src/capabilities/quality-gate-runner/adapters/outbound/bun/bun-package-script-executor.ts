@@ -11,7 +11,7 @@ export interface QualityGateBunEnvironment {
 export class BunQualityGateScriptExecutor implements PackageScriptExecutor {
   constructor(
     private readonly environment: QualityGateBunEnvironment,
-    private readonly processExecutor: QualityGateManagedProcessExecutor
+    private readonly processExecutor: QualityGateManagedProcessExecutor,
   ) {}
 
   async run(input: {
@@ -21,10 +21,7 @@ export class BunQualityGateScriptExecutor implements PackageScriptExecutor {
     readonly timeoutMs?: number;
     readonly signal?: AbortSignal;
   }) {
-    if (
-      input.packageManager !== "bun" ||
-      this.environment.bunExecutablePath === undefined
-    ) {
+    if (input.packageManager !== "bun" || this.environment.bunExecutablePath === undefined) {
       rejectQualityGateBunExecutor();
     }
     return runPackageScriptProcess(this.processExecutor, {
@@ -33,7 +30,7 @@ export class BunQualityGateScriptExecutor implements PackageScriptExecutor {
       cwd: input.consumerRoot,
       environment: this.environment.childEnvironment,
       ...(input.timeoutMs === undefined ? {} : { timeoutMs: input.timeoutMs }),
-      ...(input.signal === undefined ? {} : { signal: input.signal })
+      ...(input.signal === undefined ? {} : { signal: input.signal }),
     });
   }
 }

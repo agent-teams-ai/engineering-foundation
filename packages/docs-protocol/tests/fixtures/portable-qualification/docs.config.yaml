@@ -1,5 +1,5 @@
 schemaVersion: 3
-protocol: {id: agent-teams.docs-protocol, version: 1}
+protocol: { id: agent-teams.docs-protocol, version: 1 }
 foundationProfile:
   path: .docs-protocol/document-authoring.yaml
   schemaVersion: 3

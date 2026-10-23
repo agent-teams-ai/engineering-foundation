@@ -28,7 +28,7 @@ export class AbsentFilePublicationError extends Error {
   constructor(
     code: AbsentFilePublicationErrorCode,
     message: string,
-    options?: ErrorOptions & { readonly cleanupError?: unknown }
+    options?: ErrorOptions & { readonly cleanupError?: unknown },
   ) {
     super(message, options);
     this.name = "AbsentFilePublicationError";

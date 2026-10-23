@@ -5,17 +5,17 @@ import type {
   RepositorySecurityEvidence,
   RepositorySecurityPolicy,
   WorkflowJobEvidence,
-  WorkflowPermission
+  WorkflowPermission,
 } from "../model/repository-security.js";
 import {
   isPinnedContainerImage,
   isPinnedExternalWorkflowUse,
-  isSafeLocalWorkflowUse
+  isSafeLocalWorkflowUse,
 } from "../model/repository-security.js";
 import { REPOSITORY_SECURITY_RULES } from "../rules.js";
 import {
   inspectDependencyReviewOrdering,
-  isDependencyReviewEvidence
+  isDependencyReviewEvidence,
 } from "./dependency-review-ordering.js";
 import { evaluateRepositorySecurityTools } from "./evaluate-repository-security-tools.js";
 import { evaluateRepositoryWorkflowUses } from "./evaluate-repository-workflow-uses.js";
@@ -28,13 +28,13 @@ const UNTRUSTED_EXPRESSION_IN_RUN =
 
 function exactPermissions(
   actual: Readonly<Record<string, WorkflowPermission>>,
-  expected: Readonly<Record<string, WorkflowPermission>>
+  expected: Readonly<Record<string, WorkflowPermission>>,
 ): boolean {
   const actualEntries = Object.entries(actual).toSorted(([left], [right]) =>
-    left < right ? -1 : left > right ? 1 : 0
+    left < right ? -1 : left > right ? 1 : 0,
   );
   const expectedEntries = Object.entries(expected).toSorted(([left], [right]) =>
-    left < right ? -1 : left > right ? 1 : 0
+    left < right ? -1 : left > right ? 1 : 0,
   );
   return JSON.stringify(actualEntries) === JSON.stringify(expectedEntries);
 }
@@ -42,10 +42,10 @@ function exactPermissions(
 function policyForJob(
   policy: RepositorySecurityPolicy,
   workflowPath: string,
-  jobId: string
+  jobId: string,
 ): PrivilegedJobPolicy | undefined {
   return policy.privilegedJobs.find(
-    (candidate) => candidate.workflowPath === workflowPath && candidate.jobId === jobId
+    (candidate) => candidate.workflowPath === workflowPath && candidate.jobId === jobId,
   );
 }
 
@@ -58,15 +58,12 @@ function actionPinned(action: string): boolean {
 
 function jobPermissions(
   job: WorkflowJobEvidence,
-  workflowPermissions: RepositorySecurityEvidence["workflows"][number]["permissions"]
+  workflowPermissions: RepositorySecurityEvidence["workflows"][number]["permissions"],
 ) {
   return job.permissions ?? workflowPermissions;
 }
 
-function inputIsEnabledOrAbsent(
-  step: WorkflowJobEvidence["steps"][number],
-  name: string
-): boolean {
+function inputIsEnabledOrAbsent(step: WorkflowJobEvidence["steps"][number], name: string): boolean {
   const value = step.inputs[name];
   return (
     value === undefined ||
@@ -99,7 +96,7 @@ function unsafePackagePath(entry: string): boolean {
       segment.length === 0 ||
       segment === "." ||
       segment === ".." ||
-      UNSAFE_PACKAGE_SEGMENT.test(segment)
+      UNSAFE_PACKAGE_SEGMENT.test(segment),
   );
 }
 
@@ -120,7 +117,7 @@ function inspectContainerImage(
   workflow: WorkflowEvidence,
   job: WorkflowEvidence["jobs"][number],
   container: WorkflowEvidence["jobs"][number]["containers"][number],
-  state: EvaluationState
+  state: EvaluationState,
 ): void {
   const subject = `${workflow.path}:${job.id}.${container.scope}.${container.name}`;
   if (!isPinnedContainerImage(container.image)) {
@@ -130,8 +127,8 @@ function inspectContainerImage(
         subject,
         path: workflow.path,
         message: `Container image is not pinned to an immutable digest: ${container.image}.`,
-        evidence: [{ kind: "container-image", value: container.image }]
-      })
+        evidence: [{ kind: "container-image", value: container.image }],
+      }),
     );
     return;
   }
@@ -143,8 +140,8 @@ function inspectContainerImage(
         subject,
         path: workflow.path,
         message: `Pinned container image is not declared in allowedContainerImages: ${container.image}.`,
-        evidence: [{ kind: "container-image", value: container.image }]
-      })
+        evidence: [{ kind: "container-image", value: container.image }],
+      }),
     );
   }
 }
@@ -153,7 +150,7 @@ function isSbomEvidence(
   policy: RepositorySecurityPolicy,
   workflow: WorkflowEvidence,
   job: WorkflowEvidence["jobs"][number],
-  step: WorkflowEvidence["jobs"][number]["steps"][number]
+  step: WorkflowEvidence["jobs"][number]["steps"][number],
 ): boolean {
   return (
     workflow.path === policy.sbomWorkflow &&
@@ -172,7 +169,7 @@ function isSbomEvidence(
 function inspectWorkflowRoot(
   policy: RepositorySecurityPolicy,
   workflow: WorkflowEvidence,
-  state: EvaluationState
+  state: EvaluationState,
 ): void {
   if (
     workflow.permissions === undefined ||
@@ -184,8 +181,8 @@ function inspectWorkflowRoot(
         rule: REPOSITORY_SECURITY_RULES.permissionsInvalid,
         subject: workflow.path,
         path: workflow.path,
-        message: "Workflow root permissions are missing, broad, or write-capable."
-      })
+        message: "Workflow root permissions are missing, broad, or write-capable.",
+      }),
     );
   }
   if (workflow.triggers.includes("pull_request_target")) {
@@ -197,8 +194,8 @@ function inspectWorkflowRoot(
           rule: REPOSITORY_SECURITY_RULES.dangerousTrigger,
           subject: workflow.path,
           path: workflow.path,
-          message: "Workflow uses undeclared pull_request_target."
-        })
+          message: "Workflow uses undeclared pull_request_target.",
+        }),
       );
     }
   }
@@ -209,7 +206,7 @@ function inspectWorkflowStep(
   workflow: WorkflowEvidence,
   job: WorkflowEvidence["jobs"][number],
   step: WorkflowEvidence["jobs"][number]["steps"][number],
-  state: EvaluationState
+  state: EvaluationState,
 ): void {
   const subject = `${workflow.path}:${job.id}`;
   if (step.uses !== undefined && !actionPinned(step.uses)) {
@@ -219,8 +216,8 @@ function inspectWorkflowStep(
         subject,
         path: workflow.path,
         message: `Action is not pinned to immutable evidence: ${step.uses}.`,
-        evidence: [{ kind: "action", value: step.uses }]
-      })
+        evidence: [{ kind: "action", value: step.uses }],
+      }),
     );
   }
   if (step.run !== undefined && UNTRUSTED_EXPRESSION_IN_RUN.test(step.run)) {
@@ -229,8 +226,8 @@ function inspectWorkflowStep(
         rule: REPOSITORY_SECURITY_RULES.eventInterpolationInRun,
         subject,
         path: workflow.path,
-        message: "Shell script directly interpolates github.event data."
-      })
+        message: "Shell script directly interpolates github.event data.",
+      }),
     );
   }
   if (isDependencyReviewEvidence(policy, workflow, job, step)) {
@@ -245,7 +242,7 @@ function inspectWorkflowJob(
   policy: RepositorySecurityPolicy,
   workflow: WorkflowEvidence,
   job: WorkflowEvidence["jobs"][number],
-  state: EvaluationState
+  state: EvaluationState,
 ): void {
   const subject = `${workflow.path}:${job.id}`;
   const permissionSet = jobPermissions(job, workflow.permissions);
@@ -257,18 +254,19 @@ function inspectWorkflowJob(
     permissionSet === "write-all" ||
     (typeof permissionSet === "object" &&
       Object.values(permissionSet).some((value) => value === "write"));
-  const privilegeMismatch = privileged === undefined
-    ? hasWrite
-    : typeof permissionSet !== "object" ||
-      !exactPermissions(permissionSet, privileged.permissions);
+  const privilegeMismatch =
+    privileged === undefined
+      ? hasWrite
+      : typeof permissionSet !== "object" ||
+        !exactPermissions(permissionSet, privileged.permissions);
   if (privilegeMismatch) {
     state.diagnostics.push(
       diagnostic({
         rule: REPOSITORY_SECURITY_RULES.privilegedJobMismatch,
         subject,
         path: workflow.path,
-        message: "Job permissions do not match one exact privileged-job declaration."
-      })
+        message: "Job permissions do not match one exact privileged-job declaration.",
+      }),
     );
   }
   if (job.uses !== undefined && !actionPinned(job.uses)) {
@@ -278,8 +276,8 @@ function inspectWorkflowJob(
         subject,
         path: workflow.path,
         message: `Reusable workflow is not pinned to immutable evidence: ${job.uses}.`,
-        evidence: [{ kind: "action", value: job.uses }]
-      })
+        evidence: [{ kind: "action", value: job.uses }],
+      }),
     );
   }
   for (const container of job.containers) {
@@ -292,7 +290,7 @@ function inspectWorkflowJob(
 
 function inspectCompositeAction(
   action: CompositeActionEvidence,
-  diagnostics: FoundationDiagnostic[]
+  diagnostics: FoundationDiagnostic[],
 ): void {
   for (const [index, step] of action.steps.entries()) {
     if (step.run !== undefined && UNTRUSTED_EXPRESSION_IN_RUN.test(step.run)) {
@@ -301,25 +299,22 @@ function inspectCompositeAction(
           rule: REPOSITORY_SECURITY_RULES.eventInterpolationInRun,
           subject: `${action.path}:runs.steps[${index}]`,
           path: action.path,
-          message: "Composite action shell script directly interpolates github.event data."
-        })
+          message: "Composite action shell script directly interpolates github.event data.",
+        }),
       );
     }
   }
 }
 
-function inspectRequiredEvidence(
-  policy: RepositorySecurityPolicy,
-  state: EvaluationState
-): void {
+function inspectRequiredEvidence(policy: RepositorySecurityPolicy, state: EvaluationState): void {
   if (!state.dependencyReviewFound) {
     state.diagnostics.push(
       diagnostic({
         rule: REPOSITORY_SECURITY_RULES.dependencyReviewMissing,
         subject: `${policy.dependencyReview.workflowPath}:${policy.dependencyReview.jobId}`,
         path: policy.dependencyReview.workflowPath,
-        message: "Declared dependency-review workflow does not run the pinned official action."
-      })
+        message: "Declared dependency-review workflow does not run the pinned official action.",
+      }),
     );
   }
   if (!state.sbomFound) {
@@ -328,15 +323,15 @@ function inspectRequiredEvidence(
         rule: REPOSITORY_SECURITY_RULES.sbomMissing,
         subject: policy.sbomWorkflow,
         path: policy.sbomWorkflow,
-        message: "Declared SBOM workflow does not run the pinned Anchore action."
-      })
+        message: "Declared SBOM workflow does not run the pinned Anchore action.",
+      }),
     );
   }
 }
 
 function inspectPackageEvidence(
   packageEvidence: PackageEvidence,
-  diagnostics: FoundationDiagnostic[]
+  diagnostics: FoundationDiagnostic[],
 ): void {
   if (!packageEvidence.provenance) {
     diagnostics.push(
@@ -344,8 +339,8 @@ function inspectPackageEvidence(
         rule: REPOSITORY_SECURITY_RULES.packageProvenanceMissing,
         subject: packageEvidence.packageName,
         path: packageEvidence.manifestPath,
-        message: "Publishable package does not enable npm provenance."
-      })
+        message: "Publishable package does not enable npm provenance.",
+      }),
     );
   }
   const unsafeFiles = packageEvidence.files?.filter(unsafePackagePath);
@@ -360,15 +355,15 @@ function inspectPackageEvidence(
         subject: packageEvidence.packageName,
         path: packageEvidence.manifestPath,
         message: "Publishable package files allowlist is missing or unsafe.",
-        evidence: (unsafeFiles ?? []).map((value) => ({ kind: "unsafe-path", value }))
-      })
+        evidence: (unsafeFiles ?? []).map((value) => ({ kind: "unsafe-path", value })),
+      }),
     );
   }
 }
 
 export function evaluateRepositorySecurity(
   policy: RepositorySecurityPolicy,
-  evidence: RepositorySecurityEvidence
+  evidence: RepositorySecurityEvidence,
 ): readonly FoundationDiagnostic[] {
   const state: EvaluationState = {
     diagnostics: [],
@@ -376,7 +371,7 @@ export function evaluateRepositorySecurity(
     seenPullRequestTargetWorkflows: new Set<string>(),
     seenPrivilegedJobs: new Set<string>(),
     dependencyReviewFound: false,
-    sbomFound: false
+    sbomFound: false,
   };
 
   for (const workflow of evidence.workflows) {
@@ -398,8 +393,8 @@ export function evaluateRepositorySecurity(
           rule: REPOSITORY_SECURITY_RULES.stalePrivilegedJob,
           subject: key,
           path: privileged.workflowPath,
-          message: "Privileged-job declaration has no matching workflow job."
-        })
+          message: "Privileged-job declaration has no matching workflow job.",
+        }),
       );
     }
   }
@@ -410,9 +405,8 @@ export function evaluateRepositorySecurity(
           rule: REPOSITORY_SECURITY_RULES.stalePullRequestTargetWorkflow,
           subject: workflowPath,
           path: workflowPath,
-          message:
-            "Allowed pull_request_target declaration has no matching workflow trigger."
-        })
+          message: "Allowed pull_request_target declaration has no matching workflow trigger.",
+        }),
       );
     }
   }
@@ -423,9 +417,10 @@ export function evaluateRepositorySecurity(
           rule: REPOSITORY_SECURITY_RULES.staleAllowedContainerImage,
           subject: image,
           path: policy.workflowDirectory,
-          message: "Declared allowedContainerImages entry has no matching job or service container.",
-          evidence: [{ kind: "container-image", value: image }]
-        })
+          message:
+            "Declared allowedContainerImages entry has no matching job or service container.",
+          evidence: [{ kind: "container-image", value: image }],
+        }),
       );
     }
   }

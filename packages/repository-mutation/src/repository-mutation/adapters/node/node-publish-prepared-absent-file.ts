@@ -1,5 +1,8 @@
 import type { BoundedRegularFileRead, KnownFileCoordination } from "./known-file-coordination.js";
-import { type ExactFilePostimage, AbsentFilePublicationError } from "../../application/model/exact-postimage.js";
+import {
+  type ExactFilePostimage,
+  AbsentFilePublicationError,
+} from "../../application/model/exact-postimage.js";
 
 import type { PortablePathIdentity } from "../../../path-identity.js";
 
@@ -9,12 +12,12 @@ import {
   exactReadMatchesPostimage,
   publicationErrorCode,
   samePublicationIdentity,
-  syncPublicationDirectory
+  syncPublicationDirectory,
 } from "./node-absent-file-publication-private.js";
 
 function isUnsupportedLink(error: unknown): boolean {
   return ["ENOSYS", "ENOTSUP", "EOPNOTSUPP", "EPERM", "EXDEV"].includes(
-    publicationErrorCode(error) ?? ""
+    publicationErrorCode(error) ?? "",
   );
 }
 
@@ -27,7 +30,7 @@ async function verifyPreparedTemporary(options: {
 }): Promise<void> {
   const stableTemporary = await options.readBoundedRegularFile(
     options.temporaryPath,
-    options.postimage.size
+    options.postimage.size,
   );
   if (
     exactReadMatchesPostimage(stableTemporary, options.postimage) &&
@@ -37,7 +40,7 @@ async function verifyPreparedTemporary(options: {
   }
   throw new AbsentFilePublicationError(
     "TEMPORARY_REPLACED",
-    `Temporary path was replaced or modified concurrently: ${options.displayPath}.`
+    `Temporary path was replaced or modified concurrently: ${options.displayPath}.`,
   );
 }
 
@@ -50,7 +53,7 @@ export async function verifyPublishedAbsentFile(options: {
 }): Promise<void> {
   const publishedFile = await options.readBoundedRegularFile(
     options.destinationPath,
-    options.postimage.size
+    options.postimage.size,
   );
   if (
     exactReadMatchesPostimage(publishedFile, options.postimage) &&
@@ -60,32 +63,34 @@ export async function verifyPublishedAbsentFile(options: {
   }
   throw new AbsentFilePublicationError(
     "VERIFICATION_FAILED",
-    `Published file failed identity or content verification: ${options.displayPath}.`
+    `Published file failed identity or content verification: ${options.displayPath}.`,
   );
 }
 
 export interface PublishPreparedAbsentFileOptions {
   readonly allowUnsupportedDirectoryDurability: boolean;
-  readonly classifyBoundedRegularFile: (path: string, maximumBytes: number) => Promise<BoundedRegularFileRead>;
+  readonly classifyBoundedRegularFile: (
+    path: string,
+    maximumBytes: number,
+  ) => Promise<BoundedRegularFileRead>;
   readonly destinationPath: string;
   readonly displayPath: string;
   readonly expectedIdentity: PortablePathIdentity;
   readonly link: (source: string, destination: string) => Promise<void>;
   readonly parent: string;
   readonly postimage: ExactFilePostimage;
-  readonly readBoundedRegularFile: (path: string, maximumBytes: number) => Promise<BoundedRegularFileRead>;
-  readonly syncDirectory: (
-    path: string
-  ) => Promise<DirectoryDurability>;
+  readonly readBoundedRegularFile: (
+    path: string,
+    maximumBytes: number,
+  ) => Promise<BoundedRegularFileRead>;
+  readonly syncDirectory: (path: string) => Promise<DirectoryDurability>;
   readonly temporaryPath: string;
 }
 
 export async function publishPreparedAbsentFileWithFaults(
   options: PublishPreparedAbsentFileOptions & {
-    readonly faultInjector?: (point: {
-      readonly phase: "after-hard-link";
-    }) => Promise<void> | void;
-  }
+    readonly faultInjector?: (point: { readonly phase: "after-hard-link" }) => Promise<void> | void;
+  },
 ): Promise<"already-satisfied" | "published"> {
   await verifyPreparedTemporary(options);
   try {
@@ -95,7 +100,7 @@ export async function publishPreparedAbsentFileWithFaults(
       const state = await classifyExactFilePostimageWith(
         options.classifyBoundedRegularFile,
         options.destinationPath,
-        options.postimage
+        options.postimage,
       );
       if (state === "exact") {
         await syncPublicationDirectory(options);
@@ -104,14 +109,14 @@ export async function publishPreparedAbsentFileWithFaults(
       throw new AbsentFilePublicationError(
         "CONFLICT",
         `Destination changed concurrently: ${options.displayPath}.`,
-        { cause: error }
+        { cause: error },
       );
     }
     if (isUnsupportedLink(error)) {
       throw new AbsentFilePublicationError(
         "PUBLICATION_UNSUPPORTED",
         `Atomic absent-only publication is unsupported: ${options.displayPath}.`,
-        { cause: error }
+        { cause: error },
       );
     }
     throw error;
@@ -123,7 +128,7 @@ export async function publishPreparedAbsentFileWithFaults(
 }
 
 export function publishPreparedAbsentFile(
-  options: PublishPreparedAbsentFileOptions
+  options: PublishPreparedAbsentFileOptions,
 ): Promise<"already-satisfied" | "published"> {
   return publishPreparedAbsentFileWithFaults(options);
 }

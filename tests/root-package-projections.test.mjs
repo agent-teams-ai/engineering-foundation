@@ -31,10 +31,15 @@ function entry(name) {
 function projection(catalog, dependencyEntries = {}) {
   return derivePublishablePackageProjection({
     catalog,
-    manifestsByName: new Map(catalog.map(({ name }) => [name, {
-      name,
-      ...dependencyEntries[name],
-    }])),
+    manifestsByName: new Map(
+      catalog.map(({ name }) => [
+        name,
+        {
+          name,
+          ...dependencyEntries[name],
+        },
+      ]),
+    ),
   });
 }
 
@@ -61,8 +66,14 @@ test("manifest edges determine stable publication order independently of catalog
   const forward = projection([omega, base, alpha], manifests);
   const reverse = projection([alpha, base, omega], manifests);
   const expected = [base.name, alpha.name, omega.name];
-  assert.deepEqual(forward.packages.map(({ name }) => name), expected);
-  assert.deepEqual(reverse.packages.map(({ name }) => name), expected);
+  assert.deepEqual(
+    forward.packages.map(({ name }) => name),
+    expected,
+  );
+  assert.deepEqual(
+    reverse.packages.map(({ name }) => name),
+    expected,
+  );
   assert.deepEqual(forward.dependencies, reverse.dependencies);
   assert.deepEqual(forward.dependencies[omega.name], []);
   assert.deepEqual(forward.declarations[omega.name], [
@@ -73,84 +84,96 @@ test("manifest edges determine stable publication order independently of catalog
 test("manifest projection rejects cycles, unknown workspace targets, and malformed references", () => {
   const left = entry("@fixture/left");
   const right = entry("@fixture/right");
-  assert.throws(() => projection([left, right], {
-    [left.name]: { dependencies: { [right.name]: "workspace:*" } },
-    [right.name]: { dependencies: { [left.name]: "workspace:*" } },
-  }), /dependency cycle/u);
-  assert.throws(() => projection([left], {
-    [left.name]: { dependencies: { "@fixture/unknown": "workspace:*" } },
-  }), /unknown internal workspace package/u);
-  assert.throws(() => projection([left], {
-    [left.name]: { dependencies: [] },
-  }), /dependencies must be an object/u);
-  assert.throws(() => projection([left, right], {
-    [left.name]: { dependencies: { [right.name]: "workspace:^" } },
-  }), /as workspace:\*/u);
+  assert.throws(
+    () =>
+      projection([left, right], {
+        [left.name]: { dependencies: { [right.name]: "workspace:*" } },
+        [right.name]: { dependencies: { [left.name]: "workspace:*" } },
+      }),
+    /dependency cycle/u,
+  );
+  assert.throws(
+    () =>
+      projection([left], {
+        [left.name]: { dependencies: { "@fixture/unknown": "workspace:*" } },
+      }),
+    /unknown internal workspace package/u,
+  );
+  assert.throws(
+    () =>
+      projection([left], {
+        [left.name]: { dependencies: [] },
+      }),
+    /dependencies must be an object/u,
+  );
+  assert.throws(
+    () =>
+      projection([left, right], {
+        [left.name]: { dependencies: { [right.name]: "workspace:^" } },
+      }),
+    /as workspace:\*/u,
+  );
   assert.throws(() => projection([{ ...left, dependencies: [] }]), /metadata only/u);
 });
 
 test("current projection preserves the admitted package DAG and independent tooling packages", () => {
-  assert.deepEqual(PUBLISHABLE_PACKAGES.map(({ name }) => name), [
-    "@agent-teams/ci-input-proof",
-    "@agent-teams/repository-mutation",
-    "@agent-teams/document-authoring",
-    "@agent-teams/docs-protocol",
-    "@agent-teams/docs-protocol-agent-teams",
-    "@agent-teams/docs-protocol-mcp",
-    "@agent-teams/engineering-foundation",
-    "@agent-teams/feature-module-standard",
-    "stack-toolchain",
-  ]);
+  assert.deepEqual(
+    PUBLISHABLE_PACKAGES.map(({ name }) => name),
+    [
+      "@agent-teams/ci-input-proof",
+      "@agent-teams/repository-mutation",
+      "@agent-teams/document-authoring",
+      "@agent-teams/docs-protocol",
+      "@agent-teams/docs-protocol-agent-teams",
+      "@agent-teams/docs-protocol-mcp",
+      "@agent-teams/engineering-foundation",
+      "@agent-teams/feature-module-standard",
+      "stack-toolchain",
+    ],
+  );
   assert.deepEqual(PUBLISHABLE_PACKAGE_DEPENDENCIES["@agent-teams/ci-input-proof"], []);
   assert.deepEqual(PUBLISHABLE_PACKAGE_DEPENDENCIES["stack-toolchain"], []);
   assert.deepEqual(PUBLISHABLE_PACKAGE_DEPENDENCIES["@agent-teams/feature-module-standard"], []);
-  assert.deepEqual(
-    PUBLISHABLE_PACKAGE_DEPENDENCIES["@agent-teams/document-authoring"],
-    ["@agent-teams/repository-mutation"],
-  );
-  assert.deepEqual(
-    PUBLISHABLE_PACKAGE_DEPENDENCIES["@agent-teams/engineering-foundation"],
-    ["@agent-teams/document-authoring", "@agent-teams/repository-mutation"],
-  );
-  assert.deepEqual(
-    PUBLISHABLE_PACKAGE_DEPENDENCIES["@agent-teams/docs-protocol"],
-    ["@agent-teams/document-authoring", "@agent-teams/repository-mutation"],
-  );
-  assert.deepEqual(
-    PUBLISHABLE_PACKAGE_DEPENDENCIES["@agent-teams/docs-protocol-agent-teams"],
-    ["@agent-teams/docs-protocol", "@agent-teams/repository-mutation"],
-  );
-  assert.deepEqual(
-    PUBLISHABLE_PACKAGE_DEPENDENCIES["@agent-teams/docs-protocol-mcp"],
-    ["@agent-teams/docs-protocol"],
-  );
+  assert.deepEqual(PUBLISHABLE_PACKAGE_DEPENDENCIES["@agent-teams/document-authoring"], [
+    "@agent-teams/repository-mutation",
+  ]);
+  assert.deepEqual(PUBLISHABLE_PACKAGE_DEPENDENCIES["@agent-teams/engineering-foundation"], [
+    "@agent-teams/document-authoring",
+    "@agent-teams/repository-mutation",
+  ]);
+  assert.deepEqual(PUBLISHABLE_PACKAGE_DEPENDENCIES["@agent-teams/docs-protocol"], [
+    "@agent-teams/document-authoring",
+    "@agent-teams/repository-mutation",
+  ]);
+  assert.deepEqual(PUBLISHABLE_PACKAGE_DEPENDENCIES["@agent-teams/docs-protocol-agent-teams"], [
+    "@agent-teams/docs-protocol",
+    "@agent-teams/repository-mutation",
+  ]);
+  assert.deepEqual(PUBLISHABLE_PACKAGE_DEPENDENCIES["@agent-teams/docs-protocol-mcp"], [
+    "@agent-teams/docs-protocol",
+  ]);
 });
 
 test("package checks and built tests consume dynamic projected inventories", () => {
-  assert.deepEqual(publishablePackageCheckPlan([
-    { root: "packages/one" },
-    { root: "packages/two" },
-  ]), [
-    { arguments: ["packages/one"], tool: "publint" },
-    { arguments: ["--pack", "packages/one"], tool: "native-package-types" },
-    { arguments: ["packages/two"], tool: "publint" },
-    { arguments: ["--pack", "packages/two"], tool: "native-package-types" },
-  ]);
-  assert.deepEqual(builtTestArguments({ tests: [
-    "tests/one.test.mjs",
-    "packages/one/tests/two.test.mjs",
-  ] }), [
-    "--test",
-    "--test-concurrency=1",
-    "tests/one.test.mjs",
-    "packages/one/tests/two.test.mjs",
-  ]);
+  assert.deepEqual(
+    publishablePackageCheckPlan([{ root: "packages/one" }, { root: "packages/two" }]),
+    [
+      { arguments: ["packages/one"], tool: "publint" },
+      { arguments: ["--pack", "packages/one"], tool: "native-package-types" },
+      { arguments: ["packages/two"], tool: "publint" },
+      { arguments: ["--pack", "packages/two"], tool: "native-package-types" },
+    ],
+  );
+  assert.deepEqual(
+    builtTestArguments({ tests: ["tests/one.test.mjs", "packages/one/tests/two.test.mjs"] }),
+    ["--test", "--test-concurrency=1", "tests/one.test.mjs", "packages/one/tests/two.test.mjs"],
+  );
 });
 
 test("qualified package test roots are explicit and reject traversal", () => {
-  assert.ok(testRootsForPackages(PUBLISHABLE_PACKAGES).includes(
-    "packages/docs-protocol-agent-teams/tests",
-  ));
+  assert.ok(
+    testRootsForPackages(PUBLISHABLE_PACKAGES).includes("packages/docs-protocol-agent-teams/tests"),
+  );
   assert.throws(
     () => testRootsForPackages([{ root: "packages/../outside" }]),
     /not bounded and portable/u,

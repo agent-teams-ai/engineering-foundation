@@ -53,8 +53,7 @@ export interface DocumentationCatalogAuthority {
   readonly profile: DocumentAuthorityEvidence;
 }
 
-export interface DocumentationCatalogAuthorityV2
-  extends DocumentationCatalogAuthority {
+export interface DocumentationCatalogAuthorityV2 extends DocumentationCatalogAuthority {
   readonly metadataSidecar?: DocumentAuthorityEvidence;
 }
 
@@ -68,8 +67,10 @@ export interface DocumentationCatalogSnapshot {
   readonly status: "complete" | "partial";
 }
 
-export interface DocumentationCatalogSnapshotV2
-  extends Omit<DocumentationCatalogSnapshot, "authority" | "documents"> {
+export interface DocumentationCatalogSnapshotV2 extends Omit<
+  DocumentationCatalogSnapshot,
+  "authority" | "documents"
+> {
   readonly authority: DocumentationCatalogAuthorityV2;
   readonly documents: readonly DocumentDescriptorV2[];
   readonly semanticDigest: DocumentAuthorityDigest;
@@ -96,8 +97,7 @@ export interface DocumentationSearchCatalogSnapshot {
   readonly documents: readonly DocumentSearchCorpusEntry[];
 }
 
-export interface DocumentSearchCorpusEntryV2
-  extends Omit<DocumentSearchCorpusEntry, "descriptor"> {
+export interface DocumentSearchCorpusEntryV2 extends Omit<DocumentSearchCorpusEntry, "descriptor"> {
   readonly descriptor: DocumentDescriptorV2;
 }
 

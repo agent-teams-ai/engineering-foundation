@@ -1,6 +1,4 @@
-export type {
-  ConsumerIntegrationExecutionV1
-} from "./application/model/consumer-integration-execution.js";
+export type { ConsumerIntegrationExecutionV1 } from "./application/model/consumer-integration-execution.js";
 export type {
   ConsumerIntegrationAssetPlan,
   ConsumerIntegrationAssetState,
@@ -20,11 +18,9 @@ export type {
   QualifiedDocsCohortV1,
   QualifiedDocsCohortV2,
   QualifiedDocsPackageCoordinateV2,
-  ManagedSuccessorProfile
+  ManagedSuccessorProfile,
 } from "./domain/model.js";
-export type {
-  ConsumerUpgradeExecutionV1
-} from "./application/model/consumer-upgrade-execution.js";
+export type { ConsumerUpgradeExecutionV1 } from "./application/model/consumer-upgrade-execution.js";
 export {
   BOOTSTRAP_KNOWN_PRIOR_CALLER_WORKFLOWS,
   CANONICAL_DOCS_SKILL,
@@ -38,66 +34,71 @@ export {
   canonicalManagedRoute,
   canonicalManagedState,
   describeCanonicalConsumerAssets,
-  digestBytes
+  digestBytes,
 } from "./application/policies/consumer-integration-assets.js";
 export type {
   CanonicalManagedAssetDigests,
   ConsumerAssetCatalogV1,
   CurrentSourceExecutorV1,
   KnownPriorCohortCatalogEntryV1,
-  KnownPriorCohortCatalogEntryV2
+  KnownPriorCohortCatalogEntryV2,
 } from "./application/policies/consumer-integration-assets.js";
 export {
   assertConsumerIntegrationDesiredStateV3,
   assertManagedSuccessorProfileV4,
   assertPlainBoundedJson,
   assertQualifiedDocsCohortBindingV1,
-  assertQualifiedDocsCohortBindingV2
+  assertQualifiedDocsCohortBindingV2,
 } from "./application/policies/consumer-integration-desired-state.js";
 export {
   QUALIFIED_DOCS_COHORT_V2_EDGES,
   QUALIFIED_DOCS_COHORT_V2_PACKAGES,
   qualifiedDocsCohortV2DirectPackageEntries,
-  qualifiedDocsCohortV2PackageEntries
+  qualifiedDocsCohortV2PackageEntries,
 } from "./application/policies/qualified-docs-cohort-v2.js";
 export type {
   ConsumerAssetCatalogReader,
   ConsumerIntegrationInputReader,
-  ConsumerIntegrationTransactionPort
+  ConsumerIntegrationTransactionPort,
 } from "./application/ports/consumer-integration-lifecycle.js";
 export type {
   AgentsRoutePlanV1,
   AgentsRoutePlannerV1,
   ConsumerIntegrationPlanningPorts,
   PnpmManifestPlanV1,
-  PnpmManifestPlanner
+  PnpmManifestPlanner,
 } from "./application/ports/consumer-integration-planners.js";
 export type {
   ConsumerUpgradeAuthorityReader,
-  ConsumerUpgradeManagedPreimagesV2
+  ConsumerUpgradeManagedPreimagesV2,
 } from "./application/ports/consumer-upgrade.js";
-export {
-  createConsumerIntegrationPlanner
-} from "./application/use-cases/create-consumer-integration-planner.js";
-export {
-  createConsumerIntegrationUseCases
-} from "./application/use-cases/run-consumer-integration.js";
-export {
-  createConsumerUpgradeUseCase
-} from "./application/use-cases/upgrade-consumer-integration.js";
+export { createConsumerIntegrationPlanner } from "./application/use-cases/create-consumer-integration-planner.js";
+export { createConsumerIntegrationUseCases } from "./application/use-cases/run-consumer-integration.js";
+export { createConsumerUpgradeUseCase } from "./application/use-cases/upgrade-consumer-integration.js";
 export type { ManagedConsumerOperations } from "./application/ports/managed-consumer-operations.js";
 export type {
-  ConsumerFinalizationOptions, ConsumerRestorationExecution, ConsumerRestorationOptions,
-  ConsumerRestorationProof, ConsumerRestorationPreparation, ConsumerRestorationIntent,
-  RestorableConsumerUpgradeExecution
+  ConsumerFinalizationOptions,
+  ConsumerRestorationExecution,
+  ConsumerRestorationOptions,
+  ConsumerRestorationProof,
+  ConsumerRestorationPreparation,
+  ConsumerRestorationIntent,
+  RestorableConsumerUpgradeExecution,
 } from "./application/model/consumer-restoration.js";
 export type {
-  ConsumerRestorationAuthorityReader, ConsumerRestorationRecorder
+  ConsumerRestorationAuthorityReader,
+  ConsumerRestorationRecorder,
 } from "./application/ports/consumer-restoration.js";
 export {
-  assertFullyReplacedReceipt, assertObservedRestorationReceipt, exactRestorationKeys,
-  inverseRestorationPlan, MAXIMUM_RESTORATION_PROOF_BYTES, parseConsumerRestorationPreparation,
-  parseConsumerRestorationProof, requireRestoration, restorationJson
+  assertFullyReplacedReceipt,
+  assertObservedRestorationReceipt,
+  exactRestorationKeys,
+  inverseRestorationPlan,
+  MAXIMUM_RESTORATION_PROOF_BYTES,
+  parseConsumerRestorationPreparation,
+  parseConsumerRestorationProof,
+  requireRestoration,
+  restorationJson,
 } from "./application/policies/consumer-restoration-proof.js";
 export { assertConsumerIntegrationDesiredStateV1 } from "./application/policies/consumer-integration-desired-state.js";
 
@@ -105,6 +106,4 @@ export { bindUnselectedCohortV3 } from "./application/policies/qualified-docs-co
 export type { UnselectedCohortV3 } from "./domain/model.js";
 export type { PackedManagedRuntimePolicy } from "./application/policies/qualified-docs-cohort-v3.js";
 export { projectManagedSuccessorState } from "./application/policies/managed-successor-state.js";
-export type {
-  ManagedSuccessorAssetDigests
-} from "./application/policies/managed-successor-state.js";
+export type { ManagedSuccessorAssetDigests } from "./application/policies/managed-successor-state.js";

@@ -26,9 +26,7 @@ const frontmatter = {
   summary: "Freezes the current ADR document creation contract.",
   related: ["OD-001", "ADR-0001"],
   additionalMetadata: {
-    code_anchors: [
-      { pattern: "packages/example/*.ts", enforcement: "required" },
-    ],
+    code_anchors: [{ pattern: "packages/example/*.ts", enforcement: "required" }],
     blocked_by: ["OD-001"],
   },
 };
@@ -125,12 +123,12 @@ test("preserves binary order for array-index-like mapping keys", () => {
     owner: "tooling",
     summary: "Numeric-looking keys stay strings.",
     additionalMetadata: {
-      "2": "top two",
-      "10": "top ten",
+      2: "top two",
+      10: "top ten",
       nested: {
         alpha: true,
-        "2": "nested two",
-        "10": "nested ten",
+        2: "nested two",
+        10: "nested ten",
       },
     },
   });
@@ -191,9 +189,7 @@ test("rejects reserved, prototype-sensitive, accessor, and cyclic metadata", () 
   ]) {
     assert.throws(
       () => renderCanonicalFrontmatter({ ...frontmatter, additionalMetadata }),
-      (error) =>
-        error instanceof CanonicalMarkdownError &&
-        error.failure === "frontmatter-invalid",
+      (error) => error instanceof CanonicalMarkdownError && error.failure === "frontmatter-invalid",
     );
   }
   const cyclic = {};
@@ -264,16 +260,12 @@ test("rejects duplicate related IDs, unsafe numbers, and non-NFC inputs", () => 
   ]) {
     assert.throws(
       () => renderCanonicalFrontmatter({ ...frontmatter, ...override }),
-      (error) =>
-        error instanceof CanonicalMarkdownError &&
-        error.failure === "frontmatter-invalid",
+      (error) => error instanceof CanonicalMarkdownError && error.failure === "frontmatter-invalid",
     );
   }
   assert.throws(
-    () => parseGovernedTemplateSkeleton("```markdown\n---\nid: e\u0301\n---\n\n# Title\n```") ,
-    (error) =>
-      error instanceof CanonicalMarkdownError &&
-      error.failure === "template-invalid",
+    () => parseGovernedTemplateSkeleton("```markdown\n---\nid: e\u0301\n---\n\n# Title\n```"),
+    (error) => error instanceof CanonicalMarkdownError && error.failure === "template-invalid",
   );
 });
 
@@ -289,9 +281,7 @@ test("rejects ambiguous or executable-like template forms without interpolation"
   ]) {
     assert.throws(
       () => parseGovernedTemplateSkeleton(source),
-      (error) =>
-        error instanceof CanonicalMarkdownError &&
-        error.failure === "template-invalid",
+      (error) => error instanceof CanonicalMarkdownError && error.failure === "template-invalid",
     );
   }
   const template = parseGovernedTemplateSkeleton(
@@ -306,9 +296,9 @@ test("preserves fenced shell comments and Markdown hard-break spaces", async () 
     .replace("```markdown", "````markdown")
     .replace(/\n```\n$/u, "\n````\n")
     .replace(
-    "What is decided, including ownership and invariants?",
-    "```sh\n# comment inside code, not an H1\n```\n\nHard break here  ",
-  );
+      "What is decided, including ownership and invariants?",
+      "```sh\n# comment inside code, not an H1\n```\n\nHard break here  ",
+    );
   const template = parseGovernedTemplateSkeleton(source);
   assert.match(template.body, /# comment inside code, not an H1/u);
   assert.match(template.body, /Hard break here  $/u);
@@ -319,9 +309,7 @@ test("preserves fenced shell comments and Markdown hard-break spaces", async () 
   });
   assert.match(rendered, /Hard break here  \n$/u);
   assert.throws(() =>
-    parseGovernedTemplateSkeleton(
-      valid.replace("## Decision", "# Actual second H1"),
-    ),
+    parseGovernedTemplateSkeleton(valid.replace("## Decision", "# Actual second H1")),
   );
 });
 
@@ -332,9 +320,7 @@ test("rejects unsafe placeholder YAML even though it is discarded", async () => 
     "id: ADR-NNNN\nunsafe: .inf",
     "id: ADR-NNNN\nunsafe: 1.5",
   ]) {
-    assert.throws(() =>
-      parseGovernedTemplateSkeleton(valid.replace("id: ADR-NNNN", replacement)),
-    );
+    assert.throws(() => parseGovernedTemplateSkeleton(valid.replace("id: ADR-NNNN", replacement)));
   }
 });
 
@@ -342,12 +328,13 @@ test("bounds template bytes before parsing", () => {
   assert.throws(
     () => parseGovernedTemplateSkeleton("x".repeat(256 * 1024 + 1)),
     (error) =>
-      error instanceof CanonicalMarkdownError &&
-      error.failure === "template-limit-exceeded",
+      error instanceof CanonicalMarkdownError && error.failure === "template-limit-exceeded",
   );
 });
 
-function parseGovernedTemplateSkeleton(source) { return parseSkeletonWithReader(source, readMarkdownSyntax); }
+function parseGovernedTemplateSkeleton(source) {
+  return parseSkeletonWithReader(source, readMarkdownSyntax);
+}
 
 test("template parsing accepts an independent syntax observation port", () => {
   const source = "```markdown\n---\nid: placeholder\n---\n\n# Title\n\nBody\n```";
@@ -356,7 +343,13 @@ test("template parsing accepts an independent syntax observation port", () => {
     calls.push(kind);
     if (kind === "code") {
       assert.equal(text, source);
-      return [{ lang: "markdown", meta: null, position: { start: { offset: 0 }, end: { offset: text.length } } }];
+      return [
+        {
+          lang: "markdown",
+          meta: null,
+          position: { start: { offset: 0 }, end: { offset: text.length } },
+        },
+      ];
     }
     assert.equal(text, "# Title\n\nBody");
     return [{ depth: 1, position: { start: { offset: 0 }, end: { offset: 7 } } }];

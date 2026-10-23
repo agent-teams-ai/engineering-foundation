@@ -3,7 +3,7 @@ import type {
   RepositorySecurityPolicy,
   WorkflowEvidence,
   WorkflowJobEvidence,
-  WorkflowStepEvidence
+  WorkflowStepEvidence,
 } from "../model/repository-security.js";
 import { isPinnedExternalWorkflowUse } from "../model/repository-security.js";
 import { REPOSITORY_SECURITY_RULES } from "../rules.js";
@@ -16,9 +16,7 @@ interface RepositoryCodeExecution {
 
 const EXPLICIT_STATUS_FUNCTION = /\b(?:always|cancelled|failure|success)\s*\(/iu;
 
-function overridesImplicitSuccessGate(
-  value: WorkflowJobEvidence | WorkflowStepEvidence
-): boolean {
+function overridesImplicitSuccessGate(value: WorkflowJobEvidence | WorkflowStepEvidence): boolean {
   // GitHub implicitly prepends success() only when an if expression contains no
   // status function. Exact success() is also provable; all more complex status
   // expressions fail closed because arbitrary expression equivalence is outside
@@ -46,7 +44,7 @@ function inputIsEnabledOrAbsent(step: WorkflowStepEvidence, name: string): boole
 function hasDependencyReviewSemantics(
   policy: RepositorySecurityPolicy,
   job: WorkflowJobEvidence,
-  step: WorkflowStepEvidence
+  step: WorkflowStepEvidence,
 ): boolean {
   return (
     job.id === policy.dependencyReview.jobId &&
@@ -71,7 +69,7 @@ export function isDependencyReviewEvidence(
   policy: RepositorySecurityPolicy,
   workflow: WorkflowEvidence,
   job: WorkflowJobEvidence,
-  step: WorkflowStepEvidence
+  step: WorkflowStepEvidence,
 ): boolean {
   return (
     workflow.path === policy.dependencyReview.workflowPath &&
@@ -81,7 +79,7 @@ export function isDependencyReviewEvidence(
 }
 
 function repositoryCodeExecutionFromStep(
-  step: WorkflowStepEvidence
+  step: WorkflowStepEvidence,
 ): RepositoryCodeExecution | undefined {
   if (step.run !== undefined) {
     return Object.freeze({ kind: "run-step", value: step.run });
@@ -93,7 +91,7 @@ function repositoryCodeExecutionFromStep(
 }
 
 function repositoryCodeExecutionFromJob(
-  job: WorkflowJobEvidence
+  job: WorkflowJobEvidence,
 ): RepositoryCodeExecution | undefined {
   if (job.uses?.startsWith(".") === true) {
     return Object.freeze({ kind: "reusable-workflow", value: job.uses });
@@ -103,22 +101,21 @@ function repositoryCodeExecutionFromJob(
 
 function isPullRequestWorkflow(workflow: WorkflowEvidence): boolean {
   return (
-    workflow.triggers.includes("pull_request") ||
-    workflow.triggers.includes("pull_request_target")
+    workflow.triggers.includes("pull_request") || workflow.triggers.includes("pull_request_target")
   );
 }
 
 function validLocalDependencyReviewJob(
   policy: RepositorySecurityPolicy,
-  workflow: WorkflowEvidence
+  workflow: WorkflowEvidence,
 ): WorkflowJobEvidence | undefined {
-  const reviewJob = workflow.jobs.find((candidate) => candidate.id === policy.dependencyReview.jobId);
+  const reviewJob = workflow.jobs.find(
+    (candidate) => candidate.id === policy.dependencyReview.jobId,
+  );
   if (
     !workflow.triggers.includes("pull_request") ||
     reviewJob === undefined ||
-    !reviewJob.steps.some((step) =>
-      hasDependencyReviewSemantics(policy, reviewJob, step)
-    )
+    !reviewJob.steps.some((step) => hasDependencyReviewSemantics(policy, reviewJob, step))
   ) {
     return undefined;
   }
@@ -129,7 +126,7 @@ function dependsOnDeclaredDependencyReview(
   policy: RepositorySecurityPolicy,
   workflow: WorkflowEvidence,
   job: WorkflowJobEvidence,
-  reviewJob: WorkflowJobEvidence
+  reviewJob: WorkflowJobEvidence,
 ): boolean {
   if (job.nonBlocking || overridesImplicitSuccessGate(job)) {
     return false;
@@ -161,7 +158,7 @@ function orderingDiagnostic(
   policy: RepositorySecurityPolicy,
   workflow: WorkflowEvidence,
   job: WorkflowJobEvidence,
-  execution: RepositoryCodeExecution
+  execution: RepositoryCodeExecution,
 ): FoundationDiagnostic {
   return diagnostic({
     rule: REPOSITORY_SECURITY_RULES.dependencyReviewOrdering,
@@ -171,8 +168,8 @@ function orderingDiagnostic(
     evidence: [
       { kind: "dependency-review-job", value: policy.dependencyReview.jobId },
       { kind: "repository-code-execution", value: execution.kind },
-      { kind: "repository-code-command", value: execution.value }
-    ]
+      { kind: "repository-code-command", value: execution.value },
+    ],
   });
 }
 
@@ -180,7 +177,7 @@ export function inspectDependencyReviewOrdering(
   policy: RepositorySecurityPolicy,
   workflow: WorkflowEvidence,
   job: WorkflowJobEvidence,
-  diagnostics: FoundationDiagnostic[]
+  diagnostics: FoundationDiagnostic[],
 ): void {
   if (!isPullRequestWorkflow(workflow)) {
     return;

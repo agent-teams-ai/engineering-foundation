@@ -5,7 +5,7 @@ import type { SourceFileSnapshot } from "../../../application/model/source-file-
 import type {
   SuppressionDirective,
   SuppressionDirectiveKind,
-  SuppressionScan
+  SuppressionScan,
 } from "../../../application/model/suppression-governance.js";
 import type { SuppressionScanner } from "../../../application/ports/suppression-scanner.js";
 
@@ -50,8 +50,7 @@ function rules(value: string | undefined): readonly string[] {
   if (value === undefined) {
     return [];
   }
-  return [...new Set(value.split(/[\s,]+/u).filter((entry) => entry.length > 0))]
-    .toSorted();
+  return [...new Set(value.split(/[\s,]+/u).filter((entry) => entry.length > 0))].toSorted();
 }
 
 function directive(input: {
@@ -67,14 +66,14 @@ function directive(input: {
     line: input.location.line,
     column: input.location.column,
     rules: input.rules ?? [],
-    scope: input.scope ?? "line"
+    scope: input.scope ?? "line",
   };
 }
 
 function parseComment(
   file: SourceFileSnapshot,
   location: LocatedComment,
-  sourceLines: readonly string[]
+  sourceLines: readonly string[],
 ): SuppressionDirective | undefined {
   const value = location.comment.value.trim();
   // Oxlint accepts adjacent double hyphens or a whitespace-delimited single
@@ -82,7 +81,7 @@ function parseComment(
   const reasonSeparator = value.startsWith("oxlint-") ? /--|\s-\s/u : /\s-{2,}\s/u;
   const lintValue = (value.split(reasonSeparator, 1)[0] ?? "").trim();
   const lint = /^(oxlint|eslint)-(disable-next-line|disable-line|disable)(?:\s+(.+))?$/u.exec(
-    lintValue
+    lintValue,
   );
   if (lint !== null) {
     const tool = lint[1];
@@ -95,7 +94,7 @@ function parseComment(
       location,
       kind: `${tool}-${form}` as SuppressionDirectiveKind,
       rules: rules(lint[3]),
-      scope: form === "disable" ? "file" : "line"
+      scope: form === "disable" ? "file" : "line",
     });
   }
 
@@ -110,7 +109,7 @@ function parseComment(
       location,
       kind: `typescript-${form}` as SuppressionDirectiveKind,
       rules: form === "expect-error" ? ["typescript/type-error"] : [],
-      scope: form === "nocheck" ? "file" : "line"
+      scope: form === "nocheck" ? "file" : "line",
     });
   }
 
@@ -118,14 +117,13 @@ function parseComment(
   if (astGrep === null) {
     return undefined;
   }
-  const fileLevel =
-    location.line === 1 && (sourceLines[1]?.trim().length ?? 0) === 0;
+  const fileLevel = location.line === 1 && (sourceLines[1]?.trim().length ?? 0) === 0;
   return directive({
     file,
     location,
     kind: "ast-grep-ignore",
     rules: rules(astGrep[1]),
-    scope: fileLevel ? "file" : "line"
+    scope: fileLevel ? "file" : "line",
   });
 }
 
@@ -144,12 +142,12 @@ export class OxcSuppressionScanner implements SuppressionScanner {
         (left, right) =>
           left.line - right.line ||
           left.column - right.column ||
-          compareBinaryStrings(left.kind, right.kind)
+          compareBinaryStrings(left.kind, right.kind),
       );
     return {
       path: file.path,
       parseErrorCount: 0,
-      directives
+      directives,
     };
   }
 }

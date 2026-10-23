@@ -1,1 +1,4 @@
-export type { AcceptedArchitectureDecisionEvidence, AcceptedArchitectureDecisionReader } from "./application/model/accepted-decision-evidence.js";
+export type {
+  AcceptedArchitectureDecisionEvidence,
+  AcceptedArchitectureDecisionReader,
+} from "./application/model/accepted-decision-evidence.js";

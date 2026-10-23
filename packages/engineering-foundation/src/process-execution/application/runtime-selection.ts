@@ -25,31 +25,28 @@ export function selectClosedPackageManager<T>(
   adapters: {
     readonly bun?: T;
     readonly pnpm?: T;
-  }
+  },
 ): T {
   const closedAdapters: Readonly<Record<RepositoryPackageManager, T | undefined>> = {
     bun: adapters.bun,
-    pnpm: adapters.pnpm
+    pnpm: adapters.pnpm,
   };
   const selected = closedAdapters[manager];
   if (selected === undefined) {
     throw new RepositoryRuntimeSelectionError(
-      `Package manager is unavailable or mismatched: ${manager}`
+      `Package manager is unavailable or mismatched: ${manager}`,
     );
   }
   return selected;
 }
 
-const RUNTIME_PROFILE_ENVIRONMENT_VARIABLE =
-  "AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE";
-const NODE_EXECUTABLE_ENVIRONMENT_VARIABLE =
-  "AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE";
-const BUN_EXECUTABLE_ENVIRONMENT_VARIABLE =
-  "AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE";
+const RUNTIME_PROFILE_ENVIRONMENT_VARIABLE = "AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE";
+const NODE_EXECUTABLE_ENVIRONMENT_VARIABLE = "AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE";
+const BUN_EXECUTABLE_ENVIRONMENT_VARIABLE = "AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE";
 
 function configuredPath(
   environment: Readonly<Record<string, string | undefined>>,
-  name: string
+  name: string,
 ): string | undefined {
   const value = environment[name];
   return value !== undefined && value.length > 0 ? value : undefined;
@@ -58,11 +55,11 @@ function configuredPath(
 async function verifiedExecutable(
   runtime: RepositoryRuntimeProfile,
   path: string,
-  verify: (path: string, runtime: RepositoryRuntimeProfile) => Promise<boolean>
+  verify: (path: string, runtime: RepositoryRuntimeProfile) => Promise<boolean>,
 ): Promise<string> {
   if (!(await verify(path, runtime))) {
     throw new RepositoryRuntimeSelectionError(
-      `The explicit ${runtime === "node" ? "Node" : "Bun"} executable is unavailable: ${path}`
+      `The explicit ${runtime === "node" ? "Node" : "Bun"} executable is unavailable: ${path}`,
     );
   }
   return path;
@@ -74,47 +71,30 @@ async function verifiedExecutable(
  * policy decision.
  */
 export async function resolveRepositoryRuntimeExecutables(
-  input: RepositoryRuntimeSelectionInput
+  input: RepositoryRuntimeSelectionInput,
 ): Promise<{
   readonly profile: RepositoryRuntimeProfile;
   readonly executables: RepositoryRuntimeExecutables;
 }> {
-  const marker = configuredPath(
-    input.environment,
-    RUNTIME_PROFILE_ENVIRONMENT_VARIABLE
-  );
+  const marker = configuredPath(input.environment, RUNTIME_PROFILE_ENVIRONMENT_VARIABLE);
   if (marker !== undefined && marker !== "bun" && marker !== "node") {
-    throw new RepositoryRuntimeSelectionError(
-      `Unsupported repository runtime profile: ${marker}`
-    );
+    throw new RepositoryRuntimeSelectionError(`Unsupported repository runtime profile: ${marker}`);
   }
   const profile = marker ?? input.currentRuntime;
 
-  const configuredNode = configuredPath(
-    input.environment,
-    NODE_EXECUTABLE_ENVIRONMENT_VARIABLE
-  );
+  const configuredNode = configuredPath(input.environment, NODE_EXECUTABLE_ENVIRONMENT_VARIABLE);
   const nodeCandidate =
-    configuredNode ??
-    (input.currentRuntime === "node" ? input.currentExecutablePath : undefined);
+    configuredNode ?? (input.currentRuntime === "node" ? input.currentExecutablePath : undefined);
   if (nodeCandidate === undefined) {
     throw new RepositoryRuntimeSelectionError(
-      "An explicit verified Node executable is required when Bun executes repository JavaScript."
+      "An explicit verified Node executable is required when Bun executes repository JavaScript.",
     );
   }
-  const node = await verifiedExecutable(
-    "node",
-    nodeCandidate,
-    input.verifyExecutable
-  );
+  const node = await verifiedExecutable("node", nodeCandidate, input.verifyExecutable);
 
-  const configuredBun = configuredPath(
-    input.environment,
-    BUN_EXECUTABLE_ENVIRONMENT_VARIABLE
-  );
+  const configuredBun = configuredPath(input.environment, BUN_EXECUTABLE_ENVIRONMENT_VARIABLE);
   const bunCandidate =
-    configuredBun ??
-    (input.currentRuntime === "bun" ? input.currentExecutablePath : undefined);
+    configuredBun ?? (input.currentRuntime === "bun" ? input.currentExecutablePath : undefined);
   const bun =
     bunCandidate === undefined
       ? undefined
@@ -122,6 +102,6 @@ export async function resolveRepositoryRuntimeExecutables(
 
   return Object.freeze({
     profile,
-    executables: Object.freeze(bun === undefined ? { node } : { node, bun })
+    executables: Object.freeze(bun === undefined ? { node } : { node, bun }),
   });
 }

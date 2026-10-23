@@ -1,7 +1,7 @@
 export { inspectFoundationPackage } from "./composition/local-package-inspection.js";
 export {
   FOUNDATION_METADATA_SCHEMA_VERSION,
-  parseFoundationPackageSelfCheck
+  parseFoundationPackageSelfCheck,
 } from "./local-mode/application/package-metadata.js";
 export type { FoundationPackageSelfCheck } from "./local-mode/application/package-metadata.js";
 export { FoundationError } from "./features/validation-reporting/api.js";
@@ -14,16 +14,16 @@ export type {
   FoundationRecoveryRoute,
   FoundationTransactionAwareStatus,
   FoundationTransactionDiagnostic,
-  FoundationTransactionStatus
+  FoundationTransactionStatus,
 } from "./local-mode/application/model.js";
 export {
   createFastCheckParameters,
   normalizeDeterministicSeedBank,
   normalizePropertyReplayEvidence,
-  PropertyTestingEvidenceError
+  PropertyTestingEvidenceError,
 } from "./capabilities/property-testing-standard/api.js";
 export type {
   DeterministicSeedBank,
   FastCheckParameters,
-  PropertyReplayEvidence
+  PropertyReplayEvidence,
 } from "./capabilities/property-testing-standard/api.js";

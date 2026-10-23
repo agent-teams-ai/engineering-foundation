@@ -1,30 +1,45 @@
 import { CapabilityInputError, type QualityCoverageProfile, type QualityTopology } from "../api.js";
 
 export function invalidQualityInput(message: string): never {
-  throw new CapabilityInputError({ code: "QUALITY_PROFILE_INVALID", message, phase: "quality-profile", retryable: false });
+  throw new CapabilityInputError({
+    code: "QUALITY_PROFILE_INVALID",
+    message,
+    phase: "quality-profile",
+    retryable: false,
+  });
 }
 
 export function qualityRecord(value: unknown): Record<string, unknown> {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) { invalidQualityInput("Expected a data object in the quality profile inputs."); }
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    invalidQualityInput("Expected a data object in the quality profile inputs.");
+  }
   return Object.fromEntries(Object.entries(value));
 }
 
 export function qualityString(value: unknown): string {
-  if (typeof value !== "string" || value.length === 0 || value.length > 1024) { invalidQualityInput("Expected a bounded nonempty string in the quality profile inputs."); }
+  if (typeof value !== "string" || value.length === 0 || value.length > 1024) {
+    invalidQualityInput("Expected a bounded nonempty string in the quality profile inputs.");
+  }
   return value;
 }
 
 /** Package scripts are command bodies, not short profile/path scalars. */
 export function qualityScriptCommand(value: unknown): string {
-  if (typeof value !== "string" || value.length === 0 || value.length > 16 * 1024 ||
-    new TextEncoder().encode(value).byteLength > 16 * 1024) {
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.length > 16 * 1024 ||
+    new TextEncoder().encode(value).byteLength > 16 * 1024
+  ) {
     invalidQualityInput("Expected a nonempty package script command of at most 16384 UTF-8 bytes.");
   }
   return value;
 }
 
 export function qualityStrings(value: unknown): readonly string[] {
-  if (!Array.isArray(value) || value.length > 10_000) { invalidQualityInput("Expected a bounded list in the quality profile inputs."); }
+  if (!Array.isArray(value) || value.length > 10_000) {
+    invalidQualityInput("Expected a bounded list in the quality profile inputs.");
+  }
   return value.map(qualityString);
 }
 
@@ -40,27 +55,48 @@ export function mapQualityProfile(value: unknown): QualityCoverageProfile {
     suppressionPolicyPath: qualityString(input["suppressionPolicyPath"]),
     featureProfilePath: qualityString(input["featureProfilePath"]),
     lintConfigPath: qualityString(input["lintConfigPath"]),
-    ...(input["bridgeAdmissionsPath"] === undefined ? {} : { bridgeAdmissionsPath: qualityString(input["bridgeAdmissionsPath"]) }),
+    ...(input["bridgeAdmissionsPath"] === undefined
+      ? {}
+      : { bridgeAdmissionsPath: qualityString(input["bridgeAdmissionsPath"]) }),
     compilerProjects,
-    ...(input["nativeChecks"] === undefined ? {} : { nativeChecks: nativeChecks(input["nativeChecks"]) }),
+    ...(input["nativeChecks"] === undefined
+      ? {}
+      : { nativeChecks: nativeChecks(input["nativeChecks"]) }),
     ...(input["assets"] === undefined ? {} : { assets: assets(input["assets"]) }),
-    scripts: { fast: qualityString(scripts["fast"]), full: qualityString(scripts["full"]), scope: qualityString(scripts["scope"]), typed: qualityString(scripts["typed"]) }
+    scripts: {
+      fast: qualityString(scripts["fast"]),
+      full: qualityString(scripts["full"]),
+      scope: qualityString(scripts["scope"]),
+      typed: qualityString(scripts["typed"]),
+    },
   };
 }
 
 function assets(value: unknown): NonNullable<QualityCoverageProfile["assets"]> {
-  if (!Array.isArray(value) || value.length > 1000) { invalidQualityInput("Expected bounded exact asset mappings."); }
+  if (!Array.isArray(value) || value.length > 1000) {
+    invalidQualityInput("Expected bounded exact asset mappings.");
+  }
   const paths = new Set<string>();
   return value.map((entry: unknown) => {
     const item = qualityRecord(entry);
     const path = qualityString(item["path"]);
     const kind = item["kind"];
-    if ((kind !== "protobuf" && kind !== "sql-migration") ||
-      !path.endsWith(kind === "protobuf" ? ".proto" : ".sql") || paths.has(path)) {
-      invalidQualityInput("Asset mappings require one exact path with its fixed protobuf or sql-migration extension.");
+    if (
+      (kind !== "protobuf" && kind !== "sql-migration") ||
+      !path.endsWith(kind === "protobuf" ? ".proto" : ".sql") ||
+      paths.has(path)
+    ) {
+      invalidQualityInput(
+        "Asset mappings require one exact path with its fixed protobuf or sql-migration extension.",
+      );
     }
     paths.add(path);
-    return { path, kind, boundaryId: qualityString(item["boundaryId"]), script: qualityString(item["script"]) };
+    return {
+      path,
+      kind,
+      boundaryId: qualityString(item["boundaryId"]),
+      script: qualityString(item["script"]),
+    };
   });
 }
 
@@ -78,31 +114,52 @@ function nestedTopology(input: Record<string, unknown>): QualityTopology {
   const modules = boundedModules(scope["productionModules"]);
   const layouts = boundedModules(layout["modules"]);
   for (const entry of layouts) {
-    if (!modules.some((module) => module["moduleRoot"] === entry["moduleRoot"] && module["sourceRoot"] === entry["sourceRoot"])) {
-      invalidQualityInput("An abstract layout must map an existing production module and its source root.");
+    if (
+      !modules.some(
+        (module) =>
+          module["moduleRoot"] === entry["moduleRoot"] &&
+          module["sourceRoot"] === entry["sourceRoot"],
+      )
+    ) {
+      invalidQualityInput(
+        "An abstract layout must map an existing production module and its source root.",
+      );
     }
   }
   const applications = qualityStrings(adoption["applicationRoots"]);
   // Adoption names application packages; scope owns their exact production sources.
-  const applicationRoots = applications.length === 0 ? [] : qualityStrings(scope["productionRoots"])
-    .filter((sourceRoot) => applications.some((root) => sourceRoot === root || sourceRoot.startsWith(`${root}/`)));
+  const applicationRoots =
+    applications.length === 0
+      ? []
+      : qualityStrings(scope["productionRoots"]).filter((sourceRoot) =>
+          applications.some((root) => sourceRoot === root || sourceRoot.startsWith(`${root}/`)),
+        );
   for (const root of applications) {
-    if (!applicationRoots.some((sourceRoot) => sourceRoot === root || sourceRoot.startsWith(`${root}/`))) {
+    if (
+      !applicationRoots.some(
+        (sourceRoot) => sourceRoot === root || sourceRoot.startsWith(`${root}/`),
+      )
+    ) {
       invalidQualityInput("An application must map an existing production source root.");
     }
   }
   return {
     productionRoots: qualityStrings(scope["workspaceContainers"]),
     applicationRoots: applications,
-    productionSourceRoots: [...new Set([
-      ...modules.map((module) => qualityString(module["sourceRoot"])),
-      ...applicationRoots
-    ])],
+    productionSourceRoots: [
+      ...new Set([
+        ...modules.map((module) => qualityString(module["sourceRoot"])),
+        ...applicationRoots,
+      ]),
+    ],
     excludedRoots: qualityStrings(adoption["excludedRoots"]),
     modules: modules.map((module) => ({
-      root: qualityString(module["moduleRoot"]), sourceRoot: qualityString(module["sourceRoot"]),
-      testRoots: layouts.filter((entry) => entry["moduleRoot"] === module["moduleRoot"]).map((entry) => qualityString(entry["testRoot"]))
-    }))
+      root: qualityString(module["moduleRoot"]),
+      sourceRoot: qualityString(module["sourceRoot"]),
+      testRoots: layouts
+        .filter((entry) => entry["moduleRoot"] === module["moduleRoot"])
+        .map((entry) => qualityString(entry["testRoot"])),
+    })),
   };
 }
 
@@ -114,10 +171,16 @@ export function mapQualityTopology(value: unknown, sourcePolicyPath: string): Qu
   const input = qualityRecord(value);
   const nested = input["authority"] !== undefined;
   const standard = qualityRecord(nested ? input["authority"] : input["standard"]);
-  if (input["schemaVersion"] !== 1 || standard["id"] !== "agent-teams.feature-module-standard" || !fmsVersions.has(standard["version"])) {
+  if (
+    input["schemaVersion"] !== 1 ||
+    standard["id"] !== "agent-teams.feature-module-standard" ||
+    !fmsVersions.has(standard["version"])
+  ) {
     invalidQualityInput("Quality coverage requires an FMS v1 or v1.1 production mapping.");
   }
-  if (nested) { return nestedTopology(input); }
+  if (nested) {
+    return nestedTopology(input);
+  }
   const topology = qualityRecord(input["topology"]);
   if (topology["sourcePolicy"] !== sourcePolicyPath) {
     invalidQualityInput("Quality coverage requires the accepted FMS source-policy mapping.");
@@ -126,21 +189,31 @@ export function mapQualityTopology(value: unknown, sourcePolicyPath: string): Qu
     productionRoots: qualityStrings(input["productionRoots"]),
     applicationRoots: qualityStrings(input["applicationRoots"]),
     excludedRoots: qualityStrings(input["excludedRoots"]),
-    toolingFiles: boundedModules(input["modules"]).flatMap((module) => generatorPaths(module["generatedRoots"])),
+    toolingFiles: boundedModules(input["modules"]).flatMap((module) =>
+      generatorPaths(module["generatedRoots"]),
+    ),
     modules: boundedModules(input["modules"]).map((module) => ({
-      root: qualityString(module["root"]), sourceRoot: qualityString(module["sourceRoot"]), testRoots: qualityStrings(module["testRoots"])
-    }))
+      root: qualityString(module["root"]),
+      sourceRoot: qualityString(module["sourceRoot"]),
+      testRoots: qualityStrings(module["testRoots"]),
+    })),
   };
 }
 
 function generatorPaths(value: unknown): readonly string[] {
-  if (value === undefined) { return []; }
-  if (!Array.isArray(value) || value.length > 5000) { invalidQualityInput("Expected bounded generated provenance records."); }
+  if (value === undefined) {
+    return [];
+  }
+  if (!Array.isArray(value) || value.length > 5000) {
+    invalidQualityInput("Expected bounded generated provenance records.");
+  }
   return value.map((entry: unknown) => qualityString(qualityRecord(entry)["generator"]));
 }
 
 function nativeChecks(value: unknown): NonNullable<QualityCoverageProfile["nativeChecks"]> {
-  if (!Array.isArray(value) || value.length > 1000) { invalidQualityInput("Expected bounded native gate mappings."); }
+  if (!Array.isArray(value) || value.length > 1000) {
+    invalidQualityInput("Expected bounded native gate mappings.");
+  }
   return value.map((entry: unknown) => {
     const item = qualityRecord(entry);
     return { boundaryId: qualityString(item["boundaryId"]), script: qualityString(item["script"]) };

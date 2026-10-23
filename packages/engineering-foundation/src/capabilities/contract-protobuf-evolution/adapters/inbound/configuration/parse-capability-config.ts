@@ -5,7 +5,7 @@ import type {
   CurrentProtobufContractDeclaration,
   ProtobufEvolutionConfiguration,
   ReleasedProtobufContractEvidence,
-  Sha256Digest
+  Sha256Digest,
 } from "../../../application/model/protobuf-release-evidence.js";
 
 import { CAPABILITY_CONFIG_SCHEMA_VERSION } from "../../../contract/config.js";
@@ -17,10 +17,13 @@ type ProtobufReleasedBaselineSchemaId = "contract-protobuf-evolution-baseline/v1
 const SCHEMA_ID_BY_VERSION: Readonly<
   Record<ProtobufEvolutionConfigSchemaVersion, ProtobufEvolutionSchemaId>
 > = Object.freeze({
-  1: "contract-protobuf-evolution/v1"
+  1: "contract-protobuf-evolution/v1",
 });
 
-import { configurationInputError as inputError, assertConfigurationRepositoryPath } from "../../../application/configuration-input.js";
+import {
+  configurationInputError as inputError,
+  assertConfigurationRepositoryPath,
+} from "../../../application/configuration-input.js";
 
 function record(value: unknown, field: string): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -47,9 +50,7 @@ function configSchemaId(value: unknown): ProtobufEvolutionSchemaId {
   if (value === CAPABILITY_CONFIG_SCHEMA_VERSION) {
     return SCHEMA_ID_BY_VERSION[value];
   }
-  inputError(
-    `schemaVersion must be ${CAPABILITY_CONFIG_SCHEMA_VERSION}.`
-  );
+  inputError(`schemaVersion must be ${CAPABILITY_CONFIG_SCHEMA_VERSION}.`);
 }
 
 function releasedBaselineSchemaId(value: unknown): ProtobufReleasedBaselineSchemaId {
@@ -77,7 +78,9 @@ function releasedBaselinePath(value: unknown): string {
     inputError("releasedBaselinePath must name a JSON or YAML file.");
   }
   if (!repositoryPath.startsWith("architecture/contracts/")) {
-    inputError("releasedBaselinePath must be inside the release-owned architecture/contracts directory.");
+    inputError(
+      "releasedBaselinePath must be inside the release-owned architecture/contracts directory.",
+    );
   }
   return repositoryPath;
 }
@@ -87,7 +90,7 @@ function acceptedDecisionBaselinePath(value: unknown): string {
   assertConfigurationRepositoryPath(repositoryPath);
   if (repositoryPath !== "architecture/decisions/accepted-decisions.json") {
     inputError(
-      "acceptedDecisionBaselinePath must use the stable architecture/decisions/accepted-decisions.json anchor."
+      "acceptedDecisionBaselinePath must use the stable architecture/decisions/accepted-decisions.json anchor.",
     );
   }
   return repositoryPath;
@@ -102,15 +105,12 @@ function governanceConfigPath(value: unknown): string {
   return repositoryPath;
 }
 
-function mapBreakingApproval(
-  value: unknown,
-  index: number
-): ApprovedProtobufBreakingChange {
+function mapBreakingApproval(value: unknown, index: number): ApprovedProtobufBreakingChange {
   const field = `approvedBreakingChanges[${index}]`;
   const source = record(value, field);
   return Object.freeze({
     decisionId: string(source["decisionId"], `${field}.decisionId`) as `ADR-${string}`,
-    fingerprint: digest(source["fingerprint"], `${field}.fingerprint`)
+    fingerprint: digest(source["fingerprint"], `${field}.fingerprint`),
   });
 }
 
@@ -118,28 +118,39 @@ function mapGenerator(value: unknown, field: string): BufGeneratorVersionEvidenc
   const source = record(value, field);
   return Object.freeze({
     name: string(source["name"], `${field}.name`),
-    version: string(source["version"], `${field}.version`)
+    version: string(source["version"], `${field}.version`),
   });
 }
 
 function mapGenerators(value: unknown, field: string): readonly BufGeneratorVersionEvidence[] {
-  return Object.freeze(list(value, field).map((entry, index) => mapGenerator(entry, `${field}[${index}]`)));
+  return Object.freeze(
+    list(value, field).map((entry, index) => mapGenerator(entry, `${field}[${index}]`)),
+  );
 }
 
 export function mapReleased(
   value: unknown,
-  field = "released baseline"
+  field = "released baseline",
 ): ReleasedProtobufContractEvidence {
   const source = record(value, field);
   return Object.freeze({
     schemaVersion: number(source["schemaVersion"], `${field}.schemaVersion`),
     contractId: string(source["contractId"], `${field}.contractId`),
-    publicContractVersion: string(source["publicContractVersion"], `${field}.publicContractVersion`),
+    publicContractVersion: string(
+      source["publicContractVersion"],
+      `${field}.publicContractVersion`,
+    ),
     bufVersion: string(source["bufVersion"], `${field}.bufVersion`),
     bufConfigDigest: digest(source["bufConfigDigest"], `${field}.bufConfigDigest`),
-    descriptorImageDigest: digest(source["descriptorImageDigest"], `${field}.descriptorImageDigest`),
+    descriptorImageDigest: digest(
+      source["descriptorImageDigest"],
+      `${field}.descriptorImageDigest`,
+    ),
     generatorVersions: mapGenerators(source["generatorVersions"], `${field}.generatorVersions`),
-    generatedOutputDigest: digest(source["generatedOutputDigest"], `${field}.generatedOutputDigest`)
+    generatedOutputDigest: digest(
+      source["generatedOutputDigest"],
+      `${field}.generatedOutputDigest`,
+    ),
   });
 }
 
@@ -157,13 +168,13 @@ function mapCurrent(value: unknown): CurrentProtobufContractDeclaration {
     generationDrift: Object.freeze({
       expectedGeneratedOutputDigest: digest(
         generationDrift["expectedGeneratedOutputDigest"],
-        "current.generationDrift.expectedGeneratedOutputDigest"
+        "current.generationDrift.expectedGeneratedOutputDigest",
       ),
       observedGeneratedOutputDigest: digest(
         generationDrift["observedGeneratedOutputDigest"],
-        "current.generationDrift.observedGeneratedOutputDigest"
-      )
-    })
+        "current.generationDrift.observedGeneratedOutputDigest",
+      ),
+    }),
   });
 }
 
@@ -174,7 +185,7 @@ function qualificationPath(
     readonly allowRepositoryRoot?: boolean;
     readonly prefix?: string;
     readonly suffix?: RegExp;
-  } = {}
+  } = {},
 ): string {
   const repositoryPath = string(value, field);
   if (options.allowRepositoryRoot === true && repositoryPath === ".") {
@@ -194,22 +205,20 @@ function mapQualification(value: unknown): BufBreakingQualificationBinding {
   const source = record(value, "qualification");
   return Object.freeze({
     modulePath: qualificationPath(source["modulePath"], "qualification.modulePath", {
-      allowRepositoryRoot: true
+      allowRepositoryRoot: true,
     }),
-    bufConfigPath: qualificationPath(
-      source["bufConfigPath"],
-      "qualification.bufConfigPath",
-      { suffix: /\.ya?ml$/u }
-    ),
+    bufConfigPath: qualificationPath(source["bufConfigPath"], "qualification.bufConfigPath", {
+      suffix: /\.ya?ml$/u,
+    }),
     releasedDescriptorImagePath: qualificationPath(
       source["releasedDescriptorImagePath"],
       "qualification.releasedDescriptorImagePath",
-      { prefix: "architecture/contracts/", suffix: /\.binpb$/u }
+      { prefix: "architecture/contracts/", suffix: /\.binpb$/u },
     ),
     evidencePath: qualificationPath(source["evidencePath"], "qualification.evidencePath", {
       prefix: "architecture/evidence/protobuf/",
-      suffix: /\.json$/u
-    })
+      suffix: /\.json$/u,
+    }),
   });
 }
 
@@ -226,7 +235,7 @@ export function readBaselineHeader(input: unknown) {
 export function prepareConfiguration(source: Record<string, unknown>) {
   const baselinePath = releasedBaselinePath(source["releasedBaselinePath"]);
   const approvals = Object.freeze(
-    list(source["approvedBreakingChanges"], "approvedBreakingChanges").map(mapBreakingApproval)
+    list(source["approvedBreakingChanges"], "approvedBreakingChanges").map(mapBreakingApproval),
   );
   const decisionBaselinePathValue = source["acceptedDecisionBaselinePath"];
   const decisionBaselinePath =
@@ -239,19 +248,20 @@ export function prepareConfiguration(source: Record<string, unknown>) {
       ? undefined
       : governanceConfigPath(governanceConfigPathValue);
   if ((decisionBaselinePath === undefined) !== (governancePath === undefined)) {
-    inputError(
-      "acceptedDecisionBaselinePath and governanceConfigPath must be declared together."
-    );
+    inputError("acceptedDecisionBaselinePath and governanceConfigPath must be declared together.");
   }
   if (approvals.length > 0 && decisionBaselinePath === undefined) {
     inputError(
-      "acceptedDecisionBaselinePath and governanceConfigPath are required when breaking approvals are declared."
+      "acceptedDecisionBaselinePath and governanceConfigPath are required when breaking approvals are declared.",
     );
   }
   return { source, baselinePath, approvals, decisionBaselinePath, governancePath };
 }
 
-export function parseCapabilityConfiguration(prepared: ReturnType<typeof prepareConfiguration>, released: ReleasedProtobufContractEvidence): ProtobufEvolutionConfiguration {
+export function parseCapabilityConfiguration(
+  prepared: ReturnType<typeof prepareConfiguration>,
+  released: ReleasedProtobufContractEvidence,
+): ProtobufEvolutionConfiguration {
   const { source, approvals, decisionBaselinePath, governancePath } = prepared;
   return Object.freeze({
     ...(decisionBaselinePath === undefined
@@ -261,6 +271,6 @@ export function parseCapabilityConfiguration(prepared: ReturnType<typeof prepare
     approvedBreakingChanges: approvals,
     qualification: mapQualification(source["qualification"]),
     released,
-    current: mapCurrent(source["current"])
+    current: mapCurrent(source["current"]),
   });
 }

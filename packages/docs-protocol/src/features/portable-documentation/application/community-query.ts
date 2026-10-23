@@ -1,14 +1,12 @@
 import type { DocsDiagnostic, DocsFindDocument, DocsFindQuery } from "./model.js";
-import type {
-  DocumentAuthoringPortV2
-} from "./model-v2.js";
+import type { DocumentAuthoringPortV2 } from "./model-v2.js";
 import type {
   DocsContextRequestV1,
   DocsContextResultV1,
   DocsContextSelectionV1,
   DocsFindQueryV3,
   DocumentAuthoringFindEvidenceV3,
-  DocumentAuthoringPortV3
+  DocumentAuthoringPortV3,
 } from "./model-v3.js";
 import { normalizeDocumentId } from "../domain/document-semantics.js";
 import { DocsProfileError } from "./profile-policy.js";
@@ -56,11 +54,13 @@ function signalOption(signal: AbortSignal | undefined): Readonly<{ signal?: Abor
 
 function communityText(
   value: string | undefined,
-  ranking: "binary-default" | "fuzzy-advisory"
+  ranking: "binary-default" | "fuzzy-advisory",
 ): string | undefined {
   if (value === undefined) {
     if (ranking === "fuzzy-advisory") {
-      throw new DocsProfileError("Fuzzy advisory ranking requires non-empty search text of at most 1000 characters.");
+      throw new DocsProfileError(
+        "Fuzzy advisory ranking requires non-empty search text of at most 1000 characters.",
+      );
     }
     return undefined;
   }
@@ -68,7 +68,9 @@ function communityText(
   const canonical = ranking === "fuzzy-advisory" ? trimmed : trimmed.toLowerCase().normalize("NFC");
   if (canonical.length === 0) {
     if (ranking === "fuzzy-advisory") {
-      throw new DocsProfileError("Fuzzy advisory ranking requires non-empty search text of at most 1000 characters.");
+      throw new DocsProfileError(
+        "Fuzzy advisory ranking requires non-empty search text of at most 1000 characters.",
+      );
     }
     return undefined;
   }
@@ -80,7 +82,9 @@ function communityText(
     }
     const code = character.codePointAt(0) ?? 0;
     if (code <= 0x1f || code === 0x7f || (code >= 0xd800 && code <= 0xdfff)) {
-      throw new DocsProfileError("Search text cannot contain control characters or invalid Unicode.");
+      throw new DocsProfileError(
+        "Search text cannot contain control characters or invalid Unicode.",
+      );
     }
   }
   return canonical;
@@ -89,8 +93,12 @@ function communityText(
 function normalizedLegacyQuery(query: DocsFindQuery): Readonly<DocsFindQuery> {
   return Object.freeze({
     ...query,
-    ...(query.related === undefined ? {} : { related: normalizeDocumentId(query.related, "related") }),
-    ...(query.blockedBy === undefined ? {} : { blockedBy: normalizeDocumentId(query.blockedBy, "blocked_by") })
+    ...(query.related === undefined
+      ? {}
+      : { related: normalizeDocumentId(query.related, "related") }),
+    ...(query.blockedBy === undefined
+      ? {}
+      : { blockedBy: normalizeDocumentId(query.blockedBy, "blocked_by") }),
   });
 }
 
@@ -111,9 +119,13 @@ function normalizedCommunityQuery(query: DocsFindQueryV3): Readonly<DocsFindQuer
     ...(query.type === undefined ? {} : { type: lowerId(query.type, "type") }),
     ...(query.status === undefined ? {} : { status: lowerId(query.status, "status") }),
     ...(query.owner === undefined ? {} : { owner: normalizeDocumentId(query.owner, "owner") }),
-    ...(query.related === undefined ? {} : { related: normalizeDocumentId(query.related, "related") }),
-    ...(query.blockedBy === undefined ? {} : { blockedBy: normalizeDocumentId(query.blockedBy, "blocked_by") }),
-    ranking
+    ...(query.related === undefined
+      ? {}
+      : { related: normalizeDocumentId(query.related, "related") }),
+    ...(query.blockedBy === undefined
+      ? {}
+      : { blockedBy: normalizeDocumentId(query.blockedBy, "blocked_by") }),
+    ranking,
   });
 }
 
@@ -123,25 +135,33 @@ function contextSelection(query: Readonly<DocsFindQueryV3>): DocsContextSelectio
 }
 
 function foundationQuery(query: Readonly<DocsFindQueryV3>): Readonly<DocsFindQuery> {
-  if (query.ranking !== "fuzzy-advisory") {return query;}
+  if (query.ranking !== "fuzzy-advisory") {
+    return query;
+  }
   return Object.freeze({
     ...(query.id === undefined ? {} : { id: query.id }),
     ...(query.type === undefined ? {} : { type: query.type }),
     ...(query.status === undefined ? {} : { status: query.status }),
     ...(query.owner === undefined ? {} : { owner: query.owner }),
     ...(query.related === undefined ? {} : { related: query.related }),
-    ...(query.blockedBy === undefined ? {} : { blockedBy: query.blockedBy })
+    ...(query.blockedBy === undefined ? {} : { blockedBy: query.blockedBy }),
   });
 }
 
-function catalogDiagnostics(diagnostics: DocumentAuthoringFindEvidenceV3["diagnostics"]): readonly DocsDiagnostic[] {
-  return Object.freeze(diagnostics.map((entry) => Object.freeze({
-    ruleId: entry.ruleId,
-    severity: entry.severity,
-    phase: "authority" as const,
-    subject: entry.subject,
-    message: entry.message
-  })));
+function catalogDiagnostics(
+  diagnostics: DocumentAuthoringFindEvidenceV3["diagnostics"],
+): readonly DocsDiagnostic[] {
+  return Object.freeze(
+    diagnostics.map((entry) =>
+      Object.freeze({
+        ruleId: entry.ruleId,
+        severity: entry.severity,
+        phase: "authority" as const,
+        subject: entry.subject,
+        message: entry.message,
+      }),
+    ),
+  );
 }
 
 function diagnosticIdentity(diagnostic: DocsDiagnostic): string {
@@ -150,11 +170,13 @@ function diagnosticIdentity(diagnostic: DocsDiagnostic): string {
     diagnostic.severity,
     diagnostic.phase,
     diagnostic.subject,
-    diagnostic.message
+    diagnostic.message,
   ]);
 }
 
-function uniqueDiagnostics(...groups: readonly (readonly DocsDiagnostic[])[]): readonly DocsDiagnostic[] {
+function uniqueDiagnostics(
+  ...groups: readonly (readonly DocsDiagnostic[])[]
+): readonly DocsDiagnostic[] {
   const identities = new Set<string>();
   const merged: DocsDiagnostic[] = [];
   for (const group of groups) {
@@ -169,9 +191,13 @@ function uniqueDiagnostics(...groups: readonly (readonly DocsDiagnostic[])[]): r
   return Object.freeze(merged);
 }
 
-function contextDiagnostics(...groups: readonly (readonly DocsDiagnostic[])[]): readonly DocsDiagnostic[] {
+function contextDiagnostics(
+  ...groups: readonly (readonly DocsDiagnostic[])[]
+): readonly DocsDiagnostic[] {
   const unique = uniqueDiagnostics(...groups);
-  if (unique.length <= 256) {return unique;}
+  if (unique.length <= 256) {
+    return unique;
+  }
   const merged = unique.slice(0, 255);
   let omitted = unique.length - merged.length;
   let marker: DocsDiagnostic = Object.freeze({
@@ -179,9 +205,11 @@ function contextDiagnostics(...groups: readonly (readonly DocsDiagnostic[])[]): 
     severity: "warning",
     phase: "authority",
     subject: "diagnostics",
-    message: `Omitted ${String(omitted)} additional unique diagnostics after the deterministic 255-item context evidence limit.`
+    message: `Omitted ${String(omitted)} additional unique diagnostics after the deterministic 255-item context evidence limit.`,
   });
-  const duplicateIndex = merged.findIndex((diagnostic) => diagnosticIdentity(diagnostic) === diagnosticIdentity(marker));
+  const duplicateIndex = merged.findIndex(
+    (diagnostic) => diagnosticIdentity(diagnostic) === diagnosticIdentity(marker),
+  );
   if (duplicateIndex >= 0) {
     merged.splice(duplicateIndex, 1);
     omitted = unique.length - merged.length;
@@ -190,42 +218,56 @@ function contextDiagnostics(...groups: readonly (readonly DocsDiagnostic[])[]): 
       severity: "warning",
       phase: "authority",
       subject: "diagnostics",
-      message: `Omitted ${String(omitted)} additional unique diagnostics after the deterministic 255-item context evidence limit.`
+      message: `Omitted ${String(omitted)} additional unique diagnostics after the deterministic 255-item context evidence limit.`,
     });
   }
   merged.push(marker);
   return Object.freeze(merged);
 }
 
-function projectDocuments(documents: readonly DocsFindDocument[], query: Readonly<DocsFindQueryV3>, advisoryText?: string, searchIndex?: CommunitySearchIndex) {
-  const filtered = documents.filter((document) =>
-    (query.related === undefined || document.related.includes(query.related)) &&
-    (query.blockedBy === undefined || document.blockedBy.includes(query.blockedBy))
+function projectDocuments(
+  documents: readonly DocsFindDocument[],
+  query: Readonly<DocsFindQueryV3>,
+  advisoryText?: string,
+  searchIndex?: CommunitySearchIndex,
+) {
+  const filtered = documents.filter(
+    (document) =>
+      (query.related === undefined || document.related.includes(query.related)) &&
+      (query.blockedBy === undefined || document.blockedBy.includes(query.blockedBy)),
   );
-  const matches = advisoryText === undefined
-    ? filtered.toSorted((left, right) => BINARY(left.id, right.id) || BINARY(left.repositoryPath, right.repositoryPath))
-    : rankCommunityDocuments({
-        documents: filtered,
-        query: advisoryText,
-        ...(searchIndex === undefined ? {} : { searchIndex })
-      }).map(({ document }) => document);
-  const diagnostics: readonly DocsDiagnostic[] = query.ranking === "fuzzy-advisory"
-    ? Object.freeze([{
-        ruleId: "docs.find.fuzzy-advisory",
-        severity: "info",
-        phase: "query",
-        subject: "query.ranking",
-        message: "Fuzzy ranking is advisory; verify document authority and current status before acting."
-      }])
-    : Object.freeze([]);
+  const matches =
+    advisoryText === undefined
+      ? filtered.toSorted(
+          (left, right) =>
+            BINARY(left.id, right.id) || BINARY(left.repositoryPath, right.repositoryPath),
+        )
+      : rankCommunityDocuments({
+          documents: filtered,
+          query: advisoryText,
+          ...(searchIndex === undefined ? {} : { searchIndex }),
+        }).map(({ document }) => document);
+  const diagnostics: readonly DocsDiagnostic[] =
+    query.ranking === "fuzzy-advisory"
+      ? Object.freeze([
+          {
+            ruleId: "docs.find.fuzzy-advisory",
+            severity: "info",
+            phase: "query",
+            subject: "query.ranking",
+            message:
+              "Fuzzy ranking is advisory; verify document authority and current status before acting.",
+          },
+        ])
+      : Object.freeze([]);
   return Object.freeze({
     diagnostics,
     result: Object.freeze({
       kind: "find" as const,
       matches: matches.length,
       documents: Object.freeze(matches),
-      ...(query.ranking === "fuzzy-advisory" ? { ranking: "fuzzy-advisory" as const } : {})
-    })
+      ...(query.ranking === "fuzzy-advisory" ? { ranking: "fuzzy-advisory" as const } : {}),
+    }),
   });
 }
 
@@ -241,7 +283,7 @@ export async function projectLegacyFind(input: {
     consumerRoot: input.consumerRoot,
     profilePath: input.foundationProfilePath,
     query: foundationQuery(query),
-    ...signalOption(input.signal)
+    ...signalOption(input.signal),
   });
   const projection = projectDocuments(documents, query);
   return Object.freeze({
@@ -250,8 +292,8 @@ export async function projectLegacyFind(input: {
     result: Object.freeze({
       kind: "find" as const,
       matches: projection.result.matches,
-      documents: projection.result.documents
-    })
+      documents: projection.result.documents,
+    }),
   });
 }
 
@@ -269,17 +311,25 @@ export async function projectCommunityFind(input: {
     consumerRoot: input.consumerRoot,
     profilePath: input.foundationProfilePath,
     query: foundationQuery(query),
-    ...signalOption(input.signal)
+    ...signalOption(input.signal),
   });
   const complete = evidence.catalogStatus === "complete" && evidence.diagnostics.length === 0;
-  const projection = projectDocuments(complete ? evidence.documents : Object.freeze([]), query, advisoryText, input.searchIndex);
+  const projection = projectDocuments(
+    complete ? evidence.documents : Object.freeze([]),
+    query,
+    advisoryText,
+    input.searchIndex,
+  );
   return Object.freeze({
     catalogSemanticDigest: evidence.catalogSemanticDigest,
     catalogStatus: evidence.catalogStatus,
-    diagnostics: uniqueDiagnostics(catalogDiagnostics(evidence.diagnostics), projection.diagnostics),
-    outcome: complete ? "success" as const : "violation" as const,
+    diagnostics: uniqueDiagnostics(
+      catalogDiagnostics(evidence.diagnostics),
+      projection.diagnostics,
+    ),
+    outcome: complete ? ("success" as const) : ("violation" as const),
     result: projection.result,
-    selection: contextSelection(query)
+    selection: contextSelection(query),
   });
 }
 
@@ -297,14 +347,15 @@ export async function projectCommunityContext(input: {
     foundation: input.foundation,
     foundationProfilePath: input.foundationProfilePath,
     query: input.request.query,
-    ...signalOption(input.request.signal)
+    ...signalOption(input.request.signal),
   });
   const catalogAfter = await input.foundation.buildCatalog({
     consumerRoot: input.request.consumerRoot,
     profilePath: input.foundationProfilePath,
-    ...signalOption(input.request.signal)
+    ...signalOption(input.request.signal),
   });
-  const stale = input.catalogBefore.semanticDigest !== found.catalogSemanticDigest ||
+  const stale =
+    input.catalogBefore.semanticDigest !== found.catalogSemanticDigest ||
     found.catalogSemanticDigest !== catalogAfter.semanticDigest ||
     input.catalogBefore.projectId !== catalogAfter.projectId;
   if (stale) {
@@ -320,24 +371,31 @@ export async function projectCommunityContext(input: {
         includedDocuments: 0,
         omittedDocuments: catalogAfter.documents.length,
         truncated: catalogAfter.documents.length > 0,
-        content: ""
+        content: "",
       }),
-      diagnostics: Object.freeze([{
-        ruleId: "docs.context.authority-stale",
-        severity: "error" as const,
-        phase: "authority" as const,
-        subject: input.foundationProfilePath,
-        message: "Documentation authority changed while agent context was being projected; retry from a fresh snapshot."
-      }])
+      diagnostics: Object.freeze([
+        {
+          ruleId: "docs.context.authority-stale",
+          severity: "error" as const,
+          phase: "authority" as const,
+          subject: input.foundationProfilePath,
+          message:
+            "Documentation authority changed while agent context was being projected; retry from a fresh snapshot.",
+        },
+      ]),
     });
   }
-  const complete = input.catalogBefore.status === "complete" && catalogAfter.status === "complete" &&
-    found.outcome === "success" && input.catalogBefore.diagnostics.length === 0 && catalogAfter.diagnostics.length === 0;
+  const complete =
+    input.catalogBefore.status === "complete" &&
+    catalogAfter.status === "complete" &&
+    found.outcome === "success" &&
+    input.catalogBefore.diagnostics.length === 0 &&
+    catalogAfter.diagnostics.length === 0;
   if (!complete) {
     const diagnostics = contextDiagnostics(
       catalogDiagnostics(input.catalogBefore.diagnostics),
       found.diagnostics,
-      catalogDiagnostics(catalogAfter.diagnostics)
+      catalogDiagnostics(catalogAfter.diagnostics),
     );
     return Object.freeze({
       outcome: "violation" as const,
@@ -351,28 +409,35 @@ export async function projectCommunityContext(input: {
         includedDocuments: 0,
         omittedDocuments: catalogAfter.documents.length,
         truncated: catalogAfter.documents.length > 0,
-        content: ""
+        content: "",
       }),
-      diagnostics: diagnostics.length > 0 ? diagnostics : Object.freeze([{
-        ruleId: "docs.context.catalog-partial",
-        severity: "error" as const,
-        phase: "authority" as const,
-        subject: input.foundationProfilePath,
-        message: "Documentation catalog is partial; context projection is withheld until the authority is complete."
-      }])
+      diagnostics:
+        diagnostics.length > 0
+          ? diagnostics
+          : Object.freeze([
+              {
+                ruleId: "docs.context.catalog-partial",
+                severity: "error" as const,
+                phase: "authority" as const,
+                subject: input.foundationProfilePath,
+                message:
+                  "Documentation catalog is partial; context projection is withheld until the authority is complete.",
+              },
+            ]),
     });
   }
   const projection = projectCommunityLlmsText({
     catalog: {
       projectId: catalogAfter.projectId,
       title: `${catalogAfter.projectId} documentation`,
-      summary: "Deterministic repository documentation context for humans and agents."
+      summary: "Deterministic repository documentation context for humans and agents.",
     },
     documents: found.result.documents,
     limits,
-    selection: found.selection.ranking === "fuzzy-advisory"
-      ? { kind: "fuzzy-advisory" }
-      : { kind: "filtered" }
+    selection:
+      found.selection.ranking === "fuzzy-advisory"
+        ? { kind: "fuzzy-advisory" }
+        : { kind: "filtered" },
   });
   return Object.freeze({
     outcome: "success",
@@ -382,8 +447,8 @@ export async function projectCommunityContext(input: {
       projectId: catalogAfter.projectId,
       catalogSemanticDigest: catalogAfter.semanticDigest,
       selection: found.selection,
-      ...projection
+      ...projection,
     }),
-    diagnostics: found.diagnostics
+    diagnostics: found.diagnostics,
   });
 }

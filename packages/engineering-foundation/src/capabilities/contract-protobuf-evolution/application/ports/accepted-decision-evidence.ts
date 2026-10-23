@@ -16,7 +16,7 @@ export interface ReadAcceptedDecisionEvidenceInput {
  */
 export interface AcceptedDecisionEvidencePort {
   readAcceptedDecisionEvidence(
-    input: ReadAcceptedDecisionEvidenceInput
+    input: ReadAcceptedDecisionEvidenceInput,
   ): Promise<AcceptedDecisionEvidence>;
 }
 

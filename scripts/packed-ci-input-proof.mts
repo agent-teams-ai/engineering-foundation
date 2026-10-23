@@ -1,9 +1,9 @@
-import { createHash } from 'node:crypto';
-import { createRequire } from 'node:module';
-import { chmod, mkdir, mkdtemp, readFile, realpath, stat, writeFile } from 'node:fs/promises';
-import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
-import { performance } from 'node:perf_hooks';
-import { writeJson, writePackedCiInputProofHarness } from './ci-input-proof-packed-harness.mts';
+import { createHash } from "node:crypto";
+import { createRequire } from "node:module";
+import { chmod, mkdir, mkdtemp, readFile, realpath, stat, writeFile } from "node:fs/promises";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { performance } from "node:perf_hooks";
+import { writeJson, writePackedCiInputProofHarness } from "./ci-input-proof-packed-harness.mts";
 
 type PackedArtifact = Readonly<{
   archiveFileSpecifier: string;
@@ -23,7 +23,7 @@ type InstalledToolchainEvidence = Readonly<{
   typescriptPlatforms: readonly string[];
 }>;
 type PackedCiInputProofEvidence = Readonly<{
-  status: 'passed';
+  status: "passed";
   packageName: string;
   packageVersion: string;
   cases: readonly string[];
@@ -39,13 +39,18 @@ type PackedCiInputProofEvidence = Readonly<{
     installedTypesNode: string;
     typescriptPlatforms: readonly string[];
   }>;
-  processTimingsMs: Readonly<Record<string, Readonly<{
-    comparison: number;
-    optimizer: number;
-    full: number;
-    total: number;
-    clock: string;
-  }>>>;
+  processTimingsMs: Readonly<
+    Record<
+      string,
+      Readonly<{
+        comparison: number;
+        optimizer: number;
+        full: number;
+        total: number;
+        clock: string;
+      }>
+    >
+  >;
   timingsMs: Readonly<{ install: number; typecheck: number; conformance: number; total: number }>;
 }>;
 
@@ -53,34 +58,45 @@ async function packInstalledTypeScript(
   temporaryRoot: string,
   repositoryRoot: string,
   runPnpm: RunPnpm,
-): Promise<Readonly<{
-  platformArchiveSpecifier: string;
-  platformPackageName: string;
-  typescriptArchiveSpecifier: string;
-}>> {
-  const toolchainRoot = join(temporaryRoot, 'toolchain-archives');
+): Promise<
+  Readonly<{
+    platformArchiveSpecifier: string;
+    platformPackageName: string;
+    typescriptArchiveSpecifier: string;
+  }>
+> {
+  const toolchainRoot = join(temporaryRoot, "toolchain-archives");
   await mkdir(toolchainRoot, { recursive: true });
-  const requireFromRepository = createRequire(join(repositoryRoot, 'package.json'));
-  const packageRoot = dirname(requireFromRepository.resolve('typescript/package.json'));
-  const typescriptManifestPath = join(packageRoot, 'package.json');
-  const typescriptManifest = JSON.parse(await readFile(typescriptManifestPath, 'utf8')) as Readonly<{
+  const requireFromRepository = createRequire(join(repositoryRoot, "package.json"));
+  const packageRoot = dirname(requireFromRepository.resolve("typescript/package.json"));
+  const typescriptManifestPath = join(packageRoot, "package.json");
+  const typescriptManifest = JSON.parse(
+    await readFile(typescriptManifestPath, "utf8"),
+  ) as Readonly<{
     name?: unknown;
     version?: unknown;
     optionalDependencies?: Record<string, unknown>;
   }>;
   const platformPackageName = `@typescript/typescript-${process.platform}-${process.arch}`;
-  if (typescriptManifest.name !== 'typescript' || typescriptManifest.version !== '7.0.2'
-      || typescriptManifest.optionalDependencies?.[platformPackageName] !== '7.0.2') {
-    throw new Error('Packed CI Input Proof could not identify the exact TypeScript 7.0.2 platform dependency.');
+  if (
+    typescriptManifest.name !== "typescript" ||
+    typescriptManifest.version !== "7.0.2" ||
+    typescriptManifest.optionalDependencies?.[platformPackageName] !== "7.0.2"
+  ) {
+    throw new Error(
+      "Packed CI Input Proof could not identify the exact TypeScript 7.0.2 platform dependency.",
+    );
   }
   const requireTypeScript = createRequire(typescriptManifestPath);
   const platformRoot = dirname(requireTypeScript.resolve(`${platformPackageName}/package.json`));
-  const packedTypescript = await runPnpm([
-    '--dir', packageRoot, 'pack', '--pack-destination', toolchainRoot, '--json',
-  ], repositoryRoot);
-  const packedPlatform = await runPnpm([
-    '--dir', platformRoot, 'pack', '--pack-destination', toolchainRoot, '--json',
-  ], repositoryRoot);
+  const packedTypescript = await runPnpm(
+    ["--dir", packageRoot, "pack", "--pack-destination", toolchainRoot, "--json"],
+    repositoryRoot,
+  );
+  const packedPlatform = await runPnpm(
+    ["--dir", platformRoot, "pack", "--pack-destination", toolchainRoot, "--json"],
+    repositoryRoot,
+  );
   const typescriptReport = JSON.parse(packedTypescript.stdout) as Readonly<{
     name?: unknown;
     version?: unknown;
@@ -91,11 +107,17 @@ async function packInstalledTypeScript(
     version?: unknown;
     filename?: unknown;
   }>;
-  if (typescriptReport.name !== 'typescript' || typescriptReport.version !== '7.0.2'
-      || typeof typescriptReport.filename !== 'string'
-      || platformReport.name !== platformPackageName || platformReport.version !== '7.0.2'
-      || typeof platformReport.filename !== 'string') {
-    throw new Error('Packed CI Input Proof could not materialize the exact TypeScript 7.0.2 toolchain.');
+  if (
+    typescriptReport.name !== "typescript" ||
+    typescriptReport.version !== "7.0.2" ||
+    typeof typescriptReport.filename !== "string" ||
+    platformReport.name !== platformPackageName ||
+    platformReport.version !== "7.0.2" ||
+    typeof platformReport.filename !== "string"
+  ) {
+    throw new Error(
+      "Packed CI Input Proof could not materialize the exact TypeScript 7.0.2 toolchain.",
+    );
   }
   return Object.freeze({
     platformArchiveSpecifier: `file:${resolve(platformReport.filename)}`,
@@ -109,38 +131,45 @@ async function packInstalledTypeSupport(
   repositoryRoot: string,
   runPnpm: RunPnpm,
 ): Promise<Readonly<{ typesNodeArchiveSpecifier: string; undiciTypesArchiveSpecifier: string }>> {
-  const requireFromRepository = createRequire(join(repositoryRoot, 'package.json'));
-  const typesNodeManifestPath = requireFromRepository.resolve('@types/node/package.json');
-  const undiciTypesManifestPath = createRequire(typesNodeManifestPath).resolve('undici-types/package.json');
-  const toolchainRoot = join(temporaryRoot, 'toolchain-archives');
+  const requireFromRepository = createRequire(join(repositoryRoot, "package.json"));
+  const typesNodeManifestPath = requireFromRepository.resolve("@types/node/package.json");
+  const undiciTypesManifestPath = createRequire(typesNodeManifestPath).resolve(
+    "undici-types/package.json",
+  );
+  const toolchainRoot = join(temporaryRoot, "toolchain-archives");
   const specifiers: string[] = [];
   for (const [manifestPath, name, version] of [
-    [typesNodeManifestPath, '@types/node', '24.13.3'],
-    [undiciTypesManifestPath, 'undici-types', '7.18.2'],
+    [typesNodeManifestPath, "@types/node", "24.13.3"],
+    [undiciTypesManifestPath, "undici-types", "7.18.2"],
   ] as const) {
-    const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as Readonly<{
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as Readonly<{
       name?: unknown;
       version?: unknown;
     }>;
     if (manifest.name !== name || manifest.version !== version) {
-      throw new Error(`Packed CI Input Proof type support donor differs from the exact ${name} pin.`);
+      throw new Error(
+        `Packed CI Input Proof type support donor differs from the exact ${name} pin.`,
+      );
     }
-    const packed = await runPnpm([
-      '--dir', dirname(manifestPath), 'pack', '--pack-destination', toolchainRoot, '--json',
-    ], repositoryRoot);
+    const packed = await runPnpm(
+      ["--dir", dirname(manifestPath), "pack", "--pack-destination", toolchainRoot, "--json"],
+      repositoryRoot,
+    );
     const report = JSON.parse(packed.stdout) as Readonly<{
       name?: unknown;
       version?: unknown;
       filename?: unknown;
     }>;
-    if (report.name !== name || report.version !== version || typeof report.filename !== 'string') {
-      throw new Error(`Packed CI Input Proof could not materialize the exact ${name} type support.`);
+    if (report.name !== name || report.version !== version || typeof report.filename !== "string") {
+      throw new Error(
+        `Packed CI Input Proof could not materialize the exact ${name} type support.`,
+      );
     }
     specifiers.push(`file:${resolve(report.filename)}`);
   }
   const [typesNodeArchiveSpecifier, undiciTypesArchiveSpecifier] = specifiers;
   if (typesNodeArchiveSpecifier === undefined || undiciTypesArchiveSpecifier === undefined) {
-    throw new Error('Packed CI Input Proof type support archives are incomplete.');
+    throw new Error("Packed CI Input Proof type support archives are incomplete.");
   }
   return Object.freeze({ typesNodeArchiveSpecifier, undiciTypesArchiveSpecifier });
 }
@@ -150,33 +179,49 @@ async function verifyInstalledTypeScriptPlatform(
   consumerRoot: string,
   platformPackageName: string,
 ): Promise<Readonly<{ typescriptPlatforms: readonly string[] }>> {
-  const requireFromRepository = createRequire(join(repositoryRoot, 'package.json'));
-  const requireFromRepositoryTypeScript = createRequire(requireFromRepository.resolve('typescript/package.json'));
+  const requireFromRepository = createRequire(join(repositoryRoot, "package.json"));
+  const requireFromRepositoryTypeScript = createRequire(
+    requireFromRepository.resolve("typescript/package.json"),
+  );
   const installedTypeScriptManifestPath = await realpath(
-    join(consumerRoot, 'node_modules', 'typescript', 'package.json'),
+    join(consumerRoot, "node_modules", "typescript", "package.json"),
   );
   const requireFromInstalledTypeScript = createRequire(installedTypeScriptManifestPath);
-  const sourcePlatformManifestPath = requireFromRepositoryTypeScript.resolve(`${platformPackageName}/package.json`);
-  const installedPlatformManifestPath = requireFromInstalledTypeScript.resolve(`${platformPackageName}/package.json`);
-  const sourcePlatformManifest = JSON.parse(await readFile(sourcePlatformManifestPath, 'utf8')) as Readonly<{
+  const sourcePlatformManifestPath = requireFromRepositoryTypeScript.resolve(
+    `${platformPackageName}/package.json`,
+  );
+  const installedPlatformManifestPath = requireFromInstalledTypeScript.resolve(
+    `${platformPackageName}/package.json`,
+  );
+  const sourcePlatformManifest = JSON.parse(
+    await readFile(sourcePlatformManifestPath, "utf8"),
+  ) as Readonly<{
     name?: unknown;
     version?: unknown;
   }>;
-  const installedPlatformManifest = JSON.parse(await readFile(installedPlatformManifestPath, 'utf8')) as Readonly<{
+  const installedPlatformManifest = JSON.parse(
+    await readFile(installedPlatformManifestPath, "utf8"),
+  ) as Readonly<{
     name?: unknown;
     version?: unknown;
   }>;
-  if (sourcePlatformManifest.name !== platformPackageName || sourcePlatformManifest.version !== '7.0.2'
-      || installedPlatformManifest.name !== platformPackageName || installedPlatformManifest.version !== '7.0.2') {
-    throw new Error('Packed CI Input Proof installed an unexpected TypeScript platform package.');
+  if (
+    sourcePlatformManifest.name !== platformPackageName ||
+    sourcePlatformManifest.version !== "7.0.2" ||
+    installedPlatformManifest.name !== platformPackageName ||
+    installedPlatformManifest.version !== "7.0.2"
+  ) {
+    throw new Error("Packed CI Input Proof installed an unexpected TypeScript platform package.");
   }
-  const binaryName = process.platform === 'win32' ? 'tsc.exe' : 'tsc';
-  const sourceBinaryPath = join(dirname(sourcePlatformManifestPath), 'lib', binaryName);
-  const installedBinaryPath = join(dirname(installedPlatformManifestPath), 'lib', binaryName);
+  const binaryName = process.platform === "win32" ? "tsc.exe" : "tsc";
+  const sourceBinaryPath = join(dirname(sourcePlatformManifestPath), "lib", binaryName);
+  const installedBinaryPath = join(dirname(installedPlatformManifestPath), "lib", binaryName);
   const sourceBinary = await readFile(sourceBinaryPath);
   const installedBinary = await readFile(installedBinaryPath);
   if (!sourceBinary.equals(installedBinary)) {
-    throw new Error('Packed CI Input Proof installed TypeScript platform bytes differ from the repository toolchain.');
+    throw new Error(
+      "Packed CI Input Proof installed TypeScript platform bytes differ from the repository toolchain.",
+    );
   }
   await chmod(installedBinaryPath, (await stat(sourceBinaryPath)).mode);
   return Object.freeze({ typescriptPlatforms: Object.freeze([platformPackageName]) });
@@ -186,24 +231,31 @@ async function verifyInstalledTypeSupport(
   repositoryRoot: string,
   consumerRoot: string,
 ): Promise<void> {
-  const requireFromRepository = createRequire(join(repositoryRoot, 'package.json'));
-  const sourceTypesNodeManifestPath = requireFromRepository.resolve('@types/node/package.json');
+  const requireFromRepository = createRequire(join(repositoryRoot, "package.json"));
+  const sourceTypesNodeManifestPath = requireFromRepository.resolve("@types/node/package.json");
   const installedTypesNodeManifestPath = await realpath(
-    join(consumerRoot, 'node_modules', '@types', 'node', 'package.json'),
+    join(consumerRoot, "node_modules", "@types", "node", "package.json"),
   );
-  const installedUndiciTypesManifestPath = createRequire(installedTypesNodeManifestPath)
-    .resolve('undici-types/package.json');
-  const sourceUndiciTypesManifestPath = createRequire(sourceTypesNodeManifestPath)
-    .resolve('undici-types/package.json');
+  const installedUndiciTypesManifestPath = createRequire(installedTypesNodeManifestPath).resolve(
+    "undici-types/package.json",
+  );
+  const sourceUndiciTypesManifestPath = createRequire(sourceTypesNodeManifestPath).resolve(
+    "undici-types/package.json",
+  );
   for (const [source, installed] of [
     [sourceTypesNodeManifestPath, installedTypesNodeManifestPath],
     [sourceUndiciTypesManifestPath, installedUndiciTypesManifestPath],
   ] as const) {
-    const entrypoint = await realpath(join(dirname(installed), 'index.d.ts'));
+    const entrypoint = await realpath(join(dirname(installed), "index.d.ts"));
     const custodyPath = relative(consumerRoot, entrypoint);
-    if (custodyPath.startsWith('..') || isAbsolute(custodyPath)
-        || !(await readFile(join(dirname(source), 'index.d.ts'))).equals(await readFile(entrypoint))) {
-      throw new Error('Packed CI Input Proof installed type declaration entrypoint differs from its repository donor.');
+    if (
+      custodyPath.startsWith("..") ||
+      isAbsolute(custodyPath) ||
+      !(await readFile(join(dirname(source), "index.d.ts"))).equals(await readFile(entrypoint))
+    ) {
+      throw new Error(
+        "Packed CI Input Proof installed type declaration entrypoint differs from its repository donor.",
+      );
     }
   }
 }
@@ -215,64 +267,74 @@ async function installPackedCiInputProofToolchain(
   consumerRoot: string,
   runPnpm: RunPnpm,
 ): Promise<InstalledToolchainEvidence> {
-  const toolchain = await packInstalledTypeScript(
-    temporaryRoot,
-    repositoryRoot,
-    runPnpm,
-  );
+  const toolchain = await packInstalledTypeScript(temporaryRoot, repositoryRoot, runPnpm);
   const typeSupport = await packInstalledTypeSupport(temporaryRoot, repositoryRoot, runPnpm);
   const installStarted = performance.now();
-  await runPnpm([
-    'add',
-    '--save-dev',
-    '--save-exact',
-    '--offline',
-    '--store-dir',
-    join(temporaryRoot, 'pnpm-store-TEST'),
-    toolchain.platformArchiveSpecifier,
-    typeSupport.undiciTypesArchiveSpecifier,
-  ], consumerRoot);
-  await writeFile(
-    join(consumerRoot, 'pnpm-workspace.yaml'),
-    `overrides:\n  ${JSON.stringify(toolchain.platformPackageName)}: ${JSON.stringify(toolchain.platformArchiveSpecifier)}\n  undici-types: ${JSON.stringify(typeSupport.undiciTypesArchiveSpecifier)}\n`,
-    'utf8',
+  await runPnpm(
+    [
+      "add",
+      "--save-dev",
+      "--save-exact",
+      "--offline",
+      "--store-dir",
+      join(temporaryRoot, "pnpm-store-TEST"),
+      toolchain.platformArchiveSpecifier,
+      typeSupport.undiciTypesArchiveSpecifier,
+    ],
+    consumerRoot,
   );
-  await runPnpm([
-    'add',
-    '--save-dev',
-    '--save-exact',
-    '--offline',
-    '--store-dir',
-    join(temporaryRoot, 'pnpm-store-TEST'),
-    toolchain.typescriptArchiveSpecifier,
-    typeSupport.typesNodeArchiveSpecifier,
-    artifact.archiveFileSpecifier,
-  ], consumerRoot);
+  await writeFile(
+    join(consumerRoot, "pnpm-workspace.yaml"),
+    `overrides:\n  ${JSON.stringify(toolchain.platformPackageName)}: ${JSON.stringify(toolchain.platformArchiveSpecifier)}\n  undici-types: ${JSON.stringify(typeSupport.undiciTypesArchiveSpecifier)}\n`,
+    "utf8",
+  );
+  await runPnpm(
+    [
+      "add",
+      "--save-dev",
+      "--save-exact",
+      "--offline",
+      "--store-dir",
+      join(temporaryRoot, "pnpm-store-TEST"),
+      toolchain.typescriptArchiveSpecifier,
+      typeSupport.typesNodeArchiveSpecifier,
+      artifact.archiveFileSpecifier,
+    ],
+    consumerRoot,
+  );
   const installMs = performance.now() - installStarted;
-  const installedManifest = JSON.parse(await readFile(
-    join(consumerRoot, 'node_modules', '@agent-teams', 'ci-input-proof', 'package.json'),
-    'utf8',
-  )) as Readonly<{ name?: unknown; version?: unknown }>;
-  if (installedManifest.name !== artifact.packageName
-      || installedManifest.version !== artifact.packageVersion) {
-    throw new Error('Packed CI Input Proof installed artifact identity contradicts the source manifest.');
+  const installedManifest = JSON.parse(
+    await readFile(
+      join(consumerRoot, "node_modules", "@agent-teams", "ci-input-proof", "package.json"),
+      "utf8",
+    ),
+  ) as Readonly<{ name?: unknown; version?: unknown }>;
+  if (
+    installedManifest.name !== artifact.packageName ||
+    installedManifest.version !== artifact.packageVersion
+  ) {
+    throw new Error(
+      "Packed CI Input Proof installed artifact identity contradicts the source manifest.",
+    );
   }
   const platform = await verifyInstalledTypeScriptPlatform(
     repositoryRoot,
     consumerRoot,
     toolchain.platformPackageName,
   );
-  const installedTypescriptManifest = JSON.parse(await readFile(
-    join(consumerRoot, 'node_modules', 'typescript', 'package.json'),
-    'utf8',
-  )) as Readonly<{ version?: string }>;
-  const installedTypesNodeManifest = JSON.parse(await readFile(
-    join(consumerRoot, 'node_modules', '@types', 'node', 'package.json'),
-    'utf8',
-  )) as Readonly<{ version?: string }>;
-  if (installedTypescriptManifest.version !== '7.0.2'
-      || installedTypesNodeManifest.version !== '24.13.3') {
-    throw new Error('Packed CI Input Proof installed TypeScript toolchain is not the exact supported pin.');
+  const installedTypescriptManifest = JSON.parse(
+    await readFile(join(consumerRoot, "node_modules", "typescript", "package.json"), "utf8"),
+  ) as Readonly<{ version?: string }>;
+  const installedTypesNodeManifest = JSON.parse(
+    await readFile(join(consumerRoot, "node_modules", "@types", "node", "package.json"), "utf8"),
+  ) as Readonly<{ version?: string }>;
+  if (
+    installedTypescriptManifest.version !== "7.0.2" ||
+    installedTypesNodeManifest.version !== "24.13.3"
+  ) {
+    throw new Error(
+      "Packed CI Input Proof installed TypeScript toolchain is not the exact supported pin.",
+    );
   }
   return Object.freeze({
     installMs,
@@ -290,34 +352,38 @@ export async function verifyPackedCiInputProof(
 ): Promise<PackedCiInputProofEvidence> {
   const started = performance.now();
   const temporaryRootPath = resolve(temporaryRoot);
-  const manifestPath = join(repositoryRoot, 'packages', 'ci-input-proof', 'package.json');
-  const sourceManifest = JSON.parse(await readFile(manifestPath, 'utf8')) as Readonly<{
+  const manifestPath = join(repositoryRoot, "packages", "ci-input-proof", "package.json");
+  const sourceManifest = JSON.parse(await readFile(manifestPath, "utf8")) as Readonly<{
     name?: unknown;
     version?: unknown;
   }>;
   const archivePath = resolve(artifact.archivePath);
-  const archiveSpecifierPath = artifact.archiveFileSpecifier.startsWith('file:')
-    ? resolve(artifact.archiveFileSpecifier.slice('file:'.length))
+  const archiveSpecifierPath = artifact.archiveFileSpecifier.startsWith("file:")
+    ? resolve(artifact.archiveFileSpecifier.slice("file:".length))
     : null;
   const custodyPath = relative(temporaryRootPath, archivePath);
-  if (sourceManifest.name !== '@agent-teams/ci-input-proof'
-      || typeof sourceManifest.version !== 'string'
-      || sourceManifest.version.length === 0
-      || artifact.packageName !== sourceManifest.name
-      || artifact.packageVersion !== sourceManifest.version
-      || archiveSpecifierPath !== archivePath
-      || custodyPath === ''
-      || custodyPath.startsWith('..')
-      || isAbsolute(custodyPath)) {
-    throw new Error('Packed CI Input Proof artifact identity or custody path is invalid.');
+  if (
+    sourceManifest.name !== "@agent-teams/ci-input-proof" ||
+    typeof sourceManifest.version !== "string" ||
+    sourceManifest.version.length === 0 ||
+    artifact.packageName !== sourceManifest.name ||
+    artifact.packageVersion !== sourceManifest.version ||
+    archiveSpecifierPath !== archivePath ||
+    custodyPath === "" ||
+    custodyPath.startsWith("..") ||
+    isAbsolute(custodyPath)
+  ) {
+    throw new Error("Packed CI Input Proof artifact identity or custody path is invalid.");
   }
-  const consumerRoot = await mkdtemp(join(resolve(temporaryRoot), 'ci-input-proof-installed-TEST-'));
-  await writeJson(join(consumerRoot, 'package.json'), {
-    name: 'ci-input-proof-installed-TEST',
-    version: '0.0.0',
+  const consumerRoot = await mkdtemp(
+    join(resolve(temporaryRoot), "ci-input-proof-installed-TEST-"),
+  );
+  await writeJson(join(consumerRoot, "package.json"), {
+    name: "ci-input-proof-installed-TEST",
+    version: "0.0.0",
     private: true,
-    type: 'module',
-    packageManager: 'pnpm@11.20.0',
+    type: "module",
+    packageManager: "pnpm@11.20.0",
     devDependencies: {},
   });
   const installedToolchain = await installPackedCiInputProofToolchain(
@@ -330,55 +396,69 @@ export async function verifyPackedCiInputProof(
   await writePackedCiInputProofHarness(consumerRoot, repositoryRoot);
 
   const typecheckStarted = performance.now();
-  const compilerVersion = await runPnpm(['--reporter=silent', 'exec', 'tsc', '--version'], consumerRoot);
-  if (compilerVersion.stdout.trim() !== 'Version 7.0.2') {
+  const compilerVersion = await runPnpm(
+    ["--reporter=silent", "exec", "tsc", "--version"],
+    consumerRoot,
+  );
+  if (compilerVersion.stdout.trim() !== "Version 7.0.2") {
     const trimmed = compilerVersion.stdout.trim();
-    const lines = trimmed === '' ? [] : trimmed.split(/\r?\n/u);
-    const observation = { stdoutLineCount: lines.length,
-      versionLineCount: lines.filter(line => /^Version \d+\.\d+\.\d+$/u.test(line)).length,
-      expectedLinePresent: lines.includes('Version 7.0.2'), stderrNonempty: compilerVersion.stderr.trim() !== '' };
-    throw new Error(`Packed CI Input Proof consumer resolved a compiler other than TypeScript 7.0.2. ${JSON.stringify(observation)}`);
+    const lines = trimmed === "" ? [] : trimmed.split(/\r?\n/u);
+    const observation = {
+      stdoutLineCount: lines.length,
+      versionLineCount: lines.filter((line) => /^Version \d+\.\d+\.\d+$/u.test(line)).length,
+      expectedLinePresent: lines.includes("Version 7.0.2"),
+      stderrNonempty: compilerVersion.stderr.trim() !== "",
+    };
+    throw new Error(
+      `Packed CI Input Proof consumer resolved a compiler other than TypeScript 7.0.2. ${JSON.stringify(observation)}`,
+    );
   }
   await verifyInstalledTypeSupport(repositoryRoot, consumerRoot);
-  await runPnpm(['exec', 'tsc', '--project', join(consumerRoot, 'tsconfig.json')], consumerRoot);
+  await runPnpm(["exec", "tsc", "--project", join(consumerRoot, "tsconfig.json")], consumerRoot);
   const typecheckMs = performance.now() - typecheckStarted;
   const conformanceStarted = performance.now();
-  const conformance = await runPnpm([
-    'exec',
-    'node',
-    join(consumerRoot, 'adapter-conformance.TEST.mts'),
-  ], consumerRoot);
+  const conformance = await runPnpm(
+    ["exec", "node", join(consumerRoot, "adapter-conformance.TEST.mts")],
+    consumerRoot,
+  );
   const conformanceMs = performance.now() - conformanceStarted;
   const parsed = JSON.parse(conformance.stdout) as Readonly<{
     status: string;
     cases: readonly string[];
-    timingsMs: Readonly<Record<string, Readonly<{
-      comparison: number;
-      optimizer: number;
-      full: number;
-      total: number;
-      clock: string;
-    }>>>;
+    timingsMs: Readonly<
+      Record<
+        string,
+        Readonly<{
+          comparison: number;
+          optimizer: number;
+          full: number;
+          total: number;
+          clock: string;
+        }>
+      >
+    >;
   }>;
   const expectedCases = Object.freeze([
-    'positive-full-pass',
-    'closed-drift-full-pass',
-    'incomplete-full-pass',
-    'scope-drift-full-pass',
-    'optimizer-unavailable-full-failed-nonzero',
-    'signal-full-failed-nonzero',
-    'timeout-full-failed-nonzero',
-    'timeout-descendant-tree-cleaned',
-    'timeout-escalation-full-failed-nonzero',
-    'output-bound-full-pass',
-    'inherited-pipe-bounded-settlement',
+    "positive-full-pass",
+    "closed-drift-full-pass",
+    "incomplete-full-pass",
+    "scope-drift-full-pass",
+    "optimizer-unavailable-full-failed-nonzero",
+    "signal-full-failed-nonzero",
+    "timeout-full-failed-nonzero",
+    "timeout-descendant-tree-cleaned",
+    "timeout-escalation-full-failed-nonzero",
+    "output-bound-full-pass",
+    "inherited-pipe-bounded-settlement",
   ]);
-  if (parsed.status !== 'passed'
-      || JSON.stringify(parsed.cases) !== JSON.stringify(expectedCases)) {
-    throw new Error('Packed CI Input Proof conformance did not complete every real-process case.');
+  if (
+    parsed.status !== "passed" ||
+    JSON.stringify(parsed.cases) !== JSON.stringify(expectedCases)
+  ) {
+    throw new Error("Packed CI Input Proof conformance did not complete every real-process case.");
   }
   const evidence: PackedCiInputProofEvidence = Object.freeze({
-    status: 'passed',
+    status: "passed",
     packageName: artifact.packageName,
     packageVersion: artifact.packageVersion,
     cases: Object.freeze([...parsed.cases]),
@@ -386,9 +466,11 @@ export async function verifyPackedCiInputProof(
     deepImportRejected: true,
     facts: Object.freeze({
       archiveFile: artifact.archivePath,
-      archiveSha512: createHash('sha512').update(await readFile(archivePath)).digest('hex'),
+      archiveSha512: createHash("sha512")
+        .update(await readFile(archivePath))
+        .digest("hex"),
       node: process.version,
-      pnpm: '11.20.0',
+      pnpm: "11.20.0",
       typescriptCompiler: compilerVersion.stdout.trim(),
       installedTypescript: installedToolchain.installedTypescript,
       installedTypesNode: installedToolchain.installedTypesNode,
@@ -402,6 +484,8 @@ export async function verifyPackedCiInputProof(
       total: performance.now() - started,
     }),
   });
-  process.stdout.write(`Packed CI Input Proof installed conformance PASS: ${JSON.stringify(evidence)}\n`);
+  process.stdout.write(
+    `Packed CI Input Proof installed conformance PASS: ${JSON.stringify(evidence)}\n`,
+  );
   return evidence;
 }

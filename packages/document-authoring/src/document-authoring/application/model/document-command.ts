@@ -1,9 +1,6 @@
 import type { DocumentReceiptOutcome } from "./document-receipt.js";
 
-export type DocumentCommandId =
-  | "docs.doctor"
-  | "docs.new"
-  | "docs.recover";
+export type DocumentCommandId = "docs.doctor" | "docs.new" | "docs.recover";
 
 export type DocumentCommandOutcome =
   | "authority-stale"
@@ -22,20 +19,17 @@ export interface DocumentRecoveryCommand {
   readonly args: Readonly<Record<string, string>>;
 }
 
-export type DocumentCommandRemediation = DocumentRecoveryCommand | {
-  readonly commandId: DocumentCommandId | "docs.find";
-  readonly args: Readonly<Record<string, string>>;
-};
+export type DocumentCommandRemediation =
+  | DocumentRecoveryCommand
+  | {
+      readonly commandId: DocumentCommandId | "docs.find";
+      readonly args: Readonly<Record<string, string>>;
+    };
 
 export interface DocumentCommandDiagnostic {
   readonly ruleId: string;
   readonly severity: "error" | "info" | "warning";
-  readonly phase:
-    | "apply"
-    | "authority"
-    | "input"
-    | "planning"
-    | "recovery";
+  readonly phase: "apply" | "authority" | "input" | "planning" | "recovery";
   readonly subject: string;
   readonly message: string;
   readonly remediation?: DocumentCommandRemediation;
@@ -75,9 +69,7 @@ export interface DocumentDoctorResult {
   readonly installedFoundationBuildIdentity?: string;
   readonly filesystem?: {
     readonly basis: "platform-contract";
-    readonly strictDirectoryDurability:
-      | "platform-supported"
-      | "platform-unsupported";
+    readonly strictDirectoryDurability: "platform-supported" | "platform-unsupported";
   };
   readonly transactionState:
     | "corrupt"

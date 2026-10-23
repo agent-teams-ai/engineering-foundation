@@ -2,17 +2,17 @@
 import type { ContainedFileObservation } from "./api.js";
 import {
   inspectContainedRegularFile,
-  readContainedRegularFile
+  readContainedRegularFile,
 } from "./adapters/outbound/filesystem/contained-file-reader.js";
 
 export const containedFileObservation: ContainedFileObservation = {
   inspect: inspectContainedRegularFile,
-  read: readContainedRegularFile
+  read: readContainedRegularFile,
 };
 
 export {
   inspectContainedRegularFile,
   pathTraversesSymbolicLink,
-  readContainedRegularFile
+  readContainedRegularFile,
 } from "./adapters/outbound/filesystem/contained-file-reader.js";
 export { ContainedFileReadError } from "./api.js";

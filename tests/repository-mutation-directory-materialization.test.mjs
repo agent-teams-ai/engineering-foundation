@@ -1,13 +1,5 @@
 import assert from "node:assert/strict";
-import {
-  lstat,
-  mkdir,
-  mkdtemp,
-  rename,
-  rm,
-  symlink,
-  writeFile,
-} from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, rename, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -86,8 +78,11 @@ test("rejects portable case and NFC aliases during read-only projection", async 
 test("bounds directory enumeration while observing portable aliases", async () => {
   const subject = await fixture();
   try {
-    await Promise.all(Array.from({ length: 1025 }, (_unused, index) =>
-      writeFile(join(subject.root, `entry-${index}`), "fixture\n")));
+    await Promise.all(
+      Array.from({ length: 1025 }, (_unused, index) =>
+        writeFile(join(subject.root, `entry-${index}`), "fixture\n"),
+      ),
+    );
     await assert.rejects(
       projectDirectoryMaterialization({
         createPolicy: "allow",
@@ -149,77 +144,83 @@ test("rejects directory creation when policy forbids it", async () => {
   }
 });
 
-strictDirectoryDurabilityTest("creates exclusively, syncs, and requires identity binding before success", async () => {
-  const subject = await fixture();
-  try {
-    const projection = await projectDirectoryMaterialization({
-      createPolicy: "allow",
-      repositoryPath: "docs/api",
-      repositoryRoot: subject.root,
-    });
-    const events = [];
-    const created = await createAndBindOneDirectory({
-      binding: {
-        async bindCreatedDirectory(directory) {
-          assert.equal((await lstat(directory.absolutePath)).isDirectory(), true);
-          events.push(`bound:${directory.repositoryPath}`);
-        },
-      },
-      createPolicy: projection.createPolicy,
-      expectedParentIdentity: projection.anchor.identity,
-      repositoryPath: projection.missingDirectories[0].repositoryPath,
-      repositoryRoot: subject.root,
-    });
-    assert.equal(created.outcome, "created-and-bound");
-    assert.deepEqual(events, ["bound:docs"]);
-
-    await assert.rejects(
-      createAndBindOneDirectory({
-        binding: { async bindCreatedDirectory() {} },
+strictDirectoryDurabilityTest(
+  "creates exclusively, syncs, and requires identity binding before success",
+  async () => {
+    const subject = await fixture();
+    try {
+      const projection = await projectDirectoryMaterialization({
         createPolicy: "allow",
-        expectedParentIdentity: projection.anchor.identity,
-        repositoryPath: "docs",
+        repositoryPath: "docs/api",
         repositoryRoot: subject.root,
-      }),
-      (error) => error?.code === "EEXIST",
-    );
-  } finally {
-    await subject.dispose();
-  }
-});
-
-windowsTest("fails closed without binding when strict parent durability is unsupported", async () => {
-  const subject = await fixture();
-  try {
-    const projection = await projectDirectoryMaterialization({
-      createPolicy: "allow",
-      repositoryPath: "docs",
-      repositoryRoot: subject.root,
-    });
-    let bindings = 0;
-    await assert.rejects(
-      createAndBindOneDirectory({
+      });
+      const events = [];
+      const created = await createAndBindOneDirectory({
         binding: {
-          async bindCreatedDirectory() {
-            bindings += 1;
+          async bindCreatedDirectory(directory) {
+            assert.equal((await lstat(directory.absolutePath)).isDirectory(), true);
+            events.push(`bound:${directory.repositoryPath}`);
           },
         },
-        createPolicy: "allow",
+        createPolicy: projection.createPolicy,
         expectedParentIdentity: projection.anchor.identity,
+        repositoryPath: projection.missingDirectories[0].repositoryPath,
+        repositoryRoot: subject.root,
+      });
+      assert.equal(created.outcome, "created-and-bound");
+      assert.deepEqual(events, ["bound:docs"]);
+
+      await assert.rejects(
+        createAndBindOneDirectory({
+          binding: { async bindCreatedDirectory() {} },
+          createPolicy: "allow",
+          expectedParentIdentity: projection.anchor.identity,
+          repositoryPath: "docs",
+          repositoryRoot: subject.root,
+        }),
+        (error) => error?.code === "EEXIST",
+      );
+    } finally {
+      await subject.dispose();
+    }
+  },
+);
+
+windowsTest(
+  "fails closed without binding when strict parent durability is unsupported",
+  async () => {
+    const subject = await fixture();
+    try {
+      const projection = await projectDirectoryMaterialization({
+        createPolicy: "allow",
         repositoryPath: "docs",
         repositoryRoot: subject.root,
-      }),
-      (error) =>
-        error?.code === "AMBIGUOUS_CREATION" &&
-        error.manualRecoveryRequired === true &&
-        error.cause?.name === "StrictDirectoryDurabilityError",
-    );
-    assert.equal(bindings, 0);
-    assert.equal((await lstat(join(subject.root, "docs"))).isDirectory(), true);
-  } finally {
-    await subject.dispose();
-  }
-});
+      });
+      let bindings = 0;
+      await assert.rejects(
+        createAndBindOneDirectory({
+          binding: {
+            async bindCreatedDirectory() {
+              bindings += 1;
+            },
+          },
+          createPolicy: "allow",
+          expectedParentIdentity: projection.anchor.identity,
+          repositoryPath: "docs",
+          repositoryRoot: subject.root,
+        }),
+        (error) =>
+          error?.code === "AMBIGUOUS_CREATION" &&
+          error.manualRecoveryRequired === true &&
+          error.cause?.name === "StrictDirectoryDurabilityError",
+      );
+      assert.equal(bindings, 0);
+      assert.equal((await lstat(join(subject.root, "docs"))).isDirectory(), true);
+    } finally {
+      await subject.dispose();
+    }
+  },
+);
 
 test("classifies mkdir-before-bind failure as ambiguous and never adopts it", async () => {
   const subject = await fixture();
@@ -247,9 +248,7 @@ test("classifies mkdir-before-bind failure as ambiguous and never adopts it", as
         repositoryPath: "docs",
         repositoryRoot: subject.root,
       }),
-      (error) =>
-        error?.code === "AMBIGUOUS_CREATION" &&
-        error.manualRecoveryRequired === true,
+      (error) => error?.code === "AMBIGUOUS_CREATION" && error.manualRecoveryRequired === true,
     );
     assert.equal(bindings, 0);
     assert.equal((await lstat(join(subject.root, "docs"))).isDirectory(), true);
@@ -283,26 +282,18 @@ test("never binds a replacement injected after the first mkdir observation", asy
         expectedParentIdentity: projection.anchor.identity,
         async faultInjector(point) {
           if (point.phase === "after-mkdir-before-capture") {
-            await rename(
-              join(subject.root, "docs"),
-              join(subject.root, "docs.original"),
-            );
+            await rename(join(subject.root, "docs"), join(subject.root, "docs.original"));
             await mkdir(join(subject.root, "docs"));
           }
         },
         repositoryPath: "docs",
         repositoryRoot: subject.root,
       }),
-      (error) =>
-        error?.code === "AMBIGUOUS_CREATION" &&
-        error.manualRecoveryRequired === true,
+      (error) => error?.code === "AMBIGUOUS_CREATION" && error.manualRecoveryRequired === true,
     );
     assert.equal(bindings, 0);
     assert.equal((await lstat(join(subject.root, "docs"))).isDirectory(), true);
-    assert.equal(
-      (await lstat(join(subject.root, "docs.original"))).isDirectory(),
-      true,
-    );
+    assert.equal((await lstat(join(subject.root, "docs.original"))).isDirectory(), true);
   } finally {
     await subject.dispose();
   }
@@ -318,11 +309,13 @@ test("exact recapture rejects a replaced created-directory identity", async () =
       repositoryRoot: subject.root,
     });
     assert.equal(
-      (await recaptureExactDirectoryIdentity({
-        expectedIdentity: projection.anchor.identity,
-        repositoryPath: "docs",
-        repositoryRoot: subject.root,
-      })).repositoryPath,
+      (
+        await recaptureExactDirectoryIdentity({
+          expectedIdentity: projection.anchor.identity,
+          repositoryPath: "docs",
+          repositoryRoot: subject.root,
+        })
+      ).repositoryPath,
       "docs",
     );
     await rename(join(subject.root, "docs"), join(subject.root, "owned-docs"));

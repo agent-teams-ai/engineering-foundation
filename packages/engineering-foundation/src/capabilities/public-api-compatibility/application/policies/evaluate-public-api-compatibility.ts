@@ -1,3 +1,4 @@
+import type { PublicApiSignatureEquivalence } from "../ports/public-api-signature-equivalence.js";
 import type { FoundationDiagnostic } from "../../../../features/validation-reporting/api.js";
 import { semanticVersionBumpBetween } from "../../../../semantic-version.js";
 import type { ChangeFingerprint } from "../ports/change-fingerprint.js";
@@ -9,24 +10,24 @@ import type {
   PublicApiItem,
   PublicApiPackagePolicy,
   PublicApiSnapshot,
-  ReleaseBump
+  ReleaseBump,
 } from "../model/public-api.js";
 import {
   approvedBreakingChangeReference,
   compareCanonicalReferences,
   publicApiDeclarationEntryPoint,
-  publicApiSnapshotEntrypoints
+  publicApiSnapshotEntrypoints,
 } from "../model/public-api.js";
 import {
   PUBLIC_API_COMPATIBILITY_RULES,
-  type PublicApiCompatibilityRuleMetadata
+  type PublicApiCompatibilityRuleMetadata,
 } from "../rules.js";
 import { hasEquivalentTrailingDefaultTypeArguments } from "./default-type-argument-equivalence.js";
 
 const BUMP_RANK: Readonly<Record<ReleaseBump, number>> = {
   patch: 0,
   minor: 1,
-  major: 2
+  major: 2,
 };
 
 function diagnostic(input: {
@@ -45,8 +46,14 @@ function diagnostic(input: {
     relatedLocations: [],
     evidence: input.evidence ?? [],
     remediation: input.rule.remediation,
-    requiresArchitectureReview: input.rule.requiresArchitectureReview
+    requiresArchitectureReview: input.rule.requiresArchitectureReview,
   };
+}
+
+interface PublicApiComparisonContext {
+  readonly stableTypeBindings: ReadonlySet<string>;
+  readonly signatures?: PublicApiSignatureEquivalence;
+  readonly extractorVersions: { readonly released: string; readonly current: string };
 }
 
 function itemChanged(
@@ -54,7 +61,7 @@ function itemChanged(
   current: PublicApiItem,
   releasedItems: readonly PublicApiItem[],
   currentItems: readonly PublicApiItem[],
-  stableTypeBindings: ReadonlySet<string>
+  comparison: PublicApiComparisonContext,
 ): boolean {
   return (
     released.kind !== current.kind ||
@@ -66,15 +73,16 @@ function itemChanged(
         currentItem: current,
         releasedItems,
         currentItems,
-        stableTypeBindings
-      }))
+        stableTypeBindings: comparison.stableTypeBindings,
+      }) &&
+      comparison.signatures?.equivalent(released, current, comparison.extractorVersions) !== true)
   );
 }
 
 function addedItemIsBreaking(
   item: PublicApiItem,
   released: ReadonlyMap<string, PublicApiItem>,
-  current: ReadonlyMap<string, PublicApiItem>
+  current: ReadonlyMap<string, PublicApiItem>,
 ): boolean {
   if (item.parentKind === "EntryPoint") {
     return false;
@@ -109,14 +117,10 @@ interface EntrypointItemChange {
 function classifyEntrypointItems(
   releasedItems: readonly PublicApiItem[],
   currentItems: readonly PublicApiItem[],
-  stableTypeBindings: ReadonlySet<string>
+  comparison: PublicApiComparisonContext,
 ): EntrypointItemChange {
-  const released = new Map(
-    releasedItems.map((item) => [item.canonicalReference, item])
-  );
-  const current = new Map(
-    currentItems.map((item) => [item.canonicalReference, item])
-  );
+  const released = new Map(releasedItems.map((item) => [item.canonicalReference, item]));
+  const current = new Map(currentItems.map((item) => [item.canonicalReference, item]));
   const removed = [...released.keys()]
     .filter((key) => !current.has(key))
     .toSorted(compareCanonicalReferences);
@@ -125,13 +129,7 @@ function classifyEntrypointItems(
       const currentItem = current.get(key);
       return (
         currentItem !== undefined &&
-        itemChanged(
-          item,
-          currentItem,
-          releasedItems,
-          currentItems,
-          stableTypeBindings
-        )
+        itemChanged(item, currentItem, releasedItems, currentItems, comparison)
       );
     })
     .map(([key]) => key)
@@ -139,7 +137,7 @@ function classifyEntrypointItems(
   const added = [...current.values()]
     .filter((item) => !released.has(item.canonicalReference))
     .toSorted((left, right) =>
-      compareCanonicalReferences(left.canonicalReference, right.canonicalReference)
+      compareCanonicalReferences(left.canonicalReference, right.canonicalReference),
     );
   return Object.freeze({
     added,
@@ -147,25 +145,23 @@ function classifyEntrypointItems(
     changedEvidence: changed.map((canonicalReference) =>
       Object.freeze({
         before: released.get(canonicalReference),
-        after: current.get(canonicalReference)
-      })
+        after: current.get(canonicalReference),
+      }),
     ),
     breakingAdded: added
       .filter((item) => addedItemIsBreaking(item, released, current))
       .map((item) => item.canonicalReference),
-    removed
+    removed,
   });
 }
 
 function entrypointIndex(
-  snapshot: PublicApiSnapshot
+  snapshot: PublicApiSnapshot,
 ): ReadonlyMap<string, PublicApiEntrypointSnapshot> {
   const output = new Map<string, PublicApiEntrypointSnapshot>();
   for (const entrypoint of publicApiSnapshotEntrypoints(snapshot)) {
     if (output.has(entrypoint.exportPath)) {
-      throw new Error(
-        `Public API snapshot has duplicate export path: ${entrypoint.exportPath}.`
-      );
+      throw new Error(`Public API snapshot has duplicate export path: ${entrypoint.exportPath}.`);
     }
     output.set(entrypoint.exportPath, entrypoint);
   }
@@ -174,33 +170,33 @@ function entrypointIndex(
 
 function entrypointItemReference(
   exportPath: string,
-  canonicalReference: string
+  canonicalReference: string,
 ): PublicApiEntrypointItemReference {
   return Object.freeze({ exportPath, canonicalReference });
 }
 
 function releasedItemsForReferences(
   entrypoint: PublicApiEntrypointSnapshot | undefined,
-  references: readonly string[]
+  references: readonly string[],
 ): readonly PublicApiItem[] {
   return Object.freeze(
     references.map((canonicalReference) => {
       const item = entrypoint?.items.find(
-        (candidate) => candidate.canonicalReference === canonicalReference
+        (candidate) => candidate.canonicalReference === canonicalReference,
       );
       if (item === undefined) {
         throw new Error(
-          `Released public API item is missing from its entrypoint: ${canonicalReference}.`
+          `Released public API item is missing from its entrypoint: ${canonicalReference}.`,
         );
       }
       return item;
-    })
+    }),
   );
 }
 
 function compareEntrypointReferences(
   left: PublicApiEntrypointItemReference,
-  right: PublicApiEntrypointItemReference
+  right: PublicApiEntrypointItemReference,
 ): number {
   const pathOrder = compareCanonicalReferences(left.exportPath, right.exportPath);
   return pathOrder === 0
@@ -230,7 +226,7 @@ function collectEntrypointChanges(
   released: ReadonlyMap<string, PublicApiEntrypointSnapshot>,
   current: ReadonlyMap<string, PublicApiEntrypointSnapshot>,
   exportPaths: readonly string[],
-  stableTypeBindings: ReadonlySet<string>
+  context: PublicApiComparisonContext,
 ): EntrypointChanges {
   const added: PublicApiEntrypointItemReference[] = [];
   const changed: PublicApiEntrypointItemReference[] = [];
@@ -243,19 +239,15 @@ function collectEntrypointChanges(
     const comparison = classifyEntrypointItems(
       releasedEntrypoint?.items ?? [],
       currentEntrypoint?.items ?? [],
-      stableTypeBindings
+      context,
     );
     added.push(
       ...comparison.added.map((item) =>
-        entrypointItemReference(exportPath, item.canonicalReference)
-      )
+        entrypointItemReference(exportPath, item.canonicalReference),
+      ),
     );
-    changed.push(
-      ...comparison.changed.map((item) => entrypointItemReference(exportPath, item))
-    );
-    removed.push(
-      ...comparison.removed.map((item) => entrypointItemReference(exportPath, item))
-    );
+    changed.push(...comparison.changed.map((item) => entrypointItemReference(exportPath, item)));
+    removed.push(...comparison.removed.map((item) => entrypointItemReference(exportPath, item)));
     hasBreakingAddedItem ||= comparison.breakingAdded.length > 0;
     if (
       comparison.added.length > 0 ||
@@ -269,8 +261,8 @@ function collectEntrypointChanges(
           exportPath,
           added: comparison.added,
           changed: comparison.changedEvidence,
-          removed: releasedItemsForReferences(releasedEntrypoint, comparison.removed)
-        })
+          removed: releasedItemsForReferences(releasedEntrypoint, comparison.removed),
+        }),
       );
     }
   }
@@ -279,7 +271,7 @@ function collectEntrypointChanges(
     changed: Object.freeze(changed),
     entrypointEvidence: Object.freeze(entrypointEvidence),
     hasBreakingAddedItem,
-    removed: Object.freeze(removed)
+    removed: Object.freeze(removed),
   });
 }
 
@@ -287,25 +279,16 @@ function classifyEntrypointPublicApiChange(
   releasedSnapshot: PublicApiSnapshot,
   currentSnapshot: PublicApiSnapshot,
   fingerprint: ChangeFingerprint,
-  stableTypeBindings: ReadonlySet<string>
+  comparison: PublicApiComparisonContext,
 ): PublicApiChangeSet {
   const released = entrypointIndex(releasedSnapshot);
   const current = entrypointIndex(currentSnapshot);
   const exportPaths = [...new Set([...released.keys(), ...current.keys()])].toSorted(
-    compareCanonicalReferences
+    compareCanonicalReferences,
   );
-  const addedEntrypoints = exportPaths.filter(
-    (exportPath) => !released.has(exportPath)
-  );
-  const removedEntrypoints = exportPaths.filter(
-    (exportPath) => !current.has(exportPath)
-  );
-  const changes = collectEntrypointChanges(
-    released,
-    current,
-    exportPaths,
-    stableTypeBindings
-  );
+  const addedEntrypoints = exportPaths.filter((exportPath) => !released.has(exportPath));
+  const removedEntrypoints = exportPaths.filter((exportPath) => !current.has(exportPath));
+  const changes = collectEntrypointChanges(released, current, exportPaths, comparison);
   const breaking =
     removedEntrypoints.length > 0 ||
     changes.removed.length > 0 ||
@@ -319,7 +302,7 @@ function classifyEntrypointPublicApiChange(
   const changeEvidence = {
     addedEntrypoints,
     removedEntrypoints,
-    entrypoints: changes.entrypointEvidence
+    entrypoints: changes.entrypointEvidence,
   };
   return Object.freeze({
     schemaVersion: 1,
@@ -331,7 +314,7 @@ function classifyEntrypointPublicApiChange(
     removedEntrypoints: Object.freeze(removedEntrypoints),
     added: Object.freeze(changes.added.toSorted(compareEntrypointReferences)),
     changed: Object.freeze(changes.changed.toSorted(compareEntrypointReferences)),
-    removed: Object.freeze(changes.removed.toSorted(compareEntrypointReferences))
+    removed: Object.freeze(changes.removed.toSorted(compareEntrypointReferences)),
   });
 }
 
@@ -339,14 +322,17 @@ export function classifyPublicApiChange(
   releasedSnapshot: PublicApiSnapshot,
   currentSnapshot: PublicApiSnapshot,
   fingerprint: ChangeFingerprint,
-  stableTypeBindings: ReadonlySet<string> = new Set()
+  stableTypeBindings: ReadonlySet<string> = new Set(),
+  signatures?: PublicApiSignatureEquivalence,
 ): PublicApiChangeSet {
-  return classifyEntrypointPublicApiChange(
-    releasedSnapshot,
-    currentSnapshot,
-    fingerprint,
-    stableTypeBindings
-  );
+  return classifyEntrypointPublicApiChange(releasedSnapshot, currentSnapshot, fingerprint, {
+    stableTypeBindings,
+    ...(signatures === undefined ? {} : { signatures }),
+    extractorVersions: {
+      released: releasedSnapshot.extractorVersion,
+      current: currentSnapshot.extractorVersion,
+    },
+  });
 }
 
 function requiredBump(change: PublicApiChangeSet, packageVersion: string): ReleaseBump {
@@ -372,15 +358,15 @@ export function evaluatePublicApiCompatibility(input: {
         rule: PUBLIC_API_COMPATIBILITY_RULES.baselineToolMismatch,
         subject,
         message: `Released baseline uses API Extractor ${input.released.extractorVersion}; current adapter uses ${input.current.extractorVersion}.`,
-        path: input.policy.releasedBaselinePath
-      })
+        path: input.policy.releasedBaselinePath,
+      }),
     );
     return diagnostics;
   }
   if (
     semanticVersionBumpBetween(
       input.releaseEvidence.packageVersion,
-      input.released.packageVersion
+      input.released.packageVersion,
     ) !== undefined
   ) {
     diagnostics.push(
@@ -388,8 +374,8 @@ export function evaluatePublicApiCompatibility(input: {
         rule: PUBLIC_API_COMPATIBILITY_RULES.baselineVersionMismatch,
         subject,
         message: `Package version ${input.releaseEvidence.packageVersion} is older than released baseline ${input.released.packageVersion}.`,
-        path: input.policy.manifestPath
-      })
+        path: input.policy.manifestPath,
+      }),
     );
     return diagnostics;
   }
@@ -402,8 +388,8 @@ export function evaluatePublicApiCompatibility(input: {
         rule: PUBLIC_API_COMPATIBILITY_RULES.baselineVersionMismatch,
         subject,
         message: `Released baseline version ${input.released.packageVersion} does not match package version ${input.releaseEvidence.packageVersion}.`,
-        path: input.policy.releasedBaselinePath
-      })
+        path: input.policy.releasedBaselinePath,
+      }),
     );
     return diagnostics;
   }
@@ -417,8 +403,8 @@ export function evaluatePublicApiCompatibility(input: {
         rule: PUBLIC_API_COMPATIBILITY_RULES.missingChangeset,
         subject,
         message: `Public API change has no Changeset for ${subject}.`,
-        path: publicApiDeclarationEntryPoint(input.policy)
-      })
+        path: publicApiDeclarationEntryPoint(input.policy),
+      }),
     );
   } else if (BUMP_RANK[input.releaseEvidence.declaredBump] < BUMP_RANK[required]) {
     diagnostics.push(
@@ -426,13 +412,13 @@ export function evaluatePublicApiCompatibility(input: {
         rule: PUBLIC_API_COMPATIBILITY_RULES.insufficientChangeset,
         subject,
         message: `Public API change requires ${required}; Changeset declares ${input.releaseEvidence.declaredBump}.`,
-        path: publicApiDeclarationEntryPoint(input.policy)
-      })
+        path: publicApiDeclarationEntryPoint(input.policy),
+      }),
     );
   }
   if (input.change.classification === "breaking") {
     const approval = input.policy.approvedBreakingChanges.find(
-      (candidate) => candidate.fingerprint === input.change.fingerprint
+      (candidate) => candidate.fingerprint === input.change.fingerprint,
     );
     if (approval === undefined) {
       diagnostics.push(
@@ -441,10 +427,8 @@ export function evaluatePublicApiCompatibility(input: {
           subject,
           message: "Breaking public API change does not have an approved fingerprint.",
           path: publicApiDeclarationEntryPoint(input.policy),
-          evidence: [
-            { kind: "change-fingerprint", value: input.change.fingerprint ?? "missing" }
-          ]
-        })
+          evidence: [{ kind: "change-fingerprint", value: input.change.fingerprint ?? "missing" }],
+        }),
       );
     } else if (input.acceptedDecision !== true) {
       diagnostics.push(
@@ -453,8 +437,8 @@ export function evaluatePublicApiCompatibility(input: {
           subject,
           message: `Breaking change references a decision that is not accepted: ${approvedBreakingChangeReference(approval)}.`,
           path: publicApiDeclarationEntryPoint(input.policy),
-          evidence: [{ kind: "change-fingerprint", value: approval.fingerprint }]
-        })
+          evidence: [{ kind: "change-fingerprint", value: approval.fingerprint }],
+        }),
       );
     }
   }

@@ -1,7 +1,10 @@
 import { lstat, readdir, realpath } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
-import { portableRepositoryPathIdentity, type PortablePathIdentity } from "@agent-teams/repository-mutation/paths";
+import {
+  portableRepositoryPathIdentity,
+  type PortablePathIdentity,
+} from "@agent-teams/repository-mutation/paths";
 
 import { isDocumentRepositoryPath } from "../../application/policies/document-repository-path.js";
 
@@ -49,7 +52,7 @@ export interface NodeRepositoryPathAuthority {
 const nodeOperations: NodePathAuthorityOperations = {
   lstat: (path) => lstat(path, { bigint: true }),
   readdir,
-  realpath
+  realpath,
 };
 
 // Threat contract: portable Node does not expose mkdirat/linkat/openat2
@@ -67,7 +70,7 @@ function identity(metadata: NodePathAuthorityStat): PortablePathIdentity {
   const value = {
     birthtimeNs: metadata.birthtimeNs,
     dev: metadata.dev,
-    ino: metadata.ino
+    ino: metadata.ino,
   };
   if (value.birthtimeNs === 0n || value.dev === 0n || value.ino === 0n) {
     throw new Error("Repository path authority has zero physical identity.");
@@ -77,23 +80,20 @@ function identity(metadata: NodePathAuthorityStat): PortablePathIdentity {
 
 export function sameNodePathIdentity(
   left: PortablePathIdentity,
-  right: PortablePathIdentity
+  right: PortablePathIdentity,
 ): boolean {
-  return left.birthtimeNs === right.birthtimeNs &&
-    left.dev === right.dev &&
-    left.ino === right.ino;
+  return left.birthtimeNs === right.birthtimeNs && left.dev === right.dev && left.ino === right.ino;
 }
 
 function contained(root: string, candidate: string): boolean {
   const relation = relative(root, candidate);
-  return relation === "" ||
-    (!isAbsolute(relation) && relation !== ".." && !relation.startsWith(`..${sep}`));
+  return (
+    relation === "" ||
+    (!isAbsolute(relation) && relation !== ".." && !relation.startsWith(`..${sep}`))
+  );
 }
 
-function assertRealDirectory(
-  metadata: NodePathAuthorityStat,
-  description: string
-): void {
+function assertRealDirectory(metadata: NodePathAuthorityStat, description: string): void {
   if (metadata.isSymbolicLink() || !metadata.isDirectory()) {
     throw new Error(`${description} must be a real directory.`);
   }
@@ -102,19 +102,20 @@ function assertRealDirectory(
 async function assertNoPortableAlias(
   parent: string,
   segment: string,
-  operations: NodePathAuthorityOperations
+  operations: NodePathAuthorityOperations,
 ): Promise<void> {
   const expected = portableRepositoryPathIdentity(segment);
   const entries = await operations.readdir(parent);
-  if (entries.some((entry) =>
-    entry !== segment && portableRepositoryPathIdentity(entry) === expected)) {
+  if (
+    entries.some((entry) => entry !== segment && portableRepositoryPathIdentity(entry) === expected)
+  ) {
     throw new Error(`Repository ancestry has a portable name collision: ${segment}.`);
   }
 }
 
 export async function captureNodeRepositoryRootAuthority(
   consumerRoot: string,
-  operations: NodePathAuthorityOperations = nodeOperations
+  operations: NodePathAuthorityOperations = nodeOperations,
 ): Promise<NodeRepositoryRootAuthority> {
   const lexicalRoot = resolve(consumerRoot);
   const before = await operations.lstat(lexicalRoot);
@@ -123,7 +124,7 @@ export async function captureNodeRepositoryRootAuthority(
   const canonicalRoot = await operations.realpath(lexicalRoot);
   const [lexicalAfter, canonicalAfter] = await Promise.all([
     operations.lstat(lexicalRoot),
-    operations.lstat(canonicalRoot)
+    operations.lstat(canonicalRoot),
   ]);
   assertRealDirectory(lexicalAfter, "Repository root");
   assertRealDirectory(canonicalAfter, "Canonical repository root");
@@ -138,7 +139,7 @@ export async function captureNodeRepositoryRootAuthority(
   return Object.freeze({
     canonicalRoot,
     identity: canonicalAfterIdentity,
-    lexicalRoot
+    lexicalRoot,
   });
 }
 
@@ -147,7 +148,7 @@ async function captureChildDirectory(
   parent: string,
   repositoryPath: string,
   segment: string,
-  operations: NodePathAuthorityOperations
+  operations: NodePathAuthorityOperations,
 ): Promise<{
   readonly absolutePath: string;
   readonly identity: PortablePathIdentity;
@@ -159,8 +160,7 @@ async function captureChildDirectory(
   assertRealDirectory(before, `Repository ancestry ${repositoryPath}`);
   const beforeIdentity = identity(before);
   const canonical = await operations.realpath(absolutePath);
-  if (resolve(canonical) !== resolve(absolutePath) ||
-    !contained(root.canonicalRoot, canonical)) {
+  if (resolve(canonical) !== resolve(absolutePath) || !contained(root.canonicalRoot, canonical)) {
     throw new Error("Repository ancestry is redirected or escapes the repository.");
   }
   const after = await operations.lstat(absolutePath);
@@ -172,7 +172,7 @@ async function captureChildDirectory(
   return Object.freeze({
     absolutePath: canonical,
     identity: afterIdentity,
-    repositoryPath
+    repositoryPath,
   });
 }
 
@@ -182,23 +182,21 @@ export async function captureNodeRepositoryDirectoryAuthority(request: {
   readonly repositoryPath: string;
 }): Promise<NodeRepositoryDirectoryAuthority> {
   const operations = request.operations ?? nodeOperations;
-  if (request.repositoryPath !== "." &&
-    !isDocumentRepositoryPath(request.repositoryPath)) {
+  if (request.repositoryPath !== "." && !isDocumentRepositoryPath(request.repositoryPath)) {
     throw new Error("Repository directory is not a portable repository path.");
   }
-  const root = await captureNodeRepositoryRootAuthority(
-    request.consumerRoot,
-    operations
-  );
+  const root = await captureNodeRepositoryRootAuthority(request.consumerRoot, operations);
   const ancestry: Array<{
     readonly absolutePath: string;
     readonly identity: PortablePathIdentity;
     readonly repositoryPath: string;
-  }> = [{
-    absolutePath: root.canonicalRoot,
-    identity: root.identity,
-    repositoryPath: "."
-  }];
+  }> = [
+    {
+      absolutePath: root.canonicalRoot,
+      identity: root.identity,
+      repositoryPath: ".",
+    },
+  ];
   let parent = root.canonicalRoot;
   const traversed: string[] = [];
   if (request.repositoryPath !== ".") {
@@ -209,16 +207,13 @@ export async function captureNodeRepositoryDirectoryAuthority(request: {
         parent,
         traversed.join("/"),
         segment,
-        operations
+        operations,
       );
       ancestry.push(captured);
       parent = captured.absolutePath;
     }
   }
-  const rootAfter = await captureNodeRepositoryRootAuthority(
-    request.consumerRoot,
-    operations
-  );
+  const rootAfter = await captureNodeRepositoryRootAuthority(request.consumerRoot, operations);
   if (!sameRootAuthority(root, rootAfter)) {
     throw new Error("Repository root changed while ancestry was captured.");
   }
@@ -228,7 +223,7 @@ export async function captureNodeRepositoryDirectoryAuthority(request: {
     directory: leaf.absolutePath,
     directoryIdentity: leaf.identity,
     repositoryPath: request.repositoryPath,
-    root
+    root,
   });
 }
 
@@ -242,63 +237,66 @@ export async function captureNodeRepositoryPathAuthority(request: {
   }
   const segments = request.repositoryPath.split("/");
   const basename = segments.at(-1)!;
-  const parentRepositoryPath = segments.length === 1
-    ? "."
-    : segments.slice(0, -1).join("/");
+  const parentRepositoryPath = segments.length === 1 ? "." : segments.slice(0, -1).join("/");
   const directory = await captureNodeRepositoryDirectoryAuthority({
     consumerRoot: request.consumerRoot,
     ...(request.operations === undefined ? {} : { operations: request.operations }),
-    repositoryPath: parentRepositoryPath
+    repositoryPath: parentRepositoryPath,
   });
-  await assertNoPortableAlias(
-    directory.directory,
-    basename,
-    request.operations ?? nodeOperations
-  );
+  await assertNoPortableAlias(directory.directory, basename, request.operations ?? nodeOperations);
   return Object.freeze({
     ancestry: directory.ancestry,
     destinationPath: join(directory.directory, basename),
     parent: directory.directory,
     parentIdentity: directory.directoryIdentity,
     repositoryPath: request.repositoryPath,
-    root: directory.root
+    root: directory.root,
   });
 }
 
 function sameRootAuthority(
   left: NodeRepositoryRootAuthority,
-  right: NodeRepositoryRootAuthority
+  right: NodeRepositoryRootAuthority,
 ): boolean {
-  return left.canonicalRoot === right.canonicalRoot &&
+  return (
+    left.canonicalRoot === right.canonicalRoot &&
     left.lexicalRoot === right.lexicalRoot &&
-    sameNodePathIdentity(left.identity, right.identity);
+    sameNodePathIdentity(left.identity, right.identity)
+  );
 }
 
 export function sameNodePathAncestry(
   left: NodeRepositoryDirectoryAuthority["ancestry"],
-  right: NodeRepositoryDirectoryAuthority["ancestry"]
+  right: NodeRepositoryDirectoryAuthority["ancestry"],
 ): boolean {
-  return left.length === right.length && left.every((entry, index) => {
-    const other = right[index];
-    return other !== undefined &&
-      entry.absolutePath === other.absolutePath &&
-      entry.repositoryPath === other.repositoryPath &&
-      sameNodePathIdentity(entry.identity, other.identity);
-  });
+  return (
+    left.length === right.length &&
+    left.every((entry, index) => {
+      const other = right[index];
+      return (
+        other !== undefined &&
+        entry.absolutePath === other.absolutePath &&
+        entry.repositoryPath === other.repositoryPath &&
+        sameNodePathIdentity(entry.identity, other.identity)
+      );
+    })
+  );
 }
 
 export async function recaptureNodeRepositoryPathAuthority(
   authority: NodeRepositoryPathAuthority,
-  operations: NodePathAuthorityOperations = nodeOperations
+  operations: NodePathAuthorityOperations = nodeOperations,
 ): Promise<NodeRepositoryPathAuthority> {
   const recaptured = await captureNodeRepositoryPathAuthority({
     consumerRoot: authority.root.lexicalRoot,
     operations,
-    repositoryPath: authority.repositoryPath
+    repositoryPath: authority.repositoryPath,
   });
-  if (!sameRootAuthority(authority.root, recaptured.root) ||
+  if (
+    !sameRootAuthority(authority.root, recaptured.root) ||
     !sameNodePathAncestry(authority.ancestry, recaptured.ancestry) ||
-    authority.destinationPath !== recaptured.destinationPath) {
+    authority.destinationPath !== recaptured.destinationPath
+  ) {
     throw new Error("Repository path authority changed during the operation.");
   }
   return recaptured;

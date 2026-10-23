@@ -21,12 +21,19 @@ async function withFixture(run) {
 }
 
 function inspector(platform) {
-  return new NodeDocumentEnvironmentInspector({
-    async buildIdentity() { return digest; },
-    async version() { return "0.16.0"; },
-  }, {
-    platform,
-  });
+  return new NodeDocumentEnvironmentInspector(
+    {
+      async buildIdentity() {
+        return digest;
+      },
+      async version() {
+        return "0.16.0";
+      },
+    },
+    {
+      platform,
+    },
+  );
 }
 
 test("Node environment inspection is non-mutating and reports POSIX platform support", async () => {
@@ -52,16 +59,11 @@ test("public environment inspection v1 exposes the installed immutable snapshot"
       consumerRoot: root,
     });
     assert.equal(typeof result.installedFoundationVersion, "string");
-    assert.match(
-      result.installedFoundationBuildIdentity,
-      /^sha256:[0-9a-f]{64}$/u,
-    );
+    assert.match(result.installedFoundationBuildIdentity, /^sha256:[0-9a-f]{64}$/u);
     assert.deepEqual(result.filesystem, {
       basis: "platform-contract",
       strictDirectoryDurability:
-        process.platform === "win32"
-          ? "platform-unsupported"
-          : "platform-supported",
+        process.platform === "win32" ? "platform-unsupported" : "platform-supported",
     });
     assert.equal(Object.isFrozen(result), true);
     assert.deepEqual(await readdir(root), before);
@@ -134,10 +136,7 @@ test("rejects a directly symlinked consumer root without creating state", async 
     const link = `${root}-link`;
     try {
       await symlink(root, link, "dir");
-      await assert.rejects(
-        inspector("linux").inspect(link),
-        /canonical real directory/u,
-      );
+      await assert.rejects(inspector("linux").inspect(link), /canonical real directory/u);
       assert.deepEqual(await readdir(root), []);
     } finally {
       await rm(link, { force: true });
@@ -149,7 +148,9 @@ test("preserves installed environment evidence when transaction inspection fails
   await withFixture(async (root) => {
     const execution = await new RunDocumentDoctor({
       environment: inspector("linux"),
-      async inspect() { throw new Error("inspection failed"); },
+      async inspect() {
+        throw new Error("inspection failed");
+      },
     }).execute({ consumerRoot: root });
     assert.equal(execution.envelope.outcome, "execution-failure");
     assert.equal(execution.envelope.result.installedFoundationVersion, "0.16.0");

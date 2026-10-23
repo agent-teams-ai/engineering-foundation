@@ -1,3 +1,4 @@
+export { assertOneDayGranularTokenWindow } from "./npm-bootstrap-token-window.ts";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { basename, resolve as resolvePath } from "node:path";
@@ -39,35 +40,13 @@ export {
   assertProvenanceBinding,
 } from "./npm-package-bootstrap-release-policy.mts";
 
-function parseTimestamp(value, label) {
-  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/u.test(value)) {
-    fail(`${label} must be an exact UTC timestamp with whole seconds.`);
-  }
-  const timestamp = Date.parse(value);
-  if (!Number.isFinite(timestamp) || new Date(timestamp).toISOString() !== value.replace("Z", ".000Z")) {
-    fail(`${label} is not a canonical UTC timestamp.`);
-  }
-  return timestamp;
-}
-
-export function assertOneDayGranularTokenWindow({ createdAt, expiresAt, now }) {
-  const created = parseTimestamp(createdAt, "token created_at");
-  const expires = parseTimestamp(expiresAt, "token expires_at");
-  const current = parseTimestamp(now, "current time");
-  if (created > current || expires <= current) {
-    fail("the granular token must already be active and not expired.");
-  }
-  if (expires - created <= 0 || expires - created > 24 * 60 * 60 * 1_000) {
-    fail("the granular token lifetime must be no more than one day.");
-  }
-  if (expires - current < 15 * 60 * 1_000) {
-    fail("the granular token must have at least fifteen minutes remaining.");
-  }
-}
-
 function allowedPackedPath(profile, path) {
-  return profile.contentPolicy.exact.includes(path) ||
-    profile.contentPolicy.prefixes.some((prefix) => path.startsWith(prefix) && path.length > prefix.length);
+  return (
+    profile.contentPolicy.exact.includes(path) ||
+    profile.contentPolicy.prefixes.some(
+      (prefix) => path.startsWith(prefix) && path.length > prefix.length,
+    )
+  );
 }
 
 function packReportEntry(packReport) {
@@ -101,7 +80,10 @@ function packReportFiles({ archivePath, packReport, profile }) {
     !Array.isArray(files) ||
     files.length === 0 ||
     new Set(files).size !== files.length ||
-    files.some((path) => typeof path !== "string" || !PORTABLE_PATH.test(path) || !allowedPackedPath(profile, path))
+    files.some(
+      (path) =>
+        typeof path !== "string" || !PORTABLE_PATH.test(path) || !allowedPackedPath(profile, path),
+    )
   ) {
     fail("tarball contents escape the closed package allowlist.");
   }
@@ -115,7 +97,13 @@ function assertRequiredPackFiles(profile, files, tarEntries) {
     }
   }
   exactStringArray(tarEntries, "tarball entries");
-  if (tarEntries.toSorted().join("\0") !== files.map((path) => `package/${path}`).toSorted().join("\0")) {
+  if (
+    tarEntries.toSorted().join("\0") !==
+    files
+      .map((path) => `package/${path}`)
+      .toSorted()
+      .join("\0")
+  ) {
     fail("tarball entries disagree with the pack report.");
   }
 }
@@ -136,11 +124,14 @@ function assertPackedManifest(profile, packedManifest) {
     profile.dependencies.map(({ name, version }) => [name, version]),
   );
   const packedDependencies = packedManifest.dependencies ?? {};
-  const exactDependencies = isRecord(packedDependencies) &&
+  const exactDependencies =
+    isRecord(packedDependencies) &&
     JSON.stringify(Object.fromEntries(Object.entries(packedDependencies).toSorted())) ===
       JSON.stringify(Object.fromEntries(Object.entries(expectedDependencies).toSorted()));
   const extraRuntimeSections = [
-    "peerDependencies", "bundleDependencies", "bundledDependencies",
+    "peerDependencies",
+    "bundleDependencies",
+    "bundledDependencies",
   ].some((key) => packedManifest[key] !== undefined);
   if (!exactDependencies || extraRuntimeSections) {
     fail("packed manifest runtime dependencies differ from the exact reviewed dependency map.");
@@ -164,10 +155,7 @@ export function validatePackEvidence({
   assertRequiredPackFiles(profile, files, tarEntries);
   try {
     assertArchiveSafety({
-      allowedArtifactPaths: [
-        ...profile.contentPolicy.exact,
-        ...profile.contentPolicy.prefixes,
-      ],
+      allowedArtifactPaths: [...profile.contentPolicy.exact, ...profile.contentPolicy.prefixes],
       archiveBytes,
       listing: `${tarEntries.join("\n")}\n`,
       packageName: profile.name,
@@ -185,7 +173,7 @@ export function validatePackEvidence({
   if (integrity !== profile.approval.archiveIntegrity) {
     fail(
       `packed archive differs from reviewed bootstrap integrity (expected ${profile.approval.archiveIntegrity}; ` +
-      `observed ${integrity}).`,
+        `observed ${integrity}).`,
     );
   }
   return Object.freeze({ archivePath, integrity });
@@ -204,8 +192,12 @@ function assertBootstrapTags(profile, tags) {
   if (!isRecord(tags)) {
     fail("registry dist-tags must be an object.");
   }
-  if (Object.entries(tags).some(([tag, version]) =>
-    !profile.tags.allowed.includes(tag) || version !== profile.bootstrapVersion)) {
+  if (
+    Object.entries(tags).some(
+      ([tag, version]) =>
+        !profile.tags.allowed.includes(tag) || version !== profile.bootstrapVersion,
+    )
+  ) {
     fail("registry contains an unexpected bootstrap dist-tag.");
   }
   if (profile.tags.required.some((tag) => tags[tag] !== profile.bootstrapVersion)) {
@@ -301,7 +293,10 @@ export function assertPublishedBootstrapArtifact({
     fail("registry does not contain exactly the bootstrap version.");
   }
   assertBootstrapTags(profile, packageMetadata["dist-tags"]);
-  if (localIntegrity !== profile.approval.archiveIntegrity || publishedIntegrity !== localIntegrity) {
+  if (
+    localIntegrity !== profile.approval.archiveIntegrity ||
+    publishedIntegrity !== localIntegrity
+  ) {
     fail("published bootstrap integrity differs from the reviewed tarball.");
   }
   assertProvenanceBinding({ auditEvidence, expectedCommit, profile });
@@ -328,7 +323,9 @@ export function assertReusableBootstrap({
 export function assertBootstrapReleaseApprovals(catalog = NPM_PACKAGE_BOOTSTRAP) {
   for (const profile of catalog.packages) {
     if (profile.state === "candidate" || profile.approval === null) {
-      fail(`${profile.name} cannot advance beyond ${profile.bootstrapVersion} before reviewed bootstrap approval.`);
+      fail(
+        `${profile.name} cannot advance beyond ${profile.bootstrapVersion} before reviewed bootstrap approval.`,
+      );
     }
   }
 }
@@ -344,7 +341,10 @@ export function assertBootstrapQuarantineCandidate({
     fail("quarantine target is not the isolated bootstrap version.");
   }
   assertBootstrapTags(profile, packageMetadata["dist-tags"]);
-  if (localIntegrity !== profile.approval.archiveIntegrity || publishedIntegrity !== localIntegrity) {
+  if (
+    localIntegrity !== profile.approval.archiveIntegrity ||
+    publishedIntegrity !== localIntegrity
+  ) {
     fail("quarantine target differs from the exact reviewed tarball.");
   }
 }
@@ -369,7 +369,10 @@ export function assertPublishedBootstrapBaseline({
   if (packageMetadata["dist-tags"]?.bootstrap !== profile.bootstrapVersion) {
     fail(`${profile.name} bootstrap tag does not resolve to its baseline.`);
   }
-  if (publishedIntegrity !== profile.approval.archiveIntegrity || deprecatedMessage !== profile.deprecationMessage) {
+  if (
+    publishedIntegrity !== profile.approval.archiveIntegrity ||
+    deprecatedMessage !== profile.deprecationMessage
+  ) {
     fail(`${profile.name} baseline does not match reviewed immutable evidence.`);
   }
   assertProvenanceBinding({ auditEvidence, profile });
@@ -439,7 +442,9 @@ export async function verifyLiveBootstrapBaselines({
     const auditEvidence = await auditPackage(profile, temporaryRoot);
     const evidence = await livePackageEvidence(profile, fetchImplementation, observation);
     if (evidence === null) {
-      fail(`${profile.name}@${profile.bootstrapVersion} baseline became absent during verification.`);
+      fail(
+        `${profile.name}@${profile.bootstrapVersion} baseline became absent during verification.`,
+      );
     }
     assertPublishedBootstrapBaseline({
       auditEvidence,
@@ -456,19 +461,26 @@ export async function verifyLiveBootstrapBaselines({
 export async function verifyReleaseBootstrapBaselines(options = {}) {
   const { releaseState, releaseVersions, ...verificationOptions } = options;
   if (releaseState !== undefined && releaseVersions !== undefined) {
-    fail("release baseline verification requires either generated state or a Changesets plan, not both.");
+    fail(
+      "release baseline verification requires either generated state or a Changesets plan, not both.",
+    );
   }
   if (releaseVersions !== undefined) {
     if (
-      typeof releaseVersions !== "object" || releaseVersions === null || Array.isArray(releaseVersions) ||
-      Object.values(releaseVersions).some((version) => typeof version !== "string" || version === "")
+      typeof releaseVersions !== "object" ||
+      releaseVersions === null ||
+      Array.isArray(releaseVersions) ||
+      Object.values(releaseVersions).some(
+        (version) => typeof version !== "string" || version === "",
+      )
     ) {
       fail("planned release versions must be a closed package-to-version map.");
     }
     const planned = Object.freeze({ ...releaseVersions });
     const catalog = verificationOptions.catalog ?? NPM_PACKAGE_BOOTSTRAP;
     const profiles = catalog.packages.filter((profile) => Object.hasOwn(planned, profile.name));
-    const readManifest = verificationOptions.readManifest ??
+    const readManifest =
+      verificationOptions.readManifest ??
       (async (path) => JSON.parse(await readFile(path, "utf8")));
     return verifyLiveBootstrapBaselines({
       ...verificationOptions,
@@ -483,8 +495,9 @@ export async function verifyReleaseBootstrapBaselines(options = {}) {
   if (releaseState === undefined) {
     return verifyLiveBootstrapBaselines({ ...verificationOptions, requireAllBaselines: true });
   }
-  const manifests = [...releaseState.packages.private, ...releaseState.packages.public]
-    .map((entry) => JSON.parse(entry.manifestBytes));
+  const manifests = [...releaseState.packages.private, ...releaseState.packages.public].map(
+    (entry) => JSON.parse(entry.manifestBytes),
+  );
   const verified = [];
   for (const profile of verificationOptions.catalog?.packages ?? NPM_PACKAGE_BOOTSTRAP.packages) {
     const manifest = manifests.find((entry) => entry.name === profile.name);

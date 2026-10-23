@@ -1,3 +1,1 @@
-export {
-  NodeDocumentPublisher
-} from "./node-document-publisher.js";
+export { NodeDocumentPublisher } from "./node-document-publisher.js";

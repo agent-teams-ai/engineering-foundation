@@ -1,17 +1,17 @@
 import {
   ProcessCancellationError,
   ProcessTimeoutError,
-  type QualityGateManagedProcessExecutor
+  type QualityGateManagedProcessExecutor,
 } from "../../application/ports/managed-process-executor.js";
 import {
   PackageScriptCancellationError,
-  PackageScriptTimeoutError
+  PackageScriptTimeoutError,
 } from "../../application/ports/package-script-executor.js";
 
 /** Feature-local translation of the Host's managed-process containment result. */
 export async function runPackageScriptProcess(
   executor: QualityGateManagedProcessExecutor,
-  request: Parameters<QualityGateManagedProcessExecutor["run"]>[0]
+  request: Parameters<QualityGateManagedProcessExecutor["run"]>[0],
 ) {
   try {
     const result = await executor.run(request);

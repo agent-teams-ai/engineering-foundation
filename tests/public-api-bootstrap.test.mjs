@@ -38,7 +38,10 @@ test("CLI creates and replays a deterministic baseline for a new unreleased pack
     const baseline = JSON.parse(initialBytes);
     assert.equal(baseline.packageName, "@fixture/public-api");
     assert.equal(baseline.packageVersion, "0.0.0");
-    assert.deepEqual(baseline.entrypoints.map(({ exportPath }) => exportPath), ["."]);
+    assert.deepEqual(
+      baseline.entrypoints.map(({ exportPath }) => exportPath),
+      ["."],
+    );
 
     const replay = promote(consumerRoot);
     assert.equal(replay.status, 0, replay.stdout);
@@ -59,10 +62,7 @@ test("CLI never bootstraps through a baseline symlink", async () => {
     const result = promote(consumerRoot);
 
     assert.equal(result.status, 2, result.stdout);
-    assert.equal(
-      JSON.parse(result.stdout).error.code,
-      "PUBLIC_API_EVIDENCE_SYMLINK_PROHIBITED",
-    );
+    assert.equal(JSON.parse(result.stdout).error.code, "PUBLIC_API_EVIDENCE_SYMLINK_PROHIBITED");
     assert.equal(await readFile(outsidePath, "utf8"), outsideBytes);
   });
 });

@@ -19,12 +19,32 @@ export interface ManagedQualificationEnvelope<Result = unknown> {
 let validatorPromise: Promise<ValidateFunction> | undefined;
 
 async function validator(): Promise<ValidateFunction> {
-  if (validatorPromise !== undefined) {return validatorPromise;}
+  if (validatorPromise !== undefined) {
+    return validatorPromise;
+  }
   validatorPromise = (async () => {
     const [envelopeSource, receiptSource, integrationSource] = await Promise.all([
-      readFile(new URL("../../../../schemas/docs-protocol-command-envelope/v2.schema.json", import.meta.url), "utf8"),
-      readFile(new URL("../../../../schemas/docs-protocol-qualification-receipt/v2.schema.json", import.meta.url), "utf8"),
-      readFile(new URL("../../../../schemas/docs-consumer-integration-profile/v2.schema.json", import.meta.url), "utf8")
+      readFile(
+        new URL(
+          "../../../../schemas/docs-protocol-command-envelope/v2.schema.json",
+          import.meta.url,
+        ),
+        "utf8",
+      ),
+      readFile(
+        new URL(
+          "../../../../schemas/docs-protocol-qualification-receipt/v2.schema.json",
+          import.meta.url,
+        ),
+        "utf8",
+      ),
+      readFile(
+        new URL(
+          "../../../../schemas/docs-consumer-integration-profile/v2.schema.json",
+          import.meta.url,
+        ),
+        "utf8",
+      ),
     ]);
     const ajv = new Ajv2020({ allErrors: true, strict: true });
     ajv.addSchema(JSON.parse(integrationSource) as object);
@@ -36,11 +56,15 @@ async function validator(): Promise<ValidateFunction> {
 
 export async function assertManagedQualificationEnvelopeSchema(value: unknown): Promise<void> {
   const validate = await validator();
-  if (validate(value)) {return;}
+  if (validate(value)) {
+    return;
+  }
   const problems = (validate.errors ?? [])
     .slice(0, 8)
     .map(({ instancePath, message }) => `${instancePath || "/"} ${message ?? "is invalid"}`)
     .join("; ")
     .slice(0, 1000);
-  throw new TypeError(`Managed qualification output does not match its adapter schema: ${problems}`);
+  throw new TypeError(
+    `Managed qualification output does not match its adapter schema: ${problems}`,
+  );
 }

@@ -1,6 +1,4 @@
-import type {
-  ConsumerIntegrationExecutionV1
-} from "../../../consumer-integration/application-api.js";
+import type { ConsumerIntegrationExecutionV1 } from "../../../consumer-integration/application-api.js";
 export type { ConsumerIntegrationDesiredStateV1 } from "../../../consumer-integration/application-api.js";
 
 import type { DocumentJsonValue } from "@agent-teams/docs-protocol/qualification";
@@ -17,7 +15,10 @@ export interface DocsProtocolQualificationScenarioV2 {
     readonly destination?: string;
     readonly related?: readonly string[];
     readonly blockedBy?: readonly string[];
-    readonly codeAnchors?: readonly { readonly enforcement: "advisory" | "required"; readonly pattern: string }[];
+    readonly codeAnchors?: readonly {
+      readonly enforcement: "advisory" | "required";
+      readonly pattern: string;
+    }[];
     readonly metadata?: Readonly<Record<string, DocumentJsonValue>>;
   };
   readonly expected: {
@@ -47,12 +48,32 @@ export interface DocsProtocolQualificationReceiptV2 {
   readonly cohortAdmissible: boolean;
   readonly evidenceClass: "local-development" | "released-cohort";
   readonly projectId: string;
-  readonly scenarios: readonly { readonly id: string; readonly type: string; readonly documentPath: string; readonly outputDigest: string }[];
-  readonly checks: readonly ("info" | "find" | "check" | "doctor" | "recover" | "preview" | "apply" | "path" | "reachability" | "golden" | "source-unchanged")[];
+  readonly scenarios: readonly {
+    readonly id: string;
+    readonly type: string;
+    readonly documentPath: string;
+    readonly outputDigest: string;
+  }[];
+  readonly checks: readonly (
+    | "info"
+    | "find"
+    | "check"
+    | "doctor"
+    | "recover"
+    | "preview"
+    | "apply"
+    | "path"
+    | "reachability"
+    | "golden"
+    | "source-unchanged"
+  )[];
   readonly derived: {
     readonly contractPath: string;
     readonly gateCommand: string;
-    readonly packageVersions: { readonly docsProtocol: string; readonly engineeringFoundation: string };
+    readonly packageVersions: {
+      readonly docsProtocol: string;
+      readonly engineeringFoundation: string;
+    };
     readonly profilePath: string;
   };
   readonly evidence: {
@@ -63,8 +84,14 @@ export interface DocsProtocolQualificationReceiptV2 {
     readonly skill: { readonly path: string; readonly digest: `sha256:${string}` };
     readonly packageManifestDigest: `sha256:${string}`;
     readonly lockfileDigest: `sha256:${string}`;
-    readonly executingDocsProtocol: { readonly version: string; readonly buildDigest: `sha256:${string}` };
-    readonly executingFoundation: { readonly version: string; readonly buildIdentity: `sha256:${string}` };
+    readonly executingDocsProtocol: {
+      readonly version: string;
+      readonly buildDigest: `sha256:${string}`;
+    };
+    readonly executingFoundation: {
+      readonly version: string;
+      readonly buildIdentity: `sha256:${string}`;
+    };
     readonly cohort: Readonly<Record<string, unknown>>;
   };
 }

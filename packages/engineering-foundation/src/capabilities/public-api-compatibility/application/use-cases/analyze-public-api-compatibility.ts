@@ -1,3 +1,4 @@
+import type { PublicApiSignatureEquivalence } from "../ports/public-api-signature-equivalence.js";
 import type { FoundationDiagnostic } from "../../../../features/validation-reporting/api.js";
 import { assertNotCancelled } from "../../../../features/validation-reporting/api.js";
 import type { PublicApiCompatibilityPolicy } from "../model/public-api.js";
@@ -7,7 +8,7 @@ import type { PublicApiExtractor } from "../ports/public-api-extractor.js";
 import type { PublicApiRepository } from "../ports/public-api-repository.js";
 import {
   classifyPublicApiChange,
-  evaluatePublicApiCompatibility
+  evaluatePublicApiCompatibility,
 } from "../policies/evaluate-public-api-compatibility.js";
 import { isApprovedBreakingChangeAccepted } from "../policies/accepted-breaking-change.js";
 import { collectUnchangedPublicTypeBindings } from "../policies/default-type-argument-equivalence.js";
@@ -23,7 +24,8 @@ export async function analyzePublicApiCompatibility(
     readonly fingerprint: ChangeFingerprint;
     readonly repository: PublicApiRepository;
     readonly acceptedDecisionEvidence: AcceptedDecisionEvidencePort;
-  }
+    readonly signatures?: PublicApiSignatureEquivalence;
+  },
 ): Promise<readonly FoundationDiagnostic[]> {
   const diagnostics: FoundationDiagnostic[] = [];
   let acceptedDecisionEvidence:
@@ -38,28 +40,24 @@ export async function analyzePublicApiCompatibility(
   for (const packagePolicy of input.policy.packages) {
     assertNotCancelled(input.signal);
     const [released, releaseEvidence] = await Promise.all([
-      dependencies.repository.readReleasedBaseline(
-        input.consumerRoot,
-        packagePolicy,
-        input.signal
-      ),
+      dependencies.repository.readReleasedBaseline(input.consumerRoot, packagePolicy, input.signal),
       dependencies.repository.readReleaseEvidence(
         input.consumerRoot,
         input.policy.changesetDirectory,
         packagePolicy,
-        input.signal
-      )
+        input.signal,
+      ),
     ]);
     const current = await dependencies.extractor.extract(
       input.consumerRoot,
       packagePolicy,
       releaseEvidence.packageVersion,
-      input.signal
+      input.signal,
     );
     packages.push({ packagePolicy, released, releaseEvidence, current });
   }
   const stableTypeBindings = collectUnchangedPublicTypeBindings(
-    packages.map(({ released, current }) => ({ released, current }))
+    packages.map(({ released, current }) => ({ released, current })),
   );
   for (const { packagePolicy, released, releaseEvidence, current } of packages) {
     assertNotCancelled(input.signal);
@@ -67,12 +65,13 @@ export async function analyzePublicApiCompatibility(
       released,
       current,
       dependencies.fingerprint,
-      stableTypeBindings
+      stableTypeBindings,
+      dependencies.signatures,
     );
     const approval =
       change.classification === "breaking"
         ? packagePolicy.approvedBreakingChanges.find(
-            (candidate) => candidate.fingerprint === change.fingerprint
+            (candidate) => candidate.fingerprint === change.fingerprint,
           )
         : undefined;
     if (
@@ -85,7 +84,7 @@ export async function analyzePublicApiCompatibility(
           consumerRoot: input.consumerRoot,
           baselinePath: input.policy.acceptedDecisionBaselinePath,
           governanceConfigPath: input.policy.governanceConfigPath,
-          ...(input.signal === undefined ? {} : { signal: input.signal })
+          ...(input.signal === undefined ? {} : { signal: input.signal }),
         });
     }
     const acceptedDecision =
@@ -100,8 +99,8 @@ export async function analyzePublicApiCompatibility(
         current,
         change,
         releaseEvidence,
-        acceptedDecision
-      })
+        acceptedDecision,
+      }),
     );
   }
   return diagnostics;

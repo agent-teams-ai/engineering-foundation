@@ -1,4 +1,4 @@
-````markdown
+```markdown
 ---
 placeholder: true
 ---
@@ -24,7 +24,7 @@ placeholder: true
 ### Aggregate decision matrix
 
 | Root and identity | Protected invariants | Commands | Domain events | Transaction | Concurrency | Growth bound | External facts | Rejected boundaries |
-|---|---|---|---|---|---|---|---|---|
+| ----------------- | -------------------- | -------- | ------------- | ----------- | ----------- | ------------ | -------------- | ------------------- |
 
 ## Tactical building blocks
 
@@ -51,4 +51,4 @@ placeholder: true
 ## Open questions
 
 ## Implementation links
-````
+```

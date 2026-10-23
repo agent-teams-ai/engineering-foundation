@@ -1,14 +1,12 @@
-import type {
-  AuthorityScaffoldRecoveryScope
-} from "../application/model/recovery-scope.js";
+import type { AuthorityScaffoldRecoveryScope } from "../application/model/recovery-scope.js";
 import type {
   ConfiguredDefinition,
-  DefinitionRef
+  DefinitionRef,
 } from "../application/model/scaffold-compilation.js";
 import type {
   JsonObject,
   RepositoryPath,
-  Sha256Digest
+  Sha256Digest,
 } from "../application/model/scaffold-values.js";
 
 /** Public name for the single inward-owned v1 recovery scope contract. */
@@ -83,13 +81,7 @@ export interface ScaffoldTargetCatalogEntry {
 export interface ScaffoldDiagnostic {
   readonly ruleId: string;
   readonly severity: "error" | "info" | "warning";
-  readonly phase:
-    | "apply"
-    | "composition"
-    | "input"
-    | "planning"
-    | "policy"
-    | "recovery";
+  readonly phase: "apply" | "composition" | "input" | "planning" | "policy" | "recovery";
   readonly subject: string;
   readonly message: string;
   readonly remediation: string;
@@ -105,13 +97,10 @@ export interface ScaffoldReadAssertion {
 export type ScaffoldAuthorityReadSet = readonly [
   ScaffoldReadAssertion,
   ScaffoldReadAssertion,
-  ScaffoldReadAssertion
+  ScaffoldReadAssertion,
 ];
 
-export type ScaffoldAuthoritySourceRole =
-  | "config"
-  | "owner-document"
-  | "target-catalog";
+export type ScaffoldAuthoritySourceRole = "config" | "owner-document" | "target-catalog";
 
 export interface ScaffoldAuthoritySourceAssertion {
   readonly role: ScaffoldAuthoritySourceRole;
@@ -135,7 +124,7 @@ export interface ScaffoldAuthorityEvidence {
   readonly sources: readonly [
     ScaffoldAuthoritySourceAssertion & { readonly role: "config" },
     ScaffoldAuthoritySourceAssertion & { readonly role: "owner-document" },
-    ScaffoldAuthoritySourceAssertion & { readonly role: "target-catalog" }
+    ScaffoldAuthoritySourceAssertion & { readonly role: "target-catalog" },
   ];
   readonly evidenceDigest: Sha256Digest;
 }
@@ -258,7 +247,7 @@ export type ScaffoldReceipt =
       };
       readonly operations: readonly [
         ScaffoldAppliedOperationReceipt,
-        ...ScaffoldSatisfiedOperationReceipt[]
+        ...ScaffoldSatisfiedOperationReceipt[],
       ];
     })
   | (ScaffoldReceiptCommon & {
@@ -275,7 +264,7 @@ export type ScaffoldReceipt =
         ...(ScaffoldOperationReceipt & {
           readonly outcome: "already-satisfied";
           readonly resultDigest: Sha256Digest;
-        })[]
+        })[],
       ];
     })
   | (ScaffoldReceiptCommon & {
@@ -292,7 +281,7 @@ export type ScaffoldReceipt =
         ...(ScaffoldOperationReceipt & {
           readonly outcome: "already-satisfied" | "recovered";
           readonly resultDigest: Sha256Digest;
-        })[]
+        })[],
       ];
     })
   | (ScaffoldReceiptCommon & {
@@ -302,14 +291,16 @@ export type ScaffoldReceipt =
         readonly atomicity: "journaled-recoverable";
       };
       readonly operations: readonly [
-        | (ScaffoldOperationReceipt & {
-            readonly outcome: "already-satisfied";
-            readonly resultDigest: Sha256Digest;
-          })
-        | (ScaffoldOperationReceipt & {
-            readonly outcome: "conflict" | "not-applied" | "unobserved";
-            readonly resultDigest?: never;
-          }),
+        (
+          | (ScaffoldOperationReceipt & {
+              readonly outcome: "already-satisfied";
+              readonly resultDigest: Sha256Digest;
+            })
+          | (ScaffoldOperationReceipt & {
+              readonly outcome: "conflict" | "not-applied" | "unobserved";
+              readonly resultDigest?: never;
+            })
+        ),
         ...(
           | (ScaffoldOperationReceipt & {
               readonly outcome: "already-satisfied";
@@ -319,7 +310,7 @@ export type ScaffoldReceipt =
               readonly outcome: "conflict" | "not-applied" | "unobserved";
               readonly resultDigest?: never;
             })
-        )[]
+        )[],
       ];
     })
   | (ScaffoldReceiptCommon & {
@@ -329,14 +320,16 @@ export type ScaffoldReceipt =
         readonly atomicity: "journaled-recoverable";
       };
       readonly operations: readonly [
-        | (ScaffoldOperationReceipt & {
-            readonly outcome: "already-satisfied";
-            readonly resultDigest: Sha256Digest;
-          })
-        | (ScaffoldOperationReceipt & {
-            readonly outcome: "conflict" | "not-applied";
-            readonly resultDigest?: never;
-          }),
+        (
+          | (ScaffoldOperationReceipt & {
+              readonly outcome: "already-satisfied";
+              readonly resultDigest: Sha256Digest;
+            })
+          | (ScaffoldOperationReceipt & {
+              readonly outcome: "conflict" | "not-applied";
+              readonly resultDigest?: never;
+            })
+        ),
         ...(
           | (ScaffoldOperationReceipt & {
               readonly outcome: "already-satisfied";
@@ -346,7 +339,7 @@ export type ScaffoldReceipt =
               readonly outcome: "conflict" | "not-applied";
               readonly resultDigest?: never;
             })
-        )[]
+        )[],
       ];
     })
   | (ScaffoldReceiptCommon & {
@@ -363,15 +356,11 @@ export type ScaffoldReceipt =
         ...(ScaffoldOperationReceipt & {
           readonly outcome: "not-applied";
           readonly resultDigest?: never;
-        })[]
+        })[],
       ];
     });
 
-export type ScaffoldJournalOperationState =
-  | "pending"
-  | "preexisting"
-  | "published"
-  | "publishing";
+export type ScaffoldJournalOperationState = "pending" | "preexisting" | "published" | "publishing";
 
 export interface ScaffoldJournalOperation {
   readonly operationId: string;

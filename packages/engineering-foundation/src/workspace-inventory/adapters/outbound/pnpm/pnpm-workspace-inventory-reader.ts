@@ -18,12 +18,15 @@ import {
   workspacePackageLimitExceeded,
   manifestPathCollision,
   workspaceManifestObjectRequired,
-  duplicateDefaultCatalog
+  duplicateDefaultCatalog,
 } from "../../../application/policies/workspace-input-failures.js";
-import type { PackageManifestSnapshotReader, WorkspaceYamlObservation } from "../../../application/ports/workspace-input-observations.js";
+import type {
+  PackageManifestSnapshotReader,
+  WorkspaceYamlObservation,
+} from "../../../application/ports/workspace-input-observations.js";
 import type {
   CatalogEntry,
-  WorkspaceInventory
+  WorkspaceInventory,
 } from "../../../application/model/workspace-inventory.js";
 import type { WorkspaceInventoryReader } from "../../../application/ports/workspace-inventory-reader.js";
 
@@ -47,9 +50,7 @@ function validatedGlobManifestPath(candidate: string): string {
     posix.isAbsolute(repositoryPath) ||
     /^[A-Za-z]:/u.test(repositoryPath) ||
     repositoryPath.startsWith("//") ||
-    segments.some(
-      (segment) => segment.length === 0 || segment === "." || segment === ".."
-    ) ||
+    segments.some((segment) => segment.length === 0 || segment === "." || segment === "..") ||
     posix.normalize(repositoryPath) !== repositoryPath ||
     posix.basename(repositoryPath) !== "package.json"
   ) {
@@ -64,7 +65,7 @@ function portablePathIdentity(path: string): string {
 
 function assertPatternDirectoryIdentity(
   patterns: readonly string[],
-  directoriesByIdentity: ReadonlyMap<string, string>
+  directoriesByIdentity: ReadonlyMap<string, string>,
 ): void {
   for (const pattern of patterns) {
     const segments = (pattern.startsWith("!") ? pattern.slice(1) : pattern).split("/");
@@ -85,7 +86,7 @@ function assertPatternDirectoryIdentity(
 
 function recordWorkspaceDirectory(
   directoriesByIdentity: Map<string, string>,
-  repositoryPath: string
+  repositoryPath: string,
 ): void {
   const identity = portablePathIdentity(repositoryPath);
   const existing = directoriesByIdentity.get(identity);
@@ -107,7 +108,7 @@ function validateWorkspacePatterns(value: unknown): readonly string[] {
         pattern.length === 0 ||
         pattern.includes("\\") ||
         pattern.startsWith("/") ||
-        pattern.split("/").includes("..")
+        pattern.split("/").includes(".."),
     )
   ) {
     workspacePatternsInvalid();
@@ -118,7 +119,7 @@ function validateWorkspacePatterns(value: unknown): readonly string[] {
 function stringRecord(
   value: unknown,
   field: string,
-  phase: string
+  phase: string,
 ): Readonly<Record<string, string>> {
   if (!isRecord(value)) {
     workspaceStringRecordRequired(field, phase);
@@ -133,7 +134,7 @@ function stringRecord(
 
 function parseCatalog(
   workspace: Record<string, unknown>,
-  field: "catalog" | "catalogs"
+  field: "catalog" | "catalogs",
 ): readonly CatalogEntry[] {
   const value = workspace[field];
   if (value === undefined) {
@@ -144,8 +145,8 @@ function parseCatalog(
       ([dependencyName, version]) => ({
         catalogName: "default",
         dependencyName,
-        version
-      })
+        version,
+      }),
     );
   }
   if (!isRecord(value)) {
@@ -154,7 +155,7 @@ function parseCatalog(
   const entries: CatalogEntry[] = [];
   for (const [catalogName, catalog] of Object.entries(value)) {
     for (const [dependencyName, version] of Object.entries(
-      stringRecord(catalog, `catalogs.${catalogName}`, "workspace-manifest")
+      stringRecord(catalog, `catalogs.${catalogName}`, "workspace-manifest"),
     )) {
       entries.push({ catalogName, dependencyName, version });
     }
@@ -192,7 +193,7 @@ async function readDirectoryEntries(
   absolutePath: string,
   repositoryPath: string,
   budget: { entries: number },
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<readonly Dirent[]> {
   let handle: Awaited<ReturnType<typeof opendir>>;
   try {
@@ -217,15 +218,13 @@ async function readDirectoryEntries(
     await handle.close().catch(() => {});
   }
   assertWorkspaceReadActive(signal);
-  return entries.toSorted((left, right) =>
-    compareBinaryStrings(left.name, right.name)
-  );
+  return entries.toSorted((left, right) => compareBinaryStrings(left.name, right.name));
 }
 
 function recordSelectedManifest(
   manifests: Set<string>,
   patterns: readonly string[],
-  repositoryPath: string
+  repositoryPath: string,
 ): void {
   const manifestPath = validatedGlobManifestPath(repositoryPath);
   if (!selectedByPatterns(posix.dirname(manifestPath), patterns)) {
@@ -240,12 +239,12 @@ function recordSelectedManifest(
 async function discoverManifestPaths(
   consumerRoot: string,
   patterns: readonly string[],
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<readonly string[]> {
   const manifests = new Set<string>(["package.json"]);
   const directoriesByIdentity = new Map<string, string>();
   const directories: { readonly absolutePath: string; readonly repositoryPath: string }[] = [
-    { absolutePath: consumerRoot, repositoryPath: "." }
+    { absolutePath: consumerRoot, repositoryPath: "." },
   ];
   const budget = { entries: 0 };
   while (directories.length > 0) {
@@ -258,18 +257,19 @@ async function discoverManifestPaths(
       directory.absolutePath,
       directory.repositoryPath,
       budget,
-      signal
+      signal,
     );
     for (const entry of entries.toReversed()) {
-      const repositoryPath = directory.repositoryPath === "."
-        ? entry.name
-        : posix.join(directory.repositoryPath, entry.name);
+      const repositoryPath =
+        directory.repositoryPath === "."
+          ? entry.name
+          : posix.join(directory.repositoryPath, entry.name);
       if (entry.isDirectory()) {
         if (!IGNORED_DIRECTORY_NAMES.has(entry.name)) {
           recordWorkspaceDirectory(directoriesByIdentity, repositoryPath);
           directories.push({
             absolutePath: join(directory.absolutePath, entry.name),
-            repositoryPath
+            repositoryPath,
           });
         }
       } else if (entry.isFile() && entry.name === "package.json") {
@@ -295,14 +295,14 @@ async function discoverManifestPaths(
 export class PnpmWorkspaceInventoryReader implements WorkspaceInventoryReader {
   constructor(
     private readonly yaml: WorkspaceYamlObservation,
-    private readonly manifests: PackageManifestSnapshotReader
+    private readonly manifests: PackageManifestSnapshotReader,
   ) {}
 
   private async readPnpmWorkspaceInventoryFromManifestPaths(
     consumerRoot: string,
     workspaceManifest: unknown,
     manifestPaths: readonly string[],
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ): Promise<WorkspaceInventory> {
     if (!isRecord(workspaceManifest)) {
       workspaceManifestObjectRequired();
@@ -317,30 +317,25 @@ export class PnpmWorkspaceInventoryReader implements WorkspaceInventoryReader {
     }
     const catalogs = [
       ...parseCatalog(workspaceManifest, "catalog"),
-      ...parseCatalog(workspaceManifest, "catalogs")
+      ...parseCatalog(workspaceManifest, "catalogs"),
     ].toSorted(
       (left, right) =>
         compareBinaryStrings(left.catalogName, right.catalogName) ||
-        compareBinaryStrings(left.dependencyName, right.dependencyName)
+        compareBinaryStrings(left.dependencyName, right.dependencyName),
     );
     return {
       ...(typeof workspaceManifest["catalogMode"] === "string"
         ? { catalogMode: workspaceManifest["catalogMode"] }
         : {}),
       catalogs,
-      packages: await this.manifests.read(
-        consumerRoot,
-        containedManifestPaths,
-        catalogs,
-        signal
-      )
+      packages: await this.manifests.read(consumerRoot, containedManifestPaths, catalogs, signal),
     };
   }
 
   discoverManifestPathsFromManifest(
     consumerRoot: string,
     workspaceManifest: unknown,
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ): Promise<readonly string[]> {
     if (!isRecord(workspaceManifest)) {
       workspaceManifestObjectRequired();
@@ -348,7 +343,7 @@ export class PnpmWorkspaceInventoryReader implements WorkspaceInventoryReader {
     return discoverManifestPaths(
       consumerRoot,
       validateWorkspacePatterns(workspaceManifest["packages"]),
-      signal
+      signal,
     );
   }
 
@@ -356,26 +351,26 @@ export class PnpmWorkspaceInventoryReader implements WorkspaceInventoryReader {
     consumerRoot: string,
     workspaceManifest: unknown,
     manifestPaths: readonly string[],
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ): Promise<WorkspaceInventory> {
     return this.readPnpmWorkspaceInventoryFromManifestPaths(
       consumerRoot,
       workspaceManifest,
       manifestPaths,
-      signal
+      signal,
     );
   }
 
   async discoverManifestPaths(
     consumerRoot: string,
     workspaceManifestPath: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ): Promise<readonly string[]> {
     const input = await this.yaml.readYaml(
       consumerRoot,
       workspaceManifestPath,
       "workspace-manifest",
-      signal
+      signal,
     );
     if (!isRecord(input)) {
       workspaceManifestObjectRequired();
@@ -386,27 +381,23 @@ export class PnpmWorkspaceInventoryReader implements WorkspaceInventoryReader {
   async read(
     consumerRoot: string,
     workspaceManifestPath: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ): Promise<WorkspaceInventory> {
     const input = await this.yaml.readYaml(
       consumerRoot,
       workspaceManifestPath,
       "workspace-manifest",
-      signal
+      signal,
     );
     if (!isRecord(input)) {
       workspaceManifestObjectRequired();
     }
-    const manifestPaths = await this.discoverManifestPathsFromManifest(
-      consumerRoot,
-      input,
-      signal
-    );
+    const manifestPaths = await this.discoverManifestPathsFromManifest(consumerRoot, input, signal);
     return this.readPnpmWorkspaceInventoryFromManifestPaths(
       consumerRoot,
       input,
       manifestPaths,
-      signal
+      signal,
     );
   }
 }

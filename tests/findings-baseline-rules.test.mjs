@@ -6,7 +6,10 @@ import { RULE_REGISTRY } from "../packages/engineering-foundation/dist/compositi
 
 test("the findings baseline is a command module: explained, but not a check capability", () => {
   assert.ok(FINDINGS_BASELINE_RULES_BY_ID.size > 0);
-  assert.equal(CAPABILITY_MODULES.some(({ definition }) => definition.id === "quality.findings-baseline"), false);
+  assert.equal(
+    CAPABILITY_MODULES.some(({ definition }) => definition.id === "quality.findings-baseline"),
+    false,
+  );
   const checkRules = CAPABILITY_MODULES.reduce((count, { rules }) => count + rules.size, 0);
   assert.equal(RULE_REGISTRY.size, checkRules + FINDINGS_BASELINE_RULES_BY_ID.size);
   for (const [ruleId, metadata] of FINDINGS_BASELINE_RULES_BY_ID) {

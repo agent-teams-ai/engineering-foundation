@@ -4,6 +4,6 @@ export interface SourceTreeReader {
   read(
     consumerRoot: string,
     governedRoots: readonly string[],
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ): Promise<readonly SourceFileSnapshot[]>;
 }

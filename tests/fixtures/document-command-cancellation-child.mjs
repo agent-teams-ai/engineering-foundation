@@ -37,21 +37,27 @@ const protocol = {
     return blockUntilCancelled(signal, "recover");
   },
 };
-const newOptions = command === "new"
-  ? [
-      "--type", "adr", "--id", "ADR-TEST", "--title", "Cancellation",
-      "--owner", "test", "--summary", "Disposable cancellation fixture.",
-      "--dry-run",
-    ]
-  : [];
+const newOptions =
+  command === "new"
+    ? [
+        "--type",
+        "adr",
+        "--id",
+        "ADR-TEST",
+        "--title",
+        "Cancellation",
+        "--owner",
+        "test",
+        "--summary",
+        "Disposable cancellation fixture.",
+        "--dry-run",
+      ]
+    : [];
 
-process.exitCode = await runDocsCli([
-  command,
-  ...newOptions,
-  "--consumer",
-  consumerRoot,
-  "--json",
-], () => protocol);
+process.exitCode = await runDocsCli(
+  [command, ...newOptions, "--consumer", consumerRoot, "--json"],
+  () => protocol,
+);
 if (
   process.listenerCount("SIGINT") !== baseline.SIGINT ||
   process.listenerCount("SIGTERM") !== baseline.SIGTERM

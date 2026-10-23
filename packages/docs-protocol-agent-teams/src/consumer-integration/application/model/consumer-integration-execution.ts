@@ -1,9 +1,6 @@
 import type { KnownFileTransactionReceiptV1 } from "@agent-teams/repository-mutation/known-file";
 
-import type {
-  ConsumerIntegrationIssue,
-  ConsumerIntegrationPlanV1
-} from "../../domain/model.js";
+import type { ConsumerIntegrationIssue, ConsumerIntegrationPlanV1 } from "../../domain/model.js";
 
 export interface ConsumerIntegrationExecutionV1 {
   readonly schemaVersion: 1;

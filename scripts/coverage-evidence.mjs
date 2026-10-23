@@ -1,22 +1,16 @@
 import { execFile, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { constants as fileConstants } from "node:fs";
-import {
-  lstat,
-  mkdtemp,
-  open,
-  readFile,
-  readdir,
-  realpath,
-  rm,
-  writeFile,
-} from "node:fs/promises";
+import { lstat, mkdtemp, open, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, relative, resolve as resolvePath, sep } from "node:path";
 import { promisify } from "node:util";
 
 import { repositoryRoot, validateTestManifests } from "./check-test-manifests.mjs";
-import { createCoverageSourceLayout, materializeValidatedRawCoverage } from "./materialize-validated-coverage.mjs";
+import {
+  createCoverageSourceLayout,
+  materializeValidatedRawCoverage,
+} from "./materialize-validated-coverage.mjs";
 
 export { materializeValidatedRawCoverage } from "./materialize-validated-coverage.mjs";
 
@@ -163,10 +157,7 @@ export async function readBoundedRegularFile(path, maximumBytes, label, faultInj
   try {
     const noFollow = process.platform === "win32" ? 0 : fileConstants.O_NOFOLLOW;
     const nonBlocking = process.platform === "win32" ? 0 : fileConstants.O_NONBLOCK;
-    handle = await open(
-      path,
-      fileConstants.O_RDONLY | noFollow | nonBlocking,
-    );
+    handle = await open(path, fileConstants.O_RDONLY | noFollow | nonBlocking);
     const openedStats = await handle.stat({ bigint: true });
     if (
       !openedStats.isFile() ||
@@ -175,17 +166,10 @@ export async function readBoundedRegularFile(path, maximumBytes, label, faultInj
     ) {
       fail(`${label} is not a bounded regular file`);
     }
-    const buffer = Buffer.allocUnsafe(
-      Math.min(maximumBytes + 1, Number(openedStats.size) + 1),
-    );
+    const buffer = Buffer.allocUnsafe(Math.min(maximumBytes + 1, Number(openedStats.size) + 1));
     let offset = 0;
     while (offset < buffer.byteLength) {
-      const { bytesRead } = await handle.read(
-        buffer,
-        offset,
-        buffer.byteLength - offset,
-        offset,
-      );
+      const { bytesRead } = await handle.read(buffer, offset, buffer.byteLength - offset, offset);
       if (bytesRead === 0) {
         break;
       }
@@ -219,7 +203,10 @@ export async function readBoundedRegularFile(path, maximumBytes, label, faultInj
 export async function requireContainedRealDirectory(path, root, label) {
   await requireDirectory(path, label);
   const [realRoot, realDirectory] = await Promise.all([realpath(root), realpath(path)]);
-  const expectedRealDirectory = resolvePath(realRoot, relative(resolvePath(root), resolvePath(path)));
+  const expectedRealDirectory = resolvePath(
+    realRoot,
+    relative(resolvePath(root), resolvePath(path)),
+  );
   if (
     realDirectory !== expectedRealDirectory ||
     (realDirectory !== realRoot && !realDirectory.startsWith(`${realRoot}${sep}`))
@@ -288,9 +275,12 @@ async function rawFileRecords(rawDirectory, expectedTests, pairedSourceRoot) {
     sourceRoot,
     records: Object.freeze(records),
     validatedFiles: Object.freeze(
-      readEntries.map(({ bytes, entry }) => Object.freeze({
-        bytes, name: entry.name,
-      })),
+      readEntries.map(({ bytes, entry }) =>
+        Object.freeze({
+          bytes,
+          name: entry.name,
+        }),
+      ),
     ),
   });
 }
@@ -398,7 +388,9 @@ async function validateArtifactDirectory({ artifactDirectory, identity, shardId,
     fail(`shard ${shardId} raw files differ from the sidecar`);
   }
   return Object.freeze({
-    artifactDirectory, evidence, sourceRoot: actualRaw.sourceRoot,
+    artifactDirectory,
+    evidence,
+    sourceRoot: actualRaw.sourceRoot,
     validatedFiles: actualRaw.validatedFiles,
   });
 }
@@ -417,9 +409,7 @@ export async function validateCoverageEvidenceSet({ headSha, inputDirectory }) {
   });
   await requireDirectory(inputDirectory, "evidence input");
   const shardIds = [...protocol.manifest.shards.keys()].toSorted();
-  const expectedNames = shardIds.map(
-    (shardId) => `coverage-evidence-${headSha}-shard-${shardId}`,
-  );
+  const expectedNames = shardIds.map((shardId) => `coverage-evidence-${headSha}-shard-${shardId}`);
   const actualNames = (await readdir(inputDirectory)).toSorted();
   if (actualNames.join("\0") !== expectedNames.join("\0")) {
     fail(
@@ -432,23 +422,17 @@ export async function validateCoverageEvidenceSet({ headSha, inputDirectory }) {
   let totalRawBytes = 0;
   for (const shardId of shardIds) {
     const artifact = await validateArtifactDirectory({
-        artifactDirectory: join(
-          inputDirectory,
-          `coverage-evidence-${headSha}-shard-${shardId}`,
-        ),
-        identity,
-        shardId,
-        tests: protocol.manifest.coverageShards.get(shardId),
-      });
+      artifactDirectory: join(inputDirectory, `coverage-evidence-${headSha}-shard-${shardId}`),
+      identity,
+      shardId,
+      tests: protocol.manifest.coverageShards.get(shardId),
+    });
     const artifactIsPaired = artifact.sourceRoot !== repositoryRoot;
     pairedLayout ??= artifactIsPaired;
     if (pairedLayout !== artifactIsPaired) {
       fail("complete evidence set mixes canonical and paired source roots");
     }
-    totalRawBytes += artifact.evidence.rawFiles.reduce(
-      (total, record) => total + record.size,
-      0,
-    );
+    totalRawBytes += artifact.evidence.rawFiles.reduce((total, record) => total + record.size, 0);
     if (totalRawBytes > maximumRawSetBytes) {
       fail("complete evidence set exceeds its total byte budget");
     }

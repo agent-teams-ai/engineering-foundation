@@ -10,59 +10,78 @@ const workerInvocation: Readonly<Record<QualificationCrashPoint, string>> = Obje
   "after-publishing-journal-durable":
     'await runDocumentAuthoringCrashQualification({ consumerRoot, plan, crashPoint: "after-publishing-journal-durable" });',
   "after-published-journal-durable":
-    'await runDocumentAuthoringCrashQualification({ consumerRoot, plan, crashPoint: "after-published-journal-durable" });'
+    'await runDocumentAuthoringCrashQualification({ consumerRoot, plan, crashPoint: "after-published-journal-durable" });',
 });
 
 async function crashAtDurableCheckpoint(
   consumerRoot: string,
   plan: unknown,
   crashPoint: QualificationCrashPoint,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<void> {
   signal?.throwIfAborted();
   const planPath = join(consumerRoot, ".qualification-crash-plan.json");
   const workerPath = join(consumerRoot, ".qualification-crash-worker.mjs");
   await writeFile(planPath, `${JSON.stringify(plan)}\n`, "utf8");
-  await writeFile(workerPath, [
-    'import { readFile } from "node:fs/promises";',
-    'import { runDocumentAuthoringCrashQualification } from "@agent-teams/document-authoring/qualification";',
-    "const [consumerRoot, planPath] = process.argv.slice(2);",
-    'const plan = JSON.parse(await readFile(planPath, "utf8"));',
-    workerInvocation[crashPoint],
-    ""
-  ].join("\n"), "utf8");
+  await writeFile(
+    workerPath,
+    [
+      'import { readFile } from "node:fs/promises";',
+      'import { runDocumentAuthoringCrashQualification } from "@agent-teams/document-authoring/qualification";',
+      "const [consumerRoot, planPath] = process.argv.slice(2);",
+      'const plan = JSON.parse(await readFile(planPath, "utf8"));',
+      workerInvocation[crashPoint],
+      "",
+    ].join("\n"),
+    "utf8",
+  );
   const child = spawn(process.execPath, [workerPath, consumerRoot, planPath], {
     cwd: consumerRoot,
-    stdio: ["ignore", "pipe", "pipe"]
+    stdio: ["ignore", "pipe", "pipe"],
   });
   let stderr = "";
   let stdout = "";
   const crashCheckpoint = `${JSON.stringify({
     schemaVersion: 1,
     event: "document-authoring-qualification-crash-point",
-    crashPoint
+    crashPoint,
   })}\n`;
   child.stderr.setEncoding("utf8");
-  child.stderr.on("data", (chunk: string) => { stderr += chunk; });
-  const terminated = new Promise<{ readonly code: number | null; readonly signal: NodeJS.Signals | null }>((resolve) => {
+  child.stderr.on("data", (chunk: string) => {
+    stderr += chunk;
+  });
+  const terminated = new Promise<{
+    readonly code: number | null;
+    readonly signal: NodeJS.Signals | null;
+  }>((resolve) => {
     const settle = (code: number | null, exitSignal: NodeJS.Signals | null) => {
       resolve({ code, signal: exitSignal });
     };
-    child.once("error", () => { settle(child.exitCode, child.signalCode); });
+    child.once("error", () => {
+      settle(child.exitCode, child.signalCode);
+    });
     child.once("exit", settle);
     child.once("close", settle);
   });
-  const abort = () => { child.kill("SIGKILL"); };
+  const abort = () => {
+    child.kill("SIGKILL");
+  };
   signal?.addEventListener("abort", abort, { once: true });
-  if (signal?.aborted === true) {abort();}
+  if (signal?.aborted === true) {
+    abort();
+  }
   try {
     await new Promise<void>((resolve, reject) => {
-      const deadline = setTimeout(() => { reject(new Error(`Qualification crash driver did not reach ${crashPoint}: ${stderr}`)); }, 30_000);
+      const deadline = setTimeout(() => {
+        reject(new Error(`Qualification crash driver did not reach ${crashPoint}: ${stderr}`));
+      }, 30_000);
       const cancelled = () => {
         clearTimeout(deadline);
-        reject(signal?.reason instanceof Error
-          ? signal.reason
-          : new DOMException("Docs Protocol qualification was cancelled.", "AbortError"));
+        reject(
+          signal?.reason instanceof Error
+            ? signal.reason
+            : new DOMException("Docs Protocol qualification was cancelled.", "AbortError"),
+        );
       };
       signal?.addEventListener("abort", cancelled, { once: true });
       if (signal?.aborted === true) {
@@ -86,14 +105,22 @@ async function crashAtDurableCheckpoint(
       child.once("exit", (code, exitSignal) => {
         clearTimeout(deadline);
         signal?.removeEventListener("abort", cancelled);
-        reject(new Error(`Qualification crash driver exited before checkpoint: ${code}/${exitSignal}: ${stderr}`));
+        reject(
+          new Error(
+            `Qualification crash driver exited before checkpoint: ${code}/${exitSignal}: ${stderr}`,
+          ),
+        );
       });
     });
     signal?.throwIfAborted();
-    if (!child.kill("SIGKILL")) {throw new Error("Qualification could not terminate its disposable crash driver.");}
+    if (!child.kill("SIGKILL")) {
+      throw new Error("Qualification could not terminate its disposable crash driver.");
+    }
     const termination = await terminated;
     if (termination.signal !== "SIGKILL") {
-      throw new Error(`Qualification crash driver did not terminate through SIGKILL: ${termination.code}/${termination.signal}.`);
+      throw new Error(
+        `Qualification crash driver did not terminate through SIGKILL: ${termination.code}/${termination.signal}.`,
+      );
     }
   } finally {
     signal?.removeEventListener("abort", abort);
@@ -109,25 +136,15 @@ async function crashAtDurableCheckpoint(
 export async function crashAtDurablePublishing(
   consumerRoot: string,
   plan: unknown,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<void> {
-  return crashAtDurableCheckpoint(
-    consumerRoot,
-    plan,
-    "after-publishing-journal-durable",
-    signal
-  );
+  return crashAtDurableCheckpoint(consumerRoot, plan, "after-publishing-journal-durable", signal);
 }
 
 export async function crashAfterDurablePublication(
   consumerRoot: string,
   plan: unknown,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<void> {
-  return crashAtDurableCheckpoint(
-    consumerRoot,
-    plan,
-    "after-published-journal-durable",
-    signal
-  );
+  return crashAtDurableCheckpoint(consumerRoot, plan, "after-published-journal-durable", signal);
 }

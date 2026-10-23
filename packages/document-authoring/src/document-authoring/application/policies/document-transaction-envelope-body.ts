@@ -4,7 +4,7 @@ import type { DocumentPlanV1, DocumentPlanV2 } from "../model/document-planning.
 import type {
   DocumentOwnedTemporary,
   DocumentTransactionEnvelope,
-  DocumentTransactionEnvelopeBody
+  DocumentTransactionEnvelopeBody,
 } from "../model/document-transaction.js";
 
 export function envelopeBodyV3(
@@ -13,22 +13,22 @@ export function envelopeBodyV3(
   lifecycle:
     | { readonly state: "PREPARED"; readonly destination: "pending" | "preexisting" }
     | { readonly state: "PUBLISHING"; readonly temporary: DocumentOwnedTemporary }
-    | { readonly state: "PUBLISHED"; readonly publicationIdentity: DocumentPhysicalIdentity }
+    | { readonly state: "PUBLISHED"; readonly publicationIdentity: DocumentPhysicalIdentity },
 ): DocumentTransactionEnvelopeBody {
   const base = {
     adapterContractVersion: 1 as const,
     kernelArtifact: Object.freeze({ ...kernelArtifact }),
     foundation: Object.freeze({
       buildIdentity: plan.compiler.buildIdentity,
-      version: plan.compiler.version
+      version: plan.compiler.version,
     }),
     operationKind: "document-authoring" as const,
     payloadKind: "document-authoring-journal/v2" as const,
     recoveryHandler: Object.freeze({
       contractVersion: 2 as const,
-      id: "document-authoring" as const
+      id: "document-authoring" as const,
     }),
-    schemaVersion: 3 as const
+    schemaVersion: 3 as const,
   };
   if (lifecycle.state === "PREPARED") {
     const prepared = { ...base, state: lifecycle.state };
@@ -38,16 +38,16 @@ export function envelopeBodyV3(
           journal: {
             destination: { path: plan.destination, state: "pending" },
             plan,
-            schemaVersion: 2
-          }
+            schemaVersion: 2,
+          },
         }
       : {
           ...prepared,
           journal: {
             destination: { path: plan.destination, state: "preexisting" },
             plan,
-            schemaVersion: 2
-          }
+            schemaVersion: 2,
+          },
         };
   }
   if (lifecycle.state === "PUBLISHING") {
@@ -57,9 +57,9 @@ export function envelopeBodyV3(
         destination: { path: plan.destination, state: "publishing" },
         ownedTemporary: lifecycle.temporary,
         plan,
-        schemaVersion: 2
+        schemaVersion: 2,
       },
-      state: lifecycle.state
+      state: lifecycle.state,
     };
   }
   return {
@@ -68,9 +68,9 @@ export function envelopeBodyV3(
       destination: { path: plan.destination, state: "published" },
       plan,
       publicationIdentity: lifecycle.publicationIdentity,
-      schemaVersion: 2
+      schemaVersion: 2,
     },
-    state: lifecycle.state
+    state: lifecycle.state,
   };
 }
 
@@ -82,29 +82,29 @@ export function envelopeBodyV4(
     | { readonly state: "PREPARED"; readonly destination: "pending" | "preexisting" }
     | { readonly state: "MATERIALIZING"; readonly pendingDirectory?: string }
     | { readonly state: "PUBLISHING"; readonly temporary: DocumentOwnedTemporary }
-    | { readonly state: "PUBLISHED"; readonly publicationIdentity: DocumentPhysicalIdentity }
+    | { readonly state: "PUBLISHED"; readonly publicationIdentity: DocumentPhysicalIdentity },
 ): DocumentTransactionEnvelopeBody {
   const parentMaterialization = Object.freeze({
     anchorIdentity: materialization.anchorIdentity,
     createdDirectories: materialization.createdDirectories,
     ...(lifecycle.state === "MATERIALIZING" && lifecycle.pendingDirectory !== undefined
       ? { pendingDirectory: lifecycle.pendingDirectory }
-      : {})
+      : {}),
   });
   const base = {
     adapterContractVersion: 1 as const,
     kernelArtifact: Object.freeze({ ...kernelArtifact }),
     foundation: Object.freeze({
       buildIdentity: plan.compiler.buildIdentity,
-      version: plan.compiler.version
+      version: plan.compiler.version,
     }),
     operationKind: "document-authoring" as const,
     payloadKind: "document-authoring-journal/v3" as const,
     recoveryHandler: Object.freeze({
       contractVersion: 3 as const,
-      id: "document-authoring" as const
+      id: "document-authoring" as const,
     }),
-    schemaVersion: 4 as const
+    schemaVersion: 4 as const,
   };
   if (lifecycle.state === "PREPARED") {
     const prepared = { ...base, state: lifecycle.state };
@@ -115,8 +115,8 @@ export function envelopeBodyV4(
             destination: { path: plan.destination, state: "pending" },
             parentMaterialization,
             plan,
-            schemaVersion: 3
-          }
+            schemaVersion: 3,
+          },
         }
       : {
           ...prepared,
@@ -124,8 +124,8 @@ export function envelopeBodyV4(
             destination: { path: plan.destination, state: "preexisting" },
             parentMaterialization,
             plan,
-            schemaVersion: 3
-          }
+            schemaVersion: 3,
+          },
         };
   }
   if (lifecycle.state === "MATERIALIZING") {
@@ -135,9 +135,9 @@ export function envelopeBodyV4(
         destination: { path: plan.destination, state: "materializing" },
         parentMaterialization,
         plan,
-        schemaVersion: 3
+        schemaVersion: 3,
       },
-      state: lifecycle.state
+      state: lifecycle.state,
     };
   }
   if (lifecycle.state === "PUBLISHING") {
@@ -148,9 +148,9 @@ export function envelopeBodyV4(
         ownedTemporary: lifecycle.temporary,
         parentMaterialization,
         plan,
-        schemaVersion: 3
+        schemaVersion: 3,
       },
-      state: lifecycle.state
+      state: lifecycle.state,
     };
   }
   return {
@@ -160,8 +160,8 @@ export function envelopeBodyV4(
       parentMaterialization,
       plan,
       publicationIdentity: lifecycle.publicationIdentity,
-      schemaVersion: 3
+      schemaVersion: 3,
     },
-    state: lifecycle.state
+    state: lifecycle.state,
   };
 }

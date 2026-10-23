@@ -15,11 +15,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import {
-  canonicalDigest,
-  captureFailure,
-  runCommand,
-} from "./pack-test-support.mjs";
+import { canonicalDigest, captureFailure, runCommand } from "./pack-test-support.mjs";
 import { installPublishedFoundation } from "./published-foundation-install.mjs";
 import { publishedFoundationIntegrity } from "./published-foundation-imports.ts";
 import { executePublishedFoundationOperation } from "./published-foundation-operations.ts";
@@ -34,9 +30,7 @@ function compareStrings(left, right) {
 }
 
 function jsonErrorCode(failure) {
-  return failure?.stdout.length === 0
-    ? undefined
-    : JSON.parse(failure.stdout).error?.code;
+  return failure?.stdout.length === 0 ? undefined : JSON.parse(failure.stdout).error?.code;
 }
 
 function pnpmLockSource() {
@@ -69,11 +63,9 @@ function pnpmLockSource() {
 }
 
 async function prepareConsumer(consumerRoot, installedPackageRoot) {
-  await cp(
-    dirname(dirname(installedPackageRoot)),
-    join(consumerRoot, "node_modules"),
-    { recursive: true },
-  );
+  await cp(dirname(dirname(installedPackageRoot)), join(consumerRoot, "node_modules"), {
+    recursive: true,
+  });
   await writeFile(
     join(consumerRoot, "package.json"),
     `${JSON.stringify(
@@ -94,11 +86,7 @@ async function prepareConsumer(consumerRoot, installedPackageRoot) {
   await mkdir(join(consumerRoot, "node_modules", ".pnpm"), {
     recursive: true,
   });
-  await writeFile(
-    join(consumerRoot, "node_modules", ".pnpm", "lock.yaml"),
-    lockSource,
-    "utf8",
-  );
+  await writeFile(join(consumerRoot, "node_modules", ".pnpm", "lock.yaml"), lockSource, "utf8");
 }
 
 function digestBytes(bytes) {
@@ -108,8 +96,8 @@ function digestBytes(bytes) {
 async function treeEvidence(root, relativePath = "") {
   const directory = join(root, relativePath);
   const evidence = [];
-  for (const entry of (await readdir(directory, { withFileTypes: true })).toSorted(
-    (left, right) => compareStrings(left.name, right.name),
+  for (const entry of (await readdir(directory, { withFileTypes: true })).toSorted((left, right) =>
+    compareStrings(left.name, right.name),
   )) {
     const entryRelativePath = join(relativePath, entry.name);
     const entryPath = join(root, entryRelativePath);
@@ -149,9 +137,18 @@ async function mutationEvidence(consumerRoot) {
   });
 }
 
-async function assertOldMutationBlocked({ operation, packageRoot, consumerRoot, expected, targetRoot }) {
+async function assertOldMutationBlocked({
+  operation,
+  packageRoot,
+  consumerRoot,
+  expected,
+  targetRoot,
+}) {
   const observation = await executePublishedFoundationOperation({
-    packageRoot, version, consumerRoot, operation,
+    packageRoot,
+    version,
+    consumerRoot,
+    operation,
     ...(targetRoot === undefined ? {} : { targetRoot }),
   });
   if (
@@ -161,10 +158,9 @@ async function assertOldMutationBlocked({ operation, packageRoot, consumerRoot, 
       observation.error.message,
     )
   ) {
-    throw new Error(
-      `Published Foundation ${version} operation ${operation} did not fail closed.`,
-      { cause: observation },
-    );
+    throw new Error(`Published Foundation ${version} operation ${operation} did not fail closed.`, {
+      cause: observation,
+    });
   }
   if ((await mutationEvidence(consumerRoot)) !== expected) {
     throw new Error(
@@ -174,11 +170,7 @@ async function assertOldMutationBlocked({ operation, packageRoot, consumerRoot, 
 }
 
 async function assertPersistentBarrier(consumerRoot) {
-  const lockPath = join(
-    consumerRoot,
-    ".agent-teams-local",
-    "foundation-operation.lock",
-  );
+  const lockPath = join(consumerRoot, ".agent-teams-local", "foundation-operation.lock");
   const lockHandle = await open(lockPath, "r");
   let lockEvidence;
   let lockMetadata;
@@ -198,11 +190,7 @@ async function assertPersistentBarrier(consumerRoot) {
   }
 }
 
-async function assertOldCommandsBlocked({
-  packageRoot,
-  consumerRoot,
-  targetRoot,
-}) {
+async function assertOldCommandsBlocked({ packageRoot, consumerRoot, targetRoot }) {
   const beforeOldCommands = await mutationEvidence(consumerRoot);
   await assertOldMutationBlocked({
     operation: "recover",
@@ -225,11 +213,7 @@ async function assertOldCommandsBlocked({
   });
 }
 
-async function verifyOrphanTemporaryBarrier({
-  currentCliPath,
-  installed,
-  temporaryRoot,
-}) {
+async function verifyOrphanTemporaryBarrier({ currentCliPath, installed, temporaryRoot }) {
   const consumerRoot = join(temporaryRoot, "temporary-consumer");
   await prepareConsumer(consumerRoot, installed.packageRoot);
   const transactionPath = join(
@@ -266,19 +250,12 @@ async function verifyOrphanTemporaryBarrier({
     targetRoot: join(temporaryRoot, "unreachable-temporary-target"),
   });
   if (!(await readFile(transactionPath)).equals(evidence)) {
-    throw new Error(
-      `Published Foundation ${version} changed orphan temporary evidence.`,
-    );
+    throw new Error(`Published Foundation ${version} changed orphan temporary evidence.`);
   }
 }
 
-export async function verifyOldFoundationTransactionBarrier({
-  currentCliPath,
-  installPackage,
-}) {
-  const temporaryRoot = await mkdtemp(
-    join(tmpdir(), "foundation-old-version-e2e-"),
-  );
+export async function verifyOldFoundationTransactionBarrier({ currentCliPath, installPackage }) {
+  const temporaryRoot = await mkdtemp(join(tmpdir(), "foundation-old-version-e2e-"));
   try {
     const installed = await installPublishedFoundation({
       expectedIntegrity,
@@ -296,13 +273,7 @@ export async function verifyOldFoundationTransactionBarrier({
     await mkdir(join(consumerRoot, ".agent-teams-local"), { recursive: true });
     const documentFixture = JSON.parse(
       await readFile(
-        join(
-          repositoryRoot,
-          "tests",
-          "fixtures",
-          "document-authoring-contracts",
-          "valid-v1.json",
-        ),
+        join(repositoryRoot, "tests", "fixtures", "document-authoring-contracts", "valid-v1.json"),
         "utf8",
       ),
     );
@@ -320,22 +291,13 @@ export async function verifyOldFoundationTransactionBarrier({
       ...envelopeBody,
       envelopeDigest: canonicalDigest(envelopeBody),
     };
-    const transactionBytes = Buffer.from(
-      `${JSON.stringify(envelope, null, 2)}\n`,
-      "utf8",
-    );
+    const transactionBytes = Buffer.from(`${JSON.stringify(envelope, null, 2)}\n`, "utf8");
     await writeFile(transactionPath, transactionBytes);
 
     const currentFailure = await captureFailure(() =>
       runCommand(
         process.execPath,
-        [
-          currentCliPath,
-          "scaffold-recover",
-          "--consumer",
-          consumerRoot,
-          "--json",
-        ],
+        [currentCliPath, "scaffold-recover", "--consumer", consumerRoot, "--json"],
         consumerRoot,
       ),
     );
@@ -344,9 +306,7 @@ export async function verifyOldFoundationTransactionBarrier({
       currentFailure.stderr !== "" ||
       jsonErrorCode(currentFailure) !== "SCAFFOLD_RECOVERY_REQUIRED"
     ) {
-      throw new Error(
-        "Current Foundation did not establish the persistent downgrade barrier.",
-      );
+      throw new Error("Current Foundation did not establish the persistent downgrade barrier.");
     }
     await assertPersistentBarrier(consumerRoot);
     if (!(await readFile(transactionPath)).equals(transactionBytes)) {

@@ -1,7 +1,4 @@
-export {
-  DOCS_PROTOCOL_ID,
-  DOCS_PROTOCOL_VERSION
-} from "./domain/documentation-model.js";
+export { DOCS_PROTOCOL_ID, DOCS_PROTOCOL_VERSION } from "./domain/documentation-model.js";
 export type {
   DocsCommandOutcome,
   DocsCodeAnchor,
@@ -11,7 +8,7 @@ export type {
   DocsReceiptOutcome,
   DocsNewRequest,
   DocsTypeProfile,
-  ReachabilityAction
+  ReachabilityAction,
 } from "./application/model.js";
 export type {
   DocsCommandV2,
@@ -20,7 +17,7 @@ export type {
   DocsNewResultV2,
   DocsProtocolProfileV3,
   DocsProtocolProfileV4,
-  DocsBlockerPolicy
+  DocsBlockerPolicy,
 } from "./application/model-v2.js";
 export type {
   DocsCommandV3,
@@ -29,17 +26,17 @@ export type {
   DocsContextRequestV1,
   DocsContextResultV1,
   DocsContextSelectionV1,
-  DocsFindResultV3
+  DocsFindResultV3,
 } from "./application/model-v3.js";
 
 export {
   validatePortableRepositoryPath,
-  validatePortableRepositoryPathV2
+  validatePortableRepositoryPathV2,
 } from "./application/profile-policy.js";
 export {
   CommunityContextError,
   projectCommunityLlmsText,
-  rankCommunityDocuments
+  rankCommunityDocuments,
 } from "./application/context.js";
 export type {
   CommunityContextCatalog,
@@ -51,9 +48,9 @@ export type {
   CommunitySearchIndex,
   CommunitySearchRecord,
   EffectiveCommunityContextLimits,
-  RankCommunityDocumentsInput
+  RankCommunityDocumentsInput,
 } from "./application/context.js";
 export {
   CommunityMiniSearchIndex,
-  createCommunityMiniSearchIndex
+  createCommunityMiniSearchIndex,
 } from "./adapters/outbound/minisearch-adapter.js";

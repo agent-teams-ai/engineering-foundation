@@ -7,12 +7,9 @@ import type {
   CurrentProtobufContractEvidence,
   ProtobufEvolutionPolicy,
   ReleasedProtobufContractEvidence,
-  Sha256Digest
+  Sha256Digest,
 } from "../model/protobuf-release-evidence.js";
-import {
-  PROTOBUF_EVOLUTION_RULES,
-  type ProtobufEvolutionRuleMetadata
-} from "../rules.js";
+import { PROTOBUF_EVOLUTION_RULES, type ProtobufEvolutionRuleMetadata } from "../rules.js";
 
 const SHA256_DIGEST = /^sha256:[a-f0-9]{64}$/u;
 const CONTRACT_ID = /^[a-z][a-z0-9.-]{1,119}$/u;
@@ -41,7 +38,7 @@ function inputError(message: string): never {
     code: "PROTOBUF_RELEASE_EVIDENCE_INVALID",
     message,
     phase: "protobuf-release-evidence",
-    retryable: false
+    retryable: false,
   });
 }
 
@@ -60,7 +57,7 @@ function diagnostic(input: {
     relatedLocations: [],
     evidence: input.evidence ?? [],
     remediation: input.rule.remediation,
-    requiresArchitectureReview: input.rule.requiresArchitectureReview
+    requiresArchitectureReview: input.rule.requiresArchitectureReview,
   };
 }
 
@@ -92,10 +89,7 @@ function generatorKey(value: BufGeneratorVersionEvidence): string {
   return `${value.name}\u0000${value.version}`;
 }
 
-function assertGeneratorVersions(
-  values: unknown,
-  field: string
-): void {
+function assertGeneratorVersions(values: unknown, field: string): void {
   if (!Array.isArray(values) || values.length > 100) {
     inputError(`${field} exceeds the supported generator limit.`);
   }
@@ -113,10 +107,7 @@ function assertGeneratorVersions(
     return generatorKey({ name, version });
   });
   const sorted = keys.toSorted();
-  if (
-    new Set(keys).size !== keys.length ||
-    keys.some((value, index) => value !== sorted[index])
-  ) {
+  if (new Set(keys).size !== keys.length || keys.some((value, index) => value !== sorted[index])) {
     inputError(`${field} must be unique and sorted by name and version.`);
   }
 }
@@ -125,11 +116,11 @@ function assertGenerationDriftEvidence(value: unknown): void {
   const evidence = evidenceRecord(value, "current.generationDrift");
   assertDigest(
     evidence["expectedGeneratedOutputDigest"],
-    "current.generationDrift.expectedGeneratedOutputDigest"
+    "current.generationDrift.expectedGeneratedOutputDigest",
   );
   assertDigest(
     evidence["observedGeneratedOutputDigest"],
-    "current.generationDrift.observedGeneratedOutputDigest"
+    "current.generationDrift.observedGeneratedOutputDigest",
   );
 }
 
@@ -173,7 +164,7 @@ function assertBreakingApprovals(policy: ProtobufEvolutionPolicy): void {
     policy.acceptedDecisionIds.some((decisionId) => !ADR_ID.test(decisionId)) ||
     new Set(policy.acceptedDecisionIds).size !== policy.acceptedDecisionIds.length ||
     policy.acceptedDecisionIds.some(
-      (decisionId, index) => decisionId !== policy.acceptedDecisionIds.toSorted()[index]
+      (decisionId, index) => decisionId !== policy.acceptedDecisionIds.toSorted()[index],
     )
   ) {
     inputError("acceptedDecisionIds must be unique sorted ADR-NNNN identifiers.");
@@ -188,7 +179,9 @@ function assertReleasedEvidence(evidence: ReleasedProtobufContractEvidence): voi
     inputError("Released Protobuf evidence contractId is invalid.");
   }
   if (!isPublishedContractVersion(evidence.publicContractVersion)) {
-    inputError("Released Protobuf evidence publicContractVersion must be exact SemVer without build metadata.");
+    inputError(
+      "Released Protobuf evidence publicContractVersion must be exact SemVer without build metadata.",
+    );
   }
   assertNonEmpty(evidence.bufVersion, "released.bufVersion", 80);
   assertDigest(evidence.bufConfigDigest, "released.bufConfigDigest");
@@ -202,15 +195,14 @@ function assertCurrentEvidence(evidence: CurrentProtobufContractEvidence): void 
     inputError("Current Protobuf evidence contractId is invalid.");
   }
   if (!isPublishedContractVersion(evidence.publicContractVersion)) {
-    inputError("Current Protobuf evidence publicContractVersion must be exact SemVer without build metadata.");
+    inputError(
+      "Current Protobuf evidence publicContractVersion must be exact SemVer without build metadata.",
+    );
   }
   assertNonEmpty(evidence.bufVersion, "current.bufVersion", 80);
   assertDigest(evidence.bufConfigDigest, "current.bufConfigDigest");
   assertDigest(evidence.descriptorImageDigest, "current.descriptorImageDigest");
-  assertDigest(
-    evidence.releasedDescriptorImageDigest,
-    "current.releasedDescriptorImageDigest"
-  );
+  assertDigest(evidence.releasedDescriptorImageDigest, "current.releasedDescriptorImageDigest");
   assertGenerationDriftEvidence(evidence.generationDrift);
   assertGeneratorVersions(evidence.generatorVersions, "current.generatorVersions");
   assertBreakingEvidence(evidence.breaking);
@@ -218,7 +210,7 @@ function assertCurrentEvidence(evidence: CurrentProtobufContractEvidence): void 
 
 function generatorVersionsEqual(
   left: readonly BufGeneratorVersionEvidence[],
-  right: readonly BufGeneratorVersionEvidence[]
+  right: readonly BufGeneratorVersionEvidence[],
 ): boolean {
   return (
     left.length === right.length &&
@@ -226,13 +218,13 @@ function generatorVersionsEqual(
       (candidate, index) =>
         right[index] !== undefined &&
         candidate.name === right[index].name &&
-        candidate.version === right[index].version
+        candidate.version === right[index].version,
     )
   );
 }
 
 export function evaluateProtobufEvolution(
-  policy: ProtobufEvolutionPolicy
+  policy: ProtobufEvolutionPolicy,
 ): readonly FoundationDiagnostic[] {
   assertBreakingApprovals(policy);
   assertReleasedEvidence(policy.released);
@@ -243,18 +235,18 @@ export function evaluateProtobufEvolution(
 
   const subject = policy.current.contractId;
   const diagnostics: FoundationDiagnostic[] = [];
-  if (isVersionRegressed(policy.current.publicContractVersion, policy.released.publicContractVersion)) {
+  if (
+    isVersionRegressed(policy.current.publicContractVersion, policy.released.publicContractVersion)
+  ) {
     diagnostics.push(
       diagnostic({
         rule: PROTOBUF_EVOLUTION_RULES.publicVersionRegressed,
         subject,
-        message: `Current public contract version ${policy.current.publicContractVersion} is older than released ${policy.released.publicContractVersion}.`
-      })
+        message: `Current public contract version ${policy.current.publicContractVersion} is older than released ${policy.released.publicContractVersion}.`,
+      }),
     );
   }
-  if (
-    policy.current.releasedDescriptorImageDigest !== policy.released.descriptorImageDigest
-  ) {
+  if (policy.current.releasedDescriptorImageDigest !== policy.released.descriptorImageDigest) {
     diagnostics.push(
       diagnostic({
         rule: PROTOBUF_EVOLUTION_RULES.baselineMismatch,
@@ -262,9 +254,9 @@ export function evaluateProtobufEvolution(
         message: "Buf breaking evidence does not reference the released descriptor image digest.",
         evidence: [
           { kind: "released-image", value: policy.released.descriptorImageDigest },
-          { kind: "observed-baseline-image", value: policy.current.releasedDescriptorImageDigest }
-        ]
-      })
+          { kind: "observed-baseline-image", value: policy.current.releasedDescriptorImageDigest },
+        ],
+      }),
     );
   }
   if (
@@ -277,17 +269,18 @@ export function evaluateProtobufEvolution(
       diagnostic({
         rule: PROTOBUF_EVOLUTION_RULES.immutableVersionMutated,
         subject,
-        message: "Current descriptor or generated output evidence differs from the released evidence for the same public contract version.",
+        message:
+          "Current descriptor or generated output evidence differs from the released evidence for the same public contract version.",
         evidence: [
           { kind: "released-descriptor-image", value: policy.released.descriptorImageDigest },
           { kind: "current-descriptor-image", value: policy.current.descriptorImageDigest },
           { kind: "released-generated-output", value: policy.released.generatedOutputDigest },
           {
             kind: "current-generated-output",
-            value: policy.current.generationDrift.expectedGeneratedOutputDigest
-          }
-        ]
-      })
+            value: policy.current.generationDrift.expectedGeneratedOutputDigest,
+          },
+        ],
+      }),
     );
   }
   if (
@@ -299,8 +292,9 @@ export function evaluateProtobufEvolution(
       diagnostic({
         rule: PROTOBUF_EVOLUTION_RULES.toolchainMismatch,
         subject,
-        message: "Current Buf version, configuration digest, or generator versions differ from released evidence."
-      })
+        message:
+          "Current Buf version, configuration digest, or generator versions differ from released evidence.",
+      }),
     );
   }
   if (
@@ -315,14 +309,14 @@ export function evaluateProtobufEvolution(
         evidence: [
           {
             kind: "expected-generated-output",
-            value: policy.current.generationDrift.expectedGeneratedOutputDigest
+            value: policy.current.generationDrift.expectedGeneratedOutputDigest,
           },
           {
             kind: "observed-generated-output",
-            value: policy.current.generationDrift.observedGeneratedOutputDigest
-          }
-        ]
-      })
+            value: policy.current.generationDrift.observedGeneratedOutputDigest,
+          },
+        ],
+      }),
     );
   }
   if (policy.current.breaking.status === "not-run") {
@@ -330,17 +324,17 @@ export function evaluateProtobufEvolution(
       diagnostic({
         rule: PROTOBUF_EVOLUTION_RULES.breakingAnalysisMissing,
         subject,
-        message: "Buf breaking analysis has not completed for this contract evidence."
-      })
+        message: "Buf breaking analysis has not completed for this contract evidence.",
+      }),
     );
   }
   if (policy.current.breaking.status === "breaking") {
     const fingerprint = policy.current.breaking.fingerprint;
     const approvals = policy.approvedBreakingChanges.filter(
-      (candidate) => candidate.fingerprint === fingerprint
+      (candidate) => candidate.fingerprint === fingerprint,
     );
     const acceptedApproval = approvals.find((approval) =>
-      policy.acceptedDecisionIds.includes(approval.decisionId)
+      policy.acceptedDecisionIds.includes(approval.decisionId),
     );
     if (acceptedApproval !== undefined) {
       return Object.freeze(diagnostics);
@@ -360,9 +354,9 @@ export function evaluateProtobufEvolution(
             : [{ kind: "breaking-fingerprint", value: fingerprint }]),
           ...(approval === undefined
             ? []
-            : [{ kind: "approval-decision", value: approval.decisionId }])
-        ]
-      })
+            : [{ kind: "approval-decision", value: approval.decisionId }]),
+        ],
+      }),
     );
   }
   return Object.freeze(diagnostics);

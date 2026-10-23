@@ -11,8 +11,13 @@
     "noUncheckedIndexedAccess": true,
     "strict": true,
     "target": "ES2024",
-    "types": ["node"],
-    "verbatimModuleSyntax": true
+    "types": [
+      "node"
+    ],
+    "verbatimModuleSyntax": true,
+    "allowImportingTsExtensions": true
   },
-  "include": ["packages/docs-protocol-agent-teams/tests/restoration-lock-inputs.test.mts"]
+  "include": [
+    "packages/docs-protocol-agent-teams/tests/restoration-lock-inputs.test.mts"
+  ]
 }

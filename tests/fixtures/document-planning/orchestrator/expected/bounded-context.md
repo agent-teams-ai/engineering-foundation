@@ -27,7 +27,7 @@ summary: Freezes the current bounded context creation contract.
 ### Aggregate decision matrix
 
 | Root and identity | Protected invariants | Commands | Domain events | Transaction | Concurrency | Growth bound | External facts | Rejected boundaries |
-|---|---|---|---|---|---|---|---|---|
+| ----------------- | -------------------- | -------- | ------------- | ----------- | ----------- | ------------ | -------------- | ------------------- |
 
 ## Tactical building blocks
 

@@ -1,6 +1,4 @@
-import type {
-  JsonObject
-} from "../model/scaffold-values.js";
+import type { JsonObject } from "../model/scaffold-values.js";
 
 /** Validates data for one immutable, Foundation-owned definition. */
 export interface ScaffoldParameterValidation {

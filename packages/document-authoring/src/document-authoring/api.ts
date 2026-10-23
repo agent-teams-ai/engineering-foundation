@@ -14,19 +14,19 @@ export type {
   DocumentMetadataPrimitive,
   DocumentMetadataValue,
   ReferencedDocumentProjection,
-  ReferencedDocumentProjectionResult
+  ReferencedDocumentProjectionResult,
 } from "./application/model/document-catalog.js";
 export type {
   DocumentFindFilters,
   DocumentFindQuery,
-  DocumentFindResult
-  ,DocumentFindResultV2
+  DocumentFindResult,
+  DocumentFindResultV2,
 } from "./application/model/document-find.js";
 export type {
   DocumentAuthoringProfileDescriptionV2,
   DocumentAuthoringProfileDescriptionV3,
   DocumentAuthoringTypeDescriptionV2,
-  DocumentReachabilityStrategyV2
+  DocumentReachabilityStrategyV2,
 } from "./application/model/document-authoring-profile-description.js";
 export type {
   DocumentCompilerIdentity,
@@ -43,7 +43,7 @@ export type {
   DocumentPlanV1,
   DocumentPlanV2,
   DocumentPlanDiagnostic,
-  DocumentReachabilityStrategy
+  DocumentReachabilityStrategy,
 } from "./application/model/document-planning.js";
 export type { DocumentPhysicalIdentity } from "./application/model/document-physical-identity.js";
 export type {
@@ -59,14 +59,14 @@ export type {
   DocumentReceiptDiagnostic,
   DocumentReceiptOutcome,
   DocumentReceiptV1,
-  DocumentReceiptV2
-  ,DocumentReceiptContract
+  DocumentReceiptV2,
+  DocumentReceiptContract,
 } from "./application/model/document-receipt.js";
 export type {
   DocumentTransactionInspectionDiagnostic,
   DocumentTransactionInspection,
   DocumentTransactionInspectionV1,
-  DocumentTransactionInspectionV2
+  DocumentTransactionInspectionV2,
 } from "./application/model/document-transaction-inspection.js";
 export type {
   DocumentJournalBase,
@@ -78,7 +78,7 @@ export type {
   DocumentTransactionEnvelopeV4Base,
   DocumentTransactionJournal,
   DocumentTransactionJournalV3,
-  DocumentTransactionJournalV3Base
+  DocumentTransactionJournalV3Base,
 } from "./application/model/document-transaction.js";
 export type { ApplyDocumentPlanRequest } from "./application/use-cases/apply-document-plan.js";
 export type { RecoverDocumentTransactionRequest } from "./application/use-cases/recover-document-transaction.js";
@@ -87,14 +87,14 @@ export type { BuildDocumentationCatalogRequest } from "./application/use-cases/b
 export type { FindDocumentsRequest } from "./application/use-cases/find-documents.js";
 export type {
   DescribeDocumentAuthoringProfileV2Request,
-  DescribeDocumentAuthoringProfileV3Request
+  DescribeDocumentAuthoringProfileV3Request,
 } from "./application/model/document-description-authority.js";
 export type { InspectDocumentAuthoringEnvironmentV1Request } from "./application/model/document-environment-request.js";
 export type { DocumentEnvironmentInspection } from "./application/ports/document-environment-inspector.js";
 export type {
   PlanDocumentationDocumentRequest,
   PlanDocumentationDocumentRequestContract,
-  PlanDocumentationDocumentRequestV2
+  PlanDocumentationDocumentRequestV2,
 } from "./application/use-cases/plan-documentation-document.js";
 export { projectReferencedDocuments } from "./application/projections/document-catalog-projections.js";
 export { DocumentCatalogError } from "./application/model/document-catalog-error.js";

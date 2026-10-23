@@ -1,12 +1,14 @@
-import type { DocumentArtifactType, DocumentCatalogCollection, DocumentReachabilityStrategy } from "./document-planning.js";
+import type {
+  DocumentArtifactType,
+  DocumentCatalogCollection,
+  DocumentReachabilityStrategy,
+} from "./document-planning.js";
 
 export interface ValidatedDocumentAuthoringProfile {
   readonly authoring: {
-    readonly artifactTypes: readonly (
-      Omit<DocumentArtifactType, "reachability"> & {
-        readonly reachability?: DocumentReachabilityStrategy;
-      }
-    )[];
+    readonly artifactTypes: readonly (Omit<DocumentArtifactType, "reachability"> & {
+      readonly reachability?: DocumentReachabilityStrategy;
+    })[];
     readonly mode: "create-only";
   };
   readonly catalog: {
@@ -29,17 +31,14 @@ export class InvalidDocumentAuthoringProfileError extends Error {
   }
 }
 
-export interface ValidatedDocumentAuthoringProfileV2
-  extends Omit<
-    ValidatedDocumentAuthoringProfile,
-    "authoring" | "catalog" | "schemaVersion"
-  > {
+export interface ValidatedDocumentAuthoringProfileV2 extends Omit<
+  ValidatedDocumentAuthoringProfile,
+  "authoring" | "catalog" | "schemaVersion"
+> {
   readonly authoring: {
-    readonly artifactTypes: readonly (
-      ValidatedDocumentAuthoringProfile["authoring"]["artifactTypes"][number] & {
-        readonly allowedOwnerIds: readonly string[];
-      }
-    )[];
+    readonly artifactTypes: readonly (ValidatedDocumentAuthoringProfile["authoring"]["artifactTypes"][number] & {
+      readonly allowedOwnerIds: readonly string[];
+    })[];
     readonly mode: "create-only";
   };
   readonly catalog: ValidatedDocumentAuthoringProfile["catalog"] & {
@@ -51,14 +50,13 @@ export interface ValidatedDocumentAuthoringProfileV2
   readonly schemaVersion: 2;
 }
 
-export interface ValidatedDocumentAuthoringProfileV3
-  extends Omit<
-    ValidatedDocumentAuthoringProfile,
-    "authoring" | "catalog" | "schemaVersion"
-  > {
+export interface ValidatedDocumentAuthoringProfileV3 extends Omit<
+  ValidatedDocumentAuthoringProfile,
+  "authoring" | "catalog" | "schemaVersion"
+> {
   readonly authoring: {
-    readonly artifactTypes: readonly (
-      ValidatedDocumentAuthoringProfile["authoring"]["artifactTypes"][number] & (
+    readonly artifactTypes: readonly (ValidatedDocumentAuthoringProfile["authoring"]["artifactTypes"][number] &
+      (
         | {
             readonly allowedOwnerIds: readonly string[];
             readonly ownerSetId?: never;
@@ -67,8 +65,7 @@ export interface ValidatedDocumentAuthoringProfileV3
             readonly allowedOwnerIds?: never;
             readonly ownerSetId: string;
           }
-      )
-    )[];
+      ))[];
     readonly mode: "create-only";
     readonly ownerSets?: {
       readonly schemaVersion: 1;
@@ -91,39 +88,40 @@ export type ValidatedDocumentAuthoringProfileVersioned =
 
 export function resolvedArtifactOwnerIds(
   profile: ValidatedDocumentAuthoringProfileVersioned,
-  artifactType: ValidatedDocumentAuthoringProfileVersioned["authoring"]["artifactTypes"][number]
+  artifactType: ValidatedDocumentAuthoringProfileVersioned["authoring"]["artifactTypes"][number],
 ): readonly string[] | undefined {
   if (profile.schemaVersion === 1) {
     return undefined;
   }
   if (profile.schemaVersion === 2) {
     const artifact = profile.authoring.artifactTypes.find(
-      (candidate) => candidate.type === artifactType.type
+      (candidate) => candidate.type === artifactType.type,
     );
     if (artifact === undefined) {
-      throw new TypeError(`Profile v2 artifact type ${artifactType.type} must declare allowedOwnerIds.`);
+      throw new TypeError(
+        `Profile v2 artifact type ${artifactType.type} must declare allowedOwnerIds.`,
+      );
     }
     return Object.freeze([...artifact.allowedOwnerIds]);
   }
   const artifact = profile.authoring.artifactTypes.find(
-    (candidate) => candidate.type === artifactType.type
+    (candidate) => candidate.type === artifactType.type,
   );
   if (artifact?.allowedOwnerIds !== undefined) {
     return Object.freeze([...artifact.allowedOwnerIds]);
   }
-  const ids = artifact === undefined
-    ? undefined
-    : profile.authoring.ownerSets?.sets[artifact.ownerSetId];
+  const ids =
+    artifact === undefined ? undefined : profile.authoring.ownerSets?.sets[artifact.ownerSetId];
   if (ids === undefined) {
-    throw new TypeError(`Profile v3 artifact type ${artifactType.type} references an unknown ownerSetId.`);
+    throw new TypeError(
+      `Profile v3 artifact type ${artifactType.type} references an unknown ownerSetId.`,
+    );
   }
   return Object.freeze([...ids]);
 }
 
 export function resolvedProfileMetadataSidecar(
-  profile: ValidatedDocumentAuthoringProfileVersioned
+  profile: ValidatedDocumentAuthoringProfileVersioned,
 ): ValidatedDocumentAuthoringProfileV2["catalog"]["metadataSidecar"] {
-  return profile.schemaVersion === 1
-    ? undefined
-    : profile.catalog.metadataSidecar;
+  return profile.schemaVersion === 1 ? undefined : profile.catalog.metadataSidecar;
 }

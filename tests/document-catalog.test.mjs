@@ -139,14 +139,8 @@ test("builds one deterministic read-only catalog across collection kinds", async
         documentSource({ id: "package.alpha", title: "Alpha package" }),
         "utf8",
       ),
-      writeFile(
-        join(root, "packages", "alpha", "ignored.md"),
-        Buffer.from([0xff, 0xfe]),
-      ),
-      writeFile(
-        join(root, "docs", "content", "excluded", "invalid.md"),
-        Buffer.from([0xff]),
-      ),
+      writeFile(join(root, "packages", "alpha", "ignored.md"), Buffer.from([0xff, 0xfe])),
+      writeFile(join(root, "docs", "content", "excluded", "invalid.md"), Buffer.from([0xff])),
     ]);
     const authorityAndSources = [
       "document-authoring.yaml",
@@ -156,9 +150,7 @@ test("builds one deterministic read-only catalog across collection kinds", async
       "docs/content/zeta.md",
       "packages/alpha/README.md",
     ];
-    const before = await Promise.all(
-      authorityAndSources.map((path) => readFile(join(root, path))),
-    );
+    const before = await Promise.all(authorityAndSources.map((path) => readFile(join(root, path))));
 
     const first = await buildDocumentationCatalog({
       consumerRoot: root,
@@ -202,11 +194,14 @@ test("builds one deterministic read-only catalog across collection kinds", async
         },
       ],
     );
-    assert.deepEqual(projectReferencedDocuments(first, ["package.alpha", "missing", "package.alpha"]), {
-      documents: [{ id: "package.alpha", path: "packages/alpha/README.md" }],
-      missingIds: ["missing"],
-      unresolvedIds: [],
-    });
+    assert.deepEqual(
+      projectReferencedDocuments(first, ["package.alpha", "missing", "package.alpha"]),
+      {
+        documents: [{ id: "package.alpha", path: "packages/alpha/README.md" }],
+        missingIds: ["missing"],
+        unresolvedIds: [],
+      },
+    );
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -238,14 +233,18 @@ test("returns a partial catalog without hiding valid neighbors", async () => {
       ),
       writeFile(
         join(root, "docs", "content", "metadata-invalid.md"),
-        documentSource({ id: "guide.metadata-invalid", title: "Metadata invalid" })
-          .replace("\n---\n\n#", "\nextra: rejected\n---\n\n#"),
+        documentSource({ id: "guide.metadata-invalid", title: "Metadata invalid" }).replace(
+          "\n---\n\n#",
+          "\nextra: rejected\n---\n\n#",
+        ),
         "utf8",
       ),
       writeFile(
         join(root, "docs", "content", "descriptor-invalid.md"),
-        documentSource({ id: "guide.descriptor-invalid", title: "Descriptor invalid" })
-          .replace(/summary: .*\n/u, "summary:\n"),
+        documentSource({ id: "guide.descriptor-invalid", title: "Descriptor invalid" }).replace(
+          /summary: .*\n/u,
+          "summary:\n",
+        ),
         "utf8",
       ),
       writeFile(
@@ -259,24 +258,24 @@ test("returns a partial catalog without hiding valid neighbors", async () => {
       profilePath: "document-authoring.yaml",
     });
     assert.equal(snapshot.status, "partial");
-    assert.equal(snapshot.documents.some((document) => document.id === "guide.valid"), true);
-    assert.equal(snapshot.documents.some((document) => document.id === "guide.unknown"), false);
+    assert.equal(
+      snapshot.documents.some((document) => document.id === "guide.valid"),
+      true,
+    );
+    assert.equal(
+      snapshot.documents.some((document) => document.id === "guide.unknown"),
+      false,
+    );
     assert.equal(
       snapshot.identityProjection.some((entry) => entry.id === "guide.unknown"),
       true,
     );
     assert.equal(
-      snapshot.identityProjection.some(
-        (entry) => entry.id === "guide.descriptor-invalid",
-      ),
+      snapshot.identityProjection.some((entry) => entry.id === "guide.descriptor-invalid"),
       true,
     );
     assert.deepEqual(
-      projectReferencedDocuments(snapshot, [
-        "guide.unknown",
-        "guide.duplicate",
-        "missing",
-      ]),
+      projectReferencedDocuments(snapshot, ["guide.unknown", "guide.duplicate", "missing"]),
       {
         documents: [],
         missingIds: ["missing"],
@@ -316,10 +315,7 @@ test("reports malformed UTF-8, BOM, and NUL sources while preserving valid docum
         join(root, "docs", "content", "bom.md"),
         Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from("# BOM\n")]),
       ),
-      writeFile(
-        join(root, "docs", "content", "nul.md"),
-        Buffer.from("# NUL\u0000\n"),
-      ),
+      writeFile(join(root, "docs", "content", "nul.md"), Buffer.from("# NUL\u0000\n")),
     ]);
     const snapshot = await buildDocumentationCatalog({
       consumerRoot: root,
@@ -355,8 +351,7 @@ test("rejects remote metadata schema references before discovery", async () => {
         profilePath: "document-authoring.yaml",
       }),
       (error) =>
-        error instanceof DocumentCatalogError &&
-        error.code === "DOCUMENT_CATALOG_INPUT_INVALID",
+        error instanceof DocumentCatalogError && error.code === "DOCUMENT_CATALOG_INPUT_INVALID",
     );
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -377,8 +372,7 @@ test("rejects async metadata schemas before exposing the synchronous validator",
         profilePath: "document-authoring.yaml",
       }),
       (error) =>
-        error instanceof DocumentCatalogError &&
-        error.code === "DOCUMENT_CATALOG_INPUT_INVALID",
+        error instanceof DocumentCatalogError && error.code === "DOCUMENT_CATALOG_INPUT_INVALID",
     );
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -400,7 +394,9 @@ function observedDocument(repositoryPath, id) {
         summary: `Summary for ${id}.`,
       },
     },
-    headings: [{ depth: 1, location: { column: 1, line: 9, offset: source.indexOf("# ") }, text: id }],
+    headings: [
+      { depth: 1, location: { column: 1, line: 9, offset: source.indexOf("# ") }, text: id },
+    ],
     references: [],
     repositoryPath,
     source,
@@ -446,16 +442,11 @@ function sidecarMetadata(id, overrides = {}) {
   });
 }
 
-function fakeBuilder(
-  documents,
-  overrides = {},
-  Builder = BuildDocumentationCatalog,
-) {
+function fakeBuilder(documents, overrides = {}, Builder = BuildDocumentationCatalog) {
   let ownerReads = 0;
   let repositoryReads = 0;
   let sidecarReads = 0;
-  const hasSidecar =
-    overrides.sidecarChanges === true || overrides.sidecarDocuments !== undefined;
+  const hasSidecar = overrides.sidecarChanges === true || overrides.sidecarDocuments !== undefined;
   const evidence = (path) => ({ digest, path, size: 1 });
   return new Builder({
     metadata: {
@@ -556,19 +547,16 @@ test("v2 rejects noncanonical and amplification-prone metadata without changing 
     };
 
     const v1 = await fakeBuilder([document]).execute(request);
-    const v2 = await fakeBuilder(
-      [document],
-      {},
-      BuildDocumentationCatalogV2,
-    ).execute(request);
+    const v2 = await fakeBuilder([document], {}, BuildDocumentationCatalogV2).execute(request);
 
     assert.equal(v1.status, "complete");
     assert.equal(v1.documents.length, 1);
     assert.equal(v2.status, "partial");
     assert.equal(v2.documents.length, 0);
-    assert.deepEqual(v2.diagnostics.map(({ ruleId }) => ruleId), [
-      "document.catalog.metadata-projection-invalid",
-    ]);
+    assert.deepEqual(
+      v2.diagnostics.map(({ ruleId }) => ruleId),
+      ["document.catalog.metadata-projection-invalid"],
+    );
     assert.deepEqual(v2.identityProjection, [
       { id: `guide.unsafe-${index}`, repositoryPath: `docs/unsafe-${index}.md` },
     ]);
@@ -601,8 +589,7 @@ test("fails closed when owner authority disappears during observation", async ()
       ownerDisappears: true,
     }).execute({ consumerRoot: "/fixture", profilePath: "document-authoring.yaml" }),
     (error) =>
-      error instanceof DocumentCatalogError &&
-      error.code === "DOCUMENT_CATALOG_AUTHORITY_CHANGED",
+      error instanceof DocumentCatalogError && error.code === "DOCUMENT_CATALOG_AUTHORITY_CHANGED",
   );
 });
 
@@ -614,8 +601,7 @@ test("v2 fails closed when sidecar evidence changes during observation", async (
       BuildDocumentationCatalogV2,
     ).execute({ consumerRoot: "/fixture", profilePath: "document-authoring.yaml" }),
     (error) =>
-      error instanceof DocumentCatalogError &&
-      error.code === "DOCUMENT_CATALOG_AUTHORITY_CHANGED",
+      error instanceof DocumentCatalogError && error.code === "DOCUMENT_CATALOG_AUTHORITY_CHANGED",
   );
 });
 
@@ -638,9 +624,7 @@ test("v2 accepts complete path-keyed sidecar metadata for absent frontmatter", a
 
   assert.equal(first.status, "complete");
   assert.deepEqual(first.diagnostics, []);
-  assert.deepEqual(first.identityProjection, [
-    { id: "report.frozen", repositoryPath },
-  ]);
+  assert.deepEqual(first.identityProjection, [{ id: "report.frozen", repositoryPath }]);
   assert.deepEqual(first.documents, [
     {
       id: "report.frozen",
@@ -700,24 +684,20 @@ test("v2 keeps inline and sidecar metadata conflicts fail-closed", async () => {
 
   assert.equal(snapshot.status, "partial");
   assert.deepEqual(snapshot.documents, []);
-  assert.deepEqual(snapshot.identityProjection, [
-    { id: "guide.conflict", repositoryPath },
-  ]);
-  assert.deepEqual(snapshot.diagnostics.map(({ ruleId, subject }) => ({ ruleId, subject })), [
-    { ruleId: "document.catalog.metadata-sidecar-conflict", subject: repositoryPath },
-  ]);
+  assert.deepEqual(snapshot.identityProjection, [{ id: "guide.conflict", repositoryPath }]);
+  assert.deepEqual(
+    snapshot.diagnostics.map(({ ruleId, subject }) => ({ ruleId, subject })),
+    [{ ruleId: "document.catalog.metadata-sidecar-conflict", subject: repositoryPath }],
+  );
 });
 
 test("marks a catalog partial when the corpus changes between passes", async () => {
-  const snapshot = await fakeBuilder(
-    [observedDocument("docs/valid.md", "guide.valid")],
-    { corpusChanges: true },
-  ).execute({ consumerRoot: "/fixture", profilePath: "document-authoring.yaml" });
+  const snapshot = await fakeBuilder([observedDocument("docs/valid.md", "guide.valid")], {
+    corpusChanges: true,
+  }).execute({ consumerRoot: "/fixture", profilePath: "document-authoring.yaml" });
   assert.equal(snapshot.status, "partial");
   assert.equal(
-    snapshot.diagnostics.some(
-      (entry) => entry.ruleId === "document.catalog.corpus-changed",
-    ),
+    snapshot.diagnostics.some((entry) => entry.ruleId === "document.catalog.corpus-changed"),
     true,
   );
 });
@@ -733,16 +713,10 @@ test("catalog output is permutation invariant", async () => {
   const right = await fakeBuilder(ordered.toReversed()).execute(request);
   assert.deepEqual(right, left);
 
-  const leftV2 = await fakeBuilder(
-    ordered,
-    {},
-    BuildDocumentationCatalogV2,
-  ).execute(request);
-  const rightV2 = await fakeBuilder(
-    ordered.toReversed(),
-    {},
-    BuildDocumentationCatalogV2,
-  ).execute(request);
+  const leftV2 = await fakeBuilder(ordered, {}, BuildDocumentationCatalogV2).execute(request);
+  const rightV2 = await fakeBuilder(ordered.toReversed(), {}, BuildDocumentationCatalogV2).execute(
+    request,
+  );
   assert.equal(rightV2.semanticDigest, leftV2.semanticDigest);
 });
 
@@ -773,47 +747,52 @@ async function writeDocumentCorpus(root, count) {
   });
   for (let index = 0; index < paths.length; index += 200) {
     await Promise.all(
-      paths.slice(index, index + 200).map(({ path, source }) =>
-        writeFile(path, source, "utf8")),
+      paths.slice(index, index + 200).map(({ path, source }) => writeFile(path, source, "utf8")),
     );
   }
 }
 
 const advisoryTest = process.env.FOUNDATION_PERFORMANCE === "1" ? test : test.skip;
-const performanceDocumentCounts = process.env.FOUNDATION_PERFORMANCE_COUNTS === undefined
-  ? [100, 1_000, 5_000]
-  : process.env.FOUNDATION_PERFORMANCE_COUNTS.split(",").map(Number);
+const performanceDocumentCounts =
+  process.env.FOUNDATION_PERFORMANCE_COUNTS === undefined
+    ? [100, 1_000, 5_000]
+    : process.env.FOUNDATION_PERFORMANCE_COUNTS.split(",").map(Number);
 
-advisoryTest("collects advisory cold and warm filesystem benchmarks at 100, 1,000, and 5,000 documents", async (context) => {
-  for (const count of performanceDocumentCounts) {
-    await context.test(`${count} documents`, async (subtest) => {
-      const root = await createConsumer();
-      try {
-        await writeDocumentCorpus(root, count);
-        const request = {
-          consumerRoot: root,
-          profilePath: "document-authoring.yaml",
-        };
-        const coldStarted = performance.now();
-        const cold = await buildDocumentationCatalog(request);
-        const coldMilliseconds = performance.now() - coldStarted;
-        const warmStarted = performance.now();
-        const warm = await buildDocumentationCatalog(request);
-        const warmMilliseconds = performance.now() - warmStarted;
-        assert.equal(cold.status, "complete");
-        assert.equal(cold.documents.length, count);
-        assert.deepEqual(warm, cold);
-        subtest.diagnostic(`FOUNDATION_BENCHMARK ${JSON.stringify({
-          benchmark: "document-catalog-filesystem",
-          count,
-          measurements: {
-            coldMilliseconds,
-            warmMilliseconds,
-          },
-        })}`);
-      } finally {
-        await rm(root, { recursive: true, force: true });
-      }
-    });
-  }
-});
+advisoryTest(
+  "collects advisory cold and warm filesystem benchmarks at 100, 1,000, and 5,000 documents",
+  async (context) => {
+    for (const count of performanceDocumentCounts) {
+      await context.test(`${count} documents`, async (subtest) => {
+        const root = await createConsumer();
+        try {
+          await writeDocumentCorpus(root, count);
+          const request = {
+            consumerRoot: root,
+            profilePath: "document-authoring.yaml",
+          };
+          const coldStarted = performance.now();
+          const cold = await buildDocumentationCatalog(request);
+          const coldMilliseconds = performance.now() - coldStarted;
+          const warmStarted = performance.now();
+          const warm = await buildDocumentationCatalog(request);
+          const warmMilliseconds = performance.now() - warmStarted;
+          assert.equal(cold.status, "complete");
+          assert.equal(cold.documents.length, count);
+          assert.deepEqual(warm, cold);
+          subtest.diagnostic(
+            `FOUNDATION_BENCHMARK ${JSON.stringify({
+              benchmark: "document-catalog-filesystem",
+              count,
+              measurements: {
+                coldMilliseconds,
+                warmMilliseconds,
+              },
+            })}`,
+          );
+        } finally {
+          await rm(root, { recursive: true, force: true });
+        }
+      });
+    }
+  },
+);

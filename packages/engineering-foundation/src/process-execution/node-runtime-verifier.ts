@@ -5,12 +5,11 @@ import { basename, isAbsolute } from "node:path";
 
 import type { RepositoryRuntimeProfile } from "./application/runtime-selection.js";
 
-export const NODE_EXECUTABLE_ENVIRONMENT_VARIABLE =
-  "AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE";
+export const NODE_EXECUTABLE_ENVIRONMENT_VARIABLE = "AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE";
 
 export const SUPPORTED_NODE_VERSIONS = Object.freeze([
   Object.freeze({ major: 24, minimumMinor: 18 }),
-  Object.freeze({ major: 26, minimumMinor: 0 })
+  Object.freeze({ major: 26, minimumMinor: 0 }),
 ]);
 
 interface RuntimeIdentity {
@@ -23,7 +22,7 @@ interface RuntimeIdentity {
 
 const runtimeIdentityArguments = [
   "-p",
-  "JSON.stringify({execPath:process.execPath,version:process.versions.node,releaseName:process.release.name,bunVersion:Object.prototype.hasOwnProperty.call(process.versions,\"bun\")?process.versions.bun:null,hasBunGlobal:typeof globalThis.Bun!==\"undefined\"})"
+  'JSON.stringify({execPath:process.execPath,version:process.versions.node,releaseName:process.release.name,bunVersion:Object.prototype.hasOwnProperty.call(process.versions,"bun")?process.versions.bun:null,hasBunGlobal:typeof globalThis.Bun!=="undefined"})',
 ] as const;
 
 function observeRuntimeIdentity(path: string): RuntimeIdentity | null {
@@ -32,7 +31,7 @@ function observeRuntimeIdentity(path: string): RuntimeIdentity | null {
     windowsHide: true,
     timeout: 10_000,
     killSignal: "SIGKILL",
-    maxBuffer: 16 * 1024
+    maxBuffer: 16 * 1024,
   });
   if (observation.status !== 0) {
     return null;
@@ -53,7 +52,7 @@ function observeRuntimeIdentity(path: string): RuntimeIdentity | null {
       version: parsed.version,
       releaseName: parsed.releaseName,
       bunVersion: parsed.bunVersion ?? null,
-      hasBunGlobal: parsed.hasBunGlobal
+      hasBunGlobal: parsed.hasBunGlobal,
     };
   } catch {
     return null;
@@ -61,25 +60,29 @@ function observeRuntimeIdentity(path: string): RuntimeIdentity | null {
 }
 
 function isActualNode(identity: RuntimeIdentity, path: string): boolean {
-  return identity.releaseName === "node" &&
+  return (
+    identity.releaseName === "node" &&
     identity.bunVersion === null &&
     !identity.hasBunGlobal &&
     /^node(?:\.exe)?$/iu.test(basename(identity.execPath)) &&
-    realpathSync(identity.execPath) === realpathSync(path);
+    realpathSync(identity.execPath) === realpathSync(path)
+  );
 }
 
 function isSupportedNode(identity: RuntimeIdentity, path: string): boolean {
   const match = /^(\d+)\.(\d+)\.\d+$/u.exec(identity.version);
   const major = match === null ? 0 : Number(match[1]);
   const minor = match === null ? 0 : Number(match[2]);
-  return isActualNode(identity, path) &&
-    SUPPORTED_NODE_VERSIONS.some((range) => major === range.major && minor >= range.minimumMinor);
+  return (
+    isActualNode(identity, path) &&
+    SUPPORTED_NODE_VERSIONS.some((range) => major === range.major && minor >= range.minimumMinor)
+  );
 }
 
 /** Host identity check for the explicitly selected, closed repository runtime. */
 export async function verifyRepositoryRuntimeExecutable(
   path: string,
-  runtime: RepositoryRuntimeProfile
+  runtime: RepositoryRuntimeProfile,
 ): Promise<boolean> {
   if (!isAbsolute(path)) {
     return false;
@@ -96,9 +99,12 @@ export async function verifyRepositoryRuntimeExecutable(
     if (runtime === "node") {
       return isSupportedNode(identity, path);
     }
-    return identity.hasBunGlobal && identity.bunVersion !== null &&
+    return (
+      identity.hasBunGlobal &&
+      identity.bunVersion !== null &&
       /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/u.test(identity.bunVersion) &&
-      realpathSync(identity.execPath) === realpathSync(path);
+      realpathSync(identity.execPath) === realpathSync(path)
+    );
   } catch {
     return false;
   }
@@ -110,13 +116,15 @@ export async function verifyRepositoryRuntimeExecutable(
  */
 export function requireAdmittedNodeExecutable(
   environment: Readonly<Record<string, string | undefined>>,
-  currentExecutablePath: string
+  currentExecutablePath: string,
 ): string {
   const explicit = environment[NODE_EXECUTABLE_ENVIRONMENT_VARIABLE];
   const candidate = explicit ?? currentExecutablePath;
   let resolved: string;
   try {
-    if (!isAbsolute(candidate)) { throw new Error("Node executable must be absolute."); }
+    if (!isAbsolute(candidate)) {
+      throw new Error("Node executable must be absolute.");
+    }
     resolved = realpathSync(candidate);
   } catch (error) {
     throw new Error("An explicit admitted Node executable is required.", { cause: error });

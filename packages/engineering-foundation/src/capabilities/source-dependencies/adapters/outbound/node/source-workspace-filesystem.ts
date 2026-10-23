@@ -3,7 +3,7 @@ import {
   lstat as nodeLstat,
   opendir as nodeOpendir,
   realpath as nodeRealpath,
-  stat as nodeStat
+  stat as nodeStat,
 } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
@@ -11,11 +11,9 @@ import {
   assertSourceTopologyActive as assertNotCancelled,
   isSourceTopologyProblem,
   sourceTopologyInputError as inputError,
-  type SourceWorkspaceFileReader
+  type SourceWorkspaceFileReader,
 } from "../../../api.js";
-import {
-  portableRepositoryPathProblem
-} from "../../../application/model/repository-path.js";
+import { portableRepositoryPathProblem } from "../../../application/model/repository-path.js";
 
 interface SourceFilesystemMetadata {
   readonly ctimeMs: bigint | number;
@@ -55,25 +53,25 @@ export interface StableRepositoryPath {
 }
 
 export function createSourceWorkspaceDirectorySystem(
-  overrides: Partial<SourceWorkspaceDirectorySystem> | undefined = {}
+  overrides: Partial<SourceWorkspaceDirectorySystem> | undefined = {},
 ): SourceWorkspaceDirectorySystem {
   const defaults: SourceWorkspaceDirectorySystem = {
     lstat: (path) => nodeLstat(path, { bigint: true }),
     opendir: (path) => nodeOpendir(path),
     realpath: (path) => nodeRealpath(path),
-    stat: (path) => nodeStat(path, { bigint: true })
+    stat: (path) => nodeStat(path, { bigint: true }),
   };
   return { ...defaults, ...overrides };
 }
 
 export function createSourceWorkspaceFileSystem(
   files: SourceWorkspaceFileReader,
-  overrides: Partial<SourceWorkspaceFileSystem> | undefined = {}
+  overrides: Partial<SourceWorkspaceFileSystem> | undefined = {},
 ): SourceWorkspaceFileSystem {
   return {
     ...createSourceWorkspaceDirectorySystem(overrides),
     readContainedFile: (input) => files.read(input),
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -89,7 +87,7 @@ export function assertSafeRepositoryPath(repositoryPath: string): void {
   if (portableRepositoryPathProblem(repositoryPath) !== undefined) {
     inputError(
       "SOURCE_DISCOVERY_PATH_INVALID",
-      "Source workspace discovery produced a non-contained repository path."
+      "Source workspace discovery produced a non-contained repository path.",
     );
   }
 }
@@ -100,14 +98,14 @@ function sameValue(left: bigint | number, right: bigint | number): boolean {
 
 function sameFilesystemIdentity(
   left: SourceFilesystemMetadata,
-  right: SourceFilesystemMetadata
+  right: SourceFilesystemMetadata,
 ): boolean {
   return sameValue(left.dev, right.dev) && sameValue(left.ino, right.ino);
 }
 
 function sameFilesystemSnapshot(
   left: SourceFilesystemMetadata,
-  right: SourceFilesystemMetadata
+  right: SourceFilesystemMetadata,
 ): boolean {
   return (
     sameFilesystemIdentity(left, right) &&
@@ -122,7 +120,7 @@ async function pathTraversesSymbolicLink(
   canonicalConsumerRoot: string,
   absolutePath: string,
   operations: SourceWorkspaceDirectorySystem,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<boolean> {
   const relation = relative(canonicalConsumerRoot, absolutePath);
   if (isAbsolute(relation) || relation === ".." || relation.startsWith(`..${sep}`)) {
@@ -136,7 +134,7 @@ async function pathTraversesSymbolicLink(
       assertNotCancelled(signal);
       return inputError(
         "SOURCE_DIRECTORY_UNAVAILABLE",
-        "A required schema v2 source path is unavailable."
+        "A required schema v2 source path is unavailable.",
       );
     });
     assertNotCancelled(signal);
@@ -152,25 +150,23 @@ export async function captureStableRepositoryPath(
   repositoryPath: string,
   expectedKind: "directory" | "source",
   operations: SourceWorkspaceDirectorySystem,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<StableRepositoryPath> {
   assertNotCancelled(signal);
   assertSafeRepositoryPath(repositoryPath);
   const absolutePath =
-    repositoryPath === "."
-      ? canonicalConsumerRoot
-      : resolve(canonicalConsumerRoot, repositoryPath);
+    repositoryPath === "." ? canonicalConsumerRoot : resolve(canonicalConsumerRoot, repositoryPath);
   if (!pathIsContained(canonicalConsumerRoot, absolutePath)) {
     inputError(
       "SOURCE_DIRECTORY_ESCAPE",
-      `Schema v2 source path escapes the consumer repository: ${repositoryPath}.`
+      `Schema v2 source path escapes the consumer repository: ${repositoryPath}.`,
     );
   }
   const lexicalMetadata = await operations.lstat(absolutePath).catch(() => {
     assertNotCancelled(signal);
     return inputError(
       "SOURCE_DIRECTORY_UNAVAILABLE",
-      `Required schema v2 source path is unavailable: ${repositoryPath}.`
+      `Required schema v2 source path is unavailable: ${repositoryPath}.`,
     );
   });
   assertNotCancelled(signal);
@@ -178,48 +174,43 @@ export async function captureStableRepositoryPath(
     canonicalConsumerRoot,
     absolutePath,
     operations,
-    signal
+    signal,
   );
   const canonicalPath = await operations.realpath(absolutePath).catch(() => {
     assertNotCancelled(signal);
     return inputError(
       "SOURCE_DIRECTORY_UNAVAILABLE",
-      `Required schema v2 source path is unavailable: ${repositoryPath}.`
+      `Required schema v2 source path is unavailable: ${repositoryPath}.`,
     );
   });
   assertNotCancelled(signal);
   if (!pathIsContained(canonicalConsumerRoot, canonicalPath)) {
     inputError(
       "SOURCE_DIRECTORY_ESCAPE",
-      `Schema v2 source path escapes the consumer repository: ${repositoryPath}.`
+      `Schema v2 source path escapes the consumer repository: ${repositoryPath}.`,
     );
   }
   const canonicalMetadata = await operations.stat(canonicalPath).catch(() => {
     assertNotCancelled(signal);
     return inputError(
       "SOURCE_DIRECTORY_UNAVAILABLE",
-      `Required schema v2 source path is unavailable: ${repositoryPath}.`
+      `Required schema v2 source path is unavailable: ${repositoryPath}.`,
     );
   });
   assertNotCancelled(signal);
   if (
     (expectedKind === "directory" && !canonicalMetadata.isDirectory()) ||
-    (expectedKind === "source" &&
-      !canonicalMetadata.isDirectory() &&
-      !canonicalMetadata.isFile())
+    (expectedKind === "source" && !canonicalMetadata.isDirectory() && !canonicalMetadata.isFile())
   ) {
     inputError(
       "SOURCE_DIRECTORY_INVALID",
-      `Schema v2 source path has an invalid filesystem kind: ${repositoryPath}.`
+      `Schema v2 source path has an invalid filesystem kind: ${repositoryPath}.`,
     );
   }
-  if (
-    !traversesSymbolicLink &&
-    !sameFilesystemIdentity(lexicalMetadata, canonicalMetadata)
-  ) {
+  if (!traversesSymbolicLink && !sameFilesystemIdentity(lexicalMetadata, canonicalMetadata)) {
     inputError(
       "SOURCE_FILESYSTEM_CHANGED",
-      `Schema v2 source path changed while it was inspected: ${repositoryPath}.`
+      `Schema v2 source path changed while it was inspected: ${repositoryPath}.`,
     );
   }
   return Object.freeze({
@@ -227,7 +218,7 @@ export async function captureStableRepositoryPath(
     canonicalMetadata,
     lexicalMetadata,
     repositoryPath,
-    traversesSymbolicLink
+    traversesSymbolicLink,
   });
 }
 
@@ -235,7 +226,7 @@ export async function revalidateStableRepositoryPath(
   canonicalConsumerRoot: string,
   captured: StableRepositoryPath,
   operations: SourceWorkspaceDirectorySystem,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<void> {
   assertNotCancelled(signal);
   try {
@@ -244,7 +235,7 @@ export async function revalidateStableRepositoryPath(
       canonicalConsumerRoot,
       captured.absolutePath,
       operations,
-      signal
+      signal,
     );
     const canonicalPath = await operations.realpath(captured.absolutePath);
     if (!pathIsContained(canonicalConsumerRoot, canonicalPath)) {
@@ -265,7 +256,7 @@ export async function revalidateStableRepositoryPath(
     }
     inputError(
       "SOURCE_FILESYSTEM_CHANGED",
-      `Schema v2 source path changed while it was inspected: ${captured.repositoryPath}.`
+      `Schema v2 source path changed while it was inspected: ${captured.repositoryPath}.`,
     );
   }
 }

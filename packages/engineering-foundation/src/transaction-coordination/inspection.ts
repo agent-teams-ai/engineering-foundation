@@ -1,5 +1,5 @@
 export { createFoundationTransactionInspection } from "./application/use-cases/inspect-foundation-transaction.js";
 export type {
   FoundationTransactionInspection,
-  InstalledFoundationInspectionIdentity
+  InstalledFoundationInspectionIdentity,
 } from "./application/ports/foundation-transaction-inspection.js";

@@ -4,11 +4,7 @@ import { join } from "node:path";
 import { assertPublicApiAudit } from "./packed-consumer-public-api-audit-fixture.ts";
 import { assertPackedLegacyPublicApiBaseline } from "./packed-consumer-native-public-api.ts";
 
-import {
-  captureFailure,
-  runCommand,
-  writeJson
-} from "./pack-test-support.mjs";
+import { captureFailure, runCommand, writeJson } from "./pack-test-support.mjs";
 
 const expectedCapabilityIds = [
   "architecture.source-dependencies",
@@ -20,7 +16,7 @@ const expectedCapabilityIds = [
   "quality.executable-specifications",
   "quality.suppression-governance",
   "repository.security-baseline",
-  "workspace.dependency-declarations"
+  "workspace.dependency-declarations",
 ];
 
 async function assertRemovedFoundationPackagePathsRejected(fixture) {
@@ -28,14 +24,16 @@ async function assertRemovedFoundationPackagePathsRejected(fixture) {
     "@agent-teams/engineering-foundation/repository-mutation",
     "@agent-teams/engineering-foundation/dist/repository-mutation/application/model/repository-path.js",
     "@agent-teams/engineering-foundation/document-authoring",
-    "@agent-teams/engineering-foundation/dist/document-authoring/index.js"
+    "@agent-teams/engineering-foundation/dist/document-authoring/index.js",
   ];
   for (const specifier of privateSpecifiers) {
-    const failure = await captureFailure(() => runCommand(
-      process.execPath,
-      ["--input-type=module", "--eval", `await import(${JSON.stringify(specifier)})`],
-      fixture.consumerRoot
-    ));
+    const failure = await captureFailure(() =>
+      runCommand(
+        process.execPath,
+        ["--input-type=module", "--eval", `await import(${JSON.stringify(specifier)})`],
+        fixture.consumerRoot,
+      ),
+    );
     if (failure?.code !== 1 || !failure.stderr?.includes("ERR_PACKAGE_PATH_NOT_EXPORTED")) {
       throw new Error(`Packed private import was not rejected for ${specifier}.`);
     }
@@ -46,7 +44,7 @@ async function runFoundationJson(fixture, args) {
   const { stdout } = await runCommand(
     process.execPath,
     [fixture.toolEntrypoints.foundationCli, ...args],
-    fixture.consumerRoot
+    fixture.consumerRoot,
   );
   return JSON.parse(stdout);
 }
@@ -56,8 +54,8 @@ async function captureFoundationFailure(fixture, args) {
     runCommand(
       process.execPath,
       [fixture.toolEntrypoints.foundationCli, ...args],
-      fixture.consumerRoot
-    )
+      fixture.consumerRoot,
+    ),
   );
   return error === undefined ? undefined : JSON.parse(error.stdout ?? "null");
 }
@@ -67,7 +65,7 @@ async function assertAdrPromotion(fixture) {
     "architecture-decisions-promote-baseline",
     "--consumer",
     fixture.consumerRoot,
-    "--json"
+    "--json",
   ];
   const initial = await runFoundationJson(fixture, args);
   if (initial.promotion?.writeResult !== "created") {
@@ -85,7 +83,7 @@ async function assertCapabilityCheck(fixture) {
     "--consumer",
     fixture.consumerRoot,
     "--format",
-    "json"
+    "json",
   ]);
   const observedIds = report.capabilities?.map((capability) => capability.capabilityId);
   if (report.outcome !== "passed" || observedIds?.join(",") !== expectedCapabilityIds.join(",")) {
@@ -101,7 +99,7 @@ async function assertSourceGraphViolation(fixture) {
     "--consumer",
     fixture.consumerRoot,
     "--format",
-    "json"
+    "json",
   ]);
   if (
     report?.capabilities?.[0]?.diagnostics?.[0]?.ruleId !==
@@ -118,7 +116,7 @@ async function assertJsonSchemaFormats(fixture) {
     "contracts",
     "json-schema",
     "fixtures",
-    "valid.json"
+    "valid.json",
   );
   await writeJson(fixturePath, fixture.jsonContract.invalidFixture);
   const report = await captureFoundationFailure(fixture, [
@@ -126,14 +124,14 @@ async function assertJsonSchemaFormats(fixture) {
     "--consumer",
     fixture.consumerRoot,
     "--format",
-    "json"
+    "json",
   ]);
   const capability = report?.capabilities?.find(
-    (candidate) => candidate.capabilityId === "contract.json-schema-releases"
+    (candidate) => candidate.capabilityId === "contract.json-schema-releases",
   );
   const rejected = capability?.diagnostics?.some(
     (diagnostic) =>
-      diagnostic.ruleId === "contract.json-schema-releases.fixture-expectation-failed"
+      diagnostic.ruleId === "contract.json-schema-releases.fixture-expectation-failed",
   );
   if (rejected !== true) {
     throw new Error("Packed JSON Schema capability did not reject a mismatched fixture.");
@@ -147,7 +145,7 @@ async function assertExecutableSpecifications(fixture) {
     "contracts",
     "json-schema",
     "fixtures",
-    "valid.json"
+    "valid.json",
   );
   await writeJson(documentPath, fixture.jsonContract.invalidFixture);
   const report = await captureFoundationFailure(fixture, [
@@ -155,12 +153,11 @@ async function assertExecutableSpecifications(fixture) {
     "--consumer",
     fixture.consumerRoot,
     "--format",
-    "json"
+    "json",
   ]);
   const capability = capabilityFromReport(report, "quality.executable-specifications");
   const rejected = capability?.diagnostics?.some(
-    (diagnostic) =>
-      diagnostic.ruleId === "quality.executable-specifications.document-invalid"
+    (diagnostic) => diagnostic.ruleId === "quality.executable-specifications.document-invalid",
   );
   if (rejected !== true) {
     throw new Error("Packed executable specification capability accepted an invalid document.");
@@ -169,24 +166,19 @@ async function assertExecutableSpecifications(fixture) {
 }
 
 async function assertStrictExecutableSpecificationCatalog(fixture) {
-  const catalogPath = join(
-    fixture.consumerRoot,
-    "architecture",
-    "specifications",
-    "catalog.json"
-  );
+  const catalogPath = join(fixture.consumerRoot, "architecture", "specifications", "catalog.json");
   const source = await readFile(catalogPath, "utf8");
   await writeFile(
     catalogPath,
     source.replace('"schemaVersion": 1', '"schemaVersion": 1, "schemaVersion": 1'),
-    "utf8"
+    "utf8",
   );
   const report = await captureFoundationFailure(fixture, [
     "check",
     "--consumer",
     fixture.consumerRoot,
     "--format",
-    "json"
+    "json",
   ]);
   const capability = capabilityFromReport(report, "quality.executable-specifications");
   if (capability?.problem?.code !== "EXECUTABLE_SPECIFICATION_CATALOG_DUPLICATE_KEY") {
@@ -196,12 +188,7 @@ async function assertStrictExecutableSpecificationCatalog(fixture) {
 }
 
 async function assertExecutableGatePackagesAreWorkspaceScoped(fixture) {
-  const catalogPath = join(
-    fixture.consumerRoot,
-    "architecture",
-    "specifications",
-    "catalog.json"
-  );
+  const catalogPath = join(fixture.consumerRoot, "architecture", "specifications", "catalog.json");
   const source = await readFile(catalogPath, "utf8");
   const catalog = JSON.parse(source);
   for (const binding of Object.values(catalog.specifications[0].gateBindings)) {
@@ -213,12 +200,11 @@ async function assertExecutableGatePackagesAreWorkspaceScoped(fixture) {
     "--consumer",
     fixture.consumerRoot,
     "--format",
-    "json"
+    "json",
   ]);
   const capability = capabilityFromReport(report, "quality.executable-specifications");
   const missingGateCount = capability?.diagnostics?.filter(
-    (diagnostic) =>
-      diagnostic.ruleId === "quality.executable-specifications.gate-missing"
+    (diagnostic) => diagnostic.ruleId === "quality.executable-specifications.gate-missing",
   ).length;
   if (missingGateCount !== 3) {
     throw new Error("Packed executable specification accepted an out-of-workspace gate package.");
@@ -231,7 +217,7 @@ async function assertDevelopmentBoundaryMode(fixture) {
     fixture.consumerRoot,
     "architecture",
     "foundation",
-    "source-dependencies.yaml"
+    "source-dependencies.yaml",
   );
   const source = await readFile(configPath, "utf8");
   await writeFile(configPath, source.replace("    dependencyMode: development\n", ""), "utf8");
@@ -240,13 +226,13 @@ async function assertDevelopmentBoundaryMode(fixture) {
     "--consumer",
     fixture.consumerRoot,
     "--format",
-    "json"
+    "json",
   ]);
   const capability = capabilityFromReport(report, "architecture.source-dependencies");
   const rejected = capability?.diagnostics?.some(
     (diagnostic) =>
       diagnostic.ruleId ===
-      "architecture.source-dependencies.runtime-import-from-development-dependency"
+      "architecture.source-dependencies.runtime-import-from-development-dependency",
   );
   if (rejected !== true) {
     throw new Error("Packed runtime boundary accepted a runtime devDependency import.");
@@ -264,24 +250,24 @@ async function assertPublicApiCompatibility(fixture) {
     "packages",
     "library",
     "dist",
-    "local-mode.d.ts"
+    "local-mode.d.ts",
   );
   await writeFile(
     declarationPath,
     "export declare function stable(value: number): string;\n",
-    "utf8"
+    "utf8",
   );
   const report = await captureFoundationFailure(fixture, [
     "check",
     "--consumer",
     fixture.consumerRoot,
     "--format",
-    "json"
+    "json",
   ]);
   const capability = capabilityFromReport(report, "package.public-api-compatibility");
   const rejected = capability?.diagnostics?.some(
     (diagnostic) =>
-      diagnostic.ruleId === "package.public-api-compatibility.breaking-change-not-approved"
+      diagnostic.ruleId === "package.public-api-compatibility.breaking-change-not-approved",
   );
   if (rejected !== true) {
     throw new Error("Packed public API capability did not reject an unapproved breaking change.");
@@ -289,7 +275,7 @@ async function assertPublicApiCompatibility(fixture) {
   await writeFile(
     declarationPath,
     "export declare function stable(value: string): string;\n",
-    "utf8"
+    "utf8",
   );
 }
 
@@ -298,19 +284,18 @@ async function assertSuppressionGovernance(fixture) {
   await writeFile(
     sourcePath,
     '// oxlint-disable-next-line no-console\nconsole.log("unregistered suppression");\n',
-    "utf8"
+    "utf8",
   );
   const report = await captureFoundationFailure(fixture, [
     "check",
     "--consumer",
     fixture.consumerRoot,
     "--format",
-    "json"
+    "json",
   ]);
   const capability = capabilityFromReport(report, "quality.suppression-governance");
   const rejected = capability?.diagnostics?.some(
-    (diagnostic) =>
-      diagnostic.ruleId === "quality.suppression-governance.unregistered-suppression"
+    (diagnostic) => diagnostic.ruleId === "quality.suppression-governance.unregistered-suppression",
   );
   if (rejected !== true) {
     throw new Error("Packed suppression capability did not reject an unregistered suppression.");
@@ -325,23 +310,25 @@ async function assertRepositorySecurityBaseline(fixture) {
     workflowPath,
     validWorkflow.replace(
       "actions/checkout@1111111111111111111111111111111111111111",
-      "actions/checkout@main"
+      "actions/checkout@main",
     ),
-    "utf8"
+    "utf8",
   );
   const report = await captureFoundationFailure(fixture, [
     "check",
     "--consumer",
     fixture.consumerRoot,
     "--format",
-    "json"
+    "json",
   ]);
   const capability = capabilityFromReport(report, "repository.security-baseline");
   const rejected = capability?.diagnostics?.some(
-    (diagnostic) => diagnostic.ruleId === "repository.security-baseline.action-not-pinned"
+    (diagnostic) => diagnostic.ruleId === "repository.security-baseline.action-not-pinned",
   );
   if (rejected !== true) {
-    throw new Error("Packed repository security capability did not reject a mutable action reference.");
+    throw new Error(
+      "Packed repository security capability did not reject a mutable action reference.",
+    );
   }
   await writeFile(workflowPath, validWorkflow, "utf8");
 }
@@ -353,7 +340,7 @@ function oxlintArguments(fixture, configName) {
     join(fixture.consumerRoot, configName),
     "--deny-warnings",
     "--disable-nested-config",
-    fixture.sourceRoot
+    fixture.sourceRoot,
   ];
 }
 
@@ -361,17 +348,21 @@ async function assertBasePresets(fixture) {
   await writeJson(join(fixture.consumerRoot, "tsconfig.json"), {
     extends: "stack-toolchain/presets/typescript/node.json",
     compilerOptions: { noEmit: true },
-    include: ["src/**/*.ts", "type-consumer/**/*.ts"]
+    include: ["src/**/*.ts", "type-consumer/**/*.ts"],
   });
   await runCommand(
     process.execPath,
     [fixture.toolEntrypoints.typescript, "--project", join(fixture.consumerRoot, "tsconfig.json")],
-    fixture.consumerRoot
+    fixture.consumerRoot,
   );
   await writeJson(join(fixture.consumerRoot, ".oxlintrc.json"), {
-    extends: ["./node_modules/stack-toolchain/presets/oxlint/node.json"]
+    extends: ["./node_modules/stack-toolchain/presets/oxlint/node.json"],
   });
-  await runCommand(process.execPath, oxlintArguments(fixture, ".oxlintrc.json"), fixture.consumerRoot);
+  await runCommand(
+    process.execPath,
+    oxlintArguments(fixture, ".oxlintrc.json"),
+    fixture.consumerRoot,
+  );
 }
 
 async function assertMaintainabilityPresets(fixture) {
@@ -379,16 +370,16 @@ async function assertMaintainabilityPresets(fixture) {
   await writeJson(join(fixture.consumerRoot, ".oxlintrc.maintainability.json"), {
     extends: [
       "./node_modules/stack-toolchain/presets/oxlint/node.json",
-      "./node_modules/stack-toolchain/presets/oxlint/maintainability.json"
-    ]
+      "./node_modules/stack-toolchain/presets/oxlint/maintainability.json",
+    ],
   });
   await writeFile(join(fixture.sourceRoot, "index.ts"), source, "utf8");
   const productionFailure = await captureFailure(() =>
     runCommand(
       process.execPath,
       oxlintArguments(fixture, ".oxlintrc.maintainability.json"),
-      fixture.consumerRoot
-    )
+      fixture.consumerRoot,
+    ),
   );
   const output = `${productionFailure?.stdout ?? ""}${productionFailure?.stderr ?? ""}`;
   if (
@@ -400,33 +391,31 @@ async function assertMaintainabilityPresets(fixture) {
   await writeJson(join(fixture.consumerRoot, ".oxlintrc.maintainability-tests.json"), {
     extends: [
       "./node_modules/stack-toolchain/presets/oxlint/node.json",
-      "./node_modules/stack-toolchain/presets/oxlint/maintainability-tests.json"
-    ]
+      "./node_modules/stack-toolchain/presets/oxlint/maintainability-tests.json",
+    ],
   });
   await runCommand(
     process.execPath,
     oxlintArguments(fixture, ".oxlintrc.maintainability-tests.json"),
-    fixture.consumerRoot
+    fixture.consumerRoot,
   );
 }
 
 async function assertTypeAwarePreset(fixture) {
   await writeJson(join(fixture.consumerRoot, ".oxlintrc.type-aware.json"), {
-    extends: [
-      "./node_modules/stack-toolchain/presets/oxlint/type-aware.json"
-    ]
+    extends: ["./node_modules/stack-toolchain/presets/oxlint/type-aware.json"],
   });
   await writeFile(
     join(fixture.sourceRoot, "index.ts"),
     "async function execute(): Promise<void> {}\nexecute();\n",
-    "utf8"
+    "utf8",
   );
   const failure = await captureFailure(() =>
     runCommand(
       process.execPath,
       oxlintArguments(fixture, ".oxlintrc.type-aware.json"),
-      fixture.consumerRoot
-    )
+      fixture.consumerRoot,
+    ),
   );
   const output = `${failure?.stdout ?? ""}${failure?.stderr ?? ""}`;
   if (!output.includes("typescript(no-floating-promises)")) {
@@ -449,7 +438,10 @@ async function assertSelfCheck(fixture) {
 async function assertSdkGrowthAuthorityPublicApi(fixture) {
   const { stdout } = await runCommand(
     process.execPath,
-    ["--input-type=module", "--eval", `
+    [
+      "--input-type=module",
+      "--eval",
+      `
       const api = await import("@agent-teams/engineering-foundation/sdk-growth-authority");
       const verifier = api.createSdkGrowthAuthorityVerifier({
         async resolve() { throw new Error("packed authority transport was invoked during assembly"); },
@@ -459,8 +451,9 @@ async function assertSdkGrowthAuthorityPublicApi(fixture) {
         throw new Error("Packed SDK growth authority entrypoint is incomplete.");
       }
       process.stdout.write("verified");
-    `],
-    fixture.consumerRoot
+    `,
+    ],
+    fixture.consumerRoot,
   );
   if (stdout !== "verified") {
     throw new Error("Packed SDK growth authority entrypoint was not verified.");

@@ -9,7 +9,7 @@ import {
   type ConsumerIntegrationFileObservation,
   type ConsumerIntegrationIssue,
   type QualifiedDocsCohortBindingV1,
-  type PnpmManifestPlanV1
+  type PnpmManifestPlanV1,
 } from "../application-api.js";
 
 const DOCS_PACKAGE = "@agent-teams/docs-protocol";
@@ -50,14 +50,17 @@ function formatting(source: string) {
   return {
     eol,
     insertSpaces: !indent.includes("\t"),
-    tabSize: indent.includes("\t") ? 1 : indent.length
+    tabSize: indent.includes("\t") ? 1 : indent.length,
   };
 }
 
 function applyField(source: string, path: readonly (string | number)[], value: unknown): string {
-  return applyEdits(source, modify(source, [...path], value, {
-    formattingOptions: formatting(source)
-  }));
+  return applyEdits(
+    source,
+    modify(source, [...path], value, {
+      formattingOptions: formatting(source),
+    }),
+  );
 }
 
 function parseManifest(bytes: Uint8Array): {
@@ -76,12 +79,24 @@ function parseManifest(bytes: Uint8Array): {
 function manifestShapeIssues(manifest: Record<string, unknown>): ConsumerIntegrationIssue[] {
   const issues: ConsumerIntegrationIssue[] = [];
   for (const field of [
-    "scripts", "dependencies", "devDependencies", "optionalDependencies", "peerDependencies"
+    "scripts",
+    "dependencies",
+    "devDependencies",
+    "optionalDependencies",
+    "peerDependencies",
   ] as const) {
     const value = manifest[field];
-    if (value !== undefined &&
-      (typeof value !== "object" || value === null || Array.isArray(value))) {
-      issues.push(issue(`package.json#${field}`, "DOCS_CONSUMER_MANIFEST_FIELD_INVALID", `${field} must be one object when present.`));
+    if (
+      value !== undefined &&
+      (typeof value !== "object" || value === null || Array.isArray(value))
+    ) {
+      issues.push(
+        issue(
+          `package.json#${field}`,
+          "DOCS_CONSUMER_MANIFEST_FIELD_INVALID",
+          `${field} must be one object when present.`,
+        ),
+      );
     }
   }
   return issues;
@@ -92,27 +107,35 @@ function cohortDependencyIssues(
   devDependencies: Record<string, unknown>,
   optionalDependencies: Record<string, unknown>,
   peerDependencies: Record<string, unknown>,
-  targets: readonly CohortManifestTarget[]
+  targets: readonly CohortManifestTarget[],
 ): ConsumerIntegrationIssue[] {
   const issues: ConsumerIntegrationIssue[] = [];
   for (const { name: packageName } of targets) {
     for (const [field, declarations] of [
       ["dependencies", dependencies],
       ["optionalDependencies", optionalDependencies],
-      ["peerDependencies", peerDependencies]
+      ["peerDependencies", peerDependencies],
     ] as const) {
       if (declarations[packageName] !== undefined) {
-        issues.push(issue(
-          `package.json#${field}`,
-          "DOCS_CONSUMER_NON_DEV_DEPENDENCY",
-          `${packageName} may be declared only in root devDependencies.`
-        ));
+        issues.push(
+          issue(
+            `package.json#${field}`,
+            "DOCS_CONSUMER_NON_DEV_DEPENDENCY",
+            `${packageName} may be declared only in root devDependencies.`,
+          ),
+        );
       }
     }
   }
   for (const { name: packageName, version } of targets) {
     if (devDependencies[packageName] !== version) {
-      issues.push(issue(`package.json#devDependencies.${packageName}`, "DOCS_CONSUMER_COHORT_PIN_REQUIRED", `Update ${packageName} and pnpm-lock.yaml together to exact version ${version} before consumer apply.`));
+      issues.push(
+        issue(
+          `package.json#devDependencies.${packageName}`,
+          "DOCS_CONSUMER_COHORT_PIN_REQUIRED",
+          `Update ${packageName} and pnpm-lock.yaml together to exact version ${version} before consumer apply.`,
+        ),
+      );
     }
   }
   return issues;
@@ -120,47 +143,60 @@ function cohortDependencyIssues(
 
 function forbiddenRootDeclarationIssues(
   declarationsByField: readonly (readonly [string, Record<string, unknown>])[],
-  packageNames: readonly string[]
+  packageNames: readonly string[],
 ): ConsumerIntegrationIssue[] {
-  return packageNames.flatMap((packageName) => declarationsByField.flatMap(
-    ([field, declarations]) => declarations[packageName] === undefined ? [] : [issue(
-      `package.json#${field}.${packageName}`,
-      "DOCS_CONSUMER_TRANSITIVE_ROOT_DECLARATION",
-      `${packageName} is a transitive Cohort coordinate and must not be a root declaration.`
-    )]
-  ));
+  return packageNames.flatMap((packageName) =>
+    declarationsByField.flatMap(([field, declarations]) =>
+      declarations[packageName] === undefined
+        ? []
+        : [
+            issue(
+              `package.json#${field}.${packageName}`,
+              "DOCS_CONSUMER_TRANSITIVE_ROOT_DECLARATION",
+              `${packageName} is a transitive Cohort coordinate and must not be a root declaration.`,
+            ),
+          ],
+    ),
+  );
 }
 
 function targetsNpmAlias(value: unknown, packageNames: readonly string[]): boolean {
-  return typeof value === "string" && packageNames.some((packageName) =>
-    value === `npm:${packageName}` || value.startsWith(`npm:${packageName}@`)
+  return (
+    typeof value === "string" &&
+    packageNames.some(
+      (packageName) => value === `npm:${packageName}` || value.startsWith(`npm:${packageName}@`),
+    )
   );
 }
 
 function cohortAliasIssues(
   declarationsByField: readonly (readonly [string, Record<string, unknown>])[],
-  packageNames: readonly string[]
+  packageNames: readonly string[],
 ): ConsumerIntegrationIssue[] {
   return declarationsByField.flatMap(([field, declarations]) =>
     Object.entries(declarations).flatMap(([alias, value]) =>
-      targetsNpmAlias(value, packageNames) ? [issue(
-        `package.json#${field}.${alias}`,
-        "DOCS_CONSUMER_COHORT_ALIAS_FORBIDDEN",
-        `npm alias ${alias} must not target a Cohort package.`
-      )] : []
-    )
+      targetsNpmAlias(value, packageNames)
+        ? [
+            issue(
+              `package.json#${field}.${alias}`,
+              "DOCS_CONSUMER_COHORT_ALIAS_FORBIDDEN",
+              `npm alias ${alias} must not target a Cohort package.`,
+            ),
+          ]
+        : [],
+    ),
   );
 }
 
 function cohortManifestTargetsV1(
-  cohort: QualifiedDocsCohortBindingV1
+  cohort: QualifiedDocsCohortBindingV1,
 ): readonly CohortManifestTarget[] {
   return Object.freeze([
     Object.freeze({ name: DOCS_PACKAGE, version: cohort.packages.docsProtocol.version }),
     Object.freeze({
       name: FOUNDATION_PACKAGE,
-      version: cohort.packages.engineeringFoundation.version
-    })
+      version: cohort.packages.engineeringFoundation.version,
+    }),
   ]);
 }
 
@@ -180,27 +216,28 @@ export function projectPnpmManifestCohortTargets(input: {
     ["dependencies", dependencies],
     ["devDependencies", devDependencies],
     ["optionalDependencies", optionalDependencies],
-    ["peerDependencies", peerDependencies]
+    ["peerDependencies", peerDependencies],
   ] as const;
   for (const { name: packageName } of input.targets) {
     for (const [field, declarations] of [
       ["dependencies", dependencies],
       ["optionalDependencies", optionalDependencies],
-      ["peerDependencies", peerDependencies]
+      ["peerDependencies", peerDependencies],
     ] as const) {
       if (declarations[packageName] !== undefined) {
-        issues.push(issue(
-          `package.json#${field}`,
-          "DOCS_CONSUMER_NON_DEV_DEPENDENCY",
-          `${packageName} may be declared only in root devDependencies.`
-        ));
+        issues.push(
+          issue(
+            `package.json#${field}`,
+            "DOCS_CONSUMER_NON_DEV_DEPENDENCY",
+            `${packageName} may be declared only in root devDependencies.`,
+          ),
+        );
       }
     }
   }
-  issues.push(...cohortAliasIssues(
-    declarationsByField,
-    input.forbiddenAliasTargetPackageNames ?? []
-  ));
+  issues.push(
+    ...cohortAliasIssues(declarationsByField, input.forbiddenAliasTargetPackageNames ?? []),
+  );
   if (issues.length > 0) {
     throw new TypeError(issues.map(({ message }) => message).join(" "));
   }
@@ -224,7 +261,7 @@ export function projectPnpmManifestCohortPinsV1(input: {
 }): Uint8Array {
   return projectPnpmManifestCohortTargets({
     bytes: input.bytes,
-    targets: cohortManifestTargetsV1(input.cohort)
+    targets: cohortManifestTargetsV1(input.cohort),
   });
 }
 
@@ -242,7 +279,13 @@ export function planPnpmManifestTargets(input: {
       state: "conflict",
       currentDigest: empty,
       expectedDigest: empty,
-      issues: [issue("package.json", "DOCS_CONSUMER_MANIFEST_MISSING", "A root package.json is required and is never created by consumer integration.")]
+      issues: [
+        issue(
+          "package.json",
+          "DOCS_CONSUMER_MANIFEST_MISSING",
+          "A root package.json is required and is never created by consumer integration.",
+        ),
+      ],
     };
   }
   const bytes = Buffer.from(input.observation.bytes);
@@ -256,7 +299,13 @@ export function planPnpmManifestTargets(input: {
       state: "conflict",
       currentDigest,
       expectedDigest: currentDigest,
-      issues: [issue("package.json", "DOCS_CONSUMER_MANIFEST_INVALID", error instanceof Error ? error.message : "package.json is invalid.")]
+      issues: [
+        issue(
+          "package.json",
+          "DOCS_CONSUMER_MANIFEST_INVALID",
+          error instanceof Error ? error.message : "package.json is invalid.",
+        ),
+      ],
     };
   }
   const issues = manifestShapeIssues(manifest);
@@ -269,43 +318,56 @@ export function planPnpmManifestTargets(input: {
     ["dependencies", dependencies],
     ["devDependencies", devDependencies],
     ["optionalDependencies", optionalDependencies],
-    ["peerDependencies", peerDependencies]
+    ["peerDependencies", peerDependencies],
   ] as const;
-  issues.push(...cohortDependencyIssues(
-    dependencies,
-    devDependencies,
-    optionalDependencies,
-    peerDependencies,
-    input.targets
-  ));
-  issues.push(...forbiddenRootDeclarationIssues(
-    declarationsByField,
-    input.forbiddenRootPackageNames ?? []
-  ));
-  issues.push(...cohortAliasIssues(
-    declarationsByField,
-    input.forbiddenAliasTargetPackageNames ?? []
-  ));
+  issues.push(
+    ...cohortDependencyIssues(
+      dependencies,
+      devDependencies,
+      optionalDependencies,
+      peerDependencies,
+      input.targets,
+    ),
+  );
+  issues.push(
+    ...forbiddenRootDeclarationIssues(declarationsByField, input.forbiddenRootPackageNames ?? []),
+  );
+  issues.push(
+    ...cohortAliasIssues(declarationsByField, input.forbiddenAliasTargetPackageNames ?? []),
+  );
   const desiredScripts = canonicalDocsScripts(input.profilePath);
-  const observedScripts = Object.fromEntries(Object.keys(desiredScripts).map((script) => [
-    script,
-    scripts[script] ?? null
-  ]));
-  const observedScriptsDigest = digestBytes(Buffer.from(
-    canonicalConsumerIntegrationJson(observedScripts),
-    "utf8"
-  ));
+  const observedScripts = Object.fromEntries(
+    Object.keys(desiredScripts).map((script) => [script, scripts[script] ?? null]),
+  );
+  const observedScriptsDigest = digestBytes(
+    Buffer.from(canonicalConsumerIntegrationJson(observedScripts), "utf8"),
+  );
   let postimage = source;
   for (const [script, command] of Object.entries(desiredScripts)) {
     const pre = `pre${script}`;
     const post = `post${script}`;
     if (scripts[pre] !== undefined || scripts[post] !== undefined) {
-      issues.push(issue(`package.json#scripts.${script}`, "DOCS_CONSUMER_RESERVED_LIFECYCLE_SCRIPT", `${pre} and ${post} are forbidden for managed documentation commands.`));
+      issues.push(
+        issue(
+          `package.json#scripts.${script}`,
+          "DOCS_CONSUMER_RESERVED_LIFECYCLE_SCRIPT",
+          `${pre} and ${post} are forbidden for managed documentation commands.`,
+        ),
+      );
     }
     const current = scripts[script];
-    if (current !== undefined && current !== command &&
-      observedScriptsDigest !== input.knownPriorScriptsDigest) {
-      issues.push(issue(`package.json#scripts.${script}`, "DOCS_CONSUMER_RESERVED_SCRIPT_CONFLICT", `${script} contains unknown local behavior and was not overwritten.`));
+    if (
+      current !== undefined &&
+      current !== command &&
+      observedScriptsDigest !== input.knownPriorScriptsDigest
+    ) {
+      issues.push(
+        issue(
+          `package.json#scripts.${script}`,
+          "DOCS_CONSUMER_RESERVED_SCRIPT_CONFLICT",
+          `${script} contains unknown local behavior and was not overwritten.`,
+        ),
+      );
       continue;
     }
     if (current !== command) {
@@ -325,7 +387,7 @@ export function planPnpmManifestTargets(input: {
     currentDigest,
     expectedDigest,
     postimage: expectedBytes,
-    issues: []
+    issues: [],
   };
 }
 
@@ -341,6 +403,6 @@ export function planPnpmManifestV1(input: {
     targets: cohortManifestTargetsV1(input.cohort),
     ...(input.knownPriorScriptsDigest === undefined
       ? {}
-      : { knownPriorScriptsDigest: input.knownPriorScriptsDigest })
+      : { knownPriorScriptsDigest: input.knownPriorScriptsDigest }),
   });
 }

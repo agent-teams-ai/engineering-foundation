@@ -2,19 +2,19 @@ import {
   canonicalJson,
   sha256Bytes,
   sha256Json,
-  type CanonicalJsonValue
+  type CanonicalJsonValue,
 } from "../../../canonical-json.js";
 import type {
   CompileKnownFileTransactionPlanInput,
   KnownFileImageV1,
   KnownFileTransactionOperationInput,
   KnownFileTransactionOperationV1,
-  KnownFileTransactionPlanV1
+  KnownFileTransactionPlanV1,
 } from "../model/known-file-transaction.js";
 import {
   findPortableRepositoryPathCollision,
   findPortableRepositoryPathOverlap,
-  portableRepositoryPathProblem
+  portableRepositoryPathProblem,
 } from "../model/repository-path.js";
 
 const MAXIMUM_OPERATION_COUNT = 32;
@@ -45,33 +45,52 @@ function assertInertInputGraph(value: unknown, subject: string, depth = 0): void
   if (depth > 8) {
     throw new KnownFileTransactionPlanError(`${subject} is too deeply nested.`);
   }
-  if (value instanceof Uint8Array || value === null || typeof value !== "object") {return;}
+  if (value instanceof Uint8Array || value === null || typeof value !== "object") {
+    return;
+  }
   if (!Array.isArray(value) && !hasPlainPrototype(value)) {
     throw new KnownFileTransactionPlanError(`${subject} must contain only plain data.`);
   }
   const keys = Reflect.ownKeys(value);
   for (const key of keys) {
-    if (typeof key !== "string" || (Array.isArray(value) && key === "length")) {continue;}
+    if (typeof key !== "string" || (Array.isArray(value) && key === "length")) {
+      continue;
+    }
     const descriptor = Object.getOwnPropertyDescriptor(value, key);
     if (descriptor === undefined || !("value" in descriptor) || descriptor.enumerable !== true) {
-      throw new KnownFileTransactionPlanError(`${subject} must contain only enumerable data properties.`);
+      throw new KnownFileTransactionPlanError(
+        `${subject} must contain only enumerable data properties.`,
+      );
     }
     assertInertInputGraph(descriptor.value, subject, depth + 1);
   }
 }
 
-function inertInputOperations(input: CompileKnownFileTransactionPlanInput): readonly KnownFileTransactionOperationInput[] {
+function inertInputOperations(
+  input: CompileKnownFileTransactionPlanInput,
+): readonly KnownFileTransactionOperationInput[] {
   const candidate: unknown = input;
-  if (typeof candidate !== "object" || candidate === null || Array.isArray(candidate) ||
+  if (
+    typeof candidate !== "object" ||
+    candidate === null ||
+    Array.isArray(candidate) ||
     !hasPlainPrototype(candidate) ||
-    Reflect.ownKeys(candidate).length !== 1) {
-    throw new KnownFileTransactionPlanError("Known-file transaction input is not one plain operations record.");
+    Reflect.ownKeys(candidate).length !== 1
+  ) {
+    throw new KnownFileTransactionPlanError(
+      "Known-file transaction input is not one plain operations record.",
+    );
   }
   const descriptor = Object.getOwnPropertyDescriptor(candidate, "operations");
-  if (descriptor === undefined || !("value" in descriptor) || descriptor.enumerable !== true ||
-    !Array.isArray(descriptor.value) || descriptor.value.length > MAXIMUM_OPERATION_COUNT) {
+  if (
+    descriptor === undefined ||
+    !("value" in descriptor) ||
+    descriptor.enumerable !== true ||
+    !Array.isArray(descriptor.value) ||
+    descriptor.value.length > MAXIMUM_OPERATION_COUNT
+  ) {
     throw new KnownFileTransactionPlanError(
-      `A transaction supports at most ${MAXIMUM_OPERATION_COUNT} operations.`
+      `A transaction supports at most ${MAXIMUM_OPERATION_COUNT} operations.`,
     );
   }
   assertInertInputGraph(descriptor.value, "Known-file transaction operations");
@@ -81,7 +100,7 @@ function inertInputOperations(input: CompileKnownFileTransactionPlanInput): read
 function assertMode(mode: number, subject: string): void {
   if (!Number.isSafeInteger(mode) || mode < 0 || mode > 0o777) {
     throw new KnownFileTransactionPlanError(
-      `${subject} mode must be one portable permission value.`
+      `${subject} mode must be one portable permission value.`,
     );
   }
 }
@@ -92,7 +111,7 @@ function assertBytes(bytes: Uint8Array, subject: string): void {
   }
   if (bytes.byteLength > MAXIMUM_FILE_BYTES) {
     throw new KnownFileTransactionPlanError(
-      `${subject} exceeds the ${MAXIMUM_FILE_BYTES} byte limit.`
+      `${subject} exceeds the ${MAXIMUM_FILE_BYTES} byte limit.`,
     );
   }
 }
@@ -105,35 +124,34 @@ function image(bytes: Uint8Array, mode: number, subject: string): KnownFileImage
     contentBase64: copied.toString("base64"),
     digest: sha256Bytes(copied),
     mode,
-    size: copied.byteLength
+    size: copied.byteLength,
   });
 }
 
 function compareImages(left: KnownFileImageV1, right: KnownFileImageV1): number {
   return binaryCompare(
     canonicalJson(left as unknown as CanonicalJsonValue),
-    canonicalJson(right as unknown as CanonicalJsonValue)
+    canonicalJson(right as unknown as CanonicalJsonValue),
   );
 }
 
 function compileOperation(
-  operation: KnownFileTransactionOperationInput
+  operation: KnownFileTransactionOperationInput,
 ): KnownFileTransactionOperationV1 {
   const problem = portableRepositoryPathProblem(operation.path);
   if (problem !== undefined) {
     throw new KnownFileTransactionPlanError(
-      `Operation path ${operation.path} is not portable: ${problem}.`
+      `Operation path ${operation.path} is not portable: ${problem}.`,
     );
   }
   if (operation.path.normalize("NFC") !== operation.path) {
     throw new KnownFileTransactionPlanError(
-      `Operation path ${operation.path} must use NFC normalization.`
+      `Operation path ${operation.path} must use NFC normalization.`,
     );
   }
-  if (operation.path === ".agent-teams-local" ||
-    operation.path.startsWith(".agent-teams-local/")) {
+  if (operation.path === ".agent-teams-local" || operation.path.startsWith(".agent-teams-local/")) {
     throw new KnownFileTransactionPlanError(
-      `Operation path ${operation.path} overlaps Foundation's internal state namespace.`
+      `Operation path ${operation.path} overlaps Foundation's internal state namespace.`,
     );
   }
   if (operation.precondition.state === "absent") {
@@ -143,24 +161,24 @@ function compileOperation(
       postimage: image(
         operation.postimage.bytes,
         operation.postimage.mode ?? 0o644,
-        `${operation.path} postimage`
-      )
+        `${operation.path} postimage`,
+      ),
     });
   }
   if (operation.precondition.acceptedPreimages.length === 0) {
     throw new KnownFileTransactionPlanError(
-      `${operation.path} replacement requires at least one exact preimage.`
+      `${operation.path} replacement requires at least one exact preimage.`,
     );
   }
   if (operation.precondition.acceptedPreimages.length > 16) {
     throw new KnownFileTransactionPlanError(
-      `${operation.path} replacement exceeds the 16 preimage limit.`
+      `${operation.path} replacement exceeds the 16 preimage limit.`,
     );
   }
   const postimageMode = operation.postimage.mode;
   if (postimageMode === undefined) {
     throw new KnownFileTransactionPlanError(
-      `${operation.path} replacement requires an exact file mode.`
+      `${operation.path} replacement requires an exact file mode.`,
     );
   }
   assertMode(postimageMode, `${operation.path} postimage`);
@@ -168,7 +186,7 @@ function compileOperation(
     .map((entry, index) => {
       if (entry.mode !== postimageMode) {
         throw new KnownFileTransactionPlanError(
-          `${operation.path} replacement must preserve the exact file mode.`
+          `${operation.path} replacement must preserve the exact file mode.`,
         );
       }
       return image(entry.bytes, entry.mode, `${operation.path} preimage ${index}`);
@@ -180,22 +198,18 @@ function compileOperation(
       canonicalJson(acceptedPreimages[index] as unknown as CanonicalJsonValue)
     ) {
       throw new KnownFileTransactionPlanError(
-        `${operation.path} replacement contains a duplicate exact preimage.`
+        `${operation.path} replacement contains a duplicate exact preimage.`,
       );
     }
   }
-  const postimage = image(
-    operation.postimage.bytes,
-    postimageMode,
-    `${operation.path} postimage`
-  );
+  const postimage = image(operation.postimage.bytes, postimageMode, `${operation.path} postimage`);
   return Object.freeze({
     path: operation.path,
     precondition: Object.freeze({
       state: "known-file",
-      acceptedPreimages: Object.freeze(acceptedPreimages)
+      acceptedPreimages: Object.freeze(acceptedPreimages),
     }),
-    postimage
+    postimage,
   });
 }
 
@@ -203,50 +217,52 @@ function planBody(operations: readonly KnownFileTransactionOperationV1[]) {
   return {
     schemaVersion: 1 as const,
     protocol: "agent-teams.repository-mutation.known-file/v1" as const,
-    operations
+    operations,
   };
 }
 
 export function compileKnownFileTransactionPlan(
-  input: CompileKnownFileTransactionPlanInput
+  input: CompileKnownFileTransactionPlanInput,
 ): KnownFileTransactionPlanV1 {
   const inputOperations = inertInputOperations(input);
-  const operations = inputOperations.map(compileOperation).toSorted((left, right) =>
-    binaryCompare(left.path, right.path)
-  );
+  const operations = inputOperations
+    .map(compileOperation)
+    .toSorted((left, right) => binaryCompare(left.path, right.path));
   const paths = operations.map(({ path }) => path);
   const collision = findPortableRepositoryPathCollision(paths);
   if (collision !== undefined) {
     throw new KnownFileTransactionPlanError(
-      `Operation paths collide portably: ${collision.first} and ${collision.second}.`
+      `Operation paths collide portably: ${collision.first} and ${collision.second}.`,
     );
   }
   const overlap = findPortableRepositoryPathOverlap(paths);
   if (overlap !== undefined) {
     throw new KnownFileTransactionPlanError(
-      `Operation paths overlap as ancestor and descendant: ${overlap.ancestor} and ${overlap.descendant}.`
+      `Operation paths overlap as ancestor and descendant: ${overlap.ancestor} and ${overlap.descendant}.`,
     );
   }
   const totalBytes = operations.reduce(
-    (total, operation) => total + operation.postimage.size +
+    (total, operation) =>
+      total +
+      operation.postimage.size +
       (operation.precondition.state === "known-file"
         ? operation.precondition.acceptedPreimages.reduce(
             (preimageTotal, entry) => preimageTotal + entry.size,
-            0
+            0,
           )
         : 0),
-    0
+    0,
   );
   if (totalBytes > MAXIMUM_TRANSACTION_BYTES) {
     throw new KnownFileTransactionPlanError(
-      `Transaction evidence exceeds the ${MAXIMUM_TRANSACTION_BYTES} byte limit.`
+      `Transaction evidence exceeds the ${MAXIMUM_TRANSACTION_BYTES} byte limit.`,
     );
   }
   const frozenOperations = Object.freeze(operations);
   const body = planBody(frozenOperations);
   const planDigest = sha256Json({
     domain: "agent-teams.repository-mutation.known-file-plan/v1",
-    body
+    body,
   } as unknown as CanonicalJsonValue);
   if (!SHA256.test(planDigest)) {
     throw new KnownFileTransactionPlanError("Compiled Plan digest is invalid.");
@@ -255,7 +271,7 @@ export function compileKnownFileTransactionPlan(
 }
 
 export function assertKnownFileTransactionPlan(
-  value: unknown
+  value: unknown,
 ): asserts value is KnownFileTransactionPlanV1 {
   if (
     typeof value !== "object" ||
@@ -277,14 +293,22 @@ export function assertKnownFileTransactionPlan(
       const path = String(Reflect.get(candidate, "path"));
       const precondition: unknown = Reflect.get(candidate, "precondition");
       const postimage = readImage(Reflect.get(candidate, "postimage"), `${path} postimage`);
-      if (typeof precondition !== "object" || precondition === null || Array.isArray(precondition)) {
+      if (
+        typeof precondition !== "object" ||
+        precondition === null ||
+        Array.isArray(precondition)
+      ) {
         throw new KnownFileTransactionPlanError(`${path} precondition is invalid.`);
       }
       if (Reflect.get(precondition, "state") === "absent") {
-        return { path, precondition: { state: "absent" }, postimage: {
-          bytes: postimage.bytes,
-          mode: postimage.mode
-        } };
+        return {
+          path,
+          precondition: { state: "absent" },
+          postimage: {
+            bytes: postimage.bytes,
+            mode: postimage.mode,
+          },
+        };
       }
       const accepted: unknown = Reflect.get(precondition, "acceptedPreimages");
       if (Reflect.get(precondition, "state") !== "known-file" || !Array.isArray(accepted)) {
@@ -297,26 +321,23 @@ export function assertKnownFileTransactionPlan(
           acceptedPreimages: accepted.map((entry, index) => {
             const parsed = readImage(entry, `${path} preimage ${index}`);
             return { bytes: parsed.bytes, mode: parsed.mode };
-          })
+          }),
         },
-        postimage: { bytes: postimage.bytes, mode: postimage.mode }
+        postimage: { bytes: postimage.bytes, mode: postimage.mode },
       };
-    })
+    }),
   });
   if (
     canonicalJson(reconstructed as unknown as CanonicalJsonValue) !==
     canonicalJson(value as unknown as CanonicalJsonValue)
   ) {
     throw new KnownFileTransactionPlanError(
-      "Known-file transaction Plan is not canonical or has an invalid digest."
+      "Known-file transaction Plan is not canonical or has an invalid digest.",
     );
   }
 }
 
-function readImage(
-  value: unknown,
-  subject: string
-): KnownFileImageV1 & { readonly bytes: Buffer } {
+function readImage(value: unknown, subject: string): KnownFileImageV1 & { readonly bytes: Buffer } {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new KnownFileTransactionPlanError(`${subject} is invalid.`);
   }
@@ -332,18 +353,15 @@ function readImage(
     typeof mode !== "number" ||
     typeof size !== "number" ||
     !Number.isSafeInteger(size) ||
-    size < 0 || size > MAXIMUM_FILE_BYTES
+    size < 0 ||
+    size > MAXIMUM_FILE_BYTES
   ) {
     throw new KnownFileTransactionPlanError(`${subject} is invalid.`);
   }
   const bytes = Buffer.from(contentBase64, "base64");
   const canonicalBase64 = bytes.toString("base64");
   const expected = image(bytes, mode, subject);
-  if (
-    contentBase64 !== canonicalBase64 ||
-    expected.digest !== digest ||
-    expected.size !== size
-  ) {
+  if (contentBase64 !== canonicalBase64 || expected.digest !== digest || expected.size !== size) {
     throw new KnownFileTransactionPlanError(`${subject} bytes or digest are invalid.`);
   }
   return Object.freeze({ ...expected, bytes });

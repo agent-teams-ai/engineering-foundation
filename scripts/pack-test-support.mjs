@@ -14,7 +14,7 @@ const secretPatterns = [
   /-----BEGIN (?:EC |OPENSSH |RSA )?PRIVATE KEY-----/u,
   /\bAKIA[0-9A-Z]{16}\b/u,
   /\bghp_[A-Za-z0-9]{36,}\b/u,
-  /\bgithub_pat_[A-Za-z0-9_]{40,}\b/u
+  /\bgithub_pat_[A-Za-z0-9_]{40,}\b/u,
 ];
 
 function compareStrings(left, right) {
@@ -31,9 +31,7 @@ function canonicalJson(value) {
   if (Array.isArray(value)) {
     return `[${value.map(canonicalJson).join(",")}]`;
   }
-  const entries = Object.entries(value).toSorted(([left], [right]) =>
-    compareStrings(left, right)
-  );
+  const entries = Object.entries(value).toSorted(([left], [right]) => compareStrings(left, right));
   return `{${entries.map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`).join(",")}}`;
 }
 
@@ -61,7 +59,7 @@ function packageManagerOptions(options) {
     return options;
   }
   const environment = Object.fromEntries(
-    Object.entries(options.environment).filter(([key]) => key.toLowerCase() !== "path")
+    Object.entries(options.environment).filter(([key]) => key.toLowerCase() !== "path"),
   );
   if (trustedCommandSearchPath !== undefined) {
     environment.PATH = trustedCommandSearchPath;
@@ -78,13 +76,20 @@ export function createPnpmRunner() {
     const manifestPath = createRequire(import.meta.url).resolve("pnpm");
     const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
     const policy = await readRepositoryRuntimePolicy();
-    if (manifest.name !== "pnpm" || manifest.version !== policy.toolchain.pnpm.version ||
-        manifest.bin?.pnpm !== "bin/pnpm.mjs") {
+    if (
+      manifest.name !== "pnpm" ||
+      manifest.version !== policy.toolchain.pnpm.version ||
+      manifest.bin?.pnpm !== "bin/pnpm.mjs"
+    ) {
       throw new Error("Package qualification requires the installed pinned pnpm public CLI.");
     }
     const node = await verifyQualificationNode(process.execPath);
-    return runCommand(node, [join(dirname(manifestPath), manifest.bin.pnpm), ...args],
-      cwd, packageManagerOptions(options));
+    return runCommand(
+      node,
+      [join(dirname(manifestPath), manifest.bin.pnpm), ...args],
+      cwd,
+      packageManagerOptions(options),
+    );
   };
 }
 
@@ -93,13 +98,7 @@ export function runNpmCommand(args, cwd, options = {}) {
   if (process.platform !== "win32") {
     return runCommand("npm", args, cwd, trustedOptions);
   }
-  const npmCliPath = join(
-    dirname(process.argv[0]),
-    "node_modules",
-    "npm",
-    "bin",
-    "npm-cli.js",
-  );
+  const npmCliPath = join(dirname(process.argv[0]), "node_modules", "npm", "bin", "npm-cli.js");
   return runCommand(process.argv[0], [npmCliPath, ...args], cwd, trustedOptions);
 }
 
@@ -107,7 +106,7 @@ export const localRegistryInstallQualification = Object.freeze({
   requiredBeforeRelease: true,
   status: "not-proven-by-tarball-e2e",
   summary:
-    "The package check installs a file tarball. A separate hermetic npm-compatible registry E2E must prove registry publication and installation before release."
+    "The package check installs a file tarball. A separate hermetic npm-compatible registry E2E must prove registry publication and installation before release.",
 });
 
 class CommandExecutionError extends Error {
@@ -139,13 +138,13 @@ function commandError(input) {
     input.timedOut ? `timed out after ${input.timeoutMs}ms` : undefined,
     input.signal === null ? undefined : `received ${input.signal}`,
     input.code === null ? undefined : `exited with code ${input.code}`,
-    input.cause instanceof Error ? input.cause.message : undefined
+    input.cause instanceof Error ? input.cause.message : undefined,
   ]
     .filter((value) => value !== undefined)
     .join(", ");
   return new CommandExecutionError(
     `Command failed: ${input.command} ${input.args.join(" ")}${detail === "" ? "" : ` (${detail})`}.`,
-    input
+    input,
   );
 }
 
@@ -164,7 +163,7 @@ async function waitForBoundedClose(close) {
         timeout = setTimeout(() => {
           reject(new Error("Command streams did not close after process-tree termination."));
         }, 2_000);
-      })
+      }),
     ]);
   } finally {
     clearTimeout(timeout);
@@ -186,9 +185,7 @@ async function windowsProcessSpawner() {
   if (process.platform !== "win32") {
     return null;
   }
-  return await import(
-    "../packages/engineering-foundation/dist/process-execution/windows-managed-process.js"
-  );
+  return await import("../packages/engineering-foundation/dist/process-execution/windows-managed-process.js");
 }
 
 async function terminateWindowsProcessTree(child, windowsManagedProcess) {
@@ -257,8 +254,12 @@ function spawnCommand(request, windowsManagedProcess) {
 
 function spawnPosixCommand({ command, args, cwd, environment }) {
   return spawn(command, args, {
-    cwd, detached: true, env: environment, shell: false,
-    stdio: ["ignore", "pipe", "pipe"], windowsHide: true
+    cwd,
+    detached: true,
+    env: environment,
+    shell: false,
+    stdio: ["ignore", "pipe", "pipe"],
+    windowsHide: true,
   });
 }
 
@@ -277,13 +278,9 @@ async function cleanUpCommandTree(child, windowsManagedProcess, forced, requestT
 
 export async function runCommand(command, args, cwd, options = {}) {
   const timeoutMs = options.timeoutMs ?? commandDefaultTimeoutMs;
-  if (
-    !Number.isSafeInteger(timeoutMs) ||
-    timeoutMs <= 0 ||
-    timeoutMs > commandMaxTimeoutMs
-  ) {
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0 || timeoutMs > commandMaxTimeoutMs) {
     throw new Error(
-      `Command timeout must be a positive integer no greater than ${commandMaxTimeoutMs}.`
+      `Command timeout must be a positive integer no greater than ${commandMaxTimeoutMs}.`,
     );
   }
   if (options.signal?.aborted === true) {
@@ -298,7 +295,7 @@ export async function runCommand(command, args, cwd, options = {}) {
       stdout: "",
       terminationConfirmed: false,
       timedOut: false,
-      timeoutMs
+      timeoutMs,
     });
   }
   const windowsManagedProcess = await windowsProcessSpawner();
@@ -308,9 +305,10 @@ export async function runCommand(command, args, cwd, options = {}) {
     resolveForcedTermination = _resolve;
   });
   return new Promise((resolve, reject) => {
-    const child = process.platform === "win32"
-      ? spawnCommand({ command, args, cwd, environment }, windowsManagedProcess)
-      : spawnPosixCommand({ command, args, cwd, environment });
+    const child =
+      process.platform === "win32"
+        ? spawnCommand({ command, args, cwd, environment }, windowsManagedProcess)
+        : spawnPosixCommand({ command, args, cwd, environment });
     const stdout = [];
     const stderr = [];
     let stdoutBytes = 0;
@@ -369,7 +367,10 @@ export async function runCommand(command, args, cwd, options = {}) {
       clearTimeout(timeout);
       options.signal?.removeEventListener("abort", onAbort);
       const cleanup = await cleanUpCommandTree(
-        child, windowsManagedProcess, forceTerminationRequested, requestTermination
+        child,
+        windowsManagedProcess,
+        forceTerminationRequested,
+        requestTermination,
       );
       containmentConfirmed = cleanup.confirmed && !terminationFailed;
       if (!cleanup.confirmed) {
@@ -385,7 +386,7 @@ export async function runCommand(command, args, cwd, options = {}) {
       }
       const text = {
         stderr: Buffer.concat(stderr).toString("utf8"),
-        stdout: Buffer.concat(stdout).toString("utf8")
+        stdout: Buffer.concat(stdout).toString("utf8"),
       };
       if (cause !== undefined || timedOut || result.code !== 0) {
         reject(
@@ -397,11 +398,10 @@ export async function runCommand(command, args, cwd, options = {}) {
             killed: forceTerminationRequested || result.signal !== null,
             signal: result.signal,
             ...text,
-            terminationConfirmed:
-              containmentConfirmed && !terminationFailed && streamsClosed,
+            terminationConfirmed: containmentConfirmed && !terminationFailed && streamsClosed,
             timedOut,
-            timeoutMs
-          })
+            timeoutMs,
+          }),
         );
         return;
       }

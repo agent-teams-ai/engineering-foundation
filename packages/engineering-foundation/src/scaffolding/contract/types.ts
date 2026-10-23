@@ -8,9 +8,7 @@ type ScaffoldOperationOutcome =
   | "not-applied"
   | "recovered";
 
-export type AuthorityScaffoldOperationOutcome =
-  | ScaffoldOperationOutcome
-  | "unobserved";
+export type AuthorityScaffoldOperationOutcome = ScaffoldOperationOutcome | "unobserved";
 
 export interface AuthorityScaffoldOperationReceipt {
   readonly operationId: string;
@@ -26,9 +24,7 @@ type ScaffoldReceiptOutcome =
   | "recovery-required"
   | "rejected";
 
-export type AuthorityScaffoldReceiptOutcome =
-  | ScaffoldReceiptOutcome
-  | "authority-stale";
+export type AuthorityScaffoldReceiptOutcome = ScaffoldReceiptOutcome | "authority-stale";
 
 type AuthorityScaffoldJournalOperationState =
   | "pending"

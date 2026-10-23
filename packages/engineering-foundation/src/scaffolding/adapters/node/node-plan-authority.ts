@@ -1,14 +1,14 @@
 import type { ScaffoldSchemaValidator } from "../schema-validation.js";
 import type {
   AuthorityScaffoldPlan,
-  ScaffoldAuthorityAssessment
+  ScaffoldAuthorityAssessment,
 } from "../../application/model/scaffold-compilation.js";
 import { compileAuthorityScaffoldPlan } from "../../kernel/authority-compiler.js";
 import type { ScaffoldAuthorityDependencies } from "./scaffold-authority-dependencies.js";
 import { ScaffoldAuthorityStaleError } from "./node-authority-error.js";
 import {
   loadAuthorityScaffoldCompilationInputFromIntent,
-  type ScaffoldAuthorityInputFaultInjector
+  type ScaffoldAuthorityInputFaultInjector,
 } from "./node-authority-input-loader.js";
 
 async function assertPlanMatchesConsumerAuthority(
@@ -16,24 +16,23 @@ async function assertPlanMatchesConsumerAuthority(
   plan: AuthorityScaffoldPlan,
   assertSchema: ScaffoldSchemaValidator,
   dependencies: ScaffoldAuthorityDependencies,
-  authorityFaultInjector?: ScaffoldAuthorityInputFaultInjector
+  authorityFaultInjector?: ScaffoldAuthorityInputFaultInjector,
 ): Promise<void> {
-  const input = await loadAuthorityScaffoldCompilationInputFromIntent({
-    consumerRoot,
-    configPath: plan.authority.configPath,
-    foundationVersion: await dependencies.installedVersion(),
-    intent: plan.intent,
-    ...(authorityFaultInjector === undefined
-      ? {}
-      : { faultInjector: authorityFaultInjector })
-  }, assertSchema, dependencies.observation);
-  const expected = compileAuthorityScaffoldPlan(
-    input,
-    dependencies.createRegistry()
+  const input = await loadAuthorityScaffoldCompilationInputFromIntent(
+    {
+      consumerRoot,
+      configPath: plan.authority.configPath,
+      foundationVersion: await dependencies.installedVersion(),
+      intent: plan.intent,
+      ...(authorityFaultInjector === undefined ? {} : { faultInjector: authorityFaultInjector }),
+    },
+    assertSchema,
+    dependencies.observation,
   );
+  const expected = compileAuthorityScaffoldPlan(input, dependencies.createRegistry());
   if (expected.planDigest !== plan.planDigest) {
     throw new ScaffoldAuthorityStaleError(
-      "Scaffolding Plan was not produced by the closed compiler from current consumer authority."
+      "Scaffolding Plan was not produced by the closed compiler from current consumer authority.",
     );
   }
 }
@@ -47,7 +46,7 @@ export async function assessScaffoldPlanAuthority(
   plan: AuthorityScaffoldPlan,
   assertSchema: ScaffoldSchemaValidator,
   dependencies: ScaffoldAuthorityDependencies,
-  faultInjector?: ScaffoldAuthorityInputFaultInjector
+  faultInjector?: ScaffoldAuthorityInputFaultInjector,
 ): Promise<ScaffoldAuthorityAssessment> {
   try {
     await assertPlanMatchesConsumerAuthority(
@@ -55,13 +54,11 @@ export async function assessScaffoldPlanAuthority(
       plan,
       assertSchema,
       dependencies,
-      faultInjector
+      faultInjector,
     );
     return { state: "current" };
   } catch (error) {
-    if (
-      error instanceof ScaffoldAuthorityStaleError
-    ) {
+    if (error instanceof ScaffoldAuthorityStaleError) {
       return { state: "stale" };
     }
     return { state: "unverifiable" };

@@ -1,11 +1,9 @@
-import { createHash } from "node:crypto";
 import { join } from "node:path";
 
 import { Ajv2020 } from "ajv/dist/2020.js";
 
 import type {
   Authority,
-  CohortV2Authority,
   CohortV3Authority,
   JsonRecord,
   LockfileEvidence,
@@ -21,149 +19,29 @@ import type {
 } from "./public-managed-registry-canary-qualification-types.mts";
 import { assertCohortV3Consistency } from "./public-managed-registry-canary-runtime-policy.mts";
 
-const adapterSegments: readonly string[] = ["node_modules", "@agent-teams", "docs-protocol-agent-teams"];
+const adapterSegments: readonly string[] = [
+  "node_modules",
+  "@agent-teams",
+  "docs-protocol-agent-teams",
+];
 const commandTimeout = 240_000;
 
-function sha256(bytes: Buffer | string): string {
-  return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
-}
-
-function isRecord(value: unknown): value is JsonRecord {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function record(value: unknown, label: string): JsonRecord {
-  if (!isRecord(value)) {
-    throw new Error(`${label} must be an object.`);
-  }
-  return value;
-}
-
-function text(value: unknown, label: string): string {
-  if (typeof value !== "string") {
-    throw new Error(`${label} must be a string.`);
-  }
-  return value;
-}
-
-function managedState(value: unknown, label: string): ManagedState {
-  const state = record(value, label);
-  if (!isManagedState(state)) {
-    throw new Error(`${label} has an invalid managed-state identity.`);
-  }
-  return state;
-}
-
-function isManagedState(value: unknown): value is ManagedState {
-  return isRecord(value) &&
-    typeof value.schemaVersion === "number" &&
-    typeof value.stateDigest === "string";
-}
-
-function withoutStateDigest(value: JsonRecord): JsonRecord {
-  const { stateDigest: _stateDigest, ...body } = value;
-  return body;
-}
-
-function canonicalJson(value: unknown): string {
-  if (Array.isArray(value)) {
-    return `[${value.map(canonicalJson).join(",")}]`;
-  }
-  if (isRecord(value)) {
-    return `{${Object.entries(value).toSorted(([left], [right]) =>
-      Buffer.compare(Buffer.from(left), Buffer.from(right)))
-      .map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`).join(",")}}`;
-  }
-  return JSON.stringify(value);
-}
-
-function qualificationProfile(cohort: CohortV2Authority, repository: Repository): QualificationProfileV2 {
-  return Object.freeze({
-    schemaVersion: 3,
-    repository,
-    integrationRoot: ".",
-    packageManager: "pnpm",
-    profilePath: "architecture/foundation/docs-protocol.yaml",
-    skillPath: ".agents/skills/docs-authoring/SKILL.md",
-    callerWorkflowPath: ".github/workflows/docs-protocol.yml",
-    managedStatePath: "architecture/foundation/docs-protocol-managed-state.json",
-    qualification: {
-      contractPath: "architecture/foundation/docs-protocol-qualification.json",
-      gateCommand: "pnpm docs:protocol:check",
-    },
-    cohort,
-  });
-}
-
-function qualificationProfileCohortV3(cohort: CohortV3Authority, repository: Repository): QualificationProfileV3 {
-  return Object.freeze({
-    schemaVersion: 4,
-    repository,
-    integrationRoot: ".",
-    packageManager: "pnpm",
-    profilePath: "architecture/foundation/docs-protocol.yaml",
-    skillPath: ".agents/skills/docs-authoring/SKILL.md",
-    callerWorkflowPath: ".github/workflows/docs-protocol.yml",
-    managedStatePath: "architecture/foundation/docs-protocol-managed-state.json",
-    qualification: {
-      contractPath: "architecture/foundation/docs-protocol-qualification.json",
-      gateCommand: "pnpm docs:protocol:check",
-    },
-    cohort,
-  });
-}
-
-export function assertQualificationReceiptDigest(receipt: unknown): void {
-  const value = record(receipt, "Qualification receipt");
-  if (value.schemaVersion === 1) {
-    assertCohortV3QualificationReceiptDigest(value);
-    return;
-  }
-  const { receiptDigest, ...body } = value;
-  if (receiptDigest !== sha256(Buffer.from(canonicalJson(body), "utf8"))) {
-    throw new Error("Qualification v3 receipt digest is not independently canonical.");
-  }
-}
-
-export function assertCohortV3QualificationReceiptDigest(receipt: unknown): void {
-  const value = record(receipt, "Qualification Cohort v3 receipt");
-  if (value.namespace !== "docs-protocol-cohort-v3-qualification-receipt/v1") {
-    throw new Error("Qualification Cohort v3 receipt namespace is invalid.");
-  }
-  const { receiptDigest, ...body } = value;
-  if (receiptDigest !== sha256(Buffer.from(canonicalJson(body), "utf8"))) {
-    throw new Error("Qualification Cohort v3 receipt digest is not independently canonical.");
-  }
-}
-
-export function assertCanonicalManagedState(serialization: string): ManagedState {
-  if (typeof serialization !== "string" || !serialization.endsWith("\n")) {
-    throw new Error("Managed-state v2 serialization is not newline terminated.");
-  }
-  const state = managedState(JSON.parse(serialization), "Managed state");
-  if (serialization !== `${canonicalJson(state)}\n`) {
-    throw new Error("Managed-state v2 serialization is not canonical JSON.");
-  }
-  const body = withoutStateDigest(state);
-  if (state.schemaVersion === 3) {
-    const expectedV3 = sha256(Buffer.from(canonicalJson({
-      domain: "agent-teams.docs-protocol.managed-state/v3",
-      body,
-    }), "utf8"));
-    if (state.stateDigest !== expectedV3) {
-      throw new Error("Managed-state v3 stateDigest is invalid.");
-    }
-    return state;
-  }
-  const expected = sha256(Buffer.from(canonicalJson({
-    domain: "agent-teams.docs-protocol.managed-state/v2",
-    body,
-  }), "utf8"));
-  if (state.stateDigest !== expected) {
-    throw new Error("Managed-state v2 stateDigest is invalid.");
-  }
-  return state;
-}
+export {
+  assertQualificationReceiptDigest,
+  assertCohortV3QualificationReceiptDigest,
+  assertCanonicalManagedState,
+} from "./public-managed-registry-canary-state.ts";
+import {
+  sha256,
+  canonicalJson,
+  record,
+  text,
+  qualificationProfile,
+  qualificationProfileCohortV3,
+  assertQualificationReceiptDigest,
+  assertCohortV3QualificationReceiptDigest,
+  assertCanonicalManagedState,
+} from "./public-managed-registry-canary-state.ts";
 
 async function validateManagedQualification(
   root: string,
@@ -175,14 +53,26 @@ async function validateManagedQualification(
   assertQualificationReceiptDigest(qualificationReceipt);
   const managedStateValue = assertCanonicalManagedState(managedStateSerialization);
   const schemaRoot = join(root, ...adapterSegments, "schemas");
-  const qualificationSchema = await ports.readSchema(join(schemaRoot, "docs-protocol-qualification-receipt", "v3.schema.json"));
-  const cohortSchema = await ports.readSchema(join(schemaRoot, "qualified-docs-cohort", "v2.schema.json"));
-  const profileSchema = await ports.readSchema(join(schemaRoot, "docs-consumer-integration-profile", "v3.schema.json"));
-  const managedSchema = await ports.readSchema(join(schemaRoot, "docs-consumer-managed-state", "v2.schema.json"));
-  const docsProtocolSchema = await ports.readSchema(join(schemaRoot, "docs-protocol-profile", "v1.schema.json"));
-  if (profileSchema.$id !== "https://agent-teams.ai/schemas/docs-consumer-integration-profile/v3" ||
-      managedSchema.$id !== "https://agent-teams.ai/schemas/docs-consumer-managed-state/v2" ||
-      docsProtocolSchema.$id !== "https://agent-teams.ai/schemas/docs-protocol-profile/v1") {
+  const qualificationSchema = await ports.readSchema(
+    join(schemaRoot, "docs-protocol-qualification-receipt", "v3.schema.json"),
+  );
+  const cohortSchema = await ports.readSchema(
+    join(schemaRoot, "qualified-docs-cohort", "v2.schema.json"),
+  );
+  const profileSchema = await ports.readSchema(
+    join(schemaRoot, "docs-consumer-integration-profile", "v3.schema.json"),
+  );
+  const managedSchema = await ports.readSchema(
+    join(schemaRoot, "docs-consumer-managed-state", "v2.schema.json"),
+  );
+  const docsProtocolSchema = await ports.readSchema(
+    join(schemaRoot, "docs-protocol-profile", "v1.schema.json"),
+  );
+  if (
+    profileSchema.$id !== "https://agent-teams.ai/schemas/docs-consumer-integration-profile/v3" ||
+    managedSchema.$id !== "https://agent-teams.ai/schemas/docs-consumer-managed-state/v2" ||
+    docsProtocolSchema.$id !== "https://agent-teams.ai/schemas/docs-protocol-profile/v1"
+  ) {
     throw new Error("Installed schema tuple identity is not exactly 3/2/1.");
   }
   const ajv = new Ajv2020({ allErrors: true, strict: true });
@@ -195,7 +85,9 @@ async function validateManagedQualification(
   for (const [label, schema, value] of schemaCases) {
     const validate = ajv.compile(schema);
     if (!validate(value)) {
-      throw new Error(`Installed ${label} schema validation failed: ${JSON.stringify(validate.errors)}`);
+      throw new Error(
+        `Installed ${label} schema validation failed: ${JSON.stringify(validate.errors)}`,
+      );
     }
   }
   ajv.compile(docsProtocolSchema);
@@ -209,11 +101,15 @@ async function validateManagedQualificationCohortV3(
   profile: QualificationProfileV3,
   ports: QualificationHostPorts,
 ): Promise<ManagedState> {
-  if (profile.schemaVersion !== 4 || profile.cohort.schemaVersion !== 3 ||
-      qualificationReceipt.schemaVersion !== 1 ||
-      qualificationReceipt.namespace !== "docs-protocol-cohort-v3-qualification-receipt/v1" ||
-      qualificationReceipt.profileSchemaVersion !== 4 ||
-      record(qualificationReceipt.cohort, "Qualification Cohort v3 receipt cohort").schemaVersion !== 3) {
+  if (
+    profile.schemaVersion !== 4 ||
+    profile.cohort.schemaVersion !== 3 ||
+    qualificationReceipt.schemaVersion !== 1 ||
+    qualificationReceipt.namespace !== "docs-protocol-cohort-v3-qualification-receipt/v1" ||
+    qualificationReceipt.profileSchemaVersion !== 4 ||
+    record(qualificationReceipt.cohort, "Qualification Cohort v3 receipt cohort").schemaVersion !==
+      3
+  ) {
     throw new Error("Managed qualification contains mixed Cohort/profile/receipt generations.");
   }
   assertCohortV3QualificationReceiptDigest(qualificationReceipt);
@@ -225,15 +121,26 @@ async function validateManagedQualificationCohortV3(
   const qualificationSchema = await ports.readSchema(
     join(schemaRoot, "docs-protocol-cohort-v3-qualification-receipt", "v1.schema.json"),
   );
-  const cohortSchema = await ports.readSchema(join(schemaRoot, "qualified-docs-cohort", "v3.schema.json"));
-  const profileSchema = await ports.readSchema(join(schemaRoot, "docs-consumer-integration-profile", "v4.schema.json"));
-  const managedSchema = await ports.readSchema(join(schemaRoot, "docs-consumer-managed-state", "v3.schema.json"));
-  const docsProtocolSchema = await ports.readSchema(join(schemaRoot, "docs-protocol-profile", "v1.schema.json"));
-  if (qualificationSchema.$id !== "https://agent-teams.ai/schemas/docs-protocol-cohort-v3-qualification-receipt/v1" ||
-      cohortSchema.$id !== "https://agent-teams.ai/schemas/qualified-docs-cohort/v3" ||
-      profileSchema.$id !== "https://agent-teams.ai/schemas/docs-consumer-integration-profile/v4" ||
-      managedSchema.$id !== "https://agent-teams.ai/schemas/docs-consumer-managed-state/v3" ||
-      docsProtocolSchema.$id !== "https://agent-teams.ai/schemas/docs-protocol-profile/v1") {
+  const cohortSchema = await ports.readSchema(
+    join(schemaRoot, "qualified-docs-cohort", "v3.schema.json"),
+  );
+  const profileSchema = await ports.readSchema(
+    join(schemaRoot, "docs-consumer-integration-profile", "v4.schema.json"),
+  );
+  const managedSchema = await ports.readSchema(
+    join(schemaRoot, "docs-consumer-managed-state", "v3.schema.json"),
+  );
+  const docsProtocolSchema = await ports.readSchema(
+    join(schemaRoot, "docs-protocol-profile", "v1.schema.json"),
+  );
+  if (
+    qualificationSchema.$id !==
+      "https://agent-teams.ai/schemas/docs-protocol-cohort-v3-qualification-receipt/v1" ||
+    cohortSchema.$id !== "https://agent-teams.ai/schemas/qualified-docs-cohort/v3" ||
+    profileSchema.$id !== "https://agent-teams.ai/schemas/docs-consumer-integration-profile/v4" ||
+    managedSchema.$id !== "https://agent-teams.ai/schemas/docs-consumer-managed-state/v3" ||
+    docsProtocolSchema.$id !== "https://agent-teams.ai/schemas/docs-protocol-profile/v1"
+  ) {
     throw new Error("Installed schema tuple identity is not exactly 4/3/1/qualificationReceipt1.");
   }
   const ajv = new Ajv2020({ allErrors: true, strict: true });
@@ -246,16 +153,16 @@ async function validateManagedQualificationCohortV3(
   for (const [label, schema, value] of schemaCases) {
     const validate = ajv.compile(schema);
     if (!validate(value)) {
-      throw new Error(`Installed ${label} schema validation failed: ${JSON.stringify(validate.errors)}`);
+      throw new Error(
+        `Installed ${label} schema validation failed: ${JSON.stringify(validate.errors)}`,
+      );
     }
   }
   ajv.compile(docsProtocolSchema);
   return managedStateValue;
 }
 
-function lockfileCapture(
-  lockfileEvidence: LockfileEvidence,
-): readonly string[] {
+function lockfileCapture(lockfileEvidence: LockfileEvidence): readonly string[] {
   const capturedLockfile = lockfileEvidence.lockfileBytes.toString("base64");
   return [
     `const capturedLockfileBytes = Buffer.from(${JSON.stringify(capturedLockfile)}, 'base64');`,
@@ -334,7 +241,12 @@ export async function managedQualificationCohortV2(
   }
   const authorityProfile = qualificationProfile(cohort, repository);
   const program = qualificationProgramV2(authorityProfile, lockfileEvidence, observedPackages);
-  const result = await ports.run(process.execPath, ["--input-type=module", "--eval", program], root, { timeoutMs: commandTimeout });
+  const result = await ports.run(
+    process.execPath,
+    ["--input-type=module", "--eval", program],
+    root,
+    { timeoutMs: commandTimeout },
+  );
   const output = record(ports.parseJson(result.stdout), "Managed qualification output");
   const observed = record(output.observed, "Managed qualification observed evidence");
   const receipt = record(output.receipt, "Managed qualification receipt");
@@ -345,8 +257,11 @@ export async function managedQualificationCohortV2(
     authorityProfile,
     ports,
   );
-  if (observed.runtimeClosureDigest !== record(receipt.runtime, "Managed qualification receipt runtime").runtimeClosureDigest ||
-      managedStateValue.schemaVersion !== 2) {
+  if (
+    observed.runtimeClosureDigest !==
+      record(receipt.runtime, "Managed qualification receipt runtime").runtimeClosureDigest ||
+    managedStateValue.schemaVersion !== 2
+  ) {
     throw new Error("Managed qualification evidence is internally inconsistent.");
   }
   return Object.freeze({
@@ -375,11 +290,13 @@ export async function managedQualificationCohortV3(
   ports: QualificationHostPorts,
 ): Promise<JsonRecord> {
   const observedRuntime = lockfileEvidence.runtimeObservation;
-  if (observedRuntime === undefined ||
-      observedRuntime.nodeVersion !== "26.11.1" ||
-      observedRuntime.pnpmVersion !== "11.20.0" ||
-      observedRuntime.platform !== "linux" ||
-      observedRuntime.architecture !== "x64") {
+  if (
+    observedRuntime === undefined ||
+    observedRuntime.nodeVersion !== "26.11.1" ||
+    observedRuntime.pnpmVersion !== "11.20.0" ||
+    observedRuntime.platform !== "linux" ||
+    observedRuntime.architecture !== "x64"
+  ) {
     throw new Error("Pre-install runtime observation is not the exact qualified tuple.");
   }
   if (sha256(lockfileEvidence.lockfileBytes) !== lockfileEvidence.receipt.lockfileDigest) {
@@ -389,27 +306,37 @@ export async function managedQualificationCohortV3(
   if (cohort === undefined) {
     throw new Error("Managed qualification requires Cohort v3.");
   }
-  const expectedPackages = Object.fromEntries(authority.coordinates.map(({ key, version, integrity }) => [key, {
-    version,
-    integrity,
-  }]));
-  if (Object.keys(observedPackages).length !== 5 ||
-      canonicalJson(observedPackages) !== canonicalJson(expectedPackages)) {
+  const expectedPackages = Object.fromEntries(
+    authority.coordinates.map(({ key, version, integrity }) => [
+      key,
+      {
+        version,
+        integrity,
+      },
+    ]),
+  );
+  if (
+    Object.keys(observedPackages).length !== 5 ||
+    canonicalJson(observedPackages) !== canonicalJson(expectedPackages)
+  ) {
     throw new Error("Host package/SRI observations differ from exact Cohort authority.");
   }
   const expectedRuntime = cohort.runtime;
-  if (expectedRuntime.policy.id !== "agent-teams.docs-protocol-current-policy" ||
-      expectedRuntime.policy.version !== "3.0.0" ||
-      expectedRuntime.selectedLane !== "node-26-managed-qualified" ||
-      expectedRuntime.node !== ">=26.0.0 <27" ||
-      expectedRuntime.pnpm !== ">=11.17.0 <12" ||
-      canonicalJson(expectedRuntime.qualificationRuntime) !== canonicalJson({
+  if (
+    expectedRuntime.policy.id !== "agent-teams.docs-protocol-current-policy" ||
+    expectedRuntime.policy.version !== "3.0.0" ||
+    expectedRuntime.selectedLane !== "node-26-managed-qualified" ||
+    expectedRuntime.node !== ">=26.0.0 <27" ||
+    expectedRuntime.pnpm !== ">=11.17.0 <12" ||
+    canonicalJson(expectedRuntime.qualificationRuntime) !==
+      canonicalJson({
         nodeVersion: "26.11.1",
         pnpmVersion: "11.20.0",
         platform: "linux",
         architecture: "x64",
       }) ||
-      expectedRuntime.runtimeClosure.domain !== "agent-teams.docs-runtime-closure/v2") {
+    expectedRuntime.runtimeClosure.domain !== "agent-teams.docs-runtime-closure/v2"
+  ) {
     throw new Error("Cohort v3 policy/runtime authority is not the exact qualified Node 26 tuple.");
   }
   const runtimeObservation: RuntimeObservation = Object.freeze({
@@ -453,7 +380,12 @@ export async function managedQualificationCohortV3(
     expectedRuntime,
     runtimeObservation,
   );
-  const result = await ports.run(process.execPath, ["--input-type=module", "--eval", program], root, { timeoutMs: commandTimeout });
+  const result = await ports.run(
+    process.execPath,
+    ["--input-type=module", "--eval", program],
+    root,
+    { timeoutMs: commandTimeout },
+  );
   const output = record(ports.parseJson(result.stdout), "Managed Cohort v3 qualification output");
   const receipt = record(output.receipt, "Managed Cohort v3 receipt");
   const managedStateValue = await validateManagedQualificationCohortV3(
@@ -467,17 +399,20 @@ export async function managedQualificationCohortV3(
     output: { ...output, receipt },
     cohort,
     evidence,
-    expectedPackages: Object.freeze(authority.coordinates.map(({ key, name, version, integrity }) => ({
-      key,
-      name,
-      version,
-      integrity,
-    }))),
+    expectedPackages: Object.freeze(
+      authority.coordinates.map(({ key, name, version, integrity }) => ({
+        key,
+        name,
+        version,
+        integrity,
+      })),
+    ),
     managedStateValue,
     runtimeObservation,
   });
   return Object.freeze({
-    actualRuntimeClosureDigest: record(output.observed, "Managed Cohort v3 observed evidence").runtimeClosureDigest,
+    actualRuntimeClosureDigest: record(output.observed, "Managed Cohort v3 observed evidence")
+      .runtimeClosureDigest,
     runtimeObservation: Object.freeze({ ...runtimeObservation }),
     managedState: Object.freeze({
       schemaVersion: 3,

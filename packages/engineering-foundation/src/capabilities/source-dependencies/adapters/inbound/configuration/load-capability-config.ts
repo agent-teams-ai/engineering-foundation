@@ -1,19 +1,34 @@
-import type { SourceArchitectureConfigSchemaVersion, SourceArchitecturePolicy } from "../../../application/model/source-workspace.js";
+import type {
+  SourceArchitectureConfigSchemaVersion,
+  SourceArchitecturePolicy,
+} from "../../../application/model/source-workspace.js";
 import { assertConfigurationNotCancelled } from "../../../application/configuration-input.js";
-import { readSourceArchitectureHeader, parseSourceArchitecturePolicy } from "./parse-capability-config.js";
+import {
+  readSourceArchitectureHeader,
+  parseSourceArchitecturePolicy,
+} from "./parse-capability-config.js";
 
 export interface SourceArchitectureConfigurationDependencies {
   readonly readYaml: (consumerRoot: string, configPath: string, phase: string) => Promise<unknown>;
-  readonly assertSchema: (schemaId: "architecture-source-dependencies/v1" | "architecture-source-dependencies/v2" | "architecture-source-dependencies/v3", input: unknown, phase: string) => Promise<void>;
+  readonly assertSchema: (
+    schemaId:
+      | "architecture-source-dependencies/v1"
+      | "architecture-source-dependencies/v2"
+      | "architecture-source-dependencies/v3",
+    input: unknown,
+    phase: string,
+  ) => Promise<void>;
 }
 
 const SOURCE_ARCHITECTURE_SCHEMA_IDS = Object.freeze({
   1: "architecture-source-dependencies/v1",
   2: "architecture-source-dependencies/v2",
-  3: "architecture-source-dependencies/v3"
+  3: "architecture-source-dependencies/v3",
 } as const);
 
-export function createSourceArchitecturePolicyReader(dependencies: SourceArchitectureConfigurationDependencies) {
+export function createSourceArchitecturePolicyReader(
+  dependencies: SourceArchitectureConfigurationDependencies,
+) {
   return (consumerRoot: string, configPath: string, signal?: AbortSignal) =>
     loadCapabilityConfig(dependencies, consumerRoot, configPath, signal);
 }
@@ -23,7 +38,7 @@ export async function loadCapabilityConfig(
   consumerRoot: string,
   configPath: string,
   signal?: AbortSignal,
-  observeSchemaVersion?: (version: SourceArchitectureConfigSchemaVersion) => void
+  observeSchemaVersion?: (version: SourceArchitectureConfigSchemaVersion) => void,
 ): Promise<SourceArchitecturePolicy> {
   let input: unknown;
   try {
@@ -37,6 +52,10 @@ export async function loadCapabilityConfig(
   const header = readSourceArchitectureHeader(input);
   observeSchemaVersion?.(header.version);
   assertConfigurationNotCancelled(signal);
-  await dependencies.assertSchema(SOURCE_ARCHITECTURE_SCHEMA_IDS[header.version], input, "source-architecture-config");
+  await dependencies.assertSchema(
+    SOURCE_ARCHITECTURE_SCHEMA_IDS[header.version],
+    input,
+    "source-architecture-config",
+  );
   return parseSourceArchitecturePolicy(header);
 }

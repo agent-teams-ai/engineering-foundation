@@ -1,11 +1,9 @@
-import type {
-  JsonValue
-} from "../application/model/scaffold-values.js";
+import type { JsonValue } from "../application/model/scaffold-values.js";
 import type {
   AuthorityScaffoldCompilationInput,
   AuthorityScaffoldReadSet,
   ScaffoldAuthorityVerifierV1,
-  AuthorityScaffoldPlan
+  AuthorityScaffoldPlan,
 } from "../application/model/scaffold-compilation.js";
 import { ScaffoldError } from "../scaffold-error.js";
 import { sha256Json } from "./canonical-json.js";
@@ -13,37 +11,38 @@ import { assertAuthorityEvidenceSourceBindings } from "./authority-evidence.js";
 import {
   compileScaffoldRendering,
   resolveScaffoldRenderingSelection,
-  type ScaffoldRenderingResult
+  type ScaffoldRenderingResult,
 } from "./compiler.js";
 import type { ScaffoldDefinitionRegistry } from "./definition-registry.js";
 
 function assertVerifierAdmission(
   input: AuthorityScaffoldCompilationInput,
   composition: AuthorityScaffoldCompilationInput["config"]["compositions"][number],
-  target: AuthorityScaffoldCompilationInput["catalog"]["packages"][number]
+  target: AuthorityScaffoldCompilationInput["catalog"]["packages"][number],
 ): void {
-  const authorityVerifiers = composition.authorityVerifiers as readonly ScaffoldAuthorityVerifierV1[];
+  const authorityVerifiers =
+    composition.authorityVerifiers as readonly ScaffoldAuthorityVerifierV1[];
   if (authorityVerifiers.length !== 1) {
     throw new ScaffoldError(
       "SCAFFOLD_INPUT_INVALID",
-      "The selected Composition must contain exactly one supported authority verifier."
+      "The selected Composition must contain exactly one supported authority verifier.",
     );
   }
   const admittedVerifier = authorityVerifiers[0];
   if (admittedVerifier === undefined) {
     throw new ScaffoldError(
       "SCAFFOLD_INPUT_INVALID",
-      "The selected Composition must admit exactly one authority verifier."
+      "The selected Composition must admit exactly one authority verifier.",
     );
   }
   if (
     !admittedVerifier.parameters.allowedStatuses.includes(
-      input.authorityEvidence.ownerDocument.status
+      input.authorityEvidence.ownerDocument.status,
     )
   ) {
     throw new ScaffoldError(
       "SCAFFOLD_INPUT_INVALID",
-      "Owner document status is not allowed by the selected Composition."
+      "Owner document status is not allowed by the selected Composition.",
     );
   }
   assertAuthorityEvidenceSourceBindings({
@@ -53,7 +52,7 @@ function assertVerifierAdmission(
     targetRef: input.intent.targetRef,
     configPath: input.configPath,
     targetCatalogPath: input.config.targetCatalogPath,
-    authorityReadSet: input.authorityReadSet
+    authorityReadSet: input.authorityReadSet,
   });
 }
 
@@ -61,7 +60,7 @@ function normalizeAuthorityPlan(
   input: AuthorityScaffoldCompilationInput,
   rendering: ScaffoldRenderingResult,
   composition: AuthorityScaffoldCompilationInput["config"]["compositions"][number],
-  target: AuthorityScaffoldCompilationInput["catalog"]["packages"][number]
+  target: AuthorityScaffoldCompilationInput["catalog"]["packages"][number],
 ): AuthorityScaffoldPlan {
   const authoritySnapshotDigest = sha256Json({
     configPath: input.configPath,
@@ -69,7 +68,7 @@ function normalizeAuthorityPlan(
     composition,
     target,
     authorityEvidence: input.authorityEvidence,
-    readSet: input.authorityReadSet
+    readSet: input.authorityReadSet,
   } as unknown as JsonValue);
   const planBody = {
     schemaVersion: 1 as const,
@@ -78,33 +77,33 @@ function normalizeAuthorityPlan(
     projectId: input.config.projectId,
     authority: Object.freeze({
       configPath: input.configPath,
-      targetCatalogPath: input.config.targetCatalogPath
+      targetCatalogPath: input.config.targetCatalogPath,
     }),
     authorityEvidence: input.authorityEvidence,
     authoritySnapshotDigest,
     target,
     readSet: Object.freeze(
       [...input.authorityReadSet].toSorted((left, right) =>
-        left.path < right.path ? -1 : left.path > right.path ? 1 : 0
-      )
+        left.path < right.path ? -1 : left.path > right.path ? 1 : 0,
+      ),
     ) as AuthorityScaffoldReadSet,
-    requiredAdapterCapabilities: ["materialize-file/v1"] as const
+    requiredAdapterCapabilities: ["materialize-file/v1"] as const,
   };
   return Object.freeze({
     ...planBody,
-    planDigest: sha256Json(planBody as unknown as JsonValue)
+    planDigest: sha256Json(planBody as unknown as JsonValue),
   });
 }
 
 export function compileAuthorityScaffoldPlan(
   input: AuthorityScaffoldCompilationInput,
-  registry: ScaffoldDefinitionRegistry
+  registry: ScaffoldDefinitionRegistry,
 ): AuthorityScaffoldPlan {
   const { composition, target } = resolveScaffoldRenderingSelection({
     compositions: input.config.compositions,
     targets: input.catalog.packages,
     authorityReadPaths: input.authorityReadSet.map(({ path }) => path),
-    intent: input.intent
+    intent: input.intent,
   });
   assertVerifierAdmission(input, composition, target);
   const rendering = compileScaffoldRendering(
@@ -116,11 +115,11 @@ export function compileAuthorityScaffoldPlan(
         id: target.id,
         role: target.role,
         path: target.path,
-        packageName: target.packageName
+        packageName: target.packageName,
       },
-      verifiedOwnerDocumentId: target.ownerDocument.id
+      verifiedOwnerDocumentId: target.ownerDocument.id,
     },
-    registry
+    registry,
   );
   return normalizeAuthorityPlan(input, rendering, composition, target);
 }

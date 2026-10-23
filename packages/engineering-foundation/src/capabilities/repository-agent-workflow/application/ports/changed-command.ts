@@ -4,5 +4,9 @@ import type { PackageScriptRunner, RepositoryChangesReader } from "./changed-wor
 export interface AgentWorkflowChangedDependencies {
   readonly changesReader: RepositoryChangesReader;
   readonly scriptRunner: PackageScriptRunner;
-  readonly loadPolicy: (consumerRoot: string, configPath: string, signal?: AbortSignal) => Promise<RepositoryAgentWorkflowPolicy>;
+  readonly loadPolicy: (
+    consumerRoot: string,
+    configPath: string,
+    signal?: AbortSignal,
+  ) => Promise<RepositoryAgentWorkflowPolicy>;
 }

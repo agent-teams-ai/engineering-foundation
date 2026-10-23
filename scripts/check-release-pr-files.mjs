@@ -105,9 +105,7 @@ function validPrereleaseState(state, mode = "pre") {
     typeof state.initialVersions === "object" &&
     !Array.isArray(state.initialVersions) &&
     Array.isArray(state.changesets) &&
-    state.changesets.every(
-      (id) => typeof id === "string" && /^[A-Za-z0-9_-]+$/u.test(id),
-    ) &&
+    state.changesets.every((id) => typeof id === "string" && /^[A-Za-z0-9_-]+$/u.test(id)) &&
     new Set(state.changesets).size === state.changesets.length
   );
 }
@@ -132,8 +130,10 @@ function normalizeInitialVersionAdditions(
     allowedAdditions.add(DOCS_PROTOCOL_NAME);
   }
   for (const packageName of allowedAdditions) {
-    if (!Object.hasOwn(normalizedBase.initialVersions, packageName) &&
-        normalizedHead.initialVersions?.[packageName] === "0.0.0") {
+    if (
+      !Object.hasOwn(normalizedBase.initialVersions, packageName) &&
+      normalizedHead.initialVersions?.[packageName] === "0.0.0"
+    ) {
       normalizedBase.initialVersions[packageName] = "0.0.0";
     }
   }
@@ -184,10 +184,7 @@ function isAllowedReleaseFile(file, prereleaseExit) {
   if (CHANGESET_PATTERN.test(file.filename)) {
     return file.status === "removed";
   }
-  if (
-    PUBLIC_API_PATTERN.test(file.filename) ||
-    CONTRACT_BASELINE_PATTERN.test(file.filename)
-  ) {
+  if (PUBLIC_API_PATTERN.test(file.filename) || CONTRACT_BASELINE_PATTERN.test(file.filename)) {
     return file.status === "added" || file.status === "modified";
   }
   if (PACKAGE_MANIFESTS.has(file.filename) || PACKAGE_CHANGELOGS.has(file.filename)) {
@@ -220,22 +217,17 @@ export function releasePullRequestFileViolations(files, { prereleaseExit = false
     files.some((file) => file?.filename === filename && file.status === "modified");
   const releasedPackages = PUBLISHABLE_PACKAGES.filter(
     (releasePackage) =>
-      hasModifiedFile(releasePackage.manifestPath) ||
-      hasModifiedFile(releasePackage.changelogPath),
+      hasModifiedFile(releasePackage.manifestPath) || hasModifiedFile(releasePackage.changelogPath),
   );
   if (releasedPackages.length === 0) {
     violations.push("release pull request must modify at least one publishable package");
   }
   for (const releasePackage of releasedPackages) {
     if (!hasModifiedFile(releasePackage.manifestPath)) {
-      violations.push(
-        `release pull request must modify ${releasePackage.manifestPath}`,
-      );
+      violations.push(`release pull request must modify ${releasePackage.manifestPath}`);
     }
     if (!hasModifiedFile(releasePackage.changelogPath)) {
-      violations.push(
-        `release pull request must modify ${releasePackage.changelogPath}`,
-      );
+      violations.push(`release pull request must modify ${releasePackage.changelogPath}`);
     }
   }
   if (
@@ -327,9 +319,13 @@ async function fileAtRevision(revision, path) {
 }
 
 async function bunLockAtRevision(revision) {
-  const { stdout: entry } = await execFileAsync("git", ["ls-tree", "-z", revision, "--", "bun.lock"], {
-    encoding: "utf8",
-  });
+  const { stdout: entry } = await execFileAsync(
+    "git",
+    ["ls-tree", "-z", revision, "--", "bun.lock"],
+    {
+      encoding: "utf8",
+    },
+  );
   if (entry === "") {
     return;
   }
@@ -383,8 +379,12 @@ async function exactInitialPublicPackageAdditions(baseRevision, headRevision) {
       optionalJsonAtRevision(baseRevision, releasePackage.manifestPath),
       optionalJsonAtRevision(headRevision, releasePackage.manifestPath),
     ]);
-    if (baseManifest?.name !== releasePackage.name || baseManifest.version !== "0.0.0" ||
-        baseManifest.private === true || headManifest?.name !== releasePackage.name) {
+    if (
+      baseManifest?.name !== releasePackage.name ||
+      baseManifest.version !== "0.0.0" ||
+      baseManifest.private === true ||
+      headManifest?.name !== releasePackage.name
+    ) {
       continue;
     }
     const normalizedBase = structuredClone(baseManifest);
@@ -403,8 +403,12 @@ async function main() {
   const files = Array.isArray(pages) ? pages.flat() : pages;
   const baseRevision = revisionArgument("--base");
   const headRevision = revisionArgument("--head");
-  const [basePrereleaseState, headPrereleaseState, docsBootstrapInitialVersionAddition,
-    initialPublicPackageAdditions] = await Promise.all([
+  const [
+    basePrereleaseState,
+    headPrereleaseState,
+    docsBootstrapInitialVersionAddition,
+    initialPublicPackageAdditions,
+  ] = await Promise.all([
     optionalJsonAtRevision(baseRevision, PRERELEASE_STATE),
     optionalJsonAtRevision(headRevision, PRERELEASE_STATE),
     exactPrivateDocsBootstrapInitialVersionAddition(baseRevision, headRevision),
@@ -414,8 +418,7 @@ async function main() {
     files.some((file) => file?.filename === filename && file.status === "modified");
   const releasedPackages = PUBLISHABLE_PACKAGES.filter(
     (releasePackage) =>
-      hasModifiedFile(releasePackage.manifestPath) ||
-      hasModifiedFile(releasePackage.changelogPath),
+      hasModifiedFile(releasePackage.manifestPath) || hasModifiedFile(releasePackage.changelogPath),
   );
   const packageChecks = await Promise.all(
     PUBLISHABLE_PACKAGES.map(async (releasePackage) => {
@@ -444,30 +447,46 @@ async function main() {
       if (!listed) {
         violations.push("release file evidence omits a changed public package");
       }
-      if (baseManifest?.name !== releasePackage.name || headManifest?.name !== releasePackage.name) {
+      if (
+        baseManifest?.name !== releasePackage.name ||
+        headManifest?.name !== releasePackage.name
+      ) {
         violations.push("release package identity must match the public catalog");
       }
       return {
         violations: violations.map((violation) => `${releasePackage.name}: ${violation}`),
-        versions: violations.length === 0 ? [{
-          root: releasePackage.root,
-          name: releasePackage.name,
-          baseVersion: baseManifest.version,
-          headVersion: headManifest.version,
-        }] : [],
+        versions:
+          violations.length === 0
+            ? [
+                {
+                  root: releasePackage.root,
+                  name: releasePackage.name,
+                  baseVersion: baseManifest.version,
+                  headVersion: headManifest.version,
+                },
+              ]
+            : [],
       };
     }),
   );
   const [baseBunLock, headBunLock] = await Promise.all([
-    bunLockAtRevision(baseRevision), bunLockAtRevision(headRevision),
+    bunLockAtRevision(baseRevision),
+    bunLockAtRevision(headRevision),
   ]);
   const packageContentViolations = packageChecks.flatMap((check) => check.violations);
-  const lockViolations = releaseBunLockViolations(baseBunLock, headBunLock,
-    packageChecks.flatMap((check) => check.versions));
-  const bunLockAdmitted = baseBunLock !== undefined && headBunLock !== undefined
-    && packageContentViolations.length === 0 && lockViolations.length === 0;
-  const ordinaryFiles = files.filter((file) => !(bunLockAdmitted
-    && file?.filename === "bun.lock" && file.status === "modified"));
+  const lockViolations = releaseBunLockViolations(
+    baseBunLock,
+    headBunLock,
+    packageChecks.flatMap((check) => check.versions),
+  );
+  const bunLockAdmitted =
+    baseBunLock !== undefined &&
+    headBunLock !== undefined &&
+    packageContentViolations.length === 0 &&
+    lockViolations.length === 0;
+  const ordinaryFiles = files.filter(
+    (file) => !(bunLockAdmitted && file?.filename === "bun.lock" && file.status === "modified"),
+  );
   const violations = [
     ...releasePullRequestFileViolations(ordinaryFiles, {
       prereleaseExit: validPrereleaseState(basePrereleaseState, "exit"),

@@ -5,11 +5,17 @@ import type { FoundationStatus, FoundationTransactionAwareStatus } from "../appl
 export function createFoundationModeInspection(readTransaction: LocalModeTransactionReader) {
   const inspectMode = createNodeModeInspector(readTransaction);
   return {
-    async inspectFoundationMode(consumerPath: string, options: { readonly ignoreOperationLock?: boolean } = {}): Promise<FoundationStatus> {
+    async inspectFoundationMode(
+      consumerPath: string,
+      options: { readonly ignoreOperationLock?: boolean } = {},
+    ): Promise<FoundationStatus> {
       return inspectMode(consumerPath, options);
     },
-    async inspectFoundationTransactionAwareMode(consumerPath: string, options: { readonly ignoreOperationLock?: boolean } = {}): Promise<FoundationTransactionAwareStatus> {
+    async inspectFoundationTransactionAwareMode(
+      consumerPath: string,
+      options: { readonly ignoreOperationLock?: boolean } = {},
+    ): Promise<FoundationTransactionAwareStatus> {
       return inspectMode(consumerPath, options);
-    }
+    },
   };
 }

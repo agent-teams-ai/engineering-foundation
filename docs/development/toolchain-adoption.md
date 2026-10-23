@@ -159,16 +159,16 @@ managed evidence and locks together. Resolve in-flight recovery under its exact
 qualified implementation before cutover; never rewrite historical evidence or
 leave a mixed preset/package installation.
 
-## Contracts-first source preparation
+## Contracts and formatting delivery phases
 
 This branch prepares the Foundation 3 contracts and installed Stack commands.
 The `format.paths` profile records the full planned maintained-source scope and
-protected generated/frozen evidence exclusions. The root has no activated
-`format:check` gate in this phase; no existing format gate has been removed.
-A separate formatting/private-helper change must carry the broad mechanical
-cleanup and activate the required full-scope `format:check` route before the
-final Foundation 3 release and fleet adoption. A prepared profile or prior TEST
-formatter result does not qualify these current source bytes.
+protected generated/frozen evidence exclusions. The formatting/private-helper phase activates the required full-scope
+`format:check` route in both root check pipelines. Its source-owned catalog runs
+the installed Stack Toolchain CLI on the qualified Node runtime without writing
+files. Final Foundation 3 release and fleet adoption require both phases to pass
+their current source and CI gates; a prepared profile or prior TEST formatter
+result does not qualify these current source bytes.
 
 The source base retains the official nine-package manifest versions and
 changelogs. Stack 0.1.0 publication and its release cohort are verified in the

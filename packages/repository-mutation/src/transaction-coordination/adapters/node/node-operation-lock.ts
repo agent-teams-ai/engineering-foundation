@@ -11,12 +11,12 @@ import { parseStrictJson } from "../../../strict-json.js";
 import { readBoundedRegularFile } from "./node-bounded-regular-file.js";
 import {
   assertTerminalEvidenceDirectory,
-  ensureTerminalEvidenceDirectory
+  ensureTerminalEvidenceDirectory,
 } from "./node-terminal-evidence-directory.js";
 import type { PortablePathIdentity } from "../../../path-identity.js";
 import {
   ensureMutationStateDirectory,
-  syncMutationStateDirectory
+  syncMutationStateDirectory,
 } from "./node-state-directory.js";
 
 export interface MutationOperationReleaseOptions {
@@ -25,8 +25,7 @@ export interface MutationOperationReleaseOptions {
 
 const maximumLockBytes = 8 * 1024;
 const strictUtf8 = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
-const terminalEvidenceDirectoryName =
-  "foundation-operation-lock.completed-evidence";
+const terminalEvidenceDirectoryName = "foundation-operation-lock.completed-evidence";
 
 interface ActiveOwner {
   readonly host: string;
@@ -59,9 +58,7 @@ export interface OperationLockOperations {
 
 function isErrorCode(error: unknown, code: string): boolean {
   return (
-    error instanceof Error &&
-    "code" in error &&
-    (error as NodeJS.ErrnoException).code === code
+    error instanceof Error && "code" in error && (error as NodeJS.ErrnoException).code === code
   );
 }
 
@@ -77,7 +74,7 @@ function parseEvidence(value: unknown): LockEvidence {
   const tokenIsValid =
     typeof candidate["token"] === "string" &&
     /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(
-      candidate["token"]
+      candidate["token"],
     );
   if (
     candidate["schemaVersion"] === 1 &&
@@ -88,7 +85,7 @@ function parseEvidence(value: unknown): LockEvidence {
     return {
       kind: "transaction-barrier",
       schemaVersion: 1,
-      token: candidate["token"] as string
+      token: candidate["token"] as string,
     };
   }
   if (
@@ -99,8 +96,7 @@ function parseEvidence(value: unknown): LockEvidence {
     candidate["host"].length === 0 ||
     !Number.isSafeInteger(candidate["pid"]) ||
     (candidate["pid"] as number) <= 0 ||
-    Object.keys(candidate).toSorted().join(",") !==
-      "host,kind,pid,schemaVersion,token"
+    Object.keys(candidate).toSorted().join(",") !== "host,kind,pid,schemaVersion,token"
   ) {
     throw new Error("Foundation operation lock evidence is invalid.");
   }
@@ -109,7 +105,7 @@ function parseEvidence(value: unknown): LockEvidence {
     kind: "active",
     pid: candidate["pid"] as number,
     schemaVersion: 1,
-    token: candidate["token"] as string
+    token: candidate["token"] as string,
   };
 }
 
@@ -119,40 +115,30 @@ async function readLock(path: string): Promise<{
 }> {
   const record = await readBoundedRegularFile(path, maximumLockBytes);
   if (record.outcome !== "read") {
-    throw new Error(
-      "Foundation operation lock must be a stable bounded regular file."
-    );
+    throw new Error("Foundation operation lock must be a stable bounded regular file.");
   }
   return {
     evidence: parseEvidence(parseStrictJson(strictUtf8.decode(record.bytes))),
-    identity: record.identity
+    identity: record.identity,
   };
 }
 
-function identitiesEqual(
-  left: PortablePathIdentity,
-  right: PortablePathIdentity
-): boolean {
-  return (
-    left.birthtimeNs === right.birthtimeNs &&
-    left.dev === right.dev &&
-    left.ino === right.ino
-  );
+function identitiesEqual(left: PortablePathIdentity, right: PortablePathIdentity): boolean {
+  return left.birthtimeNs === right.birthtimeNs && left.dev === right.dev && left.ino === right.ino;
 }
 
 function evidenceEqual(left: LockEvidence, right: LockEvidence): boolean {
   if (left.kind !== right.kind || left.token !== right.token) {
     return false;
   }
-  return left.kind === "transaction-barrier" ||
-    right.kind === "transaction-barrier"
+  return left.kind === "transaction-barrier" || right.kind === "transaction-barrier"
     ? left.kind === right.kind
     : left.host === right.host && left.pid === right.pid;
 }
 
 async function readHandleEvidence(
   handle: FileHandle,
-  expectedIdentity: PortablePathIdentity
+  expectedIdentity: PortablePathIdentity,
 ): Promise<LockEvidence> {
   const before = await handle.stat({ bigint: true });
   if (
@@ -162,9 +148,9 @@ async function readHandleEvidence(
       {
         birthtimeNs: before.birthtimeNs,
         dev: before.dev,
-        ino: before.ino
+        ino: before.ino,
       },
-      expectedIdentity
+      expectedIdentity,
     )
   ) {
     throw new Error("Foundation operation lock identity changed before rewrite.");
@@ -172,12 +158,7 @@ async function readHandleEvidence(
   const bytes = Buffer.alloc(Number(before.size));
   let offset = 0;
   while (offset < bytes.byteLength) {
-    const { bytesRead } = await handle.read(
-      bytes,
-      offset,
-      bytes.byteLength - offset,
-      offset
-    );
+    const { bytesRead } = await handle.read(bytes, offset, bytes.byteLength - offset, offset);
     if (bytesRead === 0) {
       throw new Error("Foundation operation lock was truncated before rewrite.");
     }
@@ -200,7 +181,7 @@ async function readHandleEvidence(
 async function rewriteOwnedLockEvidence(
   lockPath: string,
   expected: Awaited<ReturnType<typeof readLock>>,
-  replacement: LockEvidence
+  replacement: LockEvidence,
 ): Promise<PortablePathIdentity> {
   const noFollow = process.platform === "win32" ? 0 : constants.O_NOFOLLOW;
   const handle = await open(lockPath, constants.O_RDWR | noFollow);
@@ -213,12 +194,7 @@ async function rewriteOwnedLockEvidence(
     await handle.truncate(0);
     let offset = 0;
     while (offset < bytes.byteLength) {
-      const { bytesWritten } = await handle.write(
-        bytes,
-        offset,
-        bytes.byteLength - offset,
-        offset
-      );
+      const { bytesWritten } = await handle.write(bytes, offset, bytes.byteLength - offset, offset);
       if (bytesWritten === 0) {
         throw new Error("Foundation operation lock rewrite made no progress.");
       }
@@ -250,16 +226,13 @@ function activeOwnerIsAlive(owner: ActiveOwner): boolean | undefined {
   }
 }
 
-async function createOwnedLock(
-  directory: string,
-  lockPath: string
-): Promise<OwnedLock> {
+async function createOwnedLock(directory: string, lockPath: string): Promise<OwnedLock> {
   const evidence: ActiveOwner = {
     host: hostname(),
     kind: "active",
     pid: process.pid,
     schemaVersion: 1,
-    token: randomUUID()
+    token: randomUUID(),
   };
   const handle = await open(lockPath, "wx", 0o600);
   try {
@@ -270,34 +243,23 @@ async function createOwnedLock(
   }
   await syncMutationStateDirectory(directory);
   const observed = await readLock(lockPath);
-  if (
-    observed.evidence.kind !== "active" ||
-    observed.evidence.token !== evidence.token
-  ) {
+  if (observed.evidence.kind !== "active" || observed.evidence.token !== evidence.token) {
     throw new Error("Foundation operation lock ownership was not published.");
   }
   return { evidence, identity: observed.identity };
 }
 
-async function takeoverLock(
-  directory: string,
-  lockPath: string
-): Promise<OwnedLock> {
+async function takeoverLock(directory: string, lockPath: string): Promise<OwnedLock> {
   const expected = await readLock(lockPath);
-  if (
-    expected.evidence.kind === "active" &&
-    activeOwnerIsAlive(expected.evidence) !== false
-  ) {
-    throw new Error(
-      "Foundation operation lock owner is live or cannot be proven dead."
-    );
+  if (expected.evidence.kind === "active" && activeOwnerIsAlive(expected.evidence) !== false) {
+    throw new Error("Foundation operation lock owner is live or cannot be proven dead.");
   }
   const evidence: ActiveOwner = {
     host: hostname(),
     kind: "active",
     pid: process.pid,
     schemaVersion: 1,
-    token: randomUUID()
+    token: randomUUID(),
   };
   const claimPath = `${lockPath}.claim.${expected.evidence.token}`;
   let claimHeld = false;
@@ -315,10 +277,9 @@ async function takeoverLock(
       claimHeld = true;
     } catch (error) {
       if (isErrorCode(error, "EEXIST")) {
-        throw new Error(
-          "Foundation operation-lock takeover claim requires manual recovery.",
-          { cause: error }
-        );
+        throw new Error("Foundation operation-lock takeover claim requires manual recovery.", {
+          cause: error,
+        });
       }
       throw error;
     }
@@ -329,11 +290,7 @@ async function takeoverLock(
     ) {
       throw new Error("Foundation operation lock changed during takeover.");
     }
-    const rewrittenIdentity = await rewriteOwnedLockEvidence(
-      lockPath,
-      observed,
-      evidence
-    );
+    const rewrittenIdentity = await rewriteOwnedLockEvidence(lockPath, observed, evidence);
     await syncMutationStateDirectory(directory);
     const current = await readLock(lockPath);
     if (
@@ -361,24 +318,21 @@ async function quarantineObservedLock(
   lockPath: string,
   observed: Awaited<ReturnType<typeof readLock>>,
   phase: "recovered" | "released",
-  operations: OperationLockOperations = {}
+  operations: OperationLockOperations = {},
 ): Promise<string> {
   const retirementToken = operations.retirementToken?.() ?? randomUUID();
   const terminalRoot = await ensureTerminalEvidenceDirectory(
-    join(directory, terminalEvidenceDirectoryName)
+    join(directory, terminalEvidenceDirectoryName),
   );
   await syncMutationStateDirectory(directory);
   await assertTerminalEvidenceDirectory(terminalRoot);
-  const quarantineDirectory = join(
-    terminalRoot.path,
-    `${phase}.${retirementToken}`
-  );
+  const quarantineDirectory = join(terminalRoot.path, `${phase}.${retirementToken}`);
   try {
     await mkdir(quarantineDirectory, { mode: 0o700 });
   } catch (error) {
     throw new Error(
       "Foundation operation lock retirement destination is occupied; all evidence was preserved.",
-      { cause: error }
+      { cause: error },
     );
   }
   await syncMutationStateDirectory(terminalRoot.path);
@@ -389,7 +343,7 @@ async function quarantineObservedLock(
   if (phase === "released") {
     await operations.faultInjector?.({
       path: quarantinePath,
-      phase: "after-release-retirement"
+      phase: "after-release-retirement",
     });
   }
   const quarantined = await readLock(quarantinePath);
@@ -405,7 +359,7 @@ async function quarantineObservedLock(
 async function retainTransactionBarrier(
   directory: string,
   lockPath: string,
-  owned: OwnedLock
+  owned: OwnedLock,
 ): Promise<void> {
   const current = await readLock(lockPath);
   if (
@@ -418,7 +372,7 @@ async function retainTransactionBarrier(
   const barrier: TransactionBarrier = {
     kind: "transaction-barrier",
     schemaVersion: 1,
-    token: owned.evidence.token
+    token: owned.evidence.token,
   };
   const beforePublish = await readLock(lockPath);
   if (
@@ -441,9 +395,7 @@ export class NodeMutationOperationLock {
     this.#operations = operations;
   }
 
-  async acquire(): Promise<
-    (options?: MutationOperationReleaseOptions) => Promise<void>
-  > {
+  async acquire(): Promise<(options?: MutationOperationReleaseOptions) => Promise<void>> {
     const directory = await ensureMutationStateDirectory(this.#consumerRoot);
     const lockPath = join(directory, LOCAL_OPERATION_LOCK);
     let owned: OwnedLock;
@@ -460,7 +412,7 @@ export class NodeMutationOperationLock {
       throw new RepositoryMutationError(
         "MUTATION_LEASE_INVALID",
         "Another repository mutation operation is active or its lock is not safely recoverable.",
-        { cause: error }
+        { cause: error },
       );
     }
 
@@ -491,7 +443,7 @@ export class NodeMutationOperationLock {
             lockPath,
             current,
             "released",
-            this.#operations
+            this.#operations,
           );
           state = "released";
           // The verified evidence is logically retired inside a fresh 0700
@@ -502,7 +454,7 @@ export class NodeMutationOperationLock {
           throw new RepositoryMutationError(
             "MUTATION_LEASE_INVALID",
             "Foundation operation lock could not be released without violating ownership.",
-            { cause: error }
+            { cause: error },
           );
         }
       })();

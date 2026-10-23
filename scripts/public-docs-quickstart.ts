@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import { lstat, readFile, realpath } from "node:fs/promises";
 import { dirname, join, relative, sep } from "node:path";
 
-import { applyReachability, fileSnapshot, readContainedBoundedFile } from "../packages/docs-protocol/dist/qualification/index.js";
+import {
+  applyReachability,
+  fileSnapshot,
+  readContainedBoundedFile,
+} from "../packages/docs-protocol/dist/qualification/index.js";
 import { runCommand } from "./pack-test-support.mjs";
 import { parseStableVersion } from "./release-publish-registry-version.mjs";
 
@@ -39,24 +43,60 @@ function registryFlags(manager: string): readonly string[] {
 }
 
 function expectedCommands(cli: string, mcp: string): readonly (readonly string[])[] {
-  const view = (manager: string, value: string) =>
-    [manager, "view", value, "version", "--json", ...registryFlags(manager)];
-  const install = (manager: string, values: readonly string[]) =>
-    [manager, manager === "npm" ? "install" : "add", "--save-dev", "--save-exact",
-      ...registryFlags(manager), ...values];
-  const init = ["docs-protocol", "init", "--project-id", "example/widgets",
-    "--owner", "documentation/team"];
-  const author = ["docs-protocol", "new", "--type", "adr", "--id", "ADR-0083",
-    "--title", "Tenant isolation", "--owner", "documentation/team",
-    "--summary", "Defines the tenant-isolation boundary."];
+  const view = (manager: string, value: string) => [
+    manager,
+    "view",
+    value,
+    "version",
+    "--json",
+    ...registryFlags(manager),
+  ];
+  const install = (manager: string, values: readonly string[]) => [
+    manager,
+    manager === "npm" ? "install" : "add",
+    "--save-dev",
+    "--save-exact",
+    ...registryFlags(manager),
+    ...values,
+  ];
+  const init = [
+    "docs-protocol",
+    "init",
+    "--project-id",
+    "example/widgets",
+    "--owner",
+    "documentation/team",
+  ];
+  const author = [
+    "docs-protocol",
+    "new",
+    "--type",
+    "adr",
+    "--id",
+    "ADR-0083",
+    "--title",
+    "Tenant isolation",
+    "--owner",
+    "documentation/team",
+    "--summary",
+    "Defines the tenant-isolation boundary.",
+  ];
   return [
-    view("npm", cli), view("pnpm", cli), install("npm", [cli]), install("pnpm", [cli]),
-    [...init, "--dry-run"], [...init, "--apply", "--expect", DIGEST_PLACEHOLDER],
+    view("npm", cli),
+    view("pnpm", cli),
+    install("npm", [cli]),
+    install("pnpm", [cli]),
+    [...init, "--dry-run"],
+    [...init, "--apply", "--expect", DIGEST_PLACEHOLDER],
     ["docs-protocol", "find", "tenant isolation", "--fuzzy"],
     ["docs-protocol", "context", "tenant isolation", "--fuzzy", "--max-documents", "12"],
-    [...author, "--dry-run"], [...author, "--apply", "--expect", DIGEST_PLACEHOLDER],
-    ["docs-protocol", "check"], view("npm", mcp), view("pnpm", mcp),
-    install("npm", [cli, mcp]), install("pnpm", [cli, mcp]),
+    [...author, "--dry-run"],
+    [...author, "--apply", "--expect", DIGEST_PLACEHOLDER],
+    ["docs-protocol", "check"],
+    view("npm", mcp),
+    view("pnpm", mcp),
+    install("npm", [cli, mcp]),
+    install("pnpm", [cli, mcp]),
     ["docs-protocol-mcp", "--consumer-root", "/absolute/path/to/repository"],
   ];
 }
@@ -68,8 +108,7 @@ function argumentsFromFence(source: string): readonly string[] {
   if (tokens.join(" ") !== line.replace(/[ \t]+/gu, " ")) {
     throw new Error("Quickstart fence contains an unsupported command form.");
   }
-  return Object.freeze(tokens.map((token) =>
-    token.startsWith('"') ? token.slice(1, -1) : token));
+  return Object.freeze(tokens.map((token) => (token.startsWith('"') ? token.slice(1, -1) : token)));
 }
 
 export function parseDocumentedQuickstart(source: string): DocumentedQuickstart {
@@ -77,10 +116,12 @@ export function parseDocumentedQuickstart(source: string): DocumentedQuickstart 
     throw new Error("Quickstart exceeds its maintained-document size bound.");
   }
   const coordinates = [coordinate(source, CLI), coordinate(source, MCP)];
-  const commands = [...source.matchAll(/\x60{3}bash\r?\n([\s\S]*?)\r?\n\x60{3}/gu)]
-    .map(([, fence]) => argumentsFromFence(fence ?? ""));
+  const commands = [...source.matchAll(/\x60{3}bash\r?\n([\s\S]*?)\r?\n\x60{3}/gu)].map(
+    ([, fence]) => argumentsFromFence(fence ?? ""),
+  );
   const expected = expectedCommands(
-    CLI + "@" + coordinates[0]!.version, MCP + "@" + coordinates[1]!.version,
+    CLI + "@" + coordinates[0]!.version,
+    MCP + "@" + coordinates[1]!.version,
   );
   if (JSON.stringify(commands) !== JSON.stringify(expected)) {
     throw new Error("Quickstart commands differ from the closed documented workflow.");
@@ -92,9 +133,12 @@ export function parseDocumentedQuickstart(source: string): DocumentedQuickstart 
 }
 
 export async function readDocumentedQuickstart(): Promise<DocumentedQuickstart> {
-  return parseDocumentedQuickstart(await readFile(
-    new URL("../docs/reference/open-source-docs-protocol.md", import.meta.url), "utf8",
-  ));
+  return parseDocumentedQuickstart(
+    await readFile(
+      new URL("../docs/reference/open-source-docs-protocol.md", import.meta.url),
+      "utf8",
+    ),
+  );
 }
 
 export function documentedInstallCommands(
@@ -103,12 +147,18 @@ export function documentedInstallCommands(
   pair: boolean,
 ): readonly (readonly string[])[] {
   assert.ok(manager === "npm" || manager === "pnpm", "Unknown quickstart manager.");
-  const views = quickstart.commands.filter((command) =>
-    command[0] === manager && command[1] === "view" &&
-    (pair || command[2]?.startsWith(CLI + "@")));
-  const installations = quickstart.commands.filter((command) =>
-    command[0] === manager && (command[1] === "install" || command[1] === "add") &&
-    command.filter((argument) => argument.startsWith("@agent-teams/")).length === (pair ? 2 : 1));
+  const views = quickstart.commands.filter(
+    (command) =>
+      command[0] === manager &&
+      command[1] === "view" &&
+      (pair || command[2]?.startsWith(CLI + "@")),
+  );
+  const installations = quickstart.commands.filter(
+    (command) =>
+      command[0] === manager &&
+      (command[1] === "install" || command[1] === "add") &&
+      command.filter((argument) => argument.startsWith("@agent-teams/")).length === (pair ? 2 : 1),
+  );
   assert.equal(views.length, pair ? 2 : 1);
   assert.equal(installations.length, 1);
   return Object.freeze([...views, installations[0]!]);
@@ -142,7 +192,12 @@ export async function installedDocumentedBinary(
 }
 
 async function assertPnpmShimTarget(root: string, bin: string, target: string): Promise<void> {
-  const { bytes } = await readContainedBoundedFile(root, "node_modules/.bin/docs-protocol", "Installed pnpm bin shim", 16 * 1024);
+  const { bytes } = await readContainedBoundedFile(
+    root,
+    "node_modules/.bin/docs-protocol",
+    "Installed pnpm bin shim",
+    16 * 1024,
+  );
   const source = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
   assert.ok(source.startsWith("#!/bin/sh\n"));
   const markers = source.split("\n").filter((line) => line.startsWith("# cmd-shim-target="));
@@ -153,13 +208,16 @@ async function assertPnpmShimTarget(root: string, bin: string, target: string): 
   const windowsArgument = '"$basedir_win/' + path + '" "$@"';
   // Bind all exec slots of the pinned manager's generated shim, then execute
   // that installed entry itself. This does not interpret a shell program.
-  assert.deepEqual(source.split("\n").filter((line) => /^\s*exec\b/u.test(line)), [
-    '  exec "$basedir/node.exe"  ' + windowsArgument,
-    '  exec "$basedir/node"  ' + argument,
-    "  exec node  " + argument,
-    "  exec node.exe  " + windowsArgument,
-    "  exec node  " + argument,
-  ]);
+  assert.deepEqual(
+    source.split("\n").filter((line) => /^\s*exec\b/u.test(line)),
+    [
+      '  exec "$basedir/node.exe"  ' + windowsArgument,
+      '  exec "$basedir/node"  ' + argument,
+      "  exec node  " + argument,
+      "  exec node.exe  " + windowsArgument,
+      "  exec node  " + argument,
+    ],
+  );
 }
 
 export function reviewedApplyArguments(
@@ -168,8 +226,9 @@ export function reviewedApplyArguments(
 ): readonly string[] {
   assert.match(digest, /^sha256:[0-9a-f]{64}$/u);
   assert.equal(command.filter((argument) => argument === DIGEST_PLACEHOLDER).length, 1);
-  return Object.freeze(command.map((argument) =>
-    argument === DIGEST_PLACEHOLDER ? digest : argument));
+  return Object.freeze(
+    command.map((argument) => (argument === DIGEST_PLACEHOLDER ? digest : argument)),
+  );
 }
 
 export function previewPlanDigest(output: string): string {
@@ -203,7 +262,10 @@ async function rejectStalePlan(
       assert.equal(failure["timedOut"], false);
       assert.equal(failure["terminationConfirmed"], true);
       const output = String(failure["stdout"]) + "\n" + String(failure["stderr"]);
-      assert.match(output, /(?:plan-digest-stale|authority-stale|[Dd]igest.*(?:differ|stale|match))/u);
+      assert.match(
+        output,
+        /(?:plan-digest-stale|authority-stale|[Dd]igest.*(?:differ|stale|match))/u,
+      );
       return true;
     },
   );
@@ -223,7 +285,9 @@ export async function runDocumentedQuickstart(input: {
   let completedCommands = 0;
   let rejectedStalePlans = 0;
   let manualReachability = false;
-  for (const documented of quickstart.commands.filter((command) => command[0] === "docs-protocol")) {
+  for (const documented of quickstart.commands.filter(
+    (command) => command[0] === "docs-protocol",
+  )) {
     let command = documented;
     const preview = command.includes("--dry-run");
     const before = preview ? await fileSnapshot(root) : undefined;
@@ -244,7 +308,9 @@ export async function runDocumentedQuickstart(input: {
       const actions = [...stdout.matchAll(/^Next: add (.+) to (.+)$/gmu)];
       assert.equal(actions.length, 1, "New apply must print one manual index instruction.");
       await applyReachability(root, {
-        state: "manual-required", markdownLink: actions[0]![1], indexPath: actions[0]![2],
+        state: "manual-required",
+        markdownLink: actions[0]![1],
+        indexPath: actions[0]![2],
       });
       manualReachability = true;
     }

@@ -38,10 +38,7 @@ async function verifyPackedEffectiveInstructions({ consumerRoot, runPnpm }) {
   }
 }
 
-export async function testPackedAgentWorkflow({
-  consumerRoot,
-  runPnpm,
-}) {
+export async function testPackedAgentWorkflow({ consumerRoot, runPnpm }) {
   const manifestPath = join(consumerRoot, "package.json");
   const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
   manifest.scripts = {
@@ -171,10 +168,12 @@ await appendFile(".agent-workflow-invocations.jsonl", JSON.stringify({ kind, pat
   ) {
     throw new Error("Packed changed-file workflow did not pass end to end.");
   }
-  const invocations = (await readFile(
-    join(consumerRoot, ".agent-workflow-invocations.jsonl"),
-    "utf8",
-  )).trim().split("\n").map((line) => JSON.parse(line));
+  const invocations = (
+    await readFile(join(consumerRoot, ".agent-workflow-invocations.jsonl"), "utf8")
+  )
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line));
   if (
     JSON.stringify(invocations) !==
     JSON.stringify([

@@ -16,12 +16,12 @@ export async function analyzeSuppressionGovernance(
     readonly clock: CalendarClock;
     readonly scanner: SuppressionScanner;
     readonly sourceReader: SourceTreeReader;
-  }
+  },
 ): Promise<readonly FoundationDiagnostic[]> {
   const files = await dependencies.sourceReader.read(
     input.consumerRoot,
     input.policy.governedRoots,
-    input.signal
+    input.signal,
   );
   const scans = files.map((file) => {
     assertNotCancelled(input.signal);
@@ -30,6 +30,6 @@ export async function analyzeSuppressionGovernance(
   return evaluateSuppressionGovernance({
     policy: input.policy,
     scans,
-    today: dependencies.clock.today()
+    today: dependencies.clock.today(),
   });
 }

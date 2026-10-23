@@ -6,7 +6,7 @@ import type {
   BufBreakingQualificationEvidence,
   CurrentProtobufContractDeclaration,
   ReleasedProtobufContractEvidence,
-  Sha256Digest
+  Sha256Digest,
 } from "./protobuf-release-evidence.js";
 
 export const BUF_QUALIFICATION_PRODUCER_ID =
@@ -37,7 +37,7 @@ export function bufQualificationInvocationPlan(input: {
       input.bufConfigPath,
       "--disable-symlinks",
       "-o",
-      input.candidateDescriptorPath
+      input.candidateDescriptorPath,
     ]),
     breakingArguments: Object.freeze([
       "breaking",
@@ -49,8 +49,8 @@ export function bufQualificationInvocationPlan(input: {
       "--against-config",
       BUF_FILE_BREAKING_CONFIG_SOURCE,
       "--disable-symlinks",
-      "--error-format=json"
-    ])
+      "--error-format=json",
+    ]),
   });
 }
 
@@ -69,7 +69,7 @@ function inputError(code: string, message: string): never {
     code,
     message,
     phase: "protobuf-buf-qualification-evidence",
-    retryable: false
+    retryable: false,
   });
 }
 
@@ -92,7 +92,7 @@ export function assertExactBufFilePolicy(value: unknown): void {
   ) {
     inputError(
       "BUF_FILE_POLICY_INVALID",
-      "Buf breaking configuration must contain exactly use: [FILE] without exclusions."
+      "Buf breaking configuration must contain exactly use: [FILE] without exclusions.",
     );
   }
 }
@@ -106,7 +106,7 @@ function string(value: unknown, field: string, maximum = 1000): string {
   ) {
     inputError(
       "BUF_QUALIFICATION_EVIDENCE_INVALID",
-      `${field} must be a bounded printable string.`
+      `${field} must be a bounded printable string.`,
     );
   }
   return value;
@@ -114,20 +114,14 @@ function string(value: unknown, field: string, maximum = 1000): string {
 
 function integer(value: unknown, field: string): number {
   if (!Number.isSafeInteger(value) || (value as number) < 1) {
-    inputError(
-      "BUF_QUALIFICATION_EVIDENCE_INVALID",
-      `${field} must be a positive safe integer.`
-    );
+    inputError("BUF_QUALIFICATION_EVIDENCE_INVALID", `${field} must be a positive safe integer.`);
   }
   return value as number;
 }
 
 function digest(value: unknown, field: string): Sha256Digest {
   if (typeof value !== "string" || !SHA256_DIGEST.test(value)) {
-    inputError(
-      "BUF_QUALIFICATION_EVIDENCE_INVALID",
-      `${field} must be a lowercase sha256 digest.`
-    );
+    inputError("BUF_QUALIFICATION_EVIDENCE_INVALID", `${field} must be a lowercase sha256 digest.`);
   }
   return value as Sha256Digest;
 }
@@ -140,7 +134,7 @@ function findingKey(finding: BufBreakingFinding): string {
     finding.endLine,
     finding.endColumn,
     finding.type,
-    finding.message
+    finding.message,
   ].join("\u0000");
 }
 
@@ -153,48 +147,48 @@ function mapFinding(value: unknown, index: number): BufBreakingFinding {
     endLine: integer(source["endLine"], `result.findings[${index}].endLine`),
     endColumn: integer(source["endColumn"], `result.findings[${index}].endColumn`),
     type: string(source["type"], `result.findings[${index}].type`, 240),
-    message: string(source["message"], `result.findings[${index}].message`, 4000)
+    message: string(source["message"], `result.findings[${index}].message`, 4000),
   });
 }
 
 export function sortAndValidateBufFindings(
-  values: readonly BufBreakingFinding[]
+  values: readonly BufBreakingFinding[],
 ): readonly BufBreakingFinding[] {
   if (values.length > MAX_FINDINGS) {
     inputError(
       "BUF_QUALIFICATION_FINDINGS_INVALID",
-      `Buf breaking output exceeds the supported ${MAX_FINDINGS} finding limit.`
+      `Buf breaking output exceeds the supported ${MAX_FINDINGS} finding limit.`,
     );
   }
   const sorted = values.toSorted((left, right) =>
-    compareBinaryStrings(findingKey(left), findingKey(right))
+    compareBinaryStrings(findingKey(left), findingKey(right)),
   );
   const keys = sorted.map(findingKey);
   if (new Set(keys).size !== keys.length) {
     inputError(
       "BUF_QUALIFICATION_FINDINGS_INVALID",
-      "Buf breaking output contains duplicate findings."
+      "Buf breaking output contains duplicate findings.",
     );
   }
   return Object.freeze(sorted.map((finding) => Object.freeze({ ...finding })));
 }
 
 export function mapBufBreakingQualificationEvidence(
-  value: unknown
+  value: unknown,
 ): BufBreakingQualificationEvidence {
   const source = record(value, "qualification evidence");
   const result = record(source["result"], "result");
   if (!Array.isArray(result["findings"])) {
     inputError("BUF_QUALIFICATION_EVIDENCE_INVALID", "result.findings must be an array.");
   }
-  const mappedFindings = result["findings"].map((finding, index) =>
-    mapFinding(finding, index)
-  );
+  const mappedFindings = result["findings"].map((finding, index) => mapFinding(finding, index));
   const findings = sortAndValidateBufFindings(mappedFindings);
-  if (mappedFindings.some((finding, index) => findingKey(finding) !== findingKey(findings[index]!))) {
+  if (
+    mappedFindings.some((finding, index) => findingKey(finding) !== findingKey(findings[index]!))
+  ) {
     inputError(
       "BUF_QUALIFICATION_EVIDENCE_INVALID",
-      "Buf qualification findings must be stored in deterministic order."
+      "Buf qualification findings must be stored in deterministic order.",
     );
   }
   const status = result["status"];
@@ -207,7 +201,7 @@ export function mapBufBreakingQualificationEvidence(
   ) {
     inputError(
       "BUF_QUALIFICATION_EVIDENCE_INVALID",
-      "Buf result status and finding count are inconsistent."
+      "Buf result status and finding count are inconsistent.",
     );
   }
   if (
@@ -218,7 +212,7 @@ export function mapBufBreakingQualificationEvidence(
   ) {
     inputError(
       "BUF_QUALIFICATION_EVIDENCE_INVALID",
-      "Buf qualification producer, schema, or FILE policy is invalid."
+      "Buf qualification producer, schema, or FILE policy is invalid.",
     );
   }
   return Object.freeze({
@@ -235,34 +229,32 @@ export function mapBufBreakingQualificationEvidence(
     baselineDescriptorImagePath: string(
       source["baselineDescriptorImagePath"],
       "baselineDescriptorImagePath",
-      300
+      300,
     ),
     baselineDescriptorImageDigest: digest(
       source["baselineDescriptorImageDigest"],
-      "baselineDescriptorImageDigest"
+      "baselineDescriptorImageDigest",
     ),
     candidateDescriptorImageDigest: digest(
       source["candidateDescriptorImageDigest"],
-      "candidateDescriptorImageDigest"
+      "candidateDescriptorImageDigest",
     ),
     breakingPolicyConfigDigest: digest(
       source["breakingPolicyConfigDigest"],
-      "breakingPolicyConfigDigest"
+      "breakingPolicyConfigDigest",
     ),
     invocationDigest: digest(source["invocationDigest"], "invocationDigest"),
     result: Object.freeze({
       status,
       findings,
       findingSetDigest: digest(result["findingSetDigest"], "result.findingSetDigest"),
-      rawOutputDigest: digest(result["rawOutputDigest"], "result.rawOutputDigest")
+      rawOutputDigest: digest(result["rawOutputDigest"], "result.rawOutputDigest"),
     }),
-    evidenceDigest: digest(source["evidenceDigest"], "evidenceDigest")
+    evidenceDigest: digest(source["evidenceDigest"], "evidenceDigest"),
   });
 }
 
-export function canonicalBufFindingSet(
-  findings: readonly BufBreakingFinding[]
-): string {
+export function canonicalBufFindingSet(findings: readonly BufBreakingFinding[]): string {
   return JSON.stringify(
     sortAndValidateBufFindings(findings).map((finding) => ({
       path: finding.path,
@@ -271,8 +263,8 @@ export function canonicalBufFindingSet(
       endLine: finding.endLine,
       endColumn: finding.endColumn,
       type: finding.type,
-      message: finding.message
-    }))
+      message: finding.message,
+    })),
   );
 }
 
@@ -289,7 +281,7 @@ export function canonicalBufQualificationInvocation(input: {
     baselineDescriptorPath: "<baseline-descriptor>",
     bufConfigPath: input.binding.bufConfigPath,
     candidateDescriptorPath: "<candidate-descriptor>",
-    modulePath: input.binding.modulePath
+    modulePath: input.binding.modulePath,
   });
   return JSON.stringify({
     schemaVersion: BUF_QUALIFICATION_SCHEMA_VERSION,
@@ -307,12 +299,12 @@ export function canonicalBufQualificationInvocation(input: {
     candidateDescriptorImageDigest: input.candidateDescriptorImageDigest,
     breakingPolicyConfigDigest: input.breakingPolicyConfigDigest,
     buildArguments: invocation.buildArguments,
-    breakingArguments: invocation.breakingArguments
+    breakingArguments: invocation.breakingArguments,
   });
 }
 
 export function canonicalBufQualificationEvidence(
-  evidence: Omit<BufBreakingQualificationEvidence, "evidenceDigest">
+  evidence: Omit<BufBreakingQualificationEvidence, "evidenceDigest">,
 ): string {
   return JSON.stringify({
     schemaVersion: evidence.schemaVersion,
@@ -339,16 +331,16 @@ export function canonicalBufQualificationEvidence(
         endLine: finding.endLine,
         endColumn: finding.endColumn,
         type: finding.type,
-        message: finding.message
+        message: finding.message,
       })),
       findingSetDigest: evidence.result.findingSetDigest,
-      rawOutputDigest: evidence.result.rawOutputDigest
-    }
+      rawOutputDigest: evidence.result.rawOutputDigest,
+    },
   });
 }
 
 export function serializeBufQualificationEvidence(
-  evidence: BufBreakingQualificationEvidence
+  evidence: BufBreakingQualificationEvidence,
 ): string {
   return `${JSON.stringify(evidence, null, 2)}\n`;
 }
@@ -366,6 +358,6 @@ export function qualificationInvocationInput(input: {
     bufConfigDigest: input.current.bufConfigDigest,
     baselineDescriptorImageDigest: input.released.descriptorImageDigest,
     candidateDescriptorImageDigest: input.current.descriptorImageDigest,
-    breakingPolicyConfigDigest: input.breakingPolicyConfigDigest
+    breakingPolicyConfigDigest: input.breakingPolicyConfigDigest,
   };
 }

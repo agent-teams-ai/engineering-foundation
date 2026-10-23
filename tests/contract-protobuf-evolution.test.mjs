@@ -1,4 +1,10 @@
-import { createManagedProcessExecutor, protobufAdapters, readAcceptedArchitectureDecisionEvidence, promoteArchitectureDecisionBaseline, schemaConfigurationDependencies } from "./support/capability-adapters.mjs";
+import {
+  createManagedProcessExecutor,
+  protobufAdapters,
+  readAcceptedArchitectureDecisionEvidence,
+  promoteArchitectureDecisionBaseline,
+  schemaConfigurationDependencies,
+} from "./support/capability-adapters.mjs";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm, symlink, unlink, writeFile } from "node:fs/promises";
@@ -11,24 +17,27 @@ import { Ajv2020 } from "ajv/dist/2020.js";
 import { stringify as stringifyYaml } from "yaml";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
-const distRoot = process.env.FOUNDATION_DIST_ROOT ?? join(
-  repositoryRoot,
-  "packages",
-  "engineering-foundation",
-  "dist",
-);
+const distRoot =
+  process.env.FOUNDATION_DIST_ROOT ??
+  join(repositoryRoot, "packages", "engineering-foundation", "dist");
 const { compareBinaryStrings } = await import(
   pathToFileURL(join(distRoot, "binary-string-comparator.js")).href
 );
 const protobufModule = await import(
-  pathToFileURL(
-    join(distRoot, "capabilities", "contract-protobuf-evolution", "module.js"),
-  ).href,
+  pathToFileURL(join(distRoot, "capabilities", "contract-protobuf-evolution", "module.js")).href
 );
 const protobufConfig = await import(
   pathToFileURL(
-    join(distRoot, "capabilities", "contract-protobuf-evolution", "adapters", "inbound", "configuration", "load-capability-config.js"),
-  ).href,
+    join(
+      distRoot,
+      "capabilities",
+      "contract-protobuf-evolution",
+      "adapters",
+      "inbound",
+      "configuration",
+      "load-capability-config.js",
+    ),
+  ).href
 );
 const protobufGovernanceAcl = await import(
   pathToFileURL(
@@ -41,19 +50,13 @@ const protobufGovernanceAcl = await import(
       "governance",
       "governance-accepted-decision-evidence-acl.js",
     ),
-  ).href,
+  ).href
 );
 
 const protobufQualification = await import(
   pathToFileURL(
-    join(
-      distRoot,
-      "capabilities",
-      "contract-protobuf-evolution",
-      "qualification",
-      "module.js",
-    ),
-  ).href,
+    join(distRoot, "capabilities", "contract-protobuf-evolution", "qualification", "module.js"),
+  ).href
 );
 const protobufQualificationModel = await import(
   pathToFileURL(
@@ -65,10 +68,11 @@ const protobufQualificationModel = await import(
       "model",
       "buf-breaking-qualification.js",
     ),
-  ).href,
+  ).href
 );
 
-const bufConfigSource = "version: v2\nmodules:\n  - path: contracts/protobuf\nbreaking:\n  use:\n    - FILE\n";
+const bufConfigSource =
+  "version: v2\nmodules:\n  - path: contracts/protobuf\nbreaking:\n  use:\n    - FILE\n";
 const releasedDescriptorImage = Buffer.from("released descriptor image\n", "utf8");
 
 function sha256(value) {
@@ -94,10 +98,9 @@ function policy() {
       generatorVersions: [
         { name: "buf.build/connectrpc/es:v1.6.1", version: "1.6.1" },
         { name: "buf.build/bufbuild/es:v2.2.3", version: "2.2.3" },
-      ].toSorted((left, right) => compareBinaryStrings(
-        `${left.name}\0${left.version}`,
-        `${right.name}\0${right.version}`,
-      )),
+      ].toSorted((left, right) =>
+        compareBinaryStrings(`${left.name}\0${left.version}`, `${right.name}\0${right.version}`),
+      ),
       generatedOutputDigest: digest("c"),
     },
     current: {
@@ -111,10 +114,9 @@ function policy() {
       generatorVersions: [
         { name: "buf.build/connectrpc/es:v1.6.1", version: "1.6.1" },
         { name: "buf.build/bufbuild/es:v2.2.3", version: "2.2.3" },
-      ].toSorted((left, right) => compareBinaryStrings(
-        `${left.name}\0${left.version}`,
-        `${right.name}\0${right.version}`,
-      )),
+      ].toSorted((left, right) =>
+        compareBinaryStrings(`${left.name}\0${left.version}`, `${right.name}\0${right.version}`),
+      ),
       generationDrift: {
         expectedGeneratedOutputDigest: digest("c"),
         observedGeneratedOutputDigest: digest("c"),
@@ -161,9 +163,7 @@ function capabilityConfig(releasedBaselinePath = "architecture/contracts/release
 }
 
 function qualificationEvidence(config, baseline) {
-  const findingSetDigest = sha256(
-    protobufQualificationModel.canonicalBufFindingSet([]),
-  );
+  const findingSetDigest = sha256(protobufQualificationModel.canonicalBufFindingSet([]));
   const evidenceWithoutDigest = {
     schemaVersion: 1,
     producerId: "agent-teams-foundation.buf-breaking-qualification",
@@ -178,9 +178,7 @@ function qualificationEvidence(config, baseline) {
     baselineDescriptorImagePath: config.qualification.releasedDescriptorImagePath,
     baselineDescriptorImageDigest: baseline.descriptorImageDigest,
     candidateDescriptorImageDigest: config.current.descriptorImageDigest,
-    breakingPolicyConfigDigest: sha256(
-      protobufQualificationModel.BUF_FILE_BREAKING_CONFIG_SOURCE,
-    ),
+    breakingPolicyConfigDigest: sha256(protobufQualificationModel.BUF_FILE_BREAKING_CONFIG_SOURCE),
     invocationDigest: sha256(
       protobufQualificationModel.canonicalBufQualificationInvocation(
         protobufQualificationModel.qualificationInvocationInput({
@@ -203,9 +201,7 @@ function qualificationEvidence(config, baseline) {
   return {
     ...evidenceWithoutDigest,
     evidenceDigest: sha256(
-      protobufQualificationModel.canonicalBufQualificationEvidence(
-        evidenceWithoutDigest,
-      ),
+      protobufQualificationModel.canonicalBufQualificationEvidence(evidenceWithoutDigest),
     ),
   };
 }
@@ -252,10 +248,8 @@ async function withConfig(value, callback, baseline = releasedBaseline()) {
   }
 }
 
-const governanceConfigPath =
-  "architecture/foundation/governance-architecture-decisions.yaml";
-const acceptedDecisionBaselinePath =
-  "architecture/decisions/accepted-decisions.json";
+const governanceConfigPath = "architecture/foundation/governance-architecture-decisions.yaml";
+const acceptedDecisionBaselinePath = "architecture/decisions/accepted-decisions.json";
 
 async function writeGovernedDecisionEvidence(root, decisionId = "ADR-0042") {
   const number = decisionId.slice("ADR-".length);
@@ -307,9 +301,7 @@ test("rejects Protobuf baseline pointers outside stable governance anchors", asy
     );
 
     const decisionReset = capabilityConfig();
-    decisionReset.approvedBreakingChanges = [
-      { decisionId: "ADR-0001", fingerprint: digest("a") },
-    ];
+    decisionReset.approvedBreakingChanges = [{ decisionId: "ADR-0001", fingerprint: digest("a") }];
     decisionReset.acceptedDecisionBaselinePath = "architecture/decisions/reset-history.json";
     await writeYaml(root, "contract.yaml", decisionReset);
     await assert.rejects(
@@ -321,8 +313,7 @@ test("rejects Protobuf baseline pointers outside stable governance anchors", asy
     incompleteGovernanceEvidence.approvedBreakingChanges = [
       { decisionId: "ADR-0001", fingerprint: digest("a") },
     ];
-    incompleteGovernanceEvidence.acceptedDecisionBaselinePath =
-      acceptedDecisionBaselinePath;
+    incompleteGovernanceEvidence.acceptedDecisionBaselinePath = acceptedDecisionBaselinePath;
     await writeYaml(root, "contract.yaml", incompleteGovernanceEvidence);
     await assert.rejects(
       protobufConfig.loadCapabilityConfig(schemaConfigurationDependencies(), root, "contract.yaml"),
@@ -340,9 +331,7 @@ test("reports only explicit violations for stale baseline, toolchain drift, gene
   evidence.current.breaking = { status: "breaking", fingerprint: digest("a") };
 
   assert.deepEqual(
-    protobufModule
-      .evaluateProtobufEvolution(evidence)
-      .map((diagnostic) => diagnostic.ruleId),
+    protobufModule.evaluateProtobufEvolution(evidence).map((diagnostic) => diagnostic.ruleId),
     [
       "contract.protobuf-evolution.baseline-mismatch",
       "contract.protobuf-evolution.toolchain-mismatch",
@@ -359,9 +348,7 @@ test("rejects descriptor or generated output mutation under the same public vers
   evidence.current.generationDrift.observedGeneratedOutputDigest = digest("e");
 
   assert.deepEqual(
-    protobufModule
-      .evaluateProtobufEvolution(evidence)
-      .map((diagnostic) => diagnostic.ruleId),
+    protobufModule.evaluateProtobufEvolution(evidence).map((diagnostic) => diagnostic.ruleId),
     ["contract.protobuf-evolution.immutable-version-mutated"],
   );
 });
@@ -405,13 +392,9 @@ test("binds a breaking fingerprint to an immutable accepted architecture decisio
     status: "breaking",
     fingerprint: digest("f"),
   };
-  evidence.approvedBreakingChanges = [
-    { decisionId: "ADR-0042", fingerprint: digest("f") },
-  ];
+  evidence.approvedBreakingChanges = [{ decisionId: "ADR-0042", fingerprint: digest("f") }];
   assert.deepEqual(
-    protobufModule
-      .evaluateProtobufEvolution(evidence)
-      .map((diagnostic) => diagnostic.ruleId),
+    protobufModule.evaluateProtobufEvolution(evidence).map((diagnostic) => diagnostic.ruleId),
     ["contract.protobuf-evolution.breaking-change-not-approved"],
   );
 
@@ -436,18 +419,17 @@ test("accepts any matching breaking approval backed by an accepted decision", ()
 
 test("keeps governance evidence as an opaque protobuf configuration reference", async () => {
   const config = capabilityConfig();
-  config.approvedBreakingChanges = [
-    { decisionId: "ADR-0042", fingerprint: digest("f") },
-  ];
+  config.approvedBreakingChanges = [{ decisionId: "ADR-0042", fingerprint: digest("f") }];
   config.acceptedDecisionBaselinePath = acceptedDecisionBaselinePath;
   config.governanceConfigPath = governanceConfigPath;
 
   await withConfig(config, async (root) => {
-    const configuration = await protobufConfig.loadCapabilityConfig(schemaConfigurationDependencies(), root, "contract.yaml");
-    assert.equal(
-      configuration.acceptedDecisionBaselinePath,
-      acceptedDecisionBaselinePath,
+    const configuration = await protobufConfig.loadCapabilityConfig(
+      schemaConfigurationDependencies(),
+      root,
+      "contract.yaml",
     );
+    assert.equal(configuration.acceptedDecisionBaselinePath, acceptedDecisionBaselinePath);
     assert.equal(configuration.governanceConfigPath, governanceConfigPath);
     assert.equal(Object.hasOwn(configuration, "acceptedDecisionIds"), false);
   });
@@ -456,17 +438,23 @@ test("keeps governance evidence as an opaque protobuf configuration reference", 
 test("accepts the repository root as an explicit Buf module path", async () => {
   const config = capabilityConfig();
   config.qualification.modulePath = ".";
-  await withConfig(config, async (root) => assert.equal(
-    (await protobufConfig.loadCapabilityConfig(schemaConfigurationDependencies(), root, "contract.yaml")).qualification.modulePath,
-    ".",
-  ));
+  await withConfig(config, async (root) =>
+    assert.equal(
+      (
+        await protobufConfig.loadCapabilityConfig(
+          schemaConfigurationDependencies(),
+          root,
+          "contract.yaml",
+        )
+      ).qualification.modulePath,
+      ".",
+    ),
+  );
 });
 
 test("resolves accepted decision evidence through the consumer-owned port", async () => {
   const config = capabilityConfig();
-  config.approvedBreakingChanges = [
-    { decisionId: "ADR-0042", fingerprint: digest("f") },
-  ];
+  config.approvedBreakingChanges = [{ decisionId: "ADR-0042", fingerprint: digest("f") }];
   config.acceptedDecisionBaselinePath = acceptedDecisionBaselinePath;
   config.governanceConfigPath = governanceConfigPath;
   const calls = [];
@@ -502,9 +490,7 @@ test("resolves accepted decision evidence through the consumer-owned port", asyn
 
 test("rejects a fabricated accepted-decision baseline without immutable governance evidence", async () => {
   const config = capabilityConfig();
-  config.approvedBreakingChanges = [
-    { decisionId: "ADR-0042", fingerprint: digest("f") },
-  ];
+  config.approvedBreakingChanges = [{ decisionId: "ADR-0042", fingerprint: digest("f") }];
   config.acceptedDecisionBaselinePath = acceptedDecisionBaselinePath;
   config.governanceConfigPath = governanceConfigPath;
   await withConfig(config, async (root) => {
@@ -521,12 +507,7 @@ test("rejects a fabricated accepted-decision baseline without immutable governan
       },
       acceptedBaselinePath: acceptedDecisionBaselinePath,
     });
-    const baselinePath = join(
-      root,
-      "architecture",
-      "decisions",
-      "accepted-decisions.json",
-    );
+    const baselinePath = join(root, "architecture", "decisions", "accepted-decisions.json");
     await mkdir(dirname(baselinePath), { recursive: true });
     await writeFile(
       baselinePath,
@@ -549,26 +530,23 @@ test("rejects a fabricated accepted-decision baseline without immutable governan
       configPath: "contract.yaml",
     });
     assert.equal(result.outcome, "invalid-input");
-    assert.equal(
-      result.problem?.code,
-      "ARCHITECTURE_DECISION_EVIDENCE_INVALID",
-    );
+    assert.equal(result.problem?.code, "ARCHITECTURE_DECISION_EVIDENCE_INVALID");
   });
 });
 
 test("loads a breaking approval only from a complete immutable governance catalog", async () => {
   const config = capabilityConfig();
-  config.approvedBreakingChanges = [
-    { decisionId: "ADR-0042", fingerprint: digest("f") },
-  ];
+  config.approvedBreakingChanges = [{ decisionId: "ADR-0042", fingerprint: digest("f") }];
   config.acceptedDecisionBaselinePath = acceptedDecisionBaselinePath;
   config.governanceConfigPath = governanceConfigPath;
   await withConfig(config, async (root) => {
     await writeGovernedDecisionEvidence(root);
-    const result = await protobufModule.createProtobufEvolutionCapability({
-      ...protobufAdapters(),
-      bufBreakingQualificationEvidence: breakingQualificationEvidence(),
-    }).run({ consumerRoot: root, configPath: "contract.yaml" });
+    const result = await protobufModule
+      .createProtobufEvolutionCapability({
+        ...protobufAdapters(),
+        bufBreakingQualificationEvidence: breakingQualificationEvidence(),
+      })
+      .run({ consumerRoot: root, configPath: "contract.yaml" });
     assert.equal(result.outcome, "passed");
   });
 });
@@ -578,7 +556,9 @@ test("governance evidence ACL preserves deterministic mapping, cancellation, and
   const external = await mkdtemp(join(tmpdir(), "foundation-protobuf-governance-external-"));
   try {
     await writeGovernedDecisionEvidence(root);
-    const acl = new protobufGovernanceAcl.GovernanceAcceptedDecisionEvidenceAcl(readAcceptedArchitectureDecisionEvidence);
+    const acl = new protobufGovernanceAcl.GovernanceAcceptedDecisionEvidenceAcl(
+      readAcceptedArchitectureDecisionEvidence,
+    );
     assert.deepEqual(
       await acl.readAcceptedDecisionEvidence({
         consumerRoot: root,
@@ -629,9 +609,7 @@ test("rejects public release versions with build metadata and detects prerelease
   const prerelease = policy();
   prerelease.current.publicContractVersion = "1.2.0-rc.1";
   assert.deepEqual(
-    protobufModule
-      .evaluateProtobufEvolution(prerelease)
-      .map((diagnostic) => diagnostic.ruleId),
+    protobufModule.evaluateProtobufEvolution(prerelease).map((diagnostic) => diagnostic.ruleId),
     ["contract.protobuf-evolution.public-version-regressed"],
   );
 });
@@ -643,8 +621,14 @@ test("runs as a deterministic read-only Foundation capability with closed input 
       "utf8",
     );
     assert.doesNotMatch(moduleSource, /child_process|node:child_process|ProcessBuf/u);
-    const commandHostSource = await readFile(join(distRoot, "features", "command-host", "composition", "node-command-host.js"), "utf8");
-    assert.doesNotMatch(commandHostSource, /^import .*contract-protobuf-evolution\/qualification\/module/mu);
+    const commandHostSource = await readFile(
+      join(distRoot, "features", "command-host", "composition", "node-command-host.js"),
+      "utf8",
+    );
+    assert.doesNotMatch(
+      commandHostSource,
+      /^import .*contract-protobuf-evolution\/qualification\/module/mu,
+    );
     assert.match(
       commandHostSource,
       /await import\(\s*"\.\.\/\.\.\/\.\.\/capabilities\/contract-protobuf-evolution\/qualification\/module\.js"\s*\)/u,

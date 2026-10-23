@@ -16,11 +16,9 @@ export async function isRegularFile(path: string): Promise<boolean> {
   return metadata?.isFile() === true;
 }
 
-export async function firstExisting(
-  candidates: readonly (string | undefined)[]
-): Promise<string> {
+export async function firstExisting(candidates: readonly (string | undefined)[]): Promise<string> {
   for (const candidate of candidates) {
-    if (candidate !== undefined && isAbsolute(candidate) && await isRegularFile(candidate)) {
+    if (candidate !== undefined && isAbsolute(candidate) && (await isRegularFile(candidate))) {
       return realpath(candidate);
     }
   }
@@ -35,45 +33,61 @@ function pathCandidates(name: string): readonly string[] {
 }
 
 function runtimeVersion(path: string, kind: RepositoryRuntimeProfile): string | null {
-  const observation = spawnSync(path, ["-p", kind === "node" ? "process.versions.node" : "process.versions.bun"], {
-    encoding: "utf8", timeout: 10_000, killSignal: "SIGKILL", maxBuffer: 16 * 1024
-  });
+  const observation = spawnSync(
+    path,
+    ["-p", kind === "node" ? "process.versions.node" : "process.versions.bun"],
+    {
+      encoding: "utf8",
+      timeout: 10_000,
+      killSignal: "SIGKILL",
+      maxBuffer: 16 * 1024,
+    },
+  );
   return observation.status === 0 ? observation.stdout.trim() : null;
 }
 
 export async function verifyQualificationNode(path: string): Promise<string> {
-  if (!await verifyRepositoryRuntimeExecutable(path, "node") || runtimeVersion(path, "node") !== "26.11.1") {
+  if (
+    !(await verifyRepositoryRuntimeExecutable(path, "node")) ||
+    runtimeVersion(path, "node") !== "26.11.1"
+  ) {
     throw new Error(`Executable is not admitted Node 26.11.1: ${path}`);
   }
   return path;
 }
 
 export async function verifySupportedNode(path: string): Promise<string> {
-  if (!await verifyRepositoryRuntimeExecutable(path, "node")) {
+  if (!(await verifyRepositoryRuntimeExecutable(path, "node"))) {
     throw new Error(`Executable is not a supported public Node runtime: ${path}`);
   }
   return path;
 }
 
 export async function verifyBun(path: string): Promise<string> {
-  if (!await verifyRepositoryRuntimeExecutable(path, "bun") || runtimeVersion(path, "bun") !== "1.4.3") {
+  if (
+    !(await verifyRepositoryRuntimeExecutable(path, "bun")) ||
+    runtimeVersion(path, "bun") !== "1.4.3"
+  ) {
     throw new Error(`Executable is not admitted Bun 1.4.3: ${path}`);
   }
   return path;
 }
 
 export async function resolveQualificationExecutables(
-  profile: RepositoryRuntimeProfile
+  profile: RepositoryRuntimeProfile,
 ): Promise<RuntimeExecutables> {
   const explicitNode = process.env["AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE"];
-  const node = await verifyQualificationNode(explicitNode ?? await firstExisting([
-    process.versions["bun"] === undefined ? process.execPath : undefined,
-    ...pathCandidates("node")
-  ]));
+  const node = await verifyQualificationNode(
+    explicitNode ??
+      (await firstExisting([
+        process.versions["bun"] === undefined ? process.execPath : undefined,
+        ...pathCandidates("node"),
+      ])),
+  );
   if (profile === "node") {
     return { profile, node };
   }
   const explicitBun = process.env["AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE"];
-  const bun = await verifyBun(explicitBun ?? await firstExisting(pathCandidates("bun")));
+  const bun = await verifyBun(explicitBun ?? (await firstExisting(pathCandidates("bun"))));
   return { profile, node, bun };
 }

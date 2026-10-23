@@ -30,10 +30,7 @@ export interface CanaryPackageCoordinate {
   readonly version: string;
 }
 
-export type CanaryCohortV3 = Omit<
-  UnselectedCohortV3,
-  "canaryRepositoryIds" | "lifecycleState"
->;
+export type CanaryCohortV3 = Omit<UnselectedCohortV3, "canaryRepositoryIds" | "lifecycleState">;
 
 export type CanaryCohort = QualifiedDocsCohortBindingV2 | CanaryCohortV3;
 

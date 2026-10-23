@@ -1,18 +1,21 @@
 import { assertSchema } from "./schema-catalog.js";
-import { installedDocumentAuthoringBuildIdentity, installedDocumentMutationArtifact } from "./installed-artifact-identity.js";
+import {
+  installedDocumentAuthoringBuildIdentity,
+  installedDocumentMutationArtifact,
+} from "./installed-artifact-identity.js";
 import { installedDocumentAuthoringVersion } from "./package-version.js";
 import { join } from "node:path";
 
 import {
   FOUNDATION_TRANSACTION_FILE,
-  LOCAL_STATE_DIRECTORY
+  LOCAL_STATE_DIRECTORY,
 } from "../../application/model/state-contract.js";
 import { NodeDocumentContractValidator } from "./node-document-contract-validator.js";
 import { NodeDocumentFileState } from "./node-document-file-state.js";
 import { NodeDocumentJournalStore } from "./node-document-journal-store.js";
 import {
   NodeDocumentPublisher,
-  type NodeDocumentPublisherOperations
+  type NodeDocumentPublisherOperations,
 } from "./node-document-publisher.js";
 import { NodeDocumentParentMaterializerV2 } from "./node-document-parent-materializer.js";
 import { captureNodeRepositoryRootAuthority } from "./node-path-authority.js";
@@ -21,15 +24,15 @@ import type { DocumentPlanContract as DocumentPlan } from "../../application/mod
 import type { DocumentReceiptContract as DocumentReceipt } from "../../application/model/document-receipt.js";
 import {
   applyDocumentPlan,
-  type ApplyDocumentPlanRequest
+  type ApplyDocumentPlanRequest,
 } from "../../application/use-cases/apply-document-plan.js";
 import type {
   DocumentTransactionFaultInjector,
-  DocumentTransactionFaultPoint
+  DocumentTransactionFaultPoint,
 } from "../../application/use-cases/document-transaction-continuation.js";
 import {
   recoverDocumentTransaction,
-  type RecoverDocumentTransactionRequest
+  type RecoverDocumentTransactionRequest,
 } from "../../application/use-cases/recover-document-transaction.js";
 import type { DocumentAuthorityRecompiler } from "../../application/ports/document-authority-recompiler.js";
 
@@ -38,7 +41,7 @@ type NodeDocumentWritingFaultPoint =
   | Parameters<NonNullable<NodeDocumentPublisherOperations["faultInjector"]>>[0];
 
 type NodeDocumentWritingFaultInjector = (
-  point: NodeDocumentWritingFaultPoint
+  point: NodeDocumentWritingFaultPoint,
 ) => Promise<void> | void;
 
 export interface NodeDocumentWritingPrivateOperations {
@@ -57,17 +60,21 @@ async function canonicalConsumerRoot(consumerRoot: string): Promise<string> {
 async function runtime(
   consumerRoot: string,
   operations: NodeDocumentWritingPrivateOperations,
-  authority: DocumentAuthorityRecompiler
+  authority: DocumentAuthorityRecompiler,
 ) {
-  const faultInjector: DocumentTransactionFaultInjector | undefined =
-    operations.faultInjector;
+  const faultInjector: DocumentTransactionFaultInjector | undefined = operations.faultInjector;
   const [version, buildIdentity, kernelArtifact] = await Promise.all([
-    installedDocumentAuthoringVersion(), installedDocumentAuthoringBuildIdentity(),
-    installedDocumentMutationArtifact()
+    installedDocumentAuthoringVersion(),
+    installedDocumentAuthoringBuildIdentity(),
+    installedDocumentMutationArtifact(),
   ]);
   return {
     authority,
-    compiler: Object.freeze({ id: "@agent-teams/document-authoring" as const, version, buildIdentity }),
+    compiler: Object.freeze({
+      id: "@agent-teams/document-authoring" as const,
+      version,
+      buildIdentity,
+    }),
     kernelArtifact,
     schema: { assertSchema },
     fileState: new NodeDocumentFileState(),
@@ -78,15 +85,15 @@ async function runtime(
       ...operations.publisher,
       ...(operations.faultInjector === undefined
         ? {}
-        : { faultInjector: operations.faultInjector })
-    })
+        : { faultInjector: operations.faultInjector }),
+    }),
   };
 }
 
 export async function applyNodeDocumentationPlan(
   request: ApplyDocumentPlanRequest,
   authority: DocumentAuthorityRecompiler,
-  operations: NodeDocumentWritingPrivateOperations = {}
+  operations: NodeDocumentWritingPrivateOperations = {},
 ): Promise<DocumentReceipt> {
   const contractValidator = new NodeDocumentContractValidator();
   const plan: DocumentPlan = await contractValidator.validatePlan(request.plan);
@@ -94,28 +101,28 @@ export async function applyNodeDocumentationPlan(
   // Preserve the microtask boundary before constructing the writer runtime.
   const coordinator = await Promise.resolve(createNodeDocumentTransactionCoordinator(consumerRoot));
   return applyDocumentPlan(
-    { ...await runtime(consumerRoot, operations, authority), contractValidator, coordinator },
+    { ...(await runtime(consumerRoot, operations, authority)), contractValidator, coordinator },
     {
       consumerRoot,
       plan,
-      ...(request.signal === undefined ? {} : { signal: request.signal })
-    }
+      ...(request.signal === undefined ? {} : { signal: request.signal }),
+    },
   );
 }
 
 export async function recoverNodeDocumentationTransaction(
   request: RecoverDocumentTransactionRequest,
   authority: DocumentAuthorityRecompiler,
-  operations: NodeDocumentWritingPrivateOperations = {}
+  operations: NodeDocumentWritingPrivateOperations = {},
 ): Promise<DocumentReceipt> {
   const consumerRoot = await canonicalConsumerRoot(request.consumerRoot);
   // Recovery shares the same scheduling boundary as apply.
   const coordinator = await Promise.resolve(createNodeDocumentTransactionCoordinator(consumerRoot));
   return recoverDocumentTransaction(
-    { ...await runtime(consumerRoot, operations, authority), coordinator },
+    { ...(await runtime(consumerRoot, operations, authority)), coordinator },
     {
       consumerRoot,
-      ...(request.signal === undefined ? {} : { signal: request.signal })
-    }
+      ...(request.signal === undefined ? {} : { signal: request.signal }),
+    },
   );
 }

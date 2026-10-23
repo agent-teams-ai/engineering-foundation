@@ -4,7 +4,7 @@ import { join } from "node:path";
 import {
   captureFileHandleIdentity,
   pathMatchesRegularFileIdentity,
-  readBoundedRegularFile
+  readBoundedRegularFile,
 } from "./node-bounded-regular-file.js";
 import { sha256Bytes } from "../../../canonical-json.js";
 import type { PortablePathIdentity } from "../../../path-identity.js";
@@ -12,7 +12,7 @@ import type {
   JournalSlotAuthority,
   JournalSlotFailureFactory,
   JournalSlotResidueMatcher,
-  StoredJournalSlot
+  StoredJournalSlot,
 } from "../../application/journal-slot-profile.js";
 
 const MAXIMUM_DIRECTORY_ENTRIES = 1024;
@@ -25,7 +25,7 @@ function journalSlotErrorCode(error: unknown): string | undefined {
 
 function journalSlotAuthority(
   identity: PortablePathIdentity,
-  bytes: Uint8Array
+  bytes: Uint8Array,
 ): JournalSlotAuthority {
   return { authorityDigest: sha256Bytes(bytes), identity };
 }
@@ -33,7 +33,7 @@ function journalSlotAuthority(
 export async function observeJournalSlotAuthority(
   path: string,
   expected: JournalSlotAuthority,
-  maximumBytes: number
+  maximumBytes: number,
 ): Promise<"match" | "missing" | "other"> {
   try {
     const observed = await readBoundedRegularFile(path, maximumBytes);
@@ -41,7 +41,7 @@ export async function observeJournalSlotAuthority(
       return "other";
     }
     return (await pathMatchesRegularFileIdentity(path, expected.identity)) === "match" &&
-        sha256Bytes(observed.bytes) === expected.authorityDigest
+      sha256Bytes(observed.bytes) === expected.authorityDigest
       ? "match"
       : "other";
   } catch (error) {
@@ -52,10 +52,7 @@ export async function observeJournalSlotAuthority(
   }
 }
 
-export async function journalSlotPathExists(
-  path: string,
-  maximumBytes: number
-): Promise<boolean> {
+export async function journalSlotPathExists(path: string, maximumBytes: number): Promise<boolean> {
   try {
     await readBoundedRegularFile(path, maximumBytes);
     return true;
@@ -87,14 +84,12 @@ export async function readJournalSlot<TJournal>(options: {
   }
   return {
     authority: journalSlotAuthority(observed.identity, observed.bytes),
-    journal: await options.parse(observed.bytes)
+    journal: await options.parse(observed.bytes),
   };
 }
 
 function matchesResidue(entry: string, matcher: JournalSlotResidueMatcher): boolean {
-  return "exact" in matcher
-    ? entry === matcher.exact
-    : entry.startsWith(matcher.prefix);
+  return "exact" in matcher ? entry === matcher.exact : entry.startsWith(matcher.prefix);
 }
 
 export async function journalSlotResidueNames(options: {
@@ -140,7 +135,7 @@ export async function journalSlotResidueNames(options: {
  */
 export async function createPrivateJournalSlotDirectory(
   parent: string,
-  name: () => string
+  name: () => string,
 ): Promise<{ readonly directory: string; readonly path: string }> {
   for (;;) {
     const directory = join(parent, name());
@@ -165,19 +160,14 @@ export async function prepareJournalSlotCandidate(options: {
     handle = await open(options.candidatePath, "wx", 0o600);
   } catch (error) {
     throw options.failure(
-      journalSlotErrorCode(error) === "EEXIST"
-        ? "candidate-exists"
-        : "candidate-unavailable",
-      { cause: error }
+      journalSlotErrorCode(error) === "EEXIST" ? "candidate-exists" : "candidate-unavailable",
+      { cause: error },
     );
   }
   try {
     await handle.writeFile(options.bytes);
     await handle.sync();
-    return journalSlotAuthority(
-      await captureFileHandleIdentity(handle),
-      options.bytes
-    );
+    return journalSlotAuthority(await captureFileHandleIdentity(handle), options.bytes);
   } finally {
     await handle.close();
   }

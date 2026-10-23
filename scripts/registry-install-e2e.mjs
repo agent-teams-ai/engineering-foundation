@@ -2,23 +2,12 @@
 import { materializeStableTree } from "./pack-artifact-stage-support.mjs";
 import { qualifyInstalledStackToolchain } from "./packed-stack-toolchain-qualification.ts";
 import { createHash } from "node:crypto";
-import {
-  lstat,
-  mkdir,
-  readFile,
-  readdir,
-  realpath,
-  rm,
-  writeFile,
-} from "node:fs/promises";
+import { lstat, mkdir, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
 import { availableParallelism } from "node:os";
 import { dirname, join, relative, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import {
-  createPnpmRunner,
-  runNpmCommand,
-} from "./pack-test-support.mjs";
+import { createPnpmRunner, runNpmCommand } from "./pack-test-support.mjs";
 import {
   verifyRegistryDocsProtocolCli,
   verifyRegistryDocsProtocolMcp,
@@ -45,9 +34,14 @@ import {
   seedRegistryInParallel,
 } from "./registry-seed-scheduler.mjs";
 import { PUBLISHABLE_PACKAGES } from "./publishable-packages.mjs";
-import { runQualifiedArtifactConsumer, withQualifiedPackageArtifacts } from "./pack-publishable-artifacts.mjs";
 import {
-  assertPackageQualificationPhaseIds, packageQualificationPhaseIds, runPackageQualificationPhases,
+  runQualifiedArtifactConsumer,
+  withQualifiedPackageArtifacts,
+} from "./pack-publishable-artifacts.mjs";
+import {
+  assertPackageQualificationPhaseIds,
+  packageQualificationPhaseIds,
+  runPackageQualificationPhases,
 } from "./package-qualification-groups.mts";
 import { readQualifiedReleaseArtifact } from "./pack-artifact-archive.mjs";
 import {
@@ -61,11 +55,10 @@ const DOCS_PROTOCOL_ADAPTER_PACKAGE_NAME = "@agent-teams/docs-protocol-agent-tea
 const DOCS_PROTOCOL_MCP_PACKAGE_NAME = "@agent-teams/docs-protocol-mcp";
 const FOUNDATION_FEATURE_IMPORTS = [
   FOUNDATION_PACKAGE_NAME,
-  `${FOUNDATION_PACKAGE_NAME}/local-mode`, `${FOUNDATION_PACKAGE_NAME}/scaffolding`,
+  `${FOUNDATION_PACKAGE_NAME}/local-mode`,
+  `${FOUNDATION_PACKAGE_NAME}/scaffolding`,
 ];
-const REGISTRY_QUALIFICATION_PACKAGES = registryQualificationPackages(
-  PUBLISHABLE_PACKAGES,
-);
+const REGISTRY_QUALIFICATION_PACKAGES = registryQualificationPackages(PUBLISHABLE_PACKAGES);
 const TARGET_PACKAGE_NAMES = new Set(
   REGISTRY_QUALIFICATION_PACKAGES.map((releasePackage) => releasePackage.name),
 );
@@ -78,16 +71,8 @@ function compareStrings(left, right) {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
-async function runRegistryNpm(
-  args,
-  cwd,
-  {
-    timeoutMs = COMMAND_TIMEOUT_MS,
-    userConfigPath,
-  } = {},
-) {
-  const userConfigArgs =
-    userConfigPath === undefined ? [] : ["--userconfig", userConfigPath];
+async function runRegistryNpm(args, cwd, { timeoutMs = COMMAND_TIMEOUT_MS, userConfigPath } = {}) {
+  const userConfigArgs = userConfigPath === undefined ? [] : ["--userconfig", userConfigPath];
   return runNpmCommand([...args, ...userConfigArgs, "--loglevel=error"], cwd, {
     timeoutMs,
   });
@@ -198,10 +183,12 @@ async function collectRuntimeDependencyClosure() {
 }
 
 async function createTargetArchives(artifacts) {
-  return Promise.all(REGISTRY_QUALIFICATION_PACKAGES.map(async (entry) => {
-    const manifest = await readManifest(join(repositoryRoot, entry.root));
-    return Object.freeze(await readQualifiedReleaseArtifact(artifacts[entry.name], manifest));
-  }));
+  return Promise.all(
+    REGISTRY_QUALIFICATION_PACKAGES.map(async (entry) => {
+      const manifest = await readManifest(join(repositoryRoot, entry.root));
+      return Object.freeze(await readQualifiedReleaseArtifact(artifacts[entry.name], manifest));
+    }),
+  );
 }
 
 async function startRegistry(temporaryRoot) {
@@ -256,25 +243,20 @@ async function startRegistry(temporaryRoot) {
 
 async function configureRegistryAuthentication(registryUrl, temporaryRoot) {
   const username = "foundation-registry-e2e";
-  const response = await fetch(
-    `${registryUrl}/-/user/org.couchdb.user:${username}`,
-    {
-      body: JSON.stringify({
-        _id: `org.couchdb.user:${username}`,
-        email: "foundation-registry-e2e@example.invalid",
-        name: username,
-        password: "foundation-registry-e2e-password",
-        roles: [],
-        type: "user",
-      }),
-      headers: { "content-type": "application/json" },
-      method: "PUT",
-    },
-  );
+  const response = await fetch(`${registryUrl}/-/user/org.couchdb.user:${username}`, {
+    body: JSON.stringify({
+      _id: `org.couchdb.user:${username}`,
+      email: "foundation-registry-e2e@example.invalid",
+      name: username,
+      password: "foundation-registry-e2e-password",
+      roles: [],
+      type: "user",
+    }),
+    headers: { "content-type": "application/json" },
+    method: "PUT",
+  });
   if (!response.ok) {
-    throw new Error(
-      `Hermetic registry user creation failed with HTTP ${response.status}.`,
-    );
+    throw new Error(`Hermetic registry user creation failed with HTTP ${response.status}.`);
   }
   const body = await response.json();
   if (typeof body.token !== "string" || body.token.length === 0) {
@@ -300,15 +282,22 @@ async function closeServer(server) {
 }
 
 export async function seedExecutableFiles(root, directory = root, state = { entries: 0 }) {
-  if (relative(root, directory).split(/[\\/]/u).length > 64) { throw new Error("Seed executable inventory exceeds depth bound."); }
+  if (relative(root, directory).split(/[\\/]/u).length > 64) {
+    throw new Error("Seed executable inventory exceeds depth bound.");
+  }
   const files = [];
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     state.entries += 1;
-    if (state.entries > 50_000) { throw new Error("Seed executable inventory exceeds its bound."); }
-    if (entry.name === "node_modules") { continue; }
+    if (state.entries > 50_000) {
+      throw new Error("Seed executable inventory exceeds its bound.");
+    }
+    if (entry.name === "node_modules") {
+      continue;
+    }
     const filename = join(directory, entry.name);
-    if (entry.isDirectory()) { files.push(...await seedExecutableFiles(root, filename, state)); }
-    else if (entry.isFile() && ((await lstat(filename)).mode & 0o111) !== 0) {
+    if (entry.isDirectory()) {
+      files.push(...(await seedExecutableFiles(root, filename, state)));
+    } else if (entry.isFile() && ((await lstat(filename)).mode & 0o111) !== 0) {
       files.push(filename.slice(root.length + 1).replaceAll("\\", "/"));
     }
   }
@@ -325,39 +314,55 @@ export async function packPackage(entry, index, { temporaryRoot, runPnpm }) {
   if (executableFiles.length > 0) {
     seedSource = join(destination, "source");
     const sourceManifest = JSON.parse(await readFile(join(entry.root, "package.json"), "utf8"));
-    const workspace = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+    const workspace = JSON.parse(
+      await readFile(new URL("../package.json", import.meta.url), "utf8"),
+    );
     const bunVersion = workspace.workspaces.catalog.bun;
-    const admittedBun = /^@oven\/bun-(?:darwin|linux|windows|freebsd)-(?:aarch64|x64)(?:-musl|-android)?$/u.test(sourceManifest.name) && sourceManifest.version === bunVersion;
-    await materializeStableTree(entry.root, seedSource, { allowLinks: false,
-      excludedEntries: new Set(["node_modules"]), label: "Registry seed copy", state: { entries: 0, bytes: 0 },
-      maximumMemberBytes: candidate => admittedBun && relative(entry.root, candidate).replaceAll("\\", "/") === `bin/${sourceManifest.name.includes("windows") ? "bun.exe" : "bun"}` ? 128 * 1024 * 1024 : 32 * 1024 * 1024,
+    const admittedBun =
+      /^@oven\/bun-(?:darwin|linux|windows|freebsd)-(?:aarch64|x64)(?:-musl|-android)?$/u.test(
+        sourceManifest.name,
+      ) && sourceManifest.version === bunVersion;
+    await materializeStableTree(entry.root, seedSource, {
+      allowLinks: false,
+      excludedEntries: new Set(["node_modules"]),
+      label: "Registry seed copy",
+      state: { entries: 0, bytes: 0 },
+      maximumMemberBytes: (candidate) =>
+        admittedBun &&
+        relative(entry.root, candidate).replaceAll("\\", "/") ===
+          `bin/${sourceManifest.name.includes("windows") ? "bun.exe" : "bun"}`
+          ? 128 * 1024 * 1024
+          : 32 * 1024 * 1024,
     });
     const manifestPath = join(seedSource, "package.json");
     const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-    await writeFile(manifestPath, JSON.stringify({ ...manifest,
-      publishConfig: { ...manifest.publishConfig, executableFiles } }));
+    await writeFile(
+      manifestPath,
+      JSON.stringify({
+        ...manifest,
+        publishConfig: { ...manifest.publishConfig, executableFiles },
+      }),
+    );
   }
   await runPnpm(
     ["pack", "--pack-destination", destination, "--config.ignore-scripts=true"],
     seedSource,
   );
-  const archives = (await readdir(destination)).filter((name) =>
-    name.endsWith(".tgz"),
-  );
+  const archives = (await readdir(destination)).filter((name) => name.endsWith(".tgz"));
   if (archives.length !== 1) {
     throw new Error(`pnpm pack did not report one archive for ${entry.identity}.`);
   }
   return join(destination, archives[0]);
 }
 
-async function publishArchive(
-  archivePath, registryUrl, name, version, runNpm,
-) {
+async function publishArchive(archivePath, registryUrl, name, version, runNpm) {
   const result = await publishWithExactEffectReconciliation({
     archivePath,
     name,
-    publish: () => runNpm(registryPublishArguments({ archivePath, registryUrl, version }),
-      repositoryRoot, { timeoutMs: COMMAND_TIMEOUT_MS }),
+    publish: () =>
+      runNpm(registryPublishArguments({ archivePath, registryUrl, version }), repositoryRoot, {
+        timeoutMs: COMMAND_TIMEOUT_MS,
+      }),
     registryUrl,
     version,
   });
@@ -416,12 +421,18 @@ async function createConsumerAttempt(targets, registryUrl, matrixEntry, attempt,
   return Object.freeze({ cacheRoot, clientRoot, consumerRoot, userConfigPath });
 }
 
-async function installConsumer(targets, registryUrl, matrixEntry, { temporaryRoot, runPnpm, runNpm }) {
+async function installConsumer(
+  targets,
+  registryUrl,
+  matrixEntry,
+  { temporaryRoot, runPnpm, runNpm },
+) {
   return installRegistryConsumerWithRetry({
-    cleanupAttempt: (context) => Promise.all([
-      rm(context.clientRoot, { force: true, recursive: true }),
-      rm(context.consumerRoot, { force: true, recursive: true }),
-    ]),
+    cleanupAttempt: (context) =>
+      Promise.all([
+        rm(context.clientRoot, { force: true, recursive: true }),
+        rm(context.consumerRoot, { force: true, recursive: true }),
+      ]),
     createAttempt: (attempt) =>
       createConsumerAttempt(targets, registryUrl, matrixEntry, attempt, temporaryRoot),
     onRetry: ({ attempt, delayMs, timeoutMs }) => {
@@ -434,37 +445,66 @@ async function installConsumer(targets, registryUrl, matrixEntry, { temporaryRoo
         if (matrixEntry.manager === "npm") {
           await runNpm(
             [
-              "install", "--registry", registryUrl, "--ignore-scripts",
-              "--no-audit", "--no-fund", "--package-lock=true",
-              "--cache", context.cacheRoot,
+              "install",
+              "--registry",
+              registryUrl,
+              "--ignore-scripts",
+              "--no-audit",
+              "--no-fund",
+              "--package-lock=true",
+              "--cache",
+              context.cacheRoot,
             ],
             context.consumerRoot,
             { timeoutMs, userConfigPath: context.userConfigPath },
           );
         } else {
-          await runPnpm([
-            "install", "--registry", registryUrl, "--ignore-scripts",
-            `--config.userconfig=${context.userConfigPath}`,
-            "--store-dir", context.cacheRoot,
-          ], context.consumerRoot);
+          await runPnpm(
+            [
+              "install",
+              "--registry",
+              registryUrl,
+              "--ignore-scripts",
+              `--config.userconfig=${context.userConfigPath}`,
+              "--store-dir",
+              context.cacheRoot,
+            ],
+            context.consumerRoot,
+          );
         }
         return context;
       }),
   });
 }
 
-async function verifyPnpmRegistryPackage({ consumerRoot, registryUrl, target, userConfigPath, runPnpm }) {
-  const targetRoot = await realpath(join(
-    consumerRoot, "node_modules", ...target.manifest.name.split("/"),
-  ));
+async function verifyPnpmRegistryPackage({
+  consumerRoot,
+  registryUrl,
+  target,
+  userConfigPath,
+  runPnpm,
+}) {
+  const targetRoot = await realpath(
+    join(consumerRoot, "node_modules", ...target.manifest.name.split("/")),
+  );
   const installedManifest = await readManifest(targetRoot);
-  if (installedManifest.name !== target.manifest.name || installedManifest.version !== target.manifest.version) {
+  if (
+    installedManifest.name !== target.manifest.name ||
+    installedManifest.version !== target.manifest.version
+  ) {
     throw new Error(`pnpm installed the wrong version of ${target.manifest.name}.`);
   }
-  const viewed = await runPnpm([
-    "view", `${target.manifest.name}@${target.manifest.version}`, "version",
-    "--registry", registryUrl, `--config.userconfig=${userConfigPath}`,
-  ], consumerRoot);
+  const viewed = await runPnpm(
+    [
+      "view",
+      `${target.manifest.name}@${target.manifest.version}`,
+      "version",
+      "--registry",
+      registryUrl,
+      `--config.userconfig=${userConfigPath}`,
+    ],
+    consumerRoot,
+  );
   if (viewed.stdout.trim() !== target.manifest.version) {
     throw new Error(`pnpm registry metadata is incomplete for ${target.manifest.name}.`);
   }
@@ -474,9 +514,17 @@ async function verifyPnpmRegistryPackage({ consumerRoot, registryUrl, target, us
 }
 
 async function verifyConsumer(targets, registryUrl, matrixEntry, commands) {
-  if (matrixEntry.profile === 'foundation-full') { matrixEntry = { ...matrixEntry, packageNames: [...matrixEntry.packageNames, 'stack-toolchain'] }; }
+  if (matrixEntry.profile === "foundation-full") {
+    matrixEntry = {
+      ...matrixEntry,
+      packageNames: [...matrixEntry.packageNames, "stack-toolchain"],
+    };
+  }
   const { consumerRoot, userConfigPath } = await installConsumer(
-    targets, registryUrl, matrixEntry, commands,
+    targets,
+    registryUrl,
+    matrixEntry,
+    commands,
   );
   const requiredTarget = (name) => {
     const target = targets.find((candidate) => candidate.manifest.name === name);
@@ -495,16 +543,28 @@ async function verifyConsumer(targets, registryUrl, matrixEntry, commands) {
   if (selectedTargets.length !== matrixEntry.packageNames.length) {
     throw new Error(`Registry matrix ${matrixEntry.id} is missing a target archive.`);
   }
-  const lockfile = matrixEntry.manager === "npm"
-    ? JSON.parse(await readFile(join(consumerRoot, "package-lock.json"), "utf8"))
-    : undefined;
+  const lockfile =
+    matrixEntry.manager === "npm"
+      ? JSON.parse(await readFile(join(consumerRoot, "package-lock.json"), "utf8"))
+      : undefined;
   const installedRoots = new Map();
   for (const target of selectedTargets) {
-    const targetRoot = matrixEntry.manager === "npm"
-      ? await verifyRegistryPackage({ consumerRoot, lockfile, registryUrl, runNpm: commands.runNpm, target })
-      : await verifyPnpmRegistryPackage({
-        consumerRoot, registryUrl, target, userConfigPath, runPnpm: commands.runPnpm,
-      });
+    const targetRoot =
+      matrixEntry.manager === "npm"
+        ? await verifyRegistryPackage({
+            consumerRoot,
+            lockfile,
+            registryUrl,
+            runNpm: commands.runNpm,
+            target,
+          })
+        : await verifyPnpmRegistryPackage({
+            consumerRoot,
+            registryUrl,
+            target,
+            userConfigPath,
+            runPnpm: commands.runPnpm,
+          });
     installedRoots.set(target.manifest.name, targetRoot);
   }
   const installedDocsRoot = installedRoots.get(DOCS_PROTOCOL_PACKAGE_NAME);
@@ -557,7 +617,6 @@ async function verifyConsumer(targets, registryUrl, matrixEntry, commands) {
     .digest("hex");
 }
 
-
 function registryQualificationMatrix() {
   const matrix = registryInstallMatrix({
     docsPackageName: DOCS_PROTOCOL_PACKAGE_NAME,
@@ -573,19 +632,31 @@ function registryQualificationMatrix() {
   return [...matrix, foundationEntry];
 }
 
-async function qualifyRegistryMatrix(targets, registryUrl, commands, checkpoint, { group, matrix }) {
+async function qualifyRegistryMatrix(
+  targets,
+  registryUrl,
+  commands,
+  checkpoint,
+  { group, matrix },
+) {
   const lockDigests = [];
-  await runPackageQualificationPhases("registry", group, matrix.map(matrixEntry => ({
-    id: matrixEntry.id,
-    run: async () => {
-      await checkpoint();
-      lockDigests.push([matrixEntry.id, await runRegistryPhase(
-        `consumer-qualification-${matrixEntry.id}`,
-        () => verifyConsumer(targets, registryUrl, matrixEntry, commands),
-      )]);
-      await checkpoint();
-    }
-  })));
+  await runPackageQualificationPhases(
+    "registry",
+    group,
+    matrix.map((matrixEntry) => ({
+      id: matrixEntry.id,
+      run: async () => {
+        await checkpoint();
+        lockDigests.push([
+          matrixEntry.id,
+          await runRegistryPhase(`consumer-qualification-${matrixEntry.id}`, () =>
+            verifyConsumer(targets, registryUrl, matrixEntry, commands),
+          ),
+        ]);
+        await checkpoint();
+      },
+    })),
+  );
   process.stdout.write(
     `Registry consumers verified: ${targets.map((target) => `${target.manifest.name}@${target.manifest.version}`).join(", ")}; ${lockDigests.map(([id, digest]) => `${id}=sha256:${digest}`).join(", ")}.\n`,
   );
@@ -598,75 +669,100 @@ async function qualifyRegistryMatrix(targets, registryUrl, commands, checkpoint,
 export function qualifyRegistryConsumers(handle, group) {
   packageQualificationPhaseIds("registry", group);
   const matrix = registryQualificationMatrix();
-  assertPackageQualificationPhaseIds("registry", matrix.map(entry => entry.id));
-  return runQualifiedArtifactConsumer(handle, "registry", async ({ artifacts, temporaryRoot, checkpoint }) => {
-    const runPnpm = createPnpmRunner();
-    const previousRegistryToken = process.env[REGISTRY_TOKEN_ENVIRONMENT_KEY];
-    const previousUserConfig = process.env[USER_CONFIG_ENVIRONMENT_KEY];
-    let npmUserConfigPath;
-    const commands = { temporaryRoot, runPnpm, runNpm: (args, cwd, options = {}) =>
-      runRegistryNpm(args, cwd, { ...options, userConfigPath: options.userConfigPath ?? npmUserConfigPath }) };
-    let registry;
-    try {
-      await checkpoint();
-      const targets = await runRegistryPhase("target-archive", () => createTargetArchives(artifacts));
-      const dependencies = await runRegistryPhase(
-        "dependency-closure",
-        collectRuntimeDependencyClosure,
-      );
-      registry = await runRegistryPhase("registry-start", () => startRegistry(temporaryRoot));
-      npmUserConfigPath = await runRegistryPhase("registry-auth", () =>
-        configureRegistryAuthentication(registry.registryUrl, temporaryRoot),
-      );
-      await runRegistryPhase("registry-seed", () =>
-        seedRegistry(dependencies, registry.registryUrl, commands),
-      );
-      await runRegistryPhase("target-publish", async () => {
+  assertPackageQualificationPhaseIds(
+    "registry",
+    matrix.map((entry) => entry.id),
+  );
+  return runQualifiedArtifactConsumer(
+    handle,
+    "registry",
+    async ({ artifacts, temporaryRoot, checkpoint }) => {
+      const runPnpm = createPnpmRunner();
+      const previousRegistryToken = process.env[REGISTRY_TOKEN_ENVIRONMENT_KEY];
+      const previousUserConfig = process.env[USER_CONFIG_ENVIRONMENT_KEY];
+      let npmUserConfigPath;
+      const commands = {
+        temporaryRoot,
+        runPnpm,
+        runNpm: (args, cwd, options = {}) =>
+          runRegistryNpm(args, cwd, {
+            ...options,
+            userConfigPath: options.userConfigPath ?? npmUserConfigPath,
+          }),
+      };
+      let registry;
+      try {
+        await checkpoint();
+        const targets = await runRegistryPhase("target-archive", () =>
+          createTargetArchives(artifacts),
+        );
+        const dependencies = await runRegistryPhase(
+          "dependency-closure",
+          collectRuntimeDependencyClosure,
+        );
+        registry = await runRegistryPhase("registry-start", () => startRegistry(temporaryRoot));
+        npmUserConfigPath = await runRegistryPhase("registry-auth", () =>
+          configureRegistryAuthentication(registry.registryUrl, temporaryRoot),
+        );
+        await runRegistryPhase("registry-seed", () =>
+          seedRegistry(dependencies, registry.registryUrl, commands),
+        );
+        await runRegistryPhase("target-publish", async () => {
+          for (const target of targets) {
+            await checkpoint();
+            await publishArchive(
+              target.archivePath,
+              registry.registryUrl,
+              target.manifest.name,
+              target.manifest.version,
+              commands.runNpm,
+            );
+          }
+        });
+        await checkpoint();
         for (const target of targets) {
-          await checkpoint();
-          await publishArchive(
-            target.archivePath,
-            registry.registryUrl,
-            target.manifest.name,
-            target.manifest.version,
-            commands.runNpm,
-          );
+          await verifyRegistryTargetDownload(target, registry.registryUrl);
         }
-      });
-      await checkpoint();
-      for (const target of targets) {
-        await verifyRegistryTargetDownload(target, registry.registryUrl);
+        await checkpoint();
+        await qualifyRegistryMatrix(targets, registry.registryUrl, commands, checkpoint, {
+          group,
+          matrix,
+        });
+      } finally {
+        if (previousRegistryToken === undefined) {
+          delete process.env[REGISTRY_TOKEN_ENVIRONMENT_KEY];
+        } else {
+          process.env[REGISTRY_TOKEN_ENVIRONMENT_KEY] = previousRegistryToken;
+        }
+        if (previousUserConfig === undefined) {
+          delete process.env[USER_CONFIG_ENVIRONMENT_KEY];
+        } else {
+          process.env[USER_CONFIG_ENVIRONMENT_KEY] = previousUserConfig;
+        }
+        if (registry !== undefined) {
+          await closeServer(registry.server);
+        }
+        await checkpoint();
       }
-      await checkpoint();
-      await qualifyRegistryMatrix(targets, registry.registryUrl, commands, checkpoint, { group, matrix });
-    } finally {
-      if (previousRegistryToken === undefined) {
-        delete process.env[REGISTRY_TOKEN_ENVIRONMENT_KEY];
-      } else {
-        process.env[REGISTRY_TOKEN_ENVIRONMENT_KEY] = previousRegistryToken;
-      }
-      if (previousUserConfig === undefined) {
-        delete process.env[USER_CONFIG_ENVIRONMENT_KEY];
-      } else {
-        process.env[USER_CONFIG_ENVIRONMENT_KEY] = previousUserConfig;
-      }
-      if (registry !== undefined) {
-        await closeServer(registry.server);
-      }
-      await checkpoint();
-    }
-  });
+    },
+  );
 }
 
 /** @param {import("./package-qualification-groups.mts").RegistryQualificationGroup | undefined} [group] */
 export async function runRegistryInstallTest(group) {
   packageQualificationPhaseIds("registry", group);
-  const evidence = await withQualifiedPackageArtifacts("registry", handle => qualifyRegistryConsumers(handle, group));
-  process.stdout.write(`Registry-install${group === undefined ? "" : ` group ${group}`} qualification PASS: ${JSON.stringify(evidence)}\n`);
+  const evidence = await withQualifiedPackageArtifacts("registry", (handle) =>
+    qualifyRegistryConsumers(handle, group),
+  );
+  process.stdout.write(
+    `Registry-install${group === undefined ? "" : ` group ${group}`} qualification PASS: ${JSON.stringify(evidence)}\n`,
+  );
   return evidence;
 }
 
 if (import.meta.main) {
-  if (process.argv.length !== 2) { throw new Error("Registry qualification accepts no archive overrides or arguments."); }
+  if (process.argv.length !== 2) {
+    throw new Error("Registry qualification accepts no archive overrides or arguments.");
+  }
   await runRegistryInstallTest();
 }

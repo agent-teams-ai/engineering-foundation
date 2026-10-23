@@ -6,25 +6,40 @@ import { pathToFileURL } from "node:url";
 import test from "node:test";
 import { sourceTopologyAdapters } from "./support/capability-adapters.mjs";
 import {
-  createWorkspaceInventoryReader, foundationPackageRoot, withTemporaryDirectory,
+  createWorkspaceInventoryReader,
+  foundationPackageRoot,
+  withTemporaryDirectory,
 } from "./helpers/source-dependency-v2-fixture.mjs";
 
 const distRoot = process.env.FOUNDATION_DIST_ROOT ?? join(foundationPackageRoot, "dist");
-const nodeAdapter = (name) => import(pathToFileURL(join(distRoot,
-  `capabilities/source-dependencies/adapters/outbound/node/${name}.js`)).href);
-const { PnpmSourceWorkspaceTopologyInspector } = await nodeAdapter("pnpm-source-workspace-topology-inspector");
+const nodeAdapter = (name) =>
+  import(
+    pathToFileURL(
+      join(distRoot, `capabilities/source-dependencies/adapters/outbound/node/${name}.js`),
+    ).href
+  );
+const { PnpmSourceWorkspaceTopologyInspector } = await nodeAdapter(
+  "pnpm-source-workspace-topology-inspector",
+);
 const { generatedOutputFilesystemIsSafe } = await nodeAdapter("generated-output-filesystem");
-const { GeneratedOutputManifestObservations } = await nodeAdapter("generated-output-manifest-observations");
+const { GeneratedOutputManifestObservations } = await nodeAdapter(
+  "generated-output-manifest-observations",
+);
 
 function inspector(limits) {
   return new PnpmSourceWorkspaceTopologyInspector({
-    inventoryReader: createWorkspaceInventoryReader(), ...sourceTopologyAdapters(), limits,
+    inventoryReader: createWorkspaceInventoryReader(),
+    ...sourceTopologyAdapters(),
+    limits,
   });
 }
 
 for (const [budget, source, code] of [
-  [19, "", undefined], [18, "", undefined], [17, "", "WORKSPACE_LIMIT_EXCEEDED"],
-  [19, "x", undefined], [18, "x", "SOURCE_TOTAL_BYTES_EXCEEDED"],
+  [19, "", undefined],
+  [18, "", undefined],
+  [17, "", "WORKSPACE_LIMIT_EXCEEDED"],
+  [19, "x", undefined],
+  [18, "x", "SOURCE_TOTAL_BYTES_EXCEEDED"],
   [19, "xx", "SOURCE_TOTAL_BYTES_EXCEEDED"],
 ]) {
   test(`v3 manifest plus source bytes: budget ${budget}, source ${source.length}`, async () => {
@@ -34,11 +49,15 @@ for (const [budget, source, code] of [
       fs.mkdirSync(join(root, "scripts"));
       fs.writeFileSync(join(root, "scripts/check.ts"), source);
       assert.equal(fs.statSync(join(root, "package.json")).size, 18);
-      const inspect = () => inspector({ maxTotalSourceBytes: budget }).inspect({
-        consumerRoot: root, workspaceManifestPath: "pnpm-workspace.yaml", packageRoots: [],
-        governedRoots: ["scripts"], boundaryRoots: [{ boundaryId: "root", path: "scripts" }],
-        v3: { includeRootPackage: true },
-      });
+      const inspect = () =>
+        inspector({ maxTotalSourceBytes: budget }).inspect({
+          consumerRoot: root,
+          workspaceManifestPath: "pnpm-workspace.yaml",
+          packageRoots: [],
+          governedRoots: ["scripts"],
+          boundaryRoots: [{ boundaryId: "root", path: "scripts" }],
+          v3: { includeRootPackage: true },
+        });
       if (code === undefined) {
         assert.deepEqual((await inspect()).sourceFiles, [{ path: "scripts/check.ts", source }]);
       } else {
@@ -64,16 +83,26 @@ function outputFixture(root, marker = '{"type":"module"}') {
     fs.writeFileSync(join(directory, "package.json"), marker);
     fs.writeFileSync(join(directory, "check.js"), "export {};\n");
   }
-  return { owner, outside, marker: join(owner, "dist/package.json"), input: {
-    consumerRoot: owner, packageRoot: ".", target: "dist/check.js", enforceManifestFences: true,
-  } };
+  return {
+    owner,
+    outside,
+    marker: join(owner, "dist/package.json"),
+    input: {
+      consumerRoot: owner,
+      packageRoot: ".",
+      target: "dist/check.js",
+      enforceManifestFences: true,
+    },
+  };
 }
 
 function withFsSeam(overrides, callback) {
   const originals = Object.fromEntries(Object.keys(overrides).map((name) => [name, fs[name]]));
   Object.assign(fs, overrides);
   syncBuiltinESMExports();
-  try { return callback(); } finally {
+  try {
+    return callback();
+  } finally {
     Object.assign(fs, originals);
     syncBuiltinESMExports();
   }
@@ -90,8 +119,11 @@ for (const seam of ["lstatSync", "openSync"]) {
       const reads = [];
       const observeRead = (descriptor, ...args) => {
         const metadata = fs.fstatSync(descriptor);
-        reads.push({ outside: metadata.dev === outsideMetadata.dev && metadata.ino === outsideMetadata.ino,
-          ...(process.platform === "linux" ? { path: fs.readlinkSync(`/proc/self/fd/${descriptor}`) } : {}),
+        reads.push({
+          outside: metadata.dev === outsideMetadata.dev && metadata.ino === outsideMetadata.ino,
+          ...(process.platform === "linux"
+            ? { path: fs.readlinkSync(`/proc/self/fd/${descriptor}`) }
+            : {}),
         });
         return read(descriptor, ...args);
       };
@@ -101,19 +133,30 @@ for (const seam of ["lstatSync", "openSync"]) {
       assert.ok(reads.length > 0, "stable control must actually read a marker descriptor");
       assert.ok(reads.every(({ outside }) => !outside));
       reads.length = 0;
-      withFsSeam({
-        [seam](path, ...args) {
-          if (!switched && path === fixture.marker) {
-            switched = true;
-            fs.renameSync(join(fixture.owner, "dist"), join(fixture.owner, "saved-dist"));
-            fs.symlinkSync(fixture.outside, join(fixture.owner, "dist"), process.platform === "win32" ? "junction" : "dir");
-          }
-          return original(path, ...args);
+      withFsSeam(
+        {
+          [seam](path, ...args) {
+            if (!switched && path === fixture.marker) {
+              switched = true;
+              fs.renameSync(join(fixture.owner, "dist"), join(fixture.owner, "saved-dist"));
+              fs.symlinkSync(
+                fixture.outside,
+                join(fixture.owner, "dist"),
+                process.platform === "win32" ? "junction" : "dir",
+              );
+            }
+            return original(path, ...args);
+          },
+          readSync: observeRead,
         },
-        readSync: observeRead,
-      }, () => assert.equal(generatedOutputFilesystemIsSafe(fixture.input), false));
+        () => assert.equal(generatedOutputFilesystemIsSafe(fixture.input), false),
+      );
       assert.equal(switched, true);
-      assert.deepEqual(reads, [], "no bytes may be consumed after the injected ancestor substitution");
+      assert.deepEqual(
+        reads,
+        [],
+        "no bytes may be consumed after the injected ancestor substitution",
+      );
       context.diagnostic(JSON.stringify({ seam, switched, reads, outsideRead: false }));
     });
   });
@@ -132,7 +175,10 @@ for (const mutation of ["bytes", "identity", "remove", "authority"]) {
       } else if (mutation === "remove") {
         fs.unlinkSync(fixture.marker);
       } else {
-        fs.writeFileSync(fixture.marker, mutation === "bytes" ? '{ "type":"module"}' : '{"type":"module","dependencies":{}}');
+        fs.writeFileSync(
+          fixture.marker,
+          mutation === "bytes" ? '{ "type":"module"}' : '{"type":"module","dependencies":{}}',
+        );
       }
       assert.equal(observations.stable(), false);
     });
@@ -165,9 +211,19 @@ test("v3 marker unexpected internal errors propagate", async () => {
   await withTemporaryDirectory((root) => {
     const fixture = outputFixture(root);
     const failure = new TypeError("injected internal failure");
-    withFsSeam({ readSync() { throw failure; } }, () => {
-      assert.throws(() => generatedOutputFilesystemIsSafe(fixture.input), (error) => error === failure);
-    });
+    withFsSeam(
+      {
+        readSync() {
+          throw failure;
+        },
+      },
+      () => {
+        assert.throws(
+          () => generatedOutputFilesystemIsSafe(fixture.input),
+          (error) => error === failure,
+        );
+      },
+    );
   });
 });
 
@@ -176,15 +232,20 @@ test("v3 marker changes during a read remain rejected", async () => {
     const fixture = outputFixture(root);
     const read = fs.readSync;
     let changed = false;
-    withFsSeam({ readSync(descriptor, ...args) {
-      const count = read(descriptor, ...args);
-      if (!changed) {
-        changed = true;
-        fs.renameSync(fixture.marker, `${fixture.marker}.saved`);
-        fs.writeFileSync(fixture.marker, '{"type":"module"}');
-      }
-      return count;
-    } }, () => assert.equal(generatedOutputFilesystemIsSafe(fixture.input), false));
+    withFsSeam(
+      {
+        readSync(descriptor, ...args) {
+          const count = read(descriptor, ...args);
+          if (!changed) {
+            changed = true;
+            fs.renameSync(fixture.marker, `${fixture.marker}.saved`);
+            fs.writeFileSync(fixture.marker, '{"type":"module"}');
+          }
+          return count;
+        },
+      },
+      () => assert.equal(generatedOutputFilesystemIsSafe(fixture.input), false),
+    );
     assert.equal(changed, true);
   });
 });
@@ -195,6 +256,9 @@ test("legacy generated output keeps marker fences opt-in", async () => {
     assert.equal(generatedOutputFilesystemIsSafe(fixture.input), false);
     const { enforceManifestFences: _enforceManifestFences, ...legacy } = fixture.input;
     assert.equal(generatedOutputFilesystemIsSafe(legacy), true);
-    assert.equal(generatedOutputFilesystemIsSafe({ ...legacy, enforceManifestFences: false }), true);
+    assert.equal(
+      generatedOutputFilesystemIsSafe({ ...legacy, enforceManifestFences: false }),
+      true,
+    );
   });
 });

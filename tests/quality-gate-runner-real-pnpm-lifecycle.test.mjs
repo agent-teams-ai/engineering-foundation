@@ -1,10 +1,6 @@
 import { createManagedProcessExecutor } from "./support/capability-adapters.mjs";
 import assert from "node:assert/strict";
-import {
-  mkdir,
-  mkdtemp,
-  writeFile,
-} from "node:fs/promises";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { resolvePnpmInvocation } from "../tools/pnpm-command.mts";
@@ -73,27 +69,43 @@ async function resolveInstalledPnpm() {
 
 async function writeConsumer(root, version) {
   await mkdir(join(root, "architecture", "foundation"), { recursive: true });
-  await writeFile(join(root, "package.json"), `${JSON.stringify({
-    name: "quality-gate-real-pnpm-lifecycle-consumer",
-    packageManager: `pnpm@${version}`,
-    private: true,
-    scripts: { slow: "node real-pnpm-parent.cjs" },
-  }, null, 2)}\n`, "utf8");
-  await writeFile(join(root, "foundation.config.yaml"), `schemaVersion: 1
+  await writeFile(
+    join(root, "package.json"),
+    `${JSON.stringify(
+      {
+        name: "quality-gate-real-pnpm-lifecycle-consumer",
+        packageManager: `pnpm@${version}`,
+        private: true,
+        scripts: { slow: "node real-pnpm-parent.cjs" },
+      },
+      null,
+      2,
+    )}\n`,
+    "utf8",
+  );
+  await writeFile(
+    join(root, "foundation.config.yaml"),
+    `schemaVersion: 1
 project:
   id: quality-gate-real-pnpm-lifecycle
 capabilities:
   quality.gate-runner:
     configPath: architecture/foundation/quality-gates.yaml
-`, "utf8");
-  await writeFile(join(root, "architecture", "foundation", "quality-gates.yaml"), `schemaVersion: 1
+`,
+    "utf8",
+  );
+  await writeFile(
+    join(root, "architecture", "foundation", "quality-gates.yaml"),
+    `schemaVersion: 1
 packageManager: pnpm
 profiles:
   - id: verify
     concurrency: 1
     tasks:
       - id: slow
-`, "utf8");
+`,
+    "utf8",
+  );
 }
 
 async function writeManagedTask(root, boundary, marker, installedPnpmEntrypoint) {
@@ -106,7 +118,9 @@ void (async () => {
   setInterval(() => {}, 60000);
 })().catch((error) => { throw error; });
 `;
-  await writeFile(join(root, "real-pnpm-parent.cjs"), `const { spawn } = require("node:child_process");
+  await writeFile(
+    join(root, "real-pnpm-parent.cjs"),
+    `const { spawn } = require("node:child_process");
 const { once } = require("node:events");
 const { accessSync, constants, realpathSync, renameSync, statSync, writeFileSync } = require("node:fs");
 const { basename, delimiter, extname, resolve } = require("node:path");
@@ -198,7 +212,9 @@ writeFileSync(readinessPath, JSON.stringify({
 renameSync(readinessPath, ${JSON.stringify(marker)});
 setInterval(() => {}, 60000);
 })().catch((error) => { throw error; });
-`, "utf8");
+`,
+    "utf8",
+  );
 }
 
 async function prepareCase(root) {
@@ -206,13 +222,15 @@ async function prepareCase(root) {
   await writeConsumer(root, installed.version);
   const marker = join(root, ".real-pnpm-readiness.json");
   const fixtureStore = join(root, ".pnpm-store");
-  const setupExecution = startBoundedCli(installed.entrypoint, [
-    "install", "--frozen-lockfile=false", "--ignore-scripts", "--store-dir", fixtureStore,
-  ], {
-    cwd: root,
-    env: { ...process.env, npm_config_store_dir: fixtureStore },
-    nodeEntrypoint: installed.nodeEntrypoint,
-  });
+  const setupExecution = startBoundedCli(
+    installed.entrypoint,
+    ["install", "--frozen-lockfile=false", "--ignore-scripts", "--store-dir", fixtureStore],
+    {
+      cwd: root,
+      env: { ...process.env, npm_config_store_dir: fixtureStore },
+      nodeEntrypoint: installed.nodeEntrypoint,
+    },
+  );
   await awaitQgrSetupBeforeTransfer(setupExecution, (setupResult) => {
     assert.equal(setupResult.status, 0, JSON.stringify(setupResult));
   });
@@ -225,9 +243,7 @@ async function prepareCase(root) {
 }
 
 function overrideEnvironment(overrides) {
-  const previous = new Map(
-    Object.keys(overrides).map((key) => [key, process.env[key]]),
-  );
+  const previous = new Map(Object.keys(overrides).map((key) => [key, process.env[key]]));
   for (const [key, value] of Object.entries(overrides)) {
     if (value === undefined) {
       delete process.env[key];
@@ -257,12 +273,7 @@ test("controlled QGR cancellation drains the real installed-pnpm process tree", 
   let setupExecution;
   try {
     let fixtureStore;
-    ({
-      fixtureStore,
-      installedPnpmEntrypoint,
-      marker,
-      setupExecution,
-    } = await prepareCase(root));
+    ({ fixtureStore, installedPnpmEntrypoint, marker, setupExecution } = await prepareCase(root));
     boundary = await createSyntheticFixtureBoundary({
       expectedRoles: roles,
       shutdownGraceMs: 20_000,
@@ -283,15 +294,18 @@ test("controlled QGR cancellation drains the real installed-pnpm process tree", 
       cancellationSource: cancellation,
       consumerRoot: root,
       environment: process.env,
-      executor: new PnpmQualityGateScriptExecutor({
-        childEnvironment: Object.freeze({
-          ...process.env,
-          AGENT_TEAMS_FOUNDATION_QUALITY_GATE_ACTIVE: "verify",
-        }),
-        npmExecPath: installedPnpmEntrypoint,
-        nodeExecutablePath: process.execPath,
-        pathValue: dirname(installedPnpmEntrypoint),
-      }, createManagedProcessExecutor()),
+      executor: new PnpmQualityGateScriptExecutor(
+        {
+          childEnvironment: Object.freeze({
+            ...process.env,
+            AGENT_TEAMS_FOUNDATION_QUALITY_GATE_ACTIVE: "verify",
+          }),
+          npmExecPath: installedPnpmEntrypoint,
+          nodeExecutablePath: process.execPath,
+          pathValue: dirname(installedPnpmEntrypoint),
+        },
+        createManagedProcessExecutor(),
+      ),
       projectId: "quality-gate-real-pnpm-lifecycle",
     });
     let commandSettled = false;
@@ -338,9 +352,10 @@ test("controlled QGR cancellation drains the real installed-pnpm process tree", 
     assert.equal(completed.exitCode, 130);
     const report = JSON.parse(completed.stdout);
     assert.equal(report.outcome, "cancelled");
-    assert.deepEqual(report.tasks.map(({ id, outcome }) => [id, outcome]), [
-      ["slow", "cancelled"],
-    ]);
+    assert.deepEqual(
+      report.tasks.map(({ id, outcome }) => [id, outcome]),
+      [["slow", "cancelled"]],
+    );
   } finally {
     try {
       await cleanupSyntheticFixture({
@@ -358,10 +373,13 @@ test("controlled QGR cancellation drains the real installed-pnpm process tree", 
 test("real-pnpm fixture authority replaces mixed-case ambient entries and restores them exactly", () => {
   const original = fixtureEnvironmentSnapshot();
   try {
-    restoreFixtureEnvironment(process.env, new Map([
-      ["QgR_FiXtUrE_Ambient", "mixed-case-ambient"],
-      ["qgr_fixture_case_variant", "lower-case-ambient"],
-    ]));
+    restoreFixtureEnvironment(
+      process.env,
+      new Map([
+        ["QgR_FiXtUrE_Ambient", "mixed-case-ambient"],
+        ["qgr_fixture_case_variant", "lower-case-ambient"],
+      ]),
+    );
     const ambient = fixtureEnvironmentSnapshot();
     const authority = {
       QGR_FIXTURE_BOUNDARY_ID: "one-use-boundary",

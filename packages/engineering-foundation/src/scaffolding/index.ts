@@ -1,16 +1,14 @@
-export type {
-  AuthorityScaffoldRecoveryScope
-} from "./application/model/recovery-scope.js";
+export type { AuthorityScaffoldRecoveryScope } from "./application/model/recovery-scope.js";
 export type {
   ConfiguredDefinition,
-  DefinitionRef
+  DefinitionRef,
 } from "./application/model/scaffold-compilation.js";
 export type {
   JsonObject,
   JsonPrimitive,
   JsonValue,
   RepositoryPath,
-  Sha256Digest
+  Sha256Digest,
 } from "./application/model/scaffold-values.js";
 export type {
   MaterializeFileOperation,
@@ -40,7 +38,7 @@ export type {
   ScaffoldTarget,
   ScaffoldTargetCatalogEntry,
   ScaffoldTargetCatalog,
-  ScaffoldingConfig
+  ScaffoldingConfig,
 } from "./contract/scaffold-contract.js";
 export {
   applyFilesystemScaffold,
@@ -50,7 +48,7 @@ export {
   planScaffoldFromFile,
   readScaffoldPlanFile,
   recoverFilesystemScaffold,
-  validateScaffoldReceipt
+  validateScaffoldReceipt,
 } from "../composition/scaffolding-api.js";
 export { ScaffoldError } from "./scaffold-error.js";
 export type { ScaffoldErrorCode } from "./scaffold-error.js";

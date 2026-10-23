@@ -1,6 +1,6 @@
 export type QualityGateSettingsReader = (
   consumerRoot: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ) => Promise<{
   readonly projectId: string;
   readonly declaredCapabilities: readonly {

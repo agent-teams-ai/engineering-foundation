@@ -11,11 +11,7 @@ export function createScriptedSequence(expectedValues, label = "scripted sequenc
         `${label} received an unexpected extra value: ${JSON.stringify(actual)}`,
       );
       const expectedValue = expected[cursor];
-      assert.deepEqual(
-        actual,
-        expectedValue,
-        `${label} diverged at step ${cursor + 1}`,
-      );
+      assert.deepEqual(actual, expectedValue, `${label} diverged at step ${cursor + 1}`);
       cursor += 1;
     },
 

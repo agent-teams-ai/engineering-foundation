@@ -7,17 +7,15 @@ import { fileURLToPath } from "node:url";
 
 import { NPM_PACKAGE_BOOTSTRAP } from "./npm-package-bootstrap-catalog.mjs";
 import { packPublishableArtifacts } from "./pack-publishable-artifacts.mjs";
-import {
-  assertArchiveSafety,
-  inspectCompressedTarArchive,
-} from "./pack-artifact-e2e.mjs";
+import { assertArchiveSafety, inspectCompressedTarArchive } from "./pack-artifact-e2e.mjs";
 import { readRegularArchive } from "./pack-artifact-archive.mjs";
 import { canonicalDigest } from "./pack-test-support.mjs";
 import { assertExplicitSourceGitAuthority } from "../tools/profile-root.mts";
 
 const execute = promisify(execFile);
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const OUTPUT_USAGE = "Usage: node scripts/npm-package-bootstrap-candidate-evidence.mjs --output <absolute-empty-directory>";
+const OUTPUT_USAGE =
+  "Usage: node scripts/npm-package-bootstrap-candidate-evidence.mjs --output <absolute-empty-directory>";
 
 function fail(message) {
   throw new Error(`npm package bootstrap candidate evidence refused: ${message}`);
@@ -63,7 +61,9 @@ async function git(args) {
     process.env.AGENT_TEAMS_FOUNDATION_SOURCE_ROOT ?? repositoryRoot,
   );
   const result = await execute("git", args, {
-    cwd: authority.sourceRoot, env: authority.environment, encoding: "utf8",
+    cwd: authority.sourceRoot,
+    env: authority.environment,
+    encoding: "utf8",
   });
   return result.stdout.trim();
 }
@@ -81,13 +81,15 @@ function archiveListing(entries) {
 }
 
 function verboseListing(entries) {
-  return entries.map(({ name, size, type }) =>
-    `${type === "5" ? "d" : "-"} ${size} ${name}`,
-  ).join("\n");
+  return entries
+    .map(({ name, size, type }) => `${type === "5" ? "d" : "-"} ${size} ${name}`)
+    .join("\n");
 }
 
 function packageManifest(entries, profile) {
-  const entry = entries.find(({ name }) => name === "package/package.json" && typeIsFile(entries, name));
+  const entry = entries.find(
+    ({ name }) => name === "package/package.json" && typeIsFile(entries, name),
+  );
   if (entry === undefined) {
     fail(`${profile.name} archive has no regular package/package.json entry.`);
   }
@@ -177,10 +179,14 @@ export async function createCandidateEvidence({ outputRoot }) {
         packages: records,
       };
       const receipt = { ...body, receiptDigest: canonicalDigest(body) };
-      await writeFile(join(outputRoot, "candidate-evidence.receipt.json"), `${JSON.stringify(receipt, null, 2)}\n`, {
-        flag: "wx",
-        mode: 0o444,
-      });
+      await writeFile(
+        join(outputRoot, "candidate-evidence.receipt.json"),
+        `${JSON.stringify(receipt, null, 2)}\n`,
+        {
+          flag: "wx",
+          mode: 0o444,
+        },
+      );
       return receipt;
     }
     const artifacts = await packPublishableArtifacts({ temporaryRoot: stagingRoot });
@@ -203,10 +209,14 @@ export async function createCandidateEvidence({ outputRoot }) {
       ...body,
       receiptDigest: canonicalDigest(body),
     };
-    await writeFile(join(outputRoot, "candidate-evidence.receipt.json"), `${JSON.stringify(receipt, null, 2)}\n`, {
-      flag: "wx",
-      mode: 0o444,
-    });
+    await writeFile(
+      join(outputRoot, "candidate-evidence.receipt.json"),
+      `${JSON.stringify(receipt, null, 2)}\n`,
+      {
+        flag: "wx",
+        mode: 0o444,
+      },
+    );
     return receipt;
   } finally {
     await rm(stagingRoot, { force: true, recursive: true });

@@ -6,7 +6,9 @@
   "required": ["schemaVersion", "command", "outcome", "issues"],
   "properties": {
     "schemaVersion": { "const": 1 },
-    "command": { "enum": ["consumer.apply", "consumer.check", "consumer.plan", "consumer.recover"] },
+    "command": {
+      "enum": ["consumer.apply", "consumer.check", "consumer.plan", "consumer.recover"]
+    },
     "outcome": { "enum": ["applied", "blocked", "change-required", "current", "recovered"] },
     "issues": {
       "type": "array",

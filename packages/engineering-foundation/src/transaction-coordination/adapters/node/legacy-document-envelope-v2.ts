@@ -9,14 +9,8 @@ type LegacyJson =
   | { readonly [key: string]: LegacyJson };
 
 const knownLegacyBuilds = new Map([
-  [
-    "0.13.0",
-    "sha256:f2790b0ad34abf94aa7b44f2d590c77dfcd1119b4a6cfb2dcb1fa4a80f40cc84"
-  ],
-  [
-    "0.13.1",
-    "sha256:39dd226ddd4cd861a2535cc59b2fe5c1a23f0e5b2c4be3190851b87f27ad3072"
-  ]
+  ["0.13.0", "sha256:f2790b0ad34abf94aa7b44f2d590c77dfcd1119b4a6cfb2dcb1fa4a80f40cc84"],
+  ["0.13.1", "sha256:39dd226ddd4cd861a2535cc59b2fe5c1a23f0e5b2c4be3190851b87f27ad3072"],
 ] as const);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -44,7 +38,7 @@ function legacyCanonicalJson(value: LegacyJson): string {
     return `[${items.map((item) => legacyCanonicalJson(item)).join(",")}]`;
   }
   const entries = Object.entries(value).toSorted(([left], [right]) =>
-    left < right ? -1 : left > right ? 1 : 0
+    left < right ? -1 : left > right ? 1 : 0,
   );
   for (const [key] of entries) {
     if (key.normalize("NFC") !== key) {
@@ -67,12 +61,11 @@ export function legacyFoundationEnvelopeSha256Json(value: unknown): string {
   return legacySha256Json(value as LegacyJson);
 }
 
-
 function assertKeys(
   value: Record<string, unknown>,
   required: readonly string[],
   optional: readonly string[],
-  subject: string
+  subject: string,
 ): void {
   const allowed = new Set([...required, ...optional]);
   if (
@@ -103,10 +96,10 @@ function assertLegacyPlanShape(plan: Record<string, unknown>): void {
       "referencedDocuments",
       "requiredAdapterCapabilities",
       "schemaVersion",
-      "selectedOwner"
+      "selectedOwner",
     ],
     [],
-    "Legacy Document Plan"
+    "Legacy Document Plan",
   );
   const intent = plan["intent"];
   const compiler = plan["compiler"];
@@ -118,7 +111,7 @@ function assertLegacyPlanShape(plan: Record<string, unknown>): void {
     intent,
     ["id", "owner", "schemaVersion", "summary", "title", "type"],
     ["additionalMetadata", "related"],
-    "Legacy Document Intent"
+    "Legacy Document Intent",
   );
   if (
     plan["schemaVersion"] !== 1 ||
@@ -145,12 +138,7 @@ function assertLegacyPlanShape(plan: Record<string, unknown>): void {
     throw new Error("Legacy Document Plan publication contract is invalid.");
   }
   assertKeys(precondition, ["state"], [], "Legacy destination precondition");
-  assertKeys(
-    expectedParent,
-    ["ancestry", "path", "state"],
-    [],
-    "Legacy expected parent"
-  );
+  assertKeys(expectedParent, ["ancestry", "path", "state"], [], "Legacy expected parent");
 }
 
 function selectedFoundation(value: unknown): Record<string, unknown> | undefined {
@@ -178,9 +166,7 @@ export function isKnownLegacyDocumentEnvelope(value: unknown): boolean {
   return selectedFoundation(value) !== undefined;
 }
 
-function isKnownLegacyDocumentEnvelopeBuild(
-  foundation: Record<string, unknown>
-): boolean {
+function isKnownLegacyDocumentEnvelopeBuild(foundation: Record<string, unknown>): boolean {
   const version = foundation["version"];
   const buildIdentity = foundation["buildIdentity"];
   return (
@@ -191,9 +177,7 @@ function isKnownLegacyDocumentEnvelopeBuild(
 }
 
 /** Replays the exact document hash semantics shipped by 0.13.0 and 0.13.1. */
-export function assertLegacyDocumentEnvelope(
-  envelope: Record<string, unknown>
-): void {
+export function assertLegacyDocumentEnvelope(envelope: Record<string, unknown>): void {
   assertKeys(
     envelope,
     [
@@ -206,10 +190,10 @@ export function assertLegacyDocumentEnvelope(
       "payloadKind",
       "recoveryHandler",
       "schemaVersion",
-      "state"
+      "state",
     ],
     [],
-    "Legacy Foundation envelope"
+    "Legacy Foundation envelope",
   );
   const foundation = envelope["foundation"];
   const handler = envelope["recoveryHandler"];
@@ -219,7 +203,12 @@ export function assertLegacyDocumentEnvelope(
   }
   assertKeys(foundation, ["buildIdentity", "version"], [], "Legacy Foundation identity");
   assertKeys(handler, ["contractVersion", "id"], [], "Legacy recovery handler");
-  assertKeys(journal, ["destination", "plan", "schemaVersion"], ["ownedTemporary"], "Legacy document journal");
+  assertKeys(
+    journal,
+    ["destination", "plan", "schemaVersion"],
+    ["ownedTemporary"],
+    "Legacy document journal",
+  );
   if (
     !isKnownLegacyDocumentEnvelopeBuild(foundation) ||
     envelope["operationKind"] !== "document-authoring" ||
@@ -243,12 +232,7 @@ export function assertLegacyDocumentEnvelope(
     if (!isRecord(ownedTemporary)) {
       throw new Error("Legacy owned temporary is invalid.");
     }
-    assertKeys(
-      ownedTemporary,
-      ["digest", "path"],
-      [],
-      "Legacy owned temporary"
-    );
+    assertKeys(ownedTemporary, ["digest", "path"], [], "Legacy owned temporary");
   }
   assertLegacyDocumentPlanDigests(plan);
   if (envelope["payloadDigest"] !== legacySha256Json(journal as LegacyJson)) {
@@ -260,9 +244,7 @@ export function assertLegacyDocumentEnvelope(
   }
 }
 
-function assertLegacyDocumentPlanDigests(
-  plan: Record<string, unknown>
-): void {
+function assertLegacyDocumentPlanDigests(plan: Record<string, unknown>): void {
   assertLegacyPlanShape(plan);
   const intent = plan["intent"] as Record<string, unknown>;
   const output = plan["output"] as Record<string, unknown>;

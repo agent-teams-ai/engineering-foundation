@@ -29,25 +29,21 @@ if (checkpoint === "after-marker-synced") {
 } else if (checkpoint === "after-marker-retirement-synced") {
   let retirementRenamed = false;
   let postRenameSyncs = 0;
-  const active = await createNodeFoundationCleanupTransition(
-    consumerRoot,
-    token,
-    {
-      async rename(source, destination) {
-        await rename(source, destination);
-        retirementRenamed = true;
-      },
-      async syncStateDirectory(path) {
-        await syncFoundationStateDirectoryStrictly(path);
-        if (retirementRenamed) {
-          postRenameSyncs += 1;
-          if (postRenameSyncs === 2) {
-            await reached(checkpoint);
-          }
+  const active = await createNodeFoundationCleanupTransition(consumerRoot, token, {
+    async rename(source, destination) {
+      await rename(source, destination);
+      retirementRenamed = true;
+    },
+    async syncStateDirectory(path) {
+      await syncFoundationStateDirectoryStrictly(path);
+      if (retirementRenamed) {
+        postRenameSyncs += 1;
+        if (postRenameSyncs === 2) {
+          await reached(checkpoint);
         }
       }
-    }
-  ).begin();
+    },
+  }).begin();
   await active.complete();
 } else {
   throw new Error(`Unknown cleanup marker checkpoint: ${checkpoint}`);

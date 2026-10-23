@@ -18,8 +18,9 @@ export interface ScaffoldQualificationPoint {
   readonly phase: ScaffoldQualificationPhase;
 }
 
-export type ScaffoldQualificationPhaseCallback =
-  (point: ScaffoldQualificationPoint) => void | Promise<void>;
+export type ScaffoldQualificationPhaseCallback = (
+  point: ScaffoldQualificationPoint,
+) => void | Promise<void>;
 
 const supportedPhases: ReadonlySet<string> = new Set<ScaffoldQualificationPhase>([
   "after-journal-temporary-synced",
@@ -43,13 +44,13 @@ export function createScaffoldCrashQualification(
   apply: (
     consumerRoot: string,
     plan: ScaffoldPlan,
-    faultInjector: ScaffoldAuthorityFaultInjector
-  ) => Promise<ScaffoldReceipt>
+    faultInjector: ScaffoldAuthorityFaultInjector,
+  ) => Promise<ScaffoldReceipt>,
 ): {
   runScaffoldCrashQualification: (
     consumerRoot: string,
     plan: ScaffoldPlan,
-    onPhase: ScaffoldQualificationPhaseCallback
+    onPhase: ScaffoldQualificationPhaseCallback,
   ) => Promise<ScaffoldReceipt>;
 } {
   return {
@@ -62,6 +63,6 @@ export function createScaffoldCrashQualification(
           await onPhase(Object.freeze({ phase }));
         }
       });
-    }
+    },
   };
 }

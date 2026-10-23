@@ -1,6 +1,6 @@
 import type {
   QualifiedDocsCohortBindingV2,
-  QualifiedDocsPackageCoordinateV2
+  QualifiedDocsPackageCoordinateV2,
 } from "../../domain/model.js";
 
 type QualifiedDocsCohortV2PackageKey = keyof QualifiedDocsCohortBindingV2["packages"];
@@ -17,72 +17,74 @@ export const QUALIFIED_DOCS_COHORT_V2_PACKAGES: readonly QualifiedDocsCohortV2Pa
     Object.freeze({
       key: "repositoryMutation",
       name: "@agent-teams/repository-mutation",
-      direct: false
+      direct: false,
     }),
     Object.freeze({
       key: "documentAuthoring",
       name: "@agent-teams/document-authoring",
-      direct: false
+      direct: false,
     }),
     Object.freeze({
       key: "docsProtocol",
       name: "@agent-teams/docs-protocol",
-      direct: true
+      direct: true,
     }),
     Object.freeze({
       key: "docsProtocolAgentTeams",
       name: "@agent-teams/docs-protocol-agent-teams",
-      direct: true
+      direct: true,
     }),
     Object.freeze({
       key: "engineeringFoundation",
       name: "@agent-teams/engineering-foundation",
-      direct: true
-    })
+      direct: true,
+    }),
   ]);
 
 export const QUALIFIED_DOCS_COHORT_V2_EDGES = Object.freeze([
   Object.freeze({
     from: "@agent-teams/document-authoring",
-    to: "@agent-teams/repository-mutation"
+    to: "@agent-teams/repository-mutation",
   }),
   Object.freeze({
     from: "@agent-teams/docs-protocol",
-    to: "@agent-teams/document-authoring"
+    to: "@agent-teams/document-authoring",
   }),
   Object.freeze({
     from: "@agent-teams/docs-protocol",
-    to: "@agent-teams/repository-mutation"
+    to: "@agent-teams/repository-mutation",
   }),
   Object.freeze({
     from: "@agent-teams/docs-protocol-agent-teams",
-    to: "@agent-teams/docs-protocol"
+    to: "@agent-teams/docs-protocol",
   }),
   Object.freeze({
     from: "@agent-teams/docs-protocol-agent-teams",
-    to: "@agent-teams/repository-mutation"
+    to: "@agent-teams/repository-mutation",
   }),
   Object.freeze({
     from: "@agent-teams/engineering-foundation",
-    to: "@agent-teams/document-authoring"
+    to: "@agent-teams/document-authoring",
   }),
   Object.freeze({
     from: "@agent-teams/engineering-foundation",
-    to: "@agent-teams/repository-mutation"
-  })
+    to: "@agent-teams/repository-mutation",
+  }),
 ]);
 
 export function qualifiedDocsCohortV2PackageEntries(
-  cohort: Pick<QualifiedDocsCohortBindingV2, "packages">
+  cohort: Pick<QualifiedDocsCohortBindingV2, "packages">,
 ): readonly (QualifiedDocsCohortV2PackageDescriptor & QualifiedDocsPackageCoordinateV2)[] {
-  return QUALIFIED_DOCS_COHORT_V2_PACKAGES.map((descriptor) => Object.freeze({
-    ...descriptor,
-    ...cohort.packages[descriptor.key]
-  }));
+  return QUALIFIED_DOCS_COHORT_V2_PACKAGES.map((descriptor) =>
+    Object.freeze({
+      ...descriptor,
+      ...cohort.packages[descriptor.key],
+    }),
+  );
 }
 
 export function qualifiedDocsCohortV2DirectPackageEntries(
-  cohort: Pick<QualifiedDocsCohortBindingV2, "packages">
+  cohort: Pick<QualifiedDocsCohortBindingV2, "packages">,
 ): readonly (QualifiedDocsCohortV2PackageDescriptor & QualifiedDocsPackageCoordinateV2)[] {
   return qualifiedDocsCohortV2PackageEntries(cohort).filter(({ direct }) => direct);
 }

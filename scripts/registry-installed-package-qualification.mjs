@@ -6,7 +6,10 @@ import { containsPhysicalPath, readStableRegularFile } from "./pack-artifact-sta
 import { lstat, readFile, realpath } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
-import { writeMandatoryGateFixture, mandatoryTestFile } from "./mandatory-node-test-gate-fixture.mjs";
+import {
+  writeMandatoryGateFixture,
+  mandatoryTestFile,
+} from "./mandatory-node-test-gate-fixture.mjs";
 import { captureFailure, runCommand } from "./pack-test-support.mjs";
 import { verifyRegistryDocumentAuthoring } from "./registry-document-authoring-e2e.mjs";
 import { verifyInstalledTransactionBarrier } from "./transaction-barrier-e2e.mjs";
@@ -15,16 +18,24 @@ const COMMAND_TIMEOUT_MS = 120_000;
 
 function assertMandatoryGateReport(result, scenario) {
   let report;
-  try { report = JSON.parse(result.stdout); } catch {
+  try {
+    report = JSON.parse(result.stdout);
+  } catch {
     throw new Error(`Installed mandatory Node test ${scenario.label} emitted no gate report.`);
   }
   const expectedOutcome = scenario.passed ? "passed" : "failed";
   const task = report.tasks?.length === 1 ? report.tasks[0] : undefined;
-  if (report.reportSchemaVersion !== 1 || report.outcome !== expectedOutcome ||
-    task?.id !== "mandatory" || task.outcome !== expectedOutcome ||
+  if (
+    report.reportSchemaVersion !== 1 ||
+    report.outcome !== expectedOutcome ||
+    task?.id !== "mandatory" ||
+    task.outcome !== expectedOutcome ||
     task.exitCode !== (scenario.passed ? 0 : 1) ||
-    (!scenario.passed && !task.failureTail.includes("required execution failed"))) {
-    throw new Error(`Installed mandatory Node test ${scenario.label} produced the wrong gate evidence.`);
+    (!scenario.passed && !task.failureTail.includes("required execution failed"))
+  ) {
+    throw new Error(
+      `Installed mandatory Node test ${scenario.label} produced the wrong gate evidence.`,
+    );
   }
 }
 
@@ -45,19 +56,50 @@ async function verifyInstalledMandatoryNodeTests(installedRoot, consumerRoot) {
   const root = join(consumerRoot, "mandatory-node-test-consumer");
   const required = [{ file: mandatoryTestFile, names: ["required"], kind: "test" }];
   const cases = [
-    { label: "all-skipped", source: "import test from 'node:test'; test.skip('required', () => {});", passed: false },
-    { label: "omitted", source: "import test from 'node:test'; test('unrelated', () => {});", passed: false },
-    { label: "executed", source: "import test from 'node:test'; test('required', () => {});", passed: true },
-    { label: "exact-exception", source: "import test from 'node:test'; test.skip('required', () => {});", passed: true,
-      exceptions: [{ ...required[0], status: "skipped", reason: "Reviewed fixture exception for this one required case.",
-        applicability: { platforms: [process.platform] } }] },
+    {
+      label: "all-skipped",
+      source: "import test from 'node:test'; test.skip('required', () => {});",
+      passed: false,
+    },
+    {
+      label: "omitted",
+      source: "import test from 'node:test'; test('unrelated', () => {});",
+      passed: false,
+    },
+    {
+      label: "executed",
+      source: "import test from 'node:test'; test('required', () => {});",
+      passed: true,
+    },
+    {
+      label: "exact-exception",
+      source: "import test from 'node:test'; test.skip('required', () => {});",
+      passed: true,
+      exceptions: [
+        {
+          ...required[0],
+          status: "skipped",
+          reason: "Reviewed fixture exception for this one required case.",
+          applicability: { platforms: [process.platform] },
+        },
+      ],
+    },
   ];
   for (const scenario of cases) {
-    await writeMandatoryGateFixture({ root, commandPath, source: scenario.source,
-      required, exceptions: scenario.exceptions });
-    const execute = () => runCommand(process.execPath,
-      [gatePath, "gate", "run", "verify", "--consumer", root, "--format", "json"],
-      root, { timeoutMs: COMMAND_TIMEOUT_MS });
+    await writeMandatoryGateFixture({
+      root,
+      commandPath,
+      source: scenario.source,
+      required,
+      exceptions: scenario.exceptions,
+    });
+    const execute = () =>
+      runCommand(
+        process.execPath,
+        [gatePath, "gate", "run", "verify", "--consumer", root, "--format", "json"],
+        root,
+        { timeoutMs: COMMAND_TIMEOUT_MS },
+      );
     const result = scenario.passed ? await execute() : await captureFailure(execute);
     if (!result || (!scenario.passed && result.code !== 1)) {
       throw new Error(`Installed mandatory Node test ${scenario.label} had the wrong exit status.`);
@@ -112,11 +154,7 @@ export async function verifyRegistryPackage({
   await verifyInstalledTargetPayload(targetRoot, target);
   await runCommand(
     process.execPath,
-    [
-      "--input-type=module",
-      "--eval",
-      `await import(${JSON.stringify(target.manifest.name)});`,
-    ],
+    ["--input-type=module", "--eval", `await import(${JSON.stringify(target.manifest.name)});`],
     consumerRoot,
     { timeoutMs: COMMAND_TIMEOUT_MS },
   );
@@ -125,12 +163,9 @@ export async function verifyRegistryPackage({
       ? target.manifest.bin
       : Object.values(target.manifest.bin ?? {})[0];
   if (typeof binary === "string") {
-    await runCommand(
-      process.execPath,
-      [join(targetRoot, binary), "--help"],
-      consumerRoot,
-      { timeoutMs: COMMAND_TIMEOUT_MS },
-    );
+    await runCommand(process.execPath, [join(targetRoot, binary), "--help"], consumerRoot, {
+      timeoutMs: COMMAND_TIMEOUT_MS,
+    });
   }
   const { stdout: viewedVersion } = await runNpm(
     [
@@ -182,12 +217,7 @@ export async function verifyFoundationFeatures({
   await verifyInstalledTransactionBarrier({
     cliPath: join(installedRoot, "dist", "cli.js"),
     consumerRoot: join(consumerRoot, "transaction-barrier-consumer"),
-    fixtureRoot: join(
-      repositoryRoot,
-      "tests",
-      "fixtures",
-      "scaffolding-authority-consumer",
-    ),
+    fixtureRoot: join(repositoryRoot, "tests", "fixtures", "scaffolding-authority-consumer"),
   });
   await verifyRegistryDocumentAuthoring({
     consumerRoot,
@@ -201,16 +231,26 @@ export async function verifyFoundationFeatures({
 // These checks compare to the original producer's independently computed bytes,
 // not to a registry's assertion about itself or the mere presence of a lock.
 export async function verifyRegistryTargetDownload(target, registryUrl) {
-  const response = await fetch(`${registryUrl}/${encodeURIComponent(target.manifest.name)}/${target.manifest.version}`);
-  if (!response.ok) { throw new Error("Registry target metadata is unavailable."); }
+  const response = await fetch(
+    `${registryUrl}/${encodeURIComponent(target.manifest.name)}/${target.manifest.version}`,
+  );
+  if (!response.ok) {
+    throw new Error("Registry target metadata is unavailable.");
+  }
   const metadata = await response.json();
   const url = new URL(metadata.dist?.tarball);
-  if (metadata.name !== target.manifest.name || metadata.version !== target.manifest.version ||
-      metadata.dist?.integrity !== target.integrity || url.origin !== new URL(registryUrl).origin) {
+  if (
+    metadata.name !== target.manifest.name ||
+    metadata.version !== target.manifest.version ||
+    metadata.dist?.integrity !== target.integrity ||
+    url.origin !== new URL(registryUrl).origin
+  ) {
     throw new Error("Registry metadata differs from original qualified target integrity.");
   }
   const downloaded = await fetch(url);
-  if (!downloaded.ok || downloaded.body === null) { throw new Error("Registry target download failed."); }
+  if (!downloaded.ok || downloaded.body === null) {
+    throw new Error("Registry target download failed.");
+  }
   const reader = downloaded.body.getReader();
   const digest = createHash("sha256");
   const integrity = createHash("sha512");
@@ -218,9 +258,13 @@ export async function verifyRegistryTargetDownload(target, registryUrl) {
   try {
     while (true) {
       const chunk = await reader.read();
-      if (chunk.done) { break; }
+      if (chunk.done) {
+        break;
+      }
       bytes += chunk.value.byteLength;
-      if (bytes > 8 * 1024 * 1024) { throw new Error("Registry target download exceeds the archive bound."); }
+      if (bytes > 8 * 1024 * 1024) {
+        throw new Error("Registry target download exceeds the archive bound.");
+      }
       digest.update(chunk.value);
       integrity.update(chunk.value);
     }
@@ -228,7 +272,10 @@ export async function verifyRegistryTargetDownload(target, registryUrl) {
     await reader.cancel();
     reader.releaseLock();
   }
-  if (digest.digest("hex") !== target.sha256 || `sha512-${integrity.digest("base64")}` !== target.integrity) {
+  if (
+    digest.digest("hex") !== target.sha256 ||
+    `sha512-${integrity.digest("base64")}` !== target.integrity
+  ) {
     throw new Error("Registry download differs from original qualified archive bytes.");
   }
 }
@@ -239,7 +286,9 @@ export async function verifyInstalledTargetPayload(targetRoot, target) {
   const inspection = inspectCompressedTarArchive(bytes, target.manifest.name);
   const state = { bytes: 0 };
   for (const entry of inspection.entries) {
-    if (entry.type !== "0") { continue; }
+    if (entry.type !== "0") {
+      continue;
+    }
     const path = resolve(root, entry.name.slice("package/".length));
     if (!entry.name.startsWith("package/") || !containsPhysicalPath(root, path)) {
       throw new Error("Installed target payload escapes its package root.");
@@ -247,7 +296,9 @@ export async function verifyInstalledTargetPayload(targetRoot, target) {
     await assertPhysicalPath(path);
     const actual = await readStableRegularFile(path, state, "Installed qualified payload");
     if (!actual.bytes.equals(entry.data)) {
-      throw new Error(`Installed target payload differs from original qualified bytes: ${entry.name}.`);
+      throw new Error(
+        `Installed target payload differs from original qualified bytes: ${entry.name}.`,
+      );
     }
   }
 }
@@ -255,12 +306,25 @@ export async function verifyInstalledTargetPayload(targetRoot, target) {
 export async function verifyPnpmTargetIntegrity(consumerRoot, target) {
   const locator = `${target.manifest.name}@${target.manifest.version}`;
   for (const relativePath of ["pnpm-lock.yaml", "node_modules/.pnpm/lock.yaml"]) {
-    const lock = parse((await readStableRegularFile(join(consumerRoot, relativePath), { bytes: 0 }, "Installed pnpm lock")).bytes.toString("utf8"));
+    const lock = parse(
+      (
+        await readStableRegularFile(
+          join(consumerRoot, relativePath),
+          { bytes: 0 },
+          "Installed pnpm lock",
+        )
+      ).bytes.toString("utf8"),
+    );
     const direct = lock.importers?.["."]?.devDependencies?.[target.manifest.name];
-    if (direct?.specifier !== target.manifest.version || typeof direct.version !== "string" ||
-        direct.version.split("(")[0] !== target.manifest.version ||
-        lock.packages?.[locator]?.resolution?.integrity !== target.integrity) {
-      throw new Error(`pnpm target integrity differs from original qualified bytes: ${target.manifest.name}.`);
+    if (
+      direct?.specifier !== target.manifest.version ||
+      typeof direct.version !== "string" ||
+      direct.version.split("(")[0] !== target.manifest.version ||
+      lock.packages?.[locator]?.resolution?.integrity !== target.integrity
+    ) {
+      throw new Error(
+        `pnpm target integrity differs from original qualified bytes: ${target.manifest.name}.`,
+      );
     }
   }
 }

@@ -4,17 +4,17 @@ import type {
   PresentRepositorySecurityToolEvidence,
   RepositorySecurityPolicy,
   RepositorySecurityToolEvidence,
-  SecurityToolName
+  SecurityToolName,
 } from "../../../application/model/repository-security.js";
 import { configuredRepositorySecurityTools } from "../../../application/model/repository-security.js";
 import { digestEvidence } from "./repository-security-digests.js";
 import {
   readOptionalEvidenceFile,
-  readRequiredEvidenceFile
+  readRequiredEvidenceFile,
 } from "./repository-security-filesystem.js";
 import {
   repositorySecurityInputError,
-  requireRecord
+  requireRecord,
 } from "../../../application/policies/repository-security-input.js";
 
 const SHA_256_DIGEST = /^sha256:[0-9a-f]{64}$/u;
@@ -50,7 +50,7 @@ function requireToolEvidenceVersion(value: unknown, field: string): string {
 
 function parseToolEvidence(
   source: Buffer,
-  expectedTool: SecurityToolName
+  expectedTool: SecurityToolName,
 ): Omit<
   PresentRepositorySecurityToolEvidence,
   | "actualConfigDigest"
@@ -73,7 +73,7 @@ function parseToolEvidence(
     "schemaVersion",
     "tool",
     "toolVersion",
-    "workflowDigest"
+    "workflowDigest",
   ];
   const fields = Object.keys(value).toSorted();
   if (
@@ -95,23 +95,14 @@ function parseToolEvidence(
   return Object.freeze({
     kind: "present" as const,
     tool: expectedTool,
-    configDigest: requireToolEvidenceDigest(
-      value["configDigest"],
-      `${expectedTool}.configDigest`
-    ),
+    configDigest: requireToolEvidenceDigest(value["configDigest"], `${expectedTool}.configDigest`),
     outcome,
-    resultDigest: requireToolEvidenceDigest(
-      value["resultDigest"],
-      `${expectedTool}.resultDigest`
-    ),
-    toolVersion: requireToolEvidenceVersion(
-      value["toolVersion"],
-      `${expectedTool}.toolVersion`
-    ),
+    resultDigest: requireToolEvidenceDigest(value["resultDigest"], `${expectedTool}.resultDigest`),
+    toolVersion: requireToolEvidenceVersion(value["toolVersion"], `${expectedTool}.toolVersion`),
     workflowDigest: requireToolEvidenceDigest(
       value["workflowDigest"],
-      `${expectedTool}.workflowDigest`
-    )
+      `${expectedTool}.workflowDigest`,
+    ),
   });
 }
 
@@ -119,31 +110,45 @@ export async function readSecurityToolEvidence(
   observation: SecurityEvidenceObservation,
   root: string,
   policy: RepositorySecurityPolicy,
-  currentWorkflowDigest: string
+  currentWorkflowDigest: string,
 ): Promise<readonly RepositorySecurityToolEvidence[]> {
   return Promise.all(
-    configuredRepositorySecurityTools(policy.toolEvidence).map(async ({ policy: toolPolicy, tool }) => {
-      const configSource = await readRequiredEvidenceFile(observation, root, toolPolicy.configPath);
-      const evidenceSource = await readOptionalEvidenceFile(observation, root, toolPolicy.evidencePath);
-      const resultSource = await readOptionalEvidenceFile(observation, root, toolPolicy.resultPath);
-      if (evidenceSource === undefined || resultSource === undefined) {
+    configuredRepositorySecurityTools(policy.toolEvidence).map(
+      async ({ policy: toolPolicy, tool }) => {
+        const configSource = await readRequiredEvidenceFile(
+          observation,
+          root,
+          toolPolicy.configPath,
+        );
+        const evidenceSource = await readOptionalEvidenceFile(
+          observation,
+          root,
+          toolPolicy.evidencePath,
+        );
+        const resultSource = await readOptionalEvidenceFile(
+          observation,
+          root,
+          toolPolicy.resultPath,
+        );
+        if (evidenceSource === undefined || resultSource === undefined) {
+          return Object.freeze({
+            kind: "missing" as const,
+            missing: evidenceSource === undefined ? "evidence" : "result",
+            tool,
+            evidencePath: toolPolicy.evidencePath,
+            resultPath: toolPolicy.resultPath,
+          });
+        }
+        const parsed = parseToolEvidence(evidenceSource, tool);
         return Object.freeze({
-          kind: "missing" as const,
-          missing: evidenceSource === undefined ? "evidence" : "result",
-          tool,
+          ...parsed,
+          actualConfigDigest: await digestEvidence(configSource),
+          actualResultDigest: await digestEvidence(resultSource),
+          actualWorkflowDigest: currentWorkflowDigest,
           evidencePath: toolPolicy.evidencePath,
-          resultPath: toolPolicy.resultPath
+          resultPath: toolPolicy.resultPath,
         });
-      }
-      const parsed = parseToolEvidence(evidenceSource, tool);
-      return Object.freeze({
-        ...parsed,
-        actualConfigDigest: await digestEvidence(configSource),
-        actualResultDigest: await digestEvidence(resultSource),
-        actualWorkflowDigest: currentWorkflowDigest,
-        evidencePath: toolPolicy.evidencePath,
-        resultPath: toolPolicy.resultPath
-      });
-    })
+      },
+    ),
   );
 }

@@ -5,7 +5,7 @@ export class DocumentTransactionUseCaseError extends Error {
       | "DOCUMENT_TRANSACTION_EVIDENCE_UNAVAILABLE"
       | "DOCUMENT_TRANSACTION_INCONSISTENT",
     message: string,
-    options?: ErrorOptions
+    options?: ErrorOptions,
   ) {
     super(message, options);
     this.name = "DocumentTransactionUseCaseError";

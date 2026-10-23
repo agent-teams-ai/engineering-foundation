@@ -6,13 +6,24 @@ import { chmod, mkdir, readFile, symlink, writeFile } from "node:fs/promises";
 import { join, resolve as resolvePath } from "node:path";
 import test from "node:test";
 
-import { check, cliPath, withAgentWorkflowFixture as withUnmarkedAgentWorkflowFixture } from "./support/capability-fixtures.mjs";
+import {
+  check,
+  cliPath,
+  withAgentWorkflowFixture as withUnmarkedAgentWorkflowFixture,
+} from "./support/capability-fixtures.mjs";
 import { sha256Bytes, sha256Json } from "../packages/repository-mutation/dist/serialization.js";
-import { ContainedFileReadError, inspectContainedRegularFile, readContainedRegularFile } from "../packages/engineering-foundation/dist/source-inventory/node.js";
+import {
+  ContainedFileReadError,
+  inspectContainedRegularFile,
+  readContainedRegularFile,
+} from "../packages/engineering-foundation/dist/source-inventory/node.js";
 import { FilesystemEffectiveInstructionsReader } from "../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/adapters/outbound/filesystem/filesystem-effective-instructions-reader.js";
 import { resolveEffectiveInstructions } from "../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/application/use-cases/resolve-effective-instructions.js";
 
-const instructionObservation = { read: readContainedRegularFile, inspect: inspectContainedRegularFile };
+const instructionObservation = {
+  read: readContainedRegularFile,
+  inspect: inspectContainedRegularFile,
+};
 async function withAgentWorkflowFixture(callback) {
   return withUnmarkedAgentWorkflowFixture(async (root) => {
     await writeFile(join(root, "DISPOSABLE_SANDBOX"), "Instruction reader test fixture.\n");
@@ -20,8 +31,7 @@ async function withAgentWorkflowFixture(callback) {
   });
 }
 
-const instructionSemantics =
-  "foundation-safe-codex-default-project-instructions-v1";
+const instructionSemantics = "foundation-safe-codex-default-project-instructions-v1";
 const instructionBudgetBytes = 32 * 1024;
 
 function instructionFile(path, bytes) {
@@ -52,10 +62,12 @@ function instructionReader({ targetPath, directories, observations, reads = [] }
       });
     },
     async readDirectory(input) {
-      reads.push(Object.freeze({
-        directory: input.directory,
-        readSelectedBytes: input.readSelectedBytes,
-      }));
+      reads.push(
+        Object.freeze({
+          directory: input.directory,
+          readSelectedBytes: input.readSelectedBytes,
+        }),
+      );
       const candidates = observations.get(input.directory);
       assert.notEqual(candidates, undefined);
       return Object.freeze({
@@ -78,7 +90,6 @@ function expectedResolutionDigest(targetPath, sources) {
   });
 }
 
-
 function runInstructions(consumerRoot, targetPath, format = "json", ...args) {
   const result = spawnSync(
     process.execPath,
@@ -97,9 +108,7 @@ function runInstructions(consumerRoot, targetPath, format = "json", ...args) {
   );
   return {
     result,
-    report: format === "json" && result.stdout.length > 0
-      ? JSON.parse(result.stdout)
-      : null,
+    report: format === "json" && result.stdout.length > 0 ? JSON.parse(result.stdout) : null,
   };
 }
 
@@ -123,11 +132,7 @@ test("accepts one canonical instruction source with portable adapters", async ()
 
 test("resolves effective instructions root-to-target with explicit shadowing", async () => {
   await withAgentWorkflowFixture(async (consumerRoot) => {
-    await writeFile(
-      join(consumerRoot, "src", "AGENTS.md"),
-      "x".repeat(300_000),
-      "utf8",
-    );
+    await writeFile(join(consumerRoot, "src", "AGENTS.md"), "x".repeat(300_000), "utf8");
     await writeFile(
       join(consumerRoot, "src", "AGENTS.override.md"),
       "# Effective source instructions\n",
@@ -137,10 +142,7 @@ test("resolves effective instructions root-to-target with explicit shadowing", a
     const { result, report } = runInstructions(consumerRoot, "src/index.ts");
     assert.equal(result.status, 0, result.stderr);
     assert.equal(report.outcome, "resolved");
-    assert.equal(
-      report.semantics,
-      "foundation-safe-codex-default-project-instructions-v1",
-    );
+    assert.equal(report.semantics, "foundation-safe-codex-default-project-instructions-v1");
     assert.deepEqual(
       report.layers.map((layer) => ({
         path: layer.selectedPath,
@@ -336,16 +338,12 @@ test("stops reading instruction content at the exact byte boundary but retains m
   );
   assert.equal(
     report.resolutionDigest,
-    expectedResolutionDigest("src/index.ts", [
-      { path: "AGENTS.md", bytes: boundaryBytes },
-    ]),
+    expectedResolutionDigest("src/index.ts", [{ path: "AGENTS.md", bytes: boundaryBytes }]),
   );
 });
 
 test("truncates exactly one byte beyond the instruction budget", async () => {
-  const source = new TextEncoder().encode(
-    `${"a".repeat(instructionBudgetBytes)}z`,
-  );
+  const source = new TextEncoder().encode(`${"a".repeat(instructionBudgetBytes)}z`);
   const admitted = source.slice(0, instructionBudgetBytes);
   const observations = new Map([
     [
@@ -378,9 +376,7 @@ test("truncates exactly one byte beyond the instruction budget", async () => {
   assert.equal(report.layers[0].loadedDigest, sha256Bytes(admitted));
   assert.equal(
     report.resolutionDigest,
-    expectedResolutionDigest("src/index.ts", [
-      { path: "AGENTS.md", bytes: admitted },
-    ]),
+    expectedResolutionDigest("src/index.ts", [{ path: "AGENTS.md", bytes: admitted }]),
   );
 });
 
@@ -433,9 +429,7 @@ test("matches Codex lossy UTF-8 and Unicode whitespace admission semantics", asy
       report.resolutionDigest,
       expectedResolutionDigest(
         targetPath,
-        fixture.loadedBytes === 0
-          ? []
-          : [{ path: "AGENTS.md", bytes: fixture.bytes }],
+        fixture.loadedBytes === 0 ? [] : [{ path: "AGENTS.md", bytes: fixture.bytes }],
       ),
       fixture.name,
     );
@@ -502,23 +496,17 @@ test("observes stable instruction metadata without reading candidate content", a
       };
     },
   };
-  const observation = await inspectContainedRegularFile(
-    { candidate, root },
-    operations,
-  );
+  const observation = await inspectContainedRegularFile({ candidate, root }, operations);
   assert.deepEqual(observation, { size: 1_337 });
   assert.equal(readCalls, 0);
   assert.equal(closeCalls, 1);
 
   metadataOpenAllowed = false;
-  await assert.rejects(
-    inspectContainedRegularFile({ candidate, root }, operations),
-    (error) => {
-      assert.ok(error instanceof ContainedFileReadError);
-      assert.equal(error.failure, "unavailable");
-      return true;
-    },
-  );
+  await assert.rejects(inspectContainedRegularFile({ candidate, root }, operations), (error) => {
+    assert.ok(error instanceof ContainedFileReadError);
+    assert.equal(error.failure, "unavailable");
+    return true;
+  });
   assert.equal(readCalls, 0);
   assert.equal(closeCalls, 1);
 });
@@ -609,9 +597,10 @@ test("reports an empty override that masks the canonical file without consuming 
     assert.equal(result.status, 0, result.stderr);
     assert.equal(report.layers[1].status, "ignored-empty");
     assert.equal(report.layers[1].loadedBytes, 0);
-    assert.deepEqual(report.layers[1].shadowed.map(({ path }) => path), [
-      "src/AGENTS.md",
-    ]);
+    assert.deepEqual(
+      report.layers[1].shadowed.map(({ path }) => path),
+      ["src/AGENTS.md"],
+    );
     assert.deepEqual(report.layers[1].canOverrideEarlier, []);
   });
 });
@@ -624,18 +613,15 @@ test(
       const shadowedPath = join(consumerRoot, "src", "AGENTS.md");
       await writeFile(shadowedPath, "# Hidden\n", "utf8");
       await chmod(shadowedPath, 0o000);
-      await writeFile(
-        join(consumerRoot, "src", "AGENTS.override.md"),
-        "# Selected\n",
-        "utf8",
-      );
+      await writeFile(join(consumerRoot, "src", "AGENTS.override.md"), "# Selected\n", "utf8");
 
       const { result, report } = runInstructions(consumerRoot, "src/index.ts");
       assert.equal(result.status, 0, result.stderr);
       assert.equal(report.layers[1].status, "applied");
-      assert.deepEqual(report.layers[1].shadowed.map(({ path }) => path), [
-        "src/AGENTS.md",
-      ]);
+      assert.deepEqual(
+        report.layers[1].shadowed.map(({ path }) => path),
+        ["src/AGENTS.md"],
+      );
     });
   },
 );
@@ -645,16 +631,9 @@ test("shows truncation and later exclusions at the default instruction byte budg
     await mkdir(join(consumerRoot, "src", "nested"));
     await writeFile(join(consumerRoot, "AGENTS.md"), "r".repeat(32_760), "utf8");
     await writeFile(join(consumerRoot, "src", "AGENTS.md"), "s".repeat(20), "utf8");
-    await writeFile(
-      join(consumerRoot, "src", "nested", "AGENTS.md"),
-      "n".repeat(300_000),
-      "utf8",
-    );
+    await writeFile(join(consumerRoot, "src", "nested", "AGENTS.md"), "n".repeat(300_000), "utf8");
 
-    const { result, report } = runInstructions(
-      consumerRoot,
-      "src/nested/planned-file.ts",
-    );
+    const { result, report } = runInstructions(consumerRoot, "src/nested/planned-file.ts");
     assert.equal(result.status, 0, result.stderr);
     assert.deepEqual(report.budget, {
       maximumBytes: 32_768,
@@ -662,14 +641,17 @@ test("shows truncation and later exclusions at the default instruction byte budg
       exhausted: true,
       truncated: true,
     });
-    assert.deepEqual(report.layers.map(({ status, loadedBytes }) => ({
-      status,
-      loadedBytes,
-    })), [
-      { status: "applied", loadedBytes: 32_760 },
-      { status: "truncated", loadedBytes: 8 },
-      { status: "budget-exhausted", loadedBytes: 0 },
-    ]);
+    assert.deepEqual(
+      report.layers.map(({ status, loadedBytes }) => ({
+        status,
+        loadedBytes,
+      })),
+      [
+        { status: "applied", loadedBytes: 32_760 },
+        { status: "truncated", loadedBytes: 8 },
+        { status: "budget-exhausted", loadedBytes: 0 },
+      ],
+    );
     assert.equal(report.layers[2].sourceBytes, 300_000);
     assert.equal(report.layers[2].sourceDigest, null);
 
@@ -678,15 +660,9 @@ test("shows truncation and later exclusions at the default instruction byte budg
       `${"s".repeat(8)}${"changed-after-budget".repeat(4)}`,
       "utf8",
     );
-    const beyondBudgetChanged = runInstructions(
-      consumerRoot,
-      "src/nested/planned-file.ts",
-    ).report;
+    const beyondBudgetChanged = runInstructions(consumerRoot, "src/nested/planned-file.ts").report;
     assert.equal(beyondBudgetChanged.resolutionDigest, report.resolutionDigest);
-    assert.notEqual(
-      beyondBudgetChanged.layers[1].sourceDigest,
-      report.layers[1].sourceDigest,
-    );
+    assert.notEqual(beyondBudgetChanged.layers[1].sourceDigest, report.layers[1].sourceDigest);
   });
 });
 
@@ -709,10 +685,7 @@ test("rejects unsafe effective-instruction targets and selected symlinks", async
 
     const injected = runInstructions(consumerRoot, "src/evil\n\u001b[31m.ts");
     assert.equal(injected.result.status, 2);
-    assert.equal(
-      injected.report.error.code,
-      "REPOSITORY_AGENT_WORKFLOW_TARGET_PATH_INVALID",
-    );
+    assert.equal(injected.report.error.code, "REPOSITORY_AGENT_WORKFLOW_TARGET_PATH_INVALID");
 
     const reader = new FilesystemEffectiveInstructionsReader(instructionObservation);
     const unavailableRoot = join(consumerRoot, "does-not-exist");
@@ -729,17 +702,7 @@ test("rejects unsafe effective-instruction targets and selected symlinks", async
       ["lone high surrogate", "\ud800"],
       ["lone low surrogate", "\udc00"],
       ...[
-        0x061c,
-        0x200e,
-        0x200f,
-        0x202a,
-        0x202b,
-        0x202c,
-        0x202d,
-        0x202e,
-        0x2066,
-        0x2067,
-        0x2068,
+        0x061c, 0x200e, 0x200f, 0x202a, 0x202b, 0x202c, 0x202d, 0x202e, 0x2066, 0x2067, 0x2068,
         0x2069,
       ].map((codePoint) => [
         `bidirectional control U+${codePoint.toString(16).toUpperCase()}`,
@@ -753,11 +716,7 @@ test("rejects unsafe effective-instruction targets and selected symlinks", async
           targetPath: `src/${character}spoofed.ts`,
         }),
         (error) => {
-          assert.equal(
-            error.problem?.code,
-            "REPOSITORY_AGENT_WORKFLOW_TARGET_PATH_INVALID",
-            name,
-          );
+          assert.equal(error.problem?.code, "REPOSITORY_AGENT_WORKFLOW_TARGET_PATH_INVALID", name);
           assert.doesNotMatch(error.message, /spoofed/u, name);
           return true;
         },
@@ -770,10 +729,7 @@ test("rejects unsafe effective-instruction targets and selected symlinks", async
         targetPath: "C:/planned.ts",
       }),
       (error) => {
-        assert.equal(
-          error.problem?.code,
-          "REPOSITORY_AGENT_WORKFLOW_TARGET_PATH_INVALID",
-        );
+        assert.equal(error.problem?.code, "REPOSITORY_AGENT_WORKFLOW_TARGET_PATH_INVALID");
         assert.doesNotMatch(error.message, /planned/u);
         return true;
       },
@@ -781,16 +737,9 @@ test("rejects unsafe effective-instruction targets and selected symlinks", async
 
     const directory = runInstructions(consumerRoot, "src");
     assert.equal(directory.result.status, 2);
-    assert.equal(
-      directory.report.error.code,
-      "REPOSITORY_AGENT_WORKFLOW_TARGET_INVALID",
-    );
+    assert.equal(directory.report.error.code, "REPOSITORY_AGENT_WORKFLOW_TARGET_INVALID");
 
-    const missingTarget = runAgentWorkflowRaw(
-      "instructions",
-      "--consumer",
-      unavailableRoot,
-    );
+    const missingTarget = runAgentWorkflowRaw("instructions", "--consumer", unavailableRoot);
     assert.equal(missingTarget.result.status, 2);
     assert.match(
       missingTarget.report.error.message,
@@ -804,10 +753,7 @@ test("rejects unsafe effective-instruction targets and selected symlinks", async
       unavailableRoot,
     );
     assert.equal(extraTarget.result.status, 2);
-    assert.match(
-      extraTarget.report.error.message,
-      /accepts at most 2 positional arguments/u,
-    );
+    assert.match(extraTarget.report.error.message, /accepts at most 2 positional arguments/u);
     const extraChangedTarget = runAgentWorkflowRaw(
       "changed",
       "src/index.ts",

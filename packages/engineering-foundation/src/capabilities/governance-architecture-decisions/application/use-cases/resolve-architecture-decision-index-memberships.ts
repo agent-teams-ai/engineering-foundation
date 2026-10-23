@@ -1,12 +1,12 @@
 import { compareBinaryStrings } from "../../../../binary-string-comparator.js";
 import type {
   MarkdownDocumentObservation,
-  MarkdownRepository
+  MarkdownRepository,
 } from "@agent-teams/document-authoring/observation";
 import type { ArchitectureDecision } from "../model/architecture-decision.js";
 import {
   normalizeArchitectureDecisionIndexSection,
-  type ArchitectureDecisionIndexMembership
+  type ArchitectureDecisionIndexMembership,
 } from "../policies/evaluate-architecture-decision-index.js";
 
 export async function resolveArchitectureDecisionIndexMemberships(input: {
@@ -20,7 +20,7 @@ export async function resolveArchitectureDecisionIndexMemberships(input: {
     return Object.freeze([]);
   }
   const decisionsByPath = new Map(
-    input.decisions.map((decision) => [decision.document.repositoryPath, decision])
+    input.decisions.map((decision) => [decision.document.repositoryPath, decision]),
   );
   const headings = input.index.headings
     .filter((heading) => heading.depth === 2)
@@ -38,16 +38,14 @@ export async function resolveArchitectureDecisionIndexMemberships(input: {
       (headings[headingIndex]?.location.offset ?? Number.POSITIVE_INFINITY) <
         reference.location.offset
     ) {
-      section = normalizeArchitectureDecisionIndexSection(
-        headings[headingIndex]?.text ?? ""
-      );
+      section = normalizeArchitectureDecisionIndexSection(headings[headingIndex]?.text ?? "");
       headingIndex += 1;
     }
     const resolution = await input.repository.resolveReference({
       consumerRoot: input.consumerRoot,
       rawTarget: reference.rawTarget,
       ...(input.signal === undefined ? {} : { signal: input.signal }),
-      source: input.index
+      source: input.index,
     });
     if (resolution.kind !== "file") {
       continue;
@@ -69,8 +67,8 @@ export async function resolveArchitectureDecisionIndexMemberships(input: {
         Object.freeze({
           count: membership.count,
           decisionId,
-          sections: Object.freeze(membership.sections.toSorted())
-        })
-      )
+          sections: Object.freeze(membership.sections.toSorted()),
+        }),
+      ),
   );
 }

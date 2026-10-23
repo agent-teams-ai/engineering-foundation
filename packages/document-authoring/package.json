@@ -3,6 +3,18 @@
   "version": "0.3.5",
   "description": "Portable deterministic documentation authoring contracts, catalog semantics, and protected materialization.",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agent-teams-ai/engineering-foundation.git",
+    "directory": "packages/document-authoring"
+  },
+  "files": [
+    "dist",
+    "schemas",
+    "LICENSE",
+    "README.md",
+    "CHANGELOG.md"
+  ],
   "type": "module",
   "sideEffects": false,
   "exports": {
@@ -21,30 +33,14 @@
     "./schemas/*": "./schemas/*",
     "./package.json": "./package.json"
   },
-  "files": [
-    "dist",
-    "schemas",
-    "LICENSE",
-    "README.md",
-    "CHANGELOG.md"
-  ],
-  "scripts": {
-    "build": "tsc --build tsconfig.json --pretty false",
-    "test": "pnpm build && node --test tests/*.test.mjs"
-  },
-  "engines": {
-    "node": "^24.18.0 || ^26.0.0",
-    "pnpm": ">=11.17.0 <12"
-  },
   "publishConfig": {
     "access": "public",
     "provenance": true,
     "registry": "https://registry.npmjs.org/"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/agent-teams-ai/engineering-foundation.git",
-    "directory": "packages/document-authoring"
+  "scripts": {
+    "build": "tsc --build tsconfig.json --pretty false",
+    "test": "pnpm build && node --test tests/*.test.mjs"
   },
   "dependencies": {
     "@agent-teams/repository-mutation": "workspace:*",
@@ -62,5 +58,9 @@
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:"
+  },
+  "engines": {
+    "node": "^24.18.0 || ^26.0.0",
+    "pnpm": ">=11.17.0 <12"
   }
 }

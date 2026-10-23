@@ -8,27 +8,52 @@ import * as ts from "typescript/unstable/ast";
 import type { Node, SourceFile } from "typescript/unstable/ast";
 import { NativeSourceParser } from "../../spikes/source-dependency-parser/typescript-parser-oracle.ts";
 
-interface Reference { specifier: string; typeOnly: boolean }
-interface GraphEdge extends Reference { from: string; to: string; file: string; target: string }
-interface MissingEdge extends Reference { file: string }
+interface Reference {
+  specifier: string;
+  typeOnly: boolean;
+}
+interface GraphEdge extends Reference {
+  from: string;
+  to: string;
+  file: string;
+  target: string;
+}
+interface MissingEdge extends Reference {
+  file: string;
+}
 type ReadResult = { source: string } | { error: unknown };
 
 const repositoryRoot = fileURLToPath(new URL("../../", import.meta.url));
 
 export async function copySourcePolicyFixture(destination: string): Promise<void> {
-  for (const path of ["packages", "spikes", "architecture", "foundation.config.yaml", "pnpm-workspace.yaml", "package.json"]) {
+  for (const path of [
+    "packages",
+    "spikes",
+    "architecture",
+    "foundation.config.yaml",
+    "pnpm-workspace.yaml",
+    "package.json",
+  ]) {
     await cp(join(repositoryRoot, path), join(destination, path), {
       recursive: true,
-      filter: (source) => !["node_modules", "dist"].includes(source.split(/[\\/]/).at(-1) ?? "")
+      filter: (source) => !["node_modules", "dist"].includes(source.split(/[\\/]/).at(-1) ?? ""),
     });
   }
 }
 
 export function actualSourceDependenciesCLI(consumerRoot: string) {
-  const result = spawnSync(process.execPath, [
-    join(repositoryRoot, "packages/engineering-foundation/dist/cli.js"),
-    "check", "architecture.source-dependencies", "--consumer", consumerRoot, "--json"
-  ], { encoding: "utf8" });
+  const result = spawnSync(
+    process.execPath,
+    [
+      join(repositoryRoot, "packages/engineering-foundation/dist/cli.js"),
+      "check",
+      "architecture.source-dependencies",
+      "--consumer",
+      consumerRoot,
+      "--json",
+    ],
+    { encoding: "utf8" },
+  );
   assert.equal(result.error, undefined);
   assert.equal(result.signal, null);
   return { exitCode: result.status, report: JSON.parse(result.stdout), stderr: result.stderr };
@@ -39,11 +64,21 @@ function feature(path: string): string | undefined {
   if (path.startsWith("local-mode/") || path === "package-self-check.ts") {
     return "local-package-lifecycle";
   }
-  if (path.startsWith("features/validation-reporting/") ||
-      ["unexpected-failure.ts", "capability-runtime.ts", "check-contract.ts", "unique-registry.ts"].includes(path)) {
+  if (
+    path.startsWith("features/validation-reporting/") ||
+    [
+      "unexpected-failure.ts",
+      "capability-runtime.ts",
+      "check-contract.ts",
+      "unique-registry.ts",
+    ].includes(path)
+  ) {
     return "validation-reporting";
   }
-  if (["index.ts", "public-api-surface.ts", "cli.ts"].includes(path) || path.startsWith("composition/")) {
+  if (
+    ["index.ts", "public-api-surface.ts", "cli.ts"].includes(path) ||
+    path.startsWith("composition/")
+  ) {
     return;
   }
   if (path.startsWith("features/") || path.startsWith("capabilities/")) {
@@ -57,7 +92,7 @@ async function sources(directory: string): Promise<string[]> {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     const path = join(directory, entry.name);
     if (entry.isDirectory()) {
-      files.push(...await sources(path));
+      files.push(...(await sources(path)));
     } else if (path.endsWith(".ts")) {
       files.push(path);
     }
@@ -68,21 +103,38 @@ async function sources(directory: string): Promise<string[]> {
 function references(tree: SourceFile): Reference[] {
   const imports: Reference[] = [];
   function visit(node: Node): void {
-    if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
-        node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
+    if (
+      (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
+      node.moduleSpecifier &&
+      ts.isStringLiteral(node.moduleSpecifier)
+    ) {
       const clause = ts.isImportDeclaration(node) ? node.importClause : undefined;
-      const bindings = clause?.namedBindings ?? (ts.isExportDeclaration(node) ? node.exportClause : undefined);
-      const typeOnly = (ts.isExportDeclaration(node) && node.isTypeOnly)
-        || clause?.phaseModifier === ts.SyntaxKind.TypeKeyword
-        || (!clause?.name && bindings !== undefined && (ts.isNamedImports(bindings) || ts.isNamedExports(bindings))
-          && bindings.elements.length > 0 && bindings.elements.every(item => item.isTypeOnly));
+      const bindings =
+        clause?.namedBindings ?? (ts.isExportDeclaration(node) ? node.exportClause : undefined);
+      const typeOnly =
+        (ts.isExportDeclaration(node) && node.isTypeOnly) ||
+        clause?.phaseModifier === ts.SyntaxKind.TypeKeyword ||
+        (!clause?.name &&
+          bindings !== undefined &&
+          (ts.isNamedImports(bindings) || ts.isNamedExports(bindings)) &&
+          bindings.elements.length > 0 &&
+          bindings.elements.every((item) => item.isTypeOnly));
       imports.push({ specifier: node.moduleSpecifier.text, typeOnly });
     }
-    if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword &&
-        node.arguments.length === 1 && node.arguments[0] !== undefined && ts.isStringLiteral(node.arguments[0])) {
+    if (
+      ts.isCallExpression(node) &&
+      node.expression.kind === ts.SyntaxKind.ImportKeyword &&
+      node.arguments.length === 1 &&
+      node.arguments[0] !== undefined &&
+      ts.isStringLiteral(node.arguments[0])
+    ) {
       imports.push({ specifier: node.arguments[0].text, typeOnly: false });
     }
-    if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument) && ts.isStringLiteral(node.argument.literal)) {
+    if (
+      ts.isImportTypeNode(node) &&
+      ts.isLiteralTypeNode(node.argument) &&
+      ts.isStringLiteral(node.argument.literal)
+    ) {
       imports.push({ specifier: node.argument.literal.text, typeOnly: true });
     }
     node.forEachChild(visit);
@@ -91,12 +143,18 @@ function references(tree: SourceFile): Reference[] {
   return imports;
 }
 
-export function stronglyConnectedComponents(edges: readonly { from: string; to: string }[]): string[][] {
+export function stronglyConnectedComponents(
+  edges: readonly { from: string; to: string }[],
+): string[][] {
   // Iterative Tarjan keeps this test oracle independent of production Kosaraju.
   const adjacency = new Map<string, string[]>();
   for (const { from, to } of edges) {
-    if (!adjacency.has(from)) { adjacency.set(from, []); }
-    if (!adjacency.has(to)) { adjacency.set(to, []); }
+    if (!adjacency.has(from)) {
+      adjacency.set(from, []);
+    }
+    if (!adjacency.has(to)) {
+      adjacency.set(to, []);
+    }
     adjacency.get(from)!.push(to);
   }
   const indices = new Map<string, number>();
@@ -116,7 +174,9 @@ export function stronglyConnectedComponents(edges: readonly { from: string; to: 
   }
 
   for (const vertex of adjacency.keys()) {
-    if (indices.has(vertex)) { continue; }
+    if (indices.has(vertex)) {
+      continue;
+    }
     const frames = [enter(vertex)];
     while (frames.length > 0) {
       const frame = frames.at(-1)!;
@@ -144,7 +204,9 @@ export function stronglyConnectedComponents(edges: readonly { from: string; to: 
         // A single self-loop remains outside the oracle's nontrivial cycles.
         if (component.length > 1) {
           const normalized = component.toSorted();
-          for (const item of component) { componentByMember.set(item, normalized); }
+          for (const item of component) {
+            componentByMember.set(item, normalized);
+          }
         }
       }
       if (frames.length > 0) {
@@ -186,7 +248,9 @@ export async function observeFoundationFeatureGraph(root = repositoryRoot) {
   });
   // Drain all reads before surfacing a failure, so fixture cleanup cannot race them.
   for (const result of await Promise.allSettled(readers)) {
-    if (result.status === "rejected") { throw result.reason; }
+    if (result.status === "rejected") {
+      throw result.reason;
+    }
   }
   const edges: GraphEdge[] = [];
   const missing: MissingEdge[] = [];
@@ -196,7 +260,9 @@ export async function observeFoundationFeatureGraph(root = repositoryRoot) {
       // Keep the first inventory-ordered read or syntax failure, not completion order.
       const content = contents[index];
       assert(content, "every inventoried file must have a drained read result");
-      if ("error" in content) { throw content.error; }
+      if ("error" in content) {
+        throw content.error;
+      }
       const observed = nativeParser.inspect(file, content.source, (tree, _checker, diagnostics) => {
         assert.equal(diagnostics.length, 0, file);
         return references(tree);
@@ -212,14 +278,24 @@ export async function observeFoundationFeatureGraph(root = repositoryRoot) {
         const from = feature(relative(base, file));
         const to = feature(relative(base, target));
         if (from && to && from !== to) {
-          edges.push({ from, to, file: relative(base, file), target: relative(base, target), ...reference });
+          edges.push({
+            from,
+            to,
+            file: relative(base, file),
+            target: relative(base, target),
+            ...reference,
+          });
         }
       }
     }
-  } finally { nativeParser.close(); }
+  } finally {
+    nativeParser.close();
+  }
   return {
-    files: files.length, missing, edges,
+    files: files.length,
+    missing,
+    edges,
     runtimeCycles: stronglyConnectedComponents(edges.filter((edge) => !edge.typeOnly)),
-    combinedCycles: stronglyConnectedComponents(edges)
+    combinedCycles: stronglyConnectedComponents(edges),
   };
 }

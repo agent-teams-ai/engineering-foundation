@@ -2,17 +2,17 @@ import {
   capabilityFailureReport,
   capabilityReport,
   type CapabilityDefinition,
-  type CapabilityInvocation
+  type CapabilityInvocation,
 } from "../../features/validation-reporting/api.js";
 import { AjvJsonSchemaReleaseInspector } from "./adapters/outbound/filesystem/ajv-json-schema-release-inspector.js";
 import type { JsonSchemaReleaseInspector } from "./application/ports/json-schema-release-inspector.js";
 import { verifyJsonSchemaRelease } from "./application/use-cases/verify-json-schema-release.js";
-import {
-  CAPABILITY_CONFIG_SCHEMA_VERSION,
-  CAPABILITY_ID
-} from "./contract/config.js";
+import { CAPABILITY_CONFIG_SCHEMA_VERSION, CAPABILITY_ID } from "./contract/config.js";
 
-import { loadCapabilityConfig, type JsonSchemaConfigurationDependencies } from "./adapters/inbound/configuration/load-capability-config.js";
+import {
+  loadCapabilityConfig,
+  type JsonSchemaConfigurationDependencies,
+} from "./adapters/inbound/configuration/load-capability-config.js";
 import { loadStrictYamlFile } from "../../features/configuration-input/node.js";
 import { readContainedRegularFile } from "../../source-inventory/node.js";
 import type { JsonSchemaFileReader } from "./api.js";
@@ -20,9 +20,7 @@ import type { JsonSchemaFileReader } from "./api.js";
 const schemaFiles: JsonSchemaFileReader = { read: readContainedRegularFile };
 
 export { AjvJsonSchemaReleaseInspector } from "./adapters/outbound/filesystem/ajv-json-schema-release-inspector.js";
-export {
-  evaluateJsonSchemaRelease
-} from "./application/policies/evaluate-json-schema-release.js";
+export { evaluateJsonSchemaRelease } from "./application/policies/evaluate-json-schema-release.js";
 export type {
   JsonSchemaConsumerEvidence,
   JsonSchemaDigest,
@@ -31,13 +29,10 @@ export type {
   JsonSchemaFixtureResult,
   JsonSchemaInspection,
   JsonSchemaReleasePolicy,
-  ReleasedJsonSchemaContractEvidence
+  ReleasedJsonSchemaContractEvidence,
 } from "./application/model/json-schema-release.js";
 export type { JsonSchemaReleaseInspector } from "./application/ports/json-schema-release-inspector.js";
-export {
-  JSON_SCHEMA_RELEASE_RULES,
-  JSON_SCHEMA_RELEASE_RULES_BY_ID
-} from "./application/rules.js";
+export { JSON_SCHEMA_RELEASE_RULES, JSON_SCHEMA_RELEASE_RULES_BY_ID } from "./application/rules.js";
 export { verifyJsonSchemaRelease } from "./application/use-cases/verify-json-schema-release.js";
 
 export interface JsonSchemaReleaseCapabilityDependencies {
@@ -46,7 +41,7 @@ export interface JsonSchemaReleaseCapabilityDependencies {
 }
 
 export function createJsonSchemaReleaseCapability(
-  dependencies: JsonSchemaReleaseCapabilityDependencies
+  dependencies: JsonSchemaReleaseCapabilityDependencies,
 ): CapabilityDefinition {
   const inspector = dependencies.inspector ?? new AjvJsonSchemaReleaseInspector(schemaFiles);
   return Object.freeze({
@@ -58,35 +53,35 @@ export function createJsonSchemaReleaseCapability(
           { readYaml: loadStrictYamlFile, assertSchema: dependencies.assertSchema },
           invocation.consumerRoot,
           invocation.configPath,
-          invocation.signal
+          invocation.signal,
         );
         const result = await verifyJsonSchemaRelease(
           {
             consumerRoot: invocation.consumerRoot,
             policy,
-            ...(invocation.signal === undefined ? {} : { signal: invocation.signal })
+            ...(invocation.signal === undefined ? {} : { signal: invocation.signal }),
           },
-          inspector
+          inspector,
         );
         return capabilityReport({
           capabilityId: CAPABILITY_ID,
           capabilityConfigSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
-          diagnostics: result.diagnostics
+          diagnostics: result.diagnostics,
         });
       } catch (error) {
         return capabilityFailureReport({
           capabilityId: CAPABILITY_ID,
           capabilityConfigSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
           error,
-          phase: "json-schema-release-execution"
+          phase: "json-schema-release-execution",
         });
       }
-    }
+    },
   });
 }
 
 export function createJsonSchemaInspector(
-  readArtifact: (repositoryPath: string) => Promise<Buffer | undefined>
+  readArtifact: (repositoryPath: string) => Promise<Buffer | undefined>,
 ): JsonSchemaReleaseInspector {
   return new AjvJsonSchemaReleaseInspector(schemaFiles, readArtifact);
 }

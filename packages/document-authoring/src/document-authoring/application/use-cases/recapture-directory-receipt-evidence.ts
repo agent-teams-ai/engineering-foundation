@@ -2,13 +2,13 @@ import type { DocumentParentMaterializerV2 } from "../ports/document-parent-mate
 import type { ActiveDocumentJournal } from "./document-transaction-continuation.js";
 import {
   directoryReceiptEvidence,
-  type DocumentDirectoryReceiptEvidence
+  type DocumentDirectoryReceiptEvidence,
 } from "./document-transaction-receipts.js";
 
 export async function recaptureDirectoryReceiptEvidence(
   parentMaterializer: DocumentParentMaterializerV2,
   consumerRoot: string,
-  active: ActiveDocumentJournal
+  active: ActiveDocumentJournal,
 ): Promise<{
   readonly current: boolean;
   readonly evidence?: DocumentDirectoryReceiptEvidence;
@@ -24,8 +24,8 @@ export async function recaptureDirectoryReceiptEvidence(
         anchorIdentity: active.envelope.journal.parentMaterialization.anchorIdentity,
         createdDirectories: active.envelope.journal.parentMaterialization.createdDirectories,
         plan: active.envelope.journal.plan.parentMaterialization,
-        schemaVersion: 2
-      }
+        schemaVersion: 2,
+      },
     });
     if (inspection.state === "current") {
       return { current: true, evidence };
@@ -37,7 +37,7 @@ export async function recaptureDirectoryReceiptEvidence(
     current: false,
     evidence: {
       observedCreatedDirectories: evidence.observedCreatedDirectories,
-      state: "preserved-unknown"
-    }
+      state: "preserved-unknown",
+    },
   };
 }

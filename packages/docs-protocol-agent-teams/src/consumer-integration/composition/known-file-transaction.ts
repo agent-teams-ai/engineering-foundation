@@ -1,7 +1,7 @@
 import {
   applyKnownFileTransaction,
   inspectKnownFileTransactionBarrier,
-  recoverKnownFileTransaction
+  recoverKnownFileTransaction,
 } from "@agent-teams/repository-mutation";
 
 import { createFoundationKnownFileTransaction } from "../adapters/foundation-known-file-transaction.js";
@@ -9,5 +9,5 @@ import { createFoundationKnownFileTransaction } from "../adapters/foundation-kno
 export const foundationKnownFileTransaction = createFoundationKnownFileTransaction({
   inspect: inspectKnownFileTransactionBarrier,
   apply: applyKnownFileTransaction,
-  recover: recoverKnownFileTransaction
+  recover: recoverKnownFileTransaction,
 });

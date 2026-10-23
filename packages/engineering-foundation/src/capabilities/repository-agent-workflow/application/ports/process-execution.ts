@@ -9,7 +9,11 @@ export interface ProcessExecution {
 export type ExecuteWorkflowProcess = (
   command: string,
   args: readonly string[],
-  options: { readonly cwd: string; readonly signal?: AbortSignal; readonly strictUtf8?: boolean;
+  options: {
+    readonly cwd: string;
+    readonly signal?: AbortSignal;
+    readonly strictUtf8?: boolean;
     /** Overrides the supplied workflow environment; undefined removes a native variable name. */
-    readonly environment?: Readonly<Record<string, string | undefined>> }
+    readonly environment?: Readonly<Record<string, string | undefined>>;
+  },
 ) => Promise<ProcessExecution>;

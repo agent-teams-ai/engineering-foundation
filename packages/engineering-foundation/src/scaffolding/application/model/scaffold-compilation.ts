@@ -77,13 +77,7 @@ export interface AuthorityScaffoldTargetCatalog {
 export interface ScaffoldRenderingDiagnostic {
   readonly ruleId: string;
   readonly severity: "error" | "info" | "warning";
-  readonly phase:
-    | "apply"
-    | "composition"
-    | "input"
-    | "planning"
-    | "policy"
-    | "recovery";
+  readonly phase: "apply" | "composition" | "input" | "planning" | "policy" | "recovery";
   readonly subject: string;
   readonly message: string;
   readonly remediation: string;
@@ -101,13 +95,10 @@ export interface ScaffoldReadAssertionV1 {
 export type AuthorityScaffoldReadSet = readonly [
   ScaffoldReadAssertionV1,
   ScaffoldReadAssertionV1,
-  ScaffoldReadAssertionV1
+  ScaffoldReadAssertionV1,
 ];
 
-type ScaffoldAuthoritySourceRoleV1 =
-  | "config"
-  | "owner-document"
-  | "target-catalog";
+type ScaffoldAuthoritySourceRoleV1 = "config" | "owner-document" | "target-catalog";
 
 export interface ScaffoldAuthoritySourceAssertionV1 {
   readonly role: ScaffoldAuthoritySourceRoleV1;
@@ -131,7 +122,7 @@ export interface ScaffoldAuthorityEvidenceV1 {
   readonly sources: readonly [
     ScaffoldAuthoritySourceAssertionV1 & { readonly role: "config" },
     ScaffoldAuthoritySourceAssertionV1 & { readonly role: "owner-document" },
-    ScaffoldAuthoritySourceAssertionV1 & { readonly role: "target-catalog" }
+    ScaffoldAuthoritySourceAssertionV1 & { readonly role: "target-catalog" },
   ];
   readonly evidenceDigest: Sha256Digest;
 }

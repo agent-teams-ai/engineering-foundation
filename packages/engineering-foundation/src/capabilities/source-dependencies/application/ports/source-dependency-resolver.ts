@@ -3,7 +3,7 @@ import type { WorkspaceInventory } from "../../../../workspace-inventory/api.js"
 import type {
   ClassifiedSourceFile,
   ResolvedSourceDependency,
-  SourceDependencyReference
+  SourceDependencyReference,
 } from "../model/source-workspace.js";
 
 export interface ResolveSourceDependencyInput {

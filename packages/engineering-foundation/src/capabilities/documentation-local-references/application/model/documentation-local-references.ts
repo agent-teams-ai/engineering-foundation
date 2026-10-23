@@ -2,7 +2,7 @@ import type {
   MarkdownAnchorProfile,
   MarkdownReferenceObservation,
   MarkdownReferenceResolution,
-  MarkdownRepositoryObservation
+  MarkdownRepositoryObservation,
 } from "@agent-teams/document-authoring/observation";
 
 export interface DocumentationLocalReferencesPolicy {

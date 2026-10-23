@@ -13,11 +13,7 @@ const wait = (delayMs) =>
   });
 
 function confirmedTimeout(error) {
-  return (
-    error?.timedOut === true &&
-    error?.killed === true &&
-    error?.terminationConfirmed === true
-  );
+  return error?.timedOut === true && error?.killed === true && error?.terminationConfirmed === true;
 }
 
 export function registryInstallAttemptPaths(root, attempt) {
@@ -69,10 +65,7 @@ export async function installRegistryConsumerWithRetry({
 export async function runRegistryPhase(
   name,
   action,
-  {
-    now = () => performance.now(),
-    write = (line) => process.stdout.write(line),
-  } = {},
+  { now = () => performance.now(), write = (line) => process.stdout.write(line) } = {},
 ) {
   const startedAt = now();
   write(`Registry E2E phase=${name} status=START.\n`);
@@ -128,12 +121,7 @@ export async function seedRegistryInParallel({
       nextGroupIndex += 1;
       for (const { entry, index } of group) {
         const archivePath = await packPackage(entry, index);
-        await publishArchive(
-          archivePath,
-          registryUrl,
-          entry.manifest.name,
-          entry.manifest.version,
-        );
+        await publishArchive(archivePath, registryUrl, entry.manifest.name, entry.manifest.version);
       }
     }
   }

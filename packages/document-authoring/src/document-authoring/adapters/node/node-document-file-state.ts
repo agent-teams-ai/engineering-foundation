@@ -4,7 +4,7 @@ import { readBoundedRegularFile } from "@agent-teams/repository-mutation/node";
 import type { PortablePathIdentity } from "@agent-teams/repository-mutation/paths";
 import {
   assertNonzeroDocumentPhysicalIdentity,
-  type DocumentPhysicalIdentity
+  type DocumentPhysicalIdentity,
 } from "../../application/model/document-physical-identity.js";
 import type { DocumentOwnedTemporary } from "../../application/model/document-transaction.js";
 import type { DocumentPlanContract as DocumentPlan } from "../../application/model/document-planning.js";
@@ -12,14 +12,14 @@ import type {
   DocumentDerivedTemporaryState,
   DocumentDestinationState,
   DocumentFileState,
-  DocumentTemporaryState
+  DocumentTemporaryState,
 } from "../../application/ports/document-file-state.js";
 import { isDocumentRepositoryPath } from "../../application/policies/document-repository-path.js";
 import { documentTemporaryPath } from "../../application/policies/document-temporary-path.js";
 import {
   recaptureDocumentPublicationPaths,
   sameDocumentAncestry,
-  sameDocumentPhysicalIdentity
+  sameDocumentPhysicalIdentity,
 } from "./recapture-document-publication-paths.js";
 
 const MAXIMUM_DOCUMENT_BYTES = 1_048_576;
@@ -38,7 +38,7 @@ function identity(temporary: DocumentOwnedTemporary): PortablePathIdentity | und
   const result = {
     dev: BigInt(value.dev),
     ino: BigInt(value.ino),
-    birthtimeNs: BigInt(value.birthtimeNs)
+    birthtimeNs: BigInt(value.birthtimeNs),
   };
   return result;
 }
@@ -49,7 +49,7 @@ function wireIdentity(identityValue: PortablePathIdentity): DocumentPhysicalIden
     version: 1,
     dev: identityValue.dev.toString(10),
     ino: identityValue.ino.toString(10),
-    birthtimeNs: identityValue.birthtimeNs.toString(10)
+    birthtimeNs: identityValue.birthtimeNs.toString(10),
   };
   assertNonzeroDocumentPhysicalIdentity(result);
   return result;
@@ -60,21 +60,23 @@ function planPostimage(plan: DocumentPlan) {
     bytes: Buffer.from(plan.output.contentBase64, "base64"),
     digest: plan.output.digest,
     mode: 0o644,
-    size: plan.output.size
+    size: plan.output.size,
   };
 }
 
 async function assertPublicationAncestryStable(
   consumerRoot: string,
   repositoryPath: string,
-  before: Awaited<ReturnType<typeof recaptureDocumentPublicationPaths>>
+  before: Awaited<ReturnType<typeof recaptureDocumentPublicationPaths>>,
 ): Promise<void> {
   const after = await recaptureDocumentPublicationPaths({
     consumerRoot,
-    destination: repositoryPath
+    destination: repositoryPath,
   });
-  if (before.destinationPath !== after.destinationPath ||
-    !sameDocumentAncestry(before.ancestryIdentities, after.ancestryIdentities)) {
+  if (
+    before.destinationPath !== after.destinationPath ||
+    !sameDocumentAncestry(before.ancestryIdentities, after.ancestryIdentities)
+  ) {
     throw new Error("Document path ancestry changed while filesystem state was read.");
   }
 }
@@ -82,11 +84,12 @@ async function assertPublicationAncestryStable(
 function conflict(error: unknown): { readonly state: "conflict"; readonly reason: string } {
   return {
     state: "conflict",
-    reason: typeof error === "string"
-      ? error
-      : error instanceof Error
-        ? error.message
-        : "Filesystem state is unverifiable."
+    reason:
+      typeof error === "string"
+        ? error
+        : error instanceof Error
+          ? error.message
+          : "Filesystem state is unverifiable.",
   };
 }
 
@@ -96,11 +99,12 @@ function unverifiable(error: unknown): {
 } {
   return {
     state: "unverifiable",
-    reason: typeof error === "string"
-      ? error
-      : error instanceof Error
-        ? error.message
-        : "Filesystem state is unverifiable."
+    reason:
+      typeof error === "string"
+        ? error
+        : error instanceof Error
+          ? error.message
+          : "Filesystem state is unverifiable.",
   };
 }
 
@@ -111,30 +115,23 @@ export class NodeDocumentFileState implements DocumentFileState {
     readonly signal?: AbortSignal;
   }): Promise<DocumentDerivedTemporaryState> {
     request.signal?.throwIfAborted();
-    const path = documentTemporaryPath(
-      request.plan.destination,
-      request.plan.planDigest
-    );
+    const path = documentTemporaryPath(request.plan.destination, request.plan.planDigest);
     try {
       const paths = await recaptureDocumentPublicationPaths({
         consumerRoot: request.consumerRoot,
-        destination: path
+        destination: path,
       });
       request.signal?.throwIfAborted();
       let observed;
       try {
-        observed = await readBoundedRegularFile(
-          paths.destinationPath,
-          MAXIMUM_DOCUMENT_BYTES
-        );
+        observed = await readBoundedRegularFile(paths.destinationPath, MAXIMUM_DOCUMENT_BYTES);
       } catch (error) {
-        if (error instanceof Error && "code" in error &&
-          (error as NodeJS.ErrnoException).code === "ENOENT") {
-          await assertPublicationAncestryStable(
-            request.consumerRoot,
-            path,
-            paths
-          );
+        if (
+          error instanceof Error &&
+          "code" in error &&
+          (error as NodeJS.ErrnoException).code === "ENOENT"
+        ) {
+          await assertPublicationAncestryStable(request.consumerRoot, path, paths);
           return { state: "absent" };
         }
         throw error;
@@ -148,7 +145,7 @@ export class NodeDocumentFileState implements DocumentFileState {
       return {
         state: "present",
         path,
-        identity: identityValue
+        identity: identityValue,
       };
     } catch (error) {
       if (request.signal?.aborted === true) {
@@ -167,38 +164,36 @@ export class NodeDocumentFileState implements DocumentFileState {
       request.signal?.throwIfAborted();
       const paths = await recaptureDocumentPublicationPaths({
         consumerRoot: request.consumerRoot,
-        destination: request.plan.destination
+        destination: request.plan.destination,
       });
       request.signal?.throwIfAborted();
       let observed;
       try {
-        observed = await readBoundedRegularFile(
-          paths.destinationPath,
-          request.plan.output.size
-        );
+        observed = await readBoundedRegularFile(paths.destinationPath, request.plan.output.size);
       } catch (error) {
-        if (error instanceof Error && "code" in error &&
-          (error as NodeJS.ErrnoException).code === "ENOENT") {
+        if (
+          error instanceof Error &&
+          "code" in error &&
+          (error as NodeJS.ErrnoException).code === "ENOENT"
+        ) {
           await assertPublicationAncestryStable(
             request.consumerRoot,
             request.plan.destination,
-            paths
+            paths,
           );
           return { state: "absent" };
         }
         throw error;
       }
       request.signal?.throwIfAborted();
-      await assertPublicationAncestryStable(
-        request.consumerRoot,
-        request.plan.destination,
-        paths
-      );
+      await assertPublicationAncestryStable(request.consumerRoot, request.plan.destination, paths);
       const expected = planPostimage(request.plan);
-      if (observed.outcome !== "read" ||
+      if (
+        observed.outcome !== "read" ||
         observed.bytes.byteLength !== expected.size ||
         digest(observed.bytes) !== expected.digest ||
-        (process.platform !== "win32" && (observed.mode & 0o777) !== expected.mode)) {
+        (process.platform !== "win32" && (observed.mode & 0o777) !== expected.mode)
+      ) {
         return conflict("Document destination is not the exact Plan output.");
       }
       return { state: "exact", identity: wireIdentity(observed.identity) };
@@ -226,34 +221,35 @@ export class NodeDocumentFileState implements DocumentFileState {
     try {
       const paths = await recaptureDocumentPublicationPaths({
         consumerRoot: request.consumerRoot,
-        destination: request.temporary.path
+        destination: request.temporary.path,
       });
       let observed;
       try {
         request.signal?.throwIfAborted();
         observed = await readBoundedRegularFile(paths.destinationPath, MAXIMUM_DOCUMENT_BYTES);
       } catch (error) {
-        if (error instanceof Error && "code" in error &&
-          (error as NodeJS.ErrnoException).code === "ENOENT") {
+        if (
+          error instanceof Error &&
+          "code" in error &&
+          (error as NodeJS.ErrnoException).code === "ENOENT"
+        ) {
           await assertPublicationAncestryStable(
             request.consumerRoot,
             request.temporary.path,
-            paths
+            paths,
           );
           return { state: "absent" };
         }
         throw error;
       }
       request.signal?.throwIfAborted();
-      await assertPublicationAncestryStable(
-        request.consumerRoot,
-        request.temporary.path,
-        paths
-      );
-      if (observed.outcome !== "read" ||
+      await assertPublicationAncestryStable(request.consumerRoot, request.temporary.path, paths);
+      if (
+        observed.outcome !== "read" ||
         !sameDocumentPhysicalIdentity(observed.identity, expected) ||
         digest(observed.bytes) !== request.temporary.digest ||
-        (process.platform !== "win32" && (observed.mode & 0o777) !== 0o644)) {
+        (process.platform !== "win32" && (observed.mode & 0o777) !== 0o644)
+      ) {
         return conflict("Document temporary does not match its exact owned evidence.");
       }
       return { state: "owned-exact", temporary: request.temporary };

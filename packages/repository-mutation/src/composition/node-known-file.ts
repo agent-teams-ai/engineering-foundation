@@ -18,7 +18,7 @@ import type {
   KnownFileTransactionReceiptV1,
   NodeAtomicFileReplacement,
   OwnedTemporaryCleanupTransitionPort,
-  PrepareExactSiblingTemporaryOptions
+  PrepareExactSiblingTemporaryOptions,
 } from "../repository-mutation/composition/node-api.js";
 import { createKnownFileNodeApi } from "../repository-mutation/composition/node-api.js";
 import {
@@ -40,7 +40,7 @@ import {
   releaseMutationLease,
   retainMutationBarrier,
   retainMutationBarrierOnEvidence,
-  retainMutationClaimBarrierOnEvidence
+  retainMutationClaimBarrierOnEvidence,
 } from "../transaction-coordination/composition/node.js";
 
 const knownFileNodeApi = createKnownFileNodeApi({
@@ -62,7 +62,7 @@ const knownFileNodeApi = createKnownFileNodeApi({
   releaseMutationLease,
   retainMutationBarrier,
   retainMutationBarrierOnEvidence,
-  retainMutationClaimBarrierOnEvidence
+  retainMutationClaimBarrierOnEvidence,
 });
 
 export function observeAtomicFileReplacement(input: {
@@ -89,7 +89,10 @@ export function applyKnownFileTransactionWithFaults(options: {
   return knownFileNodeApi.applyKnownFileTransactionWithFaults(options);
 }
 
-export function classifyExactFilePostimage(destinationPath: string, postimage: ExactFilePostimage): Promise<ExactFilePostimageState> {
+export function classifyExactFilePostimage(
+  destinationPath: string,
+  postimage: ExactFilePostimage,
+): Promise<ExactFilePostimageState> {
   return knownFileNodeApi.classifyExactFilePostimage(destinationPath, postimage);
 }
 
@@ -120,26 +123,34 @@ export function inspectKnownFileTransactionBarrier(options: {
   return knownFileNodeApi.inspectKnownFileTransactionBarrier(options);
 }
 
-export function prepareExactSiblingTemporary(options: PrepareExactSiblingTemporaryOptions): Promise<PortablePathIdentity> {
+export function prepareExactSiblingTemporary(
+  options: PrepareExactSiblingTemporaryOptions,
+): Promise<PortablePathIdentity> {
   return knownFileNodeApi.prepareExactSiblingTemporary(options);
 }
 
-export function prepareExactSiblingTemporaryWithFaults(options: PrepareExactSiblingTemporaryOptions & {
-  readonly faultInjector?: (point: {
-    readonly phase: "after-temporary-written";
-  }) => Promise<void> | void;
-}): Promise<PortablePathIdentity> {
+export function prepareExactSiblingTemporaryWithFaults(
+  options: PrepareExactSiblingTemporaryOptions & {
+    readonly faultInjector?: (point: {
+      readonly phase: "after-temporary-written";
+    }) => Promise<void> | void;
+  },
+): Promise<PortablePathIdentity> {
   return knownFileNodeApi.prepareExactSiblingTemporaryWithFaults(options);
 }
 
-export function publishAbsentFile(options: AbsentFilePublicationOptions): Promise<AbsentFilePublicationOutcome> {
+export function publishAbsentFile(
+  options: AbsentFilePublicationOptions,
+): Promise<AbsentFilePublicationOutcome> {
   return knownFileNodeApi.publishAbsentFile(options);
 }
 
-export function publishAbsentFileWithFaults(options: AbsentFilePublicationOptions & {
-  readonly faultInjector?: AbsentFilePublicationFaultInjector;
-  readonly operations?: Partial<AbsentFilePublicationOperations>;
-}): Promise<AbsentFilePublicationOutcome> {
+export function publishAbsentFileWithFaults(
+  options: AbsentFilePublicationOptions & {
+    readonly faultInjector?: AbsentFilePublicationFaultInjector;
+    readonly operations?: Partial<AbsentFilePublicationOperations>;
+  },
+): Promise<AbsentFilePublicationOutcome> {
   return knownFileNodeApi.publishAbsentFileWithFaults(options);
 }
 
@@ -159,7 +170,8 @@ export function recoverKnownFileTransactionWithFaults(options: {
 }
 
 export function inspectRetiredTemporaryDuplicates(
-  consumerRoot: string, filePaths: readonly string[]
+  consumerRoot: string,
+  filePaths: readonly string[],
 ): Promise<readonly { readonly path: string; readonly counterpart: string }[]> {
   return knownFileNodeApi.inspectRetiredTemporaryDuplicates(consumerRoot, filePaths);
 }

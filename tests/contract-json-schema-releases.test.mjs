@@ -1,3 +1,10 @@
+import {
+  digest,
+  writeJson,
+  withContractFixture,
+  request,
+  policy,
+} from "./support/schema-release-fixture.ts";
 import { schemaConfigurationDependencies } from "./support/capability-adapters.mjs";
 import assert from "node:assert/strict";
 import {
@@ -22,16 +29,11 @@ import { Ajv2020 } from "ajv/dist/2020.js";
 import { stringify as stringifyYaml } from "yaml";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
-const distRoot = process.env.FOUNDATION_DIST_ROOT ?? join(
-  repositoryRoot,
-  "packages",
-  "engineering-foundation",
-  "dist",
-);
+const distRoot =
+  process.env.FOUNDATION_DIST_ROOT ??
+  join(repositoryRoot, "packages", "engineering-foundation", "dist");
 const jsonSchemaModule = await import(
-  pathToFileURL(
-    join(distRoot, "capabilities", "contract-json-schema-releases", "module.js"),
-  ).href,
+  pathToFileURL(join(distRoot, "capabilities", "contract-json-schema-releases", "module.js")).href
 );
 const jsonSchemaConfig = await import(
   pathToFileURL(
@@ -44,133 +46,25 @@ const jsonSchemaConfig = await import(
       "configuration",
       "load-capability-config.js",
     ),
-  ).href,
+  ).href
 );
 const filesystemPathSafety = await import(
-  pathToFileURL(join(distRoot, "source-inventory/node.js")).href,
+  pathToFileURL(join(distRoot, "source-inventory/node.js")).href
 );
 const schemaFiles = { read: filesystemPathSafety.readContainedRegularFile };
 
-function digest(character) {
-  return `sha256:${character.repeat(64)}`;
-}
-
 function containedFileReadOperations(overrides = {}) {
   return { lstat, open, realpath, stat, ...overrides };
-}
-
-async function writeJson(root, path, value) {
-  const file = join(root, path);
-  await mkdir(dirname(file), { recursive: true });
-  await writeFile(file, `${JSON.stringify(value, null, 2)}\n`, "utf8");
-}
-
-async function withContractFixture(callback) {
-  const root = await mkdtemp(join(tmpdir(), "foundation-json-schema-release-"));
-  try {
-    await writeJson(root, "schemas/common.schema.json", {
-      $schema: "https://json-schema.org/draft/2020-12/schema",
-      $id: "https://schemas.example.test/agent/common.schema.json",
-      type: "object",
-      additionalProperties: false,
-      required: ["kind"],
-      properties: { kind: { type: "string" } },
-    });
-    await writeJson(root, "schemas/root.schema.json", {
-      $schema: "https://json-schema.org/draft/2020-12/schema",
-      $id: "https://schemas.example.test/agent/root.schema.json",
-      type: "object",
-      additionalProperties: false,
-      required: ["id", "contact", "details"],
-      properties: {
-        id: { type: "string" },
-        contact: { type: "string", format: "email" },
-        details: { $ref: "https://schemas.example.test/agent/common.schema.json" },
-      },
-    });
-    await writeJson(root, "fixtures/valid.json", {
-      id: "task-1",
-      contact: "runtime@example.test",
-      details: { kind: "created" },
-    });
-    await writeJson(root, "fixtures/invalid.json", {
-      id: 42,
-      contact: "not-an-email",
-      details: { kind: 7 },
-    });
-    return await callback(root);
-  } finally {
-    await rm(root, { force: true, recursive: true });
-  }
-}
-
-function request(root) {
-  return {
-    consumerRoot: root,
-    schemaPaths: ["schemas/root.schema.json", "schemas/common.schema.json"],
-    fixtures: [
-      {
-        id: "invalid-payload",
-        path: "fixtures/invalid.json",
-        schemaId: "https://schemas.example.test/agent/root.schema.json",
-        expectation: "invalid",
-      },
-      {
-        id: "valid-payload",
-        path: "fixtures/valid.json",
-        schemaId: "https://schemas.example.test/agent/root.schema.json",
-        expectation: "valid",
-      },
-    ],
-  };
-}
-
-function policy(observation) {
-  return {
-    schemaVersion: 1,
-    contractId: "agent-runtime-events",
-    publicContractVersion: "1.0.0",
-    schemaPaths: ["schemas/root.schema.json", "schemas/common.schema.json"],
-    fixtures: request("unused").fixtures,
-    released: {
-      schemaVersion: 1,
-      contractId: "agent-runtime-events",
-      publicContractVersion: "1.0.0",
-      schemaSetDigest: observation.schemaSetDigest,
-      fixtureCorpusDigest: observation.fixtureCorpusDigest,
-      supportedConsumers: [
-        {
-          consumerId: "orchestrator-sdk",
-          consumerVersion: "1.0.0",
-          contractId: "agent-runtime-events",
-          contractVersion: "1.0.0",
-          schemaSetDigest: observation.schemaSetDigest,
-          fixtureCorpusDigest: observation.fixtureCorpusDigest,
-          evidenceDigest: digest("a"),
-          outcome: "passed",
-        },
-      ],
-    },
-    currentConsumerEvidence: [
-      {
-        consumerId: "orchestrator-sdk",
-        consumerVersion: "1.0.0",
-        contractId: "agent-runtime-events",
-        contractVersion: "1.0.0",
-        schemaSetDigest: observation.schemaSetDigest,
-        fixtureCorpusDigest: observation.fixtureCorpusDigest,
-        evidenceDigest: digest("b"),
-        outcome: "passed",
-      },
-    ],
-  };
 }
 
 function releasedBaseline(observation) {
   return policy(observation).released;
 }
 
-function capabilityConfig(observation, releasedBaselinePath = "architecture/contracts/released.yaml") {
+function capabilityConfig(
+  observation,
+  releasedBaselinePath = "architecture/contracts/released.yaml",
+) {
   const normalized = policy(observation);
   return {
     schemaVersion: normalized.schemaVersion,
@@ -204,7 +98,9 @@ async function writeSeparatedPolicy(
 
 test("schema file port preserves fixture results and supplies every bounded read", async () => {
   await withContractFixture(async (root) => {
-    const expected = await new jsonSchemaModule.AjvJsonSchemaReleaseInspector(schemaFiles).inspect(request(root));
+    const expected = await new jsonSchemaModule.AjvJsonSchemaReleaseInspector(schemaFiles).inspect(
+      request(root),
+    );
     const calls = [];
     const files = {
       calls,
@@ -213,12 +109,22 @@ test("schema file port preserves fixture results and supplies every bounded read
         return new Uint8Array(await schemaFiles.read(input));
       },
     };
-    const actual = await new jsonSchemaModule.AjvJsonSchemaReleaseInspector(files).inspect(request(root));
+    const actual = await new jsonSchemaModule.AjvJsonSchemaReleaseInspector(files).inspect(
+      request(root),
+    );
     assert.deepEqual(actual, expected);
     const canonicalRoot = await realpath(root);
-    assert.deepEqual(calls.map(({ candidate }) => candidate).toSorted(), [
-      "schemas/common.schema.json", "schemas/root.schema.json", "fixtures/invalid.json", "fixtures/valid.json",
-    ].map((path) => join(canonicalRoot, path)).toSorted());
+    assert.deepEqual(
+      calls.map(({ candidate }) => candidate).toSorted(),
+      [
+        "schemas/common.schema.json",
+        "schemas/root.schema.json",
+        "fixtures/invalid.json",
+        "fixtures/valid.json",
+      ]
+        .map((path) => join(canonicalRoot, path))
+        .toSorted(),
+    );
     for (const call of calls) {
       assert.equal(call.root, canonicalRoot);
       assert.equal(call.maxBytes, 4 * 1024 * 1024);
@@ -227,15 +133,27 @@ test("schema file port preserves fixture results and supplies every bounded read
 });
 
 for (const [failure, code] of [
-  ["escape", "JSON_SCHEMA_PATH_ESCAPE"], ["symlink", "JSON_SCHEMA_SYMLINK_PROHIBITED"],
-  ["invalid", "JSON_SCHEMA_FILE_INVALID"], ["changed", "JSON_SCHEMA_FILE_UNAVAILABLE"],
-  ["missing", "JSON_SCHEMA_FILE_UNAVAILABLE"], ["unavailable", "JSON_SCHEMA_FILE_UNAVAILABLE"],
+  ["escape", "JSON_SCHEMA_PATH_ESCAPE"],
+  ["symlink", "JSON_SCHEMA_SYMLINK_PROHIBITED"],
+  ["invalid", "JSON_SCHEMA_FILE_INVALID"],
+  ["changed", "JSON_SCHEMA_FILE_UNAVAILABLE"],
+  ["missing", "JSON_SCHEMA_FILE_UNAVAILABLE"],
+  ["unavailable", "JSON_SCHEMA_FILE_UNAVAILABLE"],
 ]) {
   test(`schema file port preserves ${failure} diagnostics`, async () => {
     await withContractFixture(async (root) => {
-      const files = { async read() { throw new filesystemPathSafety.ContainedFileReadError(failure); } };
-      await assert.rejects(new jsonSchemaModule.AjvJsonSchemaReleaseInspector(files).inspect(request(root)),
-        ({ problem }) => problem?.code === code && problem.phase === "json-schema-release-inspection" && problem.retryable === false);
+      const files = {
+        async read() {
+          throw new filesystemPathSafety.ContainedFileReadError(failure);
+        },
+      };
+      await assert.rejects(
+        new jsonSchemaModule.AjvJsonSchemaReleaseInspector(files).inspect(request(root)),
+        ({ problem }) =>
+          problem?.code === code &&
+          problem.phase === "json-schema-release-inspection" &&
+          problem.retryable === false,
+      );
     });
   });
 }
@@ -243,27 +161,48 @@ for (const [failure, code] of [
 test("schema file port propagates unknown failures without a filesystem fallback", async () => {
   await withContractFixture(async (root) => {
     const failure = new Error("injected read failed");
-    const files = { async read() { throw failure; } };
-    await assert.rejects(new jsonSchemaModule.AjvJsonSchemaReleaseInspector(files).inspect(request(root)),
-      (actual) => actual === failure);
+    const files = {
+      async read() {
+        throw failure;
+      },
+    };
+    await assert.rejects(
+      new jsonSchemaModule.AjvJsonSchemaReleaseInspector(files).inspect(request(root)),
+      (actual) => actual === failure,
+    );
   });
 });
 
 test("schema file port cannot bypass the JSON evidence byte limit", async () => {
   await withContractFixture(async (root) => {
-    const files = { async read() { return new Uint8Array(4 * 1024 * 1024 + 1); } };
-    await assert.rejects(new jsonSchemaModule.AjvJsonSchemaReleaseInspector(files).inspect(request(root)),
-      ({ problem }) => problem?.code === "JSON_SCHEMA_FILE_INVALID");
+    const files = {
+      async read() {
+        return new Uint8Array(4 * 1024 * 1024 + 1);
+      },
+    };
+    await assert.rejects(
+      new jsonSchemaModule.AjvJsonSchemaReleaseInspector(files).inspect(request(root)),
+      ({ problem }) => problem?.code === "JSON_SCHEMA_FILE_INVALID",
+    );
   });
 });
 
 test("schema file port is not invoked after pre-cancellation", async () => {
   await withContractFixture(async (root) => {
     let calls = 0;
-    const files = { async read() { calls += 1; throw new Error("must not read"); } };
-    await assert.rejects(new jsonSchemaModule.AjvJsonSchemaReleaseInspector(files).inspect({
-      ...request(root), signal: AbortSignal.abort(),
-    }), ({ problem }) => problem?.code === "EXECUTION_CANCELLED");
+    const files = {
+      async read() {
+        calls += 1;
+        throw new Error("must not read");
+      },
+    };
+    await assert.rejects(
+      new jsonSchemaModule.AjvJsonSchemaReleaseInspector(files).inspect({
+        ...request(root),
+        signal: AbortSignal.abort(),
+      }),
+      ({ problem }) => problem?.code === "EXECUTION_CANCELLED",
+    );
     assert.equal(calls, 0);
   });
 });
@@ -308,12 +247,14 @@ test("accepts exact 4 MiB Ajv schema and document evidence and rejects one byte 
     const requestAtLimit = {
       consumerRoot: root,
       schemaPaths: [schemaPath],
-      fixtures: [{
-        id: "limit-document",
-        path: fixturePath,
-        schemaId: "https://schemas.example.test/limit/v1",
-        expectation: "valid",
-      }],
+      fixtures: [
+        {
+          id: "limit-document",
+          path: fixturePath,
+          schemaId: "https://schemas.example.test/limit/v1",
+          expectation: "valid",
+        },
+      ],
       requireMixedExpectations: false,
     };
     for (const oversizedPath of [schemaPath, fixturePath]) {
@@ -330,9 +271,8 @@ test("accepts exact 4 MiB Ajv schema and document evidence and rejects one byte 
       ]);
       sources.set(oversizedPath, Buffer.concat([sources.get(oversizedPath), Buffer.from(" ")]));
       await assert.rejects(
-        new jsonSchemaModule.AjvJsonSchemaReleaseInspector(
-          schemaFiles,
-          async (path) => sources.get(path),
+        new jsonSchemaModule.AjvJsonSchemaReleaseInspector(schemaFiles, async (path) =>
+          sources.get(path),
         ).inspect(requestAtLimit),
         ({ problem }) => problem?.code === "JSON_SCHEMA_FILE_INVALID",
       );
@@ -443,7 +383,11 @@ test("rejects a JSON Schema released-baseline pointer outside the release-owned 
     const config = capabilityConfig(observation, "tmp/reset-history.yaml");
     await writeYaml(root, "contract.yaml", config);
     await assert.rejects(
-      jsonSchemaConfig.loadCapabilityConfig(schemaConfigurationDependencies(), root, "contract.yaml"),
+      jsonSchemaConfig.loadCapabilityConfig(
+        schemaConfigurationDependencies(),
+        root,
+        "contract.yaml",
+      ),
       /releasedBaselinePath must match pattern/u,
     );
   });
@@ -502,7 +446,10 @@ test("resolves local references from nested schema resource IDs", async () => {
 
     const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector(schemaFiles);
     const observation = await inspector.inspect(request(root));
-    assert.equal(observation.fixtureResults.every((fixture) => fixture.matched), true);
+    assert.equal(
+      observation.fixtureResults.every((fixture) => fixture.matched),
+      true,
+    );
   });
 });
 
@@ -647,7 +594,9 @@ test("runs as a deterministic capability and closes unexpected inspector failure
     const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector(schemaFiles);
     const observation = await inspector.inspect(request(root));
     await writeSeparatedPolicy(root, observation, "architecture/contracts/released.json");
-    const capability = jsonSchemaModule.createJsonSchemaReleaseCapability({ assertSchema: schemaConfigurationDependencies().assertSchema });
+    const capability = jsonSchemaModule.createJsonSchemaReleaseCapability({
+      assertSchema: schemaConfigurationDependencies().assertSchema,
+    });
     const first = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
     const second = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
     assert.equal(first.outcome, "passed");
@@ -661,11 +610,7 @@ test("runs as a deterministic capability and closes unexpected inspector failure
     assert.equal(cancelled.outcome, "cancelled");
     assert.equal(cancelled.problem.code, "EXECUTION_CANCELLED");
 
-    await writeFile(
-      join(root, "contract.yaml"),
-      "schemaVersion: 1\ncontractId: invalid\n",
-      "utf8",
-    );
+    await writeFile(join(root, "contract.yaml"), "schemaVersion: 1\ncontractId: invalid\n", "utf8");
     const invalid = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
     assert.equal(invalid.outcome, "invalid-input");
     assert.equal(invalid.problem.code, "SCHEMA_INVALID");
@@ -690,7 +635,9 @@ test("requires an explicitly supported root configuration schema version", async
   await withContractFixture(async (root) => {
     const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector(schemaFiles);
     const observation = await inspector.inspect(request(root));
-    const capability = jsonSchemaModule.createJsonSchemaReleaseCapability({ assertSchema: schemaConfigurationDependencies().assertSchema });
+    const capability = jsonSchemaModule.createJsonSchemaReleaseCapability({
+      assertSchema: schemaConfigurationDependencies().assertSchema,
+    });
 
     const missingVersion = capabilityConfig(observation);
     delete missingVersion.schemaVersion;
@@ -751,9 +698,7 @@ test("JSON Schema contract config and released baseline schemas accept verified 
       ),
       "utf8",
     );
-    const validateBaseline = new Ajv2020({ strict: true }).compile(
-      JSON.parse(baselineSource),
-    );
+    const validateBaseline = new Ajv2020({ strict: true }).compile(JSON.parse(baselineSource));
     assert.equal(
       validateBaseline(releasedBaseline(observation)),
       true,
@@ -775,7 +720,9 @@ test("loads a separate released baseline deterministically and rejects inline su
     const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector(schemaFiles);
     const observation = await inspector.inspect(request(root));
     await writeSeparatedPolicy(root, observation);
-    const capability = jsonSchemaModule.createJsonSchemaReleaseCapability({ assertSchema: schemaConfigurationDependencies().assertSchema });
+    const capability = jsonSchemaModule.createJsonSchemaReleaseCapability({
+      assertSchema: schemaConfigurationDependencies().assertSchema,
+    });
 
     const first = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
     const second = await capability.run({ consumerRoot: root, configPath: "contract.yaml" });
@@ -797,7 +744,9 @@ test("rejects missing, escaping, and invalid released JSON Schema baselines", as
   await withContractFixture(async (root) => {
     const inspector = new jsonSchemaModule.AjvJsonSchemaReleaseInspector(schemaFiles);
     const observation = await inspector.inspect(request(root));
-    const capability = jsonSchemaModule.createJsonSchemaReleaseCapability({ assertSchema: schemaConfigurationDependencies().assertSchema });
+    const capability = jsonSchemaModule.createJsonSchemaReleaseCapability({
+      assertSchema: schemaConfigurationDependencies().assertSchema,
+    });
     const config = capabilityConfig(observation);
     await writeYaml(root, "contract.yaml", config);
 
@@ -828,21 +777,35 @@ test("rejects missing, escaping, and invalid released JSON Schema baselines", as
   });
 });
 
-
 test("valid open prefix tuples retain prefix and tail instance validation", async () => {
   await withContractFixture(async (root) => {
     await writeJson(root, "schemas/root.schema.json", {
       $schema: "https://json-schema.org/draft/2020-12/schema",
       $id: "https://schemas.example.test/agent/root.schema.json",
-      type: "array", prefixItems: [{ type: "string" }], items: { type: "integer" },
+      type: "array",
+      prefixItems: [{ type: "string" }],
+      items: { type: "integer" },
     });
     await writeJson(root, "fixtures/valid.json", ["first", 42, 7]);
-    for (const invalid of [[42, 7], ["first", "invalid tail"]]) {
+    for (const invalid of [
+      [42, 7],
+      ["first", "invalid tail"],
+    ]) {
       await writeJson(root, "fixtures/invalid.json", invalid);
-      const observation = await new jsonSchemaModule.AjvJsonSchemaReleaseInspector(schemaFiles).inspect(request(root));
-      assert.deepEqual(observation.fixtureResults.map((fixture) => [fixture.id, fixture.expectation, fixture.matched]), [
-        ["invalid-payload", "invalid", true], ["valid-payload", "valid", true],
-      ]);
+      const observation = await new jsonSchemaModule.AjvJsonSchemaReleaseInspector(
+        schemaFiles,
+      ).inspect(request(root));
+      assert.deepEqual(
+        observation.fixtureResults.map((fixture) => [
+          fixture.id,
+          fixture.expectation,
+          fixture.matched,
+        ]),
+        [
+          ["invalid-payload", "invalid", true],
+          ["valid-payload", "valid", true],
+        ],
+      );
     }
   });
 });

@@ -68,15 +68,17 @@ function auditEvidence(profile, commit = reviewedCommit) {
   const statement = {
     _type: "https://in-toto.io/Statement/v1",
     predicateType: "https://slsa.dev/provenance/v1",
-    subject: [{
-      name: `pkg:npm/%40${profile.name.slice(1)}@${profile.bootstrapVersion}`,
-      digest: {
-        sha512: Buffer.from(
-          profile.approval.archiveIntegrity.slice("sha512-".length),
-          "base64",
-        ).toString("hex"),
+    subject: [
+      {
+        name: `pkg:npm/%40${profile.name.slice(1)}@${profile.bootstrapVersion}`,
+        digest: {
+          sha512: Buffer.from(
+            profile.approval.archiveIntegrity.slice("sha512-".length),
+            "base64",
+          ).toString("hex"),
+        },
       },
-    }],
+    ],
     predicate: {
       buildDefinition: {
         externalParameters: {
@@ -86,35 +88,42 @@ function auditEvidence(profile, commit = reviewedCommit) {
             ref: profile.provenance.ref,
           },
         },
-        resolvedDependencies: [{
-          uri: `git+${NPM_PACKAGE_BOOTSTRAP.repository}@${profile.provenance.ref}`,
-          digest: { gitCommit: commit },
-        }],
+        resolvedDependencies: [
+          {
+            uri: `git+${NPM_PACKAGE_BOOTSTRAP.repository}@${profile.provenance.ref}`,
+            digest: { gitCommit: commit },
+          },
+        ],
       },
     },
   };
   return {
     invalid: [],
     missing: [],
-    verified: [{
-      name: profile.name,
-      version: profile.bootstrapVersion,
-      attestations: {
-        provenance: { predicateType: "https://slsa.dev/provenance/v1" },
-      },
-      attestationBundles: [{
-        predicateType: "https://slsa.dev/provenance/v1",
-        bundle: {
-          dsseEnvelope: {
-            payloadType: "application/vnd.in-toto+json",
-            payload: Buffer.from(JSON.stringify(statement), "utf8").toString("base64"),
-          },
+    verified: [
+      {
+        name: profile.name,
+        version: profile.bootstrapVersion,
+        attestations: {
+          provenance: { predicateType: "https://slsa.dev/provenance/v1" },
         },
-      }, {
-        predicateType: "https://github.com/npm/attestation/tree/main/specs/publish/v0.1",
-        bundle: {},
-      }],
-    }],
+        attestationBundles: [
+          {
+            predicateType: "https://slsa.dev/provenance/v1",
+            bundle: {
+              dsseEnvelope: {
+                payloadType: "application/vnd.in-toto+json",
+                payload: Buffer.from(JSON.stringify(statement), "utf8").toString("base64"),
+              },
+            },
+          },
+          {
+            predicateType: "https://github.com/npm/attestation/tree/main/specs/publish/v0.1",
+            bundle: {},
+          },
+        ],
+      },
+    ],
   };
 }
 
@@ -129,11 +138,13 @@ function releaseState(profile, version) {
   return {
     packages: {
       private: [],
-      public: [{
-        manifestBytes: JSON.stringify({ name: profile.name, version }),
-        name: profile.name,
-        version,
-      }],
+      public: [
+        {
+          manifestBytes: JSON.stringify({ name: profile.name, version }),
+          name: profile.name,
+          version,
+        },
+      ],
     },
   };
 }
@@ -155,27 +166,33 @@ test("bootstrap catalog is closed, data-only, and retains retired authorities", 
   const authoring = bootstrapPackageById("document-authoring");
   const standard = bootstrapPackageById("feature-module-standard");
   assert.deepEqual(standard.approval, {
-    archiveIntegrity: "sha512-oE2OGPkhoa08Jr1LhwgePnuRImlE6b7fKK9C2pKcazLY2565SQHsZ2Tpn2WrHrzFJxN8jGh/QVCXhwVLrkhlGA==",
+    archiveIntegrity:
+      "sha512-oE2OGPkhoa08Jr1LhwgePnuRImlE6b7fKK9C2pKcazLY2565SQHsZ2Tpn2WrHrzFJxN8jGh/QVCXhwVLrkhlGA==",
     packageTree: "d2686d208af115b731ba135fc1980aa9355ff747",
   });
-  assert.throws(() => bootstrapPackageById("feature-module-standard", { approved: true }), /not approved/u);
+  assert.throws(
+    () => bootstrapPackageById("feature-module-standard", { approved: true }),
+    /not approved/u,
+  );
   const candidate = structuredClone(NPM_PACKAGE_BOOTSTRAP);
   const candidateStandard = candidate.packages.find(({ id }) => id === "feature-module-standard");
   candidateStandard.state = "candidate";
   candidateStandard.approval = null;
   assert.throws(
-    () => bootstrapPackageById("feature-module-standard", { approved: true, catalog: parseBootstrapCatalog(candidate) }),
+    () =>
+      bootstrapPackageById("feature-module-standard", {
+        approved: true,
+        catalog: parseBootstrapCatalog(candidate),
+      }),
     /not approved/u,
   );
   const inputProof = bootstrapPackageById("ci-input-proof");
   assert.deepEqual(inputProof.approval, {
-    archiveIntegrity: "sha512-TfvqvgodFFHk8ZuM9rRByn+2WQIrL/lw08s7XlqzI8Ww1O9DU5S9cpaggylbmUjbyiqm7T2itDBmEF33C8DO4A==",
+    archiveIntegrity:
+      "sha512-TfvqvgodFFHk8ZuM9rRByn+2WQIrL/lw08s7XlqzI8Ww1O9DU5S9cpaggylbmUjbyiqm7T2itDBmEF33C8DO4A==",
     packageTree: "7f534b4e0323045535fd9024d70e7e1d2ac63b3c",
   });
-  assert.throws(
-    () => bootstrapPackageById("ci-input-proof", { approved: true }),
-    /not approved/u,
-  );
+  assert.throws(() => bootstrapPackageById("ci-input-proof", { approved: true }), /not approved/u);
   assert.equal(authoring.bootstrapVersion, "0.0.0");
   assert.equal(authoring.approval.packageTree, "2dfd15f46cd3381f6c4ba1a2eaab090dd5c0f33f");
   assert.throws(
@@ -194,27 +211,54 @@ test("bootstrap catalog is closed, data-only, and retains retired authorities", 
     () => bootstrapPackageById("docs-protocol-agent-teams", { approved: true }),
     /not approved/u,
   );
-  assert.throws(() => bootstrapPackageById("docs-protocol-mcp", { approved: true }), /not approved/u);
+  assert.throws(
+    () => bootstrapPackageById("docs-protocol-mcp", { approved: true }),
+    /not approved/u,
+  );
   assert.deepEqual(mcpProfile.tags, {
     allowed: ["bootstrap", "latest"],
     required: ["bootstrap"],
   });
 
   for (const mutation of [
-    (value) => { value.extra = true; },
-    (value) => { value.schemaVersion = 1; },
-    (value) => { value.packages[0].root = "../escape"; },
-    (value) => { value.packages[0].tags.required = ["latest"]; },
-    (value) => { value.packages[0].tags.allowed.push("next"); },
-    (value) => { value.packages.find(({ id }) => id === "docs-protocol-agent-teams").dependencies[0].version = "latest"; },
-    (value) => { value.packages.find(({ id }) => id === "docs-protocol-agent-teams").dependencies[3].specifier = "latest"; },
-    (value) => { value.packages[0].contentPolicy.prefixes = ["dist/file.js"]; },
+    (value) => {
+      value.extra = true;
+    },
+    (value) => {
+      value.schemaVersion = 1;
+    },
+    (value) => {
+      value.packages[0].root = "../escape";
+    },
+    (value) => {
+      value.packages[0].tags.required = ["latest"];
+    },
+    (value) => {
+      value.packages[0].tags.allowed.push("next");
+    },
+    (value) => {
+      value.packages.find(({ id }) => id === "docs-protocol-agent-teams").dependencies[0].version =
+        "latest";
+    },
+    (value) => {
+      value.packages.find(
+        ({ id }) => id === "docs-protocol-agent-teams",
+      ).dependencies[3].specifier = "latest";
+    },
+    (value) => {
+      value.packages[0].contentPolicy.prefixes = ["dist/file.js"];
+    },
     (value) => {
       const profile = value.packages.find(({ id }) => id === "docs-protocol-agent-teams");
       profile.state = "approved";
       profile.approval = { archiveIntegrity: "bad", packageTree: "not-a-tree" };
     },
-    (value) => { value.packages.find(({ id }) => id === "document-authoring").approval = { archiveIntegrity: "bad", packageTree: "a".repeat(40) }; },
+    (value) => {
+      value.packages.find(({ id }) => id === "document-authoring").approval = {
+        archiveIntegrity: "bad",
+        packageTree: "a".repeat(40),
+      };
+    },
   ]) {
     const value = structuredClone(NPM_PACKAGE_BOOTSTRAP);
     mutation(value);
@@ -223,10 +267,15 @@ test("bootstrap catalog is closed, data-only, and retains retired authorities", 
 });
 
 test("bootstrap workspace authority distinguishes internal and catalog dependencies", async () => {
-  const manifest = Object.assign(JSON.parse(await readFile(
-    new URL("../packages/document-authoring/package.json", import.meta.url),
-    "utf8",
-  )), { version: authoringProfile.bootstrapVersion });
+  const manifest = Object.assign(
+    JSON.parse(
+      await readFile(
+        new URL("../packages/document-authoring/package.json", import.meta.url),
+        "utf8",
+      ),
+    ),
+    { version: authoringProfile.bootstrapVersion },
+  );
   assert.doesNotThrow(() => assertWorkspaceManifestMatchesProfile(authoringProfile, manifest));
 
   const catalogDrift = structuredClone(manifest);
@@ -245,11 +294,13 @@ test("bootstrap workspace authority distinguishes internal and catalog dependenc
 });
 
 test("bootstrap accepts only a live granular token window of at most one day", () => {
-  assert.doesNotThrow(() => assertOneDayGranularTokenWindow({
-    createdAt: "2026-08-29T00:00:00Z",
-    expiresAt: "2026-08-30T00:00:00Z",
-    now: "2026-08-29T12:00:00Z",
-  }));
+  assert.doesNotThrow(() =>
+    assertOneDayGranularTokenWindow({
+      createdAt: "2026-08-29T00:00:00Z",
+      expiresAt: "2026-08-30T00:00:00Z",
+      now: "2026-08-29T12:00:00Z",
+    }),
+  );
   for (const input of [
     {
       createdAt: "2026-08-29T00:00:00Z",
@@ -280,7 +331,14 @@ test("pack evidence binds identity, dependency, allowlist, tree, and reviewed SR
   const catalog = approvedMcpCatalog(archiveBytes);
   const profile = catalog.packages[0];
   const archivePath = resolve("/tmp/agent-teams-docs-protocol-agent-teams-0.0.0.tgz");
-  const files = ["CHANGELOG.md", "LICENSE", "README.md", "dist/index.js", "package.json", "skills/docs/SKILL.md"];
+  const files = [
+    "CHANGELOG.md",
+    "LICENSE",
+    "README.md",
+    "dist/index.js",
+    "package.json",
+    "skills/docs/SKILL.md",
+  ];
   const input = {
     archivePath,
     archiveBytes,
@@ -297,32 +355,58 @@ test("pack evidence binds identity, dependency, allowlist, tree, and reviewed SR
         registry: NPM_PACKAGE_BOOTSTRAP.registry,
       },
     },
-    packReport: [{
-      filename: archivePath,
-      files: files.map((path) => ({ path })),
-      name: profile.name,
-      version: profile.bootstrapVersion,
-    }],
+    packReport: [
+      {
+        filename: archivePath,
+        files: files.map((path) => ({ path })),
+        name: profile.name,
+        version: profile.bootstrapVersion,
+      },
+    ],
     profile,
     tarEntries: files.map((path) => `package/${path}`),
-    tarVerboseListing: files.map((path) => `-rw-r--r-- 0 0 0 1 Jan 1 00:00 package/${path}`).join("\n"),
+    tarVerboseListing: files
+      .map((path) => `-rw-r--r-- 0 0 0 1 Jan 1 00:00 package/${path}`)
+      .join("\n"),
   };
   assert.deepEqual(validatePackEvidence(input), {
     archivePath: input.packReport[0].filename,
     integrity: profile.approval.archiveIntegrity,
   });
   for (const mutation of [
-    (value) => { value.packageTree = "c".repeat(40); },
-    (value) => { value.archiveBytes = Buffer.from("different"); },
-    (value) => { value.archiveBytes = foreignGzipWrapper; },
-    (value) => { value.packedManifest.dependencies["@agent-teams/docs-protocol"] = "0.3.1"; },
-    (value) => { value.packedManifest.dependencies["unexpected-package"] = "1.0.0"; },
-    (value) => { value.packedManifest.optionalDependencies = {}; },
-    (value) => { value.archivePath = resolve("/tmp/different-archive.tgz"); },
-    (value) => { value.packReport[0].files.push({ path: "secret.env" }); },
-    (value) => { value.tarEntries.pop(); },
-    (value) => { value.tarVerboseListing = value.tarVerboseListing.replace(/^-/, "l"); },
-    (value) => { value.archiveBytes = Buffer.alloc(8 * 1024 * 1024 + 1); },
+    (value) => {
+      value.packageTree = "c".repeat(40);
+    },
+    (value) => {
+      value.archiveBytes = Buffer.from("different");
+    },
+    (value) => {
+      value.archiveBytes = foreignGzipWrapper;
+    },
+    (value) => {
+      value.packedManifest.dependencies["@agent-teams/docs-protocol"] = "0.3.1";
+    },
+    (value) => {
+      value.packedManifest.dependencies["unexpected-package"] = "1.0.0";
+    },
+    (value) => {
+      value.packedManifest.optionalDependencies = {};
+    },
+    (value) => {
+      value.archivePath = resolve("/tmp/different-archive.tgz");
+    },
+    (value) => {
+      value.packReport[0].files.push({ path: "secret.env" });
+    },
+    (value) => {
+      value.tarEntries.pop();
+    },
+    (value) => {
+      value.tarVerboseListing = value.tarVerboseListing.replace(/^-/, "l");
+    },
+    (value) => {
+      value.archiveBytes = Buffer.alloc(8 * 1024 * 1024 + 1);
+    },
   ]) {
     const value = structuredClone(input);
     value.archiveBytes = Buffer.from(input.archiveBytes);
@@ -340,30 +424,51 @@ test("registry preflight publishes only a proven absent namespace and resumes on
     localIntegrity: profile.approval.archiveIntegrity,
     profile,
   };
-  assert.equal(classifyRegistryPreflight({
-    ...base,
-    packageMetadata: null,
-    publishedIntegrity: null,
-  }), "publish");
-  assert.equal(classifyRegistryPreflight({
-    ...base,
-    packageMetadata: bootstrapMetadata(profile),
-    publishedIntegrity: profile.approval.archiveIntegrity,
-  }), "reuse");
+  assert.equal(
+    classifyRegistryPreflight({
+      ...base,
+      packageMetadata: null,
+      publishedIntegrity: null,
+    }),
+    "publish",
+  );
+  assert.equal(
+    classifyRegistryPreflight({
+      ...base,
+      packageMetadata: bootstrapMetadata(profile),
+      publishedIntegrity: profile.approval.archiveIntegrity,
+    }),
+    "reuse",
+  );
   const partialMetadata = bootstrapMetadata(profile);
   delete partialMetadata["dist-tags"].latest;
-  assert.equal(classifyRegistryPreflight({
-    ...base,
-    packageMetadata: partialMetadata,
-    publishedIntegrity: profile.approval.archiveIntegrity,
-  }), "reuse");
+  assert.equal(
+    classifyRegistryPreflight({
+      ...base,
+      packageMetadata: partialMetadata,
+      publishedIntegrity: profile.approval.archiveIntegrity,
+    }),
+    "reuse",
+  );
   for (const mutation of [
-    (value) => { value.dependencyVersions[profile.dependencies[0].name] = null; },
-    (value) => { value.dependencyVersions[profile.dependencies.at(-1).name] = null; },
-    (value) => { value.publishedIntegrity = integrity(Buffer.from("foreign")); },
-    (value) => { value.packageMetadata.versions.push("0.0.1"); },
-    (value) => { value.packageMetadata["dist-tags"].foreign = "0.0.0"; },
-    (value) => { delete value.packageMetadata["dist-tags"].bootstrap; },
+    (value) => {
+      value.dependencyVersions[profile.dependencies[0].name] = null;
+    },
+    (value) => {
+      value.dependencyVersions[profile.dependencies.at(-1).name] = null;
+    },
+    (value) => {
+      value.publishedIntegrity = integrity(Buffer.from("foreign"));
+    },
+    (value) => {
+      value.packageMetadata.versions.push("0.0.1");
+    },
+    (value) => {
+      value.packageMetadata["dist-tags"].foreign = "0.0.0";
+    },
+    (value) => {
+      delete value.packageMetadata["dist-tags"].bootstrap;
+    },
   ]) {
     const value = {
       ...base,
@@ -387,7 +492,9 @@ test("registry preflight requires bounded repeated 404 evidence before publish",
         return new Response("not found", { status: 404 });
       }
       const dependency = profile.dependencies.find(({ name }) => name === packageName);
-      return new Response(JSON.stringify({ versions: { [dependency.version]: {} } }), { status: 200 });
+      return new Response(JSON.stringify({ versions: { [dependency.version]: {} } }), {
+        status: 200,
+      });
     },
     observationOptions: { attempts: 3, wait: async () => {} },
   });
@@ -398,33 +505,42 @@ test("registry preflight requires bounded repeated 404 evidence before publish",
 test("reuse proof rejects a dist-tag race before token-bearing mutations", () => {
   const profile = approvedMcpCatalog().packages[0];
   const packageMetadata = bootstrapMetadata(profile);
-  assert.equal(classifyRegistryPreflight({
-    dependencyVersions: Object.fromEntries(
-      profile.dependencies.map(({ name, version }) => [name, version]),
-    ),
-    localIntegrity: profile.approval.archiveIntegrity,
-    packageMetadata,
-    profile,
-    publishedIntegrity: profile.approval.archiveIntegrity,
-  }), "reuse");
+  assert.equal(
+    classifyRegistryPreflight({
+      dependencyVersions: Object.fromEntries(
+        profile.dependencies.map(({ name, version }) => [name, version]),
+      ),
+      localIntegrity: profile.approval.archiveIntegrity,
+      packageMetadata,
+      profile,
+      publishedIntegrity: profile.approval.archiveIntegrity,
+    }),
+    "reuse",
+  );
   delete packageMetadata["dist-tags"].latest;
-  assert.doesNotThrow(() => assertReusableBootstrap({
-    auditEvidence: auditEvidence(profile),
-    expectedCommit: reviewedCommit,
-    localIntegrity: profile.approval.archiveIntegrity,
-    packageMetadata,
-    profile,
-    publishedIntegrity: profile.approval.archiveIntegrity,
-  }));
+  assert.doesNotThrow(() =>
+    assertReusableBootstrap({
+      auditEvidence: auditEvidence(profile),
+      expectedCommit: reviewedCommit,
+      localIntegrity: profile.approval.archiveIntegrity,
+      packageMetadata,
+      profile,
+      publishedIntegrity: profile.approval.archiveIntegrity,
+    }),
+  );
   packageMetadata["dist-tags"].foreign = profile.bootstrapVersion;
-  assert.throws(() => assertReusableBootstrap({
-    auditEvidence: auditEvidence(profile),
-    expectedCommit: reviewedCommit,
-    localIntegrity: profile.approval.archiveIntegrity,
-    packageMetadata,
-    profile,
-    publishedIntegrity: profile.approval.archiveIntegrity,
-  }), /unexpected bootstrap dist-tag/u);
+  assert.throws(
+    () =>
+      assertReusableBootstrap({
+        auditEvidence: auditEvidence(profile),
+        expectedCommit: reviewedCommit,
+        localIntegrity: profile.approval.archiveIntegrity,
+        packageMetadata,
+        profile,
+        publishedIntegrity: profile.approval.archiveIntegrity,
+      }),
+    /unexpected bootstrap dist-tag/u,
+  );
 });
 
 test("published artifact proof accepts only required bootstrap and optional registry-created latest", () => {
@@ -452,28 +568,34 @@ test("mutation proof audits first and rejects registry state changed during the 
   const profile = approvedProfile;
   const mutableMetadata = bootstrapMetadata(profile);
   const events = [];
-  await assert.rejects(() => proveLiveBootstrap(
-    [profile.id, profile.approval.archiveIntegrity, reviewedCommit, "unused.json"],
-    assertBootstrapMutationPreconditions,
-    "bootstrap mutation target remained absent.",
-    {
-      catalog: approvedCatalog,
-      auditPackage: async () => {
-        events.push("audit");
-        mutableMetadata["dist-tags"].foreign = profile.bootstrapVersion;
-        return auditEvidence(profile);
-      },
-      liveEvidence: async () => {
-        events.push("fresh-registry-read");
-        return {
-          deprecatedMessage: null,
-          integrity: profile.approval.archiveIntegrity,
-          metadata: structuredClone(mutableMetadata),
-        };
-      },
-      writeEvidence: async () => { events.push("write-evidence"); },
-    },
-  ), /unexpected bootstrap dist-tag/u);
+  await assert.rejects(
+    () =>
+      proveLiveBootstrap(
+        [profile.id, profile.approval.archiveIntegrity, reviewedCommit, "unused.json"],
+        assertBootstrapMutationPreconditions,
+        "bootstrap mutation target remained absent.",
+        {
+          catalog: approvedCatalog,
+          auditPackage: async () => {
+            events.push("audit");
+            mutableMetadata["dist-tags"].foreign = profile.bootstrapVersion;
+            return auditEvidence(profile);
+          },
+          liveEvidence: async () => {
+            events.push("fresh-registry-read");
+            return {
+              deprecatedMessage: null,
+              integrity: profile.approval.archiveIntegrity,
+              metadata: structuredClone(mutableMetadata),
+            };
+          },
+          writeEvidence: async () => {
+            events.push("write-evidence");
+          },
+        },
+      ),
+    /unexpected bootstrap dist-tag/u,
+  );
   assert.deepEqual(events, ["audit", "fresh-registry-read"]);
 });
 
@@ -495,7 +617,9 @@ test("mutation proof stores only validated evidence fields", async () => {
         integrity: profile.approval.archiveIntegrity,
         metadata: bootstrapMetadata(profile),
       }),
-      writeEvidence: async (_path, value) => { written = value; },
+      writeEvidence: async (_path, value) => {
+        written = value;
+      },
     },
   );
   const evidence = JSON.parse(written);
@@ -517,7 +641,12 @@ test("mutation proof retries stale registry metadata without repeating its audit
   const waits = [];
   let writes = 0;
   await proveLiveBootstrap(
-    [approvedProfile.id, approvedProfile.approval.archiveIntegrity, reviewedCommit, "evidence.json"],
+    [
+      approvedProfile.id,
+      approvedProfile.approval.archiveIntegrity,
+      reviewedCommit,
+      "evidence.json",
+    ],
     assertBootstrapMutationPreconditions,
     "bootstrap mutation target remained absent.",
     {
@@ -532,13 +661,18 @@ test("mutation proof retries stale registry metadata without repeating its audit
         return {
           deprecatedMessage: null,
           integrity: reads.length === 1 ? null : approvedProfile.approval.archiveIntegrity,
-          metadata: reads.length === 1
-            ? { versions: [], "dist-tags": {} }
-            : bootstrapMetadata(approvedProfile),
+          metadata:
+            reads.length === 1
+              ? { versions: [], "dist-tags": {} }
+              : bootstrapMetadata(approvedProfile),
         };
       },
-      wait: async (milliseconds) => { waits.push(milliseconds); },
-      writeEvidence: async () => { writes += 1; },
+      wait: async (milliseconds) => {
+        waits.push(milliseconds);
+      },
+      writeEvidence: async () => {
+        writes += 1;
+      },
     },
   );
   assert.equal(audits, 1);
@@ -553,25 +687,42 @@ test("mutation proof fails after bounded retries when registry metadata stays st
   let reads = 0;
   const waits = [];
   let writes = 0;
-  await assert.rejects(() => proveLiveBootstrap(
-    [approvedProfile.id, approvedProfile.approval.archiveIntegrity, reviewedCommit, "evidence.json"],
-    assertBootstrapMutationPreconditions,
-    "bootstrap mutation target remained absent.",
-    {
-      catalog: approvedCatalog,
-      assertionAttempts: 3,
-      auditPackage: async () => {
-        audits += 1;
-        return auditEvidence(approvedProfile);
-      },
-      liveEvidence: async () => {
-        reads += 1;
-        return { deprecatedMessage: null, integrity: null, metadata: { versions: [], "dist-tags": {} } };
-      },
-      wait: async (milliseconds) => { waits.push(milliseconds); },
-      writeEvidence: async () => { writes += 1; },
-    },
-  ), /registry versions/u);
+  await assert.rejects(
+    () =>
+      proveLiveBootstrap(
+        [
+          approvedProfile.id,
+          approvedProfile.approval.archiveIntegrity,
+          reviewedCommit,
+          "evidence.json",
+        ],
+        assertBootstrapMutationPreconditions,
+        "bootstrap mutation target remained absent.",
+        {
+          catalog: approvedCatalog,
+          assertionAttempts: 3,
+          auditPackage: async () => {
+            audits += 1;
+            return auditEvidence(approvedProfile);
+          },
+          liveEvidence: async () => {
+            reads += 1;
+            return {
+              deprecatedMessage: null,
+              integrity: null,
+              metadata: { versions: [], "dist-tags": {} },
+            };
+          },
+          wait: async (milliseconds) => {
+            waits.push(milliseconds);
+          },
+          writeEvidence: async () => {
+            writes += 1;
+          },
+        },
+      ),
+    /registry versions/u,
+  );
   assert.equal(audits, 1);
   assert.equal(reads, 3);
   assert.deepEqual(waits, [5_000, 5_000]);
@@ -595,7 +746,10 @@ test("npm signature audit uses the shared cross-platform command runner", async 
       },
     });
     assert.deepEqual(result, expected);
-    assert.deepEqual(calls.map(({ args }) => args[0]), ["install", "audit"]);
+    assert.deepEqual(
+      calls.map(({ args }) => args[0]),
+      ["install", "audit"],
+    );
     assert.equal(calls[0].cwd, calls[1].cwd);
     assert.ok(calls.every(({ options }) => options.timeoutMs === 120_000));
     assert.deepEqual(await readdir(root), []);
@@ -613,21 +767,31 @@ test("quarantine deprecates exact bytes but never substitutes for provenance", (
     publishedIntegrity: profile.approval.archiveIntegrity,
   };
   assert.doesNotThrow(() => assertBootstrapQuarantineCandidate(artifact));
-  assert.doesNotThrow(() => assertBootstrapQuarantinePostconditions({
-    ...artifact,
-    deprecatedMessage: profile.deprecationMessage,
-  }));
-  assert.throws(() => assertBootstrapQuarantinePostconditions({
-    ...artifact,
-    deprecatedMessage: null,
-  }), /exact deprecation message/u);
+  assert.doesNotThrow(() =>
+    assertBootstrapQuarantinePostconditions({
+      ...artifact,
+      deprecatedMessage: profile.deprecationMessage,
+    }),
+  );
+  assert.throws(
+    () =>
+      assertBootstrapQuarantinePostconditions({
+        ...artifact,
+        deprecatedMessage: null,
+      }),
+    /exact deprecation message/u,
+  );
   const missingProvenance = auditEvidence(profile);
   missingProvenance.missing.push({ name: profile.name });
-  assert.throws(() => assertBootstrapMutationPreconditions({
-    ...artifact,
-    auditEvidence: missingProvenance,
-    expectedCommit: reviewedCommit,
-  }), /bootstrap refused/u);
+  assert.throws(
+    () =>
+      assertBootstrapMutationPreconditions({
+        ...artifact,
+        auditEvidence: missingProvenance,
+        expectedCommit: reviewedCommit,
+      }),
+    /bootstrap refused/u,
+  );
 });
 
 test("quarantine postconditions retry a stale deprecation before writing evidence", async () => {
@@ -648,8 +812,12 @@ test("quarantine postconditions retry a stale deprecation before writing evidenc
           metadata: bootstrapMetadata(approvedProfile),
         };
       },
-      wait: async (milliseconds) => { waits.push(milliseconds); },
-      writeEvidence: async () => { writes += 1; },
+      wait: async (milliseconds) => {
+        waits.push(milliseconds);
+      },
+      writeEvidence: async () => {
+        writes += 1;
+      },
     },
   );
   assert.equal(reads.length, 2);
@@ -662,24 +830,32 @@ test("quarantine postconditions fail boundedly when deprecation stays stale", as
   let reads = 0;
   const waits = [];
   let writes = 0;
-  await assert.rejects(() => proveQuarantine(
-    [approvedProfile.id, approvedProfile.approval.archiveIntegrity, "evidence.json"],
-    assertBootstrapQuarantinePostconditions,
-    {
-      catalog: approvedCatalog,
-      assertionAttempts: 3,
-      liveEvidence: async () => {
-        reads += 1;
-        return {
-          deprecatedMessage: null,
-          integrity: approvedProfile.approval.archiveIntegrity,
-          metadata: bootstrapMetadata(approvedProfile),
-        };
-      },
-      wait: async (milliseconds) => { waits.push(milliseconds); },
-      writeEvidence: async () => { writes += 1; },
-    },
-  ), /exact deprecation message/u);
+  await assert.rejects(
+    () =>
+      proveQuarantine(
+        [approvedProfile.id, approvedProfile.approval.archiveIntegrity, "evidence.json"],
+        assertBootstrapQuarantinePostconditions,
+        {
+          catalog: approvedCatalog,
+          assertionAttempts: 3,
+          liveEvidence: async () => {
+            reads += 1;
+            return {
+              deprecatedMessage: null,
+              integrity: approvedProfile.approval.archiveIntegrity,
+              metadata: bootstrapMetadata(approvedProfile),
+            };
+          },
+          wait: async (milliseconds) => {
+            waits.push(milliseconds);
+          },
+          writeEvidence: async () => {
+            writes += 1;
+          },
+        },
+      ),
+    /exact deprecation message/u,
+  );
   assert.equal(reads, 3);
   assert.deepEqual(waits, [5_000, 5_000]);
   assert.equal(writes, 0);
@@ -701,10 +877,18 @@ test("postconditions require exact registry state, deprecation, signature audit,
   delete bootstrapOnly.packageMetadata["dist-tags"].latest;
   assert.doesNotThrow(() => assertBootstrapPostconditions(bootstrapOnly));
   for (const mutation of [
-    (value) => { value.deprecatedMessage = "different deprecation"; },
-    (value) => { value.expectedCommit = "c".repeat(40); },
-    (value) => { value.auditEvidence.invalid.push({ name: profile.name }); },
-    (value) => { value.packageMetadata["dist-tags"].latest = "0.0.1"; },
+    (value) => {
+      value.deprecatedMessage = "different deprecation";
+    },
+    (value) => {
+      value.expectedCommit = "c".repeat(40);
+    },
+    (value) => {
+      value.auditEvidence.invalid.push({ name: profile.name });
+    },
+    (value) => {
+      value.packageMetadata["dist-tags"].latest = "0.0.1";
+    },
   ]) {
     const value = structuredClone(input);
     mutation(value);
@@ -728,9 +912,15 @@ test("quarantine accepts both registry-created tag shapes but rejects conflictin
   assert.doesNotThrow(() => assertBootstrapQuarantineCandidate(bootstrapOnly));
   assert.doesNotThrow(() => assertBootstrapQuarantinePostconditions(bootstrapOnly));
   for (const mutation of [
-    (value) => { value.packageMetadata["dist-tags"].latest = "0.0.1"; },
-    (value) => { value.packageMetadata["dist-tags"].foreign = profile.bootstrapVersion; },
-    (value) => { delete value.packageMetadata["dist-tags"].bootstrap; },
+    (value) => {
+      value.packageMetadata["dist-tags"].latest = "0.0.1";
+    },
+    (value) => {
+      value.packageMetadata["dist-tags"].foreign = profile.bootstrapVersion;
+    },
+    (value) => {
+      delete value.packageMetadata["dist-tags"].bootstrap;
+    },
   ]) {
     const value = structuredClone(input);
     mutation(value);
@@ -744,7 +934,12 @@ test("postconditions retry stale registry metadata until the exact deprecation c
   const waits = [];
   let written;
   await proveLiveBootstrap(
-    [approvedProfile.id, approvedProfile.approval.archiveIntegrity, reviewedCommit, "evidence.json"],
+    [
+      approvedProfile.id,
+      approvedProfile.approval.archiveIntegrity,
+      reviewedCommit,
+      "evidence.json",
+    ],
     assertBootstrapPostconditions,
     "published bootstrap package remained absent.",
     {
@@ -762,8 +957,12 @@ test("postconditions retry stale registry metadata until the exact deprecation c
           metadata: bootstrapMetadata(approvedProfile),
         };
       },
-      wait: async (milliseconds) => { waits.push(milliseconds); },
-      writeEvidence: async (_path, value) => { written = value; },
+      wait: async (milliseconds) => {
+        waits.push(milliseconds);
+      },
+      writeEvidence: async (_path, value) => {
+        written = value;
+      },
     },
   );
   assert.equal(audits, 1);
@@ -778,29 +977,42 @@ test("postconditions fail after the bounded attempts when registry metadata stay
   let reads = 0;
   const waits = [];
   let writes = 0;
-  await assert.rejects(() => proveLiveBootstrap(
-    [approvedProfile.id, approvedProfile.approval.archiveIntegrity, reviewedCommit, "evidence.json"],
-    assertBootstrapPostconditions,
-    "published bootstrap package remained absent.",
-    {
-      catalog: approvedCatalog,
-      assertionAttempts: 3,
-      auditPackage: async () => {
-        audits += 1;
-        return auditEvidence(approvedProfile);
-      },
-      liveEvidence: async () => {
-        reads += 1;
-        return {
-          deprecatedMessage: null,
-          integrity: approvedProfile.approval.archiveIntegrity,
-          metadata: bootstrapMetadata(approvedProfile),
-        };
-      },
-      wait: async (milliseconds) => { waits.push(milliseconds); },
-      writeEvidence: async () => { writes += 1; },
-    },
-  ), /exact deprecation message/u);
+  await assert.rejects(
+    () =>
+      proveLiveBootstrap(
+        [
+          approvedProfile.id,
+          approvedProfile.approval.archiveIntegrity,
+          reviewedCommit,
+          "evidence.json",
+        ],
+        assertBootstrapPostconditions,
+        "published bootstrap package remained absent.",
+        {
+          catalog: approvedCatalog,
+          assertionAttempts: 3,
+          auditPackage: async () => {
+            audits += 1;
+            return auditEvidence(approvedProfile);
+          },
+          liveEvidence: async () => {
+            reads += 1;
+            return {
+              deprecatedMessage: null,
+              integrity: approvedProfile.approval.archiveIntegrity,
+              metadata: bootstrapMetadata(approvedProfile),
+            };
+          },
+          wait: async (milliseconds) => {
+            waits.push(milliseconds);
+          },
+          writeEvidence: async () => {
+            writes += 1;
+          },
+        },
+      ),
+    /exact deprecation message/u,
+  );
   assert.equal(audits, 1);
   assert.equal(reads, 3);
   assert.deepEqual(waits, [5_000, 5_000]);
@@ -810,34 +1022,52 @@ test("postconditions fail after the bounded attempts when registry metadata stay
 test("release policy blocks a package transition until approved baseline exists", () => {
   const candidateCatalog = candidateMcpCatalog();
   const candidate = candidateCatalog.packages[0];
-  assert.throws(() => assertBootstrapReleasePolicy(
-    releaseState(candidate, "0.0.0"),
-    [{ name: candidate.name, versions: [] }],
-    candidateCatalog,
-  ), /reviewed bootstrap approval/u);
-  assert.throws(() => assertBootstrapReleasePolicy(
-    releaseState(candidate, "0.1.0"),
-    [{ name: candidate.name, versions: [] }],
-    candidateCatalog,
-  ), /reviewed bootstrap approval/u);
+  assert.throws(
+    () =>
+      assertBootstrapReleasePolicy(
+        releaseState(candidate, "0.0.0"),
+        [{ name: candidate.name, versions: [] }],
+        candidateCatalog,
+      ),
+    /reviewed bootstrap approval/u,
+  );
+  assert.throws(
+    () =>
+      assertBootstrapReleasePolicy(
+        releaseState(candidate, "0.1.0"),
+        [{ name: candidate.name, versions: [] }],
+        candidateCatalog,
+      ),
+    /reviewed bootstrap approval/u,
+  );
 
   const approvedCatalogFixture = approvedMcpCatalog();
   const profile = approvedCatalogFixture.packages[0];
-  assert.throws(() => assertBootstrapReleasePolicy(
-    releaseState(profile, "0.0.0"),
-    [{ name: profile.name, versions: [] }],
-    approvedCatalogFixture,
-  ), /immutable 0\.0\.0 npm baseline/u);
-  assert.throws(() => assertBootstrapReleasePolicy(
-    releaseState(profile, "0.1.0"),
-    [{ name: profile.name, versions: [] }],
-    approvedCatalogFixture,
-  ), /immutable 0\.0\.0 npm baseline/u);
-  assert.doesNotThrow(() => assertBootstrapReleasePolicy(
-    releaseState(profile, "0.1.0"),
-    [{ name: profile.name, versions: ["0.0.0"] }],
-    approvedCatalogFixture,
-  ));
+  assert.throws(
+    () =>
+      assertBootstrapReleasePolicy(
+        releaseState(profile, "0.0.0"),
+        [{ name: profile.name, versions: [] }],
+        approvedCatalogFixture,
+      ),
+    /immutable 0\.0\.0 npm baseline/u,
+  );
+  assert.throws(
+    () =>
+      assertBootstrapReleasePolicy(
+        releaseState(profile, "0.1.0"),
+        [{ name: profile.name, versions: [] }],
+        approvedCatalogFixture,
+      ),
+    /immutable 0\.0\.0 npm baseline/u,
+  );
+  assert.doesNotThrow(() =>
+    assertBootstrapReleasePolicy(
+      releaseState(profile, "0.1.0"),
+      [{ name: profile.name, versions: ["0.0.0"] }],
+      approvedCatalogFixture,
+    ),
+  );
 });
 
 test("ordinary release proves full bootstrap evidence before registry reads or writes", async () => {
@@ -847,15 +1077,23 @@ test("ordinary release proves full bootstrap evidence before registry reads or w
     preState: undefined,
   };
   const events = [];
-  await assert.rejects(() => releasePublishMain({
-    inspectReleaseState: async () => state,
-    publishOrdered: async () => { events.push("publish"); },
-    verifyBootstrapBaselines: async () => {
-      events.push("bootstrap");
-      throw new Error("baseline proof failed");
-    },
-    verifyRegistry: async () => { events.push("registry"); },
-  }), /baseline proof failed/u);
+  await assert.rejects(
+    () =>
+      releasePublishMain({
+        inspectReleaseState: async () => state,
+        publishOrdered: async () => {
+          events.push("publish");
+        },
+        verifyBootstrapBaselines: async () => {
+          events.push("bootstrap");
+          throw new Error("baseline proof failed");
+        },
+        verifyRegistry: async () => {
+          events.push("registry");
+        },
+      }),
+    /baseline proof failed/u,
+  );
   assert.deepEqual(events, ["bootstrap"]);
 });
 
@@ -866,27 +1104,34 @@ test("ordinary release baseline proof never skips a historical bootstrap manifes
   const profile = catalog.packages[0];
   let audits = 0;
   let fetches = 0;
-  await assert.rejects(() => verifyReleaseBootstrapBaselines({
-    auditPackage: async () => {
-      audits += 1;
-      return auditEvidence(profile);
-    },
-    catalog,
-    fetchImplementation: async () => {
-      fetches += 1;
-      return new Response(JSON.stringify({
-        versions: {
-          "0.0.0": {
-            deprecated: profile.deprecationMessage,
-            dist: { integrity: integrity(Buffer.from("foreign archive")) },
-          },
+  await assert.rejects(
+    () =>
+      verifyReleaseBootstrapBaselines({
+        auditPackage: async () => {
+          audits += 1;
+          return auditEvidence(profile);
         },
-        "dist-tags": { bootstrap: "0.0.0", latest: "0.0.0" },
-      }), { status: 200 });
-    },
-    observationOptions: { attempts: 1, wait: async () => {} },
-    readManifest: async () => ({ name: profile.name, version: profile.bootstrapVersion }),
-  }), /does not match reviewed immutable evidence/u);
+        catalog,
+        fetchImplementation: async () => {
+          fetches += 1;
+          return new Response(
+            JSON.stringify({
+              versions: {
+                "0.0.0": {
+                  deprecated: profile.deprecationMessage,
+                  dist: { integrity: integrity(Buffer.from("foreign archive")) },
+                },
+              },
+              "dist-tags": { bootstrap: "0.0.0", latest: "0.0.0" },
+            }),
+            { status: 200 },
+          );
+        },
+        observationOptions: { attempts: 1, wait: async () => {} },
+        readManifest: async () => ({ name: profile.name, version: profile.bootstrapVersion }),
+      }),
+    /does not match reviewed immutable evidence/u,
+  );
   assert.equal(audits, 1);
   assert.equal(fetches, 2);
 });
@@ -910,32 +1155,47 @@ test("live baseline verification distinguishes absent, unknown, conflict, and ve
     observationOptions: { attempts: 3, wait: async () => {} },
     readManifest: async () => ({ name: profile.name, version: "0.1.0" }),
   };
-  assert.deepEqual(await verifyLiveBootstrapBaselines({
-    ...common,
-    fetchImplementation: async () => new Response(JSON.stringify(packument), { status: 200 }),
-  }), [`${profile.name}@0.0.0`]);
+  assert.deepEqual(
+    await verifyLiveBootstrapBaselines({
+      ...common,
+      fetchImplementation: async () => new Response(JSON.stringify(packument), { status: 200 }),
+    }),
+    [`${profile.name}@0.0.0`],
+  );
 
-  await assert.rejects(() => verifyLiveBootstrapBaselines({
-    ...common,
-    fetchImplementation: async () => new Response("not found", { status: 404 }),
-  }), /baseline is absent/u);
+  await assert.rejects(
+    () =>
+      verifyLiveBootstrapBaselines({
+        ...common,
+        fetchImplementation: async () => new Response("not found", { status: 404 }),
+      }),
+    /baseline is absent/u,
+  );
 
   let attempts = 0;
-  await assert.rejects(() => verifyLiveBootstrapBaselines({
-    ...common,
-    fetchImplementation: async () => {
-      attempts += 1;
-      return new Response("unavailable", { status: 503 });
-    },
-  }), /remained unknown/u);
+  await assert.rejects(
+    () =>
+      verifyLiveBootstrapBaselines({
+        ...common,
+        fetchImplementation: async () => {
+          attempts += 1;
+          return new Response("unavailable", { status: 503 });
+        },
+      }),
+    /remained unknown/u,
+  );
   assert.equal(attempts, 3);
 
   const conflict = structuredClone(packument);
   delete conflict.versions["0.0.0"];
-  await assert.rejects(() => verifyLiveBootstrapBaselines({
-    ...common,
-    fetchImplementation: async () => new Response(JSON.stringify(conflict), { status: 200 }),
-  }), /baseline is missing/u);
+  await assert.rejects(
+    () =>
+      verifyLiveBootstrapBaselines({
+        ...common,
+        fetchImplementation: async () => new Response(JSON.stringify(conflict), { status: 200 }),
+      }),
+    /baseline is missing/u,
+  );
 });
 
 test("release baseline proof audits before its fresh mutable registry snapshot", async () => {
@@ -943,30 +1203,38 @@ test("release baseline proof audits before its fresh mutable registry snapshot",
   const profile = catalog.packages[0];
   const events = [];
   let registryReads = 0;
-  await assert.rejects(() => verifyReleaseBootstrapBaselines({
-    auditPackage: async () => {
-      events.push("audit");
-      return auditEvidence(profile);
-    },
-    catalog,
-    fetchImplementation: async () => {
-      registryReads += 1;
-      events.push(registryReads === 1 ? "initial-registry-read" : "fresh-registry-read");
-      return new Response(JSON.stringify({
-        versions: {
-          "0.0.0": {
-            deprecated: profile.deprecationMessage,
-            dist: { integrity: profile.approval.archiveIntegrity },
-          },
+  await assert.rejects(
+    () =>
+      verifyReleaseBootstrapBaselines({
+        auditPackage: async () => {
+          events.push("audit");
+          return auditEvidence(profile);
         },
-        "dist-tags": registryReads === 1
-          ? { bootstrap: "0.0.0", latest: "0.1.0" }
-          : { bootstrap: "0.1.0", latest: "0.1.0" },
-      }), { status: 200 });
-    },
-    observationOptions: { attempts: 1, wait: async () => {} },
-    readManifest: async () => ({ name: profile.name, version: "0.1.0" }),
-  }), /bootstrap tag does not resolve/u);
+        catalog,
+        fetchImplementation: async () => {
+          registryReads += 1;
+          events.push(registryReads === 1 ? "initial-registry-read" : "fresh-registry-read");
+          return new Response(
+            JSON.stringify({
+              versions: {
+                "0.0.0": {
+                  deprecated: profile.deprecationMessage,
+                  dist: { integrity: profile.approval.archiveIntegrity },
+                },
+              },
+              "dist-tags":
+                registryReads === 1
+                  ? { bootstrap: "0.0.0", latest: "0.1.0" }
+                  : { bootstrap: "0.1.0", latest: "0.1.0" },
+            }),
+            { status: 200 },
+          );
+        },
+        observationOptions: { attempts: 1, wait: async () => {} },
+        readManifest: async () => ({ name: profile.name, version: "0.1.0" }),
+      }),
+    /bootstrap tag does not resolve/u,
+  );
   assert.deepEqual(events, ["initial-registry-read", "audit", "fresh-registry-read"]);
 });
 
@@ -974,56 +1242,110 @@ test("live baseline verification blocks a candidate before network access", asyn
   const catalog = candidateMcpCatalog();
   const candidate = catalog.packages[0];
   let fetched = false;
-  await assert.rejects(() => verifyLiveBootstrapBaselines({
-    catalog,
-    fetchImplementation: async () => {
-      fetched = true;
-      return new Response("not found", { status: 404 });
-    },
-    readManifest: async () => ({ name: candidate.name, version: "0.1.0" }),
-  }), /before reviewed bootstrap approval/u);
+  await assert.rejects(
+    () =>
+      verifyLiveBootstrapBaselines({
+        catalog,
+        fetchImplementation: async () => {
+          fetched = true;
+          return new Response("not found", { status: 404 });
+        },
+        readManifest: async () => ({ name: candidate.name, version: "0.1.0" }),
+      }),
+    /before reviewed bootstrap approval/u,
+  );
   assert.equal(fetched, false);
 });
 
 test("optional bootstrap dependencies require a disjoint exact reviewed map", async () => {
-  const { assertOptionalDependencyManifest } = await import("../scripts/npm-package-bootstrap-catalog.mjs");
-  const value = JSON.parse(await readFile(new URL("../architecture/foundation/npm-package-bootstrap.json", import.meta.url), "utf8"));
+  const { assertOptionalDependencyManifest } =
+    await import("../scripts/npm-package-bootstrap-catalog.mjs");
+  const value = JSON.parse(
+    await readFile(
+      new URL("../architecture/foundation/npm-package-bootstrap.json", import.meta.url),
+      "utf8",
+    ),
+  );
   const entry = value.packages[0];
   entry.optionalDependencies = [{ name: "bun", version: "1.4.3", specifier: "catalog:" }];
   const profile = parseBootstrapCatalog(value).packages[0];
-  assert.doesNotThrow(() => assertOptionalDependencyManifest(profile, { optionalDependencies: { bun: "catalog:" } }));
-  assert.doesNotThrow(() => assertOptionalDependencyManifest(profile, { optionalDependencies: { bun: "1.4.3" } }, true));
+  assert.doesNotThrow(() =>
+    assertOptionalDependencyManifest(profile, { optionalDependencies: { bun: "catalog:" } }),
+  );
+  assert.doesNotThrow(() =>
+    assertOptionalDependencyManifest(profile, { optionalDependencies: { bun: "1.4.3" } }, true),
+  );
   for (const actual of [undefined, {}, { bun: "^1.4.3" }, { bun: "1.4.3", extra: "1.0.0" }]) {
-    assert.throws(() => assertOptionalDependencyManifest(profile, { optionalDependencies: actual }, true), /optionalDependencies/u);
+    assert.throws(
+      () => assertOptionalDependencyManifest(profile, { optionalDependencies: actual }, true),
+      /optionalDependencies/u,
+    );
   }
-  assert.throws(() => assertOptionalDependencyManifest({ dependencies: [] }, { optionalDependencies: {} }), /unreviewed/u);
-  for (const optional of [[], [{ name: "bun", version: "^1.4.3", specifier: "catalog:" }], [...entry.optionalDependencies, ...entry.optionalDependencies]]) {
-    const changed = structuredClone(value); changed.packages[0].optionalDependencies = optional;
+  assert.throws(
+    () => assertOptionalDependencyManifest({ dependencies: [] }, { optionalDependencies: {} }),
+    /unreviewed/u,
+  );
+  for (const optional of [
+    [],
+    [{ name: "bun", version: "^1.4.3", specifier: "catalog:" }],
+    [...entry.optionalDependencies, ...entry.optionalDependencies],
+  ]) {
+    const changed = structuredClone(value);
+    changed.packages[0].optionalDependencies = optional;
     assert.throws(() => parseBootstrapCatalog(changed), /optionalDependencies/u);
   }
-  const overlap = structuredClone(value); overlap.packages[0].dependencies = entry.optionalDependencies;
+  const overlap = structuredClone(value);
+  overlap.packages[0].dependencies = entry.optionalDependencies;
   assert.throws(() => parseBootstrapCatalog(overlap), /disjoint/u);
 });
 
-const fetchManifest = (optionalDependencies) => async () => ({ status: 200, ok: true, json: async () => ({ versions: { "0.0.0": { optionalDependencies } }, "dist-tags": {} }) });
+const fetchManifest = (optionalDependencies) => async () => ({
+  status: 200,
+  ok: true,
+  json: async () => ({ versions: { "0.0.0": { optionalDependencies } }, "dist-tags": {} }),
+});
 
 test("optional bootstrap maps bind source manifests and registry observations", async () => {
-  const { liveDependencyVersions, livePackageEvidence } = await import("../scripts/npm-package-bootstrap-registry.mjs");
-  const profile = { ...authoringProfile, optionalDependencies: [{ name: "bun", version: "1.4.3", specifier: "catalog:" }] };
+  const { liveDependencyVersions, livePackageEvidence } =
+    await import("../scripts/npm-package-bootstrap-registry.mjs");
+  const profile = {
+    ...authoringProfile,
+    optionalDependencies: [{ name: "bun", version: "1.4.3", specifier: "catalog:" }],
+  };
   const source = JSON.parse(await readFile(authoringProfile.manifestPath, "utf8"));
   source.version = profile.bootstrapVersion;
   source.optionalDependencies = { bun: "catalog:" };
   assert.doesNotThrow(() => assertWorkspaceManifestMatchesProfile(profile, source));
   source.optionalDependencies.bun = "^1.4.3";
-  assert.throws(() => assertWorkspaceManifestMatchesProfile(profile, source), /optionalDependencies/u);
+  assert.throws(
+    () => assertWorkspaceManifestMatchesProfile(profile, source),
+    /optionalDependencies/u,
+  );
   const requested = [];
   const versions = await liveDependencyVersions(profile, async (url) => {
     requested.push(String(url));
-    return { status: 200, ok: true, json: async () => ({ versions: Object.fromEntries([...profile.dependencies, ...profile.optionalDependencies].map(({ version }) => [version, {}])) }) };
+    return {
+      status: 200,
+      ok: true,
+      json: async () => ({
+        versions: Object.fromEntries(
+          [...profile.dependencies, ...profile.optionalDependencies].map(({ version }) => [
+            version,
+            {},
+          ]),
+        ),
+      }),
+    };
   });
   assert.equal(versions.bun, "1.4.3");
   assert.ok(requested.some((url) => url.endsWith("/bun")));
   await assert.doesNotReject(() => livePackageEvidence(profile, fetchManifest({ bun: "1.4.3" })));
-  await assert.rejects(() => livePackageEvidence(profile, fetchManifest({ bun: "^1.4.3" })), /optionalDependencies/u);
-  await assert.rejects(() => livePackageEvidence(authoringProfile, fetchManifest({})), /unreviewed/u);
+  await assert.rejects(
+    () => livePackageEvidence(profile, fetchManifest({ bun: "^1.4.3" })),
+    /optionalDependencies/u,
+  );
+  await assert.rejects(
+    () => livePackageEvidence(authoringProfile, fetchManifest({})),
+    /unreviewed/u,
+  );
 });

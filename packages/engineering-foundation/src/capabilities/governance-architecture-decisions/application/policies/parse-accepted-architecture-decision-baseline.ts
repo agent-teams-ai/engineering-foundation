@@ -1,7 +1,7 @@
 import { compareBinaryStrings } from "../../../../binary-string-comparator.js";
 import type {
   AcceptedArchitectureDecisionBaseline,
-  AcceptedArchitectureDecisionBaselineEntry
+  AcceptedArchitectureDecisionBaselineEntry,
 } from "../model/architecture-decision.js";
 
 const ADR_ID = /^ADR-\d{4}$/u;
@@ -17,7 +17,7 @@ function record(value: unknown): Readonly<Record<string, unknown>> | undefined {
 
 function hasOnlyKeys(
   value: Readonly<Record<string, unknown>>,
-  expected: readonly string[]
+  expected: readonly string[],
 ): boolean {
   return Object.keys(value).every((key) => expected.includes(key));
 }
@@ -29,9 +29,7 @@ function isRepositoryMarkdownPath(value: string): boolean {
     value.endsWith(".md") &&
     !value.startsWith("/") &&
     !UNSAFE_PATH_CHARACTER.test(value) &&
-    value.split("/").every(
-      (segment) => segment.length > 0 && segment !== "." && segment !== ".."
-    )
+    value.split("/").every((segment) => segment.length > 0 && segment !== "." && segment !== "..")
   );
 }
 
@@ -63,16 +61,13 @@ function parseEntry(input: {
 
 function entryComparison(
   left: AcceptedArchitectureDecisionBaselineEntry,
-  right: AcceptedArchitectureDecisionBaselineEntry
+  right: AcceptedArchitectureDecisionBaselineEntry,
 ): number {
-  return (
-    compareBinaryStrings(left.id, right.id) ||
-    compareBinaryStrings(left.path, right.path)
-  );
+  return compareBinaryStrings(left.id, right.id) || compareBinaryStrings(left.path, right.path);
 }
 
 export function parseAcceptedArchitectureDecisionBaselineValue(
-  value: unknown
+  value: unknown,
 ): AcceptedArchitectureDecisionBaseline | undefined {
   const baseline = record(value);
   if (
@@ -104,6 +99,6 @@ export function parseAcceptedArchitectureDecisionBaselineValue(
   return Object.freeze({
     algorithm: "sha256",
     decisions: Object.freeze(decisions),
-    schemaVersion: 1
+    schemaVersion: 1,
   });
 }

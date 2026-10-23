@@ -20,10 +20,7 @@ const schema = {
   $schema: "https://json-schema.org/draft/2020-12/schema",
   additionalProperties: true,
   properties: Object.fromEntries(
-    ["id", "owner", "status", "summary", "type"].map((key) => [
-      key,
-      { type: "string" },
-    ]),
+    ["id", "owner", "status", "summary", "type"].map((key) => [key, { type: "string" }]),
   ),
   required: ["id", "type", "status", "owner", "summary"],
   type: "object",
@@ -63,15 +60,9 @@ const profileV3 = profileV2
     "  artifactTypes:\n",
     "  ownerSets:\n    schemaVersion: 1\n    sets:\n      architecture-docs: [architecture]\n  artifactTypes:\n",
   )
-  .replace(
-    "      allowedOwnerIds: [architecture]\n",
-    "      ownerSetId: architecture-docs\n",
-  );
+  .replace("      allowedOwnerIds: [architecture]\n", "      ownerSetId: architecture-docs\n");
 
-const profileV3InlineOwners = profileV2.replace(
-  "schemaVersion: 2",
-  "schemaVersion: 3",
-);
+const profileV3InlineOwners = profileV2.replace("schemaVersion: 2", "schemaVersion: 3");
 
 function documentSource(status = "active", extra = "") {
   return `---
@@ -104,11 +95,7 @@ async function createConsumer(profile = profileV1) {
       "```markdown\n---\nid: placeholder\ntype: guide\nstatus: active\nowner: architecture\nsummary: Placeholder.\n---\n\n# Placeholder\n```\n",
       "utf8",
     ),
-    writeFile(
-      join(root, "docs", "content", "evidence.md"),
-      documentSource(),
-      "utf8",
-    ),
+    writeFile(join(root, "docs", "content", "evidence.md"), documentSource(), "utf8"),
   ]);
   return root;
 }
@@ -169,10 +156,7 @@ test("description v2 binds template and normalized reachability authority", asyn
       "utf8",
     );
     const reachabilityChanged = await describeDocumentAuthoringProfileV2(request);
-    assert.notEqual(
-      reachabilityChanged.semanticDigest,
-      templateChanged.semanticDigest,
-    );
+    assert.notEqual(reachabilityChanged.semanticDigest, templateChanged.semanticDigest);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -193,14 +177,8 @@ test("description versions stay discriminated and use independent digest domains
     assert.match(v3.semanticDigest, /^sha256:[0-9a-f]{64}$/u);
     assert.notEqual(v3.semanticDigest, v2.semanticDigest);
     const { semanticDigest: _semanticDigest, ...v3Projection } = v3;
-    assert.equal(
-      documentAuthoringProfileSemanticDigestV3(v3Projection),
-      v3.semanticDigest,
-    );
-    assert.notEqual(
-      documentAuthoringProfileSemanticDigest(v3Projection),
-      v3.semanticDigest,
-    );
+    assert.equal(documentAuthoringProfileSemanticDigestV3(v3Projection), v3.semanticDigest);
+    assert.notEqual(documentAuthoringProfileSemanticDigest(v3Projection), v3.semanticDigest);
     assert.equal(
       (await describeDocumentAuthoringProfileV3(request)).semanticDigest,
       v3.semanticDigest,

@@ -12,9 +12,13 @@ import { testPackedQualityCoverage } from "./pack-quality-coverage-test.mjs";
 import { testPackedSdkGrowth } from "./pack-sdk-growth-test.mjs";
 import { testPackedQualityGateRunner } from "./pack-quality-gate-runner-test.mjs";
 import { verifyPackedAuthorityScaffolding } from "./pack-scaffolding-test.mjs";
-import { runQualifiedArtifactConsumer, withQualifiedPackageArtifacts } from "./pack-publishable-artifacts.mjs";
 import {
-  packageQualificationPhaseIds, runPackageQualificationPhases,
+  runQualifiedArtifactConsumer,
+  withQualifiedPackageArtifacts,
+} from "./pack-publishable-artifacts.mjs";
+import {
+  packageQualificationPhaseIds,
+  runPackageQualificationPhases,
 } from "./package-qualification-groups.mts";
 import { resolveGeneration2Node } from "./generation2-node.mts";
 import { createPackedConsumerFixture } from "./packed-consumer-fixture.mjs";
@@ -26,7 +30,7 @@ import { verifyPackedLocalMode } from "./packed-local-mode-e2e.mjs";
 import {
   createPnpmRunner,
   localRegistryInstallQualification,
-  runCommand
+  runCommand,
 } from "./pack-test-support.mjs";
 
 const repositoryRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
@@ -59,7 +63,7 @@ async function toolingVersions() {
   return {
     oxlint: await installedVersion("oxlint"),
     oxlintTsgolint: await installedVersion("oxlint-tsgolint"),
-    typescript: await installedVersion("typescript")
+    typescript: await installedVersion("typescript"),
   };
 }
 
@@ -81,22 +85,28 @@ async function verifyPackedDocsAdapterHistory(adapterArtifact, temporaryRoot) {
   await runCommand("tar", ["-xzf", adapterArtifact.archivePath, "-C", root], temporaryRoot);
   const packageRoot = join(root, "package");
   const transitionCatalogBytes = await readFile(
-    join(packageRoot, "assets", "transition-catalog.json")
+    join(packageRoot, "assets", "transition-catalog.json"),
   );
   const transitionCatalog = JSON.parse(transitionCatalogBytes.toString("utf8"));
   const stable23 = assertPackedDocsAdapterHistory(transitionCatalog);
   for (const [path, expectedDigest] of [
     [stable23.skillPath, "sha256:a86d8c9b990124f11b50b1c6703e1aeb5e3b981d51f7e8f5c163c4f5b987d7c5"],
-    [stable23.callerWorkflowPath, "sha256:d8d3b1281990179ee25ded67ba160f0e7573d2f70707b8c5b312d70b68d85125"]
+    [
+      stable23.callerWorkflowPath,
+      "sha256:d8d3b1281990179ee25ded67ba160f0e7573d2f70707b8c5b312d70b68d85125",
+    ],
   ]) {
     if (sha256(await readFile(join(packageRoot, path))) !== expectedDigest) {
       throw new Error(`Packed adapter historical asset digest mismatch: ${path}.`);
     }
   }
-  const api = await import(`${pathToFileURL(join(
-    packageRoot,
-    "dist", "consumer-integration", "generated", "canonical-assets.js"
-  )).href}?history-inspection=1`);
+  const api = await import(
+    `${
+      pathToFileURL(
+        join(packageRoot, "dist", "consumer-integration", "generated", "canonical-assets.js"),
+      ).href
+    }?history-inspection=1`
+  );
   if (api.GENERATED_TRANSITION_CATALOG !== transitionCatalogBytes.toString("utf8")) {
     throw new Error("Packed adapter generated transition authority differs from its asset bytes.");
   }
@@ -111,32 +121,37 @@ function parseDocsExecution(stdout) {
 
 function rollbackFixtureRuntimeLock(cohort) {
   const docsLocator = `@agent-teams/docs-protocol@${cohort.packages.docsProtocol.version}`;
-  const foundationLocator =
-    `@agent-teams/engineering-foundation@${cohort.packages.engineeringFoundation.version}`;
+  const foundationLocator = `@agent-teams/engineering-foundation@${cohort.packages.engineeringFoundation.version}`;
   return {
     lockfileVersion: "9.0",
-    importers: { ".": { devDependencies: {
-      "@agent-teams/docs-protocol": {
-        specifier: cohort.packages.docsProtocol.version,
-        version: cohort.packages.docsProtocol.version
+    importers: {
+      ".": {
+        devDependencies: {
+          "@agent-teams/docs-protocol": {
+            specifier: cohort.packages.docsProtocol.version,
+            version: cohort.packages.docsProtocol.version,
+          },
+          "@agent-teams/engineering-foundation": {
+            specifier: cohort.packages.engineeringFoundation.version,
+            version: cohort.packages.engineeringFoundation.version,
+          },
+        },
       },
-      "@agent-teams/engineering-foundation": {
-        specifier: cohort.packages.engineeringFoundation.version,
-        version: cohort.packages.engineeringFoundation.version
-      }
-    } } },
+    },
     packages: {
       [docsLocator]: { resolution: { integrity: cohort.packages.docsProtocol.integrity } },
       [foundationLocator]: {
-        resolution: { integrity: cohort.packages.engineeringFoundation.integrity }
-      }
+        resolution: { integrity: cohort.packages.engineeringFoundation.integrity },
+      },
     },
     snapshots: {
-      [docsLocator]: { dependencies: {
-        "@agent-teams/engineering-foundation": cohort.packages.engineeringFoundation.version
-      } },
-      [foundationLocator]: {}
-    }
+      [docsLocator]: {
+        dependencies: {
+          "@agent-teams/engineering-foundation": cohort.packages.engineeringFoundation.version,
+        },
+      },
+      [foundationLocator]: {},
+    },
   };
 }
 
@@ -145,7 +160,7 @@ async function createRollbackFixturePackage(
   docsArtifact,
   foundationArtifact,
   mutationArtifact,
-  temporaryRoot
+  temporaryRoot,
 ) {
   const root = join(temporaryRoot, "docs-rollback-package-fixture");
   await mkdir(root, { recursive: true });
@@ -156,18 +171,39 @@ async function createRollbackFixturePackage(
   await runCommand(
     "tar",
     ["-xzf", mutationArtifact.archivePath, "--strip-components=1", "-C", mutationPackageRoot],
-    temporaryRoot
+    temporaryRoot,
   );
   const extractedPackageRoot = join(root, "package");
-  const api = await import(`${pathToFileURL(join(
-    extractedPackageRoot,
-    "dist", "consumer-integration", "application", "policies", "consumer-integration-assets.js"
-  )).href}?rollback-fixture=1`);
-  const closureApi = await import(`${pathToFileURL(join(
-    extractedPackageRoot,
-    "dist", "consumer-integration", "adapters", "pnpm-runtime-closure-v1.js"
-  )).href}?rollback-fixture=1`);
-  const packageManifest = JSON.parse(await readFile(join(extractedPackageRoot, "package.json"), "utf8"));
+  const api = await import(
+    `${
+      pathToFileURL(
+        join(
+          extractedPackageRoot,
+          "dist",
+          "consumer-integration",
+          "application",
+          "policies",
+          "consumer-integration-assets.js",
+        ),
+      ).href
+    }?rollback-fixture=1`
+  );
+  const closureApi = await import(
+    `${
+      pathToFileURL(
+        join(
+          extractedPackageRoot,
+          "dist",
+          "consumer-integration",
+          "adapters",
+          "pnpm-runtime-closure-v1.js",
+        ),
+      ).href
+    }?rollback-fixture=1`
+  );
+  const packageManifest = JSON.parse(
+    await readFile(join(extractedPackageRoot, "package.json"), "utf8"),
+  );
   packageManifest.dependencies["@agent-teams/docs-protocol"] = docsArtifact.archiveFileSpecifier;
   packageManifest.dependencies["@agent-teams/engineering-foundation"] =
     foundationArtifact.archiveFileSpecifier;
@@ -175,7 +211,7 @@ async function createRollbackFixturePackage(
     mutationArtifact.archiveFileSpecifier;
   await writeFile(
     join(extractedPackageRoot, "package.json"),
-    `${JSON.stringify(packageManifest, null, 2)}\n`
+    `${JSON.stringify(packageManifest, null, 2)}\n`,
   );
   const integrity = `sha512-${"A".repeat(86)}==`;
   const common = {
@@ -186,19 +222,21 @@ async function createRollbackFixturePackage(
     packages: {
       docsProtocol: { version: packageManifest.version, integrity },
       engineeringFoundation: {
-        version: JSON.parse(await readFile(join(
-          repositoryRoot,
-          "packages", "engineering-foundation", "package.json"
-        ), "utf8")).version,
-        integrity
-      }
+        version: JSON.parse(
+          await readFile(
+            join(repositoryRoot, "packages", "engineering-foundation", "package.json"),
+            "utf8",
+          ),
+        ).version,
+        integrity,
+      },
     },
     schemas: { consumerIntegration: 1, managedState: 1, docsProtocol: 1 },
     runtime: {
       node: ">=24.18.0 <25",
       pnpm: ">=11.17.0 <12",
-      runtimeClosureDigest: `sha256:${"e".repeat(64)}`
-    }
+      runtimeClosureDigest: `sha256:${"e".repeat(64)}`,
+    },
   };
   const targetA = {
     ...common,
@@ -210,25 +248,25 @@ async function createRollbackFixturePackage(
       repository: "agent-teams-ai/.github",
       path: ".github/workflows/docs-protocol-check.yml",
       revision: "6".repeat(40),
-      blobSha: "7".repeat(40)
+      blobSha: "7".repeat(40),
     },
     assets: {
       skillDigest: `sha256:${"0".repeat(64)}`,
       callerWorkflowDigest: `sha256:${"0".repeat(64)}`,
       assetCatalogDigest: `sha256:${"9".repeat(64)}`,
-      transitionCatalogDigest: `sha256:${"8".repeat(64)}`
-    }
+      transitionCatalogDigest: `sha256:${"8".repeat(64)}`,
+    },
   };
   targetA.packages = {
     docsProtocol: { version: "0.0.9", integrity },
-    engineeringFoundation: { version: "0.16.1", integrity }
+    engineeringFoundation: { version: "0.16.1", integrity },
   };
   const targetSkill = Buffer.from(`${api.CANONICAL_DOCS_SKILL}\n<!-- qualified target A -->\n`);
   const targetCaller = Buffer.from(api.canonicalCallerWorkflow(targetA));
   targetA.assets = {
     ...targetA.assets,
     skillDigest: sha256(targetSkill),
-    callerWorkflowDigest: sha256(targetCaller)
+    callerWorkflowDigest: sha256(targetCaller),
   };
   const sourceB = {
     ...common,
@@ -240,31 +278,29 @@ async function createRollbackFixturePackage(
       repository: "agent-teams-ai/.github",
       path: ".github/workflows/docs-protocol-check.yml",
       revision: "1".repeat(40),
-      blobSha: "2".repeat(40)
+      blobSha: "2".repeat(40),
     },
     assets: {
       skillDigest: sha256(Buffer.from(api.CANONICAL_DOCS_SKILL_V2)),
       callerWorkflowDigest: `sha256:${"0".repeat(64)}`,
       assetCatalogDigest: `sha256:${"0".repeat(64)}`,
-      transitionCatalogDigest: `sha256:${"0".repeat(64)}`
-    }
+      transitionCatalogDigest: `sha256:${"0".repeat(64)}`,
+    },
   };
-  sourceB.assets.callerWorkflowDigest = sha256(Buffer.from(
-    api.canonicalCallerWorkflow(sourceB)
-  ));
+  sourceB.assets.callerWorkflowDigest = sha256(Buffer.from(api.canonicalCallerWorkflow(sourceB)));
   sourceB.runtime = {
     ...sourceB.runtime,
     runtimeClosureDigest: closureApi.computePnpmRuntimeClosureDigestV1(
       rollbackFixtureRuntimeLock(sourceB),
-      sourceB
-    )
+      sourceB,
+    ),
   };
   targetA.runtime = {
     ...targetA.runtime,
     runtimeClosureDigest: closureApi.computePnpmRuntimeClosureDigestV1(
       rollbackFixtureRuntimeLock(targetA),
-      targetA
-    )
+      targetA,
+    ),
   };
   const skillPath = `assets/history/sha256-${targetA.assets.skillDigest.slice(7)}/skill.md`;
   const callerPath = `assets/history/sha256-${targetA.assets.callerWorkflowDigest.slice(7)}/caller.yml`;
@@ -274,46 +310,52 @@ async function createRollbackFixturePackage(
   await writeFile(join(extractedPackageRoot, callerPath), targetCaller);
   const catalogBytes = await readFile(join(extractedPackageRoot, "assets", "catalog.json"));
   sourceB.assets.assetCatalogDigest = sha256(catalogBytes);
-  const transitionCatalog = JSON.parse(await readFile(
-    join(extractedPackageRoot, "assets", "transition-catalog.json"),
-    "utf8"
-  ));
-  transitionCatalog.currentSourceExecutors = [{
-    schemas: sourceB.schemas,
-    runtime: sourceB.runtime,
-    packages: sourceB.packages,
-    assetCatalogDigest: sourceB.assets.assetCatalogDigest,
-    skillDigest: sourceB.assets.skillDigest,
-    callerWorkflowDigest: sourceB.assets.callerWorkflowDigest,
-    agentsRouteDigest: sha256(Buffer.from(api.canonicalManagedRoute(
-      ".agents/skills/docs-authoring/SKILL.md"
-    ))),
-    docsScriptsDigest: api.canonicalDocsScriptsDigest(
-      "architecture/foundation/docs-protocol.yaml"
-    ),
-    directTargetCohortIds: [targetA.cohortId]
-  }];
-  transitionCatalog.directTargetBundles = [{
-    cohort: targetA,
-    skillPath,
-    skillDigest: targetA.assets.skillDigest,
-    callerWorkflowPath: callerPath,
-    callerWorkflowDigest: targetA.assets.callerWorkflowDigest,
-    agentsRouteDigest: transitionCatalog.currentSourceExecutors[0].agentsRouteDigest,
-    docsScriptsDigest: transitionCatalog.currentSourceExecutors[0].docsScriptsDigest
-  }];
+  const transitionCatalog = JSON.parse(
+    await readFile(join(extractedPackageRoot, "assets", "transition-catalog.json"), "utf8"),
+  );
+  transitionCatalog.currentSourceExecutors = [
+    {
+      schemas: sourceB.schemas,
+      runtime: sourceB.runtime,
+      packages: sourceB.packages,
+      assetCatalogDigest: sourceB.assets.assetCatalogDigest,
+      skillDigest: sourceB.assets.skillDigest,
+      callerWorkflowDigest: sourceB.assets.callerWorkflowDigest,
+      agentsRouteDigest: sha256(
+        Buffer.from(api.canonicalManagedRoute(".agents/skills/docs-authoring/SKILL.md")),
+      ),
+      docsScriptsDigest: api.canonicalDocsScriptsDigest(
+        "architecture/foundation/docs-protocol.yaml",
+      ),
+      directTargetCohortIds: [targetA.cohortId],
+    },
+  ];
+  transitionCatalog.directTargetBundles = [
+    {
+      cohort: targetA,
+      skillPath,
+      skillDigest: targetA.assets.skillDigest,
+      callerWorkflowPath: callerPath,
+      callerWorkflowDigest: targetA.assets.callerWorkflowDigest,
+      agentsRouteDigest: transitionCatalog.currentSourceExecutors[0].agentsRouteDigest,
+      docsScriptsDigest: transitionCatalog.currentSourceExecutors[0].docsScriptsDigest,
+    },
+  ];
   const transitionCatalogBytes = Buffer.from(`${JSON.stringify(transitionCatalog)}\n`);
   sourceB.assets.transitionCatalogDigest = sha256(transitionCatalogBytes);
   await writeFile(
     join(extractedPackageRoot, "assets", "transition-catalog.json"),
-    transitionCatalogBytes
+    transitionCatalogBytes,
   );
-  const archivePath = join(temporaryRoot, "agent-teams-docs-protocol-agent-teams-rollback-fixture.tgz");
+  const archivePath = join(
+    temporaryRoot,
+    "agent-teams-docs-protocol-agent-teams-rollback-fixture.tgz",
+  );
   await runCommand("tar", ["-czf", archivePath, "package"], root);
   return {
     archiveFileSpecifier: `file:${archivePath.replaceAll("\\", "/")}`,
     sourceB,
-    targetA
+    targetA,
   };
 }
 
@@ -331,45 +373,48 @@ async function verifyPackedDocsConsumerIntegration(input) {
       "@agent-teams/docs-protocol-agent-teams": input.adapter.archiveFileSpecifier,
       "@agent-teams/docs-protocol": input.docs.archiveFileSpecifier,
       "@agent-teams/engineering-foundation": input.foundation.archiveFileSpecifier,
-      "@agent-teams/repository-mutation": input.mutation.archiveFileSpecifier
-    }
+      "@agent-teams/repository-mutation": input.mutation.archiveFileSpecifier,
+    },
   };
-  await writeFile(join(consumerRoot, "package.json"), `${JSON.stringify(installedManifest, null, 2)}\n`);
+  await writeFile(
+    join(consumerRoot, "package.json"),
+    `${JSON.stringify(installedManifest, null, 2)}\n`,
+  );
   const localArtifactOverrides = {
     "@agent-teams/document-authoring": input.authoring.archiveFileSpecifier,
     "@agent-teams/docs-protocol": input.docs.archiveFileSpecifier,
     "@agent-teams/engineering-foundation": input.foundation.archiveFileSpecifier,
-    "@agent-teams/repository-mutation": input.mutation.archiveFileSpecifier
+    "@agent-teams/repository-mutation": input.mutation.archiveFileSpecifier,
   };
   await writeFile(
     join(consumerRoot, "pnpm-workspace.yaml"),
-    `overrides:\n${Object.entries(localArtifactOverrides).map(([name, specifier]) =>
-      `  ${JSON.stringify(name)}: ${JSON.stringify(specifier)}`).join("\n")}\n`
+    `overrides:\n${Object.entries(localArtifactOverrides)
+      .map(([name, specifier]) => `  ${JSON.stringify(name)}: ${JSON.stringify(specifier)}`)
+      .join("\n")}\n`,
   );
   // The managed generation2 consumer contract still requires Node >=24.18.0 <25 in .node-version,
   // independent of the Node 26 repository default that runs this script.
   await writeFile(join(consumerRoot, ".node-version"), "24.21.0\n");
   await runPnpm(["install", "--ignore-scripts"], consumerRoot);
   await rm(join(consumerRoot, "node_modules"), { force: true, recursive: true });
-  await runPnpm(
-    ["install", "--offline", "--frozen-lockfile", "--ignore-scripts"],
-    consumerRoot
-  );
+  await runPnpm(["install", "--offline", "--frozen-lockfile", "--ignore-scripts"], consumerRoot);
   await writePackedConsumerDocumentAuthoringFixture(consumerRoot);
   const authoringProbe = [
     "const module = await import('@agent-teams/document-authoring');",
     "if (typeof module.buildDocumentationCatalog !== 'function') process.exit(2);",
-    "process.stdout.write(import.meta.resolve('@agent-teams/document-authoring'));"
+    "process.stdout.write(import.meta.resolve('@agent-teams/document-authoring'));",
   ].join("\n");
   const { stdout: authoringResolution } = await runCommand(
     process.execPath,
     ["--input-type=module", "--eval", authoringProbe],
-    consumerRoot
+    consumerRoot,
   );
   const resolvedAuthoring = new URL(authoringResolution.trim());
   if (
     resolvedAuthoring.protocol !== "file:" ||
-    !resolvedAuthoring.pathname.includes("/node_modules/@agent-teams/document-authoring/dist/index.js") ||
+    !resolvedAuthoring.pathname.includes(
+      "/node_modules/@agent-teams/document-authoring/dist/index.js",
+    ) ||
     resolvedAuthoring.pathname.includes("/.worktrees/")
   ) {
     throw new Error("Packed document-authoring export resolved outside the installed package.");
@@ -380,22 +425,26 @@ async function verifyPackedDocsConsumerIntegration(input) {
     "@agent-teams",
     "docs-protocol",
     "dist",
-    "cli.js"
+    "cli.js",
   );
-  const found = parseDocsExecution((await runCommand(
-    process.execPath,
-    [
-      docsCli,
-      "find",
-      "hermetic search marker",
-      "--consumer",
-      consumerRoot,
-      "--profile",
-      "docs.config.yaml",
-      "--json"
-    ],
-    consumerRoot
-  )).stdout);
+  const found = parseDocsExecution(
+    (
+      await runCommand(
+        process.execPath,
+        [
+          docsCli,
+          "find",
+          "hermetic search marker",
+          "--consumer",
+          consumerRoot,
+          "--profile",
+          "docs.config.yaml",
+          "--json",
+        ],
+        consumerRoot,
+      )
+    ).stdout,
+  );
   if (
     found.command !== "docs.find" ||
     found.outcome !== "success" ||
@@ -408,14 +457,18 @@ async function verifyPackedDocsConsumerIntegration(input) {
   let cohort = input.adapter.sourceB;
   const desired = {
     schemaVersion: 1,
-    repository: { provider: "github", id: "999999999", nameWithOwner: "agent-teams-ai/packed-docs-consumer-e2e" },
+    repository: {
+      provider: "github",
+      id: "999999999",
+      nameWithOwner: "agent-teams-ai/packed-docs-consumer-e2e",
+    },
     integrationRoot: ".",
     packageManager: "pnpm",
     profilePath: "architecture/foundation/docs-protocol.yaml",
     skillPath: ".agents/skills/docs-authoring/SKILL.md",
     callerWorkflowPath: ".github/workflows/docs-protocol.yml",
     managedStatePath: "architecture/foundation/docs-protocol-managed-state.json",
-    cohort
+    cohort,
   };
   installedManifest.scripts = {};
   await writeFile(join(consumerRoot, "AGENTS.md"), "# Packed consumer\n");
@@ -424,14 +477,19 @@ async function verifyPackedDocsConsumerIntegration(input) {
     installedManifest.devDependencies = {
       ...installedManifest.devDependencies,
       "@agent-teams/docs-protocol": cohort.packages.docsProtocol.version,
-      "@agent-teams/engineering-foundation": cohort.packages.engineeringFoundation.version
+      "@agent-teams/engineering-foundation": cohort.packages.engineeringFoundation.version,
     };
-    await writeFile(join(consumerRoot, "package.json"), `${JSON.stringify(installedManifest, null, 2)}\n`);
+    await writeFile(
+      join(consumerRoot, "package.json"),
+      `${JSON.stringify(installedManifest, null, 2)}\n`,
+    );
     await writeFile(
       join(consumerRoot, "architecture", "foundation", "docs-consumer-integration.json"),
-      `${JSON.stringify(desired, null, 2)}\n`
+      `${JSON.stringify(desired, null, 2)}\n`,
     );
-    await writeFile(join(consumerRoot, "pnpm-lock.yaml"), `lockfileVersion: '9.0'
+    await writeFile(
+      join(consumerRoot, "pnpm-lock.yaml"),
+      `lockfileVersion: '9.0'
 importers:
   .:
     devDependencies:
@@ -451,7 +509,8 @@ snapshots:
     dependencies:
       '@agent-teams/engineering-foundation': ${cohort.packages.engineeringFoundation.version}
   '@agent-teams/engineering-foundation@${cohort.packages.engineeringFoundation.version}': {}
-`);
+`,
+    );
   };
   await writeAuthority();
   const cli = join(
@@ -460,7 +519,7 @@ snapshots:
     "@agent-teams",
     "docs-protocol-agent-teams",
     "dist",
-    "cli.js"
+    "cli.js",
   );
   // Only the managed generation2 adapter CLI runs on the explicit Node 24; everything else stays on the default.
   const generation2Node = await resolveGeneration2Node();
@@ -469,7 +528,7 @@ snapshots:
       const result = await runCommand(
         generation2Node,
         [cli, ...args, "--consumer", consumerRoot, "--json"],
-        consumerRoot
+        consumerRoot,
       );
       return parseDocsExecution(result.stdout);
     } catch (error) {
@@ -489,12 +548,18 @@ snapshots:
       throw new Error(`Packed consumer check did not plan adoption: ${JSON.stringify(checked)}`);
     }
     const planned = await invoke(["plan", "--to", cohort.cohortId]);
-    if (planned.outcome !== "change-required") {throw new Error("Packed consumer plan did not require adoption.");}
+    if (planned.outcome !== "change-required") {
+      throw new Error("Packed consumer plan did not require adoption.");
+    }
     const applied = await invoke(["apply", "--expect", planned.plan.planDigest]);
     if (process.platform === "win32") {
-      if (applied.outcome !== "blocked" ||
-          !applied.issues.some(({ code }) => code === "KNOWN_FILE_APPLY_UNSUPPORTED")) {
-        throw new Error(`Packed Windows consumer apply did not fail closed: ${JSON.stringify(applied)}`);
+      if (
+        applied.outcome !== "blocked" ||
+        !applied.issues.some(({ code }) => code === "KNOWN_FILE_APPLY_UNSUPPORTED")
+      ) {
+        throw new Error(
+          `Packed Windows consumer apply did not fail closed: ${JSON.stringify(applied)}`,
+        );
       }
       const unchanged = await invoke(["check"]);
       if (unchanged.outcome !== "change-required") {
@@ -506,9 +571,11 @@ snapshots:
       throw new Error(`Packed consumer apply did not commit adoption: ${JSON.stringify(applied)}`);
     }
     const current = await invoke(["check"]);
-    if (current.outcome !== "current") {throw new Error("Packed consumer check did not converge.");}
+    if (current.outcome !== "current") {
+      throw new Error("Packed consumer check did not converge.");
+    }
     installedManifest.scripts = JSON.parse(
-      await readFile(join(consumerRoot, "package.json"), "utf8")
+      await readFile(join(consumerRoot, "package.json"), "utf8"),
     ).scripts;
 
     cohort = input.adapter.targetA;
@@ -516,13 +583,17 @@ snapshots:
     const rollbackPlan = await invoke(["plan", "--to", cohort.cohortId]);
     if (rollbackPlan.outcome !== "change-required") {
       throw new Error(
-        `Packed source executor did not plan B to A rollback: ${JSON.stringify(rollbackPlan)}`
+        `Packed source executor did not plan B to A rollback: ${JSON.stringify(rollbackPlan)}`,
       );
     }
     const rollback = await invoke(["apply", "--expect", rollbackPlan.plan.planDigest]);
-    if (rollback.outcome !== "applied") {throw new Error("Packed source executor did not apply B to A rollback.");}
+    if (rollback.outcome !== "applied") {
+      throw new Error("Packed source executor did not apply B to A rollback.");
+    }
     const rolledBack = await invoke(["check"]);
-    if (rolledBack.outcome !== "current") {throw new Error("Packed B to A rollback did not converge.");}
+    if (rolledBack.outcome !== "current") {
+      throw new Error("Packed B to A rollback did not converge.");
+    }
   } finally {
     if (previousRepositoryId === undefined) {
       delete process.env["GITHUB_REPOSITORY_ID"];
@@ -537,130 +608,171 @@ snapshots:
   }
 }
 
-
 /**
  * @param {import("./package-artifact-custody.mts").QualificationHandle} handle
  * @param {import("./package-qualification-groups.mts").PackedQualificationGroup | undefined} [group]
  */
 export function qualifyPackedConsumers(handle, group) {
   packageQualificationPhaseIds("packed", group);
-  return runQualifiedArtifactConsumer(handle, "packed", async ({ artifacts, temporaryRoot, checkpoint }) => {
-    const runPnpm = createPnpmRunner();
-    const sourceRoot = process.env["AGENT_TEAMS_FOUNDATION_SOURCE_ROOT"];
-    if (sourceRoot === undefined || sourceRoot === "") {
-      throw new Error("Package qualification requires an explicit source root.");
-    }
-    await assertPnpmProfileQualificationRoot(repositoryRoot, sourceRoot);
-    const repositoryManifest = JSON.parse(await readFile(join(repositoryRoot, "package.json"), "utf8"));
-    const packageManager = packageManagerVersion(repositoryManifest);
-    const timedPhase = (name, run) => runPackedPhase(name, run, checkpoint);
-    const artifact = artifacts["@agent-teams/engineering-foundation"];
-    const mutationArtifact = artifacts["@agent-teams/repository-mutation"];
-    const documentAuthoringArtifact = artifacts["@agent-teams/document-authoring"];
-    const docsProtocolArtifact = artifacts["@agent-teams/docs-protocol"];
-    const docsProtocolAdapterArtifact = artifacts["@agent-teams/docs-protocol-agent-teams"];
-    const docsProtocolMcpArtifact = artifacts["@agent-teams/docs-protocol-mcp"];
-    let fixture;
-    const getFixture = async () => {
-      fixture ??= await timedPhase("packed consumer fixture", async () => createPackedConsumerFixture({
-        archiveFileSpecifier: artifact.archiveFileSpecifier,
-        stackToolchainArchiveFileSpecifier: artifacts["stack-toolchain"].archiveFileSpecifier,
-        consumerRoot: join(temporaryRoot, "consumer"),
-        documentAuthoringArchiveFileSpecifier: documentAuthoringArtifact.archiveFileSpecifier,
-        mutationArchiveFileSpecifier: mutationArtifact.archiveFileSpecifier,
-        packageManager,
-        runPnpm,
-        toolingVersions: await toolingVersions()
-      }));
-      return fixture;
-    };
-    const consumerPhase = (id, run) => ({
-      id, run: async () => {
-        const current = await getFixture();
-        return timedPhase(id, () => run(current));
+  return runQualifiedArtifactConsumer(
+    handle,
+    "packed",
+    async ({ artifacts, temporaryRoot, checkpoint }) => {
+      const runPnpm = createPnpmRunner();
+      const sourceRoot = process.env["AGENT_TEAMS_FOUNDATION_SOURCE_ROOT"];
+      if (sourceRoot === undefined || sourceRoot === "") {
+        throw new Error("Package qualification requires an explicit source root.");
       }
-    });
-    await runPackageQualificationPhases("packed", group, [
-      { id: "Docs integration", run: async () => {
-        await timedPhase("Docs integration", async () => {
-          await verifyPackedDocsAdapterHistory(docsProtocolAdapterArtifact, temporaryRoot);
-          const rollbackFixtureArtifact = await createRollbackFixturePackage(
-            docsProtocolAdapterArtifact,
-            docsProtocolArtifact,
-            artifact,
-            mutationArtifact,
-            temporaryRoot
-          );
-          process.stdout.write(`Packed TEST rollback fixture (deliberately modified): ${rollbackFixtureArtifact.archiveFileSpecifier}\n`);
-          await verifyPackedDocsConsumerIntegration({
-            temporaryRoot, runPnpm, packageManager,
-            adapter: rollbackFixtureArtifact,
-            authoring: documentAuthoringArtifact,
-            docs: docsProtocolArtifact,
-            foundation: artifact,
-            mutation: mutationArtifact
-          });
-        });
-        process.stdout.write(`Packed Docs consumer adoption and B-to-A source rollback verified: ${docsProtocolArtifact.archiveName}.\n`);
-      } },
-      consumerPhase("packed consumer E2E", async current => {
-        await verifyPackedConsumer({ fixture: current });
-        await verifyPackedCiInputProof(
-          artifacts["@agent-teams/ci-input-proof"], temporaryRoot, repositoryRoot, runPnpm,
-        );
-        await verifyPackedFeatureModuleStandard({ artifacts, temporaryRoot, packageManager, runPnpm,
-          typescript: (await toolingVersions()).typescript });
-      }),
-      consumerPhase("SDK growth qualification", current =>
-        testPackedSdkGrowth({ consumerRoot: current.consumerRoot, artifact })),
-      consumerPhase("authority scaffolding", current =>
-        verifyPackedAuthorityScaffolding({ fixture: current, repositoryRoot })),
-      consumerPhase("local-mode lifecycle", current => verifyPackedLocalMode({
-        ...artifact,
-        packageVersion: current.packedManifest.version,
-        packageManager,
-        repositoryRoot,
-        runPnpm,
-        documentAuthoringArchiveFileSpecifier: documentAuthoringArtifact.archiveFileSpecifier,
-        mutationArchiveFileSpecifier: mutationArtifact.archiveFileSpecifier,
-        temporaryRoot
-      })),
-      consumerPhase("agent-workflow fixture", current => testPackedAgentWorkflow({
-        consumerRoot: current.consumerRoot,
-        runPnpm
-      })),
-      consumerPhase("quality coverage", async current => {
-        await qualifyInstalledStackToolchain(current.consumerRoot);
-        return testPackedQualityCoverage({ consumerRoot: current.consumerRoot, artifact });
-      }),
-      consumerPhase("quality gate runner", current => testPackedQualityGateRunner({
-        consumerRoot: current.consumerRoot,
-        runPnpm
-      }))
-    ]);
-    const current = await getFixture();
-    if (group === undefined || group === "integration") {
-      process.stdout.write(
-        `Package and local-mode lifecycle verified: ${artifact.archiveName} (${current.packedManifest.version}); ${docsProtocolArtifact.archiveName}; ${docsProtocolMcpArtifact.archiveName}.\n`
+      await assertPnpmProfileQualificationRoot(repositoryRoot, sourceRoot);
+      const repositoryManifest = JSON.parse(
+        await readFile(join(repositoryRoot, "package.json"), "utf8"),
       );
-    } else {
-      process.stdout.write(`Packed consumer group verified: ${group}; ${artifact.archiveName}.\n`);
-    }
-    process.stdout.write(
-      `Registry-install qualification: ${localRegistryInstallQualification.status}. ${localRegistryInstallQualification.summary}\n`
-    );
-  });
+      const packageManager = packageManagerVersion(repositoryManifest);
+      const timedPhase = (name, run) => runPackedPhase(name, run, checkpoint);
+      const artifact = artifacts["@agent-teams/engineering-foundation"];
+      const mutationArtifact = artifacts["@agent-teams/repository-mutation"];
+      const documentAuthoringArtifact = artifacts["@agent-teams/document-authoring"];
+      const docsProtocolArtifact = artifacts["@agent-teams/docs-protocol"];
+      const docsProtocolAdapterArtifact = artifacts["@agent-teams/docs-protocol-agent-teams"];
+      const docsProtocolMcpArtifact = artifacts["@agent-teams/docs-protocol-mcp"];
+      let fixture;
+      const getFixture = async () => {
+        fixture ??= await timedPhase("packed consumer fixture", async () =>
+          createPackedConsumerFixture({
+            archiveFileSpecifier: artifact.archiveFileSpecifier,
+            stackToolchainArchiveFileSpecifier: artifacts["stack-toolchain"].archiveFileSpecifier,
+            consumerRoot: join(temporaryRoot, "consumer"),
+            documentAuthoringArchiveFileSpecifier: documentAuthoringArtifact.archiveFileSpecifier,
+            mutationArchiveFileSpecifier: mutationArtifact.archiveFileSpecifier,
+            packageManager,
+            runPnpm,
+            toolingVersions: await toolingVersions(),
+          }),
+        );
+        return fixture;
+      };
+      const consumerPhase = (id, run) => ({
+        id,
+        run: async () => {
+          const current = await getFixture();
+          return timedPhase(id, () => run(current));
+        },
+      });
+      await runPackageQualificationPhases("packed", group, [
+        {
+          id: "Docs integration",
+          run: async () => {
+            await timedPhase("Docs integration", async () => {
+              await verifyPackedDocsAdapterHistory(docsProtocolAdapterArtifact, temporaryRoot);
+              const rollbackFixtureArtifact = await createRollbackFixturePackage(
+                docsProtocolAdapterArtifact,
+                docsProtocolArtifact,
+                artifact,
+                mutationArtifact,
+                temporaryRoot,
+              );
+              process.stdout.write(
+                `Packed TEST rollback fixture (deliberately modified): ${rollbackFixtureArtifact.archiveFileSpecifier}\n`,
+              );
+              await verifyPackedDocsConsumerIntegration({
+                temporaryRoot,
+                runPnpm,
+                packageManager,
+                adapter: rollbackFixtureArtifact,
+                authoring: documentAuthoringArtifact,
+                docs: docsProtocolArtifact,
+                foundation: artifact,
+                mutation: mutationArtifact,
+              });
+            });
+            process.stdout.write(
+              `Packed Docs consumer adoption and B-to-A source rollback verified: ${docsProtocolArtifact.archiveName}.\n`,
+            );
+          },
+        },
+        consumerPhase("packed consumer E2E", async (current) => {
+          await verifyPackedConsumer({ fixture: current });
+          await verifyPackedCiInputProof(
+            artifacts["@agent-teams/ci-input-proof"],
+            temporaryRoot,
+            repositoryRoot,
+            runPnpm,
+          );
+          await verifyPackedFeatureModuleStandard({
+            artifacts,
+            temporaryRoot,
+            packageManager,
+            runPnpm,
+            typescript: (await toolingVersions()).typescript,
+          });
+        }),
+        consumerPhase("SDK growth qualification", (current) =>
+          testPackedSdkGrowth({ consumerRoot: current.consumerRoot, artifact }),
+        ),
+        consumerPhase("authority scaffolding", (current) =>
+          verifyPackedAuthorityScaffolding({ fixture: current, repositoryRoot }),
+        ),
+        consumerPhase("local-mode lifecycle", (current) =>
+          verifyPackedLocalMode({
+            ...artifact,
+            packageVersion: current.packedManifest.version,
+            packageManager,
+            repositoryRoot,
+            runPnpm,
+            documentAuthoringArchiveFileSpecifier: documentAuthoringArtifact.archiveFileSpecifier,
+            mutationArchiveFileSpecifier: mutationArtifact.archiveFileSpecifier,
+            temporaryRoot,
+          }),
+        ),
+        consumerPhase("agent-workflow fixture", (current) =>
+          testPackedAgentWorkflow({
+            consumerRoot: current.consumerRoot,
+            runPnpm,
+          }),
+        ),
+        consumerPhase("quality coverage", async (current) => {
+          await qualifyInstalledStackToolchain(current.consumerRoot);
+          return testPackedQualityCoverage({ consumerRoot: current.consumerRoot, artifact });
+        }),
+        consumerPhase("quality gate runner", (current) =>
+          testPackedQualityGateRunner({
+            consumerRoot: current.consumerRoot,
+            runPnpm,
+          }),
+        ),
+      ]);
+      const current = await getFixture();
+      if (group === undefined || group === "integration") {
+        process.stdout.write(
+          `Package and local-mode lifecycle verified: ${artifact.archiveName} (${current.packedManifest.version}); ${docsProtocolArtifact.archiveName}; ${docsProtocolMcpArtifact.archiveName}.\n`,
+        );
+      } else {
+        process.stdout.write(
+          `Packed consumer group verified: ${group}; ${artifact.archiveName}.\n`,
+        );
+      }
+      process.stdout.write(
+        `Registry-install qualification: ${localRegistryInstallQualification.status}. ${localRegistryInstallQualification.summary}\n`,
+      );
+    },
+  );
 }
 
 /** @param {import("./package-qualification-groups.mts").PackedQualificationGroup | undefined} [group] */
 export async function runPackTest(group) {
   packageQualificationPhaseIds("packed", group);
-  const evidence = await withQualifiedPackageArtifacts("packed", handle => qualifyPackedConsumers(handle, group));
-  process.stdout.write(`Packed${group === undefined ? "" : ` group ${group}`} qualification PASS: ${JSON.stringify(evidence)}\n`);
+  const evidence = await withQualifiedPackageArtifacts("packed", (handle) =>
+    qualifyPackedConsumers(handle, group),
+  );
+  process.stdout.write(
+    `Packed${group === undefined ? "" : ` group ${group}`} qualification PASS: ${JSON.stringify(evidence)}\n`,
+  );
   return evidence;
 }
 
 if (import.meta.main) {
-  if (process.argv.length !== 2) { throw new Error("Pack qualification accepts no archive overrides or arguments."); }
+  if (process.argv.length !== 2) {
+    throw new Error("Pack qualification accepts no archive overrides or arguments.");
+  }
   await runPackTest();
 }

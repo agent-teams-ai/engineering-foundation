@@ -2,7 +2,7 @@ const WAIVERABLE_DIRECTIVES = [
   "ast-grep-ignore",
   "oxlint-disable-line",
   "oxlint-disable-next-line",
-  "typescript-expect-error"
+  "typescript-expect-error",
 ] as const;
 
 export type WaiverableDirective = (typeof WAIVERABLE_DIRECTIVES)[number];

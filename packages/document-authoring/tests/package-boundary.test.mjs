@@ -9,19 +9,13 @@ const packagesRoot = new URL("../..", import.meta.url).pathname;
 const targetEdges = new Map([
   ["repository-mutation", []],
   ["document-authoring", ["@agent-teams/repository-mutation"]],
-  ["engineering-foundation", [
-    "@agent-teams/document-authoring",
-    "@agent-teams/repository-mutation"
-  ]],
-  ["docs-protocol", [
-    "@agent-teams/document-authoring",
-    "@agent-teams/repository-mutation"
-  ]],
-  ["docs-protocol-agent-teams", [
-    "@agent-teams/docs-protocol",
-    "@agent-teams/repository-mutation"
-  ]],
-  ["docs-protocol-mcp", ["@agent-teams/docs-protocol"]]
+  [
+    "engineering-foundation",
+    ["@agent-teams/document-authoring", "@agent-teams/repository-mutation"],
+  ],
+  ["docs-protocol", ["@agent-teams/document-authoring", "@agent-teams/repository-mutation"]],
+  ["docs-protocol-agent-teams", ["@agent-teams/docs-protocol", "@agent-teams/repository-mutation"]],
+  ["docs-protocol-mcp", ["@agent-teams/docs-protocol"]],
 ]);
 
 async function sourceFiles(directory) {
@@ -29,7 +23,7 @@ async function sourceFiles(directory) {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     const path = join(directory, entry.name);
     if (entry.isDirectory()) {
-      files.push(...await sourceFiles(path));
+      files.push(...(await sourceFiles(path)));
     } else if (entry.isFile() && entry.name.endsWith(".ts")) {
       files.push(path);
     }
@@ -40,13 +34,17 @@ async function sourceFiles(directory) {
 test("physical package has the closed Repository Mutation edge", async () => {
   const manifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
   assert.deepEqual(
-    Object.keys(manifest.dependencies).filter((name) => name.startsWith("@agent-teams/")).toSorted(),
-    ["@agent-teams/repository-mutation"]
+    Object.keys(manifest.dependencies)
+      .filter((name) => name.startsWith("@agent-teams/"))
+      .toSorted(),
+    ["@agent-teams/repository-mutation"],
   );
   assert.equal(manifest.exports["./document-authoring"], undefined);
-  const source = (await Promise.all(
-    (await sourceFiles(join(packageRoot, "src"))).map((path) => readFile(path, "utf8"))
-  )).join("\n");
+  const source = (
+    await Promise.all(
+      (await sourceFiles(join(packageRoot, "src"))).map((path) => readFile(path, "utf8")),
+    )
+  ).join("\n");
   assert.doesNotMatch(source, /from\s+["']@agent-teams\/engineering-foundation/u);
   assert.doesNotMatch(source, /import\s*\(\s*["'`]@agent-teams\/engineering-foundation/u);
 });
@@ -58,19 +56,20 @@ test("portable package manifests and source imports implement the closed target 
     const declared = {
       ...manifest.dependencies,
       ...manifest.optionalDependencies,
-      ...manifest.peerDependencies
+      ...manifest.peerDependencies,
     };
     assert.deepEqual(
       Object.keys(declared)
         .filter((name) => name.startsWith("@agent-teams/"))
         .toSorted(),
-      expectedDependencies
+      expectedDependencies,
     );
 
     const imports = new Set();
     for (const path of await sourceFiles(join(root, "src"))) {
       const source = await readFile(path, "utf8");
-      const pattern = /(?:from\s*|import\s*\(\s*|require\s*\(\s*)["'](@agent-teams\/[a-z0-9-]+(?:\/[a-z0-9-]+)?)["']/gu;
+      const pattern =
+        /(?:from\s*|import\s*\(\s*|require\s*\(\s*)["'](@agent-teams\/[a-z0-9-]+(?:\/[a-z0-9-]+)?)["']/gu;
       for (const match of source.matchAll(pattern)) {
         imports.add(match[1]);
       }
@@ -86,22 +85,38 @@ test("portable package manifests and source imports implement the closed target 
 });
 
 test("current and historical Plan schemas keep distinct closed owners", async () => {
-  const source = await readFile(join(packageRoot, "src/document-authoring/adapters/node/node-document-planning.ts"), "utf8");
+  const source = await readFile(
+    join(packageRoot, "src/document-authoring/adapters/node/node-document-planning.ts"),
+    "utf8",
+  );
   assert.match(source, /id: "@agent-teams\/document-authoring"/u);
-  const plan = JSON.parse(await readFile(
-    join(packageRoot, "schemas/document-plan/v1.schema.json"), "utf8"
-  ));
-  const historical = JSON.parse(await readFile(new URL(
-    "../../../tests/support/historical-schemas/document-plan/v1.schema.json", import.meta.url
-  ), "utf8"));
-  assert.equal(historical.$defs.compiler.properties.id.const, "@agent-teams/engineering-foundation");
+  const plan = JSON.parse(
+    await readFile(join(packageRoot, "schemas/document-plan/v1.schema.json"), "utf8"),
+  );
+  const historical = JSON.parse(
+    await readFile(
+      new URL(
+        "../../../tests/support/historical-schemas/document-plan/v1.schema.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
+  assert.equal(
+    historical.$defs.compiler.properties.id.const,
+    "@agent-teams/engineering-foundation",
+  );
   assert.deepEqual(plan.$defs.compiler.properties.id.enum, [
-    "@agent-teams/document-authoring", "@agent-teams/engineering-foundation"
+    "@agent-teams/document-authoring",
+    "@agent-teams/engineering-foundation",
   ]);
   assert.equal(plan.$id, historical.$id);
-  const current = JSON.parse(await readFile(
-    join(packageRoot, "schemas/document-authoring/document-plan/v1.schema.json"), "utf8"
-  ));
+  const current = JSON.parse(
+    await readFile(
+      join(packageRoot, "schemas/document-authoring/document-plan/v1.schema.json"),
+      "utf8",
+    ),
+  );
   assert.equal(current.$defs.compiler.properties.id.const, "@agent-teams/document-authoring");
   assert.notEqual(current.$id, plan.$id);
 });
@@ -112,13 +127,21 @@ test("observation owns its parser and never imports authoring implementation", a
   for (const path of await sourceFiles(observation)) {
     const source = await readFile(path, "utf8");
     for (const [, specifier] of source.matchAll(/from\s+"([^"]+)"/gu)) {
-      if (!specifier.startsWith(".")) { continue; }
+      if (!specifier.startsWith(".")) {
+        continue;
+      }
       const target = new URL(specifier, `file://${path}`).pathname;
-      if (!target.startsWith(`${observation}/`) &&
-          target !== join(packageRoot, "src/binary-string-comparator.js")) {
+      if (
+        !target.startsWith(`${observation}/`) &&
+        target !== join(packageRoot, "src/binary-string-comparator.js")
+      ) {
         reverse.push({ path, specifier });
       }
     }
   }
-  assert.deepEqual(reverse, [], "Read observations cannot depend on document writing or its parser adapter");
+  assert.deepEqual(
+    reverse,
+    [],
+    "Read observations cannot depend on document writing or its parser adapter",
+  );
 });

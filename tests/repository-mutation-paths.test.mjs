@@ -8,7 +8,7 @@ import test from "node:test";
 import {
   assertNoPortableNameCollision,
   assertSafeExistingRepositoryAncestors,
-  ExistingRepositoryAncestorError
+  ExistingRepositoryAncestorError,
 } from "../packages/repository-mutation/dist/repository-mutation/adapters/node/node-existing-repository-ancestors.js";
 import {
   StrictDirectoryDurabilityError,
@@ -19,7 +19,7 @@ import { isLexicallyContainedPath } from "../packages/repository-mutation/dist/r
 import {
   findPortableRepositoryPathCollision,
   portableRepositoryPathIdentity,
-  portableRepositoryPathProblem
+  portableRepositoryPathProblem,
 } from "../packages/repository-mutation/dist/repository-mutation/application/model/repository-path.js";
 import { legacyScaffoldingRepositoryPathProblem } from "../packages/engineering-foundation/dist/scaffolding/application/policies/legacy-scaffolding-repository-path.js";
 import { portableRepositoryPathProblem as sdPortableRepositoryPathProblem } from "../packages/engineering-foundation/dist/capabilities/source-dependencies/application/model/repository-path.js";
@@ -38,15 +38,12 @@ async function collisionEntries() {
   return ["a.txt", "A.txt", "A.TXT"];
 }
 
-const pathVectors = JSON.parse(readFileSync(
-  new URL("./fixtures/repository-path-conformance-v1.json", import.meta.url),
-  "utf8"
-)).vectors;
+const pathVectors = JSON.parse(
+  readFileSync(new URL("./fixtures/repository-path-conformance-v1.json", import.meta.url), "utf8"),
+).vectors;
 
 function vectorPath(vector) {
-  return vector.path ?? vector.segments
-    .map(({ count, repeat }) => repeat.repeat(count))
-    .join("/");
+  return vector.path ?? vector.segments.map(({ count, repeat }) => repeat.repeat(count)).join("/");
 }
 
 test("implements the shared repository path conformance vectors", () => {
@@ -54,7 +51,7 @@ test("implements the shared repository path conformance vectors", () => {
     assert.equal(
       portableRepositoryPathProblem(vectorPath(vector)),
       vector.mutationProblem ?? undefined,
-      vector.name
+      vector.name,
     );
   }
 });
@@ -71,31 +68,18 @@ test("validates portable repository paths independently of the host", () => {
   assert.equal(portableRepositoryPathProblem("docs/café.md"), "invalid-character");
   assert.equal(portableRepositoryPathProblem("docs/trailing "), "trailing-space");
   assert.equal(portableRepositoryPathProblem("docs/stream:secret"), "invalid-character");
-  for (const character of ['*', '?', '"', '<', '>', '|']) {
-    assert.equal(
-      portableRepositoryPathProblem(`docs/bad${character}.md`),
-      "invalid-character"
-    );
+  for (const character of ["*", "?", '"', "<", ">", "|"]) {
+    assert.equal(portableRepositoryPathProblem(`docs/bad${character}.md`), "invalid-character");
   }
+  assert.equal(portableRepositoryPathProblem(`docs/${"a".repeat(256)}`), "segment-too-long");
   assert.equal(
-    portableRepositoryPathProblem(`docs/${"a".repeat(256)}`),
-    "segment-too-long"
+    portableRepositoryPathProblem(`${"a".repeat(255)}/${"b".repeat(255)}/c`),
+    "path-too-long",
   );
+  assert.equal(portableRepositoryPathProblem(`docs/${"é".repeat(128)}`), "segment-too-long");
   assert.equal(
-    portableRepositoryPathProblem(
-      `${"a".repeat(255)}/${"b".repeat(255)}/c`
-    ),
-    "path-too-long"
-  );
-  assert.equal(
-    portableRepositoryPathProblem(`docs/${"é".repeat(128)}`),
-    "segment-too-long"
-  );
-  assert.equal(
-    portableRepositoryPathProblem(
-      `${"é".repeat(127)}/${"é".repeat(127)}/aaa`
-    ),
-    "path-too-long"
+    portableRepositoryPathProblem(`${"é".repeat(127)}/${"é".repeat(127)}/aaa`),
+    "path-too-long",
   );
 });
 
@@ -105,7 +89,7 @@ test("keeps the published scaffolding path contract frozen", () => {
     "packages/generated/trailing ",
     "packages/generated/stream:secret",
     "packages/generated/bad?.ts",
-    "packages/generated/bad\u007f.ts"
+    "packages/generated/bad\u007f.ts",
   ]) {
     assert.equal(legacyScaffoldingRepositoryPathProblem(repositoryPath), undefined);
     assert.notEqual(portableRepositoryPathProblem(repositoryPath), undefined);
@@ -117,11 +101,11 @@ test("assigns NFC and case folded portable identities", () => {
   const composed = "DOCS/CAFÉ.md";
   assert.equal(
     portableRepositoryPathIdentity(decomposed),
-    portableRepositoryPathIdentity(composed)
+    portableRepositoryPathIdentity(composed),
   );
   assert.deepEqual(findPortableRepositoryPathCollision([decomposed, composed]), {
     first: decomposed,
-    second: composed
+    second: composed,
   });
 });
 
@@ -132,9 +116,9 @@ test("selects portable name collisions in binary order", async () => {
       "requested.txt",
       () => "collision",
       "binary",
-      collisionEntries
+      collisionEntries,
     ),
-    (error) => error?.existingName === "A.TXT"
+    (error) => error?.existingName === "A.TXT",
   );
   await assert.rejects(
     assertNoPortableNameCollision(
@@ -142,9 +126,9 @@ test("selects portable name collisions in binary order", async () => {
       "requested.txt",
       () => "collision",
       "filesystem",
-      collisionEntries
+      collisionEntries,
     ),
-    (error) => error?.existingName === "a.txt"
+    (error) => error?.existingName === "a.txt",
   );
 });
 
@@ -158,7 +142,7 @@ test("accepts missing existing parents without creating them", async () => {
     await assertSafeExistingRepositoryAncestors(root, "missing/child/file.md");
     await assert.rejects(
       async () => (await import("node:fs/promises")).stat(join(root, "missing")),
-      { code: "ENOENT" }
+      { code: "ENOENT" },
     );
   });
 });
@@ -171,15 +155,13 @@ test("rejects symbolic-link and non-directory ancestors", async () => {
       await assert.rejects(
         assertSafeExistingRepositoryAncestors(root, "linked/file.md"),
         (error) =>
-          error instanceof ExistingRepositoryAncestorError &&
-          error.problem === "not-directory"
+          error instanceof ExistingRepositoryAncestorError && error.problem === "not-directory",
       );
       await writeFile(join(root, "plain"), "not a directory\n");
       await assert.rejects(
         assertSafeExistingRepositoryAncestors(root, "plain/file.md"),
         (error) =>
-          error instanceof ExistingRepositoryAncestorError &&
-          error.problem === "not-directory"
+          error instanceof ExistingRepositoryAncestorError && error.problem === "not-directory",
       );
     } finally {
       await rm(outside, { force: true, recursive: true });
@@ -196,10 +178,10 @@ test("reports directory durability capability honestly", async () => {
         close: async () => {
           closed = true;
         },
-        sync: async () => {}
-      })
+        sync: async () => {},
+      }),
     }),
-    "durable"
+    "durable",
   );
   assert.equal(closed, true);
 
@@ -209,18 +191,18 @@ test("reports directory durability capability honestly", async () => {
       platform: "win32",
       open: async () => {
         throw unsupported;
-      }
+      },
     }),
-    "unsupported"
+    "unsupported",
   );
   await assert.rejects(
     syncDirectoryDurably("unused", {
       platform: "linux",
       open: async () => {
         throw unsupported;
-      }
+      },
     }),
-    unsupported
+    unsupported,
   );
 });
 
@@ -241,36 +223,36 @@ test("strict directory durability rejects an unsupported Windows result", async 
 //   Impl 4 – isDocumentRepositoryPath               (document-authoring)
 const windowsReservedCrossCheckFixtures = [
   // --- segments that ARE Windows reserved names ---
-  { segment: "CON",          reserved: true },
-  { segment: "PRN",          reserved: true },
-  { segment: "AUX",          reserved: true },
-  { segment: "NUL",          reserved: true },
-  { segment: "COM1",         reserved: true },
-  { segment: "COM5",         reserved: true },
-  { segment: "COM9",         reserved: true },
-  { segment: "LPT1",         reserved: true },
-  { segment: "LPT5",         reserved: true },
-  { segment: "LPT9",         reserved: true },
-  { segment: "con",          reserved: true },   // lowercase
-  { segment: "Con",          reserved: true },   // mixed case
-  { segment: "CON.txt",      reserved: true },   // with extension
-  { segment: "lpt9.md",      reserved: true },   // from shared fixture
-  { segment: "NUL.log",      reserved: true },
-  { segment: "COM1.ts",      reserved: true },
-  { segment: "prn.backup",   reserved: true },
-  { segment: "AUX.extra.bak", reserved: true },  // multiple dots
+  { segment: "CON", reserved: true },
+  { segment: "PRN", reserved: true },
+  { segment: "AUX", reserved: true },
+  { segment: "NUL", reserved: true },
+  { segment: "COM1", reserved: true },
+  { segment: "COM5", reserved: true },
+  { segment: "COM9", reserved: true },
+  { segment: "LPT1", reserved: true },
+  { segment: "LPT5", reserved: true },
+  { segment: "LPT9", reserved: true },
+  { segment: "con", reserved: true }, // lowercase
+  { segment: "Con", reserved: true }, // mixed case
+  { segment: "CON.txt", reserved: true }, // with extension
+  { segment: "lpt9.md", reserved: true }, // from shared fixture
+  { segment: "NUL.log", reserved: true },
+  { segment: "COM1.ts", reserved: true },
+  { segment: "prn.backup", reserved: true },
+  { segment: "AUX.extra.bak", reserved: true }, // multiple dots
   // --- segments that are NOT Windows reserved names ---
-  { segment: "console",      reserved: false },
-  { segment: "console.md",   reserved: false },  // from shared fixture
-  { segment: "CONMAN",       reserved: false },  // reserved prefix, different name
-  { segment: "prnt",         reserved: false },
-  { segment: "auxiliary",    reserved: false },
-  { segment: "nullify",      reserved: false },
-  { segment: "common",       reserved: false },
-  { segment: "COM0",         reserved: false },  // COM0 is not reserved
-  { segment: "LPT0",         reserved: false },  // LPT0 is not reserved
-  { segment: "COM10",        reserved: false },  // COM10 is not reserved
-  { segment: "COM1A",        reserved: false },  // COM1 prefix but extra char
+  { segment: "console", reserved: false },
+  { segment: "console.md", reserved: false }, // from shared fixture
+  { segment: "CONMAN", reserved: false }, // reserved prefix, different name
+  { segment: "prnt", reserved: false },
+  { segment: "auxiliary", reserved: false },
+  { segment: "nullify", reserved: false },
+  { segment: "common", reserved: false },
+  { segment: "COM0", reserved: false }, // COM0 is not reserved
+  { segment: "LPT0", reserved: false }, // LPT0 is not reserved
+  { segment: "COM10", reserved: false }, // COM10 is not reserved
+  { segment: "COM1A", reserved: false }, // COM1 prefix but extra char
 ];
 
 test("all four Windows-reserved-name implementations classify identically", () => {
@@ -281,14 +263,14 @@ test("all four Windows-reserved-name implementations classify identically", () =
     assert.equal(
       portableRepositoryPathProblem(path) === "reserved-name",
       reserved,
-      `Impl1 (repository-mutation): ${segment}`
+      `Impl1 (repository-mutation): ${segment}`,
     );
 
     // Impl 2: legacyScaffoldingRepositoryPathProblem (engineering-foundation)
     assert.equal(
       legacyScaffoldingRepositoryPathProblem(path) === "reserved-name",
       reserved,
-      `Impl2 (legacy-scaffolding): ${segment}`
+      `Impl2 (legacy-scaffolding): ${segment}`,
     );
 
     // Impl 3: portableRepositoryPathProblem (source-dependencies) — returns
@@ -297,14 +279,14 @@ test("all four Windows-reserved-name implementations classify identically", () =
     assert.equal(
       sdPortableRepositoryPathProblem(path) !== undefined,
       reserved,
-      `Impl3 (source-dependencies): ${segment}`
+      `Impl3 (source-dependencies): ${segment}`,
     );
 
     // Impl 4: isDocumentRepositoryPath (document-authoring) — returns boolean.
     assert.equal(
       !isDocumentRepositoryPath(path),
       reserved,
-      `Impl4 (document-authoring): ${segment}`
+      `Impl4 (document-authoring): ${segment}`,
     );
   }
 });

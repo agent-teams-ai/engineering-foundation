@@ -12,32 +12,14 @@
       "bootstrapVersion": "0.0.0",
       "dependencies": [],
       "contentPolicy": {
-        "exact": [
-          "CHANGELOG.md",
-          "LICENSE",
-          "README.md",
-          "package.json"
-        ],
-        "prefixes": [
-          "dist/",
-          "schemas/"
-        ],
-        "required": [
-          "CHANGELOG.md",
-          "LICENSE",
-          "README.md",
-          "package.json"
-        ]
+        "exact": ["CHANGELOG.md", "LICENSE", "README.md", "package.json"],
+        "prefixes": ["dist/", "schemas/"],
+        "required": ["CHANGELOG.md", "LICENSE", "README.md", "package.json"]
       },
       "deprecationMessage": "Bootstrap-only artifact; do not adopt. Use a supported @agent-teams/repository-mutation release instead.",
       "tags": {
-        "required": [
-          "bootstrap"
-        ],
-        "allowed": [
-          "bootstrap",
-          "latest"
-        ]
+        "required": ["bootstrap"],
+        "allowed": ["bootstrap", "latest"]
       },
       "provenance": {
         "workflowPath": ".github/workflows/npm-package-bootstrap.yml",
@@ -113,32 +95,14 @@
         }
       ],
       "contentPolicy": {
-        "exact": [
-          "CHANGELOG.md",
-          "LICENSE",
-          "README.md",
-          "package.json"
-        ],
-        "prefixes": [
-          "dist/",
-          "schemas/"
-        ],
-        "required": [
-          "CHANGELOG.md",
-          "LICENSE",
-          "README.md",
-          "package.json"
-        ]
+        "exact": ["CHANGELOG.md", "LICENSE", "README.md", "package.json"],
+        "prefixes": ["dist/", "schemas/"],
+        "required": ["CHANGELOG.md", "LICENSE", "README.md", "package.json"]
       },
       "deprecationMessage": "Bootstrap-only artifact; do not adopt. Use a supported @agent-teams/document-authoring release instead.",
       "tags": {
-        "required": [
-          "bootstrap"
-        ],
-        "allowed": [
-          "bootstrap",
-          "latest"
-        ]
+        "required": ["bootstrap"],
+        "allowed": ["bootstrap", "latest"]
       },
       "provenance": {
         "workflowPath": ".github/workflows/npm-package-bootstrap.yml",
@@ -173,9 +137,7 @@
           "schemas/docs-protocol-profile/v1.schema.json",
           "schemas/docs-protocol/v1.schema.json"
         ],
-        "prefixes": [
-          "dist/"
-        ],
+        "prefixes": ["dist/"],
         "required": [
           "CHANGELOG.md",
           "LICENSE",
@@ -188,13 +150,8 @@
       },
       "deprecationMessage": "Bootstrap-only artifact; do not adopt. Use a supported @agent-teams/docs-protocol release candidate instead.",
       "tags": {
-        "required": [
-          "bootstrap"
-        ],
-        "allowed": [
-          "bootstrap",
-          "latest"
-        ]
+        "required": ["bootstrap"],
+        "allowed": ["bootstrap", "latest"]
       },
       "provenance": {
         "workflowPath": ".github/workflows/docs-protocol-bootstrap.yml",
@@ -240,35 +197,14 @@
         }
       ],
       "contentPolicy": {
-        "exact": [
-          "CHANGELOG.md",
-          "LICENSE",
-          "README.md",
-          "package.json",
-          "skills/docs/SKILL.md"
-        ],
-        "prefixes": [
-          "assets/",
-          "dist/",
-          "schemas/"
-        ],
-        "required": [
-          "CHANGELOG.md",
-          "LICENSE",
-          "README.md",
-          "package.json",
-          "skills/docs/SKILL.md"
-        ]
+        "exact": ["CHANGELOG.md", "LICENSE", "README.md", "package.json", "skills/docs/SKILL.md"],
+        "prefixes": ["assets/", "dist/", "schemas/"],
+        "required": ["CHANGELOG.md", "LICENSE", "README.md", "package.json", "skills/docs/SKILL.md"]
       },
       "deprecationMessage": "Bootstrap-only artifact; do not adopt. Use a supported @agent-teams/docs-protocol-agent-teams release instead.",
       "tags": {
-        "required": [
-          "bootstrap"
-        ],
-        "allowed": [
-          "bootstrap",
-          "latest"
-        ]
+        "required": ["bootstrap"],
+        "allowed": ["bootstrap", "latest"]
       },
       "provenance": {
         "workflowPath": ".github/workflows/npm-package-bootstrap.yml",
@@ -299,31 +235,14 @@
         }
       ],
       "contentPolicy": {
-        "exact": [
-          "CHANGELOG.md",
-          "LICENSE",
-          "README.md",
-          "package.json"
-        ],
-        "prefixes": [
-          "dist/"
-        ],
-        "required": [
-          "CHANGELOG.md",
-          "LICENSE",
-          "README.md",
-          "package.json"
-        ]
+        "exact": ["CHANGELOG.md", "LICENSE", "README.md", "package.json"],
+        "prefixes": ["dist/"],
+        "required": ["CHANGELOG.md", "LICENSE", "README.md", "package.json"]
       },
       "deprecationMessage": "Bootstrap-only artifact; do not adopt. Use a supported @agent-teams/docs-protocol-mcp release instead.",
       "tags": {
-        "required": [
-          "bootstrap"
-        ],
-        "allowed": [
-          "bootstrap",
-          "latest"
-        ]
+        "required": ["bootstrap"],
+        "allowed": ["bootstrap", "latest"]
       },
       "provenance": {
         "workflowPath": ".github/workflows/npm-package-bootstrap.yml",
@@ -343,31 +262,14 @@
       "bootstrapVersion": "0.0.0",
       "dependencies": [],
       "contentPolicy": {
-        "exact": [
-          "CHANGELOG.md",
-          "LICENSE",
-          "README.md",
-          "package.json"
-        ],
-        "prefixes": [
-          "dist/"
-        ],
-        "required": [
-          "CHANGELOG.md",
-          "LICENSE",
-          "README.md",
-          "package.json"
-        ]
+        "exact": ["CHANGELOG.md", "LICENSE", "README.md", "package.json"],
+        "prefixes": ["dist/"],
+        "required": ["CHANGELOG.md", "LICENSE", "README.md", "package.json"]
       },
       "deprecationMessage": "Bootstrap-only artifact; do not adopt. Use a supported @agent-teams/ci-input-proof release instead.",
       "tags": {
-        "required": [
-          "bootstrap"
-        ],
-        "allowed": [
-          "bootstrap",
-          "latest"
-        ]
+        "required": ["bootstrap"],
+        "allowed": ["bootstrap", "latest"]
       },
       "provenance": {
         "workflowPath": ".github/workflows/npm-package-bootstrap.yml",
@@ -398,31 +300,14 @@
       "bootstrapVersion": "0.0.0",
       "dependencies": [],
       "contentPolicy": {
-        "exact": [
-          "CHANGELOG.md",
-          "LICENSE",
-          "README.md",
-          "package.json"
-        ],
-        "prefixes": [
-          "dist/"
-        ],
-        "required": [
-          "CHANGELOG.md",
-          "LICENSE",
-          "README.md",
-          "package.json"
-        ]
+        "exact": ["CHANGELOG.md", "LICENSE", "README.md", "package.json"],
+        "prefixes": ["dist/"],
+        "required": ["CHANGELOG.md", "LICENSE", "README.md", "package.json"]
       },
       "deprecationMessage": "Bootstrap-only artifact; do not adopt. Use a supported @agent-teams/feature-module-standard release instead.",
       "tags": {
-        "required": [
-          "bootstrap"
-        ],
-        "allowed": [
-          "bootstrap",
-          "latest"
-        ]
+        "required": ["bootstrap"],
+        "allowed": ["bootstrap", "latest"]
       },
       "provenance": {
         "workflowPath": ".github/workflows/npm-package-bootstrap.yml",
@@ -492,10 +377,7 @@
           "package.json",
           "toolchain-manifest.json"
         ],
-        "prefixes": [
-          "dist/",
-          "presets/"
-        ],
+        "prefixes": ["dist/", "presets/"],
         "required": [
           "CHANGELOG.md",
           "LICENSE",
@@ -506,13 +388,8 @@
       },
       "deprecationMessage": "Bootstrap-only artifact; do not adopt. Use a supported stack-toolchain release instead.",
       "tags": {
-        "required": [
-          "bootstrap"
-        ],
-        "allowed": [
-          "bootstrap",
-          "latest"
-        ]
+        "required": ["bootstrap"],
+        "allowed": ["bootstrap", "latest"]
       },
       "provenance": {
         "workflowPath": ".github/workflows/npm-package-bootstrap.yml",

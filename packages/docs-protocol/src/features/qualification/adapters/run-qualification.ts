@@ -21,13 +21,17 @@ async function parentState(root: string, documentPath: string): Promise<"directo
     }
     return "directory";
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") {return "missing";}
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return "missing";
+    }
     throw error;
   }
 }
 
 export const qualificationWorkspace: QualificationWorkspace = {
-  async resolveRoot(root) { return realpath(resolvePath(root)); },
+  async resolveRoot(root) {
+    return realpath(resolvePath(root));
+  },
   snapshot,
   fileSnapshot,
   bootstrapInstallation: bootstrapQualificationInstallation,
@@ -40,13 +44,19 @@ export const qualificationWorkspace: QualificationWorkspace = {
       consumerRoot,
       async copyFrom(sourceRoot) {
         await cp(sourceRoot, consumerRoot, {
-          recursive: true, errorOnExist: true, force: false, dereference: false,
+          recursive: true,
+          errorOnExist: true,
+          force: false,
+          dereference: false,
           // Match the unconditional infrastructure exclusion in both evidence observations.
           // Keep journals and mutable authority for recovery; bootstrap owns tooling links.
-          filter: (source) => !hasInfrastructureSegment(relative(sourceRoot, source).split(sep).join("/"))
+          filter: (source) =>
+            !hasInfrastructureSegment(relative(sourceRoot, source).split(sep).join("/")),
         });
       },
-      async dispose() { await rm(temporary, { recursive: true, force: true }); }
+      async dispose() {
+        await rm(temporary, { recursive: true, force: true });
+      },
     };
-  }
+  },
 };

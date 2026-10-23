@@ -1,32 +1,25 @@
-import type {
-  AuthorityScaffoldPlan
-} from "../application/model/scaffold-compilation.js";
-import type {
-  AuthorityScaffoldRecoveryScope
-} from "../application/model/recovery-scope.js";
+import type { AuthorityScaffoldPlan } from "../application/model/scaffold-compilation.js";
+import type { AuthorityScaffoldRecoveryScope } from "../application/model/recovery-scope.js";
 import { ScaffoldError } from "../scaffold-error.js";
 
 const recoveryScopeKeys = Object.freeze([
   "projectId",
   "configPath",
   "targetCatalogPath",
-  "compositionId"
+  "compositionId",
 ] as const);
 const recoveryScopeKeySet = new Set<PropertyKey>(recoveryScopeKeys);
 const authorityIdPattern = /^[a-z0-9][a-z0-9._/-]*$/u;
 export const SCAFFOLDING_V1_REPOSITORY_PATH_PATTERN =
   "^(?!.*(?:^|/)\\.{1,2}(?:/|$))[A-Za-z0-9._@-]+(?:/[A-Za-z0-9._@-]+)*$";
-const repositoryPathPattern = new RegExp(
-  SCAFFOLDING_V1_REPOSITORY_PATH_PATTERN,
-  "u"
-);
+const repositoryPathPattern = new RegExp(SCAFFOLDING_V1_REPOSITORY_PATH_PATTERN, "u");
 
 function invalidScope(message: string, cause?: unknown): never {
   throw new ScaffoldError(
     "SCAFFOLD_INPUT_INVALID",
     message,
     [],
-    cause === undefined ? undefined : { cause }
+    cause === undefined ? undefined : { cause },
   );
 }
 
@@ -44,16 +37,13 @@ function snapshotDescriptors(value: unknown): PropertyDescriptorMap {
     if (error instanceof ScaffoldError) {
       throw error;
     }
-    return invalidScope(
-      "Scaffolding recovery scope properties cannot be inspected safely.",
-      error
-    );
+    return invalidScope("Scaffolding recovery scope properties cannot be inspected safely.", error);
   }
 }
 
 function scopeString(
   descriptors: PropertyDescriptorMap,
-  key: (typeof recoveryScopeKeys)[number]
+  key: (typeof recoveryScopeKeys)[number],
 ): string {
   const descriptor = descriptors[key];
   if (
@@ -61,34 +51,27 @@ function scopeString(
     !("value" in descriptor) ||
     typeof descriptor.value !== "string"
   ) {
-    return invalidScope(
-      `Scaffolding recovery scope ${key} must be an own string data property.`
-    );
+    return invalidScope(`Scaffolding recovery scope ${key} must be an own string data property.`);
   }
   return descriptor.value;
 }
 
 function assertAuthorityId(value: string, key: "compositionId" | "projectId"): void {
   if (value.length > 160 || !authorityIdPattern.test(value)) {
-    invalidScope(
-      `Scaffolding recovery scope ${key} must satisfy the authority ID contract.`
-    );
+    invalidScope(`Scaffolding recovery scope ${key} must satisfy the authority ID contract.`);
   }
 }
 
-function assertRepositoryPath(
-  value: string,
-  key: "configPath" | "targetCatalogPath"
-): void {
+function assertRepositoryPath(value: string, key: "configPath" | "targetCatalogPath"): void {
   if (value.length > 512 || !repositoryPathPattern.test(value)) {
     invalidScope(
-      `Scaffolding recovery scope ${key} must satisfy the published v1 repository path contract.`
+      `Scaffolding recovery scope ${key} must satisfy the published v1 repository path contract.`,
     );
   }
 }
 
 export function snapshotAuthorityScaffoldRecoveryScope(
-  value: unknown
+  value: unknown,
 ): AuthorityScaffoldRecoveryScope {
   const descriptors = snapshotDescriptors(value);
   const keys = Reflect.ownKeys(descriptors);
@@ -97,7 +80,7 @@ export function snapshotAuthorityScaffoldRecoveryScope(
     keys.some((key) => !recoveryScopeKeySet.has(key))
   ) {
     invalidScope(
-      "Scaffolding recovery scope must contain exactly projectId, configPath, targetCatalogPath, and compositionId."
+      "Scaffolding recovery scope must contain exactly projectId, configPath, targetCatalogPath, and compositionId.",
     );
   }
   const projectId = scopeString(descriptors, "projectId");
@@ -112,13 +95,13 @@ export function snapshotAuthorityScaffoldRecoveryScope(
     projectId,
     configPath,
     targetCatalogPath,
-    compositionId
+    compositionId,
   });
 }
 
 export function assertScaffoldRecoveryScopeMatchesPlan(
   scope: AuthorityScaffoldRecoveryScope,
-  plan: AuthorityScaffoldPlan
+  plan: AuthorityScaffoldPlan,
 ): void {
   if (
     scope.projectId === plan.projectId &&
@@ -142,8 +125,8 @@ export function assertScaffoldRecoveryScopeMatchesPlan(
         subject: "scaffold-recovery-scope",
         message,
         remediation:
-          "Retry only with the exact project, authority paths, and Composition expected by the caller."
-      })
-    ])
+          "Retry only with the exact project, authority paths, and Composition expected by the caller.",
+      }),
+    ]),
   );
 }

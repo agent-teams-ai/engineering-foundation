@@ -2,7 +2,10 @@ import { constants, open, realpath, lstat, type FileHandle } from "node:fs/promi
 import { dirname, isAbsolute, join, relative, sep } from "node:path";
 import { getNodeValue, parseTree, type Node, type ParseError } from "jsonc-parser";
 import { inspectBunLockfile } from "../../application/bun-registry-policy.js";
-import { FOUNDATION_PACKAGE_NAME, type RegistryProvenanceInspection } from "../../application/model.js";
+import {
+  FOUNDATION_PACKAGE_NAME,
+  type RegistryProvenanceInspection,
+} from "../../application/model.js";
 
 const MAX_LOCK_BYTES = 4 * 1024 * 1024;
 const MAX_MANIFEST_BYTES = 1024 * 1024;
@@ -25,13 +28,18 @@ function sameIdentity(left: FileIdentity, right: FileIdentity): boolean {
 }
 
 function sameSnapshot(before: FileSnapshot, after: FileSnapshot): boolean {
-  return sameIdentity(before, after) && before.nlink === after.nlink &&
-    before.size === after.size && before.mode === after.mode &&
-    before.mtimeMs === after.mtimeMs && before.ctimeMs === after.ctimeMs;
+  return (
+    sameIdentity(before, after) &&
+    before.nlink === after.nlink &&
+    before.size === after.size &&
+    before.mode === after.mode &&
+    before.mtimeMs === after.mtimeMs &&
+    before.ctimeMs === after.ctimeMs
+  );
 }
 
 async function capturePathIdentity(root: string, path: string, expected: FileIdentity) {
-  if (await realpath(root) !== root || await realpath(dirname(path)) !== dirname(path)) {
+  if ((await realpath(root)) !== root || (await realpath(dirname(path))) !== dirname(path)) {
     throw new Error("File ancestry must remain canonical.");
   }
   const rootDirectory = await lstat(root);
@@ -67,7 +75,9 @@ async function readRegularFile(root: string, path: string, maximumBytes: number)
   if (isAbsolute(relation) || relation === ".." || relation.startsWith(`..${sep}`)) {
     throw new Error("File must remain contained.");
   }
-  const flags = constants.O_RDONLY | (process.platform === "win32" ? 0 : constants.O_NOFOLLOW | constants.O_NONBLOCK);
+  const flags =
+    constants.O_RDONLY |
+    (process.platform === "win32" ? 0 : constants.O_NOFOLLOW | constants.O_NONBLOCK);
   const file = await open(path, flags);
   try {
     const stat = await file.stat();
@@ -78,9 +88,12 @@ async function readRegularFile(root: string, path: string, maximumBytes: number)
     const bytes = await readBoundedBytes(file, maximumBytes);
     const after = await file.stat();
     const current = await capturePathIdentity(root, path, stat);
-    if (!sameSnapshot(stat, after) || bytes.length !== stat.size ||
-        !sameIdentity(before.rootDirectory, current.rootDirectory) ||
-        !sameIdentity(before.parentDirectory, current.parentDirectory)) {
+    if (
+      !sameSnapshot(stat, after) ||
+      bytes.length !== stat.size ||
+      !sameIdentity(before.rootDirectory, current.rootDirectory) ||
+      !sameIdentity(before.parentDirectory, current.parentDirectory)
+    ) {
       throw new Error("File changed during its bounded read.");
     }
     return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
@@ -91,7 +104,10 @@ async function readRegularFile(root: string, path: string, maximumBytes: number)
 
 function readUniqueObject(source: string, allowJsonc = true): Record<string, unknown> {
   const errors: ParseError[] = [];
-  const tree = parseTree(source, errors, { allowTrailingComma: allowJsonc, disallowComments: !allowJsonc });
+  const tree = parseTree(source, errors, {
+    allowTrailingComma: allowJsonc,
+    disallowComments: !allowJsonc,
+  });
   if (tree?.type !== "object" || errors.length !== 0) {
     throw new Error("Expected an unambiguous JSONC object.");
   }
@@ -124,16 +140,27 @@ async function inspectInstalledSelection(consumerRoot: string, version: string):
   const root = await realpath(join(modules, FOUNDATION_PACKAGE_NAME));
   const coordinate = relative(modules, root).split(sep);
   const expected = `@agent-teams+engineering-foundation@${version}`;
-  if (coordinate.length !== 5 || coordinate[0] !== ".bun" ||
-    !(coordinate[1] === expected || coordinate[1]?.match(/^(.+)\+([a-f0-9]{16})$/u)?.[1] === expected) ||
-    coordinate[2] !== "node_modules" || coordinate[3] !== "@agent-teams" || coordinate[4] !== "engineering-foundation") {
+  if (
+    coordinate.length !== 5 ||
+    coordinate[0] !== ".bun" ||
+    !(
+      coordinate[1] === expected ||
+      coordinate[1]?.match(/^(.+)\+([a-f0-9]{16})$/u)?.[1] === expected
+    ) ||
+    coordinate[2] !== "node_modules" ||
+    coordinate[3] !== "@agent-teams" ||
+    coordinate[4] !== "engineering-foundation"
+  ) {
     throw new Error("Only the contained Bun isolated registry layout is supported.");
   }
   const manifestPath = join(root, "package.json");
-  if (await realpath(manifestPath) !== manifestPath) {
+  if ((await realpath(manifestPath)) !== manifestPath) {
     throw new Error("Installed manifest must be canonical.");
   }
-  const manifest = readUniqueObject(await readRegularFile(modules, manifestPath, MAX_MANIFEST_BYTES), false);
+  const manifest = readUniqueObject(
+    await readRegularFile(modules, manifestPath, MAX_MANIFEST_BYTES),
+    false,
+  );
   if (manifest.name !== FOUNDATION_PACKAGE_NAME || manifest.version !== version) {
     throw new Error("Installed Foundation identity must equal the Bun lock selection.");
   }
@@ -141,23 +168,43 @@ async function inspectInstalledSelection(consumerRoot: string, version: string):
 
 export async function inspectBunRegistryProvenance(
   consumerRoot: string,
-  dependencySpec: string | undefined
+  dependencySpec: string | undefined,
 ): Promise<RegistryProvenanceInspection> {
   try {
     const root = await realpath(consumerRoot);
     const lockfilePath = join(root, "bun.lock");
-    const selected = inspectBunLockfile(readUniqueObject(await readRegularFile(root, lockfilePath, MAX_LOCK_BYTES)), dependencySpec);
-    if (selected.issues.length !== 0 || selected.packageKey === undefined || selected.integrity === undefined || dependencySpec === undefined) {
+    const selected = inspectBunLockfile(
+      readUniqueObject(await readRegularFile(root, lockfilePath, MAX_LOCK_BYTES)),
+      dependencySpec,
+    );
+    if (
+      selected.issues.length !== 0 ||
+      selected.packageKey === undefined ||
+      selected.integrity === undefined ||
+      dependencySpec === undefined
+    ) {
       return { issues: selected.issues };
     }
     await inspectInstalledSelection(root, dependencySpec);
-    return { provenance: { lockfilePath, packageKey: selected.packageKey, integrity: selected.integrity }, issues: [] };
+    return {
+      provenance: { lockfilePath, packageKey: selected.packageKey, integrity: selected.integrity },
+      issues: [],
+    };
   } catch (error) {
-    return { issues: [`Consumer Bun registry selection cannot be inspected safely: ${error instanceof Error ? error.message : String(error)}`] };
+    return {
+      issues: [
+        `Consumer Bun registry selection cannot be inspected safely: ${error instanceof Error ? error.message : String(error)}`,
+      ],
+    };
   }
 }
 
-export async function readBoundedConsumerManifest(consumerRoot: string): Promise<Record<string, unknown>> {
+export async function readBoundedConsumerManifest(
+  consumerRoot: string,
+): Promise<Record<string, unknown>> {
   const root = await realpath(consumerRoot);
-  return readUniqueObject(await readRegularFile(root, join(root, "package.json"), MAX_MANIFEST_BYTES), false);
+  return readUniqueObject(
+    await readRegularFile(root, join(root, "package.json"), MAX_MANIFEST_BYTES),
+    false,
+  );
 }

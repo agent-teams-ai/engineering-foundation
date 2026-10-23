@@ -5,18 +5,18 @@ import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import type {
   FoundationLinkState,
-  FoundationTransactionAwareStatus
+  FoundationTransactionAwareStatus,
 } from "../../application/model.js";
 import {
   inspectFoundationDevOnly,
-  inspectFoundationRegistryProvenance
+  inspectFoundationRegistryProvenance,
 } from "./consumer-inspection.js";
 import {
   FOUNDATION_PACKAGE_NAME,
   LOCAL_OPERATION_LOCK,
   LOCAL_REGISTRY_BACKUP,
   LOCAL_STATE_DIRECTORY,
-  LOCAL_STATE_FILE
+  LOCAL_STATE_FILE,
 } from "../../application/model.js";
 import type { LocalModeTransactionReader } from "../../application/ports.js";
 
@@ -33,15 +33,13 @@ function parseLinkState(value: unknown): FoundationLinkState | undefined {
     !isRecord(value) ||
     value.schemaVersion !== 1 ||
     !["ATTACHING", "DETACHING", "LOCAL"].includes(
-      typeof value.phase === "string" ? value.phase : ""
+      typeof value.phase === "string" ? value.phase : "",
     ) ||
     typeof value.consumerRoot !== "string" ||
     typeof value.targetPackageRoot !== "string" ||
     typeof value.registryBackupPath !== "string" ||
     !["directory", "symbolic-link"].includes(
-      typeof value.registryEntryKind === "string"
-        ? value.registryEntryKind
-        : ""
+      typeof value.registryEntryKind === "string" ? value.registryEntryKind : "",
     ) ||
     typeof value.registryPackageRoot !== "string" ||
     typeof value.packageVersion !== "string" ||
@@ -57,19 +55,18 @@ function parseLinkState(value: unknown): FoundationLinkState | undefined {
     consumerRoot: value.consumerRoot,
     targetPackageRoot: value.targetPackageRoot,
     registryBackupPath: value.registryBackupPath,
-    registryEntryKind:
-      value.registryEntryKind as FoundationLinkState["registryEntryKind"],
+    registryEntryKind: value.registryEntryKind as FoundationLinkState["registryEntryKind"],
     registryPackageRoot: value.registryPackageRoot,
     packageVersion: value.packageVersion,
     gitCommit: value.gitCommit,
     gitDirty: value.gitDirty,
-    attachedAt: value.attachedAt
+    attachedAt: value.attachedAt,
   };
 }
 
 async function readOptionalLinkState(
   consumerRoot: string,
-  issues: string[]
+  issues: string[],
 ): Promise<FoundationLinkState | undefined> {
   const path = join(consumerRoot, LOCAL_STATE_DIRECTORY, LOCAL_STATE_FILE);
   try {
@@ -98,23 +95,25 @@ function isWithin(parent: string, candidate: string): boolean {
 
 function isMissing(error: unknown): boolean {
   return (
-    error instanceof Error &&
-    "code" in error &&
-    (error as NodeJS.ErrnoException).code === "ENOENT"
+    error instanceof Error && "code" in error && (error as NodeJS.ErrnoException).code === "ENOENT"
   );
 }
 
 async function inspectLocalStateDirectory(
   consumerRoot: string,
   ignoreOperationLock: boolean,
-  issues: string[]
+  issues: string[],
 ): Promise<boolean> {
   const directory = join(consumerRoot, LOCAL_STATE_DIRECTORY);
   let exists = false;
   try {
     const entry = await lstat(directory);
     exists = true;
-    if (!entry.isDirectory() || entry.isSymbolicLink() || (await realpath(directory)) !== directory) {
+    if (
+      !entry.isDirectory() ||
+      entry.isSymbolicLink() ||
+      (await realpath(directory)) !== directory
+    ) {
       issues.push("Local foundation state path must be a real consumer-owned directory.");
       return false;
     }
@@ -146,7 +145,7 @@ async function inspectLocalStateDirectory(
 
 async function inspectInstalledFoundation(
   consumerRoot: string,
-  issues: string[]
+  issues: string[],
 ): Promise<InstalledFoundation> {
   try {
     const root = await realpath(join(consumerRoot, "node_modules", FOUNDATION_PACKAGE_NAME));
@@ -170,7 +169,7 @@ async function inspectLinkStateConsistency(
   consumerRoot: string,
   state: FoundationLinkState,
   installed: InstalledFoundation,
-  issues: string[]
+  issues: string[],
 ): Promise<void> {
   const backupPath = join(consumerRoot, LOCAL_STATE_DIRECTORY, LOCAL_REGISTRY_BACKUP);
   if (resolve(state.registryBackupPath) !== backupPath) {
@@ -180,9 +179,8 @@ async function inspectLinkStateConsistency(
     issues.push("Local state registry package root is outside node_modules.");
   }
   try {
-    const expectedBackupRoot = state.registryEntryKind === "symbolic-link"
-      ? resolve(state.registryPackageRoot)
-      : backupPath;
+    const expectedBackupRoot =
+      state.registryEntryKind === "symbolic-link" ? resolve(state.registryPackageRoot) : backupPath;
     if ((await realpath(backupPath)) !== expectedBackupRoot) {
       issues.push("Registry backup does not match local state.");
     }
@@ -203,10 +201,7 @@ async function inspectLinkStateConsistency(
   }
 }
 
-async function inspectOrphanBackup(
-  consumerRoot: string,
-  issues: string[]
-): Promise<void> {
+async function inspectOrphanBackup(consumerRoot: string, issues: string[]): Promise<void> {
   try {
     await lstat(join(consumerRoot, LOCAL_STATE_DIRECTORY, LOCAL_REGISTRY_BACKUP));
     issues.push("An orphan registry backup requires detach recovery.");
@@ -220,33 +215,28 @@ async function inspectOrphanBackup(
 async function inspectMode(
   readTransaction: LocalModeTransactionReader,
   consumerPath: string,
-  options: { readonly ignoreOperationLock?: boolean } = {}
+  options: { readonly ignoreOperationLock?: boolean } = {},
 ): Promise<FoundationTransactionAwareStatus> {
   const consumerRoot = await realpath(resolve(consumerPath));
   const issues: string[] = [];
   const localStateDirectoryIsSafe = await inspectLocalStateDirectory(
     consumerRoot,
     options.ignoreOperationLock === true,
-    issues
+    issues,
   );
   const transaction = localStateDirectoryIsSafe
     ? await readTransaction(consumerRoot)
     : { state: "idle" as const, diagnostics: [] as const };
   const publicTransaction = projectPublicTransactionStatus(transaction);
   const transactionDiagnostic =
-    publicTransaction.state === "idle"
-      ? undefined
-      : publicTransaction.diagnostics[0]?.message;
+    publicTransaction.state === "idle" ? undefined : publicTransaction.diagnostics[0]?.message;
   if (transactionDiagnostic !== undefined) {
     issues.push(transactionDiagnostic);
   }
   const dependencyPolicy = await inspectFoundationDevOnly(consumerRoot);
   issues.push(...dependencyPolicy.issues);
   const dependencySpec = dependencyPolicy.dependencySpec;
-  const provenance = await inspectFoundationRegistryProvenance(
-    consumerRoot,
-    dependencySpec
-  );
+  const provenance = await inspectFoundationRegistryProvenance(consumerRoot, dependencySpec);
   issues.push(...provenance.issues);
   const installed = await inspectInstalledFoundation(consumerRoot, issues);
 
@@ -261,10 +251,8 @@ async function inspectMode(
       installed,
       ...(provenance.provenance === undefined ? {} : { provenance: provenance.provenance }),
       linkState,
-      ...(publicTransaction.state === "idle"
-        ? {}
-        : { transaction: publicTransaction }),
-      issues
+      ...(publicTransaction.state === "idle" ? {} : { transaction: publicTransaction }),
+      issues,
     });
   }
 
@@ -272,7 +260,10 @@ async function inspectMode(
     await inspectOrphanBackup(consumerRoot, issues);
   }
 
-  if (installed.root !== undefined && !isWithin(join(consumerRoot, "node_modules"), installed.root)) {
+  if (
+    installed.root !== undefined &&
+    !isWithin(join(consumerRoot, "node_modules"), installed.root)
+  ) {
     issues.push("Foundation resolves outside consumer node_modules without local state.");
   }
   if (
@@ -288,14 +279,15 @@ async function inspectMode(
     ...(dependencySpec === undefined ? {} : { dependencySpec }),
     installed,
     ...(provenance.provenance === undefined ? {} : { provenance: provenance.provenance }),
-    ...(publicTransaction.state === "idle"
-      ? {}
-      : { transaction: publicTransaction }),
-    issues
+    ...(publicTransaction.state === "idle" ? {} : { transaction: publicTransaction }),
+    issues,
   });
 }
 
 export function createNodeModeInspector(readTransaction: LocalModeTransactionReader) {
-  return (consumerPath: string, options: { readonly ignoreOperationLock?: boolean } = {}): Promise<FoundationTransactionAwareStatus> =>
+  return (
+    consumerPath: string,
+    options: { readonly ignoreOperationLock?: boolean } = {},
+  ): Promise<FoundationTransactionAwareStatus> =>
     inspectMode(readTransaction, consumerPath, options);
 }

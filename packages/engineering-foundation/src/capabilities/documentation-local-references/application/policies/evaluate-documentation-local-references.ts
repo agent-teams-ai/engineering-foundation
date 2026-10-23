@@ -2,15 +2,15 @@ import type { FoundationDiagnostic } from "../../../../features/validation-repor
 import {
   anchorsForMarkdownDocument,
   type MarkdownObservationIssue,
-  type MarkdownReferenceResolution
+  type MarkdownReferenceResolution,
 } from "@agent-teams/document-authoring/observation";
 import type {
   DocumentationLocalReferencesObservation,
-  DocumentationLocalReferencesPolicy
+  DocumentationLocalReferencesPolicy,
 } from "../model/documentation-local-references.js";
 import {
   DOCUMENTATION_LOCAL_REFERENCE_RULES,
-  type DocumentationLocalReferencesRuleMetadata
+  type DocumentationLocalReferencesRuleMetadata,
 } from "../rules.js";
 
 interface EvaluationInput {
@@ -37,18 +37,17 @@ function diagnostic(input: {
         : {
             start: {
               column: input.column ?? 1,
-              line: input.line
-            }
-          })
+              line: input.line,
+            },
+          }),
     },
     message: input.message,
-    relatedLocations:
-      input.relatedPath === undefined ? [] : [{ path: input.relatedPath }],
+    relatedLocations: input.relatedPath === undefined ? [] : [{ path: input.relatedPath }],
     remediation: input.rule.remediation,
     requiresArchitectureReview: input.rule.requiresArchitectureReview,
     ruleId: input.rule.id,
     severity: input.rule.severity,
-    subject: input.subject
+    subject: input.subject,
   };
 }
 
@@ -62,7 +61,7 @@ function issueDiagnostic(issue: MarkdownObservationIssue): FoundationDiagnostic 
     message: issue.message,
     path: issue.repositoryPath,
     rule,
-    subject: issue.repositoryPath
+    subject: issue.repositoryPath,
   });
 }
 
@@ -78,7 +77,7 @@ function resolutionDiagnostic(input: {
     evidence: [{ kind: "raw-target", value: input.rawTarget }],
     line: input.sourceLine,
     path: input.path,
-    subject: `${input.path}:${input.sourceLine}`
+    subject: `${input.path}:${input.sourceLine}`,
   };
   if (input.resolution.kind === "missing") {
     const rule =
@@ -89,41 +88,42 @@ function resolutionDiagnostic(input: {
       ...base,
       evidence: [
         ...base.evidence,
-        { kind: "resolved-path", value: input.resolution.repositoryPath }
+        { kind: "resolved-path", value: input.resolution.repositoryPath },
       ],
       message:
         input.resolution.reason === "directory-readme-missing"
           ? `Directory link ${input.rawTarget} has no README.md target.`
           : `Local target does not exist: ${input.rawTarget}.`,
       relatedPath: input.resolution.repositoryPath,
-      rule
+      rule,
     });
   }
   if (input.resolution.reason === "repository-escape") {
     return diagnostic({
       ...base,
       message: `Local target escapes the repository: ${input.rawTarget}.`,
-      rule: DOCUMENTATION_LOCAL_REFERENCE_RULES.repositoryEscape
+      rule: DOCUMENTATION_LOCAL_REFERENCE_RULES.repositoryEscape,
     });
   }
   if (input.resolution.reason === "symbolic-link") {
     return diagnostic({
       ...base,
       message: `Local target traverses a symbolic link: ${input.rawTarget}.`,
-      rule: DOCUMENTATION_LOCAL_REFERENCE_RULES.symbolicLink
+      rule: DOCUMENTATION_LOCAL_REFERENCE_RULES.symbolicLink,
     });
   }
   return diagnostic({
     ...base,
     message: `Local target is malformed or absolute: ${input.rawTarget}.`,
-    rule: DOCUMENTATION_LOCAL_REFERENCE_RULES.invalidReference
+    rule: DOCUMENTATION_LOCAL_REFERENCE_RULES.invalidReference,
   });
 }
 
 export function evaluateDocumentationLocalReferences(
-  input: EvaluationInput
+  input: EvaluationInput,
 ): readonly FoundationDiagnostic[] {
-  const diagnostics: FoundationDiagnostic[] = input.observation.repository.issues.map(issueDiagnostic);
+  const diagnostics: FoundationDiagnostic[] =
+    input.observation.repository.issues.map(issueDiagnostic);
 
   for (const observedReference of input.observation.resolvedReferences) {
     const { reference, resolution, sourcePath } = observedReference;
@@ -137,8 +137,8 @@ export function evaluateDocumentationLocalReferences(
           rawTarget: reference.rawTarget,
           resolution,
           sourceColumn: reference.location.column,
-          sourceLine: reference.location.line
-        })
+          sourceLine: reference.location.line,
+        }),
       );
       continue;
     }
@@ -151,7 +151,7 @@ export function evaluateDocumentationLocalReferences(
     }
     const anchors = anchorsForMarkdownDocument(
       resolution.markdownDocument,
-      input.policy.anchorProfile
+      input.policy.anchorProfile,
     );
     if (!anchors.includes(resolution.fragment)) {
       diagnostics.push(
@@ -159,15 +159,15 @@ export function evaluateDocumentationLocalReferences(
           column: reference.location.column,
           evidence: [
             { kind: "raw-target", value: reference.rawTarget },
-            { kind: "fragment", value: resolution.fragment }
+            { kind: "fragment", value: resolution.fragment },
           ],
           line: reference.location.line,
           message: `Anchor #${resolution.fragment} is missing in ${resolution.repositoryPath}.`,
           path: sourcePath,
           relatedPath: resolution.repositoryPath,
           rule: DOCUMENTATION_LOCAL_REFERENCE_RULES.missingAnchor,
-          subject: `${sourcePath}:${reference.location.line}`
-        })
+          subject: `${sourcePath}:${reference.location.line}`,
+        }),
       );
     }
   }

@@ -1,4 +1,4 @@
-````markdown
+```markdown
 ---
 placeholder: true
 ---
@@ -17,4 +17,4 @@ placeholder: true
 
 Open. When resolved, set `status: resolved`, add `resolved_by: ADR-NNNN`, and
 retain the deciding ADR in `related`.
-````
+```

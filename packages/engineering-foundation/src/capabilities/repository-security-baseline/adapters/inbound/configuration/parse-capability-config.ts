@@ -7,17 +7,19 @@ import type {
   RepositorySecurityToolPolicy,
   SecurityToolName,
   ToolEvidenceRollout,
-  WorkflowPermission
+  WorkflowPermission,
 } from "../../../application/model/repository-security.js";
 import {
   configuredRepositorySecurityTools,
   flattenAllowedWorkflowUses,
   isPinnedContainerImage,
-  isPinnedExternalWorkflowUse
+  isPinnedExternalWorkflowUse,
 } from "../../../application/model/repository-security.js";
 
-import { configurationInputError as inputError, assertConfigRepositoryRelativePath } from "../../../application/configuration-input.js";
-
+import {
+  configurationInputError as inputError,
+  assertConfigRepositoryRelativePath,
+} from "../../../application/configuration-input.js";
 
 function record(value: unknown, field: string): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -48,11 +50,7 @@ function rollout(value: unknown, field: string): ToolEvidenceRollout {
 
 function version(value: unknown, field: string): string {
   const result = string(value, field);
-  if (
-    !/^v?[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/u.test(
-      result
-    )
-  ) {
+  if (!/^v?[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/u.test(result)) {
     inputError(`${field} must be an exact semantic version.`);
   }
   return result;
@@ -61,14 +59,16 @@ function version(value: unknown, field: string): string {
 function pinnedExternalUse(value: unknown, field: string): string {
   const result = string(value, field);
   if (!isPinnedExternalWorkflowUse(result)) {
-    inputError(`${field} must be an immutable external action, reusable workflow, or container digest.`);
+    inputError(
+      `${field} must be an immutable external action, reusable workflow, or container digest.`,
+    );
   }
   return result;
 }
 
 function mapToolEvidencePolicy(
   value: unknown,
-  tool: SecurityToolName
+  tool: SecurityToolName,
 ): RepositorySecurityToolPolicy {
   const field = `toolEvidence.${tool}`;
   const input = record(value, field);
@@ -80,7 +80,7 @@ function mapToolEvidencePolicy(
     resultPath: path(input["resultPath"], `${field}.resultPath`),
     rollout: rollout(input["rollout"], `${field}.rollout`),
     version: version(input["version"], `${field}.version`),
-    workflowPath: path(input["workflowPath"], `${field}.workflowPath`)
+    workflowPath: path(input["workflowPath"], `${field}.workflowPath`),
   });
 }
 
@@ -88,11 +88,12 @@ function mapToolEvidencePolicies(value: unknown): RepositorySecurityToolPolicies
   const input = record(value, "toolEvidence");
   const actionlint = mapToolEvidencePolicy(input["actionlint"], "actionlint");
   const zizmor = mapToolEvidencePolicy(input["zizmor"], "zizmor");
-  const codeql = input["codeql"] === undefined ? undefined : mapToolEvidencePolicy(input["codeql"], "codeql");
+  const codeql =
+    input["codeql"] === undefined ? undefined : mapToolEvidencePolicy(input["codeql"], "codeql");
   const policies = [actionlint, zizmor, ...(codeql === undefined ? [] : [codeql])];
   const artifactPaths = policies.flatMap(({ evidencePath, resultPath }) => [
     evidencePath,
-    resultPath
+    resultPath,
   ]);
   if (new Set(artifactPaths).size !== artifactPaths.length) {
     inputError("Each security tool must declare independent evidence and result paths.");
@@ -104,7 +105,7 @@ function mapToolEvidencePolicies(value: unknown): RepositorySecurityToolPolicies
   return Object.freeze({
     actionlint,
     zizmor,
-    ...(codeql === undefined ? {} : { codeql })
+    ...(codeql === undefined ? {} : { codeql }),
   });
 }
 
@@ -122,9 +123,9 @@ function mapAllowedUse(value: unknown, field: string, depth: number): AllowedWor
     uses: use,
     transitiveUses: Object.freeze(
       transitiveInput.map((entry, index) =>
-        mapAllowedUse(entry, `${field}.transitiveUses[${index}]`, depth + 1)
-      )
-    )
+        mapAllowedUse(entry, `${field}.transitiveUses[${index}]`, depth + 1),
+      ),
+    ),
   });
 }
 
@@ -165,10 +166,7 @@ function mapDependencyReview(value: unknown): DependencyReviewPolicy {
   if (baseRef.trim().length === 0 || headRef.trim().length === 0 || baseRef === headRef) {
     inputError("dependencyReview baseRef and headRef must be distinct non-empty expressions.");
   }
-  const failOnSeverity = string(
-    input["failOnSeverity"],
-    "dependencyReview.failOnSeverity"
-  );
+  const failOnSeverity = string(input["failOnSeverity"], "dependencyReview.failOnSeverity");
   if (failOnSeverity !== "low" && failOnSeverity !== "moderate") {
     inputError("dependencyReview.failOnSeverity must be low or moderate.");
   }
@@ -177,7 +175,7 @@ function mapDependencyReview(value: unknown): DependencyReviewPolicy {
     failOnSeverity,
     headRef,
     jobId: string(input["jobId"], "dependencyReview.jobId"),
-    workflowPath: path(input["workflowPath"], "dependencyReview.workflowPath")
+    workflowPath: path(input["workflowPath"], "dependencyReview.workflowPath"),
   });
 }
 
@@ -198,31 +196,29 @@ function mapPrivilegedJob(value: unknown, index: number): PrivilegedJobPolicy {
   return Object.freeze({
     workflowPath: path(input["workflowPath"], `${field}.workflowPath`),
     jobId: string(input["jobId"], `${field}.jobId`),
-    permissions: Object.freeze(permissions)
+    permissions: Object.freeze(permissions),
   });
 }
 
 export function parseCapabilityConfig(input: unknown): RepositorySecurityPolicy {
   const root = record(input, "repository security config");
   const workflowDirectory = path(root["workflowDirectory"], "workflowDirectory");
-  const allowedPullRequestTargetInput =
-    root["allowedPullRequestTargetWorkflows"] ?? [];
+  const allowedPullRequestTargetInput = root["allowedPullRequestTargetWorkflows"] ?? [];
   if (!Array.isArray(allowedPullRequestTargetInput)) {
     inputError("allowedPullRequestTargetWorkflows must be an array.");
   }
-  const allowedPullRequestTargetWorkflows = allowedPullRequestTargetInput.map(
-    (value, index) => path(value, `allowedPullRequestTargetWorkflows[${index}]`)
+  const allowedPullRequestTargetWorkflows = allowedPullRequestTargetInput.map((value, index) =>
+    path(value, `allowedPullRequestTargetWorkflows[${index}]`),
   );
   if (
-    new Set(allowedPullRequestTargetWorkflows).size !==
-    allowedPullRequestTargetWorkflows.length
+    new Set(allowedPullRequestTargetWorkflows).size !== allowedPullRequestTargetWorkflows.length
   ) {
     inputError("allowedPullRequestTargetWorkflows entries must be unique.");
   }
   for (const workflowPath of allowedPullRequestTargetWorkflows) {
     if (!workflowPath.startsWith(`${workflowDirectory}/`)) {
       inputError(
-        `Allowed pull_request_target workflow must be inside ${workflowDirectory}: ${workflowPath}.`
+        `Allowed pull_request_target workflow must be inside ${workflowDirectory}: ${workflowPath}.`,
       );
     }
   }
@@ -239,21 +235,23 @@ export function parseCapabilityConfig(input: unknown): RepositorySecurityPolicy 
     inputError("privilegedJobs and publishablePackageManifests must be arrays.");
   }
   const privilegedJobs = privilegedInput.map(mapPrivilegedJob);
-  const privilegedKeys = privilegedJobs.map(({ workflowPath, jobId }) => `${workflowPath}:${jobId}`);
+  const privilegedKeys = privilegedJobs.map(
+    ({ workflowPath, jobId }) => `${workflowPath}:${jobId}`,
+  );
   if (new Set(privilegedKeys).size !== privilegedKeys.length) {
     inputError("Privileged workflow job declarations must be unique.");
   }
   for (const privileged of privilegedJobs) {
     if (!privileged.workflowPath.startsWith(`${workflowDirectory}/`)) {
-      inputError(`Privileged workflow must be inside ${workflowDirectory}: ${privileged.workflowPath}.`);
+      inputError(
+        `Privileged workflow must be inside ${workflowDirectory}: ${privileged.workflowPath}.`,
+      );
     }
   }
   const allowedUses = mapAllowedUses(root["allowedUses"]);
   const allowedContainerImages = mapAllowedContainerImages(root["allowedContainerImages"]);
   const toolEvidence =
-    root["toolEvidence"] === undefined
-      ? undefined
-      : mapToolEvidencePolicies(root["toolEvidence"]);
+    root["toolEvidence"] === undefined ? undefined : mapToolEvidencePolicies(root["toolEvidence"]);
   for (const tool of configuredRepositorySecurityTools(toolEvidence)) {
     if (!tool.policy.workflowPath.startsWith(`${workflowDirectory}/`)) {
       inputError(`${tool.policy.workflowPath} must be inside workflowDirectory.`);
@@ -261,17 +259,15 @@ export function parseCapabilityConfig(input: unknown): RepositorySecurityPolicy 
   }
   return Object.freeze({
     allowedContainerImages,
-    allowedPullRequestTargetWorkflows: Object.freeze(
-      allowedPullRequestTargetWorkflows
-    ),
+    allowedPullRequestTargetWorkflows: Object.freeze(allowedPullRequestTargetWorkflows),
     allowedUses,
     workflowDirectory,
     dependencyReview,
     sbomWorkflow,
     privilegedJobs: Object.freeze(privilegedJobs),
     publishablePackageManifests: Object.freeze(
-      manifestsInput.map((value, index) => path(value, `publishablePackageManifests[${index}]`))
+      manifestsInput.map((value, index) => path(value, `publishablePackageManifests[${index}]`)),
     ),
-    ...(toolEvidence === undefined ? {} : { toolEvidence })
+    ...(toolEvidence === undefined ? {} : { toolEvidence }),
   });
 }

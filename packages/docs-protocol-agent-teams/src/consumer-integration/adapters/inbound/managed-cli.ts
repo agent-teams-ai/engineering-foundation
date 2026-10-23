@@ -1,7 +1,10 @@
 import { managedDocsHelp } from "./consumer-integration-cli.js";
 
 function managedHelp(): string {
-  return managedDocsHelp().replace("\nOptions:", "  qualify                       Run managed qualification in a disposable copy\n\nOptions:");
+  return managedDocsHelp().replace(
+    "\nOptions:",
+    "  qualify                       Run managed qualification in a disposable copy\n\nOptions:",
+  );
 }
 
 export function createManagedDocsCli(commands: {
@@ -10,7 +13,10 @@ export function createManagedDocsCli(commands: {
 }) {
   return async function runManagedDocsCli(argv: readonly string[]): Promise<number> {
     const values = argv[0] === "--" ? argv.slice(1) : argv;
-    if (values.length === 0 || (values.length === 1 && ["--help", "help"].includes(values[0] ?? ""))) {
+    if (
+      values.length === 0 ||
+      (values.length === 1 && ["--help", "help"].includes(values[0] ?? ""))
+    ) {
       process.stdout.write(managedHelp());
       return 0;
     }

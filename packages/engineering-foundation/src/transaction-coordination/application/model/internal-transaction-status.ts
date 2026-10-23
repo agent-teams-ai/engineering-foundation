@@ -1,7 +1,7 @@
 import type {
   FoundationManualRecoveryReason,
   FoundationTransactionDiagnostic,
-  FoundationTransactionStatus
+  FoundationTransactionStatus,
 } from "./transaction-status.js";
 
 interface ObservedRecoveryArtifact {
@@ -18,7 +18,8 @@ export type InternalFoundationManualRecoveryReason =
 export type InternalFoundationTransactionStatus =
   | Exclude<
       FoundationTransactionStatus,
-      { readonly state: "manual-recovery-required" } | { readonly operationKind: "known-file-transaction" }
+      | { readonly state: "manual-recovery-required" }
+      | { readonly operationKind: "known-file-transaction" }
     >
   | {
       readonly state: "pending";
@@ -42,7 +43,11 @@ export type InternalFoundationTransactionStatus =
       readonly state: "manual-recovery-required";
       readonly reason: InternalFoundationManualRecoveryReason;
       readonly operationKind?: "document-authoring" | "known-file-transaction" | "scaffolding";
-      readonly format?: "envelope-v2" | "envelope-v3" | "envelope-v4" | "known-file-transaction-envelope-v1";
+      readonly format?:
+        | "envelope-v2"
+        | "envelope-v3"
+        | "envelope-v4"
+        | "known-file-transaction-envelope-v1";
       readonly foundationVersion?: string;
       readonly foundationBuildIdentity?: string;
       readonly diagnostics: readonly FoundationTransactionDiagnostic[];

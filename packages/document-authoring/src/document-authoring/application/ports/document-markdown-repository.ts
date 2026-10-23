@@ -1,6 +1,4 @@
-import type {
-  MarkdownRepositoryObservation
-} from "../../../documentation-observation/api.js";
+import type { MarkdownRepositoryObservation } from "../../../documentation-observation/api.js";
 
 export interface DocumentMarkdownRepository {
   observe(request: {

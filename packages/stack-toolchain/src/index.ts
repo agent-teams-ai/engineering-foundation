@@ -4,7 +4,10 @@ export type {
   CommandReport,
 } from "./features/toolchain-execution/adapters/commands.js";
 export { loadConfiguration } from "./features/toolchain-execution/adapters/configuration.js";
-export type { LintScope, ToolchainConfiguration } from "./features/toolchain-execution/adapters/configuration.js";
+export type {
+  LintScope,
+  ToolchainConfiguration,
+} from "./features/toolchain-execution/adapters/configuration.js";
 export { typecheck } from "./features/toolchain-execution/application/typecheck.js";
 export type {
   TypecheckResult,

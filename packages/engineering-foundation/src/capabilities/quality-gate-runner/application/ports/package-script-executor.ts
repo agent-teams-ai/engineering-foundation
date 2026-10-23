@@ -18,7 +18,10 @@ export interface PackageScriptExecutor {
 }
 
 export class PackageScriptTimeoutError extends Error {
-  constructor(readonly timeoutMs: number, options?: ErrorOptions) {
+  constructor(
+    readonly timeoutMs: number,
+    options?: ErrorOptions,
+  ) {
     super(`Package script timed out after ${timeoutMs}ms.`, options);
     this.name = "PackageScriptTimeoutError";
   }

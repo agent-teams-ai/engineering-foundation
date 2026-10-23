@@ -5,15 +5,18 @@ import {
   DOCS_ADOPTION_MAX_ROUTING_BYTES,
   DOCS_ADOPTION_MAX_SKILL_BYTES,
   type DocsAdoptionInspector,
-  type DocsDiagnostic
+  type DocsDiagnostic,
 } from "../../application/model.js";
-import {
-  assertContainedAuthority,
-  readContainedText
-} from "./adoption-input.js";
+import { assertContainedAuthority, readContainedText } from "./adoption-input.js";
 
 function diagnostic(subject: string, message: string): DocsDiagnostic {
-  return { ruleId: "docs.adoption.invalid", severity: "error", phase: "authority", subject, message };
+  return {
+    ruleId: "docs.adoption.invalid",
+    severity: "error",
+    phase: "authority",
+    subject,
+    message,
+  };
 }
 
 function inspectPortableSkill(source: string): readonly string[] {
@@ -35,13 +38,15 @@ function inspectPortableSkill(source: string): readonly string[] {
     /docs-protocol new.*--apply/u,
     /(?=.*manual-required)(?=.*markdownLink)(?=.*indexPath)/u,
     /docs-protocol context/u,
-    /docs-protocol check/u
+    /docs-protocol check/u,
   ];
   let previous = -1;
   for (const marker of evidence) {
-    const matches = lines.flatMap((line, index) => marker.test(line) ? [index] : []);
+    const matches = lines.flatMap((line, index) => (marker.test(line) ? [index] : []));
     if (matches.length !== 1 || matches[0]! <= previous) {
-      diagnostics.push("Portable Skill must contain unique ordered find, preview, apply, manual reachability, context, and check steps.");
+      diagnostics.push(
+        "Portable Skill must contain unique ordered find, preview, apply, manual reachability, context, and check steps.",
+      );
       break;
     }
     previous = matches[0]!;
@@ -56,20 +61,57 @@ function inspectAgentsRoute(source: string, skillPath: string): readonly string[
 }
 
 export class NodeDocsAdoptionInspector implements DocsAdoptionInspector {
-  async inspect(input: Parameters<DocsAdoptionInspector["inspect"]>[0]): Promise<readonly DocsDiagnostic[]> {
+  async inspect(
+    input: Parameters<DocsAdoptionInspector["inspect"]>[0],
+  ): Promise<readonly DocsDiagnostic[]> {
     const diagnostics: DocsDiagnostic[] = [];
     let root = "";
-    try { root = await realpath(resolve(input.consumerRoot)); } catch { return Object.freeze([diagnostic(input.consumerRoot, "Consumer root must be one accessible real directory.")]); }
+    try {
+      root = await realpath(resolve(input.consumerRoot));
+    } catch {
+      return Object.freeze([
+        diagnostic(input.consumerRoot, "Consumer root must be one accessible real directory."),
+      ]);
+    }
     try {
       const agents = await readContainedText(root, "AGENTS.md", DOCS_ADOPTION_MAX_ROUTING_BYTES);
-      diagnostics.push(...inspectAgentsRoute(agents, input.skillPath).map((message) => diagnostic("AGENTS.md", message)));
-    } catch (error) { diagnostics.push(diagnostic("AGENTS.md", `AGENTS.md must be a bounded real file: ${error instanceof Error ? error.message : "invalid input"}`)); }
+      diagnostics.push(
+        ...inspectAgentsRoute(agents, input.skillPath).map((message) =>
+          diagnostic("AGENTS.md", message),
+        ),
+      );
+    } catch (error) {
+      diagnostics.push(
+        diagnostic(
+          "AGENTS.md",
+          `AGENTS.md must be a bounded real file: ${error instanceof Error ? error.message : "invalid input"}`,
+        ),
+      );
+    }
     try {
       const skill = await readContainedText(root, input.skillPath, DOCS_ADOPTION_MAX_SKILL_BYTES);
-      diagnostics.push(...inspectPortableSkill(skill).map((message) => diagnostic(input.skillPath, message)));
-    } catch (error) { diagnostics.push(diagnostic(input.skillPath, `Skill must be a bounded real file: ${error instanceof Error ? error.message : "invalid input"}`)); }
+      diagnostics.push(
+        ...inspectPortableSkill(skill).map((message) => diagnostic(input.skillPath, message)),
+      );
+    } catch (error) {
+      diagnostics.push(
+        diagnostic(
+          input.skillPath,
+          `Skill must be a bounded real file: ${error instanceof Error ? error.message : "invalid input"}`,
+        ),
+      );
+    }
     for (const path of [input.profilePath, input.skillPath, ...input.authorityPaths]) {
-      try { await assertContainedAuthority(root, path); } catch { diagnostics.push(diagnostic(path, "Declared documentation authority must be a bounded real contained regular file.")); }
+      try {
+        await assertContainedAuthority(root, path);
+      } catch {
+        diagnostics.push(
+          diagnostic(
+            path,
+            "Declared documentation authority must be a bounded real contained regular file.",
+          ),
+        );
+      }
     }
     return Object.freeze(diagnostics);
   }

@@ -2,14 +2,14 @@ import { assertNotCancelled } from "../../../documentation-observation/api.js";
 import type {
   DocumentAuthorityEvidence,
   DocumentIdentityProjectionEntry,
-  DocumentationCatalogSnapshotContract
+  DocumentationCatalogSnapshotContract,
 } from "../model/document-catalog.js";
 import type {
   DocumentArtifactType,
   DocumentIntent,
   DocumentPlanContract as DocumentPlan,
   DocumentPlanningProfileSnapshot,
-  DocumentPlanningStateSnapshot
+  DocumentPlanningStateSnapshot,
 } from "../model/document-planning.js";
 import type { CanonicalDocumentRenderer } from "../ports/canonical-document-renderer.js";
 import type { DocumentContractValidator } from "../ports/document-contract-validator.js";
@@ -25,7 +25,10 @@ import { assertDocumentPlanDigests } from "../policies/document-contract-digests
 import { sameDocumentCatalogSnapshot } from "../policies/same-document-catalog-snapshot.js";
 import { DocumentPlanningError } from "../model/document-planning-error.js";
 import { compileDocumentPlan } from "./compile-document-plan.js";
-import { loadV2ProfileDescription, type DocumentProfileDescriptionReader } from "./load-v2-profile-description.js";
+import {
+  loadV2ProfileDescription,
+  type DocumentProfileDescriptionReader,
+} from "./load-v2-profile-description.js";
 
 interface ResolvedDocumentAuthoring {
   readonly artifact: DocumentArtifactType;
@@ -48,7 +51,7 @@ interface DocumentPlanningPolicies {
   normalizeDocumentIntent(input: DocumentIntent): DocumentIntent;
   selectDocumentArtifact(
     profile: DocumentPlanningProfileSnapshot,
-    type: string
+    type: string,
   ): DocumentArtifactType;
   resolveDocumentAuthoring(input: {
     readonly artifact: DocumentArtifactType;
@@ -57,7 +60,7 @@ interface DocumentPlanningPolicies {
   isDestinationCoveredByCatalog(
     destination: string,
     collections: DocumentPlanningProfileSnapshot["collections"],
-    excludedPrefixes: readonly string[]
+    excludedPrefixes: readonly string[],
   ): boolean;
   classifyDocumentLogicalPreimage(input: {
     readonly catalog: DocumentationCatalogSnapshotContract;
@@ -75,15 +78,13 @@ export interface PlanDocumentationDocumentRequest {
   readonly signal?: AbortSignal;
 }
 
-export interface PlanDocumentationDocumentRequestV2
-  extends PlanDocumentationDocumentRequest {
+export interface PlanDocumentationDocumentRequestV2 extends PlanDocumentationDocumentRequest {
   readonly parentPolicy: "create-missing-real-directories";
 }
 
-export type PlanDocumentationDocumentRequestContract =
-  PlanDocumentationDocumentRequest & {
-    readonly parentPolicy?: "create-missing-real-directories";
-  };
+export type PlanDocumentationDocumentRequestContract = PlanDocumentationDocumentRequest & {
+  readonly parentPolicy?: "create-missing-real-directories";
+};
 
 interface Dependencies {
   readonly catalog: DocumentationCatalogReader;
@@ -110,23 +111,19 @@ function signalOption(signal: AbortSignal | undefined): { readonly signal?: Abor
   return signal === undefined ? {} : { signal };
 }
 
-function sameEvidence(
-  left: DocumentAuthorityEvidence,
-  right: DocumentAuthorityEvidence
-): boolean {
-  return left.path === right.path && left.digest === right.digest &&
-    left.size === right.size;
+function sameEvidence(left: DocumentAuthorityEvidence, right: DocumentAuthorityEvidence): boolean {
+  return left.path === right.path && left.digest === right.digest && left.size === right.size;
 }
 
 function assertStableEvidence(
   name: string,
   before: DocumentAuthorityEvidence,
-  after: DocumentAuthorityEvidence
+  after: DocumentAuthorityEvidence,
 ): void {
   if (!sameEvidence(before, after)) {
     throw new DocumentPlanningError(
       "DOCUMENT_PLANNING_AUTHORITY_CHANGED",
-      `${name} changed while the document Plan was compiled.`
+      `${name} changed while the document Plan was compiled.`,
     );
   }
 }
@@ -136,19 +133,17 @@ function outputBytes(output: string): Uint8Array {
 }
 
 function sameBytes(left: Uint8Array, right: Uint8Array): boolean {
-  return left.length === right.length &&
-    left.every((value, index) => value === right[index]);
+  return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
 function samePlanningState(
   left: DocumentPlanningStateSnapshot,
-  right: DocumentPlanningStateSnapshot
+  right: DocumentPlanningStateSnapshot,
 ): boolean {
   if (
     left.expectedParent.path !== right.expectedParent.path ||
     left.destination.state !== right.destination.state ||
-    JSON.stringify(left.parentMaterialization) !==
-      JSON.stringify(right.parentMaterialization)
+    JSON.stringify(left.parentMaterialization) !== JSON.stringify(right.parentMaterialization)
   ) {
     return false;
   }
@@ -156,33 +151,35 @@ function samePlanningState(
     return left.destination.state === right.destination.state;
   }
   if (left.destination.state === "conflict" || right.destination.state === "conflict") {
-    return left.destination.state === "conflict" &&
+    return (
+      left.destination.state === "conflict" &&
       right.destination.state === "conflict" &&
-      left.destination.kind === right.destination.kind;
+      left.destination.kind === right.destination.kind
+    );
   }
   return sameBytes(left.destination.bytes, right.destination.bytes);
 }
 
 function assertStablePlanningState(
   before: DocumentPlanningStateSnapshot,
-  after: DocumentPlanningStateSnapshot
+  after: DocumentPlanningStateSnapshot,
 ): void {
   if (!samePlanningState(before, after)) {
     throw new DocumentPlanningError(
       "DOCUMENT_PLANNING_AUTHORITY_CHANGED",
-      "Document destination or parent changed while the Plan was compiled."
+      "Document destination or parent changed while the Plan was compiled.",
     );
   }
 }
 
 function assertStableCatalog(
   before: DocumentationCatalogSnapshotContract,
-  after: DocumentationCatalogSnapshotContract
+  after: DocumentationCatalogSnapshotContract,
 ): void {
   if (!sameDocumentCatalogSnapshot(before, after)) {
     throw new DocumentPlanningError(
       "DOCUMENT_PLANNING_AUTHORITY_CHANGED",
-      "Document catalog changed while the Plan was compiled."
+      "Document catalog changed while the Plan was compiled.",
     );
   }
 }
@@ -191,31 +188,31 @@ async function loadPlanningAuthority(
   dependencies: Dependencies,
   request: PlanDocumentationDocumentRequestContract,
   profile: DocumentPlanningProfileSnapshot,
-  templatePath: string
+  templatePath: string,
 ): Promise<LoadedPlanningAuthority> {
   const options = signalOption(request.signal);
   const [catalog, metadata, owners, template] = await Promise.all([
     dependencies.catalog.execute({
       consumerRoot: request.consumerRoot,
       profilePath: request.profilePath,
-      ...options
+      ...options,
     }),
     dependencies.metadata.load({
       consumerRoot: request.consumerRoot,
       path: profile.metadataSchemaPath,
-      ...options
+      ...options,
     }),
     dependencies.owners.read({
       consumerRoot: request.consumerRoot,
       contract: profile.ownerCatalog.contract,
       path: profile.ownerCatalog.path,
-      ...options
+      ...options,
     }),
     dependencies.templates.read({
       consumerRoot: request.consumerRoot,
       path: templatePath,
-      ...options
-    })
+      ...options,
+    }),
   ]);
   return { catalog, metadata, owners, template };
 }
@@ -223,33 +220,29 @@ async function loadPlanningAuthority(
 function assertCatalogAuthority(
   profile: DocumentPlanningProfileSnapshot,
   intent: DocumentIntent,
-  authority: LoadedPlanningAuthority
+  authority: LoadedPlanningAuthority,
 ): void {
   if (authority.catalog.status !== "complete") {
     throw new DocumentPlanningError(
       "DOCUMENT_PLANNING_CATALOG_PARTIAL",
-      "Document planning requires a complete rebuilt catalog."
+      "Document planning requires a complete rebuilt catalog.",
     );
   }
-  assertStableEvidence(
-    "Document profile",
-    profile.evidence,
-    authority.catalog.authority.profile
-  );
+  assertStableEvidence("Document profile", profile.evidence, authority.catalog.authority.profile);
   assertStableEvidence(
     "Document metadata schema",
     authority.metadata.evidence,
-    authority.catalog.authority.metadataSchema
+    authority.catalog.authority.metadataSchema,
   );
   assertStableEvidence(
     "Document owner catalog",
     authority.owners.evidence,
-    authority.catalog.authority.ownerCatalog
+    authority.catalog.authority.ownerCatalog,
   );
   if (!authority.owners.ids.includes(intent.owner)) {
     throw new DocumentPlanningError(
       "DOCUMENT_PLANNING_INPUT_INVALID",
-      `Document owner ${intent.owner} is not present in the owner catalog.`
+      `Document owner ${intent.owner} is not present in the owner catalog.`,
     );
   }
 }
@@ -263,91 +256,70 @@ async function recaptureAuthority(input: {
   readonly state: DocumentPlanningStateSnapshot;
   readonly templatePath: string;
 }): Promise<void> {
-  const {
-    authority,
-    dependencies,
-    destination,
-    profile,
-    request,
-    state,
-    templatePath
-  } = input;
+  const { authority, dependencies, destination, profile, request, state, templatePath } = input;
   const options = signalOption(request.signal);
-  const [profileAfter, metadataAfter, ownersAfter, templateAfter] =
-    await Promise.all([
-      dependencies.profile.read({
-        consumerRoot: request.consumerRoot,
-        path: request.profilePath,
-        ...options
-      }),
-      dependencies.metadata.load({
-        consumerRoot: request.consumerRoot,
-        path: profile.metadataSchemaPath,
-        ...options
-      }),
-      dependencies.owners.read({
-        consumerRoot: request.consumerRoot,
-        contract: profile.ownerCatalog.contract,
-        path: profile.ownerCatalog.path,
-        ...options
-      }),
-      dependencies.templates.read({
-        consumerRoot: request.consumerRoot,
-        path: templatePath,
-        ...options
-      })
-    ]);
+  const [profileAfter, metadataAfter, ownersAfter, templateAfter] = await Promise.all([
+    dependencies.profile.read({
+      consumerRoot: request.consumerRoot,
+      path: request.profilePath,
+      ...options,
+    }),
+    dependencies.metadata.load({
+      consumerRoot: request.consumerRoot,
+      path: profile.metadataSchemaPath,
+      ...options,
+    }),
+    dependencies.owners.read({
+      consumerRoot: request.consumerRoot,
+      contract: profile.ownerCatalog.contract,
+      path: profile.ownerCatalog.path,
+      ...options,
+    }),
+    dependencies.templates.read({
+      consumerRoot: request.consumerRoot,
+      path: templatePath,
+      ...options,
+    }),
+  ]);
   assertStableEvidence("Document profile", profile.evidence, profileAfter.evidence);
   assertStableEvidence(
     "Document metadata schema",
     authority.metadata.evidence,
-    metadataAfter.evidence
+    metadataAfter.evidence,
   );
-  assertStableEvidence(
-    "Document owner catalog",
-    authority.owners.evidence,
-    ownersAfter.evidence
-  );
-  assertStableEvidence(
-    "Document template",
-    authority.template.evidence,
-    templateAfter.evidence
-  );
+  assertStableEvidence("Document owner catalog", authority.owners.evidence, ownersAfter.evidence);
+  assertStableEvidence("Document template", authority.template.evidence, templateAfter.evidence);
   const stateBeforeCatalog = await dependencies.state.observe({
     consumerRoot: request.consumerRoot,
     destination,
-    ...(request.parentPolicy === undefined
-      ? {}
-      : { parentPolicy: request.parentPolicy }),
-    ...options
+    ...(request.parentPolicy === undefined ? {} : { parentPolicy: request.parentPolicy }),
+    ...options,
   });
   assertStablePlanningState(state, stateBeforeCatalog);
   const catalogAfter = await dependencies.catalog.execute({
     consumerRoot: request.consumerRoot,
     profilePath: request.profilePath,
-    ...options
+    ...options,
   });
   assertStableCatalog(authority.catalog, catalogAfter);
   const [stateAfterCatalog, templateAfterCatalog] = await Promise.all([
     dependencies.state.observe({
       consumerRoot: request.consumerRoot,
       destination,
-      ...(request.parentPolicy === undefined
-        ? {}
-        : { parentPolicy: request.parentPolicy }),
-      ...options
+      ...(request.parentPolicy === undefined ? {} : { parentPolicy: request.parentPolicy }),
+      ...options,
     }),
     dependencies.templates.read({
       consumerRoot: request.consumerRoot,
       path: templatePath,
-      ...options
-    })
+      ...options,
+    }),
   ]);
   assertStablePlanningState(state, stateAfterCatalog);
   assertStableEvidence(
     "Document template",
     authority.template.evidence,
-    templateAfterCatalog.evidence
+    templateAfterCatalog.evidence,
   );
 }
 
@@ -358,46 +330,39 @@ export class PlanDocumentationDocument {
     this.#dependencies = dependencies;
   }
 
-  async execute(
-    request: PlanDocumentationDocumentRequestContract
-  ): Promise<DocumentPlan> {
+  async execute(request: PlanDocumentationDocumentRequestContract): Promise<DocumentPlan> {
     assertNotCancelled(request.signal);
     const options = signalOption(request.signal);
-    const validatedIntent = await this.#dependencies.contracts.validateIntent(
-      request.intent
-    );
+    const validatedIntent = await this.#dependencies.contracts.validateIntent(request.intent);
     assertNotCancelled(request.signal);
-    const intent = this.#dependencies.policies.normalizeDocumentIntent(
-      validatedIntent
-    );
+    const intent = this.#dependencies.policies.normalizeDocumentIntent(validatedIntent);
     const profile = await this.#dependencies.profile.read({
       consumerRoot: request.consumerRoot,
       path: request.profilePath,
-      ...options
+      ...options,
     });
     assertV2PlanningProfile(profile, request.parentPolicy);
-    const artifact = this.#dependencies.policies.selectDocumentArtifact(
-      profile,
-      intent.type
-    );
+    const artifact = this.#dependencies.policies.selectDocumentArtifact(profile, intent.type);
     assertArtifactOwnerAllowed(artifact, intent);
     const profileDescription = await loadV2ProfileDescription(
-      this.#dependencies.profileDescription, profile,
-      { consumerRoot: request.consumerRoot, profilePath: request.profilePath, ...options });
+      this.#dependencies.profileDescription,
+      profile,
+      { consumerRoot: request.consumerRoot, profilePath: request.profilePath, ...options },
+    );
     const resolved = this.#dependencies.policies.resolveDocumentAuthoring({
       artifact,
-      intent
+      intent,
     });
     if (
       !this.#dependencies.policies.isDestinationCoveredByCatalog(
         resolved.destination,
         profile.collections,
-        profile.excludedPrefixes
+        profile.excludedPrefixes,
       )
     ) {
       throw new DocumentPlanningError(
         "DOCUMENT_PLANNING_INPUT_INVALID",
-        "Planned destination is outside the complete documentation catalog."
+        "Planned destination is outside the complete documentation catalog.",
       );
     }
 
@@ -405,19 +370,17 @@ export class PlanDocumentationDocument {
       this.#dependencies,
       request,
       profile,
-      resolved.artifact.template.path
+      resolved.artifact.template.path,
     );
     assertCatalogAuthority(profile, intent, authority);
     if (authority.template.evidence.path !== resolved.artifact.template.path) {
       throw new DocumentPlanningError(
         "DOCUMENT_PLANNING_AUTHORITY_CHANGED",
-        "Document template evidence does not match the selected artifact authority."
+        "Document template evidence does not match the selected artifact authority.",
       );
     }
 
-    const skeleton = this.#dependencies.renderer.parseTemplate(
-      authority.template.source
-    );
+    const skeleton = this.#dependencies.renderer.parseTemplate(authority.template.source);
     const frontmatter = Object.freeze({
       id: intent.id,
       type: intent.type,
@@ -427,7 +390,7 @@ export class PlanDocumentationDocument {
       ...(intent.related === undefined ? {} : { related: intent.related }),
       ...(intent.additionalMetadata === undefined
         ? {}
-        : { additionalMetadata: intent.additionalMetadata })
+        : { additionalMetadata: intent.additionalMetadata }),
     });
     const validation = authority.metadata.validate({
       id: frontmatter.id,
@@ -436,47 +399,39 @@ export class PlanDocumentationDocument {
       owner: frontmatter.owner,
       summary: frontmatter.summary,
       ...(frontmatter.related === undefined ? {} : { related: frontmatter.related }),
-      ...(frontmatter.additionalMetadata === undefined
-        ? {}
-        : frontmatter.additionalMetadata)
+      ...(frontmatter.additionalMetadata === undefined ? {} : frontmatter.additionalMetadata),
     });
     if (!validation.valid) {
       throw new DocumentPlanningError(
         "DOCUMENT_PLANNING_OUTPUT_INVALID",
-        `Compiled document metadata is invalid: ${validation.messages.join("; ")}`
+        `Compiled document metadata is invalid: ${validation.messages.join("; ")}`,
       );
     }
     const output = this.#dependencies.renderer.render({
       frontmatter,
       heading: resolved.heading,
-      template: skeleton
+      template: skeleton,
     });
     const expectedBytes = outputBytes(output);
     const state = await this.#dependencies.state.observe({
       consumerRoot: request.consumerRoot,
       destination: resolved.destination,
-      ...(request.parentPolicy === undefined
-        ? {}
-        : { parentPolicy: request.parentPolicy }),
-      ...options
+      ...(request.parentPolicy === undefined ? {} : { parentPolicy: request.parentPolicy }),
+      ...options,
     });
-    const logicalPreimage =
-      this.#dependencies.policies.classifyDocumentLogicalPreimage({
-        catalog: authority.catalog,
-        id: intent.id,
-        destination: resolved.destination,
-        ...(state.destination.state === "regular-file"
-          ? { observedBytes: state.destination.bytes }
-          : {}),
-        expectedBytes
-      });
-    if (
-      (state.destination.state === "regular-file") !==
-      logicalPreimage.isExactSelf
-    ) {
+    const logicalPreimage = this.#dependencies.policies.classifyDocumentLogicalPreimage({
+      catalog: authority.catalog,
+      id: intent.id,
+      destination: resolved.destination,
+      ...(state.destination.state === "regular-file"
+        ? { observedBytes: state.destination.bytes }
+        : {}),
+      expectedBytes,
+    });
+    if ((state.destination.state === "regular-file") !== logicalPreimage.isExactSelf) {
       throw new DocumentPlanningError(
         "DOCUMENT_PLANNING_CONFLICT",
-        "Existing destination is not the exact logical document self."
+        "Existing destination is not the exact logical document self.",
       );
     }
 
@@ -487,7 +442,7 @@ export class PlanDocumentationDocument {
       profile,
       request,
       state,
-      templatePath: resolved.artifact.template.path
+      templatePath: resolved.artifact.template.path,
     });
 
     assertNotCancelled(request.signal);
@@ -501,11 +456,13 @@ export class PlanDocumentationDocument {
       ownerCatalog: authority.owners.evidence,
       output,
       profile,
-      ...(profileDescription === undefined ? {} : {
-        profileSemanticDigest: profileDescription.semanticDigest
-      }),
+      ...(profileDescription === undefined
+        ? {}
+        : {
+            profileSemanticDigest: profileDescription.semanticDigest,
+          }),
       state,
-      template: authority.template
+      template: authority.template,
     });
     const validatedPlan = await this.#dependencies.contracts.validatePlan(plan);
     assertDocumentPlanDigests(validatedPlan);

@@ -1,10 +1,13 @@
-import { type DocumentInputFailure, isDocumentInputFailure } from "../../application/policies/document-input-failure.js";
+import {
+  type DocumentInputFailure,
+  isDocumentInputFailure,
+} from "../../application/policies/document-input-failure.js";
 import { isProxy } from "node:util/types";
 
 import { assertSchema } from "./schema-catalog.js";
 import type {
   DocumentIntent,
-  DocumentPlanContract as DocumentPlan
+  DocumentPlanContract as DocumentPlan,
 } from "../../application/model/document-planning.js";
 import type { DocumentContractValidator } from "../../application/ports/document-contract-validator.js";
 import { DocumentPlanningError } from "../../application/model/document-planning-error.js";
@@ -12,11 +15,9 @@ import { assertDocumentPlanDigests } from "../../application/policies/document-c
 
 function invalidContract(kind: "Intent" | "Plan", error: DocumentInputFailure): never {
   throw new DocumentPlanningError(
-    kind === "Intent"
-      ? "DOCUMENT_PLANNING_INPUT_INVALID"
-      : "DOCUMENT_PLANNING_OUTPUT_INVALID",
+    kind === "Intent" ? "DOCUMENT_PLANNING_INPUT_INVALID" : "DOCUMENT_PLANNING_OUTPUT_INVALID",
     `Document ${kind} does not match its closed contract: ${error.message.slice(0, 1000)}`,
-    { cause: error }
+    { cause: error },
   );
 }
 
@@ -33,14 +34,9 @@ const OUTPUT_INTENT_KEYS = new Set([
   "related",
   "summary",
   "title",
-  "type"
+  "type",
 ]);
-const INTENT_ROOT_KEYS = new Set([
-  ...OUTPUT_INTENT_KEYS,
-  "destination",
-  "schemaVersion",
-  "slug"
-]);
+const INTENT_ROOT_KEYS = new Set([...OUTPUT_INTENT_KEYS, "destination", "schemaVersion", "slug"]);
 const STRING_INTENT_ROOT_KEYS = new Set([
   "destination",
   "id",
@@ -48,21 +44,18 @@ const STRING_INTENT_ROOT_KEYS = new Set([
   "slug",
   "summary",
   "title",
-  "type"
+  "type",
 ]);
 
 interface IntentInspectionBudget {
   outputLowerBoundBytes: number;
 }
 
-function addOutputLowerBound(
-  budget: IntentInspectionBudget,
-  bytes: number
-): void {
+function addOutputLowerBound(budget: IntentInspectionBudget, bytes: number): void {
   budget.outputLowerBoundBytes += bytes;
   if (budget.outputLowerBoundBytes > MAXIMUM_DOCUMENT_OUTPUT_BYTES) {
     throw new TypeError(
-      "Document Intent logically expands beyond the public document output byte limit."
+      "Document Intent logically expands beyond the public document output byte limit.",
     );
   }
 }
@@ -70,22 +63,22 @@ function addOutputLowerBound(
 function isJsonScalar(
   value: unknown,
   contributesToOutput: boolean,
-  budget: IntentInspectionBudget
+  budget: IntentInspectionBudget,
 ): boolean {
   if (value === null || typeof value === "boolean" || typeof value === "string") {
     if (contributesToOutput) {
       addOutputLowerBound(
         budget,
-        1 + (typeof value === "string"
-          ? Buffer.byteLength(value.normalize("NFC"), "utf8")
-          : 1)
+        1 + (typeof value === "string" ? Buffer.byteLength(value.normalize("NFC"), "utf8") : 1),
       );
     }
     return true;
   }
   if (typeof value === "number") {
     if (!Number.isSafeInteger(value) || Object.is(value, -0)) {
-      throw new TypeError("Document Intent numbers must be safe integers other than negative zero.");
+      throw new TypeError(
+        "Document Intent numbers must be safe integers other than negative zero.",
+      );
     }
     if (contributesToOutput) {
       addOutputLowerBound(budget, 1);
@@ -141,9 +134,7 @@ function assertInertJson(input: unknown): void {
         readonly value: unknown;
       }
     | { readonly action: "leave"; readonly value: object }
-  )[] = [
-    { action: "enter", contributesToOutput: false, depth: 0, value: input }
-  ];
+  )[] = [{ action: "enter", contributesToOutput: false, depth: 0, value: input }];
   const ancestors = new WeakSet<object>();
   const budget: IntentInspectionBudget = { outputLowerBoundBytes: 0 };
   while (pending.length > 0) {
@@ -175,11 +166,7 @@ function assertInertJson(input: unknown): void {
         continue;
       }
       const descriptor = Object.getOwnPropertyDescriptor(current.value, key);
-      if (
-        descriptor === undefined ||
-        !("value" in descriptor) ||
-        descriptor.enumerable !== true
-      ) {
+      if (descriptor === undefined || !("value" in descriptor) || descriptor.enumerable !== true) {
         throw new TypeError("Document Intent must contain only enumerable own data properties.");
       }
       if (current.depth === 0) {
@@ -187,11 +174,10 @@ function assertInertJson(input: unknown): void {
       }
       pending.push({
         action: "enter",
-        contributesToOutput: current.depth === 0
-          ? OUTPUT_INTENT_KEYS.has(key)
-          : current.contributesToOutput,
+        contributesToOutput:
+          current.depth === 0 ? OUTPUT_INTENT_KEYS.has(key) : current.contributesToOutput,
         depth: current.depth + 1,
-        value: descriptor.value
+        value: descriptor.value,
       });
     }
   }
@@ -215,13 +201,13 @@ function planContractTypeError(message: string): TypeError {
 function defineSnapshotValue(
   target: Record<string, unknown> | unknown[],
   key: string,
-  value: unknown
+  value: unknown,
 ): void {
   Object.defineProperty(target, key, {
     configurable: true,
     enumerable: true,
     value,
-    writable: true
+    writable: true,
   });
 }
 
@@ -254,36 +240,26 @@ function inspectPlanContainer(source: object): {
         key !== "length" &&
         (!/^(?:0|[1-9]\d*)$/u.test(String(key)) ||
           Number(key) >= source.length ||
-          String(Number(key)) !== key)
+          String(Number(key)) !== key),
     )
   ) {
     throw planContractTypeError("arrays must be dense and contain no extra properties.");
   }
   return {
     isArray,
-    keys: (keys as string[])
-      .filter((key) => !(isArray && key === "length"))
-      .toSorted()
+    keys: (keys as string[]).filter((key) => !(isArray && key === "length")).toSorted(),
   };
 }
 
 function planDataValue(source: object, key: string): unknown {
   const descriptor = Object.getOwnPropertyDescriptor(source, key);
-  if (
-    descriptor === undefined ||
-    !("value" in descriptor) ||
-    descriptor.enumerable !== true
-  ) {
+  if (descriptor === undefined || !("value" in descriptor) || descriptor.enumerable !== true) {
     throw planContractTypeError("must contain only enumerable own data properties.");
   }
   return descriptor.value as unknown;
 }
 
-function accountPlanValue(
-  budget: PlanInspectionBudget,
-  key: string,
-  value: unknown
-): void {
+function accountPlanValue(budget: PlanInspectionBudget, key: string, value: unknown): void {
   budget.values += 1;
   budget.bytes += Buffer.byteLength(key, "utf8") + 1;
   if (typeof value === "string") {
@@ -304,9 +280,7 @@ function assertPlanScalar(value: unknown): boolean {
     return false;
   }
   if (!Number.isSafeInteger(value) || Object.is(value, -0)) {
-    throw planContractTypeError(
-      "numbers must be safe integers other than negative zero."
-    );
+    throw planContractTypeError("numbers must be safe integers other than negative zero.");
   }
   return true;
 }
@@ -369,7 +343,7 @@ export class NodeDocumentContractValidator implements DocumentContractValidator 
         throw new DocumentPlanningError(
           "DOCUMENT_PLANNING_INPUT_INVALID",
           `Document Intent must use inert canonical JSON data: ${error.message}`,
-          { cause: error }
+          { cause: error },
         );
       }
       throw error;
@@ -384,7 +358,7 @@ export class NodeDocumentContractValidator implements DocumentContractValidator 
           ? "document-authoring/document-plan/v2"
           : "document-authoring/document-plan/v1",
         snapshot,
-        "document-plan"
+        "document-plan",
       );
       const plan = snapshot as unknown as DocumentPlan;
       assertDocumentPlanDigests(plan);
@@ -397,7 +371,7 @@ export class NodeDocumentContractValidator implements DocumentContractValidator 
         throw new DocumentPlanningError(
           "DOCUMENT_PLANNING_OUTPUT_INVALID",
           `Document Plan must use inert canonical JSON data and valid content bindings: ${error.message.slice(0, 1000)}`,
-          { cause: error }
+          { cause: error },
         );
       }
       throw error;

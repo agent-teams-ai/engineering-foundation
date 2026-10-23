@@ -15,7 +15,7 @@ import {
   manifestSymlink,
   manifestUnavailable,
   manifestEscape,
-  manifestObjectRequired
+  manifestObjectRequired,
 } from "../../../application/policies/workspace-input-failures.js";
 import type { WorkspaceManifestFileObservation } from "../../../application/ports/workspace-input-observations.js";
 import { rejectManifestObservation } from "../../../application/policies/manifest-observation-failure.js";
@@ -26,7 +26,7 @@ import {
   type PackageExportEntry,
   type PackageExportSurface,
   type PackageExportTarget,
-  type WorkspacePackage
+  type WorkspacePackage,
 } from "../../../application/model/workspace-inventory.js";
 import { resolvePackageExport } from "../../../application/policies/package-export-matcher.js";
 import { normalizeDependencyDeclaration } from "../../../application/policies/normalize-dependency-declaration.js";
@@ -43,7 +43,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function stringRecord(
   value: unknown,
   field: string,
-  phase: string
+  phase: string,
 ): Readonly<Record<string, string>> {
   if (!isRecord(value)) {
     workspaceStringRecordRequired(field, phase);
@@ -70,7 +70,7 @@ function normalizedExportTarget(
   value: unknown,
   field: string,
   budget: { nodes: number },
-  depth: number
+  depth: number,
 ): PackageExportTarget {
   budget.nodes += 1;
   if (depth > MAX_EXPORT_TARGET_DEPTH || budget.nodes > MAX_EXPORT_TARGET_NODES) {
@@ -83,21 +83,29 @@ function normalizedExportTarget(
     return value;
   }
   if (Array.isArray(value)) {
-    return Object.freeze(value.map((entry, index) =>
-      normalizedExportTarget(entry, `${field}[${index}]`, budget, depth + 1)
-    ));
+    return Object.freeze(
+      value.map((entry, index) =>
+        normalizedExportTarget(entry, `${field}[${index}]`, budget, depth + 1),
+      ),
+    );
   }
   if (isRecord(value)) {
     const entries = Object.entries(value);
     if (
-      entries.some(([condition]) => condition.length === 0 || /^(?:0|[1-9][0-9]*)$/u.test(condition))
+      entries.some(
+        ([condition]) => condition.length === 0 || /^(?:0|[1-9][0-9]*)$/u.test(condition),
+      )
     ) {
       invalidExportCondition(field);
     }
-    return Object.freeze(Object.fromEntries(entries.map(([condition, target]) => [
-      condition,
-      normalizedExportTarget(target, `${field}.${condition}`, budget, depth + 1)
-    ])));
+    return Object.freeze(
+      Object.fromEntries(
+        entries.map(([condition, target]) => [
+          condition,
+          normalizedExportTarget(target, `${field}.${condition}`, budget, depth + 1),
+        ]),
+      ),
+    );
   }
   invalidExportTarget(field);
 }
@@ -106,32 +114,28 @@ function retainedTarget(value: unknown, field: string): PackageExportTarget {
   return normalizedExportTarget(value, field, { nodes: 0 }, 0);
 }
 
-function packageExportEntry(
-  subpath: string,
-  value: unknown,
-  field: string
-): PackageExportEntry {
+function packageExportEntry(subpath: string, value: unknown, field: string): PackageExportEntry {
   const target = retainedTarget(value, field);
   const provisional: PackageExportEntry = {
     subpath,
     availability: "blocked",
-    target
+    target,
   };
   const resolutions = (["import", "require"] as const).map((condition) =>
-    resolvePackageExport([provisional], subpath, condition)
+    resolvePackageExport([provisional], subpath, condition),
   );
   return {
     ...provisional,
-    availability: resolutions.some(({ available }) => available)
-      ? "available"
-      : "blocked",
+    availability: resolutions.some(({ available }) => available) ? "available" : "blocked",
     targetPaths: Object.freeze(
-      [...new Set(
-        resolutions
-          .map(({ targetPath }) => targetPath)
-          .filter((path): path is string => path !== undefined)
-      )].toSorted(compareBinaryStrings)
-    )
+      [
+        ...new Set(
+          resolutions
+            .map(({ targetPath }) => targetPath)
+            .filter((path): path is string => path !== undefined),
+        ),
+      ].toSorted(compareBinaryStrings),
+    ),
   };
 }
 
@@ -159,16 +163,14 @@ function normalizeExportSurface(value: unknown, manifestPath: string): PackageEx
           segments.some(
             (segment, index) =>
               index > 0 &&
-              (segment === "" || segment === "." || segment === ".." || segment === "node_modules")
+              (segment === "" || segment === "." || segment === ".." || segment === "node_modules"),
           )
         ) {
           invalidExportSubpath(manifestPath, subpath);
         }
-        entries.push(packageExportEntry(
-          subpath,
-          value[subpath],
-          `${manifestPath} exports.${subpath}`
-        ));
+        entries.push(
+          packageExportEntry(subpath, value[subpath], `${manifestPath} exports.${subpath}`),
+        );
       }
     } else {
       entries.push(packageExportEntry(".", value, `${manifestPath} exports`));
@@ -179,9 +181,7 @@ function normalizeExportSurface(value: unknown, manifestPath: string): PackageEx
   return {
     explicit: true,
     ...(value === null ? { selfReferenceDisabled: true as const } : {}),
-    entries: entries.toSorted((left, right) =>
-      compareBinaryStrings(left.subpath, right.subpath)
-    )
+    entries: entries.toSorted((left, right) => compareBinaryStrings(left.subpath, right.subpath)),
   };
 }
 
@@ -192,7 +192,7 @@ export class PnpmPackageManifestSnapshotReader {
     consumerRoot: string,
     manifestPath: string,
     catalogs: readonly CatalogEntry[],
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ): Promise<WorkspacePackage> {
     assertWorkspaceReadActive(signal);
     const canonicalRoot = await realpath(consumerRoot);
@@ -201,7 +201,7 @@ export class PnpmPackageManifestSnapshotReader {
       manifestSymlink(manifestPath);
     }
     const canonicalPath = await realpath(absolutePath).catch(() =>
-      manifestUnavailable(manifestPath)
+      manifestUnavailable(manifestPath),
     );
     const relation = relative(canonicalRoot, canonicalPath);
     if (relation === ".." || relation.startsWith(`..${sep}`) || isAbsolute(relation)) {
@@ -212,7 +212,7 @@ export class PnpmPackageManifestSnapshotReader {
       const bytes = await this.files.read({
         candidate: canonicalPath,
         maxBytes: MAX_MANIFEST_BYTES,
-        root: canonicalRoot
+        root: canonicalRoot,
       });
       input = JSON.parse(Buffer.from(bytes).toString("utf8")) as unknown;
     } catch (error) {
@@ -234,17 +234,19 @@ export class PnpmPackageManifestSnapshotReader {
       const declarations = stringRecord(
         input[section],
         `${manifestPath} ${section}`,
-        "package-manifest"
+        "package-manifest",
       );
       for (const [dependencyName, specifier] of Object.entries(declarations)) {
-        dependencies.push(normalizeDependencyDeclaration({
-          catalogs,
-          packageName,
-          manifestPath,
-          section,
-          dependencyName,
-          specifier
-        }));
+        dependencies.push(
+          normalizeDependencyDeclaration({
+            catalogs,
+            packageName,
+            manifestPath,
+            section,
+            dependencyName,
+            specifier,
+          }),
+        );
       }
     }
     return {
@@ -258,19 +260,13 @@ export class PnpmPackageManifestSnapshotReader {
       dependencies: dependencies.toSorted(
         (left, right) =>
           compareBinaryStrings(left.dependencyName, right.dependencyName) ||
-          compareBinaryStrings(left.section, right.section)
+          compareBinaryStrings(left.section, right.section),
       ),
       bundledDependencies: [
-        ...optionalStringArray(
-          input["bundleDependencies"],
-          `${manifestPath} bundleDependencies`
-        ),
-        ...optionalStringArray(
-          input["bundledDependencies"],
-          `${manifestPath} bundledDependencies`
-        )
+        ...optionalStringArray(input["bundleDependencies"], `${manifestPath} bundleDependencies`),
+        ...optionalStringArray(input["bundledDependencies"], `${manifestPath} bundledDependencies`),
       ].toSorted(),
-      exportSurface: normalizeExportSurface(input["exports"], manifestPath)
+      exportSurface: normalizeExportSurface(input["exports"], manifestPath),
     };
   }
 
@@ -278,7 +274,7 @@ export class PnpmPackageManifestSnapshotReader {
     consumerRoot: string,
     paths: readonly string[],
     catalogs: readonly CatalogEntry[],
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ): Promise<readonly WorkspacePackage[]> {
     const packages: WorkspacePackage[] = [];
     for (let index = 0; index < paths.length; index += READ_CONCURRENCY) {
@@ -286,12 +282,12 @@ export class PnpmPackageManifestSnapshotReader {
         ...(await Promise.all(
           paths
             .slice(index, index + READ_CONCURRENCY)
-            .map((path) => this.readJsonManifest(consumerRoot, path, catalogs, signal))
-        ))
+            .map((path) => this.readJsonManifest(consumerRoot, path, catalogs, signal)),
+        )),
       );
     }
     return packages.toSorted((left, right) =>
-      compareBinaryStrings(left.manifestPath, right.manifestPath)
+      compareBinaryStrings(left.manifestPath, right.manifestPath),
     );
   }
 }

@@ -6,29 +6,35 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repositoryRoot = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
-export const cliPath = join(
-  repositoryRoot,
-  "packages",
-  "engineering-foundation",
-  "dist",
-  "cli.js"
-);
+export const cliPath = join(repositoryRoot, "packages", "engineering-foundation", "dist", "cli.js");
 export const reportSchemaPath = join(
   repositoryRoot,
   "packages",
   "engineering-foundation",
   "schemas",
   "foundation-check-report",
-  "v1.schema.json"
+  "v1.schema.json",
 );
 
 const fixtureRoots = Object.freeze({
-  workspace: join(repositoryRoot, "tests", "fixtures", "workspace-dependency-declarations", "valid"),
+  workspace: join(
+    repositoryRoot,
+    "tests",
+    "fixtures",
+    "workspace-dependency-declarations",
+    "valid",
+  ),
   source: join(repositoryRoot, "tests", "fixtures", "source-dependencies", "valid"),
   suppression: join(repositoryRoot, "tests", "fixtures", "suppression-governance", "valid"),
   publicApi: join(repositoryRoot, "tests", "fixtures", "public-api-compatibility", "valid"),
   agentWorkflow: join(repositoryRoot, "tests", "fixtures", "repository-agent-workflow", "valid"),
-  repositorySecurity: join(repositoryRoot, "tests", "fixtures", "repository-security-baseline", "valid")
+  repositorySecurity: join(
+    repositoryRoot,
+    "tests",
+    "fixtures",
+    "repository-security-baseline",
+    "valid",
+  ),
 });
 
 async function withCopiedFixture(prefix, source, callback) {
@@ -62,11 +68,19 @@ export async function withPublicApiFixture(callback) {
 }
 
 export async function withRepositorySecurityFixture(callback) {
-  return await withCopiedFixture("foundation-repository-security-", fixtureRoots.repositorySecurity, callback);
+  return await withCopiedFixture(
+    "foundation-repository-security-",
+    fixtureRoots.repositorySecurity,
+    callback,
+  );
 }
 
 export async function withAgentWorkflowFixture(callback) {
-  return await withCopiedFixture("foundation-agent-workflow-", fixtureRoots.agentWorkflow, callback);
+  return await withCopiedFixture(
+    "foundation-agent-workflow-",
+    fixtureRoots.agentWorkflow,
+    callback,
+  );
 }
 
 export function utcDateAfter(days) {
@@ -79,7 +93,7 @@ export function check(consumerRoot, ...args) {
   const result = spawnSync(
     process.execPath,
     [cliPath, "check", ...args, "--consumer", consumerRoot, "--format", "json"],
-    { encoding: "utf8" }
+    { encoding: "utf8" },
   );
   assert.equal(result.stderr, "");
   return { result, report: JSON.parse(result.stdout) };

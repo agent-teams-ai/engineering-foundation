@@ -92,7 +92,10 @@ test("package changes require a Changeset while repository-only changes remain n
     await mkdir(join(neutralFixture.root, "docs"), { recursive: true });
     await mkdir(join(neutralFixture.root, "tests"), { recursive: true });
     await writeFile(join(neutralFixture.root, "docs", "release.md"), "Internal release notes.\n");
-    await writeFile(join(neutralFixture.root, "tests", "release.test.mjs"), "// repository-only test\n");
+    await writeFile(
+      join(neutralFixture.root, "tests", "release.test.mjs"),
+      "// repository-only test\n",
+    );
     await git(neutralFixture.root, "add", ".");
     await git(neutralFixture.root, "commit", "-m", "change repository-only files");
     await assert.doesNotReject(
@@ -110,7 +113,9 @@ test("package changes require a Changeset while repository-only changes remain n
 });
 
 test("the installed release planner preserves an in-range peer minor and bumps an out-of-range peer", async () => {
-  const configuration = JSON.parse(await readFile(new URL("../.changeset/config.json", import.meta.url), "utf8"));
+  const configuration = JSON.parse(
+    await readFile(new URL("../.changeset/config.json", import.meta.url), "utf8"),
+  );
   for (const [dependencyBump, dependencyVersion, dependentBump, dependentVersion] of [
     ["minor", "1.8.0", "minor", "0.1.0"],
     ["major", "2.0.0", "major", "1.0.0"],
@@ -119,26 +124,48 @@ test("the installed release planner preserves an in-range peer minor and bumps a
     try {
       for (const [localName, manifest] of [
         ["foundation", { name: "@fixture/foundation", version: "1.7.4" }],
-        ["standard", { name: "@fixture/standard", version: "0.0.0",
-          peerDependencies: { "@fixture/foundation": "workspace:^" },
-          peerDependenciesMeta: { "@fixture/foundation": { optional: true } },
-          devDependencies: { "@fixture/foundation": "workspace:*" } }],
+        [
+          "standard",
+          {
+            name: "@fixture/standard",
+            version: "0.0.0",
+            peerDependencies: { "@fixture/foundation": "workspace:^" },
+            peerDependenciesMeta: { "@fixture/foundation": { optional: true } },
+            devDependencies: { "@fixture/foundation": "workspace:*" },
+          },
+        ],
       ]) {
         await mkdir(join(root, "packages", localName), { recursive: true });
-        await writeFile(join(root, "packages", localName, "package.json"), JSON.stringify(manifest));
+        await writeFile(
+          join(root, "packages", localName, "package.json"),
+          JSON.stringify(manifest),
+        );
       }
-      await writeFile(join(root, ".changeset", "config.json"), JSON.stringify({ ...configuration, changelog: false }));
-      await writeFile(join(root, ".changeset", "peer-train.md"),
-        `---\n"@fixture/foundation": ${dependencyBump}\n"@fixture/standard": minor\n---\n\nRelease the peer and its runner.\n`);
+      await writeFile(
+        join(root, ".changeset", "config.json"),
+        JSON.stringify({ ...configuration, changelog: false }),
+      );
+      await writeFile(
+        join(root, ".changeset", "peer-train.md"),
+        `---\n"@fixture/foundation": ${dependencyBump}\n"@fixture/standard": minor\n---\n\nRelease the peer and its runner.\n`,
+      );
       const output = join(root, "release-plan.json");
       await execFileAsync(process.execPath, [changesetsCli, "status", "--output", output], {
-        cwd: root, encoding: "utf8", timeout: 60_000, maxBuffer: 1024 * 1024,
+        cwd: root,
+        encoding: "utf8",
+        timeout: 60_000,
+        maxBuffer: 1024 * 1024,
       });
       const { releases } = JSON.parse(await readFile(output, "utf8"));
-      assert.deepEqual(releases.map(({ name, type, newVersion }) => ({ name, type, newVersion })).toSorted((a, b) => a.name.localeCompare(b.name)), [
-        { name: "@fixture/foundation", type: dependencyBump, newVersion: dependencyVersion },
-        { name: "@fixture/standard", type: dependentBump, newVersion: dependentVersion },
-      ]);
+      assert.deepEqual(
+        releases
+          .map(({ name, type, newVersion }) => ({ name, type, newVersion }))
+          .toSorted((a, b) => a.name.localeCompare(b.name)),
+        [
+          { name: "@fixture/foundation", type: dependencyBump, newVersion: dependencyVersion },
+          { name: "@fixture/standard", type: dependentBump, newVersion: dependentVersion },
+        ],
+      );
     } finally {
       await rm(root, { recursive: true, force: true });
     }
@@ -146,39 +173,68 @@ test("the installed release planner preserves an in-range peer minor and bumps a
 });
 
 test("the installed version step retains an explicit in-range peer minimum and its current development link", async () => {
-  const configuration = JSON.parse(await readFile(new URL("../.changeset/config.json", import.meta.url), "utf8"));
+  const configuration = JSON.parse(
+    await readFile(new URL("../.changeset/config.json", import.meta.url), "utf8"),
+  );
   const { root } = await createFixture();
   try {
     for (const [localName, manifest] of [
       ["foundation", { name: "@fixture/foundation", version: "1.9.0" }],
-      ["standard", { name: "@fixture/standard", version: "0.1.0",
-        peerDependencies: { "@fixture/foundation": "workspace:^1.8.0" },
-        peerDependenciesMeta: { "@fixture/foundation": { optional: true } },
-        devDependencies: { "@fixture/foundation": "workspace:*" } }],
+      [
+        "standard",
+        {
+          name: "@fixture/standard",
+          version: "0.1.0",
+          peerDependencies: { "@fixture/foundation": "workspace:^1.8.0" },
+          peerDependenciesMeta: { "@fixture/foundation": { optional: true } },
+          devDependencies: { "@fixture/foundation": "workspace:*" },
+        },
+      ],
     ]) {
       await mkdir(join(root, "packages", localName), { recursive: true });
       await writeFile(join(root, "packages", localName, "package.json"), JSON.stringify(manifest));
     }
-    await writeFile(join(root, ".changeset", "config.json"), JSON.stringify({ ...configuration, changelog: false }));
-    await writeFile(join(root, ".changeset", "minimum-peer.md"),
-      '---\n"@fixture/foundation": minor\n"@fixture/standard": patch\n---\n\nRetain the supported peer minimum.\n');
+    await writeFile(
+      join(root, ".changeset", "config.json"),
+      JSON.stringify({ ...configuration, changelog: false }),
+    );
+    await writeFile(
+      join(root, ".changeset", "minimum-peer.md"),
+      '---\n"@fixture/foundation": minor\n"@fixture/standard": patch\n---\n\nRetain the supported peer minimum.\n',
+    );
     const output = join(root, "release-plan.json");
     await execFileAsync(process.execPath, [changesetsCli, "status", "--output", output], {
-      cwd: root, encoding: "utf8", timeout: 60_000, maxBuffer: 1024 * 1024,
+      cwd: root,
+      encoding: "utf8",
+      timeout: 60_000,
+      maxBuffer: 1024 * 1024,
     });
     const { releases } = JSON.parse(await readFile(output, "utf8"));
-    assert.deepEqual(releases.map(({ name, type, newVersion }) => ({ name, type, newVersion })).toSorted((a, b) => a.name.localeCompare(b.name)), [
-      { name: "@fixture/foundation", type: "minor", newVersion: "1.10.0" },
-      { name: "@fixture/standard", type: "patch", newVersion: "0.1.1" },
-    ]);
+    assert.deepEqual(
+      releases
+        .map(({ name, type, newVersion }) => ({ name, type, newVersion }))
+        .toSorted((a, b) => a.name.localeCompare(b.name)),
+      [
+        { name: "@fixture/foundation", type: "minor", newVersion: "1.10.0" },
+        { name: "@fixture/standard", type: "patch", newVersion: "0.1.1" },
+      ],
+    );
     await execFileAsync(process.execPath, [changesetsCli, "version"], {
-      cwd: root, encoding: "utf8", timeout: 60_000, maxBuffer: 1024 * 1024,
+      cwd: root,
+      encoding: "utf8",
+      timeout: 60_000,
+      maxBuffer: 1024 * 1024,
     });
-    const standard = JSON.parse(await readFile(join(root, "packages/standard/package.json"), "utf8"));
+    const standard = JSON.parse(
+      await readFile(join(root, "packages/standard/package.json"), "utf8"),
+    );
     assert.equal(standard.version, "0.1.1");
     assert.equal(standard.peerDependencies["@fixture/foundation"], "workspace:^1.8.0");
     assert.equal(standard.devDependencies["@fixture/foundation"], "workspace:*");
-    assert.equal(JSON.parse(await readFile(join(root, "packages/foundation/package.json"), "utf8")).version, "1.10.0");
+    assert.equal(
+      JSON.parse(await readFile(join(root, "packages/foundation/package.json"), "utf8")).version,
+      "1.10.0",
+    );
   } finally {
     await rm(root, { recursive: true, force: true });
   }

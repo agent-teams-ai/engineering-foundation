@@ -63,30 +63,24 @@ test("planning profile reader returns a deeply immutable full snapshot", async (
     await writeFile(join(root, "profile.yaml"), profileSource(), "utf8");
     const snapshot = await new NodeDocumentPlanningProfileReader(readContainedRegularFile).read({
       consumerRoot: root,
-      path: "profile.yaml"
+      path: "profile.yaml",
     });
     assert.equal(snapshot.projectId, "fixture");
     assert.equal(snapshot.artifactTypes[0].placement.kind, "qualified-leaf-index");
     assert.deepEqual(snapshot.artifactTypes[0].identity.grammar.prefixSegments, [
       "domain",
-      "contexts"
+      "contexts",
     ]);
     assert.equal(Object.isFrozen(snapshot), true);
     assert.equal(Object.isFrozen(snapshot.artifactTypes), true);
     assert.equal(Object.isFrozen(snapshot.artifactTypes[0].identity.grammar), true);
-    assert.equal(
-      Object.isFrozen(snapshot.artifactTypes[0].identity.grammar.prefixSegments),
-      true
-    );
+    assert.equal(Object.isFrozen(snapshot.artifactTypes[0].identity.grammar.prefixSegments), true);
   });
 });
 
 test("planning profile reader defaults legacy reachability to not-required", async () => {
   await disposableRepository("document-planning-legacy-profile-", async (root) => {
-    const legacy = profileSource().replace(
-      "      reachability:\n        kind: not-required\n",
-      "",
-    );
+    const legacy = profileSource().replace("      reachability:\n        kind: not-required\n", "");
     await writeFile(join(root, "profile.yaml"), legacy, "utf8");
     const snapshot = await new NodeDocumentPlanningProfileReader(readContainedRegularFile).read({
       consumerRoot: root,
@@ -103,16 +97,17 @@ test("planning profile maps schema and semantic failures to stable planning erro
     await writeFile(
       join(root, "profile.yaml"),
       profileSource().replace("maxSuffixSegments: 1", "maxSuffixSegments: 0"),
-      "utf8"
+      "utf8",
     );
     await assert.rejects(
       new NodeDocumentPlanningProfileReader(readContainedRegularFile).read({
         consumerRoot: root,
-        path: "profile.yaml"
+        path: "profile.yaml",
       }),
-      (error) => error instanceof DocumentPlanningError &&
+      (error) =>
+        error instanceof DocumentPlanningError &&
         error.code === "DOCUMENT_PLANNING_INPUT_INVALID" &&
-        error.message.length < 1200
+        error.message.length < 1200,
     );
   });
 });
@@ -124,7 +119,7 @@ test("template reader captures bounded exact UTF-8 evidence", async () => {
     await writeFile(join(root, "docs/template.md"), source, "utf8");
     const snapshot = await new NodeDocumentTemplateReader(readContainedRegularFile).read({
       consumerRoot: root,
-      path: "docs/template.md"
+      path: "docs/template.md",
     });
     assert.equal(snapshot.source, source);
     assert.equal(snapshot.evidence.size, Buffer.byteLength(source));
@@ -143,7 +138,7 @@ test("template reader rejects symlinks, malformed UTF-8, BOM, NUL, and oversized
       ["docs/malformed.md", Buffer.from([0xc3, 0x28])],
       ["docs/bom.md", Buffer.from([0xef, 0xbb, 0xbf, 0x61])],
       ["docs/nul.md", Buffer.from([0x61, 0, 0x62])],
-      ["docs/large.md", Buffer.alloc(256 * 1024 + 1, 0x61)]
+      ["docs/large.md", Buffer.alloc(256 * 1024 + 1, 0x61)],
     ];
     for (const [path, bytes] of vectors) {
       if (bytes !== undefined) {
@@ -151,12 +146,12 @@ test("template reader rejects symlinks, malformed UTF-8, BOM, NUL, and oversized
       }
       await assert.rejects(
         new NodeDocumentTemplateReader(readContainedRegularFile).read({ consumerRoot: root, path }),
-        (error) => error instanceof DocumentPlanningError &&
-          [
-            "DOCUMENT_PLANNING_AUTHORITY_UNAVAILABLE",
-            "DOCUMENT_PLANNING_INPUT_INVALID"
-          ].includes(error.code),
-        path
+        (error) =>
+          error instanceof DocumentPlanningError &&
+          ["DOCUMENT_PLANNING_AUTHORITY_UNAVAILABLE", "DOCUMENT_PLANNING_INPUT_INVALID"].includes(
+            error.code,
+          ),
+        path,
       );
     }
   });
@@ -170,26 +165,27 @@ test("contract validator accepts v1 Intent and bounds validation diagnostics", a
     id: "ADR-9001",
     title: "Bounded adapter",
     owner: "architecture/tooling",
-    summary: "Proves strict schema validation."
+    summary: "Proves strict schema validation.",
   };
   assert.equal(await validator.validateIntent(intent), intent);
   await assert.rejects(
     validator.validateIntent({ ...intent, unexpected: true }),
-    (error) => error instanceof DocumentPlanningError &&
+    (error) =>
+      error instanceof DocumentPlanningError &&
       error.code === "DOCUMENT_PLANNING_INPUT_INVALID" &&
-      error.message.length < 1200
+      error.message.length < 1200,
   );
   const accessorIntent = { ...intent };
   Object.defineProperty(accessorIntent, "summary", {
     enumerable: true,
     get() {
       throw new Error("must not execute");
-    }
+    },
   });
   await assert.rejects(
     validator.validateIntent(accessorIntent),
-    (error) => error instanceof DocumentPlanningError &&
-      error.code === "DOCUMENT_PLANNING_INPUT_INVALID"
+    (error) =>
+      error instanceof DocumentPlanningError && error.code === "DOCUMENT_PLANNING_INPUT_INVALID",
   );
   let proxyTraps = 0;
   const proxyIntent = new Proxy(intent, {
@@ -204,12 +200,12 @@ test("contract validator accepts v1 Intent and bounds validation diagnostics", a
     ownKeys() {
       proxyTraps += 1;
       throw new Error("must not execute");
-    }
+    },
   });
   await assert.rejects(
     validator.validateIntent(proxyIntent),
-    (error) => error instanceof DocumentPlanningError &&
-      error.code === "DOCUMENT_PLANNING_INPUT_INVALID"
+    (error) =>
+      error instanceof DocumentPlanningError && error.code === "DOCUMENT_PLANNING_INPUT_INVALID",
   );
   assert.equal(proxyTraps, 0);
   let deepIntent = {};
@@ -218,58 +214,55 @@ test("contract validator accepts v1 Intent and bounds validation diagnostics", a
   }
   await assert.rejects(
     validator.validateIntent(deepIntent),
-    (error) => error instanceof DocumentPlanningError &&
-      error.code === "DOCUMENT_PLANNING_INPUT_INVALID"
+    (error) =>
+      error instanceof DocumentPlanningError && error.code === "DOCUMENT_PLANNING_INPUT_INVALID",
   );
   const shared = { value: "accepted-twice" };
   const sharedIntent = {
     ...intent,
-    additionalMetadata: { first: shared, second: shared }
+    additionalMetadata: { first: shared, second: shared },
   };
   assert.equal(await validator.validateIntent(sharedIntent), sharedIntent);
   const decomposedValue = "e\u0301".repeat(2048);
   const decomposedLeaf = Array.from({ length: 16 }, () => decomposedValue);
-  const normalizationShrinksBelowLimit = Array.from(
-    { length: 11 },
-    () => decomposedLeaf
-  );
+  const normalizationShrinksBelowLimit = Array.from({ length: 11 }, () => decomposedLeaf);
   const normalizationIntent = {
     ...intent,
-    additionalMetadata: { normalizationShrinksBelowLimit }
+    additionalMetadata: { normalizationShrinksBelowLimit },
   };
-  assert.equal(
-    await validator.validateIntent(normalizationIntent),
-    normalizationIntent
-  );
+  assert.equal(await validator.validateIntent(normalizationIntent), normalizationIntent);
   const amplifiedLeaf = Array.from({ length: 128 }, () => "x".repeat(4096));
   const amplifiedMiddle = Array.from({ length: 128 }, () => amplifiedLeaf);
   const amplifiedRoot = Array.from({ length: 128 }, () => amplifiedMiddle);
   for (const invalidRoot of [
     { ...intent, unexpected: amplifiedRoot },
     { ...intent, schemaVersion: amplifiedRoot },
-    { ...intent, destination: amplifiedRoot }
+    { ...intent, destination: amplifiedRoot },
   ]) {
     await assert.rejects(
       validator.validateIntent(invalidRoot),
-      (error) => error instanceof DocumentPlanningError &&
+      (error) =>
+        error instanceof DocumentPlanningError &&
         error.code === "DOCUMENT_PLANNING_INPUT_INVALID" &&
-        /unknown root field|root field|schemaVersion/u.test(error.message)
+        /unknown root field|root field|schemaVersion/u.test(error.message),
     );
   }
   await assert.rejects(
     validator.validateIntent({
       ...intent,
-      additionalMetadata: { amplified: amplifiedRoot }
+      additionalMetadata: { amplified: amplifiedRoot },
     }),
-    (error) => error instanceof DocumentPlanningError &&
+    (error) =>
+      error instanceof DocumentPlanningError &&
       error.code === "DOCUMENT_PLANNING_INPUT_INVALID" &&
-      /output byte limit/u.test(error.message)
+      /output byte limit/u.test(error.message),
   );
   await assert.rejects(
     validator.validatePlan({ schemaVersion: 1 }),
-    (error) => error instanceof DocumentPlanningError &&
+    (error) =>
+      error instanceof DocumentPlanningError &&
       error.code === "DOCUMENT_PLANNING_OUTPUT_INVALID" &&
-      error.message.length < 1200
+      error.message.length < 1200,
   );
 });
 
@@ -279,26 +272,23 @@ test("planning state observes absent and bounded regular-file destinations witho
     const reader = new NodeDocumentPlanningStateReader(readContainedRegularFile);
     const absent = await reader.observe({
       consumerRoot: root,
-      destination: "docs/decisions/adr.md"
+      destination: "docs/decisions/adr.md",
     });
     assert.deepEqual(absent, {
       destination: { state: "absent" },
       expectedParent: {
         ancestry: "real-directories",
         path: "docs/decisions",
-        state: "directory"
-      }
+        state: "directory",
+      },
     });
     await writeFile(join(root, "docs/decisions/adr.md"), "exact bytes", "utf8");
     const existing = await reader.observe({
       consumerRoot: root,
-      destination: "docs/decisions/adr.md"
+      destination: "docs/decisions/adr.md",
     });
     assert.equal(existing.destination.state, "regular-file");
-    assert.equal(
-      Buffer.from(existing.destination.bytes).toString("utf8"),
-      "exact bytes"
-    );
+    assert.equal(Buffer.from(existing.destination.bytes).toString("utf8"), "exact bytes");
   });
 });
 
@@ -308,15 +298,13 @@ test("planning state requires an existing real contained parent ancestry", async
     await mkdir(join(root, "outside"));
     await symlink(join(root, "outside"), join(root, "docs/link"), "dir");
     const reader = new NodeDocumentPlanningStateReader(readContainedRegularFile);
-    for (const destination of [
-      "missing/child/document.md",
-      "docs/link/document.md"
-    ]) {
+    for (const destination of ["missing/child/document.md", "docs/link/document.md"]) {
       await assert.rejects(
         reader.observe({ consumerRoot: root, destination }),
-        (error) => error instanceof DocumentPlanningError &&
+        (error) =>
+          error instanceof DocumentPlanningError &&
           error.code === "DOCUMENT_PLANNING_PARENT_UNAVAILABLE",
-        destination
+        destination,
       );
     }
   });
@@ -334,7 +322,7 @@ test("planning state classifies portable collisions, directories, special files,
       ["docs/README.md", "portable-name-collision"],
       ["docs/directory.md", "directory"],
       ["docs/link.md", "special-file"],
-      ["docs/large.md", "special-file"]
+      ["docs/large.md", "special-file"],
     ];
     for (const [destination, kind] of vectors) {
       const snapshot = await reader.observe({ consumerRoot: root, destination });
@@ -348,19 +336,16 @@ test("planning state rejects non-portable paths and checks root-level destinatio
     const reader = new NodeDocumentPlanningStateReader(readContainedRegularFile);
     await assert.rejects(
       reader.observe({ consumerRoot: root, destination: "../escape.md" }),
-      (error) => error instanceof DocumentPlanningError &&
-        error.code === "DOCUMENT_PLANNING_INPUT_INVALID"
+      (error) =>
+        error instanceof DocumentPlanningError && error.code === "DOCUMENT_PLANNING_INPUT_INVALID",
     );
-    assert.deepEqual(
-      await reader.observe({ consumerRoot: root, destination: "README.md" }),
-      {
-        destination: { state: "absent" },
-        expectedParent: {
-          ancestry: "real-directories",
-          path: ".",
-          state: "directory"
-        }
-      }
-    );
+    assert.deepEqual(await reader.observe({ consumerRoot: root, destination: "README.md" }), {
+      destination: { state: "absent" },
+      expectedParent: {
+        ancestry: "real-directories",
+        path: ".",
+        state: "directory",
+      },
+    });
   });
 });

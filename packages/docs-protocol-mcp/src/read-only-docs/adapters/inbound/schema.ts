@@ -5,13 +5,15 @@ interface ValidationIssue {
   readonly path?: readonly PropertyKey[];
 }
 
-type Validator<Output> = (value: unknown) =>
+type Validator<Output> = (
+  value: unknown,
+) =>
   | Readonly<{ readonly value: Output }>
   | Readonly<{ readonly issues: readonly ValidationIssue[] }>;
 
 export function standardJsonSchema<Output>(
   jsonSchema: Readonly<Record<string, unknown>>,
-  validate: Validator<Output>
+  validate: Validator<Output>,
 ): StandardSchemaWithJSON<unknown, Output> {
   return Object.freeze({
     "~standard": Object.freeze({
@@ -20,13 +22,15 @@ export function standardJsonSchema<Output>(
       validate,
       jsonSchema: Object.freeze({
         input: () => jsonSchema,
-        output: () => jsonSchema
-      })
-    })
+        output: () => jsonSchema,
+      }),
+    }),
   });
 }
 
-export function recordOrIssue(value: unknown):
+export function recordOrIssue(
+  value: unknown,
+):
   | Readonly<{ readonly record: Readonly<Record<string, unknown>> }>
   | Readonly<{ readonly issues: readonly ValidationIssue[] }> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -37,16 +41,18 @@ export function recordOrIssue(value: unknown):
 
 export function unknownKeys(
   record: Readonly<Record<string, unknown>>,
-  allowed: ReadonlySet<string>
+  allowed: ReadonlySet<string>,
 ): readonly ValidationIssue[] {
-  return Object.freeze(Object.keys(record)
-    .filter((key) => !allowed.has(key))
-    .toSorted()
-    .map((key) => Object.freeze({ message: "Unknown property.", path: Object.freeze([key]) })));
+  return Object.freeze(
+    Object.keys(record)
+      .filter((key) => !allowed.has(key))
+      .toSorted()
+      .map((key) => Object.freeze({ message: "Unknown property.", path: Object.freeze([key]) })),
+  );
 }
 
 export function objectRecord(value: unknown): Readonly<Record<string, unknown>> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
-    ? value as Readonly<Record<string, unknown>>
+    ? (value as Readonly<Record<string, unknown>>)
     : Object.freeze({});
 }

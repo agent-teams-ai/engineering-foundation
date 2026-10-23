@@ -17,7 +17,20 @@ export interface DocsProtocolQualificationRequest {
 
 export interface DocsProtocolQualificationReceipt {
   readonly appliedDocumentPath: string;
-  readonly checks: readonly ["info", "find", "preview", "crash", "doctor", "recover", "receipt", "parent", "apply", "index", "check", "source-unchanged"];
+  readonly checks: readonly [
+    "info",
+    "find",
+    "preview",
+    "crash",
+    "doctor",
+    "recover",
+    "receipt",
+    "parent",
+    "apply",
+    "index",
+    "check",
+    "source-unchanged",
+  ];
   readonly projectId: string;
   readonly schemaVersion: 1;
 }

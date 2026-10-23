@@ -9,18 +9,18 @@ import {
   markdownPathTraversesSymbolicLink,
   nodeFilesystemMarkdownOperations,
   throwMarkdownFilesystemUnavailable,
-  type FilesystemMarkdownOperations
+  type FilesystemMarkdownOperations,
 } from "./filesystem-markdown-filesystem.js";
 import {
   createFilesystemMarkdownRepositoryContext,
   isWithinMarkdownRepository,
   markdownRepositoryPath,
-  type FilesystemMarkdownRepositoryContext
+  type FilesystemMarkdownRepositoryContext,
 } from "./filesystem-markdown-paths.js";
 import {
   parseMarkdownReferenceTarget,
   stripMarkdownReferenceQuery,
-  type MarkdownReferenceTarget
+  type MarkdownReferenceTarget,
 } from "./markdown-reference-target.js";
 
 interface LocalReferenceCandidate {
@@ -39,7 +39,7 @@ type TargetLocation = LocatedReferenceTarget | MarkdownReferenceResolution;
 async function hasExactFilesystemSpelling(
   absolutePath: string,
   filesystem: FilesystemMarkdownOperations,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<boolean> {
   try {
     const canonicalPath = await filesystem.realpath(absolutePath);
@@ -55,7 +55,7 @@ async function hasExactFilesystemSpelling(
 }
 
 function terminalTargetResolution(
-  target: MarkdownReferenceTarget
+  target: MarkdownReferenceTarget,
 ): MarkdownReferenceResolution | undefined {
   if (target.kind === "external") {
     return { kind: "external" };
@@ -71,23 +71,19 @@ async function resolveLocalCandidate(
   sourceRepositoryPath: string,
   target: string,
   filesystem: FilesystemMarkdownOperations,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<CandidateResolution> {
   assertNotCancelled(signal);
   const sourcePath = resolve(context.canonicalRoot, sourceRepositoryPath);
-  const candidate = target.length === 0
-    ? sourcePath
-    : resolve(sourcePath, "..", stripMarkdownReferenceQuery(target));
+  const candidate =
+    target.length === 0
+      ? sourcePath
+      : resolve(sourcePath, "..", stripMarkdownReferenceQuery(target));
   if (!isWithinMarkdownRepository(context.canonicalRoot, candidate)) {
     return { kind: "unsafe", reason: "repository-escape" };
   }
   if (
-    await markdownPathTraversesSymbolicLink(
-      context.canonicalRoot,
-      candidate,
-      filesystem,
-      signal
-    )
+    await markdownPathTraversesSymbolicLink(context.canonicalRoot, candidate, filesystem, signal)
   ) {
     return { kind: "unsafe", reason: "symbolic-link" };
   }
@@ -99,7 +95,7 @@ async function inspectFileTarget(
   absolutePath: string,
   missingReason: "directory-readme-missing" | "target-missing",
   filesystem: FilesystemMarkdownOperations,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<TargetLocation> {
   let metadata;
   try {
@@ -110,7 +106,7 @@ async function inspectFileTarget(
       return {
         kind: "missing",
         reason: missingReason,
-        repositoryPath: markdownRepositoryPath(context.canonicalRoot, absolutePath)
+        repositoryPath: markdownRepositoryPath(context.canonicalRoot, absolutePath),
       };
     }
     throwMarkdownFilesystemUnavailable(error, "inspecting a Markdown reference target");
@@ -123,14 +119,14 @@ async function inspectFileTarget(
     return {
       kind: "missing",
       reason: "target-missing",
-      repositoryPath: markdownRepositoryPath(context.canonicalRoot, absolutePath)
+      repositoryPath: markdownRepositoryPath(context.canonicalRoot, absolutePath),
     };
   }
   if (!(await hasExactFilesystemSpelling(absolutePath, filesystem, signal))) {
     return {
       kind: "missing",
       reason: missingReason,
-      repositoryPath: markdownRepositoryPath(context.canonicalRoot, absolutePath)
+      repositoryPath: markdownRepositoryPath(context.canonicalRoot, absolutePath),
     };
   }
   return { absolutePath, kind: "located" };
@@ -140,7 +136,7 @@ async function locateReferenceTarget(
   context: FilesystemMarkdownRepositoryContext,
   candidate: string,
   filesystem: FilesystemMarkdownOperations,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<TargetLocation> {
   let metadata;
   try {
@@ -151,7 +147,7 @@ async function locateReferenceTarget(
       return {
         kind: "missing",
         reason: "target-missing",
-        repositoryPath: markdownRepositoryPath(context.canonicalRoot, candidate)
+        repositoryPath: markdownRepositoryPath(context.canonicalRoot, candidate),
       };
     }
     throwMarkdownFilesystemUnavailable(error, "inspecting a Markdown reference target");
@@ -164,7 +160,7 @@ async function locateReferenceTarget(
     return {
       kind: "missing",
       reason: "target-missing",
-      repositoryPath: markdownRepositoryPath(context.canonicalRoot, candidate)
+      repositoryPath: markdownRepositoryPath(context.canonicalRoot, candidate),
     };
   }
   if (!metadata.isDirectory()) {
@@ -173,28 +169,17 @@ async function locateReferenceTarget(
       : {
           kind: "missing",
           reason: "target-missing",
-          repositoryPath: markdownRepositoryPath(context.canonicalRoot, candidate)
+          repositoryPath: markdownRepositoryPath(context.canonicalRoot, candidate),
         };
   }
 
   const readmePath = resolve(candidate, "README.md");
   if (
-    await markdownPathTraversesSymbolicLink(
-      context.canonicalRoot,
-      readmePath,
-      filesystem,
-      signal
-    )
+    await markdownPathTraversesSymbolicLink(context.canonicalRoot, readmePath, filesystem, signal)
   ) {
     return { kind: "unsafe", reason: "symbolic-link" };
   }
-  return inspectFileTarget(
-    context,
-    readmePath,
-    "directory-readme-missing",
-    filesystem,
-    signal
-  );
+  return inspectFileTarget(context, readmePath, "directory-readme-missing", filesystem, signal);
 }
 
 async function resolveLocatedTarget(
@@ -202,7 +187,7 @@ async function resolveLocatedTarget(
   target: LocatedReferenceTarget,
   fragment: string,
   reader: FilesystemMarkdownDocumentReader,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<MarkdownReferenceResolution> {
   const repositoryPath = markdownRepositoryPath(context.canonicalRoot, target.absolutePath);
   if (extname(target.absolutePath).toLowerCase() !== ".md") {
@@ -216,20 +201,20 @@ async function resolveLocatedTarget(
     fragment,
     kind: "file",
     markdownDocument: document,
-    repositoryPath
+    repositoryPath,
   };
 }
 
 export async function resolveFilesystemMarkdownReference(
   request: ResolveMarkdownReferenceRequest,
   reader: FilesystemMarkdownDocumentReader,
-  filesystem: FilesystemMarkdownOperations = nodeFilesystemMarkdownOperations
+  filesystem: FilesystemMarkdownOperations = nodeFilesystemMarkdownOperations,
 ): Promise<MarkdownReferenceResolution> {
   assertNotCancelled(request.signal);
   const context = await createFilesystemMarkdownRepositoryContext(
     request.consumerRoot,
     filesystem,
-    request.signal
+    request.signal,
   );
   assertNotCancelled(request.signal);
   const target = parseMarkdownReferenceTarget(request.rawTarget);
@@ -246,7 +231,7 @@ export async function resolveFilesystemMarkdownReference(
     request.source.repositoryPath,
     target.target,
     filesystem,
-    request.signal
+    request.signal,
   );
   if (candidate.kind !== "candidate") {
     return candidate;
@@ -255,16 +240,10 @@ export async function resolveFilesystemMarkdownReference(
     context,
     candidate.absolutePath,
     filesystem,
-    request.signal
+    request.signal,
   );
   if (locatedTarget.kind !== "located") {
     return locatedTarget;
   }
-  return resolveLocatedTarget(
-    context,
-    locatedTarget,
-    target.fragment,
-    reader,
-    request.signal
-  );
+  return resolveLocatedTarget(context, locatedTarget, target.fragment, reader, request.signal);
 }

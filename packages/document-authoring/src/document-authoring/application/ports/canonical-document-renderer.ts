@@ -1,8 +1,6 @@
-interface CanonicalFrontmatterArray
-  extends ReadonlyArray<CanonicalFrontmatterValue> {}
+interface CanonicalFrontmatterArray extends ReadonlyArray<CanonicalFrontmatterValue> {}
 
-interface CanonicalFrontmatterMap
-  extends Readonly<Record<string, CanonicalFrontmatterValue>> {}
+interface CanonicalFrontmatterMap extends Readonly<Record<string, CanonicalFrontmatterValue>> {}
 
 export type CanonicalFrontmatterValue =
   | null

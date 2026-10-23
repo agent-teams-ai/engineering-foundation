@@ -1,4 +1,7 @@
-import { inventory, evidence } from "../packages/engineering-foundation/tests/fixtures/public-api-artifact-fixture.mjs";
+import {
+  inventory,
+  evidence,
+} from "../packages/engineering-foundation/tests/fixtures/public-api-artifact-fixture.mjs";
 import { writeArtifactBaseline } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/adapters/outbound/filesystem/public-api-artifact-baseline.js";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -10,11 +13,7 @@ import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 
 import { classifyPublicApiChange } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/application/policies/evaluate-public-api-compatibility.js";
 import { promotePublicApiBaselines } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/application/use-cases/promote-public-api-baselines.js";
-import {
-  check,
-  cliPath,
-  withPublicApiFixture
-} from "./support/capability-fixtures.mjs";
+import { check, cliPath, withPublicApiFixture } from "./support/capability-fixtures.mjs";
 import {
   ACCEPTED_DECISION_BASELINE_PATH,
   GOVERNANCE_CONFIG_PATH,
@@ -22,7 +21,7 @@ import {
   configureCurrentPublicApiFixture,
   sha256,
   currentBaseline,
-  writeGovernedDecisionEvidence
+  writeGovernedDecisionEvidence,
 } from "./support/public-api-fixtures.mjs";
 
 test("accepts a public API identical to its released baseline", async () => {
@@ -39,7 +38,12 @@ test("retains exact legacy fixture bytes as an active native tool mismatch refus
     const baselinePath = join(consumerRoot, "architecture/public-api/public-api.json");
     const native = await readFile(baselinePath);
     const retained = await readFile(join(consumerRoot, "retained-legacy-public-api.1.json"));
-    const original = await readFile(new URL("./fixtures/public-api-compatibility/valid/architecture/public-api/public-api.json", import.meta.url));
+    const original = await readFile(
+      new URL(
+        "./fixtures/public-api-compatibility/valid/architecture/public-api/public-api.json",
+        import.meta.url,
+      ),
+    );
     assert.deepEqual(retained, original);
     try {
       await writeFile(baselinePath, retained);
@@ -49,13 +53,20 @@ test("retains exact legacy fixture bytes as an active native tool mismatch refus
       assert.equal(report.outcome, "violations");
       assert.equal(report.capabilities.length, 1);
       assert.equal(report.capabilities[0].problem, undefined);
-      assert.deepEqual(report.capabilities[0].diagnostics.map(({ ruleId }) => ruleId),
-        ["package.public-api-compatibility.baseline-tool-mismatch"]);
+      assert.deepEqual(
+        report.capabilities[0].diagnostics.map(({ ruleId }) => ruleId),
+        ["package.public-api-compatibility.baseline-tool-mismatch"],
+      );
       assert.deepEqual(await readFile(baselinePath), retained);
-    } finally { await writeFile(baselinePath, native); }
+    } finally {
+      await writeFile(baselinePath, native);
+    }
     assert.equal(check(consumerRoot).result.status, 0);
     assert.deepEqual(await readFile(baselinePath), native);
-    assert.deepEqual(await readFile(join(consumerRoot, "retained-legacy-public-api.1.json")), original);
+    assert.deepEqual(
+      await readFile(join(consumerRoot, "retained-legacy-public-api.1.json")),
+      original,
+    );
   });
 });
 
@@ -236,13 +247,10 @@ test("requires an accepted exact fingerprint for a current schema v1 breaking su
     const blocked = check(consumerRoot);
     assert.equal(blocked.result.status, 1);
     const diagnostic = blocked.report.capabilities[0].diagnostics.find(
-      ({ ruleId }) =>
-        ruleId === "package.public-api-compatibility.breaking-change-not-approved",
+      ({ ruleId }) => ruleId === "package.public-api-compatibility.breaking-change-not-approved",
     );
     assert.notEqual(diagnostic, undefined);
-    const fingerprint = diagnostic.evidence.find(
-      ({ kind }) => kind === "change-fingerprint",
-    ).value;
+    const fingerprint = diagnostic.evidence.find(({ kind }) => kind === "change-fingerprint").value;
 
     const config = parseYaml(await readFile(configPath, "utf8"));
     config.governanceConfigPath = GOVERNANCE_CONFIG_PATH;
@@ -265,11 +273,7 @@ test("requires an accepted exact fingerprint for a current schema v1 breaking su
     const validBaseline = await readFile(validBaselinePath, "utf8");
     const fabricatedBaseline = JSON.parse(validBaseline);
     fabricatedBaseline.decisions[0].immutableDigest = `sha256:${"a".repeat(64)}`;
-    await writeFile(
-      validBaselinePath,
-      `${JSON.stringify(fabricatedBaseline, null, 2)}\n`,
-      "utf8",
-    );
+    await writeFile(validBaselinePath, `${JSON.stringify(fabricatedBaseline, null, 2)}\n`, "utf8");
 
     const fabricatedEvidence = check(consumerRoot);
     assert.equal(fabricatedEvidence.result.status, 2);
@@ -283,22 +287,26 @@ test("requires an accepted exact fingerprint for a current schema v1 breaking su
 
     await writeFile(
       validBaselinePath,
-      `${JSON.stringify({
-        schemaVersion: 1,
-        algorithm: "sha256",
-        decisions: [
-          {
-            id: "ADR-0001",
-            path: "docs/decisions/0001-approve-public-api-break.md",
-            immutableDigest: `sha256:${"b".repeat(64)}`,
-          },
-          {
-            id: "ADR-0001",
-            path: "docs/decisions/0001-other.md",
-            immutableDigest: `sha256:${"c".repeat(64)}`,
-          },
-        ],
-      }, null, 2)}\n`,
+      `${JSON.stringify(
+        {
+          schemaVersion: 1,
+          algorithm: "sha256",
+          decisions: [
+            {
+              id: "ADR-0001",
+              path: "docs/decisions/0001-approve-public-api-break.md",
+              immutableDigest: `sha256:${"b".repeat(64)}`,
+            },
+            {
+              id: "ADR-0001",
+              path: "docs/decisions/0001-other.md",
+              immutableDigest: `sha256:${"c".repeat(64)}`,
+            },
+          ],
+        },
+        null,
+        2,
+      )}\n`,
       "utf8",
     );
     const malformedBaseline = check(consumerRoot);
@@ -326,10 +334,7 @@ test("rejects a current schema v1 configuration that omits a public typed subpat
     const { result, report } = check(consumerRoot);
     assert.equal(result.status, 2);
     assert.equal(report.outcome, "invalid-input");
-    assert.equal(
-      report.capabilities[0].problem?.code,
-      "PUBLIC_API_PACKAGE_EXPORTS_INVALID",
-    );
+    assert.equal(report.capabilities[0].problem?.code, "PUBLIC_API_PACKAGE_EXPORTS_INVALID");
   });
 });
 
@@ -355,10 +360,20 @@ test("requires explicit non-type export classification in current schema v1", as
       { exportPath: "./package.json", kind: "data" },
     ];
     await writeFile(configPath, stringifyYaml(config, { lineWidth: 0 }), "utf8");
-    assert.equal(check(consumerRoot).report.capabilities[0].problem?.code, "PUBLIC_API_ARTIFACT_BASELINE_MISSING");
+    assert.equal(
+      check(consumerRoot).report.capabilities[0].problem?.code,
+      "PUBLIC_API_ARTIFACT_BASELINE_MISSING",
+    );
     const [snapshot] = await inventory.inspect(consumerRoot, config.packages);
-    await writeArtifactBaseline({ root: consumerRoot, policy: config.packages[0],
-      snapshot: { ...snapshot, status: "supported" }, mode: "create" }, evidence);
+    await writeArtifactBaseline(
+      {
+        root: consumerRoot,
+        policy: config.packages[0],
+        snapshot: { ...snapshot, status: "supported" },
+        mode: "create",
+      },
+      evidence,
+    );
     assert.equal(check(consumerRoot).result.status, 0);
   });
 });
@@ -458,8 +473,7 @@ test("binds a breaking approval to its exact fingerprint and immutable ADR ident
     const blocked = check(consumerRoot);
     assert.equal(blocked.result.status, 1);
     const approvalDiagnostic = blocked.report.capabilities[0].diagnostics.find(
-      ({ ruleId }) =>
-        ruleId === "package.public-api-compatibility.breaking-change-not-approved",
+      ({ ruleId }) => ruleId === "package.public-api-compatibility.breaking-change-not-approved",
     );
     assert.notEqual(approvalDiagnostic, undefined);
     const fingerprint = approvalDiagnostic.evidence.find(
@@ -474,8 +488,7 @@ test("binds a breaking approval to its exact fingerprint and immutable ADR ident
     const expandedBreak = check(consumerRoot);
     const expandedFingerprint = expandedBreak.report.capabilities[0].diagnostics
       .find(
-        ({ ruleId }) =>
-          ruleId === "package.public-api-compatibility.breaking-change-not-approved",
+        ({ ruleId }) => ruleId === "package.public-api-compatibility.breaking-change-not-approved",
       )
       .evidence.find(({ kind }) => kind === "change-fingerprint").value;
     assert.notEqual(expandedFingerprint, fingerprint);
@@ -513,8 +526,7 @@ test("binds a breaking approval to its exact fingerprint and immutable ADR ident
     assert.equal(differentBreak.result.status, 1);
     assert.equal(
       differentBreak.report.capabilities[0].diagnostics.some(
-        ({ ruleId }) =>
-          ruleId === "package.public-api-compatibility.breaking-change-not-approved",
+        ({ ruleId }) => ruleId === "package.public-api-compatibility.breaking-change-not-approved",
       ),
       true,
     );
@@ -529,7 +541,9 @@ test("requires immutable decision evidence before promoting a breaking public AP
     entrypoints: [
       {
         exportPath: ".",
-        entrypoints: [{ exportPath: ".", declarationEntryPoint: "packages/library/dist/index.d.ts" }],
+        entrypoints: [
+          { exportPath: ".", declarationEntryPoint: "packages/library/dist/index.d.ts" },
+        ],
         nonTypeExports: [],
       },
     ],
@@ -811,9 +825,7 @@ test("replays public API promotion after a partially written multi-package relea
             packageName: packagePolicy.packageName,
             packageVersion: alreadyPromoted ? "1.1.0" : "1.0.0",
             extractorVersion: "7.58.12",
-            entrypoints: [
-              { exportPath: ".", items: alreadyPromoted ? [item] : [] },
-            ],
+            entrypoints: [{ exportPath: ".", items: alreadyPromoted ? [item] : [] }],
           };
         },
         async readReleaseEvidence(_consumerRoot, _changesetDirectory, packagePolicy) {
@@ -832,5 +844,8 @@ test("replays public API promotion after a partially written multi-package relea
   );
 
   assert.deepEqual(writes, ["@fixture/second"]);
-  assert.deepEqual(promoted.map(({ packageName }) => packageName), ["@fixture/second"]);
+  assert.deepEqual(
+    promoted.map(({ packageName }) => packageName),
+    ["@fixture/second"],
+  );
 });

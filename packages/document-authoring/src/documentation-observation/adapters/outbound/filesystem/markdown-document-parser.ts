@@ -1,12 +1,13 @@
-import { GithubSlugger, toString, remarkFrontmatter, remarkGfm, remarkParse, unified, visit as visitMarkdown } from "./markdown-runtime.js";
 import {
-  isAlias,
-  isMap,
-  isNode,
-  isPair,
-  parseDocument,
-  visit as visitYaml
-} from "yaml";
+  GithubSlugger,
+  toString,
+  remarkFrontmatter,
+  remarkGfm,
+  remarkParse,
+  unified,
+  visit as visitMarkdown,
+} from "./markdown-runtime.js";
+import { isAlias, isMap, isNode, isPair, parseDocument, visit as visitYaml } from "yaml";
 
 import type {
   MarkdownAnchorObservation,
@@ -14,7 +15,7 @@ import type {
   MarkdownFrontmatterObservation,
   MarkdownHeadingObservation,
   MarkdownPosition,
-  MarkdownReferenceObservation
+  MarkdownReferenceObservation,
 } from "../../../application/model/markdown-document.js";
 
 const markdownParser = unified()
@@ -72,10 +73,7 @@ interface ParsedMarkdown {
 
 function isAstNode(value: unknown): value is AstNode {
   return (
-    typeof value === "object" &&
-    value !== null &&
-    "type" in value &&
-    typeof value.type === "string"
+    typeof value === "object" && value !== null && "type" in value && typeof value.type === "string"
   );
 }
 
@@ -118,9 +116,7 @@ function isDefinitionNode(value: unknown): value is AstDefinitionNode {
 
 function isHeadingNode(value: unknown): value is AstHeadingNode {
   return (
-    isAstNode(value) &&
-    value.type === "heading" &&
-    typeof astProperty(value, "depth") === "number"
+    isAstNode(value) && value.type === "heading" && typeof astProperty(value, "depth") === "number"
   );
 }
 
@@ -141,14 +137,16 @@ function isUrlNode(value: unknown): value is AstUrlNode {
 }
 
 function isYamlNode(value: unknown): value is AstYamlNode {
-  return isAstNode(value) && value.type === "yaml" && typeof astProperty(value, "value") === "string";
+  return (
+    isAstNode(value) && value.type === "yaml" && typeof astProperty(value, "value") === "string"
+  );
 }
 
 function parseMarkdown(source: string): ParsedMarkdown {
   const sourceOffset = source.startsWith("\uFEFF") ? 1 : 0;
   return {
     sourceOffset,
-    tree: markdownParser.parse(source.slice(sourceOffset))
+    tree: markdownParser.parse(source.slice(sourceOffset)),
   };
 }
 
@@ -165,15 +163,11 @@ function markdownPosition(node: AstNode, sourceOffset: number): MarkdownPosition
   return {
     column: point.column + (point.line === 1 ? sourceOffset : 0),
     line: point.line,
-    offset: point.offset + sourceOffset
+    offset: point.offset + sourceOffset,
   };
 }
 
-function endOffsetAfterLineEnding(
-  source: string,
-  node: AstNode,
-  sourceOffset: number
-): number {
+function endOffsetAfterLineEnding(source: string, node: AstNode, sourceOffset: number): number {
   const endOffset = astPosition(node).end.offset + sourceOffset;
   if (source.startsWith("\r\n", endOffset)) {
     return endOffset + 2;
@@ -223,7 +217,7 @@ function forbiddenYamlFeature(document: ReturnType<typeof parseDocument>): strin
 
 function frontmatterFromMarkdown(
   source: string,
-  markdown: ParsedMarkdown
+  markdown: ParsedMarkdown,
 ): MarkdownFrontmatterObservation {
   const yaml = findFrontmatter(markdown);
   if (yaml === undefined) {
@@ -231,7 +225,7 @@ function frontmatterFromMarkdown(
       ? {
           endOffset: source.length,
           kind: "invalid",
-          message: "YAML frontmatter is missing a closing delimiter."
+          message: "YAML frontmatter is missing a closing delimiter.",
         }
       : { endOffset: 0, kind: "absent" };
   }
@@ -241,7 +235,7 @@ function frontmatterFromMarkdown(
     customTags: [],
     merge: false,
     schema: "core",
-    uniqueKeys: true
+    uniqueKeys: true,
   });
   const errors = [...document.errors, ...document.warnings];
   if (errors.length > 0) {
@@ -252,7 +246,7 @@ function frontmatterFromMarkdown(
         .slice(0, 4)
         .map((error) => error.message)
         .join("; ")
-        .slice(0, 1000)
+        .slice(0, 1000),
     };
   }
 
@@ -263,13 +257,11 @@ function frontmatterFromMarkdown(
   return {
     endOffset,
     kind: "valid",
-    value: document.toJS({ maxAliasCount: 0 }) as unknown
+    value: document.toJS({ maxAliasCount: 0 }) as unknown,
   };
 }
 
-function headingsFromMarkdown(
-  markdown: ParsedMarkdown
-): readonly MarkdownHeadingObservation[] {
+function headingsFromMarkdown(markdown: ParsedMarkdown): readonly MarkdownHeadingObservation[] {
   const headings: MarkdownHeadingObservation[] = [];
   visitMarkdown(markdown.tree, (node) => {
     if (!isHeadingNode(node)) {
@@ -278,19 +270,19 @@ function headingsFromMarkdown(
     headings.push({
       depth: node.depth,
       location: markdownPosition(node, markdown.sourceOffset),
-      text: toString(node)
+      text: toString(node),
     });
   });
   return headings.toSorted((left, right) => left.location.offset - right.location.offset);
 }
 
 function githubAnchorObservation(
-  headings: readonly MarkdownHeadingObservation[]
+  headings: readonly MarkdownHeadingObservation[],
 ): MarkdownAnchorObservation {
   const slugger = new GithubSlugger();
   return {
     ids: headings.map((heading) => slugger.slug(heading.text)),
-    profile: "github"
+    profile: "github",
   };
 }
 
@@ -298,12 +290,12 @@ function referenceFromNode(
   node: AstNode,
   kind: "definition" | "image" | "link",
   rawTarget: string,
-  sourceOffset: number
+  sourceOffset: number,
 ): MarkdownReferenceObservation {
   return {
     kind,
     location: markdownPosition(node, sourceOffset),
-    rawTarget
+    rawTarget,
   };
 }
 
@@ -322,7 +314,12 @@ function collectReferenceNodes(markdown: ParsedMarkdown): {
     }
     if (isUrlNode(node)) {
       directReferences.push(
-        referenceFromNode(node, node.type === "image" ? "image" : "link", node.url, markdown.sourceOffset)
+        referenceFromNode(
+          node,
+          node.type === "image" ? "image" : "link",
+          node.url,
+          markdown.sourceOffset,
+        ),
       );
       return;
     }
@@ -333,9 +330,7 @@ function collectReferenceNodes(markdown: ParsedMarkdown): {
   return { definitions, directReferences, referenceNodes };
 }
 
-function referencesFromMarkdown(
-  markdown: ParsedMarkdown
-): readonly MarkdownReferenceObservation[] {
+function referencesFromMarkdown(markdown: ParsedMarkdown): readonly MarkdownReferenceObservation[] {
   const { definitions, directReferences, referenceNodes } = collectReferenceNodes(markdown);
   const effectiveDefinitions = new Map<string, AstDefinitionNode>();
   for (const definition of definitions) {
@@ -356,8 +351,8 @@ function referencesFromMarkdown(
         node,
         node.type === "imageReference" ? "image" : "link",
         definition.url,
-        markdown.sourceOffset
-      )
+        markdown.sourceOffset,
+      ),
     ];
   });
 
@@ -368,24 +363,17 @@ function referencesFromMarkdown(
     ) {
       return [];
     }
-    return [
-      referenceFromNode(
-        definition,
-        "definition",
-        definition.url,
-        markdown.sourceOffset
-      )
-    ];
+    return [referenceFromNode(definition, "definition", definition.url, markdown.sourceOffset)];
   });
 
   return [...directReferences, ...resolvedReferenceUsages, ...unusedDefinitions].toSorted(
-    (left, right) => left.location.offset - right.location.offset
+    (left, right) => left.location.offset - right.location.offset,
   );
 }
 
 export function observeMarkdownDocument(
   repositoryPath: string,
-  source: string
+  source: string,
 ): MarkdownDocumentObservation {
   const markdown = parseMarkdown(source);
   const headings = headingsFromMarkdown(markdown);
@@ -395,6 +383,6 @@ export function observeMarkdownDocument(
     headings,
     references: referencesFromMarkdown(markdown),
     repositoryPath,
-    source
+    source,
   };
 }

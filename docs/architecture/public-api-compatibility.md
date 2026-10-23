@@ -250,7 +250,7 @@ it requires:
 
 - a new top-level export is additive and requires a minor Changeset;
 - removing or changing an existing item is breaking;
-- one comparison-time exception treats a direct top-level type-alias RHS as
+- one comparison-time proof treats a direct top-level type-alias RHS as
   unchanged when its only difference is omitting or restoring trailing generic
   arguments. Every omitted argument must textually equal the corresponding
   declared default on one unambiguous, unchanged top-level public generic target
@@ -270,8 +270,8 @@ it requires:
   verified against the accepted-decision baseline by `decisionId`;
 - raw ADR Markdown, including `Status: Accepted`, is not approval evidence.
 
-This exception is deliberately syntax-bounded rather than a general TypeScript
-assignability engine. It admits only direct aliases and simple generic target
+The trailing-default-argument proof is deliberately syntax-bounded rather than a
+general TypeScript assignability engine. It admits only direct aliases and simple generic target
 references with simple argument, constraint, and default texts. A changed or
 ambiguous target, a different target name, a non-trailing omission, an omitted
 parameter without a default, any other alias edit, or a nested or complex type
@@ -283,6 +283,44 @@ the same supported atom grammar, including arguments that are not omitted. The
 comparator does not normalize,
 regenerate, or rewrite the released baseline or the extracted current signature;
 both retain their exact stored bytes.
+
+A separate comparison-time proof handles redundant parentheses in native type
+aliases and property signatures, including nested conditional true branches,
+conditional tuple members and indexed `typeof` queries. Both snapshots must identify `typescript-native/7.0.2`; the item kind,
+canonical reference, parent kind and parent reference must match. The native
+adapter parses each complete alias, or one property inside a closed synthetic
+interface, with zero syntax diagnostics. The interface must contain exactly one
+property signature. It compares AST
+structure after erasing only `ParenthesizedType` wrappers, and separately checks
+that every other lexical token agrees. Thus `(A | B)[]` and `A | B[]`, changed
+branches, type parameters, literal values and reference names remain breaking.
+This is a syntax proof, never an assignability or reference-rebinding claim.
+
+The same closed native parse also admits spelling changes of string-literal
+quotes when their decoded values agree. Only actual `StringLiteral` AST nodes
+are replaced in a temporary comparison string with their canonical quoted
+values; every byte outside those literal spans must match. Template bodies,
+identifiers, modifiers, optional markers and declaration structure are preserved
+exactly. Changed literal values remain breaking. Raw excerpts and stored
+snapshots are never changed by this comparison.
+
+The application classifier receives this proof through its private signature
+port. Existing composition supplies the native implementation to ordinary
+checking/promotion, growth and authority release comparison, and historical
+stored-surface audit comparison. The rich declaration graph and artifact
+inventory keep their own exact comparison. A direct pure classifier call without
+the port remains conservative. No signature, snapshot, baseline or breaking
+fingerprint bytes are normalized or rewritten by either proof.
+
+One synchronous native session owns each differing signature pair, using only a
+closed in-memory project with no standard libraries or host-filesystem fallback.
+Each signature is limited to 10,000 characters; AST work is limited to 20,000
+nodes and depth 128. Interpolated template forms, multiple declarations, malformed
+or unsupported syntax, a budget failure or a failed SDK/cleanup operation provide
+no proof. Snapshot disposal and session close run in nested `finally` blocks.
+These input/work bounds do not promise preemption inside a native SDK query.
+The actual Get Modular `IsUnion` and `ValidDeclaration` formatter regressions and
+precedence/metadata counterexamples are retained in native projection tests.
 
 The fingerprint contains old and new signatures, kinds, parents, every addition,
 and every removal in the same change set. Approval of one break cannot authorize

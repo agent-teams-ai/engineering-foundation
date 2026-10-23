@@ -6,14 +6,8 @@ import { promisify } from "node:util";
 import { parse as parseYaml } from "yaml";
 
 import { readStreamText } from "./check-release-pr-files.mjs";
-import {
-  PUBLISHABLE_PACKAGES,
-  publishablePackageByName,
-} from "./publishable-packages.mjs";
-import {
-  missingSummaryViolations,
-  releaseSections,
-} from "./release-pr-sections.mjs";
+import { PUBLISHABLE_PACKAGES, publishablePackageByName } from "./publishable-packages.mjs";
+import { missingSummaryViolations, releaseSections } from "./release-pr-sections.mjs";
 
 const execFileAsync = promisify(execFile);
 const EXACT_SHA_PATTERN = /^[0-9a-f]{40}$/u;
@@ -109,8 +103,7 @@ function parseChangeset(path, source) {
   const packageReleases = Object.entries(releases)
     .filter(
       ([packageName, releaseType]) =>
-        publishablePackageByName(packageName) !== undefined &&
-        RELEASE_TYPES.has(releaseType),
+        publishablePackageByName(packageName) !== undefined && RELEASE_TYPES.has(releaseType),
     )
     .map(([packageName, releaseType]) => ({ packageName, releaseType }));
   if (packageReleases.length === 0) {
@@ -195,20 +188,10 @@ function changesetId(path) {
 }
 
 async function expectedChangesets(cwd, revision) {
-  const { stdout } = await git(cwd, [
-    "ls-tree",
-    "-r",
-    "--name-only",
-    revision,
-    "--",
-    ".changeset",
-  ]);
+  const { stdout } = await git(cwd, ["ls-tree", "-r", "--name-only", revision, "--", ".changeset"]);
   const paths = stdout
     .split("\n")
-    .filter(
-      (path) =>
-        /^\.changeset\/[^/]+\.md$/u.test(path) && path !== ".changeset/README.md",
-    );
+    .filter((path) => /^\.changeset\/[^/]+\.md$/u.test(path) && path !== ".changeset/README.md");
   const prerelease = await prereleaseState(cwd, revision);
   const changesets = await Promise.all(
     paths.map(async (path) => parseChangeset(path, await fileAtRevision(cwd, revision, path))),
@@ -216,8 +199,7 @@ async function expectedChangesets(cwd, revision) {
   return changesets.filter(
     (changeset) =>
       changeset !== null &&
-      (prerelease?.mode === "exit" ||
-        !prerelease?.changesets.has(changesetId(changeset.path))),
+      (prerelease?.mode === "exit" || !prerelease?.changesets.has(changesetId(changeset.path))),
   );
 }
 
@@ -239,43 +221,30 @@ function optionalExactSha(value, label) {
 
 function releaseRevisionBindingViolations(pullRequest, evidence) {
   const violations = [];
-  const expectedHeadSha = optionalExactSha(
-    evidence.expectedHeadSha,
-    "expected pull request head",
-  );
-  const expectedBaseSha = optionalExactSha(
-    evidence.expectedBaseSha,
-    "expected pull request base",
-  );
+  const expectedHeadSha = optionalExactSha(evidence.expectedHeadSha, "expected pull request head");
+  const expectedBaseSha = optionalExactSha(evidence.expectedBaseSha, "expected pull request base");
   const expectedPullRequestNumber =
     evidence.expectedPullRequestNumber === undefined
       ? undefined
-      : exactPullRequestNumber(
-          evidence.expectedPullRequestNumber,
-          "expected pull request number",
-        );
+      : exactPullRequestNumber(evidence.expectedPullRequestNumber, "expected pull request number");
   if (expectedHeadSha !== undefined && pullRequest.headSha !== expectedHeadSha) {
     violations.push("release pull request head changed during attestation");
   }
   if (expectedBaseSha !== undefined && pullRequest.baseSha !== expectedBaseSha) {
     violations.push("release pull request base changed during attestation");
   }
-  if (
-    expectedPullRequestNumber !== undefined &&
-    pullRequest.number !== expectedPullRequestNumber
-  ) {
+  if (expectedPullRequestNumber !== undefined && pullRequest.number !== expectedPullRequestNumber) {
     violations.push("release pull request number changed during attestation");
   }
   return violations;
 }
 
-function pullRequestShapeViolations(
-  pullRequest,
-  { currentMainSha, processedMainSha, baseSha },
-) {
+function pullRequestShapeViolations(pullRequest, { currentMainSha, processedMainSha, baseSha }) {
   const violations = [];
   if (pullRequest.authorType !== "User" || pullRequest.authorLogin.toLowerCase() !== "777genius") {
-    violations.push("release pull request must be authored by the repository owner @777genius; automation staging PRs cannot be attested");
+    violations.push(
+      "release pull request must be authored by the repository owner @777genius; automation staging PRs cannot be attested",
+    );
   }
   if (pullRequest.state !== "open") {
     violations.push("release pull request must be open");
@@ -340,13 +309,12 @@ async function packageReleaseSection(context, releasePackage) {
   ) {
     return;
   }
-  const [baseManifestText, manifestText, baseChangelog, headChangelog] =
-    await Promise.all([
-      fileAtRevision(cwd, baseSha, releasePackage.manifestPath),
-      fileAtRevision(cwd, headSha, releasePackage.manifestPath),
-      fileAtRevision(cwd, baseSha, releasePackage.changelogPath),
-      fileAtRevision(cwd, headSha, releasePackage.changelogPath),
-    ]);
+  const [baseManifestText, manifestText, baseChangelog, headChangelog] = await Promise.all([
+    fileAtRevision(cwd, baseSha, releasePackage.manifestPath),
+    fileAtRevision(cwd, headSha, releasePackage.manifestPath),
+    fileAtRevision(cwd, baseSha, releasePackage.changelogPath),
+    fileAtRevision(cwd, headSha, releasePackage.changelogPath),
+  ]);
   const baseManifest = JSON.parse(baseManifestText);
   const manifest = JSON.parse(manifestText);
   if (baseManifest.version === manifest.version) {
@@ -372,19 +340,15 @@ async function packageReleaseSection(context, releasePackage) {
     manifest.version,
   );
   const packageChangesets = changesets.filter((changeset) =>
-    changeset.releases.some(
-      (release) => release.packageName === releasePackage.name,
-    ),
+    changeset.releases.some((release) => release.packageName === releasePackage.name),
   );
   return {
     name: releasePackage.name,
     section: releaseSections(generatedRelease).get(releasePackage.name),
     violations: [
-      ...stableExitViolations(
-        basePrerelease,
-        baseManifest.version,
-        manifest.version,
-      ).map((violation) => `${releasePackage.name}: ${violation}`),
+      ...stableExitViolations(basePrerelease, baseManifest.version, manifest.version).map(
+        (violation) => `${releasePackage.name}: ${violation}`,
+      ),
       ...missingSummaryViolations(
         releasePackage.name,
         linkifyIssueReferences(generatedRelease),
@@ -407,9 +371,7 @@ async function releaseSectionViolations(context) {
   }
   const results = (
     await Promise.all(
-      PUBLISHABLE_PACKAGES.map((releasePackage) =>
-        packageReleaseSection(context, releasePackage),
-      ),
+      PUBLISHABLE_PACKAGES.map((releasePackage) => packageReleaseSection(context, releasePackage)),
     )
   ).filter((result) => result !== undefined);
   const expectedSections = new Map(
@@ -431,8 +393,7 @@ async function releaseSectionViolations(context) {
     actualSections.size !== expectedSections.size ||
     [...expectedSections].some(
       ([packageName, section]) =>
-        canonicalMarkdown(actualSections.get(packageName) ?? "") !==
-        canonicalMarkdown(section),
+        canonicalMarkdown(actualSections.get(packageName) ?? "") !== canonicalMarkdown(section),
     )
   ) {
     violations.push(
@@ -466,19 +427,22 @@ export async function releasePullRequestFreshnessViolations(
     violations.push("release head must have exactly the processed main revision as its parent");
   }
   const { stdout: identity } = await git(cwd, [
-    "show", "--no-patch", "--format=%an <%ae>%n%cn <%ce>", headSha,
+    "show",
+    "--no-patch",
+    "--format=%an <%ae>%n%cn <%ce>",
+    headSha,
   ]);
   if (identity.trimEnd() !== "iliya <iliyazelenkog@gmail.com>\niliya <iliyazelenkog@gmail.com>") {
-    violations.push("release commit author and committer must both be exactly iliya <iliyazelenkog@gmail.com>");
+    violations.push(
+      "release commit author and committer must both be exactly iliya <iliyazelenkog@gmail.com>",
+    );
   }
 
   const [basePrerelease, headPrerelease] = await Promise.all([
     prereleaseState(cwd, processedMainSha),
     prereleaseState(cwd, headSha),
   ]);
-  violations.push(
-    ...prereleaseTransitionViolations(basePrerelease, headPrerelease),
-  );
+  violations.push(...prereleaseTransitionViolations(basePrerelease, headPrerelease));
 
   const changesets = await expectedChangesets(cwd, processedMainSha);
   if (!changesets.some((changeset) => changeset.releases.length > 0)) {

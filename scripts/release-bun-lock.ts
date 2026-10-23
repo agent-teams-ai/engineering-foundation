@@ -10,25 +10,41 @@ export interface ReleasePackageVersion {
 const canonicalPrefix = '{\n  "lockfileVersion": 2,\n  "configVersion": 1,\n  "workspaces": {\n';
 const packageRoot = /^packages\/[a-z0-9][a-z0-9._-]*$/u;
 const packageName = /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/u;
-const versionToken = /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/u;
+const versionToken =
+  /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/u;
 
 function validVersionTuple(value: ReleasePackageVersion): boolean {
-  return value !== null && typeof value === "object" && !Array.isArray(value) &&
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
     Object.keys(value).length === 4 &&
-    typeof value.root === "string" && packageRoot.test(value.root) &&
-    typeof value.name === "string" && packageName.test(value.name) &&
-    typeof value.baseVersion === "string" && versionToken.test(value.baseVersion) &&
-    typeof value.headVersion === "string" && versionToken.test(value.headVersion);
+    typeof value.root === "string" &&
+    packageRoot.test(value.root) &&
+    typeof value.name === "string" &&
+    packageName.test(value.name) &&
+    typeof value.baseVersion === "string" &&
+    versionToken.test(value.baseVersion) &&
+    typeof value.headVersion === "string" &&
+    versionToken.test(value.headVersion)
+  );
 }
 
 function workspaceAnchor(value: ReleasePackageVersion, version: string): string {
-  return `\n    ${JSON.stringify(value.root)}: {\n` +
+  return (
+    `\n    ${JSON.stringify(value.root)}: {\n` +
     `      "name": ${JSON.stringify(value.name)},\n` +
-    `      "version": ${JSON.stringify(version)},\n`;
+    `      "version": ${JSON.stringify(version)},\n`
+  );
 }
 
-function projectWorkspaceVersions(source: string, versions: readonly ReleasePackageVersion[]): string | undefined {
-  if (!Array.isArray(versions)) { return undefined; }
+function projectWorkspaceVersions(
+  source: string,
+  versions: readonly ReleasePackageVersion[],
+): string | undefined {
+  if (!Array.isArray(versions)) {
+    return undefined;
+  }
   const roots = new Set<string>();
   const names = new Set<string>();
   let expected = source;
@@ -40,7 +56,9 @@ function projectWorkspaceVersions(source: string, versions: readonly ReleasePack
     names.add(value.name);
     const before = workspaceAnchor(value, value.baseVersion);
     const index = source.indexOf(before);
-    if (index < 0 || source.lastIndexOf(before) !== index) { return undefined; }
+    if (index < 0 || source.lastIndexOf(before) !== index) {
+      return undefined;
+    }
     expected = expected.replace(before, workspaceAnchor(value, value.headVersion));
   }
   return expected;
@@ -52,9 +70,11 @@ function projectWorkspaceVersions(source: string, versions: readonly ReleasePack
 export function releaseBunLockViolations(
   base: Buffer | undefined,
   head: Buffer | undefined,
-  versions: readonly ReleasePackageVersion[]
+  versions: readonly ReleasePackageVersion[],
 ): string[] {
-  if (base === undefined && head === undefined) { return []; }
+  if (base === undefined && head === undefined) {
+    return [];
+  }
   if (!Buffer.isBuffer(base) || !Buffer.isBuffer(head)) {
     return ["release pull request must preserve the existing Bun lockfile"];
   }
@@ -68,7 +88,9 @@ export function releaseBunLockViolations(
   }
   const expected = projectWorkspaceVersions(baseText, versions);
   if (expected === undefined) {
-    return ["release pull request Bun lock requires unique exact public workspace version preimages"];
+    return [
+      "release pull request Bun lock requires unique exact public workspace version preimages",
+    ];
   }
   return Buffer.from(expected, "utf8").equals(head)
     ? []

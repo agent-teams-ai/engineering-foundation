@@ -15,21 +15,31 @@ function component(extraEntries = [], { omitLicense = false } = {}) {
   const archive = tarArchive([
     { name: "package/package.json", data: Buffer.from(JSON.stringify(manifest)) },
     { name: "package/index.js", data: source },
-    ...omitLicense ? [] : [{ name: "package/LICENSE", data: license }],
+    ...(omitLicense ? [] : [{ name: "package/LICENSE", data: license }]),
     ...extraEntries,
   ]);
-  return { ...manifest, archive, integrity: integrityFor(archive), inputs: [{ path: "index.js", bytes: source }] };
+  return {
+    ...manifest,
+    archive,
+    integrity: integrityFor(archive),
+    inputs: [{ path: "index.js", bytes: source }],
+  };
 }
 
 test("bundled component binds input bytes, original archive identity and complete notices", () => {
-  const input = component([{ name: "package/NOTICE.txt", data: Buffer.from("Fixture attribution.\n") }]);
+  const input = component([
+    { name: "package/NOTICE.txt", data: Buffer.from("Fixture attribution.\n") },
+  ]);
   const proof = verifyBundledComponent(input);
   assert.equal(proof.name, manifest.name);
   assert.equal(proof.version, manifest.version);
   assert.equal(proof.integrity, input.integrity);
   assert.equal(proof.archiveSha256, sha256(input.archive));
   assert.deepEqual(proof.files, [{ path: "index.js", sha256: sha256(source) }]);
-  assert.deepEqual(proof.licenses.map(({ path }) => path), ["LICENSE", "NOTICE.txt"]);
+  assert.deepEqual(
+    proof.licenses.map(({ path }) => path),
+    ["LICENSE", "NOTICE.txt"],
+  );
   assert.equal(proof.licenses[0].text, license.toString());
   assert.ok(Object.isFrozen(proof));
   assert.ok(Object.isFrozen(proof.files));
@@ -39,10 +49,26 @@ test("bundled component binds input bytes, original archive identity and complet
 
 test("matching metadata cannot disguise modified archive or bundled input bytes", () => {
   const input = component();
-  assert.throws(() => verifyBundledComponent({ ...input, archive: Buffer.from("different archive") }), /integrity mismatch/u);
-  assert.throws(() => verifyBundledComponent({ ...input, version: "9.9.9" }), /manifest identity mismatch/u);
-  assert.throws(() => verifyBundledComponent({ ...input, inputs: [{ path: "index.js", bytes: Buffer.from("modified") }] }), /upstream bytes differ/u);
-  assert.throws(() => verifyBundledComponent({ ...input, inputs: [{ path: "missing.js", bytes: source }] }), /upstream bytes differ/u);
+  assert.throws(
+    () => verifyBundledComponent({ ...input, archive: Buffer.from("different archive") }),
+    /integrity mismatch/u,
+  );
+  assert.throws(
+    () => verifyBundledComponent({ ...input, version: "9.9.9" }),
+    /manifest identity mismatch/u,
+  );
+  assert.throws(
+    () =>
+      verifyBundledComponent({
+        ...input,
+        inputs: [{ path: "index.js", bytes: Buffer.from("modified") }],
+      }),
+    /upstream bytes differ/u,
+  );
+  assert.throws(
+    () => verifyBundledComponent({ ...input, inputs: [{ path: "missing.js", bytes: source }] }),
+    /upstream bytes differ/u,
+  );
 });
 
 for (const [label, entry] of [
@@ -67,23 +93,41 @@ test("bundle input inventory rejects duplicates, aliases, missing bytes and empt
     [{ path: "../escape.js", bytes: source }],
     [{ path: "index.js", bytes: source.toString() }],
     [{ path: "cafe\u0301.js", bytes: source }],
-  ]) {assert.throws(() => verifyBundledComponent({ ...input, inputs }));}
+  ]) {
+    assert.throws(() => verifyBundledComponent({ ...input, inputs }));
+  }
 });
 
 test("SPDX metadata or NOTICE alone cannot replace missing license text", () => {
-  assert.throws(() => verifyBundledComponent(component([], { omitLicense: true })), /no complete retained license/u);
-  assert.throws(() => verifyBundledComponent(component([
-    { name: "package/NOTICE", data: Buffer.from("Not a license") },
-  ], { omitLicense: true })), /no complete retained license/u);
-  assert.throws(() => verifyBundledComponent(component([
-    { name: "package/License.txt", data: Buffer.from(" \n") },
-  ], { omitLicense: true })), /empty upstream notice/u);
+  assert.throws(
+    () => verifyBundledComponent(component([], { omitLicense: true })),
+    /no complete retained license/u,
+  );
+  assert.throws(
+    () =>
+      verifyBundledComponent(
+        component([{ name: "package/NOTICE", data: Buffer.from("Not a license") }], {
+          omitLicense: true,
+        }),
+      ),
+    /no complete retained license/u,
+  );
+  assert.throws(
+    () =>
+      verifyBundledComponent(
+        component([{ name: "package/License.txt", data: Buffer.from(" \n") }], {
+          omitLicense: true,
+        }),
+      ),
+    /empty upstream notice/u,
+  );
 });
 
 test("reviewed supplemental license binds immutable origin, text and actually bundled source", () => {
   const input = component([], { omitLicense: true });
   const supplement = {
-    bytes: license, sha256: sha256(license),
+    bytes: license,
+    sha256: sha256(license),
     source: `https://github.com/fixture/parser/blob/${"a".repeat(40)}/LICENSE`,
     sourceInput: { path: "index.js", sha256: sha256(source) },
   };
@@ -93,23 +137,41 @@ test("reviewed supplemental license binds immutable origin, text and actually bu
   for (const invalid of [
     { ...supplement, source: "https://example.test/LICENSE" },
     { ...supplement, source: "https://github.com/fixture/parser/blob/main/LICENSE" },
-    { ...supplement, source: `https://github.com/fixture/parser/blob/${"a".repeat(40)}/../LICENSE` },
+    {
+      ...supplement,
+      source: `https://github.com/fixture/parser/blob/${"a".repeat(40)}/../LICENSE`,
+    },
     { ...supplement, bytes: Buffer.from("substitution") },
     { ...supplement, sourceInput: { path: "index.js", sha256: "0".repeat(64) } },
     { ...supplement, sourceInput: { path: "missing.js", sha256: sha256(source) } },
-  ]) {assert.throws(() => verifyBundledComponent({ ...input, supplement: invalid }));}
+  ]) {
+    assert.throws(() => verifyBundledComponent({ ...input, supplement: invalid }));
+  }
   const extra = component([{ name: "package/unused.js", data: source }], { omitLicense: true });
-  assert.throws(() => verifyBundledComponent({ ...extra, supplement: {
-    ...supplement, sourceInput: { path: "unused.js", sha256: sha256(source) },
-  } }), /does not bind exact bundled source/u);
+  assert.throws(
+    () =>
+      verifyBundledComponent({
+        ...extra,
+        supplement: {
+          ...supplement,
+          sourceInput: { path: "unused.js", sha256: sha256(source) },
+        },
+      }),
+    /does not bind exact bundled source/u,
+  );
 });
 
 test("component identity and archive/input bounds fail closed", () => {
   const input = component();
   for (const override of [
-    { name: "../parser" }, { version: "latest" }, { integrity: "sha256-deadbeef" },
-    { archive: Buffer.alloc(8 * 1024 * 1024 + 1) }, { inputs: Array(2501).fill(input.inputs[0]) },
-  ]) {assert.throws(() => verifyBundledComponent({ ...input, ...override }));}
+    { name: "../parser" },
+    { version: "latest" },
+    { integrity: "sha256-deadbeef" },
+    { archive: Buffer.alloc(8 * 1024 * 1024 + 1) },
+    { inputs: Array(2501).fill(input.inputs[0]) },
+  ]) {
+    assert.throws(() => verifyBundledComponent({ ...input, ...override }));
+  }
 });
 
 test("npm type-package leaf roots remain authenticated without accepting mixed archive roots", () => {
@@ -118,6 +180,10 @@ test("npm type-package leaf roots remain authenticated without accepting mixed a
     { name: "parser/index.js", data: source },
     { name: "parser/LICENSE", data: license },
   ]);
-  const proof = verifyBundledComponent({ ...component(), archive, integrity: integrityFor(archive) });
+  const proof = verifyBundledComponent({
+    ...component(),
+    archive,
+    integrity: integrityFor(archive),
+  });
   assert.equal(proof.files[0].sha256, sha256(source));
 });

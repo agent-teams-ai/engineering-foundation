@@ -1,6 +1,6 @@
 import type {
   ExecutableSpecificationCatalog,
-  ExecutableSpecificationObservation
+  ExecutableSpecificationObservation,
 } from "../model/executable-specification.js";
 
 export interface ExecutableSpecificationInspector {

@@ -2,7 +2,12 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 
 export function observeCommandFailures(dist) {
-  const result = spawnSync(process.execPath, ["--input-type=module", "-e", `
+  const result = spawnSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      `
     import assert from "node:assert/strict";
     const base = ${JSON.stringify(dist)};
     const { runFoundationCli } = await import(base + 'features/command-host/adapters/inbound/cli/foundation-cli.js');
@@ -46,7 +51,10 @@ export function observeCommandFailures(dist) {
       }
     }
     console.log(JSON.stringify(observations));
-  `], { encoding: "utf8" });
+  `,
+    ],
+    { encoding: "utf8" },
+  );
   assert.equal(result.status, 0, result.stderr);
   return JSON.parse(result.stdout);
 }

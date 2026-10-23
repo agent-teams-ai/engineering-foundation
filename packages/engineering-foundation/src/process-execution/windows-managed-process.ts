@@ -12,7 +12,7 @@ import { requireAdmittedNodeExecutable } from "./node-runtime-verifier.js";
 
 export {
   describeManagedProcessCleanupFailure,
-  managedProcessCleanupFailure
+  managedProcessCleanupFailure,
 } from "./windows-managed-process-diagnostics.js";
 
 export interface WindowsManagedProcessRequest {
@@ -30,11 +30,9 @@ export interface WindowsManagedProcessRequest {
 export type WindowsManagedProcessRetain = (child: ChildProcess) => void;
 
 const WINDOWS_BOOTSTRAP_PATH = fileURLToPath(
-  new URL("../../assets/windows-managed-process/bootstrap.ps1", import.meta.url)
+  new URL("../../assets/windows-managed-process/bootstrap.ps1", import.meta.url),
 );
-const PROCESS_HOST_PATH = fileURLToPath(
-  new URL("./windows-process-host.js", import.meta.url)
-);
+const PROCESS_HOST_PATH = fileURLToPath(new URL("./windows-process-host.js", import.meta.url));
 const MAX_WINDOWS_COMMAND_LINE_CHARACTERS = 32_766;
 const CONTROL_CONFIRMATION_TIMEOUT_MS = 30_000;
 const WRAPPER_EXIT_TIMEOUT_MS = 5_000;
@@ -44,7 +42,11 @@ const CONTROL_ROOT_REMOVE_RETRIES = 3;
 const CONTROL_ROOT_REMOVE_RETRY_DELAY_MS = 50;
 const controlRootRetryWait = new Int32Array(new SharedArrayBuffer(4));
 const TRANSIENT_CONTROL_ROOT_REMOVE_CODES = new Set([
-  "EBUSY", "EMFILE", "ENFILE", "ENOTEMPTY", "EPERM"
+  "EBUSY",
+  "EMFILE",
+  "ENFILE",
+  "ENOTEMPTY",
+  "EPERM",
 ]);
 
 // The packaged native helper owns the JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
@@ -68,41 +70,31 @@ function createControl(): WindowsProcessControl {
     confirmationPath: join(root, "contained"),
     launchPath: join(root, "launched"),
     requestPath: join(root, "request.json"),
-    root
+    root,
   };
 }
 
 function resolveWindowsPowerShellPath(
-  environment: Readonly<NodeJS.ProcessEnv> | undefined
+  environment: Readonly<NodeJS.ProcessEnv> | undefined,
 ): string {
   const systemRoot = Object.entries(environment ?? {}).find(
-    ([key]) => key.toLowerCase() === "systemroot"
+    ([key]) => key.toLowerCase() === "systemroot",
   )?.[1];
-  if (
-    typeof systemRoot !== "string" ||
-    systemRoot.length === 0 ||
-    !win32.isAbsolute(systemRoot)
-  ) {
+  if (typeof systemRoot !== "string" || systemRoot.length === 0 || !win32.isAbsolute(systemRoot)) {
     throw new Error("SystemRoot must be an absolute Windows path.");
   }
-  return win32.join(
-    systemRoot,
-    "System32",
-    "WindowsPowerShell",
-    "v1.0",
-    "powershell.exe"
-  );
+  return win32.join(systemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
 }
 
 function commandEnvironmentWithSystemRoot(
   environment: Readonly<NodeJS.ProcessEnv>,
-  launcherEnvironment: Readonly<NodeJS.ProcessEnv>
+  launcherEnvironment: Readonly<NodeJS.ProcessEnv>,
 ): Readonly<NodeJS.ProcessEnv> {
   if (Object.keys(environment).some((key) => key.toLowerCase() === "systemroot")) {
     return environment;
   }
   const systemRoot = Object.entries(launcherEnvironment).find(
-    ([key]) => key.toLowerCase() === "systemroot"
+    ([key]) => key.toLowerCase() === "systemroot",
   )?.[1];
   return { ...environment, SystemRoot: systemRoot };
 }
@@ -173,7 +165,7 @@ function assertWindowsCommandLineFits(executable: string, args: readonly string[
     .join(" ");
   if (commandLine.length > MAX_WINDOWS_COMMAND_LINE_CHARACTERS) {
     throw new Error(
-      `The managed Windows process bootstrap command line exceeds ${MAX_WINDOWS_COMMAND_LINE_CHARACTERS} characters.`
+      `The managed Windows process bootstrap command line exceeds ${MAX_WINDOWS_COMMAND_LINE_CHARACTERS} characters.`,
     );
   }
 }
@@ -187,7 +179,7 @@ function assertWindowsCommandLineFits(executable: string, args: readonly string[
  */
 export function spawnWindowsManagedProcess(
   request: WindowsManagedProcessRequest,
-  retain?: WindowsManagedProcessRetain
+  retain?: WindowsManagedProcessRetain,
 ): ChildProcess {
   const launcherEnvironment = request.launcherEnvironment ?? process.env;
   // Ambient admission stays at this adapter edge: an omitted explicit Node
@@ -196,30 +188,27 @@ export function spawnWindowsManagedProcess(
     request.nodeExecutable === undefined
       ? process.env
       : { AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: request.nodeExecutable },
-    process.execPath
+    process.execPath,
   );
   const control = createControl();
   const commandEnvironment = commandEnvironmentWithSystemRoot(
     request.environment ?? launcherEnvironment,
-    launcherEnvironment
+    launcherEnvironment,
   );
   const serializedRequest = JSON.stringify({
     schemaVersion: 1,
     command: request.command,
     args: [...request.args],
     cwd: request.cwd,
-    launchPath: control.launchPath
+    launchPath: control.launchPath,
   });
   try {
     writeFileSync(control.requestPath, serializedRequest, {
       encoding: "utf8",
       flag: "wx",
-      mode: 0o600
+      mode: 0o600,
     });
-    assertWindowsCommandLineFits(nodeExecutable, [
-      PROCESS_HOST_PATH,
-      control.requestPath
-    ]);
+    assertWindowsCommandLineFits(nodeExecutable, [PROCESS_HOST_PATH, control.requestPath]);
   } catch (error) {
     removeControlRootBestEffort(control.root);
     throw error;
@@ -235,14 +224,14 @@ export function spawnWindowsManagedProcess(
         "-ExecutionPolicy",
         "Bypass",
         "-File",
-        WINDOWS_BOOTSTRAP_PATH
+        WINDOWS_BOOTSTRAP_PATH,
       ],
       {
         cwd: control.root,
         env: launcherEnvironment,
         stdio: ["pipe", "pipe", "pipe"],
-        windowsHide: true
-      }
+        windowsHide: true,
+      },
     );
   } catch (error) {
     removeControlRootBestEffort(control.root);
@@ -269,19 +258,21 @@ export function spawnWindowsManagedProcess(
   bootstrapInput.once("error", () => {
     // The wrapper's process error is reported through its own error event.
   });
-  bootstrapInput.end(JSON.stringify({
-    schemaVersion: 1,
-    nodeExecutable,
-    processHostPath: PROCESS_HOST_PATH,
-    requestPath: control.requestPath,
-    hostWorkingDirectory: control.root,
-    environmentEntries: Object.entries(commandEnvironment)
-      .filter((entry): entry is [string, string] => entry[1] !== undefined)
-      .map(([key, value]) => `${key}=${value}`),
-    cancellationPath: control.cancellationPath,
-    confirmationPath: control.confirmationPath,
-    launchPath: control.launchPath
-  }));
+  bootstrapInput.end(
+    JSON.stringify({
+      schemaVersion: 1,
+      nodeExecutable,
+      processHostPath: PROCESS_HOST_PATH,
+      requestPath: control.requestPath,
+      hostWorkingDirectory: control.root,
+      environmentEntries: Object.entries(commandEnvironment)
+        .filter((entry): entry is [string, string] => entry[1] !== undefined)
+        .map(([key, value]) => `${key}=${value}`),
+      cancellationPath: control.cancellationPath,
+      confirmationPath: control.confirmationPath,
+      launchPath: control.launchPath,
+    }),
+  );
   return child;
 }
 
@@ -310,11 +301,11 @@ function readContainmentConfirmation(control: WindowsProcessControl): Promise<st
 
 async function readContainmentConfirmationAfterWrapperExit(
   control: WindowsProcessControl,
-  confirmationDeadline: number
+  confirmationDeadline: number,
 ): Promise<string | undefined> {
   const deadline = Math.min(
     confirmationDeadline,
-    performance.now() + WRAPPER_EXIT_CONFIRMATION_GRACE_MS
+    performance.now() + WRAPPER_EXIT_CONFIRMATION_GRACE_MS,
   );
   for (;;) {
     const confirmation = await readContainmentConfirmation(control);
@@ -337,10 +328,7 @@ function controlFor(child: ChildProcess): WindowsProcessControl {
   return control;
 }
 
-async function wrapperExitedWithin(
-  child: ChildProcess,
-  timeoutMs: number
-): Promise<boolean> {
+async function wrapperExitedWithin(child: ChildProcess, timeoutMs: number): Promise<boolean> {
   const exitDeadline = performance.now() + timeoutMs;
   while (child.exitCode === null && child.signalCode === null) {
     const remainingMs = exitDeadline - performance.now();
@@ -354,7 +342,7 @@ async function wrapperExitedWithin(
 
 async function forceAndWaitForWrapperExit(
   child: ChildProcess,
-  control: WindowsProcessControl
+  control: WindowsProcessControl,
 ): Promise<void> {
   const cleanupErrors: unknown[] = [];
   if (child.exitCode === null && child.signalCode === null) {
@@ -364,13 +352,15 @@ async function forceAndWaitForWrapperExit(
     } catch (error) {
       cleanupErrors.push(error);
     }
-    if (!await wrapperExitedWithin(child, WRAPPER_EXIT_TIMEOUT_MS)) {
+    if (!(await wrapperExitedWithin(child, WRAPPER_EXIT_TIMEOUT_MS))) {
       if (!terminationRequested && cleanupErrors.length === 0) {
         cleanupErrors.push(new Error("Windows Job Object wrapper could not be terminated."));
       }
-      cleanupErrors.push(new Error(
-        `Windows Job Object wrapper did not exit within ${String(WRAPPER_EXIT_TIMEOUT_MS)} ms after forced termination.`
-      ));
+      cleanupErrors.push(
+        new Error(
+          `Windows Job Object wrapper did not exit within ${String(WRAPPER_EXIT_TIMEOUT_MS)} ms after forced termination.`,
+        ),
+      );
       try {
         disposeControlAfterWrapperExit(child, control);
       } catch (error) {
@@ -396,7 +386,7 @@ async function forceAndWaitForWrapperExit(
   if (cleanupErrors.length > 1) {
     const aggregateError = new AggregateError(
       cleanupErrors,
-      "Windows Job Object wrapper termination produced multiple cleanup errors."
+      "Windows Job Object wrapper termination produced multiple cleanup errors.",
     );
     aggregateError.cause = cleanupErrors.at(-1);
     throw aggregateError;
@@ -407,27 +397,23 @@ async function failAfterForcingWrapperExit(
   child: ChildProcess,
   control: WindowsProcessControl,
   originalError: unknown,
-  aggregateMessage: string
+  aggregateMessage: string,
 ): Promise<never> {
   try {
     await forceAndWaitForWrapperExit(child, control);
   } catch (cleanupError) {
-    const cleanupErrors: readonly unknown[] = cleanupError instanceof AggregateError ?
-      cleanupError.errors as readonly unknown[] :
-      [cleanupError];
-    const aggregateError = new AggregateError(
-      [originalError, ...cleanupErrors],
-      aggregateMessage
-    );
+    const cleanupErrors: readonly unknown[] =
+      cleanupError instanceof AggregateError
+        ? (cleanupError.errors as readonly unknown[])
+        : [cleanupError];
+    const aggregateError = new AggregateError([originalError, ...cleanupErrors], aggregateMessage);
     aggregateError.cause = cleanupErrors.at(-1);
     throw aggregateError;
   }
   throw originalError;
 }
 
-export async function requestWindowsManagedProcessTermination(
-  child: ChildProcess
-): Promise<void> {
+export async function requestWindowsManagedProcessTermination(child: ChildProcess): Promise<void> {
   const control = controlFor(child);
   try {
     await fileSystemPromises.writeFile(control.cancellationPath, "CANCEL", { encoding: "utf8" });
@@ -436,7 +422,7 @@ export async function requestWindowsManagedProcessTermination(
       child,
       control,
       error,
-      "Windows cancellation marker creation and wrapper cleanup both failed."
+      "Windows cancellation marker creation and wrapper cleanup both failed.",
     );
   }
   await waitForWindowsManagedProcessContainment(child);
@@ -444,14 +430,15 @@ export async function requestWindowsManagedProcessTermination(
 
 /** Uses only the private control path belonging to this retained wrapper. */
 export function waitForWindowsManagedProcessLaunch(
-  child: ChildProcess, shouldStopWaiting: () => boolean
+  child: ChildProcess,
+  shouldStopWaiting: () => boolean,
 ): Promise<void> {
   return waitForWindowsCommandLaunch(child, controlFor(child).launchPath, shouldStopWaiting);
 }
 
 export async function waitForWindowsManagedProcessContainment(
   child: ChildProcess,
-  confirmationTimeoutMs = CONTROL_CONFIRMATION_TIMEOUT_MS
+  confirmationTimeoutMs = CONTROL_CONFIRMATION_TIMEOUT_MS,
 ): Promise<void> {
   if (!Number.isSafeInteger(confirmationTimeoutMs) || confirmationTimeoutMs <= 0) {
     throw new TypeError("The Windows containment timeout must be a positive safe integer.");
@@ -467,7 +454,7 @@ export async function waitForWindowsManagedProcessContainment(
         child,
         control,
         error,
-        "Windows containment confirmation and wrapper cleanup both failed."
+        "Windows containment confirmation and wrapper cleanup both failed.",
       );
     }
     if (confirmation !== undefined) {
@@ -476,7 +463,7 @@ export async function waitForWindowsManagedProcessContainment(
           child,
           control,
           new Error("Windows Job Object wrapper sent an invalid containment confirmation."),
-          "Windows containment confirmation and wrapper cleanup both failed."
+          "Windows containment confirmation and wrapper cleanup both failed.",
         );
       }
       if (await wrapperExitedWithin(child, WRAPPER_EXIT_TIMEOUT_MS)) {
@@ -498,7 +485,7 @@ export async function waitForWindowsManagedProcessContainment(
           child,
           control,
           error,
-          "Windows containment confirmation and wrapper cleanup both failed."
+          "Windows containment confirmation and wrapper cleanup both failed.",
         );
       }
       if (confirmation === "CONTAINED") {
@@ -510,24 +497,22 @@ export async function waitForWindowsManagedProcessContainment(
           child,
           control,
           new Error("Windows Job Object wrapper sent an invalid containment confirmation."),
-          "Windows containment confirmation and wrapper cleanup both failed."
+          "Windows containment confirmation and wrapper cleanup both failed.",
         );
       }
       disposeControl(child, control);
-      throw new Error(
-        "Windows Job Object wrapper exited before it confirmed process containment."
-      );
+      throw new Error("Windows Job Object wrapper exited before it confirmed process containment.");
     }
     const remainingMs = deadline - performance.now();
     if (remainingMs <= 0) {
       const timeoutError = new Error(
-        `Windows Job Object wrapper did not confirm containment within ${String(confirmationTimeoutMs)} ms.`
+        `Windows Job Object wrapper did not confirm containment within ${String(confirmationTimeoutMs)} ms.`,
       );
       await failAfterForcingWrapperExit(
         child,
         control,
         timeoutError,
-        "Windows Job Object wrapper timed out and could not be terminated."
+        "Windows Job Object wrapper timed out and could not be terminated.",
       );
     }
     await delay(Math.min(CONTROL_POLL_INTERVAL_MS, remainingMs));

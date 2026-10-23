@@ -3,10 +3,9 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-const cliPath = fileURLToPath(new URL(
-  "../packages/engineering-foundation/dist/cli.js",
-  import.meta.url,
-));
+const cliPath = fileURLToPath(
+  new URL("../packages/engineering-foundation/dist/cli.js", import.meta.url),
+);
 
 function runCli(args: readonly string[]) {
   const result = spawnSync(process.execPath, [cliPath, ...args], {
@@ -37,7 +36,10 @@ test("command host rejects target paths before either changed route loads config
     const result = runCli(["agent-workflow", route, "src/example.ts"]);
     assert.equal(result.status, 2, result.stderr);
     assert.equal(result.stdout, "");
-    assert.match(result.stderr, new RegExp(`agent-workflow ${route} does not accept a target path\\.`, "u"));
+    assert.match(
+      result.stderr,
+      new RegExp(`agent-workflow ${route} does not accept a target path\\.`, "u"),
+    );
   }
 });
 
@@ -47,5 +49,8 @@ test("command host keeps base selection unavailable on workflow instructions", (
   const result = runCli(["agent-workflow", "instructions", "AGENTS.md", "--base", "HEAD"]);
   assert.equal(result.status, 2, result.stderr);
   assert.equal(result.stdout, "");
-  assert.match(result.stderr, /--base is supported only by agent-workflow changed or check-changed/u);
+  assert.match(
+    result.stderr,
+    /--base is supported only by agent-workflow changed or check-changed/u,
+  );
 });

@@ -1,11 +1,9 @@
-import type {
-  KnownFileTransactionReceiptV1
-} from "@agent-teams/repository-mutation/known-file";
+import type { KnownFileTransactionReceiptV1 } from "@agent-teams/repository-mutation/known-file";
 
 import type {
   ConsumerIntegrationDigest,
   ConsumerIntegrationIssue,
-  ConsumerUpgradeAuthorityV1
+  ConsumerUpgradeAuthorityV1,
 } from "../../domain/model.js";
 
 export interface ConsumerUpgradeExecutionV1 {

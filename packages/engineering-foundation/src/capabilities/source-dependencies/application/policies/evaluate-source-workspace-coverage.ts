@@ -6,11 +6,11 @@ import {
   indexPortableRoots,
   matchingPortableRootSpecificity,
   portablePathIsInside,
-  portableRepositoryPathIdentity
+  portableRepositoryPathIdentity,
 } from "../model/repository-path.js";
 import type {
   SourceWorkspacePackageTopology,
-  SourceWorkspaceTopology
+  SourceWorkspaceTopology,
 } from "../model/source-workspace-topology.js";
 import type { SourceArchitecturePolicy } from "../model/source-workspace.js";
 import { SOURCE_DEPENDENCY_RULES } from "../rules.js";
@@ -20,39 +20,37 @@ function topologyError(code: string, message: string): never {
     code,
     message,
     phase: "source-workspace-topology",
-    retryable: false
+    retryable: false,
   });
 }
 
 function owningPackage(
   path: string,
   packages: readonly SourceWorkspacePackageTopology[],
-  ownership?: SourcePackageOwnership
+  ownership?: SourcePackageOwnership,
 ): SourceWorkspacePackageTopology | undefined {
   if (ownership !== undefined) {
     return sourcePackageOwner(path, packages, ownership);
   }
   return packages
-    .filter((workspacePackage) =>
-      portablePathIsInside(path, workspacePackage.rootPath)
-    )
+    .filter((workspacePackage) => portablePathIsInside(path, workspacePackage.rootPath))
     .toSorted(
       (left, right) =>
         right.rootPath.length - left.rootPath.length ||
-        compareBinaryStrings(left.rootPath, right.rootPath)
+        compareBinaryStrings(left.rootPath, right.rootPath),
     )[0];
 }
 
 function assertGovernedRootOwnership(
   policy: SourceArchitecturePolicy,
   packages: readonly SourceWorkspacePackageTopology[],
-  ownership?: SourcePackageOwnership
+  ownership?: SourcePackageOwnership,
 ): void {
   for (const root of policy.governedRoots.toSorted(compareBinaryStrings)) {
     if (owningPackage(root, packages, ownership) === undefined) {
       topologyError(
         "SOURCE_ROOT_OUTSIDE_WORKSPACE",
-        `Governed root is outside the schema v2 packageRoots contract: ${root}.`
+        `Governed root is outside the schema v2 packageRoots contract: ${root}.`,
       );
     }
   }
@@ -61,18 +59,24 @@ function assertGovernedRootOwnership(
 function assertBoundaryOwnership(
   policy: SourceArchitecturePolicy,
   packages: readonly SourceWorkspacePackageTopology[],
-  ownership?: SourcePackageOwnership
+  ownership?: SourcePackageOwnership,
 ): void {
-  const sourcePaths = ownership === undefined ? [] : packages.flatMap((owner) =>
-    owner.sourcePaths.map((path) => ({ path, identity: portableRepositoryPathIdentity(path) }))
-  );
+  const sourcePaths =
+    ownership === undefined
+      ? []
+      : packages.flatMap((owner) =>
+          owner.sourcePaths.map((path) => ({
+            path,
+            identity: portableRepositoryPathIdentity(path),
+          })),
+        );
   for (const boundary of policy.boundaries) {
     const roots = indexPortableRoots(boundary.roots);
     const observedPaths = sourcePaths
       .filter(({ identity }) => matchingPortableRootSpecificity(identity, roots) !== undefined)
       .map(({ path }) => path);
     const paths = [...boundary.roots, ...boundary.entrypoints, ...observedPaths].toSorted(
-      compareBinaryStrings
+      compareBinaryStrings,
     );
     const owners = new Map<string, SourceWorkspacePackageTopology>();
     for (const path of paths) {
@@ -80,7 +84,7 @@ function assertBoundaryOwnership(
       if (owner === undefined) {
         topologyError(
           "SOURCE_ROOT_OUTSIDE_WORKSPACE",
-          `Architecture boundary path belongs to no selected package: ${boundary.id}:${path}.`
+          `Architecture boundary path belongs to no selected package: ${boundary.id}:${path}.`,
         );
       }
       owners.set(owner.rootPath, owner);
@@ -91,7 +95,7 @@ function assertBoundaryOwnership(
         `Architecture boundary spans npm packages: ${boundary.id} (${[...owners.values()]
           .map((owner) => owner.name)
           .toSorted(compareBinaryStrings)
-          .join(", ")}).`
+          .join(", ")}).`,
       );
     }
   }
@@ -101,10 +105,10 @@ function packageHasGovernedRoot(
   workspacePackage: SourceWorkspacePackageTopology,
   governedRoots: readonly string[],
   packages: readonly SourceWorkspacePackageTopology[],
-  ownership?: SourcePackageOwnership
+  ownership?: SourcePackageOwnership,
 ): boolean {
   return governedRoots.some(
-    (root) => owningPackage(root, packages, ownership)?.rootPath === workspacePackage.rootPath
+    (root) => owningPackage(root, packages, ownership)?.rootPath === workspacePackage.rootPath,
   );
 }
 
@@ -112,13 +116,13 @@ function uncoveredSourceDiagnostics(
   policy: SourceArchitecturePolicy,
   workspacePackage: SourceWorkspacePackageTopology,
   packages: readonly SourceWorkspacePackageTopology[],
-  ownership?: SourcePackageOwnership
+  ownership?: SourcePackageOwnership,
 ): readonly FoundationDiagnostic[] {
   return workspacePackage.sourcePaths
     .filter(
       (path) =>
         owningPackage(path, packages, ownership)?.rootPath === workspacePackage.rootPath &&
-        !policy.governedRoots.some((root) => portablePathIsInside(path, root))
+        !policy.governedRoots.some((root) => portablePathIsInside(path, root)),
     )
     .toSorted(compareBinaryStrings)
     .map((path) => ({
@@ -130,30 +134,30 @@ function uncoveredSourceDiagnostics(
       relatedLocations: [{ path: workspacePackage.manifestPath }],
       evidence: [
         { kind: "workspace-package", value: workspacePackage.name },
-        { kind: "package-root", value: workspacePackage.rootPath }
+        { kind: "package-root", value: workspacePackage.rootPath },
       ],
       remediation: SOURCE_DEPENDENCY_RULES.unclassifiedSourceFile.remediation,
       requiresArchitectureReview:
-        SOURCE_DEPENDENCY_RULES.unclassifiedSourceFile.requiresArchitectureReview
+        SOURCE_DEPENDENCY_RULES.unclassifiedSourceFile.requiresArchitectureReview,
     }));
 }
 
 export function evaluateSourceWorkspaceCoverage(
   policy: SourceArchitecturePolicy,
-  topology: SourceWorkspaceTopology
+  topology: SourceWorkspaceTopology,
 ): readonly FoundationDiagnostic[] {
   assertGovernedRootOwnership(policy, topology.packages, topology.ownership);
   assertBoundaryOwnership(policy, topology.packages, topology.ownership);
   const diagnostics: FoundationDiagnostic[] = [];
   for (const workspacePackage of topology.packages.toSorted((left, right) =>
-    compareBinaryStrings(left.rootPath, right.rootPath)
+    compareBinaryStrings(left.rootPath, right.rootPath),
   )) {
     if (
       !packageHasGovernedRoot(
         workspacePackage,
         policy.governedRoots,
         topology.packages,
-        topology.ownership
+        topology.ownership,
       ) &&
       workspacePackage.rootPath !== "."
     ) {
@@ -166,17 +170,21 @@ export function evaluateSourceWorkspaceCoverage(
         relatedLocations: [],
         evidence: [
           { kind: "workspace-package", value: workspacePackage.name },
-          { kind: "package-root", value: workspacePackage.rootPath }
+          { kind: "package-root", value: workspacePackage.rootPath },
         ],
         remediation: SOURCE_DEPENDENCY_RULES.uncoveredWorkspacePackageRoot.remediation,
         requiresArchitectureReview:
-          SOURCE_DEPENDENCY_RULES.uncoveredWorkspacePackageRoot
-            .requiresArchitectureReview
+          SOURCE_DEPENDENCY_RULES.uncoveredWorkspacePackageRoot.requiresArchitectureReview,
       });
       continue;
     }
     diagnostics.push(
-      ...uncoveredSourceDiagnostics(policy, workspacePackage, topology.packages, topology.ownership)
+      ...uncoveredSourceDiagnostics(
+        policy,
+        workspacePackage,
+        topology.packages,
+        topology.ownership,
+      ),
     );
   }
   return Object.freeze(diagnostics);

@@ -5,21 +5,18 @@ import type {
   FoundationCheckReport,
   FoundationDiagnostic,
   FoundationOutcome,
-  FoundationProblem
+  FoundationProblem,
 } from "./model.js";
 import { compareBinaryStrings } from "../../../binary-string-comparator.js";
 import { FOUNDATION_REPORT_SCHEMA_VERSION } from "./model.js";
-import {
-  classifyUnexpectedFailure,
-  isProcessCancellationFailure
-} from "./unexpected-failure.js";
+import { classifyUnexpectedFailure, isProcessCancellationFailure } from "./unexpected-failure.js";
 
 const OUTCOME_PRECEDENCE: Readonly<Record<FoundationOutcome, number>> = {
   passed: 0,
   violations: 1,
   "invalid-input": 2,
   failed: 3,
-  cancelled: 4
+  cancelled: 4,
 };
 
 export class CapabilityInputError extends Error {
@@ -54,7 +51,7 @@ export function readCapabilityInputProblem(error: unknown): FoundationProblem | 
       code: problem.code,
       message: problem.message,
       phase: problem.phase,
-      retryable: problem.retryable
+      retryable: problem.retryable,
     };
   } catch {
     return undefined;
@@ -63,14 +60,14 @@ export function readCapabilityInputProblem(error: unknown): FoundationProblem | 
 
 export function readCancellationProblem(
   error: unknown,
-  phase: string
+  phase: string,
 ): FoundationProblem | undefined {
   return isProcessCancellationFailure(error)
     ? {
         code: "EXECUTION_CANCELLED",
         message: "Capability execution was cancelled.",
         phase,
-        retryable: false
+        retryable: false,
       }
     : undefined;
 }
@@ -91,21 +88,19 @@ function emptySummary(): DiagnosticSummary {
   return { errors: 0, warnings: 0, infos: 0 };
 }
 
-function summarizeDiagnostics(
-  diagnostics: readonly FoundationDiagnostic[]
-): DiagnosticSummary {
+function summarizeDiagnostics(diagnostics: readonly FoundationDiagnostic[]): DiagnosticSummary {
   return diagnostics.reduce<DiagnosticSummary>(
     (summary, diagnostic) => ({
       errors: summary.errors + (diagnostic.severity === "error" ? 1 : 0),
       warnings: summary.warnings + (diagnostic.severity === "warning" ? 1 : 0),
-      infos: summary.infos + (diagnostic.severity === "info" ? 1 : 0)
+      infos: summary.infos + (diagnostic.severity === "info" ? 1 : 0),
     }),
-    emptySummary()
+    emptySummary(),
   );
 }
 
 function sortDiagnostics(
-  diagnostics: readonly FoundationDiagnostic[]
+  diagnostics: readonly FoundationDiagnostic[],
 ): readonly FoundationDiagnostic[] {
   return diagnostics.toSorted((left, right) => {
     const leftStart = left.location.start;
@@ -128,15 +123,14 @@ export function capabilityReport(input: {
   readonly outcome?: FoundationOutcome;
 }): CapabilityReport {
   const diagnostics = sortDiagnostics(input.diagnostics ?? []);
-  const outcome =
-    input.outcome ?? (diagnostics.length === 0 ? "passed" : "violations");
+  const outcome = input.outcome ?? (diagnostics.length === 0 ? "passed" : "violations");
   return {
     capabilityId: input.capabilityId,
     capabilityConfigSchemaVersion: input.capabilityConfigSchemaVersion,
     outcome,
     summary: summarizeDiagnostics(diagnostics),
     diagnostics,
-    ...(input.problem === undefined ? {} : { problem: input.problem })
+    ...(input.problem === undefined ? {} : { problem: input.problem }),
   };
 }
 
@@ -151,9 +145,8 @@ export function capabilityFailureReport(input: {
     return capabilityReport({
       capabilityId: input.capabilityId,
       capabilityConfigSchemaVersion: input.capabilityConfigSchemaVersion,
-      outcome:
-        inputProblem.code === "EXECUTION_CANCELLED" ? "cancelled" : "invalid-input",
-      problem: inputProblem
+      outcome: inputProblem.code === "EXECUTION_CANCELLED" ? "cancelled" : "invalid-input",
+      problem: inputProblem,
     });
   }
   const cancellationProblem = readCancellationProblem(input.error, input.phase);
@@ -162,7 +155,7 @@ export function capabilityFailureReport(input: {
       capabilityId: input.capabilityId,
       capabilityConfigSchemaVersion: input.capabilityConfigSchemaVersion,
       outcome: "cancelled",
-      problem: cancellationProblem
+      problem: cancellationProblem,
     });
   }
   return {
@@ -171,17 +164,15 @@ export function capabilityFailureReport(input: {
     diagnostics: [],
     outcome: "failed",
     problem: classifyUnexpectedFailure(input.error, input.phase),
-    summary: emptySummary()
+    summary: emptySummary(),
   };
 }
 
 function highestOutcome(outcomes: readonly FoundationOutcome[]): FoundationOutcome {
   return outcomes.reduce<FoundationOutcome>(
     (highest, outcome) =>
-      OUTCOME_PRECEDENCE[outcome] > OUTCOME_PRECEDENCE[highest]
-        ? outcome
-        : highest,
-    "passed"
+      OUTCOME_PRECEDENCE[outcome] > OUTCOME_PRECEDENCE[highest] ? outcome : highest,
+    "passed",
   );
 }
 
@@ -193,25 +184,24 @@ export function foundationReport(input: {
   readonly outcome?: FoundationOutcome;
 }): FoundationCheckReport {
   const capabilities = (input.capabilities ?? []).toSorted((left, right) =>
-    compareBinaryStrings(left.capabilityId, right.capabilityId)
+    compareBinaryStrings(left.capabilityId, right.capabilityId),
   );
   const summary = capabilities.reduce<DiagnosticSummary>(
     (total, report) => ({
       errors: total.errors + report.summary.errors,
       warnings: total.warnings + report.summary.warnings,
-      infos: total.infos + report.summary.infos
+      infos: total.infos + report.summary.infos,
     }),
-    emptySummary()
+    emptySummary(),
   );
   return {
     reportSchemaVersion: FOUNDATION_REPORT_SCHEMA_VERSION,
     foundationVersion: input.foundationVersion,
     coverage: input.coverage,
-    outcome:
-      input.outcome ?? highestOutcome(capabilities.map((report) => report.outcome)),
+    outcome: input.outcome ?? highestOutcome(capabilities.map((report) => report.outcome)),
     summary,
     capabilities,
-    ...(input.problem === undefined ? {} : { problem: input.problem })
+    ...(input.problem === undefined ? {} : { problem: input.problem }),
   };
 }
 

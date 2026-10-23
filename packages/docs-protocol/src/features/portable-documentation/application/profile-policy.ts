@@ -8,13 +8,13 @@ import {
   DOCS_PROTOCOL_ID,
   DOCS_PROTOCOL_VERSION,
   type DocsTypeProfile,
-  type ReachabilityAction
+  type ReachabilityAction,
 } from "./model.js";
 import type {
   DocsBlockerPolicy,
   DocsProtocolProfileV4,
   DocsProtocolProfileV3,
-  NormalizedDocsProtocolProfile
+  NormalizedDocsProtocolProfile,
 } from "./model-v2.js";
 
 const LOWER_ID = /^[a-z0-9][a-z0-9._/-]*$/u;
@@ -36,13 +36,21 @@ function exactKeys(value: Record<string, unknown>, keys: readonly string[], subj
 }
 
 function lowerId(value: unknown, subject: string): string {
-  if (typeof value !== "string" || value.length === 0 || value.length > 160 || !LOWER_ID.test(value)) {
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.length > 160 ||
+    !LOWER_ID.test(value)
+  ) {
     throw new DocsProfileError(`${subject} is invalid.`);
   }
   return value;
 }
 
-export function validatePortableRepositoryPath(value: unknown, subject = "Repository path"): string {
+export function validatePortableRepositoryPath(
+  value: unknown,
+  subject = "Repository path",
+): string {
   if (
     typeof value !== "string" ||
     value.length === 0 ||
@@ -57,12 +65,13 @@ export function validatePortableRepositoryPath(value: unknown, subject = "Reposi
   const segments = value.split("/");
   if (
     Buffer.byteLength(value, "utf8") > 512 ||
-    segments.some((segment) =>
-      segment.length === 0 ||
-      segment.length > 255 ||
-      Buffer.byteLength(segment, "utf8") > 255 ||
-      segment === "." ||
-      segment === ".."
+    segments.some(
+      (segment) =>
+        segment.length === 0 ||
+        segment.length > 255 ||
+        Buffer.byteLength(segment, "utf8") > 255 ||
+        segment === "." ||
+        segment === "..",
     )
   ) {
     throw new DocsProfileError(`${subject} exceeds portable path limits.`);
@@ -70,7 +79,10 @@ export function validatePortableRepositoryPath(value: unknown, subject = "Reposi
   return value;
 }
 
-export function validatePortableRepositoryPathV2(value: unknown, subject = "Repository path"): string {
+export function validatePortableRepositoryPathV2(
+  value: unknown,
+  subject = "Repository path",
+): string {
   const path = validatePortableRepositoryPath(value, subject);
   const problem = portableRepositoryPathProblem(path);
   if (problem !== undefined) {
@@ -83,11 +95,15 @@ function validatorIds(value: unknown): readonly string[] {
   if (!Array.isArray(value) || value.length > 256) {
     throw new DocsProfileError("profile.semanticValidatorIds must be a bounded array.");
   }
-  const entries = value.map((entry, index) => lowerId(entry, `profile.semanticValidatorIds[${index}]`));
+  const entries = value.map((entry, index) =>
+    lowerId(entry, `profile.semanticValidatorIds[${index}]`),
+  );
   if (new Set(entries).size !== entries.length) {
     throw new DocsProfileError("profile.semanticValidatorIds must not contain duplicates.");
   }
-  return Object.freeze(entries.toSorted((left, right) => Buffer.compare(Buffer.from(left), Buffer.from(right))));
+  return Object.freeze(
+    entries.toSorted((left, right) => Buffer.compare(Buffer.from(left), Buffer.from(right))),
+  );
 }
 
 function boundedLowerIds(value: unknown, subject: string): readonly string[] {
@@ -95,85 +111,139 @@ function boundedLowerIds(value: unknown, subject: string): readonly string[] {
     throw new DocsProfileError(`${subject} must be a non-empty bounded array.`);
   }
   const entries = value.map((entry, index) => lowerId(entry, `${subject}[${index}]`));
-  if (new Set(entries).size !== entries.length) {throw new DocsProfileError(`${subject} must not contain duplicates.`);}
-  return Object.freeze(entries.toSorted((left, right) => Buffer.compare(Buffer.from(left), Buffer.from(right))));
+  if (new Set(entries).size !== entries.length) {
+    throw new DocsProfileError(`${subject} must not contain duplicates.`);
+  }
+  return Object.freeze(
+    entries.toSorted((left, right) => Buffer.compare(Buffer.from(left), Buffer.from(right))),
+  );
 }
 
 function blockerPolicy(value: unknown): DocsBlockerPolicy {
   const relations = record(value, "profile.relations");
   exactKeys(relations, ["blockers"], "profile.relations");
   const blockers = record(relations["blockers"], "profile.relations.blockers");
-  exactKeys(blockers, ["statuses", "subjectIncompatibleStatuses", "types"], "profile.relations.blockers");
+  exactKeys(
+    blockers,
+    ["statuses", "subjectIncompatibleStatuses", "types"],
+    "profile.relations.blockers",
+  );
   return Object.freeze({
     types: boundedLowerIds(blockers["types"], "profile.relations.blockers.types"),
     statuses: boundedLowerIds(blockers["statuses"], "profile.relations.blockers.statuses"),
     subjectIncompatibleStatuses: boundedLowerIds(
       blockers["subjectIncompatibleStatuses"],
-      "profile.relations.blockers.subjectIncompatibleStatuses"
-    )
+      "profile.relations.blockers.subjectIncompatibleStatuses",
+    ),
   });
 }
 
 export function parseDocsProtocolProfile(value: unknown): NormalizedDocsProtocolProfile {
   const candidate = record(value, "profile");
   const schemaVersion = candidate["schemaVersion"];
-  exactKeys(candidate, schemaVersion !== 4
-    ? ["schemaVersion", "protocol", "foundationProfile", "agentWorkflow", "semanticValidatorIds"]
-    : ["schemaVersion", "protocol", "foundationProfile", "agentWorkflow", "relations", "semanticValidatorIds"], "profile");
-  if (schemaVersion !== 3 && schemaVersion !== 4) {throw new DocsProfileError("profile.schemaVersion must be 3.");}
+  exactKeys(
+    candidate,
+    schemaVersion !== 4
+      ? ["schemaVersion", "protocol", "foundationProfile", "agentWorkflow", "semanticValidatorIds"]
+      : [
+          "schemaVersion",
+          "protocol",
+          "foundationProfile",
+          "agentWorkflow",
+          "relations",
+          "semanticValidatorIds",
+        ],
+    "profile",
+  );
+  if (schemaVersion !== 3 && schemaVersion !== 4) {
+    throw new DocsProfileError("profile.schemaVersion must be 3.");
+  }
   const protocol = record(candidate["protocol"], "profile.protocol");
   exactKeys(protocol, ["id", "version"], "profile.protocol");
   if (protocol["id"] !== DOCS_PROTOCOL_ID || protocol["version"] !== DOCS_PROTOCOL_VERSION) {
-    throw new DocsProfileError(`profile.protocol must be ${DOCS_PROTOCOL_ID}/v${DOCS_PROTOCOL_VERSION}.`);
+    throw new DocsProfileError(
+      `profile.protocol must be ${DOCS_PROTOCOL_ID}/v${DOCS_PROTOCOL_VERSION}.`,
+    );
   }
   const foundationProfile = record(candidate["foundationProfile"], "profile.foundationProfile");
-  exactKeys(foundationProfile, ["metadataSidecarPolicy", "path", "schemaVersion"], "profile.foundationProfile");
-  const portableV3 = foundationProfile["schemaVersion"] === 3 &&
+  exactKeys(
+    foundationProfile,
+    ["metadataSidecarPolicy", "path", "schemaVersion"],
+    "profile.foundationProfile",
+  );
+  const portableV3 =
+    foundationProfile["schemaVersion"] === 3 &&
     foundationProfile["metadataSidecarPolicy"] === "foundation-profile-v3-strict-merge";
   if (!portableV3) {
-    throw new DocsProfileError("profile.foundationProfile must use the portable v3 Foundation profile route.");
+    throw new DocsProfileError(
+      "profile.foundationProfile must use the portable v3 Foundation profile route.",
+    );
   }
   const workflow = record(candidate["agentWorkflow"], "profile.agentWorkflow");
   exactKeys(workflow, ["adoption", "skillPath"], "profile.agentWorkflow");
   if (workflow["adoption"] !== "portable-v1") {
     throw new DocsProfileError("profile.agentWorkflow.adoption must be portable-v1.");
   }
-  const pathPolicy = schemaVersion === 4 ? validatePortableRepositoryPathV2 : validatePortableRepositoryPath;
+  const pathPolicy =
+    schemaVersion === 4 ? validatePortableRepositoryPathV2 : validatePortableRepositoryPath;
   const skillPath = pathPolicy(workflow["skillPath"], "profile.agentWorkflow.skillPath");
   const shared = {
     protocol: Object.freeze({ id: DOCS_PROTOCOL_ID, version: DOCS_PROTOCOL_VERSION }),
-    semanticValidatorIds: validatorIds(candidate["semanticValidatorIds"])
+    semanticValidatorIds: validatorIds(candidate["semanticValidatorIds"]),
   };
   const path = pathPolicy(foundationProfile["path"], "profile.foundationProfile.path");
   const common = {
     ...shared,
     adoptionPolicy: "portable-v1" as const,
-    agentWorkflow: Object.freeze({ adoption: "portable-v1" as const, skillPath })
+    agentWorkflow: Object.freeze({ adoption: "portable-v1" as const, skillPath }),
   };
-  const authoringProfile = Object.freeze({ metadataSidecarPolicy: "foundation-profile-v3-strict-merge" as const, path, schemaVersion: 3 as const });
+  const authoringProfile = Object.freeze({
+    metadataSidecarPolicy: "foundation-profile-v3-strict-merge" as const,
+    path,
+    schemaVersion: 3 as const,
+  });
   return schemaVersion === 3
-    ? Object.freeze({ ...common, schemaVersion: 3 as const, foundationProfile: authoringProfile }) satisfies DocsProtocolProfileV3 & { readonly adoptionPolicy: "portable-v1" }
-    : Object.freeze({ ...common, schemaVersion: 4 as const, foundationProfile: authoringProfile, relations: Object.freeze({ blockers: blockerPolicy(candidate["relations"]) }) }) satisfies DocsProtocolProfileV4 & { readonly adoptionPolicy: "portable-v1" };
+    ? (Object.freeze({
+        ...common,
+        schemaVersion: 3 as const,
+        foundationProfile: authoringProfile,
+      }) satisfies DocsProtocolProfileV3 & { readonly adoptionPolicy: "portable-v1" })
+    : (Object.freeze({
+        ...common,
+        schemaVersion: 4 as const,
+        foundationProfile: authoringProfile,
+        relations: Object.freeze({ blockers: blockerPolicy(candidate["relations"]) }),
+      }) satisfies DocsProtocolProfileV4 & { readonly adoptionPolicy: "portable-v1" });
 }
 
 function markdownLabel(value: string): string {
   return value.replace(/\\/gu, "\\\\").replace(/\[/gu, "\\[").replace(/\]/gu, "\\]");
 }
 
-export function projectReachability(type: DocsTypeProfile, destination: string, heading: string): ReachabilityAction {
+export function projectReachability(
+  type: DocsTypeProfile,
+  destination: string,
+  heading: string,
+): ReachabilityAction {
   const strategy = type.reachability;
-  if (strategy.kind === "not-required") {return Object.freeze({ state: "not-required", reason: strategy.reason });}
+  if (strategy.kind === "not-required") {
+    return Object.freeze({ state: "not-required", reason: strategy.reason });
+  }
   let indexPath: string;
   if (strategy.kind === "manual-fixed-index") {
     indexPath = strategy.indexPath;
   } else {
     if (type.placement.kind !== "explicit") {
-      throw new DocsProfileError("Colocated reachability requires explicit Foundation placement authority.");
+      throw new DocsProfileError(
+        "Colocated reachability requires explicit Foundation placement authority.",
+      );
     }
     const destinationSegments = destination.split("/");
     const requiredSegments = type.placement.requiredSegmentsInOrder;
     const candidates = destinationSegments.flatMap((_segment, start) =>
-      requiredSegments.every((segment, offset) => destinationSegments[start + offset] === segment) ? [start] : []
+      requiredSegments.every((segment, offset) => destinationSegments[start + offset] === segment)
+        ? [start]
+        : [],
     );
     if (candidates.length !== 1 || candidates[0] === undefined || candidates[0] === 0) {
       throw new DocsProfileError(`Cannot derive one colocated index for ${destination}.`);
@@ -181,6 +251,12 @@ export function projectReachability(type: DocsTypeProfile, destination: string, 
     indexPath = `${destinationSegments.slice(0, candidates[0]).join("/")}/${strategy.indexBasename}`;
   }
   const relative = posix.relative(posix.dirname(indexPath), destination);
-  if (relative.length === 0) {throw new DocsProfileError("Reachability index cannot equal the document path.");}
-  return Object.freeze({ state: "manual-required", indexPath, markdownLink: `[${markdownLabel(heading)}](${relative})` });
+  if (relative.length === 0) {
+    throw new DocsProfileError("Reachability index cannot equal the document path.");
+  }
+  return Object.freeze({
+    state: "manual-required",
+    indexPath,
+    markdownLink: `[${markdownLabel(heading)}](${relative})`,
+  });
 }

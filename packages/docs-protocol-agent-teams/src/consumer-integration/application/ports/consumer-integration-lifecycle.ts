@@ -1,12 +1,12 @@
 import type {
   KnownFileTransactionPlanV1,
-  KnownFileTransactionReceiptV1
+  KnownFileTransactionReceiptV1,
 } from "@agent-teams/repository-mutation/known-file";
 
 import type { ConsumerAssetCatalogV1 } from "../policies/consumer-integration-assets.js";
 import type {
   ConsumerIntegrationDesiredState,
-  ConsumerIntegrationSnapshot
+  ConsumerIntegrationSnapshot,
 } from "../../domain/model.js";
 
 interface ConsumerIntegrationInput {
@@ -28,9 +28,7 @@ export interface ConsumerAssetCatalogReader {
 }
 
 export interface ConsumerIntegrationTransactionPort {
-  inspect(options: {
-    readonly consumerRoot: string;
-  }): Promise<
+  inspect(options: { readonly consumerRoot: string }): Promise<
     | { readonly state: "idle" }
     | {
         readonly state: "recovery-required";
@@ -42,7 +40,5 @@ export interface ConsumerIntegrationTransactionPort {
     readonly consumerRoot: string;
     readonly plan: KnownFileTransactionPlanV1;
   }): Promise<KnownFileTransactionReceiptV1>;
-  recover(options: {
-    readonly consumerRoot: string;
-  }): Promise<KnownFileTransactionReceiptV1>;
+  recover(options: { readonly consumerRoot: string }): Promise<KnownFileTransactionReceiptV1>;
 }

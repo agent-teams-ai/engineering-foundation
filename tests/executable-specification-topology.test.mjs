@@ -4,14 +4,11 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
-const distRoot = process.env.FOUNDATION_DIST_ROOT ?? join(
-  repositoryRoot,
-  "packages",
-  "engineering-foundation",
-  "dist",
-);
+const distRoot =
+  process.env.FOUNDATION_DIST_ROOT ??
+  join(repositoryRoot, "packages", "engineering-foundation", "dist");
 const capabilityModule = await import(
-  pathToFileURL(join(distRoot, "capabilities", "executable-specifications", "module.js")).href,
+  pathToFileURL(join(distRoot, "capabilities", "executable-specifications", "module.js")).href
 );
 
 function specification(id = "workflow-contract") {
@@ -20,14 +17,18 @@ function specification(id = "workflow-contract") {
     ownerDocs: [`docs/${id}.md`],
     adrRefs: [`docs/decisions/${id}.md`],
     schemaPaths: [`specifications/${id}.schema.json`],
-    documents: [{
-      path: `specifications/${id}.json`,
-      schemaId: `https://schemas.example.test/${id}/v1`,
-    }],
-    generatedTypes: [{
-      schemaId: `https://schemas.example.test/${id}/v1`,
-      outputPath: `src/generated/${id}.ts`,
-    }],
+    documents: [
+      {
+        path: `specifications/${id}.json`,
+        schemaId: `https://schemas.example.test/${id}/v1`,
+      },
+    ],
+    generatedTypes: [
+      {
+        schemaId: `https://schemas.example.test/${id}/v1`,
+        outputPath: `src/generated/${id}.ts`,
+      },
+    ],
     gateBindings: {
       typeGeneration: { packageName: "@example/specs", script: `${id}:typegen` },
       property: { packageName: "@example/specs", script: `${id}:property` },
@@ -78,9 +79,7 @@ test("accepts 255-character segments and rejects 256 before inspection", async (
   );
   assert.equal(rejectedInspections, 0);
   assert.ok(
-    diagnostics.some(
-      ({ ruleId }) => ruleId === "quality.executable-specifications.path-collision",
-    ),
+    diagnostics.some(({ ruleId }) => ruleId === "quality.executable-specifications.path-collision"),
   );
 });
 

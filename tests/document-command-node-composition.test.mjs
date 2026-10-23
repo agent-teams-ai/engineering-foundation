@@ -74,10 +74,12 @@ test("reachability rereads the exact profile path and projects its declared stra
     indexPath: "docs/README.md",
     markdownLink: "[ADR-0001: Exact authority](adr/0001-exact-authority.md)",
   });
-  assert.deepEqual(reads, [{
-    consumerRoot: "/fixture",
-    path: profileEvidence.path,
-  }]);
+  assert.deepEqual(reads, [
+    {
+      consumerRoot: "/fixture",
+      path: profileEvidence.path,
+    },
+  ]);
 });
 
 test("reachability fails closed when reread profile evidence differs", async () => {
@@ -92,7 +94,8 @@ test("reachability fails closed when reread profile evidence differs", async () 
 
   await assert.rejects(
     projector.project({ consumerRoot: "/fixture", plan }),
-    (error) => error instanceof DocumentPlanningError &&
+    (error) =>
+      error instanceof DocumentPlanningError &&
       error.code === "DOCUMENT_PLANNING_AUTHORITY_CHANGED",
   );
 });
@@ -127,7 +130,11 @@ test("structure verification proves exact authority and descriptor", async () =>
         };
       },
     },
-    profiles: { async read() { return profile; } },
+    profiles: {
+      async read() {
+        return profile;
+      },
+    },
   });
 
   assert.deepEqual(await verifier.verify({ consumerRoot: "/fixture", plan }), {
@@ -147,16 +154,18 @@ test("structure verification rejects a descriptor with the right id but wrong me
             ownerCatalog: ownerEvidence,
           },
           diagnostics: [],
-          documents: [{
-            id: plan.intent.id,
-            repositoryPath: plan.destination,
-            type: plan.intent.type,
-            title: `${plan.intent.id}: ${plan.intent.title}`,
-            owner: plan.intent.owner,
-            summary: "wrong summary",
-            status: artifact.initialStatus,
-            source: "markdown-tree",
-          }],
+          documents: [
+            {
+              id: plan.intent.id,
+              repositoryPath: plan.destination,
+              type: plan.intent.type,
+              title: `${plan.intent.id}: ${plan.intent.title}`,
+              owner: plan.intent.owner,
+              summary: "wrong summary",
+              status: artifact.initialStatus,
+              source: "markdown-tree",
+            },
+          ],
           identityProjection: [],
           ownerIds: [plan.intent.owner],
           projectId: plan.projectId,
@@ -164,12 +173,17 @@ test("structure verification rejects a descriptor with the right id but wrong me
         };
       },
     },
-    profiles: { async read() { return profile; } },
+    profiles: {
+      async read() {
+        return profile;
+      },
+    },
   });
 
   const result = await verifier.verify({ consumerRoot: "/fixture", plan });
   assert.equal(result.valid, false);
-  assert.deepEqual(result.diagnostics.map(({ ruleId }) => ruleId), [
-    "document.new.descriptor-mismatch",
-  ]);
+  assert.deepEqual(
+    result.diagnostics.map(({ ruleId }) => ruleId),
+    ["document.new.descriptor-mismatch"],
+  );
 });

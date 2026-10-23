@@ -1,5 +1,18 @@
 import assert from "node:assert/strict";
-import { cp, lstat, mkdtemp, open, readFile, readdir, realpath, rename, rm, stat, symlink, writeFile } from "node:fs/promises";
+import {
+  cp,
+  lstat,
+  mkdtemp,
+  open,
+  readFile,
+  readdir,
+  realpath,
+  rename,
+  rm,
+  stat,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,12 +20,20 @@ import test from "node:test";
 
 import { CapabilityInputError } from "../../packages/engineering-foundation/dist/features/validation-reporting/api.js";
 import { FilesystemArchitectureDecisionBaselineRepository } from "../../packages/engineering-foundation/dist/capabilities/governance-architecture-decisions/adapters/outbound/filesystem/filesystem-architecture-decision-baseline-repository.js";
-import { ContainedFileReadError, pathTraversesSymbolicLink, readContainedRegularFile } from "../../packages/engineering-foundation/dist/source-inventory/node.js";
+import {
+  ContainedFileReadError,
+  pathTraversesSymbolicLink,
+  readContainedRegularFile,
+} from "../../packages/engineering-foundation/dist/source-inventory/node.js";
 
 const baselineObservation = { read: readContainedRegularFile, pathTraversesSymbolicLink };
-const fixtureRoot = fileURLToPath(new URL("../fixtures/governance-architecture-decisions/valid", import.meta.url));
+const fixtureRoot = fileURLToPath(
+  new URL("../fixtures/governance-architecture-decisions/valid", import.meta.url),
+);
 async function withFixture(callback) {
-  const root = await realpath(await mkdtemp(join(tmpdir(), "foundation-baseline-observation-test-")));
+  const root = await realpath(
+    await mkdtemp(join(tmpdir(), "foundation-baseline-observation-test-")),
+  );
   try {
     await cp(fixtureRoot, root, { recursive: true });
     await writeFile(join(root, "DISPOSABLE_SANDBOX"), "Baseline observation port test fixture.\n");
@@ -33,13 +54,15 @@ function baselineWithDigest(baseline, character) {
   return value;
 }
 
-
 export function registerBaselineObservationPortCases() {
   for (const observationNumber of [1, 2, 3]) {
     test(`baseline replacement during contained read ${observationNumber} rejects the losing writer`, async () => {
       await withFixture(async (root) => {
         const ordinary = new FilesystemArchitectureDecisionBaselineRepository(baselineObservation);
-        const input = { consumerRoot: root, path: "architecture/decisions/accepted-decisions.json" };
+        const input = {
+          consumerRoot: root,
+          path: "architecture/decisions/accepted-decisions.json",
+        };
         const current = await ordinary.read(input);
         assert.equal(current.kind, "valid");
         const expected = { kind: "valid", revision: current.revision };
@@ -56,15 +79,19 @@ export function registerBaselineObservationPortCases() {
           },
           async read(location) {
             reads += 1;
-            if (reads !== observationNumber) {return readContainedRegularFile(location);}
+            if (reads !== observationNumber) {
+              return readContainedRegularFile(location);
+            }
             try {
               return await readContainedRegularFile(location, {
-                lstat, realpath, stat: (path) => stat(path, { bigint: true }),
+                lstat,
+                realpath,
+                stat: (path) => stat(path, { bigint: true }),
                 async open(path, flags) {
                   const handle = await open(path, flags);
                   let snapshots = 0;
                   let closePromise;
-                  const close = () => closePromise ??= handle.close();
+                  const close = () => (closePromise ??= handle.close());
                   return {
                     close,
                     read: (...args) => handle.read(...args),
@@ -77,7 +104,10 @@ export function registerBaselineObservationPortCases() {
                         }
                         if (observationNumber === 1) {
                           // A cooperative winner completes; Linux/macOS retain the loser's open read handle.
-                          assert.equal(await ordinary.write({ ...input, baseline: winner, expected }), "updated");
+                          assert.equal(
+                            await ordinary.write({ ...input, baseline: winner, expected }),
+                            "updated",
+                          );
                         } else {
                           // Locked observations still detect non-cooperative atomic replacement.
                           const replacement = join(root, "replacement.json");
@@ -87,61 +117,113 @@ export function registerBaselineObservationPortCases() {
                         winnerBytes = await readFile(path);
                       }
                       return snapshot;
-                    }
+                    },
                   };
-                }
+                },
               });
             } catch (error) {
               containedFailure = error;
               pathsAtFailure = paths;
               throw error;
             }
-          }
+          },
         });
-        await assert.rejects(repository.write({ ...input, baseline: baselineWithDigest(current.value, "a"), expected }),
-          (error) => hasProblemCode(error, "ARCHITECTURE_DECISION_BASELINE_WRITE_CONFLICT"));
+        await assert.rejects(
+          repository.write({
+            ...input,
+            baseline: baselineWithDigest(current.value, "a"),
+            expected,
+          }),
+          (error) => hasProblemCode(error, "ARCHITECTURE_DECISION_BASELINE_WRITE_CONFLICT"),
+        );
         assert.ok(containedFailure instanceof ContainedFileReadError);
         assert.equal(containedFailure.failure, "changed");
         assert.equal(reads, observationNumber);
         assert.equal(paths, pathsAtFailure);
         assert.deepEqual(await readFile(baselinePath(root)), winnerBytes);
-        assert.deepEqual((await readdir(dirname(baselinePath(root)))).filter((name) =>
-          name.startsWith(".foundation-atomic-replacement-") || name.endsWith(".lock")), []);
+        assert.deepEqual(
+          (await readdir(dirname(baselinePath(root)))).filter(
+            (name) => name.startsWith(".foundation-atomic-replacement-") || name.endsWith(".lock"),
+          ),
+          [],
+        );
       });
     });
 
     test(`baseline write observation ${observationNumber} preserves hostile and opaque failures`, async () => {
       await withFixture(async (root) => {
-        const input = { consumerRoot: root, path: "architecture/decisions/accepted-decisions.json" };
-        const current = await new FilesystemArchitectureDecisionBaselineRepository(baselineObservation).read(input);
+        const input = {
+          consumerRoot: root,
+          path: "architecture/decisions/accepted-decisions.json",
+        };
+        const current = await new FilesystemArchitectureDecisionBaselineRepository(
+          baselineObservation,
+        ).read(input);
         const before = await readFile(baselinePath(root));
         const cancellation = new CapabilityInputError({
-          code: "EXECUTION_CANCELLED", message: "Cancelled", phase: "execution", retryable: false
+          code: "EXECUTION_CANCELLED",
+          message: "Cancelled",
+          phase: "execution",
+          retryable: false,
         });
-        const impostor = Object.assign(new Error("opaque changed failure"), { name: "ContainedFileReadError", failure: "changed" });
-        for (const failure of ["escape", "symlink", "unavailable", "invalid", cancellation, impostor]) {
-          const thrown = typeof failure === "string" ? new ContainedFileReadError(failure) : failure;
+        const impostor = Object.assign(new Error("opaque changed failure"), {
+          name: "ContainedFileReadError",
+          failure: "changed",
+        });
+        for (const failure of [
+          "escape",
+          "symlink",
+          "unavailable",
+          "invalid",
+          cancellation,
+          impostor,
+        ]) {
+          const thrown =
+            typeof failure === "string" ? new ContainedFileReadError(failure) : failure;
           let reads = 0;
           const repository = new FilesystemArchitectureDecisionBaselineRepository({
             pathTraversesSymbolicLink,
             async read(location) {
-              if (++reads === observationNumber) {throw thrown;}
+              if (++reads === observationNumber) {
+                throw thrown;
+              }
               return readContainedRegularFile(location);
-            }
+            },
           });
-          await assert.rejects(repository.write({ ...input, baseline: baselineWithDigest(current.value, "a"),
-            expected: { kind: "valid", revision: current.revision } }), (error) => typeof failure !== "string"
-            ? error === thrown : hasProblemCode(error, failure === "invalid"
-              ? "ARCHITECTURE_DECISION_BASELINE_WRITE_INVALID_TARGET" : "ARCHITECTURE_DECISION_BASELINE_WRITE_UNSAFE_TARGET"));
+          await assert.rejects(
+            repository.write({
+              ...input,
+              baseline: baselineWithDigest(current.value, "a"),
+              expected: { kind: "valid", revision: current.revision },
+            }),
+            (error) =>
+              typeof failure !== "string"
+                ? error === thrown
+                : hasProblemCode(
+                    error,
+                    failure === "invalid"
+                      ? "ARCHITECTURE_DECISION_BASELINE_WRITE_INVALID_TARGET"
+                      : "ARCHITECTURE_DECISION_BASELINE_WRITE_UNSAFE_TARGET",
+                  ),
+          );
           assert.equal(reads, observationNumber);
           assert.deepEqual(await readFile(baselinePath(root)), before);
-          assert.deepEqual((await readdir(dirname(baselinePath(root)))).filter((name) =>
-            name.startsWith(".foundation-atomic-replacement-") || name.endsWith(".lock")), []);
+          assert.deepEqual(
+            (await readdir(dirname(baselinePath(root)))).filter(
+              (name) =>
+                name.startsWith(".foundation-atomic-replacement-") || name.endsWith(".lock"),
+            ),
+            [],
+          );
         }
       });
     });
   }
 
+  registerBaselineObservationFailureCases();
+}
+
+function registerBaselineObservationFailureCases() {
   test("baseline observation port preserves bounds, error identity and failure mapping", async () => {
     await withFixture(async (root) => {
       const input = { consumerRoot: root, path: "architecture/decisions/accepted-decisions.json" };
@@ -149,19 +231,41 @@ export function registerBaselineObservationPortCases() {
         const repository = new FilesystemArchitectureDecisionBaselineRepository({
           pathTraversesSymbolicLink,
           async read(location) {
-            assert.deepEqual(location, { root, candidate: baselinePath(root), maxBytes: 4 * 1024 * 1024 });
+            assert.deepEqual(location, {
+              root,
+              candidate: baselinePath(root),
+              maxBytes: 4 * 1024 * 1024,
+            });
             throw new ContainedFileReadError(failure);
-          }
+          },
         });
         const result = await repository.read(input);
-        assert.deepEqual(result, failure === "missing" ? { kind: "missing" } : failure === "invalid"
-          ? { kind: "invalid", message: "Accepted-decision baseline must be a regular JSON file no larger than 4194304 bytes." }
-          : { kind: "unsafe", message: "Accepted-decision baseline is unavailable, unsafe, or changed while reading." });
+        assert.deepEqual(
+          result,
+          failure === "missing"
+            ? { kind: "missing" }
+            : failure === "invalid"
+              ? {
+                  kind: "invalid",
+                  message:
+                    "Accepted-decision baseline must be a regular JSON file no larger than 4194304 bytes.",
+                }
+              : {
+                  kind: "unsafe",
+                  message:
+                    "Accepted-decision baseline is unavailable, unsafe, or changed while reading.",
+                },
+        );
       }
-      const impostor = Object.assign(new Error("opaque failure"), { name: "ContainedFileReadError", failure: "missing" });
+      const impostor = Object.assign(new Error("opaque failure"), {
+        name: "ContainedFileReadError",
+        failure: "missing",
+      });
       const repository = new FilesystemArchitectureDecisionBaselineRepository({
         pathTraversesSymbolicLink,
-        async read() { throw impostor; }
+        async read() {
+          throw impostor;
+        },
       });
       await assert.rejects(repository.read(input), (error) => error === impostor);
     });
@@ -179,14 +283,24 @@ export function registerBaselineObservationPortCases() {
           const bytes = await readContainedRegularFile(input);
           controller.abort();
           return bytes;
-        }
+        },
       });
-      const input = { consumerRoot: root, path: "architecture/decisions/accepted-decisions.json", signal: controller.signal };
-      await assert.rejects(repository.read(input), (error) => hasProblemCode(error, "EXECUTION_CANCELLED"));
+      const input = {
+        consumerRoot: root,
+        path: "architecture/decisions/accepted-decisions.json",
+        signal: controller.signal,
+      };
+      await assert.rejects(repository.read(input), (error) =>
+        hasProblemCode(error, "EXECUTION_CANCELLED"),
+      );
       assert.equal(reads, 1);
-      await assert.rejects(repository.read(input), (error) => hasProblemCode(error, "EXECUTION_CANCELLED"));
-      await assert.rejects(repository.write({ ...input, baseline: JSON.parse(before), expected: { kind: "missing" } }),
-        (error) => hasProblemCode(error, "EXECUTION_CANCELLED"));
+      await assert.rejects(repository.read(input), (error) =>
+        hasProblemCode(error, "EXECUTION_CANCELLED"),
+      );
+      await assert.rejects(
+        repository.write({ ...input, baseline: JSON.parse(before), expected: { kind: "missing" } }),
+        (error) => hasProblemCode(error, "EXECUTION_CANCELLED"),
+      );
       assert.equal(reads, 1);
       assert.deepEqual(await readFile(baselinePath(root)), before);
     });
@@ -206,50 +320,93 @@ export function registerBaselineObservationPortCases() {
         async read(location) {
           reads += 1;
           if (reads === 3) {
-            const temporary = (await readdir(dirname(location.candidate)))
-              .filter((name) => name.startsWith(".foundation-atomic-replacement-"));
+            const temporary = (await readdir(dirname(location.candidate))).filter((name) =>
+              name.startsWith(".foundation-atomic-replacement-"),
+            );
             assert.equal(temporary.length, 1);
-            assert.deepEqual(JSON.parse(await readFile(join(dirname(location.candidate), temporary[0]))), baseline);
+            assert.deepEqual(
+              JSON.parse(await readFile(join(dirname(location.candidate), temporary[0]))),
+              baseline,
+            );
             await writeFile(location.candidate, externalBytes);
           }
           return readContainedRegularFile(location);
-        }
+        },
       });
-      await assert.rejects(repository.write({ ...input, baseline, expected: { kind: "valid", revision: current.revision } }),
-        (error) => hasProblemCode(error, "ARCHITECTURE_DECISION_BASELINE_WRITE_CONFLICT"));
+      await assert.rejects(
+        repository.write({
+          ...input,
+          baseline,
+          expected: { kind: "valid", revision: current.revision },
+        }),
+        (error) => hasProblemCode(error, "ARCHITECTURE_DECISION_BASELINE_WRITE_CONFLICT"),
+      );
       assert.equal(reads, 3);
       assert.equal(await readFile(baselinePath(root), "utf8"), externalBytes);
-      assert.deepEqual((await readdir(dirname(baselinePath(root)))).filter((name) => name.startsWith(".foundation-atomic-replacement-") || name.endsWith(".lock")), []);
+      assert.deepEqual(
+        (await readdir(dirname(baselinePath(root)))).filter(
+          (name) => name.startsWith(".foundation-atomic-replacement-") || name.endsWith(".lock"),
+        ),
+        [],
+      );
       const fresh = await ordinary.read(input);
-      assert.equal(await ordinary.write({ ...input, baseline, expected: { kind: "valid", revision: fresh.revision } }), "updated");
+      assert.equal(
+        await ordinary.write({
+          ...input,
+          baseline,
+          expected: { kind: "valid", revision: fresh.revision },
+        }),
+        "updated",
+      );
     });
   });
 
-  test("baseline final symlink observation rejects replacement after the last read", { skip: process.platform === "win32" }, async () => {
-    await withFixture(async (root) => {
-      const input = { consumerRoot: root, path: "architecture/decisions/accepted-decisions.json" };
-      const current = await new FilesystemArchitectureDecisionBaselineRepository(baselineObservation).read(input);
-      const bytes = await readFile(baselinePath(root));
-      const target = join(root, "retained-baseline.json");
-      await writeFile(target, bytes);
-      let reads = 0;
-      const repository = new FilesystemArchitectureDecisionBaselineRepository({
-        pathTraversesSymbolicLink,
-        async read(location) {
-          const observed = await readContainedRegularFile(location);
-          reads += 1;
-          if (reads === 3) {
-            await rm(location.candidate);
-            await symlink(target, location.candidate);
-          }
-          return observed;
-        }
+  test(
+    "baseline final symlink observation rejects replacement after the last read",
+    { skip: process.platform === "win32" },
+    async () => {
+      await withFixture(async (root) => {
+        const input = {
+          consumerRoot: root,
+          path: "architecture/decisions/accepted-decisions.json",
+        };
+        const current = await new FilesystemArchitectureDecisionBaselineRepository(
+          baselineObservation,
+        ).read(input);
+        const bytes = await readFile(baselinePath(root));
+        const target = join(root, "retained-baseline.json");
+        await writeFile(target, bytes);
+        let reads = 0;
+        const repository = new FilesystemArchitectureDecisionBaselineRepository({
+          pathTraversesSymbolicLink,
+          async read(location) {
+            const observed = await readContainedRegularFile(location);
+            reads += 1;
+            if (reads === 3) {
+              await rm(location.candidate);
+              await symlink(target, location.candidate);
+            }
+            return observed;
+          },
+        });
+        await assert.rejects(
+          repository.write({
+            ...input,
+            baseline: baselineWithDigest(current.value, "a"),
+            expected: { kind: "valid", revision: current.revision },
+          }),
+          (error) =>
+            hasProblemCode(error, "ARCHITECTURE_DECISION_BASELINE_WRITE_SYMLINK_PROHIBITED"),
+        );
+        assert.equal(reads, 3);
+        assert.deepEqual(await readFile(target), bytes);
+        assert.deepEqual(
+          (await readdir(dirname(baselinePath(root)))).filter(
+            (name) => name.startsWith(".foundation-atomic-replacement-") || name.endsWith(".lock"),
+          ),
+          [],
+        );
       });
-      await assert.rejects(repository.write({ ...input, baseline: baselineWithDigest(current.value, "a"), expected: { kind: "valid", revision: current.revision } }),
-        (error) => hasProblemCode(error, "ARCHITECTURE_DECISION_BASELINE_WRITE_SYMLINK_PROHIBITED"));
-      assert.equal(reads, 3);
-      assert.deepEqual(await readFile(target), bytes);
-      assert.deepEqual((await readdir(dirname(baselinePath(root)))).filter((name) => name.startsWith(".foundation-atomic-replacement-") || name.endsWith(".lock")), []);
-    });
-  });
+    },
+  );
 }

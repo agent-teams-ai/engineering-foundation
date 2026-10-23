@@ -9,13 +9,13 @@ export interface CapabilityModuleDescriptor {
 
 export function createCapabilityModule(
   definition: CapabilityDefinition,
-  rules: ReadonlyMap<string, RuleExplanation>
+  rules: ReadonlyMap<string, RuleExplanation>,
 ): CapabilityModuleDescriptor {
   return Object.freeze({ definition, rules });
 }
 
 export function createCapabilityModules(
-  modules: readonly CapabilityModuleDescriptor[]
+  modules: readonly CapabilityModuleDescriptor[],
 ): readonly CapabilityModuleDescriptor[] {
   return Object.freeze(modules);
 }
@@ -35,28 +35,28 @@ export interface OwnedRuleContribution extends RuleContribution {
 /** Rule owners for `explain`: the `check` capabilities plus command-only modules, which run through their own commands. */
 export function createRuleOwners(
   capabilities: readonly OwnedRuleContribution[],
-  commandModules: readonly OwnedRuleContribution[]
+  commandModules: readonly OwnedRuleContribution[],
 ): readonly OwnedRuleContribution[] {
   return Object.freeze([...capabilities, ...commandModules]);
 }
 
 export function createCapabilityRegistry(
-  modules: readonly CapabilityContribution[]
+  modules: readonly CapabilityContribution[],
 ): ReadonlyMap<string, CapabilityDefinition> {
   return createUniqueRegistry(
     "capability",
-    modules.map(({ definition }) => [definition.id, definition])
+    modules.map(({ definition }) => [definition.id, definition]),
   );
 }
 
 export function createRuleRegistries(
-  modules: readonly RuleContribution[]
+  modules: readonly RuleContribution[],
 ): readonly ReadonlyMap<string, RuleExplanation>[] {
   return Object.freeze(modules.map(({ rules }) => rules));
 }
 
 export function createRuleRegistry(
-  modules: readonly OwnedRuleContribution[]
+  modules: readonly OwnedRuleContribution[],
 ): ReadonlyMap<string, RuleExplanation> {
   // Validate all metadata before duplicate detection, preserving diagnostic precedence.
   for (const { definition, rules } of modules) {
@@ -64,18 +64,16 @@ export function createRuleRegistry(
     for (const [ruleId, explanation] of rules) {
       if (explanation.id !== ruleId) {
         throw new Error(
-          `Rule registry key ${ruleId} does not match metadata ID ${explanation.id}.`
+          `Rule registry key ${ruleId} does not match metadata ID ${explanation.id}.`,
         );
       }
       if (!ruleId.startsWith(ownedRulePrefix)) {
-        throw new Error(
-          `Rule ID ${ruleId} is not owned by capability ${definition.id}.`
-        );
+        throw new Error(`Rule ID ${ruleId} is not owned by capability ${definition.id}.`);
       }
     }
   }
   return createUniqueRegistry(
     "rule",
-    modules.flatMap(({ rules }) => [...rules])
+    modules.flatMap(({ rules }) => [...rules]),
   );
 }

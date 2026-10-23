@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { actualSourceDependenciesCLI, copySourcePolicyFixture, observeFoundationFeatureGraph } from "./local-mode-boundaries.ts";
+import {
+  actualSourceDependenciesCLI,
+  copySourcePolicyFixture,
+  observeFoundationFeatureGraph,
+} from "./local-mode-boundaries.ts";
 
 export async function assertFeatureOutsideSchemaCycles(featureId) {
   const graph = await observeFoundationFeatureGraph();
@@ -23,15 +27,24 @@ export async function assertSchemaAssemblyImportsRejected(imports) {
     await copySourcePolicyFixture(root);
     for (const { path, specifier } of imports) {
       const source = await readFile(join(root, path), "utf8");
-      await writeFile(join(root, path), `${source}\nexport { assertSchema as ModuleSchemaLeak } from ${JSON.stringify(specifier)};\n`);
+      await writeFile(
+        join(root, path),
+        `${source}\nexport { assertSchema as ModuleSchemaLeak } from ${JSON.stringify(specifier)};\n`,
+      );
     }
     const result = actualSourceDependenciesCLI(root);
     assert.equal(result.exitCode, 1, JSON.stringify(result));
     const diagnostics = result.report.capabilities.flatMap((capability) => capability.diagnostics);
     for (const { path } of imports) {
-      assert.ok(diagnostics.some((diagnostic) =>
-        diagnostic.ruleId === "architecture.source-dependencies.forbidden-boundary-dependency" && diagnostic.location.path === path
-      ), JSON.stringify(result.report));
+      assert.ok(
+        diagnostics.some(
+          (diagnostic) =>
+            diagnostic.ruleId ===
+              "architecture.source-dependencies.forbidden-boundary-dependency" &&
+            diagnostic.location.path === path,
+        ),
+        JSON.stringify(result.report),
+      );
     }
   } finally {
     await rm(root, { recursive: true, force: true });

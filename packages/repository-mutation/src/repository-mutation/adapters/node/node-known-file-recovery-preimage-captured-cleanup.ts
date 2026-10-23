@@ -3,10 +3,17 @@ import { lstat, rmdir, unlink } from "node:fs/promises";
 import { basename, join } from "node:path";
 
 import type { KnownFileTransactionPlanV1 } from "../../application/model/known-file-transaction.js";
-import { type KnownFileTransactionJournalV1, deserializeKnownFileIdentity } from "../../application/model/known-file-transaction-journal.js";
+import {
+  type KnownFileTransactionJournalV1,
+  deserializeKnownFileIdentity,
+} from "../../application/model/known-file-transaction-journal.js";
 
 import { syncDirectoryStrictly } from "./node-directory-durability.js";
-import { knownFileErrorCode, matchesKnownFileImage, sameKnownFileIdentity } from "./node-known-file-transaction-filesystem.js";
+import {
+  knownFileErrorCode,
+  matchesKnownFileImage,
+  sameKnownFileIdentity,
+} from "./node-known-file-transaction-filesystem.js";
 import { KnownFileTransactionError } from "../../application/model/known-file-transaction-error.js";
 import { observeRecoveryFile } from "./node-known-file-recovery-filesystem.js";
 import type { KnownFileRecoveryFaultInjector } from "./node-known-file-recovery-state.js";
@@ -14,69 +21,84 @@ import type { KnownFileRecoveryFaultInjector } from "./node-known-file-recovery-
 function matchesRollbackCopy(
   observed: Awaited<ReturnType<typeof observeRecoveryFile>>,
   expected: ReturnType<typeof deserializeKnownFileIdentity>,
-  preimage: KnownFileTransactionPlanV1["operations"][number]["postimage"]
+  preimage: KnownFileTransactionPlanV1["operations"][number]["postimage"],
 ): boolean {
-  return observed.state === "file" && observed.identity !== undefined &&
+  return (
+    observed.state === "file" &&
+    observed.identity !== undefined &&
     sameKnownFileIdentity(observed.identity, expected) &&
-    matchesKnownFileImage(observed, preimage);
+    matchesKnownFileImage(observed, preimage)
+  );
 }
 
-export async function cleanupRestoredCapturedPreimage(coordination: Pick<KnownFileCoordination, "readBoundedRegularFile">, options: {
-  readonly destination: string;
-  readonly faultInjector?: KnownFileRecoveryFaultInjector;
-  readonly journalOperation: KnownFileTransactionJournalV1["operations"][number] & {
-    readonly captureDirectoryIdentity: NonNullable<Extract<
-      KnownFileTransactionJournalV1["operations"][number],
-      { readonly temporaryIdentity: unknown }
-    >["captureDirectoryIdentity"]>;
-    readonly capturedPreimageIdentity?: NonNullable<Extract<
-      KnownFileTransactionJournalV1["operations"][number],
-      { readonly temporaryIdentity: unknown }
-    >["capturedPreimageIdentity"]>;
-  };
-  readonly operation: KnownFileTransactionPlanV1["operations"][number] & {
-    readonly precondition: Extract<
-      KnownFileTransactionPlanV1["operations"][number]["precondition"],
-      { readonly state: "known-file" }
-    >;
-  };
-  readonly operationIndex: number;
-  readonly parent: string;
-  readonly paths: { readonly captured: string; readonly directory: string; readonly retired: string };
-  readonly recoveryMaximumBytes: number;
-}): Promise<void> {
+export async function cleanupRestoredCapturedPreimage(
+  coordination: Pick<KnownFileCoordination, "readBoundedRegularFile">,
+  options: {
+    readonly destination: string;
+    readonly faultInjector?: KnownFileRecoveryFaultInjector;
+    readonly journalOperation: KnownFileTransactionJournalV1["operations"][number] & {
+      readonly captureDirectoryIdentity: NonNullable<
+        Extract<
+          KnownFileTransactionJournalV1["operations"][number],
+          { readonly temporaryIdentity: unknown }
+        >["captureDirectoryIdentity"]
+      >;
+      readonly capturedPreimageIdentity?: NonNullable<
+        Extract<
+          KnownFileTransactionJournalV1["operations"][number],
+          { readonly temporaryIdentity: unknown }
+        >["capturedPreimageIdentity"]
+      >;
+    };
+    readonly operation: KnownFileTransactionPlanV1["operations"][number] & {
+      readonly precondition: Extract<
+        KnownFileTransactionPlanV1["operations"][number]["precondition"],
+        { readonly state: "known-file" }
+      >;
+    };
+    readonly operationIndex: number;
+    readonly parent: string;
+    readonly paths: {
+      readonly captured: string;
+      readonly directory: string;
+      readonly retired: string;
+    };
+    readonly recoveryMaximumBytes: number;
+  },
+): Promise<void> {
   const matched = options.journalOperation.matchedPreimage;
   if (matched === undefined) {
     throw new KnownFileTransactionError(
       "KNOWN_FILE_JOURNAL_INVALID",
-      `Restored replacement lacks exact preimage authority: ${options.operation.path}.`
+      `Restored replacement lacks exact preimage authority: ${options.operation.path}.`,
     );
   }
   const preimage = options.operation.precondition.acceptedPreimages[matched]!;
-  const destinationObserved = await observeRecoveryFile(coordination,
+  const destinationObserved = await observeRecoveryFile(
+    coordination,
     options.destination,
-    options.recoveryMaximumBytes
+    options.recoveryMaximumBytes,
   );
   if (!matchesKnownFileImage(destinationObserved, preimage)) {
     throw new KnownFileTransactionError(
       "KNOWN_FILE_RECOVERY_CONFLICT",
-      `Restored destination changed during cleanup: ${options.operation.path}.`
+      `Restored destination changed during cleanup: ${options.operation.path}.`,
     );
   }
   const rollbackPath = join(
     options.parent,
-    `.${basename(options.operation.path)}.agent-teams.rollback.${options.operationIndex}.tmp`
+    `.${basename(options.operation.path)}.agent-teams.rollback.${options.operationIndex}.tmp`,
   );
   if (options.journalOperation.rollbackTemporaryIdentity !== undefined) {
     const rollbackObserved = await observeRecoveryFile(coordination, rollbackPath, preimage.size);
     if (rollbackObserved.state === "file") {
       const expectedRollback = deserializeKnownFileIdentity(
-        options.journalOperation.rollbackTemporaryIdentity
+        options.journalOperation.rollbackTemporaryIdentity,
       );
       if (!matchesRollbackCopy(rollbackObserved, expectedRollback, preimage)) {
         throw new KnownFileTransactionError(
           "KNOWN_FILE_RECOVERY_CONFLICT",
-          `Rollback copy changed during cleanup: ${options.operation.path}.`
+          `Rollback copy changed during cleanup: ${options.operation.path}.`,
         );
       }
       await unlink(rollbackPath);
@@ -85,34 +107,49 @@ export async function cleanupRestoredCapturedPreimage(coordination: Pick<KnownFi
   }
   const directory = await lstat(options.paths.directory, { bigint: true }).catch(
     (error: unknown) => {
-      if (knownFileErrorCode(error) === "ENOENT") {return null;}
+      if (knownFileErrorCode(error) === "ENOENT") {
+        return null;
+      }
       throw error;
-    }
+    },
   );
-  if (directory === null) {return;}
+  if (directory === null) {
+    return;
+  }
   const expectedDirectory = deserializeKnownFileIdentity(
-    options.journalOperation.captureDirectoryIdentity
+    options.journalOperation.captureDirectoryIdentity,
   );
-  if (!directory.isDirectory() || directory.isSymbolicLink() ||
+  if (
+    !directory.isDirectory() ||
+    directory.isSymbolicLink() ||
     directory.birthtimeNs !== expectedDirectory.birthtimeNs ||
-    directory.dev !== expectedDirectory.dev || directory.ino !== expectedDirectory.ino) {
+    directory.dev !== expectedDirectory.dev ||
+    directory.ino !== expectedDirectory.ino
+  ) {
     throw new KnownFileTransactionError(
       "KNOWN_FILE_RECOVERY_CONFLICT",
-      `Rollback capture directory changed during cleanup: ${options.operation.path}.`
+      `Rollback capture directory changed during cleanup: ${options.operation.path}.`,
     );
   }
-  const capturedObserved = await observeRecoveryFile(coordination,
+  const capturedObserved = await observeRecoveryFile(
+    coordination,
     options.paths.captured,
-    options.recoveryMaximumBytes
+    options.recoveryMaximumBytes,
   );
   if (capturedObserved.state === "file") {
     const expectedCaptured = options.journalOperation.capturedPreimageIdentity;
-    if (expectedCaptured === undefined || capturedObserved.identity === undefined ||
-      !sameKnownFileIdentity(capturedObserved.identity, deserializeKnownFileIdentity(expectedCaptured)) ||
-      !matchesKnownFileImage(capturedObserved, preimage)) {
+    if (
+      expectedCaptured === undefined ||
+      capturedObserved.identity === undefined ||
+      !sameKnownFileIdentity(
+        capturedObserved.identity,
+        deserializeKnownFileIdentity(expectedCaptured),
+      ) ||
+      !matchesKnownFileImage(capturedObserved, preimage)
+    ) {
       throw new KnownFileTransactionError(
         "KNOWN_FILE_RECOVERY_CONFLICT",
-        `Rollback capture changed during cleanup: ${options.operation.path}.`
+        `Rollback capture changed during cleanup: ${options.operation.path}.`,
       );
     }
     await unlink(options.paths.captured);
@@ -120,17 +157,18 @@ export async function cleanupRestoredCapturedPreimage(coordination: Pick<KnownFi
     await options.faultInjector?.({
       phase: "after-rollback-capture-unlinked",
       operationIndex: options.operationIndex,
-      path: options.operation.path
+      path: options.operation.path,
     });
   }
-  const retiredObserved = await observeRecoveryFile(coordination,
+  const retiredObserved = await observeRecoveryFile(
+    coordination,
     options.paths.retired,
-    options.recoveryMaximumBytes
+    options.recoveryMaximumBytes,
   );
   if (retiredObserved.state !== "absent") {
     throw new KnownFileTransactionError(
       "KNOWN_FILE_RECOVERY_CONFLICT",
-      `Rollback capture retains foreign retired evidence: ${options.operation.path}.`
+      `Rollback capture retains foreign retired evidence: ${options.operation.path}.`,
     );
   }
   await rmdir(options.paths.directory);

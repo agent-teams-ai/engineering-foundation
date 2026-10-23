@@ -12,11 +12,7 @@ export type JournalSlotEvidence = "candidate" | "previous";
 
 export type JournalSlotSyncRole = "destination" | "source" | "state-parent";
 
-export type JournalSlotSyncStage =
-  | "candidate"
-  | "final"
-  | "publication"
-  | "transition";
+export type JournalSlotSyncStage = "candidate" | "final" | "publication" | "transition";
 
 export type JournalSlotFaultPoint =
   | { readonly mutation: JournalSlotMutation; readonly phase: "after-candidate-synced" }
@@ -69,9 +65,7 @@ export type JournalSlotFaultPoint =
     }
   | { readonly phase: "before-reconciliation-directory-sync" };
 
-export type JournalSlotFaultInjector = (
-  point: JournalSlotFaultPoint
-) => Promise<void> | void;
+export type JournalSlotFaultInjector = (point: JournalSlotFaultPoint) => Promise<void> | void;
 
 export interface JournalSlotAuthority {
   readonly authorityDigest: `sha256:${string}`;
@@ -115,7 +109,7 @@ export interface JournalSlotFailureContext {
 /** Owners translate closed failure classes into their released diagnostics. */
 export type JournalSlotFailureFactory = (
   failure: JournalSlotFailure,
-  context: JournalSlotFailureContext
+  context: JournalSlotFailureContext,
 ) => Error;
 
 export interface JournalSlotCodec<TJournal> {
@@ -125,9 +119,7 @@ export interface JournalSlotCodec<TJournal> {
   readonly parse: (bytes: Buffer) => Promise<TJournal>;
 }
 
-export type JournalSlotResidueMatcher =
-  | { readonly exact: string }
-  | { readonly prefix: string };
+export type JournalSlotResidueMatcher = { readonly exact: string } | { readonly prefix: string };
 
 export interface JournalSlotNaming {
   readonly candidatePath: string;
@@ -190,25 +182,25 @@ export type PendingJournalSlotMutation =
 
 export function sameJournalSlotAuthority(
   left: JournalSlotAuthority,
-  right: JournalSlotAuthority
+  right: JournalSlotAuthority,
 ): boolean {
-  return left.authorityDigest === right.authorityDigest &&
+  return (
+    left.authorityDigest === right.authorityDigest &&
     left.identity.birthtimeNs === right.identity.birthtimeNs &&
     left.identity.dev === right.identity.dev &&
-    left.identity.ino === right.identity.ino;
+    left.identity.ino === right.identity.ino
+  );
 }
 
 export function classifyCleanJournalSlotMutation(
   pending: PendingJournalSlotMutation,
-  canonical: JournalSlotAuthority | undefined
+  canonical: JournalSlotAuthority | undefined,
 ): "committed" | "not-applied" | "recovery-required" {
   if (pending.kind === "remove") {
     if (canonical === undefined) {
       return "committed";
     }
-    return sameJournalSlotAuthority(canonical, pending.prior)
-      ? "not-applied"
-      : "recovery-required";
+    return sameJournalSlotAuthority(canonical, pending.prior) ? "not-applied" : "recovery-required";
   }
   if (
     pending.intendedAuthority !== undefined &&
@@ -220,8 +212,7 @@ export function classifyCleanJournalSlotMutation(
   if (pending.kind === "create") {
     return canonical === undefined ? "not-applied" : "recovery-required";
   }
-  return canonical !== undefined &&
-    sameJournalSlotAuthority(canonical, pending.prior)
+  return canonical !== undefined && sameJournalSlotAuthority(canonical, pending.prior)
     ? "not-applied"
     : "recovery-required";
 }

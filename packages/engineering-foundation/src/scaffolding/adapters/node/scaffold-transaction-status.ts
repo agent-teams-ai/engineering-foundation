@@ -1,7 +1,14 @@
 import { canonicalJson, type CanonicalJsonValue } from "@agent-teams/repository-mutation";
-import type { ScaffoldLegacyDigests, ScaffoldTransactionArtifacts } from "../../application/ports/transaction-observation.js";
+import type {
+  ScaffoldLegacyDigests,
+  ScaffoldTransactionArtifacts,
+} from "../../application/ports/transaction-observation.js";
 import type { ScaffoldSchemaValidator } from "../schema-validation.js";
-import type { FoundationRecoveryRoute, FoundationTransactionDiagnostic, InternalFoundationTransactionStatus } from "../../application/policies/transaction-identity.js";
+import type {
+  FoundationRecoveryRoute,
+  FoundationTransactionDiagnostic,
+  InternalFoundationTransactionStatus,
+} from "../../application/policies/transaction-identity.js";
 import { assertLegacyScaffoldingJournal } from "./legacy-scaffolding-transaction-validation.js";
 import { parseFoundationScaffoldEnvelope } from "./foundation-scaffold-envelope.js";
 
@@ -12,7 +19,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function recoveryRoute(exactFoundationVersion: string): FoundationRecoveryRoute {
   return {
     commandId: "scaffold-recover",
-    exactFoundationVersion
+    exactFoundationVersion,
   };
 }
 
@@ -27,12 +34,12 @@ function pending(options: {
   if (options.foundationVersion !== options.installedVersion) {
     diagnostics.push({
       code: "FOUNDATION_TRANSACTION_VERSION_MISMATCH",
-      message: `Foundation ${options.foundationVersion} must recover the pending ${options.operationKind} transaction before package ${options.installedVersion} (${options.installedBuildIdentity}) can mutate this repository.`
+      message: `Foundation ${options.foundationVersion} must recover the pending ${options.operationKind} transaction before package ${options.installedVersion} (${options.installedBuildIdentity}) can mutate this repository.`,
     });
   } else {
     diagnostics.push({
       code: "FOUNDATION_TRANSACTION_ACTIVE",
-      message: `A pending ${options.operationKind} transaction must be recovered before another Foundation mutation can start.`
+      message: `A pending ${options.operationKind} transaction must be recovered before another Foundation mutation can start.`,
     });
   }
   return {
@@ -41,20 +48,20 @@ function pending(options: {
     format: options.format,
     foundationVersion: options.foundationVersion,
     recovery: recoveryRoute(options.foundationVersion),
-    diagnostics
+    diagnostics,
   };
 }
 
-export async function inspectLegacyScaffoldingJournal(options: {
-  readonly value: Record<string, unknown>;
-  readonly installedVersion: string;
-  readonly installedBuildIdentity: string;
-}, assertSchema: ScaffoldSchemaValidator, digests: ScaffoldLegacyDigests): Promise<InternalFoundationTransactionStatus> {
-  await assertSchema(
-    "scaffold-recovery-journal/v1",
-    options.value,
-    "foundation-transaction-slot"
-  );
+export async function inspectLegacyScaffoldingJournal(
+  options: {
+    readonly value: Record<string, unknown>;
+    readonly installedVersion: string;
+    readonly installedBuildIdentity: string;
+  },
+  assertSchema: ScaffoldSchemaValidator,
+  digests: ScaffoldLegacyDigests,
+): Promise<InternalFoundationTransactionStatus> {
+  await assertSchema("scaffold-recovery-journal/v1", options.value, "foundation-transaction-slot");
   assertLegacyScaffoldingJournal(options.value, digests);
   const plan = options.value["plan"];
   const compiler = isRecord(plan) ? plan["compiler"] : undefined;
@@ -66,18 +73,23 @@ export async function inspectLegacyScaffoldingJournal(options: {
     format: "legacy-scaffolding-v1",
     foundationVersion: compiler["version"],
     installedVersion: options.installedVersion,
-    installedBuildIdentity: options.installedBuildIdentity
+    installedBuildIdentity: options.installedBuildIdentity,
   });
 }
 
-async function inspectCurrentScaffoldingTransaction(options: {
-  readonly bytes: Uint8Array;
-  readonly installedVersion: string;
-  readonly installedBuildIdentity: string;
-}, observeArtifacts: ScaffoldTransactionArtifacts): Promise<InternalFoundationTransactionStatus> {
+async function inspectCurrentScaffoldingTransaction(
+  options: {
+    readonly bytes: Uint8Array;
+    readonly installedVersion: string;
+    readonly installedBuildIdentity: string;
+  },
+  observeArtifacts: ScaffoldTransactionArtifacts,
+): Promise<InternalFoundationTransactionStatus> {
   const { envelope } = await parseFoundationScaffoldEnvelope(options.bytes, observeArtifacts);
-  if (envelope.ownerArtifact.version !== options.installedVersion ||
-      envelope.ownerArtifact.buildIdentity !== options.installedBuildIdentity) {
+  if (
+    envelope.ownerArtifact.version !== options.installedVersion ||
+    envelope.ownerArtifact.buildIdentity !== options.installedBuildIdentity
+  ) {
     throw new Error("Foundation scaffolding installed artifact identity is incompatible.");
   }
   return {
@@ -87,26 +99,33 @@ async function inspectCurrentScaffoldingTransaction(options: {
     foundationVersion: options.installedVersion,
     recovery: {
       commandId: "scaffold-recover",
-      exactFoundationVersion: options.installedVersion
+      exactFoundationVersion: options.installedVersion,
     },
-    diagnostics: [{
-      code: "FOUNDATION_TRANSACTION_ACTIVE",
-      message: "A pending scaffolding transaction must be recovered before another Foundation mutation can start."
-    }]
+    diagnostics: [
+      {
+        code: "FOUNDATION_TRANSACTION_ACTIVE",
+        message:
+          "A pending scaffolding transaction must be recovered before another Foundation mutation can start.",
+      },
+    ],
   };
 }
 
 export async function inspectLegacyScaffoldingEnvelope(
   value: Record<string, unknown>,
   assertSchema: ScaffoldSchemaValidator,
-  digests: ScaffoldLegacyDigests
+  digests: ScaffoldLegacyDigests,
 ): Promise<InternalFoundationTransactionStatus> {
   await assertSchema("foundation-transaction-envelope/v2", value, "foundation-transaction-slot");
   digests.assertEnvelopeDigests(value);
   const foundation = value["foundation"];
   const journal = value["journal"];
-  if (!isRecord(foundation) || typeof foundation["version"] !== "string" ||
-      typeof foundation["buildIdentity"] !== "string" || !isRecord(journal)) {
+  if (
+    !isRecord(foundation) ||
+    typeof foundation["version"] !== "string" ||
+    typeof foundation["buildIdentity"] !== "string" ||
+    !isRecord(journal)
+  ) {
     throw new Error("Foundation transaction envelope binding is invalid.");
   }
   const plan = journal["plan"];
@@ -125,21 +144,29 @@ export async function inspectLegacyScaffoldingEnvelope(
     format: "envelope-v2",
     foundationVersion: foundation["version"],
     foundationBuildIdentity: foundation["buildIdentity"],
-    diagnostics: [{
-      code: "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED",
-      message: `A verified scaffolding envelope v2 from Foundation ${foundation["version"]} (${foundation["buildIdentity"]}) was preserved, but this release does not yet provide its recovery handler.`
-    }]
+    diagnostics: [
+      {
+        code: "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED",
+        message: `A verified scaffolding envelope v2 from Foundation ${foundation["version"]} (${foundation["buildIdentity"]}) was preserved, but this release does not yet provide its recovery handler.`,
+      },
+    ],
   };
 }
 
-export function inspectCurrentScaffoldingRecord(input: {
-  readonly value: Record<string, unknown>;
-  readonly installedVersion: string;
-  readonly installedBuildIdentity: string;
-}, observeArtifacts: ScaffoldTransactionArtifacts): Promise<InternalFoundationTransactionStatus> {
-  return inspectCurrentScaffoldingTransaction({
-    bytes: Buffer.from(canonicalJson(input.value as CanonicalJsonValue), "utf8"),
-    installedVersion: input.installedVersion,
-    installedBuildIdentity: input.installedBuildIdentity
-  }, observeArtifacts);
+export function inspectCurrentScaffoldingRecord(
+  input: {
+    readonly value: Record<string, unknown>;
+    readonly installedVersion: string;
+    readonly installedBuildIdentity: string;
+  },
+  observeArtifacts: ScaffoldTransactionArtifacts,
+): Promise<InternalFoundationTransactionStatus> {
+  return inspectCurrentScaffoldingTransaction(
+    {
+      bytes: Buffer.from(canonicalJson(input.value as CanonicalJsonValue), "utf8"),
+      installedVersion: input.installedVersion,
+      installedBuildIdentity: input.installedBuildIdentity,
+    },
+    observeArtifacts,
+  );
 }

@@ -1,6 +1,18 @@
 import assert from "node:assert/strict";
 import { constants as fsConstants } from "node:fs";
-import { copyFile, lstat, mkdir, mkdtemp, open, opendir, realpath, rename, rm, stat, symlink } from "node:fs/promises";
+import {
+  copyFile,
+  lstat,
+  mkdir,
+  mkdtemp,
+  open,
+  opendir,
+  realpath,
+  rename,
+  rm,
+  stat,
+  symlink,
+} from "node:fs/promises";
 import { dirname, isAbsolute, join, relative } from "node:path";
 
 async function installedLinks(directory) {
@@ -10,7 +22,7 @@ async function installedLinks(directory) {
     if (entry.isSymbolicLink()) {
       links.push(path);
     } else if (entry.isDirectory()) {
-      links.push(...await installedLinks(path));
+      links.push(...(await installedLinks(path)));
     }
   }
   return links;
@@ -23,7 +35,7 @@ async function approvedWorkspaceFixtureTarget(source, sourceLink, physicalTarget
   assert.equal(
     relative(source, sourceLink),
     publicApiFixtureLink,
-    "Installed dependency link escapes its node_modules closure"
+    "Installed dependency link escapes its node_modules closure",
   );
   const consumerRoot = dirname(source);
   const target = join(consumerRoot, publicApiFixtureTarget);
@@ -36,12 +48,12 @@ async function approvedWorkspaceFixtureTarget(source, sourceLink, physicalTarget
   assert.equal(
     physicalTarget,
     canonicalTarget,
-    "Installed dependency link escapes its node_modules closure"
+    "Installed dependency link escapes its node_modules closure",
   );
   const targetStatus = await lstat(target);
   assert.ok(
     targetStatus.isDirectory() && !targetStatus.isSymbolicLink(),
-    "Approved workspace fixture target must be a physical directory"
+    "Approved workspace fixture target must be a physical directory",
   );
   return target;
 }
@@ -52,13 +64,15 @@ async function assertRegularFixtureTree(directory) {
     const status = await lstat(path);
     assert.ok(
       !status.isSymbolicLink(),
-      "Approved workspace fixture target must not contain symbolic links"
+      "Approved workspace fixture target must not contain symbolic links",
     );
     assert.ok(
       status.isDirectory() || status.isFile(),
-      "Approved workspace fixture target must contain only regular files and directories"
+      "Approved workspace fixture target must contain only regular files and directories",
     );
-    if (status.isDirectory()) { await assertRegularFixtureTree(path); }
+    if (status.isDirectory()) {
+      await assertRegularFixtureTree(path);
+    }
   }
 }
 
@@ -70,46 +84,58 @@ async function validateWorkspaceFixtureSnapshot(snapshot, testHooks) {
   const snapshotStatus = await lstat(snapshot);
   assert.ok(
     snapshotStatus.isDirectory() && !snapshotStatus.isSymbolicLink(),
-    "Approved workspace fixture snapshot must be a physical directory"
+    "Approved workspace fixture snapshot must be a physical directory",
   );
   await assertRegularFixtureTree(snapshot);
   await testHooks.afterFixtureSnapshotTreeValidated?.({ snapshot });
   const manifestPath = join(snapshot, "package.json");
-  const noFollowFlags = process.platform === "win32"
-    ? 0
-    : fsConstants.O_NOFOLLOW | fsConstants.O_NONBLOCK;
+  const noFollowFlags =
+    process.platform === "win32" ? 0 : fsConstants.O_NOFOLLOW | fsConstants.O_NONBLOCK;
   const manifestHandle = await open(manifestPath, fsConstants.O_RDONLY | noFollowFlags);
   try {
     await testHooks.afterFixtureSnapshotManifestOpened?.({ manifestPath });
     const [manifestPathStatus, manifestHandleStatus] = await Promise.all([
       lstat(manifestPath, { bigint: true }),
-      manifestHandle.stat({ bigint: true })
+      manifestHandle.stat({ bigint: true }),
     ]);
     assert.ok(
-      manifestPathStatus.isFile() && !manifestPathStatus.isSymbolicLink() && manifestHandleStatus.isFile(),
-      "Approved workspace fixture manifest must be a regular file"
+      manifestPathStatus.isFile() &&
+        !manifestPathStatus.isSymbolicLink() &&
+        manifestHandleStatus.isFile(),
+      "Approved workspace fixture manifest must be a regular file",
     );
     assert.ok(
       !hasReliableFileIdentity(manifestPathStatus) ||
         !hasReliableFileIdentity(manifestHandleStatus) ||
         (manifestPathStatus.dev === manifestHandleStatus.dev &&
           manifestPathStatus.ino === manifestHandleStatus.ino),
-      "Approved workspace fixture manifest identity changed"
+      "Approved workspace fixture manifest identity changed",
     );
     const manifest = JSON.parse(await manifestHandle.readFile("utf8"));
-    assert.equal(manifest.name, "@fixture/public-api", "Approved workspace fixture identity changed");
+    assert.equal(
+      manifest.name,
+      "@fixture/public-api",
+      "Approved workspace fixture identity changed",
+    );
   } finally {
     await manifestHandle.close();
   }
 }
 
-const sameFileState = (before, after) => after.isFile() && !after.isSymbolicLink() &&
-  before.size === after.size && before.mtimeNs === after.mtimeNs &&
-  (!hasReliableFileIdentity(before) || !hasReliableFileIdentity(after) ||
+const sameFileState = (before, after) =>
+  after.isFile() &&
+  !after.isSymbolicLink() &&
+  before.size === after.size &&
+  before.mtimeNs === after.mtimeNs &&
+  (!hasReliableFileIdentity(before) ||
+    !hasReliableFileIdentity(after) ||
     (before.dev === after.dev && before.ino === after.ino));
 
-const sameDirectoryState = (before, after) => after.isDirectory() && !after.isSymbolicLink() &&
-  (!hasReliableFileIdentity(before) || !hasReliableFileIdentity(after) ||
+const sameDirectoryState = (before, after) =>
+  after.isDirectory() &&
+  !after.isSymbolicLink() &&
+  (!hasReliableFileIdentity(before) ||
+    !hasReliableFileIdentity(after) ||
     (before.dev === after.dev && before.ino === after.ino));
 
 // lstat-driven finite copy of regular files and directories only. fs.cp does not preserve or
@@ -123,7 +149,7 @@ async function copyPhysicalDirectory(source, destination, { onLink, irregularMes
   // opendir follows links, so the same physical directory must still be at the path afterwards.
   assert.ok(
     sameDirectoryState(directory, await lstat(source, { bigint: true })),
-    `Source directory changed while opening: ${source}`
+    `Source directory changed while opening: ${source}`,
   );
   for await (const entry of handle) {
     const from = join(source, entry.name);
@@ -141,7 +167,7 @@ async function copyPhysicalDirectory(source, destination, { onLink, irregularMes
     await copyFile(from, to, fsConstants.COPYFILE_EXCL);
     assert.ok(
       sameFileState(before, await lstat(from, { bigint: true })),
-      `Source changed while copying: ${relative(source, from)}`
+      `Source changed while copying: ${relative(source, from)}`,
     );
   }
 }
@@ -150,7 +176,9 @@ async function assertAbsent(path) {
   try {
     await lstat(path);
   } catch (error) {
-    if (error?.code === "ENOENT") { return; }
+    if (error?.code === "ENOENT") {
+      return;
+    }
     throw error;
   }
   assert.fail(`Copy destination already exists: ${path}`);
@@ -169,7 +197,7 @@ export async function copyInstalledClosure(source, destination, testHooks = {}) 
     if (!contained) {
       plan.push({
         fixtureSource: await approvedWorkspaceFixtureTarget(source, sourceLink, physicalTarget),
-        relativeLink: relative(source, sourceLink)
+        relativeLink: relative(source, sourceLink),
       });
       continue;
     }
@@ -179,8 +207,10 @@ export async function copyInstalledClosure(source, destination, testHooks = {}) 
       relativeLink: relative(source, sourceLink),
       targetSuffix,
       targetType: targetStatus.isDirectory()
-        ? process.platform === "win32" ? "junction" : "dir"
-        : "file"
+        ? process.platform === "win32"
+          ? "junction"
+          : "dir"
+        : "file",
     });
   }
 
@@ -195,8 +225,10 @@ export async function copyInstalledClosure(source, destination, testHooks = {}) 
   try {
     if (fixture !== undefined) {
       await copyPhysicalDirectory(fixture.fixtureSource, fixtureSnapshot, {
-        onLink: () => assert.fail("Approved workspace fixture target must not contain symbolic links"),
-        irregularMessage: "Approved workspace fixture target must contain only regular files and directories"
+        onLink: () =>
+          assert.fail("Approved workspace fixture target must not contain symbolic links"),
+        irregularMessage:
+          "Approved workspace fixture target must contain only regular files and directories",
       });
       await validateWorkspaceFixtureSnapshot(fixtureSnapshot, testHooks);
       await testHooks.afterFixtureSnapshotValidated?.({ fixtureSource: fixture.fixtureSource });
@@ -211,12 +243,14 @@ export async function copyInstalledClosure(source, destination, testHooks = {}) 
         assert.ok(plannedLinks.has(link), "Installed dependency link set changed during copy");
         seenLinks.add(link);
       },
-      irregularMessage: "Installed dependency closure must contain only regular files, directories and planned links"
+      irregularMessage:
+        "Installed dependency closure must contain only regular files, directories and planned links",
     });
     // A planned link that was removed or replaced by a directory is not silently recreated.
     assert.deepEqual(
-      [...seenLinks].toSorted(), [...plannedLinks].toSorted(),
-      "Installed dependency link set changed during copy"
+      [...seenLinks].toSorted(),
+      [...plannedLinks].toSorted(),
+      "Installed dependency link set changed during copy",
     );
 
     for (const { fixtureSource, relativeLink, targetSuffix, targetType } of plan) {

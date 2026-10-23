@@ -4,12 +4,11 @@ import type { DocumentFileReader } from "../../application/ports/document-file-r
 import { lstat, readdir, realpath } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
-
 import type { DocumentPlanningStateSnapshot } from "../../application/model/document-planning.js";
 import type { DocumentPlanningStateReader } from "../../application/ports/document-planning-state-reader.js";
 import {
   documentRepositoryParentPath,
-  isDocumentRepositoryPath
+  isDocumentRepositoryPath,
 } from "../../application/policies/document-repository-path.js";
 import { DocumentPlanningError } from "../../application/model/document-planning-error.js";
 import { planDocumentParentMaterializationV2 } from "./node-document-parent-materializer.js";
@@ -17,8 +16,9 @@ import { planDocumentParentMaterializationV2 } from "./node-document-parent-mate
 const MAX_EXISTING_DESTINATION_BYTES = 1024 * 1024;
 
 function hasCode(error: unknown, code: string): boolean {
-  return error instanceof Error && "code" in error &&
-    (error as NodeJS.ErrnoException).code === code;
+  return (
+    error instanceof Error && "code" in error && (error as NodeJS.ErrnoException).code === code
+  );
 }
 
 function isMissing(error: unknown): boolean {
@@ -27,23 +27,21 @@ function isMissing(error: unknown): boolean {
 
 function contained(root: string, candidate: string): boolean {
   const relation = relative(root, candidate);
-  return relation === "" ||
-    (!isAbsolute(relation) && relation !== ".." && !relation.startsWith(`..${sep}`));
+  return (
+    relation === "" ||
+    (!isAbsolute(relation) && relation !== ".." && !relation.startsWith(`..${sep}`))
+  );
 }
 
 function portableNameIdentity(name: string): string {
-  return name.normalize("NFC").replace(/[A-Z]/gu, (character) =>
-    character.toLowerCase());
+  return name.normalize("NFC").replace(/[A-Z]/gu, (character) => character.toLowerCase());
 }
 
-async function hasPortableNameCollision(
-  parent: string,
-  requestedName: string
-): Promise<boolean> {
+async function hasPortableNameCollision(parent: string, requestedName: string): Promise<boolean> {
   const requestedIdentity = portableNameIdentity(requestedName);
   const entries = await readdir(parent);
-  return entries.some((entry) =>
-    entry !== requestedName && portableNameIdentity(entry) === requestedIdentity
+  return entries.some(
+    (entry) => entry !== requestedName && portableNameIdentity(entry) === requestedIdentity,
   );
 }
 
@@ -51,7 +49,7 @@ function parentUnavailable(message: string, cause?: unknown): never {
   throw new DocumentPlanningError(
     "DOCUMENT_PLANNING_PARENT_UNAVAILABLE",
     message,
-    cause === undefined ? undefined : { cause }
+    cause === undefined ? undefined : { cause },
   );
 }
 
@@ -59,24 +57,27 @@ function observationUnavailable(message: string, cause?: unknown): never {
   throw new DocumentPlanningError(
     "DOCUMENT_PLANNING_AUTHORITY_UNAVAILABLE",
     message,
-    cause === undefined ? undefined : { cause }
+    cause === undefined ? undefined : { cause },
   );
 }
 
-async function observeRegularDestination(readContainedRegularFile: DocumentFileReader, input: {
-  readonly candidate: string;
-  readonly destination: string;
-  readonly root: string;
-}): Promise<DocumentPlanningStateSnapshot["destination"]> {
+async function observeRegularDestination(
+  readContainedRegularFile: DocumentFileReader,
+  input: {
+    readonly candidate: string;
+    readonly destination: string;
+    readonly root: string;
+  },
+): Promise<DocumentPlanningStateSnapshot["destination"]> {
   try {
     const bytes = await readContainedRegularFile({
       candidate: input.candidate,
       maxBytes: MAX_EXISTING_DESTINATION_BYTES,
-      root: input.root
+      root: input.root,
     });
     return Object.freeze({
       bytes: new Uint8Array(bytes),
-      state: "regular-file"
+      state: "regular-file",
     });
   } catch (error) {
     if (
@@ -88,7 +89,7 @@ async function observeRegularDestination(readContainedRegularFile: DocumentFileR
     if (isDocumentFileReadFailure(error)) {
       observationUnavailable(
         `Document destination changed or became unavailable: ${input.destination}.`,
-        error
+        error,
       );
     }
     throw error;
@@ -120,15 +121,13 @@ async function observeRealParent(input: {
     assertDocumentAuthoringActive(input.signal);
     try {
       if (await hasPortableNameCollision(current, segment)) {
-        parentUnavailable(
-          `Document destination parent has a portable name collision: ${segment}.`
-        );
+        parentUnavailable(`Document destination parent has a portable name collision: ${segment}.`);
       }
       const next = join(current, segment);
       const metadata = await lstat(next);
       if (metadata.isSymbolicLink() || !metadata.isDirectory()) {
         parentUnavailable(
-          `Document destination parent ancestry must contain only real directories: ${segment}.`
+          `Document destination parent ancestry must contain only real directories: ${segment}.`,
         );
       }
       const canonical = await realpath(next);
@@ -149,8 +148,7 @@ async function observeRealParent(input: {
   return { parent: current, root };
 }
 
-export class NodeDocumentPlanningStateReader
-implements DocumentPlanningStateReader {
+export class NodeDocumentPlanningStateReader implements DocumentPlanningStateReader {
   constructor(private readonly readFile: DocumentFileReader) {}
   async observe(request: {
     readonly consumerRoot: string;
@@ -162,22 +160,25 @@ implements DocumentPlanningStateReader {
     if (!isDocumentRepositoryPath(request.destination)) {
       throw new DocumentPlanningError(
         "DOCUMENT_PLANNING_INPUT_INVALID",
-        "Document destination must use the portable repository-relative path grammar."
+        "Document destination must use the portable repository-relative path grammar.",
       );
     }
-    const parentMaterialization = request.parentPolicy === undefined
-      ? undefined
-      : await planDocumentParentMaterializationV2(request);
-    if (parentMaterialization !== undefined &&
-      parentMaterialization.missingDirectories.length > 0) {
+    const parentMaterialization =
+      request.parentPolicy === undefined
+        ? undefined
+        : await planDocumentParentMaterializationV2(request);
+    if (
+      parentMaterialization !== undefined &&
+      parentMaterialization.missingDirectories.length > 0
+    ) {
       return Object.freeze({
         destination: Object.freeze({ state: "absent" as const }),
         expectedParent: Object.freeze({
           ancestry: "real-directories" as const,
           path: documentRepositoryParentPath(request.destination),
-          state: "directory" as const
+          state: "directory" as const,
         }),
-        parentMaterialization
+        parentMaterialization,
       });
     }
     const { parent, root } = await observeRealParent(request);
@@ -188,7 +189,7 @@ implements DocumentPlanningStateReader {
       if (await hasPortableNameCollision(parent, basename)) {
         destination = Object.freeze({
           kind: "portable-name-collision",
-          state: "conflict"
+          state: "conflict",
         });
       } else {
         const candidate = join(parent, basename);
@@ -203,13 +204,13 @@ implements DocumentPlanningStateReader {
         } else if (metadata.isSymbolicLink() || !metadata.isFile()) {
           destination = Object.freeze({
             kind: metadata.isDirectory() ? "directory" : "special-file",
-            state: "conflict"
+            state: "conflict",
           });
         } else {
           destination = await observeRegularDestination(this.readFile, {
             candidate,
             destination: request.destination,
-            root
+            root,
           });
         }
       }
@@ -219,7 +220,7 @@ implements DocumentPlanningStateReader {
       }
       observationUnavailable(
         `Document destination cannot be observed safely: ${request.destination}.`,
-        error
+        error,
       );
     }
     assertDocumentAuthoringActive(request.signal);
@@ -228,9 +229,9 @@ implements DocumentPlanningStateReader {
       expectedParent: Object.freeze({
         ancestry: "real-directories",
         path: documentRepositoryParentPath(request.destination),
-        state: "directory"
+        state: "directory",
       }),
-      ...(parentMaterialization === undefined ? {} : { parentMaterialization })
+      ...(parentMaterialization === undefined ? {} : { parentMaterialization }),
     });
   }
 }

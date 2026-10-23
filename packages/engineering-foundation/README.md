@@ -25,12 +25,11 @@ diagnostics without hiding valid neighboring documents. Document authoring is
 not a Foundation capability and never runs as part of `check`.
 
 ```ts
-import { buildDocumentationCatalog } from
-  "@agent-teams/document-authoring";
+import { buildDocumentationCatalog } from "@agent-teams/document-authoring";
 
 const catalog = await buildDocumentationCatalog({
   consumerRoot: process.cwd(),
-  profilePath: "document-authoring.yaml"
+  profilePath: "document-authoring.yaml",
 });
 ```
 
@@ -208,11 +207,10 @@ the main scaffolding entrypoint; no parallel Plan or Receipt model is introduced
 Do not import it from production runtime code.
 
 ```ts
-import { runScaffoldCrashQualification } from
-  "@agent-teams/engineering-foundation/scaffolding/qualification";
+import { runScaffoldCrashQualification } from "@agent-teams/engineering-foundation/scaffolding/qualification";
 
 // In a disposable fixture's writer child process, using a publicly planned Plan:
-await runScaffoldCrashQualification(consumerRoot, plan, async point => {
+await runScaffoldCrashQualification(consumerRoot, plan, async (point) => {
   if (point.phase === "after-hard-link") process.exit(73);
 });
 ```

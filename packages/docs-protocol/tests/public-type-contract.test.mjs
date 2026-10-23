@@ -1,3 +1,4 @@
+import { compiler, wireUnion } from "./support/public-type-probe.ts";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { tmpdir } from "node:os";
@@ -7,20 +8,34 @@ import { fileURLToPath } from "node:url";
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import test from "node:test";
 
-const compiler = fileURLToPath(new URL("../../../node_modules/typescript/bin/tsc", import.meta.url));
-const compilerManifest = JSON.parse(await readFile(new URL("../../../node_modules/typescript/package.json", import.meta.url), "utf8"));
-assert.equal(compilerManifest.version, "7.0.2", "Public type probes require the pinned TypeScript compiler.");
-
 test("portable declarations retain generic result contracts without managed root aliases", async () => {
   const [api, application, root, qualification, qualificationRuntime] = await Promise.all([
-    readFile(new URL("../dist/features/docs-command/adapters/inbound/node-docs-api.d.ts", import.meta.url), "utf8"),
-    readFile(new URL("../dist/features/portable-documentation/application/docs-protocol.d.ts", import.meta.url), "utf8"),
+    readFile(
+      new URL("../dist/features/docs-command/adapters/inbound/node-docs-api.d.ts", import.meta.url),
+      "utf8",
+    ),
+    readFile(
+      new URL(
+        "../dist/features/portable-documentation/application/docs-protocol.d.ts",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
     readFile(new URL("../dist/index.d.ts", import.meta.url), "utf8"),
     readFile(new URL("../dist/qualification/index.d.ts", import.meta.url), "utf8"),
-    readFile(new URL("../dist/features/qualification/application/runtime.d.ts", import.meta.url), "utf8")
+    readFile(
+      new URL("../dist/features/qualification/application/runtime.d.ts", import.meta.url),
+      "utf8",
+    ),
   ]);
-  assert.match(api, /docsNewV2: \(input: DocsNewRequest\) => Promise<DocsExecutionV2<DocsNewResultV2>>/u);
-  assert.match(application, /newDocumentV2\(request: DocsNewRequest\): Promise<DocsOperationResult<DocsNewResultV2, "docs.new">>/u);
+  assert.match(
+    api,
+    /docsNewV2: \(input: DocsNewRequest\) => Promise<DocsExecutionV2<DocsNewResultV2>>/u,
+  );
+  assert.match(
+    application,
+    /newDocumentV2\(request: DocsNewRequest\): Promise<DocsOperationResult<DocsNewResultV2, "docs.new">>/u,
+  );
   assert.match(root, /\bDocsNewResult\b/u);
   assert.match(root, /\bDocsNewRequest\b/u);
   assert.match(root, /DocsNewResultV2/u);
@@ -29,18 +44,28 @@ test("portable declarations retain generic result contracts without managed root
   for (const method of ["checkV2", "doctorV2", "findV2", "infoV2", "newDocumentV2", "recoverV2"]) {
     assert.match(qualificationRuntime, new RegExp(`readonly ${method}: \\(input:`, "u"));
   }
-  assert.doesNotMatch(qualificationRuntime, /Pick<DocsProtocol|typeof docs(?:Check|Doctor|Find|Info|New|Recover)V2/u);
+  assert.doesNotMatch(
+    qualificationRuntime,
+    /Pick<DocsProtocol|typeof docs(?:Check|Doctor|Find|Info|New|Recover)V2/u,
+  );
   for (const source of [root, qualification]) {
-    assert.doesNotMatch(source, /consumerIntegration|CANONICAL_DOCS_SKILL|QualifiedDocsCohort|runDocsProtocolQualificationV2/u);
+    assert.doesNotMatch(
+      source,
+      /consumerIntegration|CANONICAL_DOCS_SKILL|QualifiedDocsCohort|runDocsProtocolQualificationV2/u,
+    );
   }
 });
-
 
 test("public request remains source-compatible and preview errors require result narrowing", async () => {
   const root = await mkdtemp(join(tmpdir(), "docs-public-types-"));
   try {
-    const apiPath = fileURLToPath(new URL("../dist/index.js", import.meta.url)).replaceAll("\\", "/");
-    await writeFile(join(root, "contract.mts"), `
+    const apiPath = fileURLToPath(new URL("../dist/index.js", import.meta.url)).replaceAll(
+      "\\",
+      "/",
+    );
+    await writeFile(
+      join(root, "contract.mts"),
+      `
 import { docsNewV2, validatePortableRepositoryPath, validatePortableRepositoryPathV2 } from ${JSON.stringify(apiPath)};
 import type { DocsJsonValueV2, DocsNewRequest, DocsProtocolProfileV3, DocsProtocolProfileV4, DocsReceiptOutcome } from ${JSON.stringify(apiPath)};
 import type { DocumentJsonValue } from ${JSON.stringify(apiPath.replace(/index\.js$/u, "qualification/index.js"))};
@@ -74,23 +99,41 @@ if (execution.envelope.result.writeState === "preview") {
   void content;
 }
 void [historicalIdentity, successor, validatePortableRepositoryPath("CON.yaml"), validatePortableRepositoryPathV2("docs.yaml")];
-`);
-    const output = await promisify(execFile)(process.execPath, [compiler, "--ignoreConfig", "--noEmit", "--strict", "--skipLibCheck", "--module", "nodenext", "--target", "es2024", join(root, "contract.mts")], { cwd: root });
+`,
+    );
+    const output = await promisify(execFile)(
+      process.execPath,
+      [
+        compiler,
+        "--ignoreConfig",
+        "--noEmit",
+        "--strict",
+        "--skipLibCheck",
+        "--module",
+        "nodenext",
+        "--target",
+        "es2024",
+        join(root, "contract.mts"),
+      ],
+      { cwd: root },
+    );
     assert.equal(output.stdout, "");
     assert.equal(output.stderr, "");
-  } finally {await rm(root, { recursive: true, force: true });}
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
-
-function wireUnion(values) {
-  return values.map((value) => JSON.stringify(value)).join(" | ");
-}
 
 test("public diagnostics retain named-interface and declaration-merging semantics", async () => {
   const root = await mkdtemp(join(tmpdir(), "docs-diagnostic-types-"));
   try {
     const scope = join(root, "node_modules", "@agent-teams");
     await mkdir(scope, { recursive: true });
-    await symlink(fileURLToPath(new URL("../", import.meta.url)), join(scope, "docs-protocol"), "junction");
+    await symlink(
+      fileURLToPath(new URL("../", import.meta.url)),
+      join(scope, "docs-protocol"),
+      "junction",
+    );
     const fixtures = {
       "conditional-record": `
 import type { DocsCommandEnvelopeV2, DocsCommandEnvelopeV3, DocsDiagnostic } from "@agent-teams/docs-protocol";
@@ -101,12 +144,23 @@ const v3: Classification<DocsCommandEnvelopeV3["diagnostics"][number]> = "diagno
 declare const diagnostic: DocsDiagnostic;
 declare const envelopeV2: DocsCommandEnvelopeV2;
 declare const envelopeV3: DocsCommandEnvelopeV3;
-${["diagnostic", "envelopeV2.diagnostics[0]!", "envelopeV3.diagnostics[0]!"].map((value, index) => `// @ts-expect-error named diagnostics have no implicit dictionary index signature
-const record${index}: Record<string, unknown> = ${value};`).join("\n")}
+${["diagnostic", "envelopeV2.diagnostics[0]!", "envelopeV3.diagnostics[0]!"]
+  .map(
+    (
+      value,
+      index,
+    ) => `// @ts-expect-error named diagnostics have no implicit dictionary index signature
+const record${index}: Record<string, unknown> = ${value};`,
+  )
+  .join("\n")}
 // @ts-expect-error arbitrary properties remain unavailable
 diagnostic["arbitrary"];
-${["message", "phase", "ruleId", "severity", "subject"].map((field) => `// @ts-expect-error standalone diagnostic ${field} remains readonly
-diagnostic.${field} = diagnostic.${field};`).join("\n")}
+${["message", "phase", "ruleId", "severity", "subject"]
+  .map(
+    (field) => `// @ts-expect-error standalone diagnostic ${field} remains readonly
+diagnostic.${field} = diagnostic.${field};`,
+  )
+  .join("\n")}
 void [standalone, v2, v3];
 `,
       "declaration-merging": `
@@ -118,35 +172,80 @@ declare module "@agent-teams/docs-protocol" {
 }
 declare const standalone: DocsDiagnostic;
 const tag: "diagnostic" = standalone.fixtureTag;
-${["DocsCommandEnvelopeV2", "DocsCommandEnvelopeV3",
-        ...["docsCheckV2", "docsContextV1", "docsDoctorV2", "docsFindV2", "docsFindV3", "docsInfoV2", "docsNewV2", "docsRecoverV2"].map((name) => `Awaited<ReturnType<typeof ${name}>>["envelope"]`)
-      ].map((envelope, index) => `declare const diagnostic${index}: ${envelope}["diagnostics"][number];
+${[
+  "DocsCommandEnvelopeV2",
+  "DocsCommandEnvelopeV3",
+  ...[
+    "docsCheckV2",
+    "docsContextV1",
+    "docsDoctorV2",
+    "docsFindV2",
+    "docsFindV3",
+    "docsInfoV2",
+    "docsNewV2",
+    "docsRecoverV2",
+  ].map((name) => `Awaited<ReturnType<typeof ${name}>>["envelope"]`),
+]
+  .map(
+    (envelope, index) => `declare const diagnostic${index}: ${envelope}["diagnostics"][number];
 const tag${index}: "diagnostic" = diagnostic${index}.fixtureTag;
-const same${index}: DocsDiagnostic = diagnostic${index};`).join("\n")}
+const same${index}: DocsDiagnostic = diagnostic${index};`,
+  )
+  .join("\n")}
 // @ts-expect-error merged fields retain their declared readonly modifier
 standalone.fixtureTag = "diagnostic";
-`
+`,
     };
     for (const [name, source] of Object.entries(fixtures)) {
       const fixturePath = join(root, `${name}.mts`);
       await writeFile(fixturePath, source);
       // Compile separately so augmentation cannot influence the Record probe.
-      const output = await promisify(execFile)(process.execPath, [compiler, "--ignoreConfig", "--noEmit", "--strict", "--exactOptionalPropertyTypes", "--skipLibCheck", "--module", "nodenext", "--target", "es2024", fixturePath], { cwd: root });
+      const output = await promisify(execFile)(
+        process.execPath,
+        [
+          compiler,
+          "--ignoreConfig",
+          "--noEmit",
+          "--strict",
+          "--exactOptionalPropertyTypes",
+          "--skipLibCheck",
+          "--module",
+          "nodenext",
+          "--target",
+          "es2024",
+          fixturePath,
+        ],
+        { cwd: root },
+      );
       assert.equal(output.stdout, "");
       assert.equal(output.stderr, "");
     }
-  } finally {await rm(root, { recursive: true, force: true });}
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test("outer envelopes preserve old generic contracts and match the published wire vocabulary", async () => {
   const root = await mkdtemp(join(tmpdir(), "docs-envelope-types-"));
   try {
-    const apiPath = fileURLToPath(new URL("../dist/index.js", import.meta.url)).replaceAll("\\", "/");
-    const cases = await Promise.all([2, 3].map(async (version) => {
-      const schema = JSON.parse(await readFile(new URL(`../schemas/docs-protocol-portable-command-envelope/v${version}.schema.json`, import.meta.url), "utf8"));
-      // Reproduce the pre-correction declarations using the unchanged public
-      // operation vocabulary, independently of the new outer DTO definitions.
-      return `
+    const apiPath = fileURLToPath(new URL("../dist/index.js", import.meta.url)).replaceAll(
+      "\\",
+      "/",
+    );
+    const cases = await Promise.all(
+      [2, 3].map(async (version) => {
+        const schema = JSON.parse(
+          await readFile(
+            new URL(
+              `../schemas/docs-protocol-portable-command-envelope/v${version}.schema.json`,
+              import.meta.url,
+            ),
+            "utf8",
+          ),
+        );
+        // Reproduce the pre-correction declarations using the unchanged public
+        // operation vocabulary, independently of the new outer DTO definitions.
+        return `
 interface OldEnvelopeV${version}<Result = unknown> {
   readonly schemaVersion: ${version};
   readonly protocol: { readonly id: typeof DOCS_PROTOCOL_ID; readonly version: typeof DOCS_PROTOCOL_VERSION };
@@ -194,14 +293,24 @@ type MissingResultV${version} = DocsExecutionV${version};
 // @ts-expect-error an unknown default result requires narrowing
 const defaultResultV${version}: { count: number } = ({} as DocsCommandEnvelopeV${version}).result;
 ${[
-        ["schemaVersion", version === 2 ? "3" : "2"],
-        ["protocol", '{ id: "wrong-protocol", version: 1 }'],
-        ["protocol", '{ id: "agent-teams.docs-protocol", version: 2 }'],
-        ["command", '"docs.unknown"'],
-        ["outcome", '"unknown"'],
-        ["result", '{ count: "wrong" }'],
-        ...(version === 2 ? [["command", '"docs.context"'], ["command", '"docs.init"']] : []),
-      ].map(([field, value], index) => `// @ts-expect-error invalid ${field} is rejected\nconst invalidV${version}_${index}: EnvelopeV${version} = { ...envelopeV${version}, ${field}: ${value} };`).join("\n")}
+  ["schemaVersion", version === 2 ? "3" : "2"],
+  ["protocol", '{ id: "wrong-protocol", version: 1 }'],
+  ["protocol", '{ id: "agent-teams.docs-protocol", version: 2 }'],
+  ["command", '"docs.unknown"'],
+  ["outcome", '"unknown"'],
+  ["result", '{ count: "wrong" }'],
+  ...(version === 2
+    ? [
+        ["command", '"docs.context"'],
+        ["command", '"docs.init"'],
+      ]
+    : []),
+]
+  .map(
+    ([field, value], index) =>
+      `// @ts-expect-error invalid ${field} is rejected\nconst invalidV${version}_${index}: EnvelopeV${version} = { ...envelopeV${version}, ${field}: ${value} };`,
+  )
+  .join("\n")}
 // @ts-expect-error unknown diagnostic phases are rejected
 const phaseV${version}: EnvelopeV${version}["diagnostics"][number] = { ...diagnosticV${version}, phase: "transport" };
 // @ts-expect-error unknown diagnostic severities are rejected
@@ -216,27 +325,55 @@ if (unionV${version}.result.kind === "found") {
   unionV${version}.result.value;
 }
 `;
-    }));
-    await writeFile(join(root, "contract.mts"), `
+      }),
+    );
+    await writeFile(
+      join(root, "contract.mts"),
+      `
 import { DOCS_PROTOCOL_ID, DOCS_PROTOCOL_VERSION } from ${JSON.stringify(apiPath)};
 import type { DocsCommandEnvelopeV2, DocsCommandEnvelopeV3, DocsExecutionV2, DocsExecutionV3, DocsCommandV2, DocsCommandV3, DocsCommandOutcome, DocsDiagnostic } from ${JSON.stringify(apiPath)};
 type Assert<Value extends true> = Value;
 type Equal<Left, Right> = (<Value>() => Value extends Left ? 1 : 2) extends (<Value>() => Value extends Right ? 1 : 2) ? true : false;
 ${cases.join("\n")}
-`);
-    const output = await promisify(execFile)(process.execPath, [compiler, "--ignoreConfig", "--noEmit", "--strict", "--exactOptionalPropertyTypes", "--skipLibCheck", "--module", "nodenext", "--target", "es2024", join(root, "contract.mts")], { cwd: root });
+`,
+    );
+    const output = await promisify(execFile)(
+      process.execPath,
+      [
+        compiler,
+        "--ignoreConfig",
+        "--noEmit",
+        "--strict",
+        "--exactOptionalPropertyTypes",
+        "--skipLibCheck",
+        "--module",
+        "nodenext",
+        "--target",
+        "es2024",
+        join(root, "contract.mts"),
+      ],
+      { cwd: root },
+    );
     assert.equal(output.stdout, "");
     assert.equal(output.stderr, "");
-  } finally {await rm(root, { recursive: true, force: true });}
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
-
 
 test("bounded release callers distinguish honest results from structural spellings", async () => {
   const root = await mkdtemp(join(tmpdir(), "docs-release-callers-"));
   try {
-    const apiPath = fileURLToPath(new URL("../dist/index.js", import.meta.url)).replaceAll("\\", "/");
-    const authoringPath = fileURLToPath(new URL("../../document-authoring/dist/index.js", import.meta.url)).replaceAll("\\", "/");
-    await writeFile(join(root, "contract.mts"), `
+    const apiPath = fileURLToPath(new URL("../dist/index.js", import.meta.url)).replaceAll(
+      "\\",
+      "/",
+    );
+    const authoringPath = fileURLToPath(
+      new URL("../../document-authoring/dist/index.js", import.meta.url),
+    ).replaceAll("\\", "/");
+    await writeFile(
+      join(root, "contract.mts"),
+      `
 import type { DocsNewResultV2, DocsNewRequest, DocsExecutionV2, DocsFindDocument, DocsReceiptOutcome } from ${JSON.stringify(apiPath)};
 import type { docsRecoverV2 } from ${JSON.stringify(apiPath)};
 import type { PortableQualificationProtocol, interruptAndRecover } from ${JSON.stringify(apiPath.replace(/index\.js$/u, "qualification/index.js"))};
@@ -294,12 +431,31 @@ declare const document: DocsFindDocument;
 const descriptor: DocumentDescriptor = document;
 void [oldCaller, acceptsOldResult, currentCaller, oldQualificationCaller, qualificationCaller, qualificationProducer,
  oldIntent, newIntent, oldMetadata, newMetadata, oldOutcome, newOutcome, newRecovery, result, oldRecoveryCaller, descriptor];
-`);
-    const output = await promisify(execFile)(process.execPath, [compiler, "--ignoreConfig", "--noEmit", "--strict", "--exactOptionalPropertyTypes", "--skipLibCheck", "--module", "nodenext", "--target", "es2024", join(root, "contract.mts")], { cwd: root });
+`,
+    );
+    const output = await promisify(execFile)(
+      process.execPath,
+      [
+        compiler,
+        "--ignoreConfig",
+        "--noEmit",
+        "--strict",
+        "--exactOptionalPropertyTypes",
+        "--skipLibCheck",
+        "--module",
+        "nodenext",
+        "--target",
+        "es2024",
+        join(root, "contract.mts"),
+      ],
+      { cwd: root },
+    );
     assert.equal(output.stdout, "");
     assert.equal(output.stderr, "");
     // An upstream interface augmentation was inherited before DTO separation.
-    await writeFile(join(root, "augmentation.mts"), `
+    await writeFile(
+      join(root, "augmentation.mts"),
+      `
 import type { DocsFindDocument, DocsNewRequest } from ${JSON.stringify(apiPath)};
 import type { DocumentDescriptor, DocumentIntent, DocumentMetadataObject } from ${JSON.stringify(authoringPath)};
 declare module ${JSON.stringify(authoringPath)} {
@@ -323,9 +479,27 @@ const beforeMetadataCaller: "retained" = beforeMetadata.releaseMetadataTag;
 // @ts-expect-error the independent dictionary cannot promise the upstream augmented field
 const afterMetadataCaller: "retained" = after.metadata.releaseMetadataTag;
 void [beforeCaller, afterCaller, beforeIntent, afterIntent, beforeMetadataCaller, afterMetadataCaller];
-`);
-    const augmentation = await promisify(execFile)(process.execPath, [compiler, "--ignoreConfig", "--noEmit", "--strict", "--skipLibCheck", "--module", "nodenext", "--target", "es2024", join(root, "augmentation.mts")], { cwd: root });
+`,
+    );
+    const augmentation = await promisify(execFile)(
+      process.execPath,
+      [
+        compiler,
+        "--ignoreConfig",
+        "--noEmit",
+        "--strict",
+        "--skipLibCheck",
+        "--module",
+        "nodenext",
+        "--target",
+        "es2024",
+        join(root, "augmentation.mts"),
+      ],
+      { cwd: root },
+    );
     assert.equal(augmentation.stdout, "");
     assert.equal(augmentation.stderr, "");
-  } finally {await rm(root, { recursive: true, force: true });}
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });

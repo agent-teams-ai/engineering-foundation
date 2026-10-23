@@ -168,6 +168,7 @@
       "tests/repository-profile-git.test.ts",
       "tests/repository-profile-lint.test.ts",
       "tests/producer-source-dependencies.test.ts",
+      "tests/repository-lint-scope.test.ts",
       "packages/stack-toolchain/tests/cli.test.ts",
       "packages/stack-toolchain/tests/configuration.test.ts",
       "packages/stack-toolchain/tests/doctor.test.ts",
@@ -176,9 +177,7 @@
       "packages/stack-toolchain/tests/process.test.ts",
       "packages/stack-toolchain/tests/typecheck.test.ts"
     ],
-    "c": [
-      "tests/source-dependency-loader-cli.test.mjs"
-    ],
+    "c": ["tests/source-dependency-loader-cli.test.mjs"],
     "d": [
       "packages/repository-mutation/tests/known-file-mutation-boundaries.test.mjs",
       "tests/markdown-bundle-evidence.test.mjs",
@@ -225,6 +224,7 @@
       "tests/strict-json.test.mjs",
       "tests/capability.test.mjs",
       "packages/engineering-foundation/tests/public-api-audit-observer.test.ts",
+      "packages/engineering-foundation/tests/public-api-authority-codec.test.ts",
       "packages/engineering-foundation/tests/public-api-audit-alias.test.ts",
       "tests/source-dependency-graph.test.mjs",
       "packages/engineering-foundation/tests/docs-protocol-public-api.test.mjs",

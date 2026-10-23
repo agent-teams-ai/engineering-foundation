@@ -1,24 +1,37 @@
-import { appendFile, lstat, mkdir, readFile, realpath, rename, rm, symlink } from "node:fs/promises";
+import {
+  appendFile,
+  lstat,
+  mkdir,
+  readFile,
+  realpath,
+  rename,
+  rm,
+  symlink,
+} from "node:fs/promises";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import {
   localLinkTargetMismatch,
   registryBackupAlreadyExists,
   invalidInstalledEntry,
-  installedEntryChanged
+  installedEntryChanged,
 } from "../../application/inspection-failures.js";
 import { pathEntryExists, restoreRegistryEntry } from "./registry-recovery.js";
 import type { FoundationLinkState, ProcessRunner } from "../../application/model.js";
-import { FOUNDATION_PACKAGE_NAME, LOCAL_REGISTRY_BACKUP, LOCAL_STATE_DIRECTORY } from "../../application/model.js";
+import {
+  FOUNDATION_PACKAGE_NAME,
+  LOCAL_REGISTRY_BACKUP,
+  LOCAL_STATE_DIRECTORY,
+} from "../../application/model.js";
 import type { RegistryLinks } from "../../application/ports.js";
 
 async function ensureStateDirectoryIgnored(
   runner: ProcessRunner,
-  consumerRoot: string
+  consumerRoot: string,
 ): Promise<void> {
   const result = await runner.run({
     command: "git",
     args: ["-C", consumerRoot, "rev-parse", "--git-path", "info/exclude"],
-    cwd: consumerRoot
+    cwd: consumerRoot,
   });
   const candidate = result.stdout.trim();
   const excludePath = isAbsolute(candidate) ? candidate : resolve(consumerRoot, candidate);
@@ -34,13 +47,13 @@ async function ensureStateDirectoryIgnored(
 async function replaceRegistryEntryWithLink(
   state: FoundationLinkState,
   installedPackagePath: string,
-  syncDirectory: (path: string) => Promise<void>
+  syncDirectory: (path: string) => Promise<void>,
 ): Promise<void> {
   if (state.registryEntryKind === "symbolic-link") {
     await symlink(
       state.registryPackageRoot,
       state.registryBackupPath,
-      process.platform === "win32" ? "junction" : "dir"
+      process.platform === "win32" ? "junction" : "dir",
     );
     await syncDirectory(dirname(state.registryBackupPath));
     await rm(installedPackagePath, { force: true });
@@ -53,7 +66,7 @@ async function replaceRegistryEntryWithLink(
   await symlink(
     state.targetPackageRoot,
     installedPackagePath,
-    process.platform === "win32" ? "junction" : "dir"
+    process.platform === "win32" ? "junction" : "dir",
   );
   if ((await realpath(installedPackagePath)) !== state.targetPackageRoot) {
     throw localLinkTargetMismatch();
@@ -64,27 +77,38 @@ async function replaceRegistryEntryWithLink(
 async function prepareRegistryEntry(consumerRoot: string, registryPackageRoot: string) {
   const installedPath = join(consumerRoot, "node_modules", FOUNDATION_PACKAGE_NAME);
   const backupPath = join(consumerRoot, LOCAL_STATE_DIRECTORY, LOCAL_REGISTRY_BACKUP);
-    if (await pathEntryExists(backupPath)) {
-      throw registryBackupAlreadyExists();
-    }
-    const registryEntry = await lstat(installedPath);
-    if (!registryEntry.isDirectory() && !registryEntry.isSymbolicLink()) {
-      throw invalidInstalledEntry();
-    }
-    if ((await realpath(installedPath)) !== registryPackageRoot) {
-      throw installedEntryChanged();
-    }
+  if (await pathEntryExists(backupPath)) {
+    throw registryBackupAlreadyExists();
+  }
+  const registryEntry = await lstat(installedPath);
+  if (!registryEntry.isDirectory() && !registryEntry.isSymbolicLink()) {
+    throw invalidInstalledEntry();
+  }
+  if ((await realpath(installedPath)) !== registryPackageRoot) {
+    throw installedEntryChanged();
+  }
   return {
     registryBackupPath: backupPath,
-    registryEntryKind: registryEntry.isSymbolicLink() ? "symbolic-link" as const : "directory" as const
+    registryEntryKind: registryEntry.isSymbolicLink()
+      ? ("symbolic-link" as const)
+      : ("directory" as const),
   };
 }
 
-export function createNodeRegistryLinks(runner: ProcessRunner, syncDirectory: (path: string) => Promise<void>): RegistryLinks {
+export function createNodeRegistryLinks(
+  runner: ProcessRunner,
+  syncDirectory: (path: string) => Promise<void>,
+): RegistryLinks {
   return {
     prepare: prepareRegistryEntry,
     ignoreLocalState: (consumerRoot) => ensureStateDirectoryIgnored(runner, consumerRoot),
-    replace: (state) => replaceRegistryEntryWithLink(state, join(state.consumerRoot, "node_modules", FOUNDATION_PACKAGE_NAME), syncDirectory),
-    restore: (consumerRoot, dependencySpec, state) => restoreRegistryEntry(consumerRoot, dependencySpec, state, syncDirectory)
+    replace: (state) =>
+      replaceRegistryEntryWithLink(
+        state,
+        join(state.consumerRoot, "node_modules", FOUNDATION_PACKAGE_NAME),
+        syncDirectory,
+      ),
+    restore: (consumerRoot, dependencySpec, state) =>
+      restoreRegistryEntry(consumerRoot, dependencySpec, state, syncDirectory),
   };
 }

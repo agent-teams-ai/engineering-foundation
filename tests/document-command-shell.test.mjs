@@ -5,7 +5,10 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import { normalizeDocumentIds } from "../packages/docs-protocol/dist/features/portable-documentation/domain/document-semantics.js";
-import { Arguments, CliInputError } from "../packages/docs-protocol/dist/features/docs-command/adapters/inbound/cli-input.js";
+import {
+  Arguments,
+  CliInputError,
+} from "../packages/docs-protocol/dist/features/docs-command/adapters/inbound/cli-input.js";
 import {
   renderDocumentCommandJson,
   renderDocumentCommandText,
@@ -16,9 +19,7 @@ import { RunDocumentDoctor } from "../packages/document-authoring/dist/document-
 import { RunDocumentNew } from "../packages/document-authoring/dist/document-authoring/application/use-cases/run-document-new.js";
 import { RunDocumentRecover } from "../packages/document-authoring/dist/document-authoring/application/use-cases/run-document-recover.js";
 
-const cliPath = fileURLToPath(
-  new URL("../packages/docs-protocol/dist/cli.js", import.meta.url),
-);
+const cliPath = fileURLToPath(new URL("../packages/docs-protocol/dist/cli.js", import.meta.url));
 const fixturePath = fileURLToPath(
   new URL("fixtures/document-command-envelope-v2.json", import.meta.url),
 );
@@ -38,16 +39,26 @@ const doctorEnvironment = {
 
 test("parses the closed docs new surface and preserves repeatable relations", () => {
   const parsed = new Arguments([
-    "--type", "adr",
-    "--id", "ADR-0083",
-    "--title", "Deterministic docs",
-    "--owner", "architecture/tooling",
-    "--summary", "Defines deterministic authoring.",
-    "--slug", "deterministic-docs",
-    "--destination", "docs/decisions/0083-deterministic-docs.md",
-    "--profile", "architecture/foundation/document-authoring.yaml",
-    "--related", "ADR-0001",
-    "--related", "ADR-0053",
+    "--type",
+    "adr",
+    "--id",
+    "ADR-0083",
+    "--title",
+    "Deterministic docs",
+    "--owner",
+    "architecture/tooling",
+    "--summary",
+    "Defines deterministic authoring.",
+    "--slug",
+    "deterministic-docs",
+    "--destination",
+    "docs/decisions/0083-deterministic-docs.md",
+    "--profile",
+    "architecture/foundation/document-authoring.yaml",
+    "--related",
+    "ADR-0001",
+    "--related",
+    "ADR-0053",
     "--dry-run",
     "--json",
   ]);
@@ -55,7 +66,15 @@ test("parses the closed docs new surface and preserves repeatable relations", ()
   assert.deepEqual(parsed.many("--related"), ["ADR-0001", "ADR-0053"]);
   assert.equal(parsed.one("--destination"), "docs/decisions/0083-deterministic-docs.md");
   assert.equal(parsed.flag("--json"), true);
-  for (const option of ["--type", "--id", "--title", "--owner", "--summary", "--slug", "--profile"]) {
+  for (const option of [
+    "--type",
+    "--id",
+    "--title",
+    "--owner",
+    "--summary",
+    "--slug",
+    "--profile",
+  ]) {
     assert.ok(parsed.one(option));
   }
   assert.deepEqual(parsed.positionals(), []);
@@ -63,7 +82,8 @@ test("parses the closed docs new surface and preserves repeatable relations", ()
 
 test("keeps the repeatable related bound aligned with Docs Protocol semantics", () => {
   const atLimit = Array.from({ length: 256 }, (_value, index) => [
-    "--related", `ADR-${String(index).padStart(4, "0")}`,
+    "--related",
+    `ADR-${String(index).padStart(4, "0")}`,
   ]).flat();
   const related = new Arguments(atLimit).many("--related");
   assert.equal(normalizeDocumentIds(related, "related").length, 256);
@@ -79,9 +99,10 @@ test("rejects duplicate global scalar options", () => {
     ["--consumer", "/first", "--consumer", "/second"],
   ]) {
     assert.throws(
-      () => args[0] === "--json"
-        ? new Arguments(args).flag("--json")
-        : new Arguments(args).one("--consumer"),
+      () =>
+        args[0] === "--json"
+          ? new Arguments(args).flag("--json")
+          : new Arguments(args).one("--consumer"),
       (error) => error instanceof CliInputError && /may be supplied only once/u.test(error.message),
     );
   }
@@ -104,8 +125,16 @@ test("rejects mutation shortcuts, duplicate scalar options, missing values, and 
 
 test("keeps v1 find parsing compatible", () => {
   const parsed = new Arguments([
-    "tenant", "--id", "ADR-0001", "--status", "accepted",
-    "--owner", "architecture", "--type", "adr", "--json",
+    "tenant",
+    "--id",
+    "ADR-0001",
+    "--status",
+    "accepted",
+    "--owner",
+    "architecture",
+    "--type",
+    "adr",
+    "--json",
   ]);
   assert.equal(parsed.one("--id"), "ADR-0001");
   assert.equal(parsed.one("--status"), "accepted");
@@ -126,46 +155,88 @@ test("accepts every v2 command fixture and rejects cross-command results", async
   }
   const confused = structuredClone(fixtures.preview);
   confused.command = "docs.doctor";
-  await assert.rejects(
-    assertSchema("document-command-envelope/v2", confused, "confused-command"),
-  );
+  await assert.rejects(assertSchema("document-command-envelope/v2", confused, "confused-command"));
 });
 
 test("validates representative real application envelopes against v2", async () => {
   const digest = `sha256:${"a".repeat(64)}`;
   const plan = {
-    destination: "docs/decisions/0083-test.md", planDigest: digest,
+    destination: "docs/decisions/0083-test.md",
+    planDigest: digest,
     intent: { title: "Test document" },
     authority: { profile: { path: "profile.yaml" } },
   };
   const newCommand = new RunDocumentNew({
-    async inspect() { return { schemaVersion: 1, state: "idle", diagnostics: [] }; },
-    async plan() { return plan; },
-    async apply() { return assert.fail("dry-run must not apply"); },
-    similar: { async advise() { return { matches: [], query: "test" }; } },
-    reachability: { async project() { return { state: "not-required" }; } },
-    structure: { async verify() { return { valid: true, diagnostics: [] }; } },
+    async inspect() {
+      return { schemaVersion: 1, state: "idle", diagnostics: [] };
+    },
+    async plan() {
+      return plan;
+    },
+    async apply() {
+      return assert.fail("dry-run must not apply");
+    },
+    similar: {
+      async advise() {
+        return { matches: [], query: "test" };
+      },
+    },
+    reachability: {
+      async project() {
+        return { state: "not-required" };
+      },
+    },
+    structure: {
+      async verify() {
+        return { valid: true, diagnostics: [] };
+      },
+    },
   });
   const preview = await newCommand.execute({
-    consumerRoot: "/fixture", profilePath: "profile.yaml", intent: {}, dryRun: true,
+    consumerRoot: "/fixture",
+    profilePath: "profile.yaml",
+    intent: {},
+    dryRun: true,
   });
   const controller = new AbortController();
   controller.abort();
   const cancelled = await newCommand.execute({
-    consumerRoot: "/fixture", profilePath: "profile.yaml", intent: {}, dryRun: false,
+    consumerRoot: "/fixture",
+    profilePath: "profile.yaml",
+    intent: {},
+    dryRun: false,
     signal: controller.signal,
   });
   const committedViolation = await new RunDocumentNew({
-    async inspect() { return { schemaVersion: 1, state: "idle", diagnostics: [] }; },
-    async plan() { return plan; },
+    async inspect() {
+      return { schemaVersion: 1, state: "idle", diagnostics: [] };
+    },
+    async plan() {
+      return plan;
+    },
     async apply() {
       return { outcome: "applied", receiptDigest: digest, diagnostics: [] };
     },
-    similar: { async advise() { return { matches: [], query: "test" }; } },
-    reachability: { async project() { return { state: "not-required" }; } },
-    structure: { async verify() { throw new Error("verification failed"); } },
+    similar: {
+      async advise() {
+        return { matches: [], query: "test" };
+      },
+    },
+    reachability: {
+      async project() {
+        return { state: "not-required" };
+      },
+    },
+    structure: {
+      async verify() {
+        throw new Error("verification failed");
+      },
+    },
   }).execute({
-    consumerRoot: "/fixture", profilePath: "profile.yaml", intent: {}, dryRun: false,
+    consumerRoot: "/fixture",
+    profilePath: "profile.yaml",
+    intent: {},
+    dryRun: false,
   });
   const doctor = await new RunDocumentDoctor({
     environment: doctorEnvironment,
@@ -180,8 +251,12 @@ test("validates representative real application envelopes against v2", async () 
     },
   }).execute({ consumerRoot: "/fixture" });
   const recover = await new RunDocumentRecover({
-    async inspect() { return { schemaVersion: 1, state: "idle", diagnostics: [] }; },
-    async recover() { return assert.fail("idle recovery must not run"); },
+    async inspect() {
+      return { schemaVersion: 1, state: "idle", diagnostics: [] };
+    },
+    async recover() {
+      return assert.fail("idle recovery must not run");
+    },
   }).execute({ consumerRoot: "/fixture" });
   const recoveryRequired = await new RunDocumentRecover({
     async inspect() {
@@ -204,13 +279,15 @@ test("validates representative real application envelopes against v2", async () 
       return {
         outcome: "recovery-required",
         receiptDigest: digest,
-        diagnostics: [{
-          ruleId: "document.recovery.pending",
-          severity: "error",
-          phase: "recovery",
-          subject: "document.transaction",
-          message: "Recovery remains pending.",
-        }],
+        diagnostics: [
+          {
+            ruleId: "document.recovery.pending",
+            severity: "error",
+            phase: "recovery",
+            subject: "document.transaction",
+            message: "Recovery remains pending.",
+          },
+        ],
         commit: { publication: "unknown" },
       };
     },
@@ -223,17 +300,10 @@ test("validates representative real application envelopes against v2", async () 
     recover,
     recoveryRequired,
   ]) {
-    await assertSchema(
-      "document-command-envelope/v2",
-      execution.envelope,
-      "real-document-command",
-    );
+    await assertSchema("document-command-envelope/v2", execution.envelope, "real-document-command");
   }
   assert.equal(committedViolation.envelope.result.reachability.state, "not-required");
-  assert.equal(
-    recoveryRequired.envelope.diagnostics[0].remediation.commandId,
-    "docs.doctor",
-  );
+  assert.equal(recoveryRequired.envelope.diagnostics[0].remediation.commandId, "docs.doctor");
 });
 
 test("pure renderers emit one JSON object and a human recovery command", () => {
@@ -250,29 +320,25 @@ test("human renderer preserves exact Document Authoring recovery coordinates", (
     exactFoundationBuildIdentity: `sha256:${"a".repeat(64)}`,
   };
   const human = renderDocumentCommandText({ envelope: doctor, exitCode: 1 });
-  assert.match(
-    human,
-    /Run: agent-teams-docs recover/u,
-  );
+  assert.match(human, /Run: agent-teams-docs recover/u);
   assert.match(human, /Required build: sha256:a{64}/u);
 });
 
 test("JSON parse failures use one object and no stderr", async () => {
-  const invalid = spawnSync(process.execPath, [
-    cliPath, "new", "--force", "--json",
-  ], { encoding: "utf8" });
+  const invalid = spawnSync(process.execPath, [cliPath, "new", "--force", "--json"], {
+    encoding: "utf8",
+  });
   assert.equal(invalid.status, 2, invalid.stderr);
   assert.equal(invalid.stderr, "");
   const invalidEnvelope = JSON.parse(invalid.stdout);
   assert.equal(`${JSON.stringify(invalidEnvelope)}\n`, invalid.stdout);
   await assertDocsCommandEnvelopeSchema(invalidEnvelope);
-
 });
 
 test("doctor JSON parse failures remain valid without runtime environment evidence", async () => {
-  const invalid = spawnSync(process.execPath, [
-    cliPath, "doctor", "--bogus", "--json",
-  ], { encoding: "utf8" });
+  const invalid = spawnSync(process.execPath, [cliPath, "doctor", "--bogus", "--json"], {
+    encoding: "utf8",
+  });
   assert.equal(invalid.status, 2, invalid.stderr);
   assert.equal(invalid.stderr, "");
   const invalidEnvelope = JSON.parse(invalid.stdout);
@@ -283,9 +349,9 @@ test("doctor JSON parse failures remain valid without runtime environment eviden
 });
 
 test("doctor JSON preserves machine output when consumer value is missing", async () => {
-  const invalid = spawnSync(process.execPath, [
-    cliPath, "doctor", "--consumer", "--json",
-  ], { encoding: "utf8" });
+  const invalid = spawnSync(process.execPath, [cliPath, "doctor", "--consumer", "--json"], {
+    encoding: "utf8",
+  });
   assert.equal(invalid.status, 2, invalid.stderr);
   assert.equal(invalid.stderr, "");
   const invalidEnvelope = JSON.parse(invalid.stdout);

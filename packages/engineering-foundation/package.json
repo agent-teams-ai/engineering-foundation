@@ -2,47 +2,19 @@
   "name": "@agent-teams/engineering-foundation",
   "version": "2.1.2",
   "description": "Versioned engineering policy, tooling, and conformance for Agent Teams repositories.",
+  "homepage": "https://github.com/agent-teams-ai/engineering-foundation#readme",
+  "bugs": {
+    "url": "https://github.com/agent-teams-ai/engineering-foundation/issues"
+  },
   "license": "Apache-2.0",
-  "type": "module",
-  "sideEffects": false,
-  "scripts": {
-    "build": "tsc --build tsconfig.json --pretty false"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agent-teams-ai/engineering-foundation.git",
+    "directory": "packages/engineering-foundation"
   },
   "bin": {
     "agent-teams-foundation": "./dist/cli.js",
     "agent-teams-node-test": "./dist/node-test-cli.js"
-  },
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    },
-    "./local-mode": {
-      "types": "./dist/local-mode/index.d.ts",
-      "import": "./dist/local-mode/index.js"
-    },
-    "./scaffolding/qualification": {
-      "types": "./dist/scaffolding/qualification.d.ts",
-      "import": "./dist/scaffolding/qualification.js"
-    },
-    "./scaffolding": {
-      "types": "./dist/scaffolding/index.d.ts",
-      "import": "./dist/scaffolding/index.js"
-    },
-    "./ratchet": {
-      "types": "./dist/ratchet.d.ts",
-      "import": "./dist/ratchet.js"
-    },
-    "./source-graph": {
-      "types": "./dist/source-graph.d.ts",
-      "import": "./dist/source-graph.js"
-    },
-    "./sdk-growth-authority": {
-      "types": "./dist/sdk-growth-authority.d.ts",
-      "import": "./dist/sdk-growth-authority.js"
-    },
-    "./schemas/*": "./schemas/*",
-    "./package.json": "./package.json"
   },
   "files": [
     "dist",
@@ -97,30 +69,47 @@
     "LICENSE",
     "README.md"
   ],
-  "engines": {
-    "node": "^24.18.0 || ^26.0.0",
-    "pnpm": ">=11.17.0 <12"
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./local-mode": {
+      "types": "./dist/local-mode/index.d.ts",
+      "import": "./dist/local-mode/index.js"
+    },
+    "./scaffolding/qualification": {
+      "types": "./dist/scaffolding/qualification.d.ts",
+      "import": "./dist/scaffolding/qualification.js"
+    },
+    "./scaffolding": {
+      "types": "./dist/scaffolding/index.d.ts",
+      "import": "./dist/scaffolding/index.js"
+    },
+    "./ratchet": {
+      "types": "./dist/ratchet.d.ts",
+      "import": "./dist/ratchet.js"
+    },
+    "./source-graph": {
+      "types": "./dist/source-graph.d.ts",
+      "import": "./dist/source-graph.js"
+    },
+    "./sdk-growth-authority": {
+      "types": "./dist/sdk-growth-authority.d.ts",
+      "import": "./dist/sdk-growth-authority.js"
+    },
+    "./schemas/*": "./schemas/*",
+    "./package.json": "./package.json"
   },
   "publishConfig": {
     "access": "public",
     "provenance": true,
     "registry": "https://registry.npmjs.org/"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/agent-teams-ai/engineering-foundation.git",
-    "directory": "packages/engineering-foundation"
-  },
-  "homepage": "https://github.com/agent-teams-ai/engineering-foundation#readme",
-  "bugs": {
-    "url": "https://github.com/agent-teams-ai/engineering-foundation/issues"
-  },
-  "agentTeamsFoundation": {
-    "metadataSchemaVersion": 1,
-    "localModeProtocolVersion": 1,
-    "compatibleLocalModeProtocolVersions": [
-      1
-    ]
+  "scripts": {
+    "build": "tsc --build tsconfig.json --pretty false"
   },
   "dependencies": {
     "@agent-teams/document-authoring": "workspace:*",
@@ -139,5 +128,16 @@
   "devDependencies": {
     "@types/node": "catalog:",
     "@types/proper-lockfile": "catalog:"
+  },
+  "engines": {
+    "node": "^24.18.0 || ^26.0.0",
+    "pnpm": ">=11.17.0 <12"
+  },
+  "agentTeamsFoundation": {
+    "metadataSchemaVersion": 1,
+    "localModeProtocolVersion": 1,
+    "compatibleLocalModeProtocolVersions": [
+      1
+    ]
   }
 }

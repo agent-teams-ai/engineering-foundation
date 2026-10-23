@@ -5,7 +5,7 @@ import {
   createNodeProcessAdapter,
   type NodeAcquireHook,
   type NodeCleanupHook,
-  type NodeRetain
+  type NodeRetain,
 } from "node-or-bun/node";
 import {
   createProcessExecutor,
@@ -14,7 +14,7 @@ import {
   type CompletionCause,
   type ProcessAdapter,
   ProcessRuntimeError,
-  type Request as ProcessRuntimeRequest
+  type Request as ProcessRuntimeRequest,
 } from "node-or-bun";
 
 import {
@@ -24,29 +24,27 @@ import {
   processCancelled,
   processTimedOut,
   prepareProcessRequest,
-  isProcessFailure
+  isProcessFailure,
 } from "./application/process-failure-policy.js";
 import {
   managedProcessCleanupFailure,
   requestWindowsManagedProcessTermination,
   spawnWindowsManagedProcess,
   waitForWindowsManagedProcessLaunch,
-  waitForWindowsManagedProcessContainment
+  waitForWindowsManagedProcessContainment,
 } from "./windows-managed-process.js";
 import {
   createWrapperStderrDiagnostics,
   observeWrapperStderr,
-  type WrapperStderrDiagnostics
+  type WrapperStderrDiagnostics,
 } from "./windows-managed-process-diagnostics.js";
-import {
-  NODE_EXECUTABLE_ENVIRONMENT_VARIABLE
-} from "./node-runtime-verifier.js";
+import { NODE_EXECUTABLE_ENVIRONMENT_VARIABLE } from "./node-runtime-verifier.js";
 import type {
   ManagedProcessRequest,
   ManagedProcessResult,
   ProcessRequest,
   ProcessResult,
-  ProcessRunner
+  ProcessRunner,
 } from "./api.js";
 
 const TERMINATION_GRACE_MS = 1_000;
@@ -82,9 +80,7 @@ interface LaunchAbortBridge {
  * forwards cancellation immediately and the generic executor remains the sole
  * completion arbiter.
  */
-function createLaunchAbortBridge(
-  source: AbortSignal | undefined
-): LaunchAbortBridge {
+function createLaunchAbortBridge(source: AbortSignal | undefined): LaunchAbortBridge {
   const controller = new AbortController();
   if (source === undefined) {
     return Object.freeze({
@@ -97,7 +93,7 @@ function createLaunchAbortBridge(
       },
       dispose: () => {
         return;
-      }
+      },
     });
   }
   let state: "pending" | "failed" | "succeeded" = "pending";
@@ -124,20 +120,15 @@ function createLaunchAbortBridge(
     },
     dispose: () => {
       source.removeEventListener("abort", onAbort);
-    }
+    },
   });
 }
 
 function isMissingProcessGroupError(error: unknown): boolean {
-  return error instanceof Error &&
-    "code" in error &&
-    error.code === "ESRCH";
+  return error instanceof Error && "code" in error && error.code === "ESRCH";
 }
 
-function signalPosixProcessGroup(
-  processGroupId: number,
-  signal: NodeJS.Signals
-): void {
+function signalPosixProcessGroup(processGroupId: number, signal: NodeJS.Signals): void {
   try {
     process.kill(-processGroupId, signal);
   } catch (error) {
@@ -168,9 +159,7 @@ async function waitForPosixProcessGroupExit(pid: number): Promise<boolean> {
   return !isPosixProcessGroupRunning(pid);
 }
 
-export async function terminatePosixProcessGroup(
-  processGroupId: number
-): Promise<void> {
+export async function terminatePosixProcessGroup(processGroupId: number): Promise<void> {
   if (!Number.isSafeInteger(processGroupId) || processGroupId <= 0) {
     throw new TypeError("A POSIX process group ID must be a positive safe integer.");
   }
@@ -180,27 +169,29 @@ export async function terminatePosixProcessGroup(
       return;
     }
     signalPosixProcessGroup(processGroupId, "SIGKILL");
-    if (!await waitForPosixProcessGroupExit(processGroupId)) {
+    if (!(await waitForPosixProcessGroupExit(processGroupId))) {
       throw new Error(
-        `POSIX process group ${String(processGroupId)} did not exit after forced shutdown.`
+        `POSIX process group ${String(processGroupId)} did not exit after forced shutdown.`,
       );
     }
   } catch (error) {
     // Darwin can retain an all-zombie group until its custodian reaps it.
     // After EPERM, observe only: never signal that group again. Only ESRCH
     // proves custody is released; persistent denial keeps the original cause.
-    if (process.platform === "darwin" && error instanceof Error &&
-      "code" in error && error.code === "EPERM" &&
-      await waitForPosixProcessGroupExit(processGroupId)) {
+    if (
+      process.platform === "darwin" &&
+      error instanceof Error &&
+      "code" in error &&
+      error.code === "EPERM" &&
+      (await waitForPosixProcessGroupExit(processGroupId))
+    ) {
       return;
     }
     throw error;
   }
 }
 
-export async function terminateNodeManagedProcess(
-  child: ChildProcess
-): Promise<void> {
+export async function terminateNodeManagedProcess(child: ChildProcess): Promise<void> {
   if (child.pid === undefined) {
     return;
   }
@@ -217,21 +208,23 @@ export async function terminateNodeManagedProcess(
 }
 
 function normalizedEnvironment(
-  environment: Readonly<NodeJS.ProcessEnv> | undefined
+  environment: Readonly<NodeJS.ProcessEnv> | undefined,
 ): Readonly<Record<string, string>> | undefined {
   if (environment === undefined) {
     return undefined;
   }
-  return Object.freeze(Object.fromEntries(
-    Object.entries(environment).filter(
-      (entry): entry is [string, string] => entry[1] !== undefined
-    )
-  ));
+  return Object.freeze(
+    Object.fromEntries(
+      Object.entries(environment).filter(
+        (entry): entry is [string, string] => entry[1] !== undefined,
+      ),
+    ),
+  );
 }
 
 function runtimeRequest(
   request: ManagedProcessRequest,
-  signal: AbortSignal | undefined
+  signal: AbortSignal | undefined,
 ): ProcessRuntimeRequest {
   const environment = normalizedEnvironment(request.environment);
   return {
@@ -241,36 +234,31 @@ function runtimeRequest(
     ...(signal === undefined ? {} : { signal }),
     ...(request.timeoutMs === undefined ? {} : { timeoutMs: request.timeoutMs }),
     ...(request.strictUtf8 === undefined ? {} : { strictUtf8: request.strictUtf8 }),
-    ...(environment === undefined ? {} : { environment })
+    ...(environment === undefined ? {} : { environment }),
   };
 }
 
 function windowsRequest(
   request: ProcessRuntimeRequest,
-  context: NodeManagedProcessRuntimeContext
+  context: NodeManagedProcessRuntimeContext,
 ): NodeManagedProcessRequest {
   const explicitNodeExecutable =
-    context.nodeExecutable ??
-    request.environment?.[NODE_EXECUTABLE_ENVIRONMENT_VARIABLE];
+    context.nodeExecutable ?? request.environment?.[NODE_EXECUTABLE_ENVIRONMENT_VARIABLE];
   return {
     command: request.command,
     args: request.args,
     cwd: request.cwd,
-    ...(request.environment === undefined
-      ? {}
-      : { environment: request.environment }),
-    ...(explicitNodeExecutable === undefined
-      ? {}
-      : { nodeExecutable: explicitNodeExecutable }),
+    ...(request.environment === undefined ? {} : { environment: request.environment }),
+    ...(explicitNodeExecutable === undefined ? {} : { nodeExecutable: explicitNodeExecutable }),
     ...(context.launcherEnvironment === undefined
       ? {}
-      : { launcherEnvironment: context.launcherEnvironment })
+      : { launcherEnvironment: context.launcherEnvironment }),
   };
 }
 
 export function spawnNodeManagedProcess(
   request: NodeManagedProcessRequest,
-  retain?: NodeRetain
+  retain?: NodeRetain,
 ): ChildProcess {
   if (process.platform === "win32") {
     return spawnWindowsManagedProcess(request, retain);
@@ -281,16 +269,13 @@ export function spawnNodeManagedProcess(
     ...(request.environment === undefined ? {} : { env: request.environment }),
     shell: false,
     stdio: ["ignore", "pipe", "pipe"],
-    windowsHide: true
+    windowsHide: true,
   });
   retain?.(child);
   return child;
 }
 
-async function cleanupManagedChild(
-  child: ChildProcess,
-  cause: CompletionCause
-): Promise<void> {
+async function cleanupManagedChild(child: ChildProcess, cause: CompletionCause): Promise<void> {
   if (process.platform === "win32" && cause === "exited") {
     await waitForWindowsManagedProcessContainment(child);
     return;
@@ -302,16 +287,15 @@ function createManagedNodeAdapter(
   context: NodeManagedProcessRuntimeContext,
   diagnostics: WrapperStderrDiagnostics,
   launchAbort: LaunchAbortBridge,
-  launchRequest: Pick<ManagedProcessRequest, "signal" | "timeoutMs">
+  launchRequest: Pick<ManagedProcessRequest, "signal" | "timeoutMs">,
 ): ProcessAdapter {
-  const deadline = launchRequest.timeoutMs === undefined
-    ? undefined : performance.now() + launchRequest.timeoutMs;
+  const deadline =
+    launchRequest.timeoutMs === undefined ? undefined : performance.now() + launchRequest.timeoutMs;
   let acquiredChild: ChildProcess | undefined;
   const acquire: NodeAcquireHook = (request, retain) => {
     acquiredChild = spawnNodeManagedProcess(windowsRequest(request, context), retain);
   };
-  const cleanup: NodeCleanupHook = (child, cause) =>
-    cleanupManagedChild(child, cause);
+  const cleanup: NodeCleanupHook = (child, cause) => cleanupManagedChild(child, cause);
   const nativeAdapter = createNodeProcessAdapter({ acquire, cleanup });
   return {
     launch: async (request) => {
@@ -327,31 +311,43 @@ function createManagedNodeAdapter(
       launchAbort.succeed();
       if (process.platform === "win32") {
         try {
-          if (acquiredChild === undefined) { throw new Error("Windows wrapper custody is unavailable."); }
-          await waitForWindowsManagedProcessLaunch(acquiredChild, () =>
-            launchRequest.signal?.aborted === true ||
-            (deadline !== undefined && performance.now() >= deadline)
+          if (acquiredChild === undefined) {
+            throw new Error("Windows wrapper custody is unavailable.");
+          }
+          await waitForWindowsManagedProcessLaunch(
+            acquiredChild,
+            () =>
+              launchRequest.signal?.aborted === true ||
+              (deadline !== undefined && performance.now() >= deadline),
           );
         } catch (cause) {
           const captureDeadline = new AbortController();
-          const captureTimeout = delay(PROCESS_CLEANUP_STEP_MS, undefined, { signal: captureDeadline.signal })
-            .then(() => { throw new Error("Windows launch capture closure timed out.", { cause }); });
+          const captureTimeout = delay(PROCESS_CLEANUP_STEP_MS, undefined, {
+            signal: captureDeadline.signal,
+          }).then(() => {
+            throw new Error("Windows launch capture closure timed out.", { cause });
+          });
           const settlements = await Promise.allSettled([
             running.cleanup("failed"),
-            Promise.race([running.closeCapture(), captureTimeout])
+            Promise.race([running.closeCapture(), captureTimeout]),
           ]);
           captureDeadline.abort();
           const failures = settlements.flatMap((settlement) =>
-            settlement.status === "rejected" ? [settlement.reason as unknown] : []
+            settlement.status === "rejected" ? [settlement.reason as unknown] : [],
           );
-          const initiatingError = new ProcessRuntimeError("launch", "Windows command launch failed.", {
-            cause, facts: { initiatingCause: "launch" }
-          });
+          const initiatingError = new ProcessRuntimeError(
+            "launch",
+            "Windows command launch failed.",
+            {
+              cause,
+              facts: { initiatingCause: "launch" },
+            },
+          );
           if (failures.length > 0) {
             throw new ProcessRuntimeError("cleanup", "Windows command launch rollback failed.", {
               cause: new AggregateError(failures, "Windows launch rollback did not complete."),
               initiatingError,
-              incompleteCustody: true
+              incompleteCustody: true,
             });
           }
           throw initiatingError;
@@ -359,9 +355,9 @@ function createManagedNodeAdapter(
       }
       return {
         ...running,
-        stderr: observeWrapperStderr(running.stderr, diagnostics)
+        stderr: observeWrapperStderr(running.stderr, diagnostics),
       };
-    }
+    },
   };
 }
 
@@ -377,7 +373,7 @@ function createManagedNodeAdapter(
 function settleProcessRuntimeError(
   request: ManagedProcessRequest,
   error: ProcessRuntimeError,
-  diagnostics: WrapperStderrDiagnostics
+  diagnostics: WrapperStderrDiagnostics,
 ): ManagedProcessResult {
   switch (error.code) {
     case "invalid-input":
@@ -385,15 +381,15 @@ function settleProcessRuntimeError(
       throw processFailure(request, "could not be started.", error, { reason: "launch" });
     case "output-limit":
       throw processFailure(request, "exceeded its captured output limit.", error, {
-        reason: "output-limit"
+        reason: "output-limit",
       });
     case "invalid-output":
       throw processFailure(request, "returned output that is not valid UTF-8.", error, {
-        reason: "invalid-output"
+        reason: "invalid-output",
       });
     case "stream":
       throw processFailure(request, "experienced an output stream failure.", error, {
-        reason: "stream"
+        reason: "stream",
       });
     case "timeout":
       throw processTimedOut(request, request.timeoutMs ?? 1);
@@ -401,33 +397,33 @@ function settleProcessRuntimeError(
       const { lateFailureCodes, observedExit } = error.facts;
       if (lateFailureCodes.includes("invalid-output")) {
         throw processFailure(request, "returned output that is not valid UTF-8.", error, {
-          reason: "invalid-output"
+          reason: "invalid-output",
         });
       }
       const captureFailure = lateFailureCodes.find(
-        (code) => code === "output-limit" || code === "stream"
+        (code) => code === "output-limit" || code === "stream",
       );
       if (captureFailure === "output-limit") {
         throw processFailure(request, "exceeded its captured output limit.", error, {
-          reason: "output-limit"
+          reason: "output-limit",
         });
       }
       if (captureFailure === "stream") {
         throw processFailure(request, "experienced an output stream failure.", error, {
-          reason: "stream"
+          reason: "stream",
         });
       }
       if (observedExit !== null && observedExit.exitCode !== null && observedExit.exitCode !== 0) {
         if (error.output === null) {
           throw processFailure(request, "experienced an output stream failure.", error, {
-            reason: "stream"
+            reason: "stream",
           });
         }
         return {
           exitCode: observedExit.exitCode,
-          signal: observedExit.signal === null ? null : observedExit.signal as NodeJS.Signals,
+          signal: observedExit.signal === null ? null : (observedExit.signal as NodeJS.Signals),
           stdout: error.output.stdout,
-          stderr: error.output.stderr
+          stderr: error.output.stderr,
         };
       }
       throw processCancelled(request, "was cancelled.", request.signal?.reason);
@@ -437,30 +433,33 @@ function settleProcessRuntimeError(
         request,
         error,
         diagnostics.chunks,
-        process.platform === "win32"
+        process.platform === "win32",
       );
   }
 }
 
 export async function executeManagedProcess(
   request: ManagedProcessRequest,
-  context: NodeManagedProcessRuntimeContext = NO_RUNTIME_CONTEXT
+  context: NodeManagedProcessRuntimeContext = NO_RUNTIME_CONTEXT,
 ): Promise<ManagedProcessResult> {
   prepareProcessRequest(request);
   const launchAbort = createLaunchAbortBridge(request.signal);
-  const input = runtimeRequest(request, request.signal === undefined ? undefined : launchAbort.signal);
+  const input = runtimeRequest(
+    request,
+    request.signal === undefined ? undefined : launchAbort.signal,
+  );
   const diagnostics = createWrapperStderrDiagnostics();
   const executor = createProcessExecutor(
-    createManagedNodeAdapter(context, diagnostics, launchAbort, request)
+    createManagedNodeAdapter(context, diagnostics, launchAbort, request),
   );
   try {
     const result = await executor.run(input);
-    const signal = result.signal === null ? null : result.signal as NodeJS.Signals;
+    const signal = result.signal === null ? null : (result.signal as NodeJS.Signals);
     const managedResult = {
       exitCode: result.exitCode ?? 1,
       signal,
       stdout: result.stdout,
-      stderr: result.stderr
+      stderr: result.stderr,
     };
     return processExitResult(managedResult, result.exitCode, signal);
   } catch (error) {
@@ -484,7 +483,7 @@ export class NodeProcessRunner implements ProcessRunner {
       throw processExitFailure(
         request,
         `failed: ${result.stderr.trim() || `exit code ${String(result.exitCode)}${result.signal === null ? "" : ` (${result.signal})`}`}`,
-        result
+        result,
       );
     }
     return { stderr: result.stderr, stdout: result.stdout };

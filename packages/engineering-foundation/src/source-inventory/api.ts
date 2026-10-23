@@ -2,7 +2,7 @@
 export { ContainedFileReadError } from "./application/model/contained-file.js";
 export type {
   ContainedFileObservation,
-  ContainedFileReadFailure
+  ContainedFileReadFailure,
 } from "./application/model/contained-file.js";
 export { assertRepositoryRelativePath } from "./application/policies/repository-relative-path.js";
 export type { SourceTreeReader } from "./application/ports/source-tree-reader.js";

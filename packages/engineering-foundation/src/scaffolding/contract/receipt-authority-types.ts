@@ -1,12 +1,6 @@
-import type {
-  ScaffoldDiagnosticV1
-} from "../application/model/scaffold-compilation.js";
-import type {
-  AuthorityScaffoldOperationReceipt
-} from "./types.js";
-import type {
-  Sha256Digest
-} from "../application/model/scaffold-values.js";
+import type { ScaffoldDiagnosticV1 } from "../application/model/scaffold-compilation.js";
+import type { AuthorityScaffoldOperationReceipt } from "./types.js";
+import type { Sha256Digest } from "../application/model/scaffold-values.js";
 
 interface AuthorityScaffoldReceiptCommon {
   readonly schemaVersion: 1;
@@ -39,7 +33,7 @@ export type AuthorityScaffoldReceipt =
       };
       readonly operations: readonly [
         AuthorityAppliedOperationReceipt,
-        ...AuthoritySatisfiedOperationReceipt[]
+        ...AuthoritySatisfiedOperationReceipt[],
       ];
     })
   | (AuthorityScaffoldReceiptCommon & {
@@ -56,7 +50,7 @@ export type AuthorityScaffoldReceipt =
         ...(AuthorityScaffoldOperationReceipt & {
           readonly outcome: "already-satisfied";
           readonly resultDigest: Sha256Digest;
-        })[]
+        })[],
       ];
     })
   | (AuthorityScaffoldReceiptCommon & {
@@ -73,7 +67,7 @@ export type AuthorityScaffoldReceipt =
         ...(AuthorityScaffoldOperationReceipt & {
           readonly outcome: "already-satisfied" | "recovered";
           readonly resultDigest: Sha256Digest;
-        })[]
+        })[],
       ];
     })
   | (AuthorityScaffoldReceiptCommon & {
@@ -83,14 +77,16 @@ export type AuthorityScaffoldReceipt =
         readonly atomicity: "journaled-recoverable";
       };
       readonly operations: readonly [
-        | (AuthorityScaffoldOperationReceipt & {
-            readonly outcome: "already-satisfied";
-            readonly resultDigest: Sha256Digest;
-          })
-        | (AuthorityScaffoldOperationReceipt & {
-            readonly outcome: "conflict" | "not-applied" | "unobserved";
-            readonly resultDigest?: never;
-          }),
+        (
+          | (AuthorityScaffoldOperationReceipt & {
+              readonly outcome: "already-satisfied";
+              readonly resultDigest: Sha256Digest;
+            })
+          | (AuthorityScaffoldOperationReceipt & {
+              readonly outcome: "conflict" | "not-applied" | "unobserved";
+              readonly resultDigest?: never;
+            })
+        ),
         ...(
           | (AuthorityScaffoldOperationReceipt & {
               readonly outcome: "already-satisfied";
@@ -100,7 +96,7 @@ export type AuthorityScaffoldReceipt =
               readonly outcome: "conflict" | "not-applied" | "unobserved";
               readonly resultDigest?: never;
             })
-        )[]
+        )[],
       ];
     })
   | (AuthorityScaffoldReceiptCommon & {
@@ -110,14 +106,16 @@ export type AuthorityScaffoldReceipt =
         readonly atomicity: "journaled-recoverable";
       };
       readonly operations: readonly [
-        | (AuthorityScaffoldOperationReceipt & {
-            readonly outcome: "already-satisfied";
-            readonly resultDigest: Sha256Digest;
-          })
-        | (AuthorityScaffoldOperationReceipt & {
-            readonly outcome: "conflict" | "not-applied";
-            readonly resultDigest?: never;
-          }),
+        (
+          | (AuthorityScaffoldOperationReceipt & {
+              readonly outcome: "already-satisfied";
+              readonly resultDigest: Sha256Digest;
+            })
+          | (AuthorityScaffoldOperationReceipt & {
+              readonly outcome: "conflict" | "not-applied";
+              readonly resultDigest?: never;
+            })
+        ),
         ...(
           | (AuthorityScaffoldOperationReceipt & {
               readonly outcome: "already-satisfied";
@@ -127,7 +125,7 @@ export type AuthorityScaffoldReceipt =
               readonly outcome: "conflict" | "not-applied";
               readonly resultDigest?: never;
             })
-        )[]
+        )[],
       ];
     })
   | (AuthorityScaffoldReceiptCommon & {
@@ -144,6 +142,6 @@ export type AuthorityScaffoldReceipt =
         ...(AuthorityScaffoldOperationReceipt & {
           readonly outcome: "not-applied";
           readonly resultDigest?: never;
-        })[]
+        })[],
       ];
     });

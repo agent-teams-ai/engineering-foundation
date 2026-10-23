@@ -187,10 +187,15 @@ function requireLiteral<T extends string>(value: unknown, expected: T, label: st
 }
 
 function readRuntimePolicy(): RuntimePolicyFixture {
-  const parsed: unknown = JSON.parse(readFileSync(
-    new URL("../packages/docs-protocol-agent-teams/assets/runtime-policy.v1.json", import.meta.url),
-    "utf8",
-  ));
+  const parsed: unknown = JSON.parse(
+    readFileSync(
+      new URL(
+        "../packages/docs-protocol-agent-teams/assets/runtime-policy.v1.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
   const root = requireRecord(parsed, "runtime policy");
   const managedRuntime = requireRecord(root["managedRuntime"], "runtime policy managedRuntime");
   const lanes = requireRecord(managedRuntime["lanes"], "runtime policy managedRuntime.lanes");
@@ -199,7 +204,10 @@ function readRuntimePolicy(): RuntimePolicyFixture {
     lane["qualificationRuntime"],
     "runtime policy Node 26 qualificationRuntime",
   );
-  const managedCandidate = requireRecord(root["managedCandidate"], "runtime policy managedCandidate");
+  const managedCandidate = requireRecord(
+    root["managedCandidate"],
+    "runtime policy managedCandidate",
+  );
   return {
     policyId: requireLiteral(
       root["policyId"],
@@ -209,14 +217,14 @@ function readRuntimePolicy(): RuntimePolicyFixture {
     policyVersion: requireLiteral(root["policyVersion"], "3.0.0", "runtime policy policyVersion"),
     sourceDigest: requireDigest(root["sourceDigest"], "runtime policy sourceDigest"),
     managedRuntime: {
-      pnpm: requireLiteral(managedRuntime["pnpm"], ">=11.17.0 <12", "runtime policy managedRuntime.pnpm"),
+      pnpm: requireLiteral(
+        managedRuntime["pnpm"],
+        ">=11.17.0 <12",
+        "runtime policy managedRuntime.pnpm",
+      ),
       status: requireString(managedRuntime["status"], "runtime policy managedRuntime.status"),
       lane: {
-        node: requireLiteral(
-          lane["node"],
-          ">=26.0.0 <27",
-          "runtime policy Node 26 lane node",
-        ),
+        node: requireLiteral(lane["node"], ">=26.0.0 <27", "runtime policy Node 26 lane node"),
         qualificationRuntime: {
           nodeVersion: requireLiteral(
             qualificationRuntime["nodeVersion"],
@@ -242,7 +250,10 @@ function readRuntimePolicy(): RuntimePolicyFixture {
       },
     },
     managedCandidate: {
-      selected: requireBoolean(managedCandidate["selected"], "runtime policy managedCandidate.selected"),
+      selected: requireBoolean(
+        managedCandidate["selected"],
+        "runtime policy managedCandidate.selected",
+      ),
       status: requireString(managedCandidate["status"], "runtime policy managedCandidate.status"),
     },
   };
@@ -250,7 +261,9 @@ function readRuntimePolicy(): RuntimePolicyFixture {
 
 type QualificationPackages = QualifiedDocsCohortBindingV2["packages"];
 
-function qualificationLockfileBytes(cohortBinding: { readonly packages: QualificationPackages }): Buffer {
+function qualificationLockfileBytes(cohortBinding: {
+  readonly packages: QualificationPackages;
+}): Buffer {
   const coordinates = {
     "@agent-teams/repository-mutation": cohortBinding.packages.repositoryMutation,
     "@agent-teams/document-authoring": cohortBinding.packages.documentAuthoring,
@@ -258,70 +271,80 @@ function qualificationLockfileBytes(cohortBinding: { readonly packages: Qualific
     "@agent-teams/docs-protocol-agent-teams": cohortBinding.packages.docsProtocolAgentTeams,
     "@agent-teams/engineering-foundation": cohortBinding.packages.engineeringFoundation,
   } as const;
-  return Buffer.from(stringify({
-    lockfileVersion: "9.0",
-    importers: {
-      ".": {
-        devDependencies: {
-          "@agent-teams/docs-protocol": {
-            specifier: coordinates["@agent-teams/docs-protocol"].version,
-            version: coordinates["@agent-teams/docs-protocol"].version,
+  return Buffer.from(
+    stringify({
+      lockfileVersion: "9.0",
+      importers: {
+        ".": {
+          devDependencies: {
+            "@agent-teams/docs-protocol": {
+              specifier: coordinates["@agent-teams/docs-protocol"].version,
+              version: coordinates["@agent-teams/docs-protocol"].version,
+            },
+            "@agent-teams/docs-protocol-agent-teams": {
+              specifier: coordinates["@agent-teams/docs-protocol-agent-teams"].version,
+              version: coordinates["@agent-teams/docs-protocol-agent-teams"].version,
+            },
+            "@agent-teams/engineering-foundation": {
+              specifier: coordinates["@agent-teams/engineering-foundation"].version,
+              version: coordinates["@agent-teams/engineering-foundation"].version,
+            },
           },
-          "@agent-teams/docs-protocol-agent-teams": {
-            specifier: coordinates["@agent-teams/docs-protocol-agent-teams"].version,
-            version: coordinates["@agent-teams/docs-protocol-agent-teams"].version,
+        },
+      },
+      packages: {
+        "@agent-teams/repository-mutation@1.0.0": {
+          resolution: { integrity: coordinates["@agent-teams/repository-mutation"].integrity },
+        },
+        "@agent-teams/document-authoring@1.0.1": {
+          resolution: { integrity: coordinates["@agent-teams/document-authoring"].integrity },
+        },
+        "@agent-teams/docs-protocol@1.0.2": {
+          resolution: { integrity: coordinates["@agent-teams/docs-protocol"].integrity },
+        },
+        "@agent-teams/docs-protocol-agent-teams@1.0.3": {
+          resolution: {
+            integrity: coordinates["@agent-teams/docs-protocol-agent-teams"].integrity,
           },
-          "@agent-teams/engineering-foundation": {
-            specifier: coordinates["@agent-teams/engineering-foundation"].version,
-            version: coordinates["@agent-teams/engineering-foundation"].version,
+        },
+        "@agent-teams/engineering-foundation@1.0.4": {
+          resolution: { integrity: coordinates["@agent-teams/engineering-foundation"].integrity },
+        },
+      },
+      snapshots: {
+        "@agent-teams/repository-mutation@1.0.0": {},
+        "@agent-teams/document-authoring@1.0.1": {
+          dependencies: {
+            "@agent-teams/repository-mutation":
+              coordinates["@agent-teams/repository-mutation"].version,
+          },
+        },
+        "@agent-teams/docs-protocol@1.0.2": {
+          dependencies: {
+            "@agent-teams/document-authoring":
+              coordinates["@agent-teams/document-authoring"].version,
+            "@agent-teams/repository-mutation":
+              coordinates["@agent-teams/repository-mutation"].version,
+          },
+        },
+        "@agent-teams/docs-protocol-agent-teams@1.0.3": {
+          dependencies: {
+            "@agent-teams/docs-protocol": coordinates["@agent-teams/docs-protocol"].version,
+            "@agent-teams/repository-mutation":
+              coordinates["@agent-teams/repository-mutation"].version,
+          },
+        },
+        "@agent-teams/engineering-foundation@1.0.4": {
+          dependencies: {
+            "@agent-teams/document-authoring":
+              coordinates["@agent-teams/document-authoring"].version,
+            "@agent-teams/repository-mutation":
+              coordinates["@agent-teams/repository-mutation"].version,
           },
         },
       },
-    },
-    packages: {
-      "@agent-teams/repository-mutation@1.0.0": {
-        resolution: { integrity: coordinates["@agent-teams/repository-mutation"].integrity },
-      },
-      "@agent-teams/document-authoring@1.0.1": {
-        resolution: { integrity: coordinates["@agent-teams/document-authoring"].integrity },
-      },
-      "@agent-teams/docs-protocol@1.0.2": {
-        resolution: { integrity: coordinates["@agent-teams/docs-protocol"].integrity },
-      },
-      "@agent-teams/docs-protocol-agent-teams@1.0.3": {
-        resolution: { integrity: coordinates["@agent-teams/docs-protocol-agent-teams"].integrity },
-      },
-      "@agent-teams/engineering-foundation@1.0.4": {
-        resolution: { integrity: coordinates["@agent-teams/engineering-foundation"].integrity },
-      },
-    },
-    snapshots: {
-      "@agent-teams/repository-mutation@1.0.0": {},
-      "@agent-teams/document-authoring@1.0.1": {
-        dependencies: {
-          "@agent-teams/repository-mutation": coordinates["@agent-teams/repository-mutation"].version,
-        },
-      },
-      "@agent-teams/docs-protocol@1.0.2": {
-        dependencies: {
-          "@agent-teams/document-authoring": coordinates["@agent-teams/document-authoring"].version,
-          "@agent-teams/repository-mutation": coordinates["@agent-teams/repository-mutation"].version,
-        },
-      },
-      "@agent-teams/docs-protocol-agent-teams@1.0.3": {
-        dependencies: {
-          "@agent-teams/docs-protocol": coordinates["@agent-teams/docs-protocol"].version,
-          "@agent-teams/repository-mutation": coordinates["@agent-teams/repository-mutation"].version,
-        },
-      },
-      "@agent-teams/engineering-foundation@1.0.4": {
-        dependencies: {
-          "@agent-teams/document-authoring": coordinates["@agent-teams/document-authoring"].version,
-          "@agent-teams/repository-mutation": coordinates["@agent-teams/repository-mutation"].version,
-        },
-      },
-    },
-  }));
+    }),
+  );
 }
 
 export function legacyQualificationFixture(): LegacyQualificationFixture {
@@ -451,10 +474,7 @@ export function successorQualificationFixture(): SuccessorQualificationFixture {
     evidence: {
       cohort: {
         cohortId: successorCohort.cohortId,
-        recordDigest: requireDigest(
-          successorCohort.recordDigest,
-          "successor cohort recordDigest",
-        ),
+        recordDigest: requireDigest(successorCohort.recordDigest, "successor cohort recordDigest"),
         qualificationEventDigest: requireDigest(
           successorCohort.qualificationEventDigest,
           "successor cohort qualificationEventDigest",
@@ -529,9 +549,13 @@ function canonicalAuthorityJson(value: unknown): string {
     return `[${value.map(canonicalAuthorityJson).join(",")}]`;
   }
   if (value !== null && typeof value === "object") {
-    return `{${Object.keys(value).toSorted().map((key) =>
-      `${JSON.stringify(key)}:${canonicalAuthorityJson((value as Record<string, unknown>)[key])}`
-    ).join(",")}}`;
+    return `{${Object.keys(value)
+      .toSorted()
+      .map(
+        (key) =>
+          `${JSON.stringify(key)}:${canonicalAuthorityJson((value as Record<string, unknown>)[key])}`,
+      )
+      .join(",")}}`;
   }
   return JSON.stringify(value);
 }
@@ -570,12 +594,10 @@ export function successorCentralRegistryFixture(): SuccessorCentralRegistryFixtu
       source_commit: `${index + 1}`.repeat(40),
       workflow_run_id: 123,
       workflow_run_attempt: 1,
-      registry_attestation_url:
-        `https://registry.npmjs.org/-/npm/v1/attestations/${name.replaceAll("/", "%2f")}@${
-          binding.packages[key as keyof typeof binding.packages].version
-        }`,
-      workflow_run_url:
-        "https://github.com/agent-teams-ai/engineering-foundation/actions/runs/123",
+      registry_attestation_url: `https://registry.npmjs.org/-/npm/v1/attestations/${name.replaceAll("/", "%2f")}@${
+        binding.packages[key as keyof typeof binding.packages].version
+      }`,
+      workflow_run_url: "https://github.com/agent-teams-ai/engineering-foundation/actions/runs/123",
       signature_verified: true,
     },
   }));
@@ -653,21 +675,21 @@ export function successorCentralRegistryFixture(): SuccessorCentralRegistryFixtu
       package_manager: "pnpm@11.20.0",
       lockfile_version: "9.0",
       package_count: 5,
-      projection_path:
-        `governance/docs-runtime-closures/${binding.runtime.runtimeClosure.digest.replace(":", "-")}.json`,
+      projection_path: `governance/docs-runtime-closures/${binding.runtime.runtimeClosure.digest.replace(":", "-")}.json`,
       digest: binding.runtime.runtimeClosure.digest,
     },
     eligible_after: binding.eligibleAfter,
     upgrade_from: binding.upgradeFrom,
     rollback_to: binding.rollbackTo,
-    canary_repositories: [{
-      repository_id: Number(consumerRepository.id),
-      repository: consumerRepository.nameWithOwner,
-    }],
+    canary_repositories: [
+      {
+        repository_id: Number(consumerRepository.id),
+        repository: consumerRepository.nameWithOwner,
+      },
+    ],
     evidence_references: ["test:node26-cohort3-realistic-registry"],
   } as Record<string, unknown>;
-  recordBody.record_digest =
-    authorityDigest("agent-teams.docs-qualified-cohort/v3", recordBody);
+  recordBody.record_digest = authorityDigest("agent-teams.docs-qualified-cohort/v3", recordBody);
   const event1Body = {
     sequence: 1,
     cohort_id: binding.cohortId,

@@ -1,9 +1,7 @@
 import type { DocumentAuthorityDigest } from "./document-catalog.js";
 import type { DocumentPhysicalIdentity } from "./document-physical-identity.js";
 import type { DocumentPlanV1, DocumentPlanV2 } from "./document-planning.js";
-import type {
-  DocumentCreatedDirectoryEvidenceV2
-} from "./document-parent-materialization.js";
+import type { DocumentCreatedDirectoryEvidenceV2 } from "./document-parent-materialization.js";
 
 export interface DocumentOwnedTemporary {
   readonly path: string;
@@ -69,13 +67,15 @@ export interface DocumentTransactionEnvelopeBase {
 export type DocumentTransactionEnvelopeV3 =
   | (DocumentTransactionEnvelopeBase & {
       readonly state: "PREPARED";
-      readonly journal: Extract<
-        DocumentTransactionJournal,
-        { readonly destination: { readonly state: "pending" } }
-      > | Extract<
-        DocumentTransactionJournal,
-        { readonly destination: { readonly state: "preexisting" } }
-      >;
+      readonly journal:
+        | Extract<
+            DocumentTransactionJournal,
+            { readonly destination: { readonly state: "pending" } }
+          >
+        | Extract<
+            DocumentTransactionJournal,
+            { readonly destination: { readonly state: "preexisting" } }
+          >;
     })
   | (DocumentTransactionEnvelopeBase & {
       readonly state: "PUBLISHING";
@@ -147,30 +147,45 @@ export type DocumentTransactionEnvelopeV4 =
   | (DocumentTransactionEnvelopeV4Base & {
       readonly state: "PREPARED";
       readonly journal:
-        | Extract<DocumentTransactionJournalV3, {
-            readonly destination: { readonly state: "pending" };
-          }>
-        | Extract<DocumentTransactionJournalV3, {
-            readonly destination: { readonly state: "preexisting" };
-          }>;
+        | Extract<
+            DocumentTransactionJournalV3,
+            {
+              readonly destination: { readonly state: "pending" };
+            }
+          >
+        | Extract<
+            DocumentTransactionJournalV3,
+            {
+              readonly destination: { readonly state: "preexisting" };
+            }
+          >;
     })
   | (DocumentTransactionEnvelopeV4Base & {
       readonly state: "MATERIALIZING";
-      readonly journal: Extract<DocumentTransactionJournalV3, {
-        readonly destination: { readonly state: "materializing" };
-      }>;
+      readonly journal: Extract<
+        DocumentTransactionJournalV3,
+        {
+          readonly destination: { readonly state: "materializing" };
+        }
+      >;
     })
   | (DocumentTransactionEnvelopeV4Base & {
       readonly state: "PUBLISHING";
-      readonly journal: Extract<DocumentTransactionJournalV3, {
-        readonly destination: { readonly state: "publishing" };
-      }>;
+      readonly journal: Extract<
+        DocumentTransactionJournalV3,
+        {
+          readonly destination: { readonly state: "publishing" };
+        }
+      >;
     })
   | (DocumentTransactionEnvelopeV4Base & {
       readonly state: "PUBLISHED";
-      readonly journal: Extract<DocumentTransactionJournalV3, {
-        readonly destination: { readonly state: "published" };
-      }>;
+      readonly journal: Extract<
+        DocumentTransactionJournalV3,
+        {
+          readonly destination: { readonly state: "published" };
+        }
+      >;
     });
 
 export type DocumentTransactionEnvelope =
@@ -181,5 +196,4 @@ type WithoutEnvelopeDigests<T> = T extends unknown
   ? Omit<T, "envelopeDigest" | "payloadDigest">
   : never;
 
-export type DocumentTransactionEnvelopeBody =
-  WithoutEnvelopeDigests<DocumentTransactionEnvelope>;
+export type DocumentTransactionEnvelopeBody = WithoutEnvelopeDigests<DocumentTransactionEnvelope>;

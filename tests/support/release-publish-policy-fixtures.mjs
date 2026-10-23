@@ -26,9 +26,12 @@ export function commandEnvironment(
   const environment = Object.fromEntries(
     Object.entries(baseEnvironment).filter(([key]) => {
       const normalized = key.toLowerCase();
-      return !["home", "homedrive", "homepath", "path", "pathext", "userprofile"].includes(normalized) &&
+      return (
+        !["home", "homedrive", "homepath", "path", "pathext", "userprofile"].includes(normalized) &&
         !normalized.startsWith("npm_") &&
-        !normalized.startsWith("pnpm_") && !normalized.startsWith("corepack_");
+        !normalized.startsWith("pnpm_") &&
+        !normalized.startsWith("corepack_")
+      );
     }),
   );
   const isolatedHome = join(root, "home");

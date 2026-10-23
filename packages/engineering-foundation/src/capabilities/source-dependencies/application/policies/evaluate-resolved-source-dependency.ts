@@ -1,17 +1,14 @@
 import type {
   DiagnosticEvidence,
-  FoundationDiagnostic
+  FoundationDiagnostic,
 } from "../../../../features/validation-reporting/api.js";
 import type {
   ArchitectureBoundaryPolicy,
   ObservedSourceDependencyEdge,
   ObservedSourceDependencyResolution,
-  SourceArchitecturePolicy
+  SourceArchitecturePolicy,
 } from "../model/source-workspace.js";
-import {
-  SOURCE_DEPENDENCY_RULES,
-  type SourceDependencyRuleMetadata
-} from "../rules.js";
+import { SOURCE_DEPENDENCY_RULES, type SourceDependencyRuleMetadata } from "../rules.js";
 
 type ResolutionOfKind<Kind extends ObservedSourceDependencyResolution["kind"]> = Extract<
   ObservedSourceDependencyResolution,
@@ -40,11 +37,10 @@ function diagnostic(input: {
     subject: input.subject,
     message: input.message,
     location: { path: input.path },
-    relatedLocations:
-      input.relatedPath === null ? [] : [{ path: input.relatedPath }],
+    relatedLocations: input.relatedPath === null ? [] : [{ path: input.relatedPath }],
     evidence: input.evidence ?? [],
     remediation: input.rule.remediation,
-    requiresArchitectureReview: input.rule.requiresArchitectureReview
+    requiresArchitectureReview: input.rule.requiresArchitectureReview,
   };
 }
 
@@ -58,8 +54,7 @@ function declarationDiagnostics(input: {
   if (
     input.declaration === "runtime" ||
     (input.declaration === "development" &&
-      (input.edge.mode === "type-only" ||
-        input.sourceBoundary.dependencyMode === "development"))
+      (input.edge.mode === "type-only" || input.sourceBoundary.dependencyMode === "development"))
   ) {
     return [];
   }
@@ -79,8 +74,8 @@ function declarationDiagnostics(input: {
           : `${input.edge.mode === "type-only" ? "Type-only" : "Runtime"} source imports undeclared dependency ${input.packageName}.`,
       path: input.edge.fromPath,
       relatedPath: input.edge.fromWorkspacePackageManifestPath,
-      evidence: [{ kind: "specifier", value: input.edge.specifier }]
-    })
+      evidence: [{ kind: "specifier", value: input.edge.specifier }],
+    }),
   ];
 }
 
@@ -101,8 +96,8 @@ function exportDiagnostics(input: {
       message: `Workspace package subpath is not exported: ${input.edge.specifier}.`,
       path: input.edge.fromPath,
       relatedPath: input.manifestPath,
-      evidence: [{ kind: "subpath", value: input.subpath }]
-    })
+      evidence: [{ kind: "subpath", value: input.subpath }],
+    }),
   ];
 }
 
@@ -125,8 +120,8 @@ function forbiddenPackageDiagnostics(input: {
         : `Boundary ${input.sourceBoundary.id} cannot import package ${input.packageName}.`,
       path: input.edge.fromPath,
       relatedPath: input.manifestPath,
-      evidence: [{ kind: "specifier", value: input.edge.specifier }]
-    })
+      evidence: [{ kind: "specifier", value: input.edge.specifier }],
+    }),
   ];
 }
 
@@ -146,10 +141,10 @@ function selfPackageImportDiagnostics(input: {
       relatedPath: input.manifestPath,
       evidence: [
         { kind: "specifier", value: input.edge.specifier },
-        { kind: "workspace-subpath", value: input.subpath }
-      ]
+        { kind: "workspace-subpath", value: input.subpath },
+      ],
     }),
-    ...exportDiagnostics(input)
+    ...exportDiagnostics(input),
   ];
 }
 
@@ -171,16 +166,16 @@ function boundaryEntrypointDiagnostics(input: {
       evidence: [
         { kind: "specifier", value: input.edge.specifier },
         { kind: "target-boundary", value: input.targetBoundary.id },
-        { kind: "target-path", value: input.targetPath }
-      ]
-    })
+        { kind: "target-path", value: input.targetPath },
+      ],
+    }),
   ];
 }
 
 function evaluateBuiltinDependency(
   edge: ObservedSourceDependencyEdge,
   resolution: ResolutionOfKind<"builtin">,
-  sourceBoundary: ArchitectureBoundaryPolicy
+  sourceBoundary: ArchitectureBoundaryPolicy,
 ): readonly FoundationDiagnostic[] {
   if (sourceBoundary.allowedBuiltins.includes(resolution.specifier)) {
     return [];
@@ -192,15 +187,15 @@ function evaluateBuiltinDependency(
       message: `Boundary ${sourceBoundary.id} cannot import ${resolution.specifier}.`,
       path: edge.fromPath,
       relatedPath: null,
-      evidence: [{ kind: "specifier", value: edge.specifier }]
-    })
+      evidence: [{ kind: "specifier", value: edge.specifier }],
+    }),
   ];
 }
 
 function evaluateExternalPackageDependency(
   edge: ObservedSourceDependencyEdge,
   resolution: ResolutionOfKind<"external-package">,
-  sourceBoundary: ArchitectureBoundaryPolicy
+  sourceBoundary: ArchitectureBoundaryPolicy,
 ): readonly FoundationDiagnostic[] {
   return [
     ...forbiddenPackageDiagnostics({
@@ -208,21 +203,21 @@ function evaluateExternalPackageDependency(
       sourceBoundary,
       packageName: resolution.packageName,
       manifestPath: null,
-      workspace: false
+      workspace: false,
     }),
     ...declarationDiagnostics({
       edge,
       packageName: resolution.packageName,
       declaration: resolution.declaration,
       sourceBoundary,
-      workspace: false
-    })
+      workspace: false,
+    }),
   ];
 }
 
 function crossPackageRelativeImportDiagnostic(
   edge: ObservedSourceDependencyEdge,
-  resolution: ResolutionOfKind<"local-file">
+  resolution: ResolutionOfKind<"local-file">,
 ): FoundationDiagnostic {
   return diagnostic({
     rule: SOURCE_DEPENDENCY_RULES.crossPackageRelativeImport,
@@ -230,7 +225,7 @@ function crossPackageRelativeImportDiagnostic(
     message: `Relative import crosses from ${edge.fromWorkspacePackageName} into ${resolution.workspacePackageName}.`,
     path: edge.fromPath,
     relatedPath: resolution.path,
-    evidence: [{ kind: "specifier", value: edge.specifier }]
+    evidence: [{ kind: "specifier", value: edge.specifier }],
   });
 }
 
@@ -250,8 +245,8 @@ function forbiddenBoundaryDiagnostics(input: {
       message: `Boundary dependency is not allowed: ${input.sourceBoundary.id} -> ${input.targetBoundary.id}.`,
       path: input.edge.fromPath,
       relatedPath: input.targetPath,
-      evidence: [{ kind: "specifier", value: input.edge.specifier }]
-    })
+      evidence: [{ kind: "specifier", value: input.edge.specifier }],
+    }),
   ];
 }
 
@@ -274,15 +269,17 @@ function developmentTargetDiagnostics(input: {
       message: `Runtime boundary ${input.sourceBoundary.id} cannot import development boundary ${input.targetBoundary.id}.`,
       path: input.edge.fromPath,
       relatedPath: input.targetPath,
-      evidence: [{ kind: "specifier", value: input.edge.specifier }]
-    })
+      evidence: [{ kind: "specifier", value: input.edge.specifier }],
+    }),
   ];
 }
 
-function evaluateLocalFileDependency(input: EvaluationInput & {
-  readonly resolution: ResolutionOfKind<"local-file">;
-  readonly sourceBoundary: ArchitectureBoundaryPolicy;
-}): readonly FoundationDiagnostic[] {
+function evaluateLocalFileDependency(
+  input: EvaluationInput & {
+    readonly resolution: ResolutionOfKind<"local-file">;
+    readonly sourceBoundary: ArchitectureBoundaryPolicy;
+  },
+): readonly FoundationDiagnostic[] {
   const targetBoundary =
     input.resolution.targetBoundaryId === null
       ? undefined
@@ -312,19 +309,19 @@ function evaluateLocalFileDependency(input: EvaluationInput & {
       edge: input.edge,
       sourceBoundary: input.sourceBoundary,
       targetBoundary,
-      targetPath: input.resolution.path
+      targetPath: input.resolution.path,
     }),
     ...forbiddenBoundaryDiagnostics({
       edge: input.edge,
       sourceBoundary: input.sourceBoundary,
       targetBoundary,
-      targetPath: input.resolution.path
+      targetPath: input.resolution.path,
     }),
     ...boundaryEntrypointDiagnostics({
       edge: input.edge,
       targetBoundary,
-      targetPath: input.resolution.path
-    })
+      targetPath: input.resolution.path,
+    }),
   ];
 }
 
@@ -339,7 +336,7 @@ interface WorkspacePackageDependencyEvaluationInput {
 }
 
 function evaluateWorkspacePackageDependency(
-  input: WorkspacePackageDependencyEvaluationInput
+  input: WorkspacePackageDependencyEvaluationInput,
 ): readonly FoundationDiagnostic[] {
   const {
     boundariesById,
@@ -348,7 +345,7 @@ function evaluateWorkspacePackageDependency(
     packageExportBoundaries,
     policy,
     resolution,
-    sourceBoundary
+    sourceBoundary,
   } = input;
   if (resolution.workspacePackageName === edge.fromWorkspacePackageName) {
     return selfPackageImportDiagnostics({
@@ -356,11 +353,11 @@ function evaluateWorkspacePackageDependency(
       packageName: resolution.workspacePackageName,
       manifestPath: resolution.workspacePackageManifestPath,
       exported: resolution.exported,
-      subpath: resolution.subpath
+      subpath: resolution.subpath,
     });
   }
   const developmentBoundaryIds = developmentBoundariesByPackage.get(
-    resolution.workspacePackageName
+    resolution.workspacePackageName,
   );
   const developmentPackageDiagnostics =
     sourceBoundary.dependencyMode === "runtime" &&
@@ -368,9 +365,7 @@ function evaluateWorkspacePackageDependency(
     (policy.schemaVersion === 1 ||
       !resolution.exported ||
       boundariesById.get(
-        packageExportBoundaries
-          .get(resolution.workspacePackageName)
-          ?.get(resolution.subpath) ?? ""
+        packageExportBoundaries.get(resolution.workspacePackageName)?.get(resolution.subpath) ?? "",
       )?.dependencyMode !== "runtime")
       ? [
           diagnostic({
@@ -381,9 +376,9 @@ function evaluateWorkspacePackageDependency(
             relatedPath: resolution.workspacePackageManifestPath,
             evidence: [
               { kind: "specifier", value: edge.specifier },
-              { kind: "development-boundaries", value: developmentBoundaryIds.join(",") }
-            ]
-          })
+              { kind: "development-boundaries", value: developmentBoundaryIds.join(",") },
+            ],
+          }),
         ]
       : [];
   return [
@@ -393,22 +388,22 @@ function evaluateWorkspacePackageDependency(
       sourceBoundary,
       packageName: resolution.workspacePackageName,
       manifestPath: resolution.workspacePackageManifestPath,
-      workspace: true
+      workspace: true,
     }),
     ...declarationDiagnostics({
       edge,
       packageName: resolution.workspacePackageName,
       declaration: resolution.declaration,
       sourceBoundary,
-      workspace: true
+      workspace: true,
     }),
     ...exportDiagnostics({
       edge,
       packageName: resolution.workspacePackageName,
       manifestPath: resolution.workspacePackageManifestPath,
       exported: resolution.exported,
-      subpath: resolution.subpath
-    })
+      subpath: resolution.subpath,
+    }),
   ];
 }
 
@@ -416,7 +411,7 @@ function evaluateGeneratedOutputCandidate(
   edge: ObservedSourceDependencyEdge,
   resolution: ResolutionOfKind<"generated-output-candidate">,
   sourceBoundary: ArchitectureBoundaryPolicy,
-  policy: SourceArchitecturePolicy
+  policy: SourceArchitecturePolicy,
 ): readonly FoundationDiagnostic[] {
   if (
     policy.schemaVersion !== 1 &&
@@ -426,15 +421,17 @@ function evaluateGeneratedOutputCandidate(
   ) {
     return [];
   }
-  return [unclassifiedResolutionDiagnostic(edge, {
-    kind: "unresolved",
-    reason: "generated output reference is not admitted by this boundary"
-  })];
+  return [
+    unclassifiedResolutionDiagnostic(edge, {
+      kind: "unresolved",
+      reason: "generated output reference is not admitted by this boundary",
+    }),
+  ];
 }
 
 function unclassifiedResolutionDiagnostic(
   edge: ObservedSourceDependencyEdge,
-  resolution: ResolutionOfKind<"unsupported"> | ResolutionOfKind<"unresolved">
+  resolution: ResolutionOfKind<"unsupported"> | ResolutionOfKind<"unresolved">,
 ): FoundationDiagnostic {
   const unsupported = resolution.kind === "unsupported";
   return diagnostic({
@@ -447,12 +444,12 @@ function unclassifiedResolutionDiagnostic(
       : `Import could not be resolved: ${resolution.reason}.`,
     path: edge.fromPath,
     relatedPath: null,
-    evidence: [{ kind: "specifier", value: edge.specifier }]
+    evidence: [{ kind: "specifier", value: edge.specifier }],
   });
 }
 
 export function evaluateResolvedSourceDependency(
-  input: EvaluationInput
+  input: EvaluationInput,
 ): readonly FoundationDiagnostic[] {
   const sourceBoundary = input.boundariesById.get(input.edge.fromBoundaryId);
   if (sourceBoundary === undefined) {
@@ -467,19 +464,14 @@ export function evaluateResolvedSourceDependency(
     case "local-file":
       return evaluateLocalFileDependency({ ...input, resolution, sourceBoundary });
     case "generated-output-candidate":
-      return evaluateGeneratedOutputCandidate(
-        input.edge,
-        resolution,
-        sourceBoundary,
-        input.policy
-      );
+      return evaluateGeneratedOutputCandidate(input.edge, resolution, sourceBoundary, input.policy);
     case "self-workspace-package":
       return selfPackageImportDiagnostics({
         edge: input.edge,
         packageName: resolution.workspacePackageName,
         manifestPath: resolution.workspacePackageManifestPath,
         exported: resolution.exported,
-        subpath: resolution.subpath
+        subpath: resolution.subpath,
       });
     case "unsupported":
       return [unclassifiedResolutionDiagnostic(input.edge, resolution)];
@@ -493,7 +485,7 @@ export function evaluateResolvedSourceDependency(
         packageExportBoundaries: input.packageExportBoundaries ?? new Map(),
         policy: input.policy,
         resolution,
-        sourceBoundary
+        sourceBoundary,
       });
   }
 }

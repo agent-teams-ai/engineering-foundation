@@ -1,8 +1,5 @@
 import type { ScaffoldingApi } from "./create-scaffolding-api.js";
-import type {
-  ScaffoldPlan,
-  ScaffoldReceipt
-} from "../../contract/scaffold-contract.js";
+import type { ScaffoldPlan, ScaffoldReceipt } from "../../contract/scaffold-contract.js";
 import { ScaffoldError } from "../../scaffold-error.js";
 
 export interface ScaffoldCliArguments {
@@ -31,7 +28,13 @@ function exitCode(receipt: ScaffoldReceipt): number {
 export async function runScaffoldingCliCommand(
   parsed: ScaffoldCliArguments,
   json: boolean,
-  api: Pick<ScaffoldingApi, "planScaffoldFromFile" | "applyFilesystemScaffold" | "readScaffoldPlanFile" | "recoverFilesystemScaffold">
+  api: Pick<
+    ScaffoldingApi,
+    | "planScaffoldFromFile"
+    | "applyFilesystemScaffold"
+    | "readScaffoldPlanFile"
+    | "recoverFilesystemScaffold"
+  >,
 ): Promise<boolean> {
   switch (parsed.command) {
     case "scaffold-apply": {
@@ -39,14 +42,12 @@ export async function runScaffoldingCliCommand(
       if (planPath === undefined) {
         throw new ScaffoldError(
           "SCAFFOLD_INPUT_INVALID",
-          "scaffold-apply requires a repository-relative Plan path."
+          "scaffold-apply requires a repository-relative Plan path.",
         );
       }
       const plan = await api.readScaffoldPlanFile(parsed.consumerRoot, planPath);
       const receipt = await api.applyFilesystemScaffold(parsed.consumerRoot, plan);
-      process.stdout.write(
-        json ? `${JSON.stringify(receipt, null, 2)}\n` : renderReceipt(receipt)
-      );
+      process.stdout.write(json ? `${JSON.stringify(receipt, null, 2)}\n` : renderReceipt(receipt));
       process.exitCode = exitCode(receipt);
       return true;
     }
@@ -55,17 +56,15 @@ export async function runScaffoldingCliCommand(
       if (intentPath === undefined) {
         throw new ScaffoldError(
           "SCAFFOLD_INPUT_INVALID",
-          "scaffold-plan requires a repository-relative Intent path."
+          "scaffold-plan requires a repository-relative Intent path.",
         );
       }
       const plan = await api.planScaffoldFromFile({
         consumerRoot: parsed.consumerRoot,
         intentPath,
-        configPath: parsed.configPath
+        configPath: parsed.configPath,
       });
-      process.stdout.write(
-        json ? `${JSON.stringify(plan, null, 2)}\n` : renderPlan(plan)
-      );
+      process.stdout.write(json ? `${JSON.stringify(plan, null, 2)}\n` : renderPlan(plan));
       return true;
     }
     case "scaffold-recover": {
@@ -74,11 +73,11 @@ export async function runScaffoldingCliCommand(
         process.stdout.write(
           json
             ? `${JSON.stringify({ outcome: "no-pending-transaction" }, null, 2)}\n`
-            : "No pending scaffolding transaction.\n"
+            : "No pending scaffolding transaction.\n",
         );
       } else {
         process.stdout.write(
-          json ? `${JSON.stringify(receipt, null, 2)}\n` : renderReceipt(receipt)
+          json ? `${JSON.stringify(receipt, null, 2)}\n` : renderReceipt(receipt),
         );
         process.exitCode = exitCode(receipt);
       }

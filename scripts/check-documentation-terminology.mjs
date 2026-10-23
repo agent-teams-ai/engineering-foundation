@@ -32,10 +32,7 @@ const requiredEntryPointLinks = [
 ];
 
 function countExactHeading(source, heading) {
-  return source
-    .split(/\r?\n/u)
-    .filter((line) => line === heading)
-    .length;
+  return source.split(/\r?\n/u).filter((line) => line === heading).length;
 }
 
 async function sourceAt(path) {

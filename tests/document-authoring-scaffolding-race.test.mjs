@@ -1,15 +1,11 @@
 import { createNodeDocumentAuthority } from "../packages/document-authoring/dist/document-authoring/module.js";
-import { FilesystemMarkdownRepository, readContainedRegularFile, readMarkdownSyntax } from "../packages/document-authoring/dist/documentation-observation/module.js";
-import assert from "node:assert/strict";
 import {
-  cp,
-  lstat,
-  mkdir,
-  mkdtemp,
-  readFile,
-  rm,
-  writeFile,
-} from "node:fs/promises";
+  FilesystemMarkdownRepository,
+  readContainedRegularFile,
+  readMarkdownSyntax,
+} from "../packages/document-authoring/dist/documentation-observation/module.js";
+import assert from "node:assert/strict";
+import { cp, lstat, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -19,28 +15,20 @@ import {
   applyDocumentationPlan,
   planDocumentationDocument,
 } from "../packages/document-authoring/dist/index.js";
-import {
-  applyNodeDocumentationPlan as applyNodeDocumentationPlanWithAuthority,
-} from "../packages/document-authoring/dist/document-authoring/adapters/node/node-document-writing.js";
+import { applyNodeDocumentationPlan as applyNodeDocumentationPlanWithAuthority } from "../packages/document-authoring/dist/document-authoring/adapters/node/node-document-writing.js";
 import {
   applyFilesystemScaffold,
   planScaffoldFromFile,
 } from "../packages/engineering-foundation/dist/scaffolding/index.js";
-import {
-  applyAuthorityFilesystemScaffoldWithFaultInjection,
-} from "../packages/engineering-foundation/dist/composition/scaffold-filesystem.js";
+import { applyAuthorityFilesystemScaffoldWithFaultInjection } from "../packages/engineering-foundation/dist/composition/scaffold-filesystem.js";
 
-const documentFixtureRoot = fileURLToPath(new URL(
-  "fixtures/document-planning/orchestrator/",
-  import.meta.url,
-));
-const scaffoldingFixtureRoot = fileURLToPath(new URL(
-  "fixtures/scaffolding-authority-consumer/",
-  import.meta.url,
-));
-const requiresStrictDirectoryDurability = process.platform === "win32"
-  ? test.skip
-  : test;
+const documentFixtureRoot = fileURLToPath(
+  new URL("fixtures/document-planning/orchestrator/", import.meta.url),
+);
+const scaffoldingFixtureRoot = fileURLToPath(
+  new URL("fixtures/scaffolding-authority-consumer/", import.meta.url),
+);
+const requiresStrictDirectoryDurability = process.platform === "win32" ? test.skip : test;
 
 function deferred() {
   let settle;
@@ -89,16 +77,10 @@ async function withPlans(run) {
     });
 
     await cp(scaffoldingFixtureRoot, root, { recursive: true });
-    const scaffoldConfigPath = join(
-      root,
-      "architecture/foundation/scaffolding.yaml",
-    );
+    const scaffoldConfigPath = join(root, "architecture/foundation/scaffolding.yaml");
     const scaffoldConfig = await readFile(scaffoldConfigPath, "utf8");
     await mkdir(join(root, "scaffold-docs"));
-    await cp(
-      join(root, "docs/decisions/adr-0060.md"),
-      join(root, "scaffold-docs/adr-0060.md"),
-    );
+    await cp(join(root, "docs/decisions/adr-0060.md"), join(root, "scaffold-docs/adr-0060.md"));
     await rm(join(root, "docs/decisions/adr-0060.md"));
     await writeFile(
       scaffoldConfigPath,
@@ -118,99 +100,115 @@ async function withPlans(run) {
 test(
   "a durable scaffolding transaction serializes document apply without evidence loss",
   { timeout: 30_000 },
-  async () => withPlans(async ({ documentPlan, root, scaffoldPlan }) => {
-    const entered = deferred();
-    const resume = deferred();
-    let paused = false;
-    const scaffolding = applyAuthorityFilesystemScaffoldWithFaultInjection(
-      root,
-      scaffoldPlan,
-      async ({ phase }) => {
-        if (!paused && phase === "after-journal-prepared") {
-          paused = true;
-          entered.resolve();
-          await resume.promise;
-        }
-      },
-    );
-    try {
-      await entered.promise;
-      const paths = statePaths(root);
-      const before = {
-        journal: await readFile(paths.journal),
-        lock: await readFile(paths.lock),
-      };
-
-      await assertTypedLockConflict(applyDocumentationPlan({
-        consumerRoot: root,
-        plan: documentPlan,
-      }), "RepositoryMutationError", "MUTATION_LEASE_INVALID");
-
-      assert.deepEqual(await readFile(paths.journal), before.journal);
-      assert.deepEqual(await readFile(paths.lock), before.lock);
-      await assertAbsent(join(root, documentPlan.destination));
-    } finally {
-      resume.resolve();
-      await scaffolding.catch(() => {});
-    }
-
-    const receipt = await scaffolding;
-    assert.equal(receipt.outcome, "applied");
-    for (const operation of scaffoldPlan.operations) {
-      await lstat(join(root, operation.path));
-    }
-    await assertAbsent(statePaths(root).journal);
-    await assertAbsent(statePaths(root).lock);
-  }),
-);
-
-requiresStrictDirectoryDurability(
-  "a durable document transaction serializes scaffold apply without evidence loss",
-  { timeout: 30_000 },
-  async () => withPlans(async ({ documentPlan, root, scaffoldPlan }) => {
-    const entered = deferred();
-    const resume = deferred();
-    let paused = false;
-    const document = applyNodeDocumentationPlanPrivately(
-      { consumerRoot: root, plan: documentPlan },
-      {
-        async faultInjector({ phase }) {
-          if (!paused && phase === "after-prepared-journal-durable") {
+  async () =>
+    withPlans(async ({ documentPlan, root, scaffoldPlan }) => {
+      const entered = deferred();
+      const resume = deferred();
+      let paused = false;
+      const scaffolding = applyAuthorityFilesystemScaffoldWithFaultInjection(
+        root,
+        scaffoldPlan,
+        async ({ phase }) => {
+          if (!paused && phase === "after-journal-prepared") {
             paused = true;
             entered.resolve();
             await resume.promise;
           }
         },
-      },
-    );
-    try {
-      await entered.promise;
-      const paths = statePaths(root);
-      const before = {
-        journal: await readFile(paths.journal),
-        lock: await readFile(paths.lock),
-      };
+      );
+      try {
+        await entered.promise;
+        const paths = statePaths(root);
+        const before = {
+          journal: await readFile(paths.journal),
+          lock: await readFile(paths.lock),
+        };
 
-      await assertTypedLockConflict(applyFilesystemScaffold(root, scaffoldPlan));
+        await assertTypedLockConflict(
+          applyDocumentationPlan({
+            consumerRoot: root,
+            plan: documentPlan,
+          }),
+          "RepositoryMutationError",
+          "MUTATION_LEASE_INVALID",
+        );
 
-      assert.deepEqual(await readFile(paths.journal), before.journal);
-      assert.deepEqual(await readFile(paths.lock), before.lock);
-      for (const operation of scaffoldPlan.operations) {
-        await assertAbsent(join(root, operation.path));
+        assert.deepEqual(await readFile(paths.journal), before.journal);
+        assert.deepEqual(await readFile(paths.lock), before.lock);
+        await assertAbsent(join(root, documentPlan.destination));
+      } finally {
+        resume.resolve();
+        await scaffolding.catch(() => {});
       }
-    } finally {
-      resume.resolve();
-      await document.catch(() => {});
-    }
 
-    const receipt = await document;
-    assert.equal(receipt.outcome, "applied");
-    await lstat(join(root, documentPlan.destination));
-    await assertAbsent(statePaths(root).journal);
-    await assertAbsent(statePaths(root).lock);
-  }),
+      const receipt = await scaffolding;
+      assert.equal(receipt.outcome, "applied");
+      for (const operation of scaffoldPlan.operations) {
+        await lstat(join(root, operation.path));
+      }
+      await assertAbsent(statePaths(root).journal);
+      await assertAbsent(statePaths(root).lock);
+    }),
 );
 
-function applyNodeDocumentationPlanPrivately(request, operations) { return applyNodeDocumentationPlanWithAuthority(request, createNodeDocumentAuthority(observation), operations); }
+requiresStrictDirectoryDurability(
+  "a durable document transaction serializes scaffold apply without evidence loss",
+  { timeout: 30_000 },
+  async () =>
+    withPlans(async ({ documentPlan, root, scaffoldPlan }) => {
+      const entered = deferred();
+      const resume = deferred();
+      let paused = false;
+      const document = applyNodeDocumentationPlanPrivately(
+        { consumerRoot: root, plan: documentPlan },
+        {
+          async faultInjector({ phase }) {
+            if (!paused && phase === "after-prepared-journal-durable") {
+              paused = true;
+              entered.resolve();
+              await resume.promise;
+            }
+          },
+        },
+      );
+      try {
+        await entered.promise;
+        const paths = statePaths(root);
+        const before = {
+          journal: await readFile(paths.journal),
+          lock: await readFile(paths.lock),
+        };
 
-const observation = { repository: new FilesystemMarkdownRepository(), readFile: readContainedRegularFile, syntax: readMarkdownSyntax };
+        await assertTypedLockConflict(applyFilesystemScaffold(root, scaffoldPlan));
+
+        assert.deepEqual(await readFile(paths.journal), before.journal);
+        assert.deepEqual(await readFile(paths.lock), before.lock);
+        for (const operation of scaffoldPlan.operations) {
+          await assertAbsent(join(root, operation.path));
+        }
+      } finally {
+        resume.resolve();
+        await document.catch(() => {});
+      }
+
+      const receipt = await document;
+      assert.equal(receipt.outcome, "applied");
+      await lstat(join(root, documentPlan.destination));
+      await assertAbsent(statePaths(root).journal);
+      await assertAbsent(statePaths(root).lock);
+    }),
+);
+
+function applyNodeDocumentationPlanPrivately(request, operations) {
+  return applyNodeDocumentationPlanWithAuthority(
+    request,
+    createNodeDocumentAuthority(observation),
+    operations,
+  );
+}
+
+const observation = {
+  repository: new FilesystemMarkdownRepository(),
+  readFile: readContainedRegularFile,
+  syntax: readMarkdownSyntax,
+};

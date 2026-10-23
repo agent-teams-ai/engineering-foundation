@@ -33,5 +33,5 @@ type NodeDocumentJournalFaultPoint =
     };
 
 export type NodeDocumentJournalFaultInjector = (
-  point: NodeDocumentJournalFaultPoint
+  point: NodeDocumentJournalFaultPoint,
 ) => Promise<void> | void;

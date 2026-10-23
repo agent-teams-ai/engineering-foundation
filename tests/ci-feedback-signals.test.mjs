@@ -66,22 +66,29 @@ test("CI signal artifact is source-bound, deterministic, and advisory", () => {
   assert.equal(artifact.advisory, true);
   assert.equal(artifact.source.runAttempt, 2);
   assert.equal(artifact.source.wallMilliseconds, 540_000);
-  assert.deepEqual(artifact.jobs.map(({ name }) => name), ["fast", "slow"]);
+  assert.deepEqual(
+    artifact.jobs.map(({ name }) => name),
+    ["fast", "slow"],
+  );
   assert.match(artifact.topologyFingerprint, /^sha256:[a-f0-9]{64}$/u);
   const summary = renderCiSignalSummary(artifact);
   assert.ok(summary.indexOf("slow") < summary.indexOf("fast"));
   assert.match(summary, /advisory and never block/u);
-  const escaped = renderCiSignalSummary(buildCiSignalArtifact({
-    sourceRun: sourceRun(),
-    jobs: [job(1, "table|row\nspoof", 1)],
-    relevance: { status: "current", pullRequest: 7 },
-  }));
+  const escaped = renderCiSignalSummary(
+    buildCiSignalArtifact({
+      sourceRun: sourceRun(),
+      jobs: [job(1, "table|row\nspoof", 1)],
+      relevance: { status: "current", pullRequest: 7 },
+    }),
+  );
   assert.match(escaped, /<code>table&#124;row spoof<\/code>/u);
-  const activeMarkdown = renderCiSignalSummary(buildCiSignalArtifact({
-    sourceRun: sourceRun(),
-    jobs: [job(1, "![track](https://attacker.test/pixel)", 1)],
-    relevance: { status: "current", pullRequest: 7 },
-  }));
+  const activeMarkdown = renderCiSignalSummary(
+    buildCiSignalArtifact({
+      sourceRun: sourceRun(),
+      jobs: [job(1, "![track](https://attacker.test/pixel)", 1)],
+      relevance: { status: "current", pullRequest: 7 },
+    }),
+  );
   assert.doesNotMatch(activeMarkdown, /!\[track\]\(/u);
 });
 
@@ -101,10 +108,18 @@ test("CI relevance fallback binds a pull request to the exact head repository an
       head: { sha: "a".repeat(40), repo: { full_name: "example/fork" } },
     };
   };
-  assert.deepEqual(await sourceRelevance({ ...sourceRun(), pull_requests: [] }, "token", "https://api.github.test", request), {
-    status: "current",
-    pullRequest: 8,
-  });
+  assert.deepEqual(
+    await sourceRelevance(
+      { ...sourceRun(), pull_requests: [] },
+      "token",
+      "https://api.github.test",
+      request,
+    ),
+    {
+      status: "current",
+      pullRequest: 8,
+    },
+  );
   assert.deepEqual(requests, [
     `/repos/example/foundation/commits/${"a".repeat(40)}/pulls?per_page=100`,
     "/repos/example/foundation/pulls/8",
@@ -120,15 +135,21 @@ test("CI relevance resolves workflow dispatches and fails closed on pagination",
   };
   const request = async () => fullPullRequest;
   const onePage = async () => ({ data: [fullPullRequest], hasNextPage: false });
-  assert.deepEqual(await sourceRelevance(dispatchRun, "token", "https://api.github.test", request, onePage), {
-    status: "current",
-    pullRequest: 8,
-  });
+  assert.deepEqual(
+    await sourceRelevance(dispatchRun, "token", "https://api.github.test", request, onePage),
+    {
+      status: "current",
+      pullRequest: 8,
+    },
+  );
   const paginated = async () => ({ data: [fullPullRequest], hasNextPage: true });
-  assert.deepEqual(await sourceRelevance(dispatchRun, "token", "https://api.github.test", request, paginated), {
-    status: "unresolved",
-    pullRequest: null,
-  });
+  assert.deepEqual(
+    await sourceRelevance(dispatchRun, "token", "https://api.github.test", request, paginated),
+    {
+      status: "unresolved",
+      pullRequest: null,
+    },
+  );
 });
 
 test("CI observer refetches immutable attempt-specific run evidence", () => {
@@ -140,29 +161,32 @@ test("CI observer refetches immutable attempt-specific run evidence", () => {
 
 test("CI signal artifact rejects ambiguous job identity and invalid timestamps", () => {
   assert.throws(
-    () => buildCiSignalArtifact({
-      sourceRun: sourceRun(),
-      jobs: [job(1, "same", 1), job(2, "same", 2)],
-      relevance: { status: "current", pullRequest: 7 },
-    }),
+    () =>
+      buildCiSignalArtifact({
+        sourceRun: sourceRun(),
+        jobs: [job(1, "same", 1), job(2, "same", 2)],
+        relevance: { status: "current", pullRequest: 7 },
+      }),
     /duplicate job names/u,
   );
   const invalid = job(1, "invalid", 1);
   invalid.completed_at = "not-a-timestamp";
   assert.throws(
-    () => buildCiSignalArtifact({
-      sourceRun: sourceRun(),
-      jobs: [invalid],
-      relevance: { status: "current", pullRequest: 7 },
-    }),
+    () =>
+      buildCiSignalArtifact({
+        sourceRun: sourceRun(),
+        jobs: [invalid],
+        relevance: { status: "current", pullRequest: 7 },
+      }),
     /completed_at must be a GitHub UTC ISO-8601 instant/u,
   );
   assert.throws(
-    () => buildCiSignalArtifact({
-      sourceRun: { ...sourceRun(), updated_at: "not-a-timestamp" },
-      jobs: [],
-      relevance: { status: "current", pullRequest: 7 },
-    }),
+    () =>
+      buildCiSignalArtifact({
+        sourceRun: { ...sourceRun(), updated_at: "not-a-timestamp" },
+        jobs: [],
+        relevance: { status: "current", pullRequest: 7 },
+      }),
     /completed_at must be a GitHub UTC ISO-8601 instant/u,
   );
 });
@@ -176,11 +200,12 @@ test("CI signal artifact strictly validates GitHub UTC instants", () => {
   ]) {
     const invalid = { ...job(1, "invalid", 1), completed_at: invalidTimestamp };
     assert.throws(
-      () => buildCiSignalArtifact({
-        sourceRun: sourceRun(),
-        jobs: [invalid],
-        relevance: { status: "current", pullRequest: 7 },
-      }),
+      () =>
+        buildCiSignalArtifact({
+          sourceRun: sourceRun(),
+          jobs: [invalid],
+          relevance: { status: "current", pullRequest: 7 },
+        }),
       /completed_at must be a GitHub UTC ISO-8601 instant/u,
     );
   }
@@ -198,11 +223,12 @@ test("CI signal artifact strictly validates GitHub UTC instants", () => {
 
 test("CI signal artifact validates source created_at", () => {
   assert.throws(
-    () => buildCiSignalArtifact({
-      sourceRun: { ...sourceRun(), created_at: "2026-02-30T10:00:00Z" },
-      jobs: [],
-      relevance: { status: "current", pullRequest: 7 },
-    }),
+    () =>
+      buildCiSignalArtifact({
+        sourceRun: { ...sourceRun(), created_at: "2026-02-30T10:00:00Z" },
+        jobs: [],
+        relevance: { status: "current", pullRequest: 7 },
+      }),
     /source created_at must be a GitHub UTC ISO-8601 instant/u,
   );
 });
@@ -242,17 +268,21 @@ test("CI signal artifact preserves cancelled runs with negative GitHub durations
 test("CI signal artifact validates present timestamps when the other endpoint is missing", () => {
   const invalid = { ...job(1, "invalid", 1), started_at: null, completed_at: "not-a-timestamp" };
   assert.throws(
-    () => buildCiSignalArtifact({
-      sourceRun: sourceRun(),
-      jobs: [invalid],
-      relevance: { status: "current", pullRequest: 7 },
-    }),
+    () =>
+      buildCiSignalArtifact({
+        sourceRun: sourceRun(),
+        jobs: [invalid],
+        relevance: { status: "current", pullRequest: 7 },
+      }),
     /completed_at must be a GitHub UTC ISO-8601 instant/u,
   );
 });
 
 test("workflow_run observer is read-only and never checks out pull request code", async () => {
-  const source = await readFile(join(repositoryRoot, ".github", "workflows", "ci-feedback.yml"), "utf8");
+  const source = await readFile(
+    join(repositoryRoot, ".github", "workflows", "ci-feedback.yml"),
+    "utf8",
+  );
   const workflow = parseYaml(source);
   assert.deepEqual(workflow.on.workflow_run, { workflows: ["CI"], types: ["completed"] });
   assert.deepEqual(workflow.permissions, {});
@@ -264,13 +294,19 @@ test("workflow_run observer is read-only and never checks out pull request code"
   const checkout = workflow.jobs.observe.steps[0];
   assert.equal(checkout.with.ref, "${{ github.sha }}");
   assert.doesNotMatch(source, /pull_request\.head|head_sha/u);
-  assert.equal(workflow.jobs.observe.steps.some(({ run }) => /pnpm install/u.test(run ?? "")), false);
+  assert.equal(
+    workflow.jobs.observe.steps.some(({ run }) => /pnpm install/u.test(run ?? "")),
+    false,
+  );
 });
 
 test("Node compatibility qualification propagates the producer status and stdout", async () => {
-  const workflow = parseYaml(await readFile(join(repositoryRoot, ".github", "workflows", "ci.yml"), "utf8"));
-  const step = workflow.jobs["node26-compatibility"].steps.find(({ name }) =>
-    name === "Qualify publishable packages in a fresh strict-engine consumer");
+  const workflow = parseYaml(
+    await readFile(join(repositoryRoot, ".github", "workflows", "ci.yml"), "utf8"),
+  );
+  const step = workflow.jobs["node26-compatibility"].steps.find(
+    ({ name }) => name === "Qualify publishable packages in a fresh strict-engine consumer",
+  );
   assert.ok(step);
   assert.equal(step.shell, undefined);
 
@@ -278,7 +314,10 @@ test("Node compatibility qualification propagates the producer status and stdout
   try {
     const pnpmPath = join(fixtureRoot, "pnpm");
     const markerPath = join(fixtureRoot, "stub-selected");
-    await writeFile(pnpmPath, `#!/usr/bin/env bash\n[[ $# -eq 1 && $1 == node-compatibility:qualification ]] || exit 99\nprintf 'selected\\n' >> "$RUNNER_TEMP/stub-selected"\nprintf '%s\\n' '{"qualification":"observed"}'\nexit "$QUALIFICATION_EXIT"\n`);
+    await writeFile(
+      pnpmPath,
+      `#!/usr/bin/env bash\n[[ $# -eq 1 && $1 == node-compatibility:qualification ]] || exit 99\nprintf 'selected\\n' >> "$RUNNER_TEMP/stub-selected"\nprintf '%s\\n' '{"qualification":"observed"}'\nexit "$QUALIFICATION_EXIT"\n`,
+    );
     await chmod(pnpmPath, 0o755);
     const shellDirectory = spawnSync("bash", ["-c", "pwd -P"], {
       cwd: fixtureRoot,
@@ -286,29 +325,40 @@ test("Node compatibility qualification propagates the producer status and stdout
     });
     assert.equal(shellDirectory.error, undefined);
     assert.equal(shellDirectory.status, 0, shellDirectory.stderr);
-    const inheritedPath = Object.entries(process.env).find(([key]) => key.toUpperCase() === "PATH")?.[1] ?? "";
+    const inheritedPath =
+      Object.entries(process.env).find(([key]) => key.toUpperCase() === "PATH")?.[1] ?? "";
     const env = {
-      ...Object.fromEntries(Object.entries(process.env).filter(([key]) => key.toUpperCase() !== "PATH")),
+      ...Object.fromEntries(
+        Object.entries(process.env).filter(([key]) => key.toUpperCase() !== "PATH"),
+      ),
       PATH: pathWithStub(fixtureRoot, inheritedPath),
       RUNNER_TEMP: shellDirectory.stdout.trim(),
     };
     // Confirm Bash selected this fixture, then invoke that exact executable.
     // A missing stub must never run the installed pnpm qualification instead.
-    const selected = spawnSync("bash", ["-c", 'stub=$(type -P pnpm) && [[ -n $stub && $stub -ef "$RUNNER_TEMP/pnpm" ]] && "$stub" node-compatibility:qualification'], {
-      encoding: "utf8",
-      env: { ...env, QUALIFICATION_EXIT: "0" },
-    });
+    const selected = spawnSync(
+      "bash",
+      [
+        "-c",
+        'stub=$(type -P pnpm) && [[ -n $stub && $stub -ef "$RUNNER_TEMP/pnpm" ]] && "$stub" node-compatibility:qualification',
+      ],
+      {
+        encoding: "utf8",
+        env: { ...env, QUALIFICATION_EXIT: "0" },
+      },
+    );
     assert.equal(selected.error, undefined);
     assert.equal(selected.status, 0, selected.stderr);
     assert.equal(await readFile(markerPath, "utf8"), "selected\n");
     // GitHub's implicit Linux shell runs `bash -e {0}` without pipefail.
-    const run = (exitCode) => spawnSync("bash", ["-e", "-c", step.run], {
-      encoding: "utf8",
-      env: {
-        ...env,
-        QUALIFICATION_EXIT: String(exitCode),
-      },
-    });
+    const run = (exitCode) =>
+      spawnSync("bash", ["-e", "-c", step.run], {
+        encoding: "utf8",
+        env: {
+          ...env,
+          QUALIFICATION_EXIT: String(exitCode),
+        },
+      });
 
     const failed = run(42);
     assert.equal(failed.error, undefined);
@@ -327,31 +377,37 @@ test("Node compatibility qualification propagates the producer status and stdout
   }
 });
 
-test("PATH separator normalization preserves qualification stub precedence", {
-  skip: process.platform === "win32" && "Linux-only simulation; native Windows exercises the workflow-step test",
-}, async () => {
+test(
+  "PATH separator normalization preserves qualification stub precedence",
+  {
+    skip:
+      process.platform === "win32" &&
+      "Linux-only simulation; native Windows exercises the workflow-step test",
+  },
+  async () => {
     const fixtureRoot = await ownedFixtureRoot("foundation-compatibility-windows-path-");
-  try {
-    const markerPath = join(fixtureRoot, "stub-selected");
-    const pnpmPath = join(fixtureRoot, "pnpm");
-    await writeFile(pnpmPath, '#!/usr/bin/env bash\nprintf "selected\\n" > "$STUB_MARKER"\n');
-    await chmod(pnpmPath, 0o755);
+    try {
+      const markerPath = join(fixtureRoot, "stub-selected");
+      const pnpmPath = join(fixtureRoot, "pnpm");
+      await writeFile(pnpmPath, '#!/usr/bin/env bash\nprintf "selected\\n" > "$STUB_MARKER"\n');
+      await chmod(pnpmPath, 0o755);
 
-    // Synthetically normalize a semicolon-separated PATH before launching Bash.
-    const nativePath = pathWithStub(fixtureRoot, "/usr/bin;/bin", ";");
-    const bashPath = nativePath.split(";").join(":");
-    const env = { ...process.env, PATH: bashPath, STUB_MARKER: markerPath };
-    const selected = spawnSync("bash", ["-c", '[[ $(type -P pnpm) == "$EXPECTED_STUB" ]]'], {
-      encoding: "utf8",
-      env: { ...env, EXPECTED_STUB: pnpmPath },
-    });
-    assert.equal(selected.error, undefined);
-    assert.equal(selected.status, 0, selected.stderr);
-    const invoked = spawnSync("bash", ["-c", "pnpm"], { encoding: "utf8", env });
-    assert.equal(invoked.error, undefined);
-    assert.equal(invoked.status, 0, invoked.stderr);
-    assert.equal(await readFile(markerPath, "utf8"), "selected\n");
-  } finally {
-    await rm(fixtureRoot, { recursive: true, force: true });
-  }
-});
+      // Synthetically normalize a semicolon-separated PATH before launching Bash.
+      const nativePath = pathWithStub(fixtureRoot, "/usr/bin;/bin", ";");
+      const bashPath = nativePath.split(";").join(":");
+      const env = { ...process.env, PATH: bashPath, STUB_MARKER: markerPath };
+      const selected = spawnSync("bash", ["-c", '[[ $(type -P pnpm) == "$EXPECTED_STUB" ]]'], {
+        encoding: "utf8",
+        env: { ...env, EXPECTED_STUB: pnpmPath },
+      });
+      assert.equal(selected.error, undefined);
+      assert.equal(selected.status, 0, selected.stderr);
+      const invoked = spawnSync("bash", ["-c", "pnpm"], { encoding: "utf8", env });
+      assert.equal(invoked.error, undefined);
+      assert.equal(invoked.status, 0, invoked.stderr);
+      assert.equal(await readFile(markerPath, "utf8"), "selected\n");
+    } finally {
+      await rm(fixtureRoot, { recursive: true, force: true });
+    }
+  },
+);

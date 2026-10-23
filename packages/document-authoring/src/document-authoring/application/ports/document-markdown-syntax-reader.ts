@@ -10,5 +10,5 @@ interface DocumentMarkdownSyntaxObservation {
 
 export type DocumentMarkdownSyntaxReader = (
   source: string,
-  kind: "code" | "heading"
+  kind: "code" | "heading",
 ) => readonly DocumentMarkdownSyntaxObservation[];

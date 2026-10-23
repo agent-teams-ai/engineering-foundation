@@ -1,4 +1,10 @@
-import { scaffoldAuthorityDependencies, scaffoldTransactionArtifacts, scaffoldLegacyDigests, createNodeScaffoldingApi, createScaffoldFilesystemDependencies } from "../packages/engineering-foundation/dist/scaffolding/composition/node-scaffolding.js";
+import {
+  scaffoldAuthorityDependencies,
+  scaffoldTransactionArtifacts,
+  scaffoldLegacyDigests,
+  createNodeScaffoldingApi,
+  createScaffoldFilesystemDependencies,
+} from "../packages/engineering-foundation/dist/scaffolding/composition/node-scaffolding.js";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -11,23 +17,42 @@ import { assertSchema } from "../packages/engineering-foundation/dist/schema-cat
 import { applyAuthorityFilesystemScaffoldWithFaultInjection as apply } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/filesystem-authority-workspace.js";
 import { assessScaffoldPlanAuthority } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/node-plan-authority.js";
 import { freshAuthorityScaffoldJournal } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/filesystem-journal-state.js";
-import { serializeScaffoldJournal, parseScaffoldJournal } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/node-scaffold-journal-evidence.js";
-import { inspectLegacyScaffoldingJournal, inspectLegacyScaffoldingEnvelope } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/scaffold-transaction-status.js";
+import {
+  serializeScaffoldJournal,
+  parseScaffoldJournal,
+} from "../packages/engineering-foundation/dist/scaffolding/adapters/node/node-scaffold-journal-evidence.js";
+import {
+  inspectLegacyScaffoldingJournal,
+  inspectLegacyScaffoldingEnvelope,
+} from "../packages/engineering-foundation/dist/scaffolding/adapters/node/scaffold-transaction-status.js";
 import { assertLegacyScaffoldingJournal } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/legacy-scaffolding-transaction-validation.js";
 import { parseFoundationScaffoldEnvelope } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/foundation-scaffold-envelope.js";
 import { compileRepositoryMutationEnvelope } from "../packages/repository-mutation/dist/coordination.js";
 import { canonicalJson } from "../packages/repository-mutation/dist/serialization.js";
 
-async function unusedTransactions() { assert.fail("no filesystem transaction is admitted in this test"); }
+async function unusedTransactions() {
+  assert.fail("no filesystem transaction is admitted in this test");
+}
 async function withFixture(run) {
   const root = await mkdtemp(join(tmpdir(), "scaffolding-schema-boundary-"));
   try {
-    await cp(new URL("./fixtures/scaffolding-authority-consumer/", import.meta.url), root, { recursive: true });
+    await cp(new URL("./fixtures/scaffolding-authority-consumer/", import.meta.url), root, {
+      recursive: true,
+    });
     await run(root);
-  } finally { await rm(root, { recursive: true, force: true }); }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 }
-function api(validate = assertSchema) { return createNodeScaffoldingApi(validate, unusedTransactions); }
-function plan(root, service = api()) { return service.planScaffoldFromFile({ consumerRoot: root, intentPath: "intents/create-fixture.yaml" }); }
+function api(validate = assertSchema) {
+  return createNodeScaffoldingApi(validate, unusedTransactions);
+}
+function plan(root, service = api()) {
+  return service.planScaffoldFromFile({
+    consumerRoot: root,
+    intentPath: "intents/create-fixture.yaml",
+  });
+}
 
 test("Foundation runtime and type feature graphs have no schema assembly cycles", async () => {
   const graph = await observeFoundationFeatureGraph();
@@ -37,149 +62,293 @@ test("Foundation runtime and type feature graphs have no schema assembly cycles"
 });
 
 test("source policy rejects schema assembly imports in all six scaffolding adapters", async () => {
-  await assertSchemaAssemblyImportsRejected([
-    "node/node-authority-input-loader.ts",
-    "node/node-authority-receipt-validator.ts",
-    "node/node-scaffold-journal-evidence.ts",
-    "node/scaffold-transaction-status.ts",
-    "node/filesystem-authority-workspace.ts",
-    "inbound/scaffolding-cli-command.ts"
-  ].map((path) => ({
-    path: `packages/engineering-foundation/src/scaffolding/adapters/${path}`,
-    specifier: "../../../schema-catalog.js"
-  })));
+  await assertSchemaAssemblyImportsRejected(
+    [
+      "node/node-authority-input-loader.ts",
+      "node/node-authority-receipt-validator.ts",
+      "node/node-scaffold-journal-evidence.ts",
+      "node/scaffold-transaction-status.ts",
+      "node/filesystem-authority-workspace.ts",
+      "inbound/scaffolding-cli-command.ts",
+    ].map((path) => ({
+      path: `packages/engineering-foundation/src/scaffolding/adapters/${path}`,
+      specifier: "../../../schema-catalog.js",
+    })),
+  );
 });
 
-test("injected validation retains planning and Plan reading schema order and bytes", async () => withFixture(async (root) => {
-  const calls = [];
-  const service = api(async (id, input, phase) => { calls.push([id, phase]); await assertSchema(id, input, phase); });
-  const actual = await plan(root, service);
-  assert.deepEqual(actual, await plan(root));
-  assert.deepEqual(calls, [
-    ["scaffolding-config/v1", "scaffolding-config"],
-    ["scaffold-intent/v1", "scaffold-intent"],
-    ["scaffold-target-catalog/v1", "scaffold-target-catalog"],
-    ["scaffold-authority-evidence/v1", "scaffold-authority-evidence"]
-  ]);
-  const bytes = `${JSON.stringify(actual, null, 2)}\n`;
-  await writeFile(join(root, "plan.json"), bytes);
-  assert.deepEqual(await service.readScaffoldPlanFile(root, "plan.json"), actual);
-  assert.deepEqual(calls.at(-1), ["scaffold-plan/v1", "scaffold-plan"]);
-  assert.equal(await readFile(join(root, "plan.json"), "utf8"), bytes);
-}));
+test("injected validation retains planning and Plan reading schema order and bytes", async () =>
+  withFixture(async (root) => {
+    const calls = [];
+    const service = api(async (id, input, phase) => {
+      calls.push([id, phase]);
+      await assertSchema(id, input, phase);
+    });
+    const actual = await plan(root, service);
+    assert.deepEqual(actual, await plan(root));
+    assert.deepEqual(calls, [
+      ["scaffolding-config/v1", "scaffolding-config"],
+      ["scaffold-intent/v1", "scaffold-intent"],
+      ["scaffold-target-catalog/v1", "scaffold-target-catalog"],
+      ["scaffold-authority-evidence/v1", "scaffold-authority-evidence"],
+    ]);
+    const bytes = `${JSON.stringify(actual, null, 2)}\n`;
+    await writeFile(join(root, "plan.json"), bytes);
+    assert.deepEqual(await service.readScaffoldPlanFile(root, "plan.json"), actual);
+    assert.deepEqual(calls.at(-1), ["scaffold-plan/v1", "scaffold-plan"]);
+    assert.equal(await readFile(join(root, "plan.json"), "utf8"), bytes);
+  }));
 
-test("schema rejection precedes apply filesystem access and keeps the caller Plan unchanged", async () => withFixture(async (root) => {
-  const value = await plan(root), before = JSON.stringify(value), calls = [], failure = new Error("plan schema rejected");
-  const dependencies = createScaffoldFilesystemDependencies(async (...args) => { calls.push(args); throw failure; }, unusedTransactions);
-  await assert.rejects(apply(join(root, "does-not-exist"), value, undefined, dependencies), (error) => error === failure);
-  assert.deepEqual(calls.map(([id, , phase]) => [id, phase]), [["scaffold-plan/v1", "scaffold-apply-plan"]]);
-  assert.notEqual(calls[0][1], value);
-  assert.equal(JSON.stringify(value), before);
-}));
+test("schema rejection precedes apply filesystem access and keeps the caller Plan unchanged", async () =>
+  withFixture(async (root) => {
+    const value = await plan(root),
+      before = JSON.stringify(value),
+      calls = [],
+      failure = new Error("plan schema rejected");
+    const dependencies = createScaffoldFilesystemDependencies(async (...args) => {
+      calls.push(args);
+      throw failure;
+    }, unusedTransactions);
+    await assert.rejects(
+      apply(join(root, "does-not-exist"), value, undefined, dependencies),
+      (error) => error === failure,
+    );
+    assert.deepEqual(
+      calls.map(([id, , phase]) => [id, phase]),
+      [["scaffold-plan/v1", "scaffold-apply-plan"]],
+    );
+    assert.notEqual(calls[0][1], value);
+    assert.equal(JSON.stringify(value), before);
+  }));
 
-test("authority validation failures remain unverifiable rather than stale", async () => withFixture(async (root) => {
-  const value = await plan(root);
-  assert.deepEqual(await assessScaffoldPlanAuthority(root, value, async () => { throw new Error("schema unavailable"); }, scaffoldAuthorityDependencies), { state: "unverifiable" });
-}));
+test("authority validation failures remain unverifiable rather than stale", async () =>
+  withFixture(async (root) => {
+    const value = await plan(root);
+    assert.deepEqual(
+      await assessScaffoldPlanAuthority(
+        root,
+        value,
+        async () => {
+          throw new Error("schema unavailable");
+        },
+        scaffoldAuthorityDependencies,
+      ),
+      { state: "unverifiable" },
+    );
+  }));
 
 test("receipt validation preserves the delegated schema failure and input identity", async () => {
-  const receipt = {}, calls = [], failure = new Error("receipt rejected");
-  await assert.rejects(api(async (...args) => { calls.push(args); throw failure; }).validateScaffoldReceipt(receipt), (error) => error === failure);
+  const receipt = {},
+    calls = [],
+    failure = new Error("receipt rejected");
+  await assert.rejects(
+    api(async (...args) => {
+      calls.push(args);
+      throw failure;
+    }).validateScaffoldReceipt(receipt),
+    (error) => error === failure,
+  );
   assert.deepEqual(calls, [["scaffold-receipt/v1", receipt, "scaffold-receipt"]]);
   assert.equal(calls[0][1], receipt);
 });
 
-test("journal codecs preserve historical pretty JSON and current envelope bytes", async () => withFixture(async (root) => {
-  const journal = freshAuthorityScaffoldJournal(await plan(root));
-  const historical = Buffer.from(`${JSON.stringify(journal, null, 2)}\n`, "utf8");
-  const historicalCopy = Buffer.from(historical), calls = [];
-  const validate = async (id, input, phase) => { calls.push([id, phase]); await assertSchema(id, input, phase); };
-  assert.deepEqual(await parseScaffoldJournal(historical, validate, scaffoldTransactionArtifacts), journal);
-  assert.deepEqual(historical, historicalCopy);
-  assert.deepEqual(calls, [["scaffold-recovery-journal/v1", "scaffold-recovery-journal"], ["scaffold-plan/v1", "scaffold-recovery-journal"]]);
-  const current = await serializeScaffoldJournal(journal, validate, scaffoldTransactionArtifacts);
-  assert.deepEqual(await parseScaffoldJournal(current, validate, scaffoldTransactionArtifacts), journal);
-  const parsed = JSON.parse(current.toString("utf8"));
-  const malformed = compileRepositoryMutationEnvelope({
-    operationKind: parsed.operationKind, recoveryHandler: parsed.recoveryHandler,
-    ownerArtifact: parsed.ownerArtifact, kernelArtifact: parsed.kernelArtifact,
-    adapterContractVersion: parsed.adapterContractVersion, payloadKind: parsed.payloadKind,
-    state: parsed.state, payload: { ...journal, unexpected: true }
-  });
-  await assert.rejects(parseFoundationScaffoldEnvelope(Buffer.from(JSON.stringify(malformed)), scaffoldTransactionArtifacts),
-    /does not satisfy the released contract/u);
-  assert.deepEqual(await serializeScaffoldJournal(journal, assertSchema, scaffoldTransactionArtifacts), current);
-  const invalid = Buffer.from(`${historical.toString("utf8")} `);
-  await assert.rejects(parseScaffoldJournal(invalid, validate, scaffoldTransactionArtifacts), /historical canonical form/u);
-  await assert.rejects(parseScaffoldJournal(Buffer.from("{broken"), async () => assert.fail("invalid JSON cannot reach schema validation")), /invalid strict JSON/u);
-}));
+test("journal codecs preserve historical pretty JSON and current envelope bytes", async () =>
+  withFixture(async (root) => {
+    const journal = freshAuthorityScaffoldJournal(await plan(root));
+    const historical = Buffer.from(`${JSON.stringify(journal, null, 2)}\n`, "utf8");
+    const historicalCopy = Buffer.from(historical),
+      calls = [];
+    const validate = async (id, input, phase) => {
+      calls.push([id, phase]);
+      await assertSchema(id, input, phase);
+    };
+    assert.deepEqual(
+      await parseScaffoldJournal(historical, validate, scaffoldTransactionArtifacts),
+      journal,
+    );
+    assert.deepEqual(historical, historicalCopy);
+    assert.deepEqual(calls, [
+      ["scaffold-recovery-journal/v1", "scaffold-recovery-journal"],
+      ["scaffold-plan/v1", "scaffold-recovery-journal"],
+    ]);
+    const current = await serializeScaffoldJournal(journal, validate, scaffoldTransactionArtifacts);
+    assert.deepEqual(
+      await parseScaffoldJournal(current, validate, scaffoldTransactionArtifacts),
+      journal,
+    );
+    const parsed = JSON.parse(current.toString("utf8"));
+    const malformed = compileRepositoryMutationEnvelope({
+      operationKind: parsed.operationKind,
+      recoveryHandler: parsed.recoveryHandler,
+      ownerArtifact: parsed.ownerArtifact,
+      kernelArtifact: parsed.kernelArtifact,
+      adapterContractVersion: parsed.adapterContractVersion,
+      payloadKind: parsed.payloadKind,
+      state: parsed.state,
+      payload: { ...journal, unexpected: true },
+    });
+    await assert.rejects(
+      parseFoundationScaffoldEnvelope(
+        Buffer.from(JSON.stringify(malformed)),
+        scaffoldTransactionArtifacts,
+      ),
+      /does not satisfy the released contract/u,
+    );
+    assert.deepEqual(
+      await serializeScaffoldJournal(journal, assertSchema, scaffoldTransactionArtifacts),
+      current,
+    );
+    const invalid = Buffer.from(`${historical.toString("utf8")} `);
+    await assert.rejects(
+      parseScaffoldJournal(invalid, validate, scaffoldTransactionArtifacts),
+      /historical canonical form/u,
+    );
+    await assert.rejects(
+      parseScaffoldJournal(Buffer.from("{broken"), async () =>
+        assert.fail("invalid JSON cannot reach schema validation"),
+      ),
+      /invalid strict JSON/u,
+    );
+  }));
 
 for (const [name, inspect, schema] of [
   ["journal", inspectLegacyScaffoldingJournal, "scaffold-recovery-journal/v1"],
-  ["envelope", inspectLegacyScaffoldingEnvelope, "foundation-transaction-envelope/v2"]
+  ["envelope", inspectLegacyScaffoldingEnvelope, "foundation-transaction-envelope/v2"],
 ]) {
   test(`legacy scaffolding ${name} retains exact schema, evidence and rejection`, async () => {
-    const value = {}, calls = [], failure = new Error("legacy schema rejected");
-    const input = name === "journal" ? { value, installedVersion: "1.0.0", installedBuildIdentity: `sha256:${"a".repeat(64)}` } : value;
-    await assert.rejects(inspect(input, async (...args) => { calls.push(args); throw failure; }, scaffoldLegacyDigests), (error) => error === failure);
+    const value = {},
+      calls = [],
+      failure = new Error("legacy schema rejected");
+    const input =
+      name === "journal"
+        ? { value, installedVersion: "1.0.0", installedBuildIdentity: `sha256:${"a".repeat(64)}` }
+        : value;
+    await assert.rejects(
+      inspect(
+        input,
+        async (...args) => {
+          calls.push(args);
+          throw failure;
+        },
+        scaffoldLegacyDigests,
+      ),
+      (error) => error === failure,
+    );
     assert.deepEqual(calls, [[schema, value, "foundation-transaction-slot"]]);
     assert.equal(calls[0][1], value);
     assert.deepEqual(value, {});
   });
 }
 
-test("legacy journal reads compiler only after schema and digest validation", async () => withFixture(async (root) => {
-  const journal = freshAuthorityScaffoldJournal(await plan(root));
-  const calls = [];
-  const observed = await inspectLegacyScaffoldingJournal({
-    value: journal, installedVersion: "1.0.0", installedBuildIdentity: `sha256:${"a".repeat(64)}`
-  }, async (id, input, phase) => {
-    calls.push([id, input, phase]);
-    await assertSchema(id, input, phase);
-  }, scaffoldLegacyDigests);
-  assert.deepEqual(calls, [["scaffold-recovery-journal/v1", journal, "foundation-transaction-slot"]]);
-  assert.equal(observed.state, "pending");
-  assert.equal(observed.foundationVersion, journal.plan.compiler.version);
-  const failure = new Error("digest rejected");
-  await assert.rejects(inspectLegacyScaffoldingJournal({
-    value: journal, installedVersion: "1.0.0", installedBuildIdentity: "identity"
-  }, async () => { calls.push("schema accepted"); }, {
-    journalPlanDigest() { throw failure; }, assertEnvelopeDigests() { assert.fail("unused"); }
-  }), (error) => error === failure);
-  assert.equal(calls.at(-1), "schema accepted");
-}));
+test("legacy journal reads compiler only after schema and digest validation", async () =>
+  withFixture(async (root) => {
+    const journal = freshAuthorityScaffoldJournal(await plan(root));
+    const calls = [];
+    const observed = await inspectLegacyScaffoldingJournal(
+      {
+        value: journal,
+        installedVersion: "1.0.0",
+        installedBuildIdentity: `sha256:${"a".repeat(64)}`,
+      },
+      async (id, input, phase) => {
+        calls.push([id, input, phase]);
+        await assertSchema(id, input, phase);
+      },
+      scaffoldLegacyDigests,
+    );
+    assert.deepEqual(calls, [
+      ["scaffold-recovery-journal/v1", journal, "foundation-transaction-slot"],
+    ]);
+    assert.equal(observed.state, "pending");
+    assert.equal(observed.foundationVersion, journal.plan.compiler.version);
+    const failure = new Error("digest rejected");
+    await assert.rejects(
+      inspectLegacyScaffoldingJournal(
+        {
+          value: journal,
+          installedVersion: "1.0.0",
+          installedBuildIdentity: "identity",
+        },
+        async () => {
+          calls.push("schema accepted");
+        },
+        {
+          journalPlanDigest() {
+            throw failure;
+          },
+          assertEnvelopeDigests() {
+            assert.fail("unused");
+          },
+        },
+      ),
+      (error) => error === failure,
+    );
+    assert.equal(calls.at(-1), "schema accepted");
+  }));
 
-test("legacy journal bridge preserves negative zero and lone-surrogate digest normalization", async () => withFixture(async (root) => {
-  const journal = structuredClone(freshAuthorityScaffoldJournal(await plan(root)));
-  journal.plan.resolved.recipeParameters = { negativeZero: -0, loneSurrogate: "\uD800" };
-  const { planDigest: _ignored, ...historicalBody } = journal.plan;
-  journal.plan.planDigest = scaffoldLegacyDigests.journalPlanDigest(historicalBody);
-  await assertSchema("scaffold-recovery-journal/v1", journal, "legacy-bridge-fixture");
-  const normalizedBody = structuredClone(historicalBody);
-  normalizedBody.resolved.recipeParameters = { negativeZero: 0, loneSurrogate: "\uFFFD" };
-  const canonicalBytes = canonicalJson(normalizedBody);
-  const expectedDigest = `sha256:${createHash("sha256").update(Buffer.from(canonicalBytes, "utf8")).digest("hex")}`;
-  assert.notEqual(journal.plan.planDigest, expectedDigest);
-  assert.match(canonicalBytes, /"loneSurrogate":"\uFFFD","negativeZero":0/u);
-  assert.equal(Object.is(journal.plan.resolved.recipeParameters.negativeZero, -0), true);
-  assert.equal(JSON.parse(canonicalBytes).resolved.recipeParameters.loneSurrogate, "\uFFFD");
-  assert.equal((await inspectLegacyScaffoldingJournal({
-    value: journal, installedVersion: "1.0.0", installedBuildIdentity: `sha256:${"a".repeat(64)}`
-  }, assertSchema, scaffoldLegacyDigests)).state, "pending");
-  assert.equal(Object.is(journal.plan.resolved.recipeParameters.negativeZero, -0), true);
-  assert.equal(journal.plan.resolved.recipeParameters.loneSurrogate, "\uD800");
+test("legacy journal bridge preserves negative zero and lone-surrogate digest normalization", async () =>
+  withFixture(async (root) => {
+    const journal = structuredClone(freshAuthorityScaffoldJournal(await plan(root)));
+    journal.plan.resolved.recipeParameters = { negativeZero: -0, loneSurrogate: "\uD800" };
+    const { planDigest: _ignored, ...historicalBody } = journal.plan;
+    journal.plan.planDigest = scaffoldLegacyDigests.journalPlanDigest(historicalBody);
+    await assertSchema("scaffold-recovery-journal/v1", journal, "legacy-bridge-fixture");
+    const normalizedBody = structuredClone(historicalBody);
+    normalizedBody.resolved.recipeParameters = { negativeZero: 0, loneSurrogate: "\uFFFD" };
+    const canonicalBytes = canonicalJson(normalizedBody);
+    const expectedDigest = `sha256:${createHash("sha256").update(Buffer.from(canonicalBytes, "utf8")).digest("hex")}`;
+    assert.notEqual(journal.plan.planDigest, expectedDigest);
+    assert.match(canonicalBytes, /"loneSurrogate":"\uFFFD","negativeZero":0/u);
+    assert.equal(Object.is(journal.plan.resolved.recipeParameters.negativeZero, -0), true);
+    assert.equal(JSON.parse(canonicalBytes).resolved.recipeParameters.loneSurrogate, "\uFFFD");
+    assert.equal(
+      (
+        await inspectLegacyScaffoldingJournal(
+          {
+            value: journal,
+            installedVersion: "1.0.0",
+            installedBuildIdentity: `sha256:${"a".repeat(64)}`,
+          },
+          assertSchema,
+          scaffoldLegacyDigests,
+        )
+      ).state,
+      "pending",
+    );
+    assert.equal(Object.is(journal.plan.resolved.recipeParameters.negativeZero, -0), true);
+    assert.equal(journal.plan.resolved.recipeParameters.loneSurrogate, "\uD800");
 
-  const extra = structuredClone(journal);
-  extra.plan.unexpected = true;
-  await assert.rejects(inspectLegacyScaffoldingJournal({
-    value: extra, installedVersion: "1.0.0", installedBuildIdentity: `sha256:${"a".repeat(64)}`
-  }, assertSchema, scaffoldLegacyDigests));
-  const malformed = structuredClone(journal);
-  malformed.plan.resolved.recipeParameters.negativeZero = Infinity;
-  await assert.rejects(inspectLegacyScaffoldingJournal({
-    value: malformed, installedVersion: "1.0.0", installedBuildIdentity: `sha256:${"a".repeat(64)}`
-  }, assertSchema, scaffoldLegacyDigests));
-  assert.throws(() => assertLegacyScaffoldingJournal(malformed, {
-    journalPlanDigest: () => malformed.plan.planDigest
-  }), /Canonical JSON numbers/u);
-}));
+    const extra = structuredClone(journal);
+    extra.plan.unexpected = true;
+    await assert.rejects(
+      inspectLegacyScaffoldingJournal(
+        {
+          value: extra,
+          installedVersion: "1.0.0",
+          installedBuildIdentity: `sha256:${"a".repeat(64)}`,
+        },
+        assertSchema,
+        scaffoldLegacyDigests,
+      ),
+    );
+    const malformed = structuredClone(journal);
+    malformed.plan.resolved.recipeParameters.negativeZero = Infinity;
+    await assert.rejects(
+      inspectLegacyScaffoldingJournal(
+        {
+          value: malformed,
+          installedVersion: "1.0.0",
+          installedBuildIdentity: `sha256:${"a".repeat(64)}`,
+        },
+        assertSchema,
+        scaffoldLegacyDigests,
+      ),
+    );
+    assert.throws(
+      () =>
+        assertLegacyScaffoldingJournal(malformed, {
+          journalPlanDigest: () => malformed.plan.planDigest,
+        }),
+      /Canonical JSON numbers/u,
+    );
+  }));

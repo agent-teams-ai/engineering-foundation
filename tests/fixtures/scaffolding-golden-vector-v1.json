@@ -68,9 +68,7 @@
         "size": 267
       }
     ],
-    "requiredAdapterCapabilities": [
-      "materialize-file/v1"
-    ],
+    "requiredAdapterCapabilities": ["materialize-file/v1"],
     "operations": [
       {
         "id": "materialize/packages/testing/generated/README.md",
@@ -132,13 +130,7 @@
       "state": "committed",
       "atomicity": "journaled-recoverable"
     },
-    "operationOutcomes": [
-      "applied",
-      "applied",
-      "applied",
-      "applied",
-      "applied"
-    ],
+    "operationOutcomes": ["applied", "applied", "applied", "applied", "applied"],
     "diagnostics": []
   },
   "legacyJournal": {

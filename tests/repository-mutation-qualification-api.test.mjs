@@ -4,18 +4,26 @@ import test from "node:test";
 
 test("publishes only the new Repository Mutation qualification seam", async () => {
   const [leaf, foundation, qualification, publicIndex] = await Promise.all([
-    readFile(new URL("../packages/repository-mutation/package.json", import.meta.url), "utf8").then(JSON.parse),
-    readFile(new URL("../packages/engineering-foundation/package.json", import.meta.url), "utf8").then(JSON.parse),
-    readFile(new URL("../packages/repository-mutation/src/qualification/index.ts", import.meta.url), "utf8"),
-    readFile(new URL("../packages/repository-mutation/src/index.ts", import.meta.url), "utf8")
+    readFile(new URL("../packages/repository-mutation/package.json", import.meta.url), "utf8").then(
+      JSON.parse,
+    ),
+    readFile(
+      new URL("../packages/engineering-foundation/package.json", import.meta.url),
+      "utf8",
+    ).then(JSON.parse),
+    readFile(
+      new URL("../packages/repository-mutation/src/qualification/index.ts", import.meta.url),
+      "utf8",
+    ),
+    readFile(new URL("../packages/repository-mutation/src/index.ts", import.meta.url), "utf8"),
   ]);
   assert.deepEqual(leaf.exports["./qualification"], {
     types: "./dist/qualification/index.d.ts",
-    import: "./dist/qualification/index.js"
+    import: "./dist/qualification/index.js",
   });
   assert.deepEqual(leaf.exports["./node"], {
     types: "./dist/node.d.ts",
-    import: "./dist/node.js"
+    import: "./dist/node.js",
   });
   assert.equal(Object.hasOwn(foundation.exports, "./mutation"), false);
   assert.equal(Object.hasOwn(foundation.exports, "./mutation/qualification"), false);
@@ -32,96 +40,137 @@ test("publishes only the new Repository Mutation qualification seam", async () =
     "createAndBindNodeDirectory",
     "prepareExactSiblingTemporary",
     "publishPreparedAbsentFile",
-    "syncMutationStateDirectory"
+    "syncMutationStateDirectory",
   ]) {
     assert.doesNotMatch(publicIndex, new RegExp(`\\b${lowLevel}\\b`, "u"));
   }
 });
 
 test("production known-file APIs reject runtime excess and accessor properties", async () => {
-  const { applyKnownFileTransaction, compileKnownFileTransactionPlan, recoverKnownFileTransaction } = await import(
-    "../packages/repository-mutation/dist/index.js"
-  );
+  const {
+    applyKnownFileTransaction,
+    compileKnownFileTransactionPlan,
+    recoverKnownFileTransaction,
+  } = await import("../packages/repository-mutation/dist/index.js");
   let invoked = false;
   const applyOptions = {
     consumerRoot: "/unused",
     plan: null,
-    faultInjector() { invoked = true; }
+    faultInjector() {
+      invoked = true;
+    },
   };
   await assert.rejects(applyKnownFileTransaction(applyOptions), /unknown, missing, or executable/u);
   const recoveryOptions = { consumerRoot: "/unused" };
   Object.defineProperty(recoveryOptions, "claim", {
     enumerable: true,
-    get() { invoked = true; return null; }
+    get() {
+      invoked = true;
+      return null;
+    },
   });
-  await assert.rejects(recoverKnownFileTransaction(recoveryOptions), /unknown, missing, or executable/u);
+  await assert.rejects(
+    recoverKnownFileTransaction(recoveryOptions),
+    /unknown, missing, or executable/u,
+  );
   const compileInput = {};
   Object.defineProperty(compileInput, "operations", {
     enumerable: true,
-    get() {invoked = true; return [];}
+    get() {
+      invoked = true;
+      return [];
+    },
   });
   assert.throws(
     () => compileKnownFileTransactionPlan(compileInput),
-    /plain operations record|at most/u
+    /plain operations record|at most/u,
   );
   const operationArray = [];
   Object.defineProperty(operationArray, "0", {
     enumerable: true,
-    get() {invoked = true; return null;}
+    get() {
+      invoked = true;
+      return null;
+    },
   });
   assert.throws(
     () => compileKnownFileTransactionPlan({ operations: operationArray }),
-    /enumerable data properties/u
+    /enumerable data properties/u,
   );
   assert.equal(invoked, false);
 });
 
 test("production known-file options reject arbitrary JS containers before observing a root", async () => {
-  const { applyKnownFileTransaction, recoverKnownFileTransaction } = await import(
-    "../packages/repository-mutation/dist/index.js"
-  );
+  const { applyKnownFileTransaction, recoverKnownFileTransaction } =
+    await import("../packages/repository-mutation/dist/index.js");
   for (const invoke of [applyKnownFileTransaction, recoverKnownFileTransaction]) {
-    for (const candidate of [null, undefined, false, 1, "root", Symbol("root"), [], () => null,
-      Object.create({ consumerRoot: "/unused" })]) {
+    for (const candidate of [
+      null,
+      undefined,
+      false,
+      1,
+      "root",
+      Symbol("root"),
+      [],
+      () => null,
+      Object.create({ consumerRoot: "/unused" }),
+    ]) {
       await assert.rejects(invoke(candidate), /unknown, missing, or executable/u);
     }
-    const options = { consumerRoot: "/unused", ...(invoke === applyKnownFileTransaction ? { plan: null } : {}) };
+    const options = {
+      consumerRoot: "/unused",
+      ...(invoke === applyKnownFileTransaction ? { plan: null } : {}),
+    };
     for (const property of Reflect.ownKeys(options)) {
       for (const descriptor of [
-        { get() { throw new Error("option accessor was invoked"); }, enumerable: true },
-        { value: options[property], enumerable: false }
+        {
+          get() {
+            throw new Error("option accessor was invoked");
+          },
+          enumerable: true,
+        },
+        { value: options[property], enumerable: false },
       ]) {
         const candidate = { ...options };
         Object.defineProperty(candidate, property, descriptor);
         await assert.rejects(invoke(candidate), /unknown, missing, or executable/u);
       }
     }
-    for (const candidate of [Object.assign(Object.create({ inherited: true }), options),
-      { ...options, [Symbol("extra")]: true }]) {
+    for (const candidate of [
+      Object.assign(Object.create({ inherited: true }), options),
+      { ...options, [Symbol("extra")]: true },
+    ]) {
       await assert.rejects(invoke(candidate), /unknown, missing, or executable/u);
     }
   }
 });
 
 test("keeps production mutation signatures free of executable fault callbacks", async () => {
-  const sources = await Promise.all([
-    "node-known-file-transaction.ts",
-    "node-known-file-transaction-recovery.ts",
-    "node-bounded-regular-file.ts",
-    "node-prepare-exact-sibling-temporary.ts",
-    "node-publish-prepared-absent-file.ts",
-    "node-absent-file-publication.ts"
-  ].map((name) => readFile(new URL(
-    `../packages/repository-mutation/src/${name === "node-bounded-regular-file.ts" ? "transaction-coordination" : "repository-mutation"}/adapters/node/${name}`,
-    import.meta.url
-  ), "utf8")));
+  const sources = await Promise.all(
+    [
+      "node-known-file-transaction.ts",
+      "node-known-file-transaction-recovery.ts",
+      "node-bounded-regular-file.ts",
+      "node-prepare-exact-sibling-temporary.ts",
+      "node-publish-prepared-absent-file.ts",
+      "node-absent-file-publication.ts",
+    ].map((name) =>
+      readFile(
+        new URL(
+          `../packages/repository-mutation/src/${name === "node-bounded-regular-file.ts" ? "transaction-coordination" : "repository-mutation"}/adapters/node/${name}`,
+          import.meta.url,
+        ),
+        "utf8",
+      ),
+    ),
+  );
   const functionNames = [
     "applyKnownFileTransaction",
     "recoverKnownFileTransaction",
     "readBoundedRegularFile",
     "prepareExactSiblingTemporary",
     "publishPreparedAbsentFile",
-    "publishAbsentFile"
+    "publishAbsentFile",
   ];
   for (let index = 0; index < sources.length; index += 1) {
     const source = sources[index];
@@ -135,6 +184,9 @@ test("keeps production mutation signatures free of executable fault callbacks", 
 });
 
 test("removes the obsolete Foundation root mutation namespace", async () => {
-  const root = await readFile(new URL("../packages/engineering-foundation/src/index.ts", import.meta.url), "utf8");
+  const root = await readFile(
+    new URL("../packages/engineering-foundation/src/index.ts", import.meta.url),
+    "utf8",
+  );
   assert.doesNotMatch(root, /as mutation|\.\/mutation\/index/u);
 });

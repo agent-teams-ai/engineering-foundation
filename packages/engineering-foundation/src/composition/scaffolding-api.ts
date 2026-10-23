@@ -2,7 +2,7 @@ import type {
   ScaffoldAuthorityEvidence,
   ScaffoldPlan,
   ScaffoldRecoveryScope,
-  ScaffoldReceipt
+  ScaffoldReceipt,
 } from "../scaffolding/contract/scaffold-contract.js";
 import { createNodeScaffoldingApi } from "../scaffolding/composition/node-scaffolding.js";
 import { assertSchema } from "../schema-catalog.js";
@@ -20,17 +20,17 @@ export async function planScaffoldFromFile(options: {
 
 export async function applyFilesystemScaffold(
   consumerRoot: string,
-  plan: ScaffoldPlan
+  plan: ScaffoldPlan,
 ): Promise<ScaffoldReceipt> {
   return scaffoldingApi.applyFilesystemScaffold(consumerRoot, plan);
 }
 
 export function recoverFilesystemScaffold(
-  consumerRoot: string
+  consumerRoot: string,
 ): Promise<ScaffoldReceipt | undefined>;
 export function recoverFilesystemScaffold(
   consumerRoot: string,
-  scope: ScaffoldRecoveryScope
+  scope: ScaffoldRecoveryScope,
 ): Promise<ScaffoldReceipt | undefined>;
 export async function recoverFilesystemScaffold(
   consumerRoot: string,
@@ -41,14 +41,14 @@ export async function recoverFilesystemScaffold(
 
 export async function readScaffoldPlanFile(
   consumerRoot: string,
-  planPath: string
+  planPath: string,
 ): Promise<ScaffoldPlan> {
   return scaffoldingApi.readScaffoldPlanFile(consumerRoot, planPath);
 }
 
 export async function validateScaffoldReceipt(
   receipt: unknown,
-  plan?: ScaffoldPlan
+  plan?: ScaffoldPlan,
 ): Promise<ScaffoldReceipt> {
   return scaffoldingApi.validateScaffoldReceipt(receipt, plan);
 }
@@ -57,15 +57,10 @@ export function assertScaffoldPlanDigest(plan: ScaffoldPlan): void {
   scaffoldingApi.assertScaffoldPlanDigest(plan);
 }
 
-export function assertScaffoldReceiptDigest(
-  receipt: ScaffoldReceipt,
-  plan?: ScaffoldPlan
-): void {
+export function assertScaffoldReceiptDigest(receipt: ScaffoldReceipt, plan?: ScaffoldPlan): void {
   scaffoldingApi.assertScaffoldReceiptDigest(receipt, plan);
 }
 
-export function assertScaffoldAuthorityEvidenceDigest(
-  evidence: ScaffoldAuthorityEvidence
-): void {
+export function assertScaffoldAuthorityEvidenceDigest(evidence: ScaffoldAuthorityEvidence): void {
   scaffoldingApi.assertScaffoldAuthorityEvidenceDigest(evidence);
 }

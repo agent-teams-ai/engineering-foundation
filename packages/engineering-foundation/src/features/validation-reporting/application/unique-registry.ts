@@ -1,6 +1,6 @@
 export function createUniqueRegistry<Value>(
   registryKind: string,
-  entries: Iterable<readonly [string, Value]>
+  entries: Iterable<readonly [string, Value]>,
 ): ReadonlyMap<string, Value> {
   const registry = new Map<string, Value>();
   for (const [id, value] of entries) {

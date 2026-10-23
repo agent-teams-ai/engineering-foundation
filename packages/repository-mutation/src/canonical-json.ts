@@ -25,9 +25,7 @@ function compareStrings(left: string, right: string): number {
 
 function assertCanonicalString(value: string): void {
   if (value.normalize("NFC") !== value) {
-    throw new CanonicalJsonError(
-      "Canonical JSON strings must use NFC normalization."
-    );
+    throw new CanonicalJsonError("Canonical JSON strings must use NFC normalization.");
   }
 }
 
@@ -35,10 +33,7 @@ function invalidContainer(message: string): never {
   throw new CanonicalJsonError(`Canonical JSON ${message}.`);
 }
 
-function enterContainer(
-  value: object,
-  ancestors: WeakSet<object>
-): () => void {
+function enterContainer(value: object, ancestors: WeakSet<object>): () => void {
   if (ancestors.has(value)) {
     invalidContainer("must not contain cycles");
   }
@@ -48,7 +43,7 @@ function enterContainer(
 
 function canonicalizeArray(
   value: readonly CanonicalJsonValue[],
-  ancestors: WeakSet<object>
+  ancestors: WeakSet<object>,
 ): string {
   const leave = enterContainer(value, ancestors);
   try {
@@ -58,9 +53,7 @@ function canonicalizeArray(
     const keys = Reflect.ownKeys(value);
     if (
       keys.some(
-        (key) =>
-          typeof key !== "string" ||
-          (key !== "length" && !/^(?:0|[1-9][0-9]*)$/u.test(key))
+        (key) => typeof key !== "string" || (key !== "length" && !/^(?:0|[1-9][0-9]*)$/u.test(key)),
       )
     ) {
       invalidContainer("arrays must not contain extra or symbolic properties");
@@ -75,22 +68,14 @@ function canonicalizeArray(
     }
     const length = lengthDescriptor.value;
     for (const key of keys) {
-      if (
-        typeof key === "string" &&
-        key !== "length" &&
-        BigInt(key) >= BigInt(length)
-      ) {
+      if (typeof key === "string" && key !== "length" && BigInt(key) >= BigInt(length)) {
         invalidContainer("array indexes must be within the declared length");
       }
     }
     const items: string[] = [];
     for (let index = 0; index < length; index += 1) {
       const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
-      if (
-        descriptor === undefined ||
-        !("value" in descriptor) ||
-        descriptor.enumerable !== true
-      ) {
+      if (descriptor === undefined || !("value" in descriptor) || descriptor.enumerable !== true) {
         invalidContainer("arrays must be dense own-data sequences");
       }
       items.push(canonicalize(descriptor.value as CanonicalJsonValue, ancestors));
@@ -101,10 +86,7 @@ function canonicalizeArray(
   }
 }
 
-function canonicalizeObject(
-  candidate: object,
-  ancestors: WeakSet<object>
-): string {
+function canonicalizeObject(candidate: object, ancestors: WeakSet<object>): string {
   const prototype: unknown = Object.getPrototypeOf(candidate);
   if (prototype !== Object.prototype && prototype !== null) {
     invalidContainer("objects must have a plain or null prototype");
@@ -116,11 +98,7 @@ function canonicalizeObject(
         invalidContainer("objects must not contain symbolic properties");
       }
       const descriptor = Object.getOwnPropertyDescriptor(candidate, key);
-      if (
-        descriptor === undefined ||
-        !("value" in descriptor) ||
-        descriptor.enumerable !== true
-      ) {
+      if (descriptor === undefined || !("value" in descriptor) || descriptor.enumerable !== true) {
         invalidContainer("objects must contain only enumerable own-data properties");
       }
       assertCanonicalString(key);
@@ -128,20 +106,14 @@ function canonicalizeObject(
     });
     entries.sort(([left], [right]) => compareStrings(left, right));
     return `{${entries
-      .map(
-        ([key, item]) =>
-          `${JSON.stringify(key)}:${canonicalize(item, ancestors)}`
-      )
+      .map(([key, item]) => `${JSON.stringify(key)}:${canonicalize(item, ancestors)}`)
       .join(",")}}`;
   } finally {
     leave();
   }
 }
 
-function canonicalize(
-  value: CanonicalJsonValue,
-  ancestors: WeakSet<object>
-): string {
+function canonicalize(value: CanonicalJsonValue, ancestors: WeakSet<object>): string {
   if (value === null || typeof value === "boolean") {
     return JSON.stringify(value);
   }
@@ -150,13 +122,8 @@ function canonicalize(
     return JSON.stringify(value);
   }
   if (typeof value === "number") {
-    if (
-      !Number.isFinite(value) ||
-      !Number.isSafeInteger(value)
-    ) {
-      throw new CanonicalJsonError(
-        "Canonical JSON numbers must be finite safe integers."
-      );
+    if (!Number.isFinite(value) || !Number.isSafeInteger(value)) {
+      throw new CanonicalJsonError("Canonical JSON numbers must be finite safe integers.");
     }
     return JSON.stringify(value);
   }

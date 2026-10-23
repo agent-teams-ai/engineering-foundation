@@ -7,13 +7,13 @@
     {
       "exportPath": ".",
       "items": [
-    {
-      "canonicalReference": "@fixture/public-api!stable:function(1)",
-      "kind": "Function",
-      "parentReference": "@fixture/public-api!",
-      "parentKind": "EntryPoint",
-      "signature": "export declare function stable(value: string): string;"
-    }
+        {
+          "canonicalReference": "@fixture/public-api!stable:function(1)",
+          "kind": "Function",
+          "parentReference": "@fixture/public-api!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function stable(value: string): string;"
+        }
       ]
     }
   ]

@@ -1,13 +1,13 @@
 import type {
   ExecutableSpecification,
-  ExecutableSpecificationCatalog
+  ExecutableSpecificationCatalog,
 } from "../model/executable-specification.js";
 
 const PORTABLE_SEGMENT = /^[A-Za-z0-9._@+-]+$/u;
 const WINDOWS_DEVICE_BASENAME = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/iu;
 
 export function portableExecutableSpecificationPathProblem(
-  repositoryPath: string
+  repositoryPath: string,
 ): string | undefined {
   for (const segment of repositoryPath.split("/")) {
     if (segment.length > 255) {
@@ -34,7 +34,7 @@ export function portableExecutableSpecificationPathIdentity(repositoryPath: stri
 }
 
 export function executableSpecificationArtifactPaths(
-  specification: ExecutableSpecification
+  specification: ExecutableSpecification,
 ): readonly string[] {
   const statePaths =
     specification.stateModel.kind === "xstate"
@@ -42,7 +42,7 @@ export function executableSpecificationArtifactPaths(
           specification.stateModel.adapterPath,
           specification.stateModel.diagramPath,
           specification.stateModel.modelPath,
-          specification.stateModel.tracesPath
+          specification.stateModel.tracesPath,
         ]
       : [];
   return [
@@ -51,19 +51,19 @@ export function executableSpecificationArtifactPaths(
     ...specification.schemaPaths,
     ...specification.documents.map((document) => document.path),
     ...specification.generatedTypes.map((binding) => binding.outputPath),
-    ...statePaths
+    ...statePaths,
   ];
 }
 
 function executableSpecificationReservedPaths(
-  catalog: ExecutableSpecificationCatalog
+  catalog: ExecutableSpecificationCatalog,
 ): readonly ExecutableSpecificationPathDeclaration[] {
   return [
     { path: "foundation.config.yaml", role: "reserved-foundation-config" },
     { path: catalog.configPath, role: "reserved-capability-config" },
     { path: catalog.catalogPath, role: "reserved-catalog" },
     { path: "package.json", role: "reserved-root-package" },
-    { path: "pnpm-workspace.yaml", role: "reserved-workspace" }
+    { path: "pnpm-workspace.yaml", role: "reserved-workspace" },
   ];
 }
 
@@ -83,7 +83,7 @@ export interface ExecutableSpecificationPathDeclaration {
 }
 
 export function executableSpecificationPathDeclarations(
-  catalog: ExecutableSpecificationCatalog
+  catalog: ExecutableSpecificationCatalog,
 ): readonly ExecutableSpecificationPathDeclaration[] {
   return [
     ...executableSpecificationReservedPaths(catalog),
@@ -94,16 +94,16 @@ export function executableSpecificationPathDeclarations(
       ...specification.documents.map(({ path }) => ({ path, role: "document" as const })),
       ...specification.generatedTypes.map(({ outputPath: path }) => ({
         path,
-        role: "generated-model" as const
+        role: "generated-model" as const,
       })),
       ...(specification.stateModel.kind === "xstate"
         ? [
             specification.stateModel.modelPath,
             specification.stateModel.adapterPath,
             specification.stateModel.tracesPath,
-            specification.stateModel.diagramPath
+            specification.stateModel.diagramPath,
           ].map((path) => ({ path, role: "generated-model" as const }))
-        : [])
-    ])
+        : []),
+    ]),
   ];
 }

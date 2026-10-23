@@ -1,6 +1,14 @@
+import type { PublicApiSignatureEquivalence } from "../ports/public-api-signature-equivalence.js";
 import type { GrowthAdmissionResult, GrowthComparison } from "../model/growth-admission.js";
-import type { GrowthContextRequest, GrowthInputContext } from "../model/growth-admission-context.js";
-import type { GrowthCancellation, GrowthInvocation, GrowthObservationExecution } from "../model/growth-observation.js";
+import type {
+  GrowthContextRequest,
+  GrowthInputContext,
+} from "../model/growth-admission-context.js";
+import type {
+  GrowthCancellation,
+  GrowthInvocation,
+  GrowthObservationExecution,
+} from "../model/growth-observation.js";
 import { GrowthObservationInvariantError } from "../model/growth-observation.js";
 import type { ChangeFingerprint } from "../ports/change-fingerprint.js";
 import type { GrowthObservationPort } from "../ports/growth-observation.js";
@@ -9,62 +17,116 @@ import { compareGrowthSurfaces } from "../policies/compare-growth-surfaces.js";
 import { evaluateGrowthAdmission } from "../policies/evaluate-growth-admission.js";
 import { evaluateGrowthReleaseCompatibility } from "../policies/evaluate-growth-release-compatibility.js";
 import type { GrowthReleaseCompatibilityResult } from "../policies/evaluate-growth-release-compatibility.js";
-import { growthCanonicalJson, growthObservationReference, growthUniqueSorted, normalizeGrowthInvocation } from "../policies/normalize-growth-observation.js";
-import { assertGrowthEvidence, validateGrowthExecution } from "../policies/validate-growth-execution.js";
+import {
+  growthCanonicalJson,
+  growthObservationReference,
+  growthUniqueSorted,
+  normalizeGrowthInvocation,
+} from "../policies/normalize-growth-observation.js";
+import {
+  assertGrowthEvidence,
+  validateGrowthExecution,
+} from "../policies/validate-growth-execution.js";
 
 const digestPattern = /^sha256:[a-f0-9]{64}$/u;
 
-function trustedReasons(context: GrowthInputContext, fingerprint: ChangeFingerprint): readonly string[] {
-  assertGrowthEvidence(context.trustedBase); assertGrowthEvidence(context.trustedBaseReference); assertGrowthEvidence(context.retainedHistory);
+function trustedReasons(
+  context: GrowthInputContext,
+  fingerprint: ChangeFingerprint,
+): readonly string[] {
+  assertGrowthEvidence(context.trustedBase);
+  assertGrowthEvidence(context.trustedBaseReference);
+  assertGrowthEvidence(context.retainedHistory);
   const reasons: string[] = [];
-  if (context.authority.status === "verified" && !digestPattern.test(context.authority.receiptDigest)) {
+  if (
+    context.authority.status === "verified" &&
+    !digestPattern.test(context.authority.receiptDigest)
+  ) {
     throw new GrowthObservationInvariantError("growth-authority-receipt-invalid");
   }
-  if (context.retainedHistory.status === "available" && !digestPattern.test(context.retainedHistory.value.receiptDigest)) {
+  if (
+    context.retainedHistory.status === "available" &&
+    !digestPattern.test(context.retainedHistory.value.receiptDigest)
+  ) {
     throw new GrowthObservationInvariantError("growth-history-receipt-invalid");
   }
-  if (context.authority.status !== "verified") { reasons.push("growth-authority-unverified"); }
+  if (context.authority.status !== "verified") {
+    reasons.push("growth-authority-unverified");
+  }
   for (const row of context.released) {
-    const qualification = row.qualification as { readonly receiptDigest?: unknown } | null | undefined;
+    const qualification = row.qualification as
+      | { readonly receiptDigest?: unknown }
+      | null
+      | undefined;
     if (qualification === undefined || qualification === null) {
-      reasons.push(`${row.packageName}:growth-qualification-unavailable`); continue;
+      reasons.push(`${row.packageName}:growth-qualification-unavailable`);
+      continue;
     }
-    if (typeof qualification.receiptDigest !== "string" || !digestPattern.test(qualification.receiptDigest)) {
+    if (
+      typeof qualification.receiptDigest !== "string" ||
+      !digestPattern.test(qualification.receiptDigest)
+    ) {
       throw new GrowthObservationInvariantError("growth-qualification-receipt-invalid");
     }
-    if (context.authority.status !== "verified" || qualification.receiptDigest !== context.authority.receiptDigest) {
+    if (
+      context.authority.status !== "verified" ||
+      qualification.receiptDigest !== context.authority.receiptDigest
+    ) {
       reasons.push(`${row.packageName}:growth-qualification-authority-mismatch`);
     }
   }
-  if (context.trustedBase.status !== "available" || context.trustedBaseReference.status !== "available") {
-    reasons.push("growth-trusted-base-reference-unavailable"); return reasons;
+  if (
+    context.trustedBase.status !== "available" ||
+    context.trustedBaseReference.status !== "available"
+  ) {
+    reasons.push("growth-trusted-base-reference-unavailable");
+    return reasons;
   }
   const reference = growthObservationReference(context.trustedBase.value, fingerprint);
   if (growthCanonicalJson(reference) !== growthCanonicalJson(context.trustedBaseReference.value)) {
     throw new GrowthObservationInvariantError("growth-trusted-base-reference-mismatch");
   }
-  if (context.retainedHistory.status !== "available") { reasons.push("growth-retained-history-unavailable"); }
-  else if (context.retainedHistory.value.targetSurfaceDigest !== reference.surfaceDigest) {
+  if (context.retainedHistory.status !== "available") {
+    reasons.push("growth-retained-history-unavailable");
+  } else if (context.retainedHistory.value.targetSurfaceDigest !== reference.surfaceDigest) {
     reasons.push("growth-retained-history-target-mismatch");
   }
   return reasons;
 }
 
-function releaseScopeReasons(context: GrowthInputContext, execution: GrowthObservationExecution): readonly string[] {
-  if (context.trustedBase.status !== "available" || execution.surface.status !== "available") { return ["growth-release-topology-unavailable"]; }
-  const packages = [...new Set([...context.trustedBase.value.coverage, ...execution.surface.value.coverage].map((row) => row.packageName))].toSorted();
+function releaseScopeReasons(
+  context: GrowthInputContext,
+  execution: GrowthObservationExecution,
+): readonly string[] {
+  if (context.trustedBase.status !== "available" || execution.surface.status !== "available") {
+    return ["growth-release-topology-unavailable"];
+  }
+  const packages = [
+    ...new Set(
+      [...context.trustedBase.value.coverage, ...execution.surface.value.coverage].map(
+        (row) => row.packageName,
+      ),
+    ),
+  ].toSorted();
   const roots = growthUniqueSorted(context.nonReleaseMetadataRoots ?? [], (row) => row.packageName);
   for (const root of roots) {
-    if (context.authority.status !== "verified" || root.receiptDigest !== context.authority.receiptDigest
-      || !context.trustedBase.value.coverage.some((row) => row.packageName === root.packageName)
-      || !execution.surface.value.coverage.some((row) => row.packageName === root.packageName)) {
+    if (
+      context.authority.status !== "verified" ||
+      root.receiptDigest !== context.authority.receiptDigest ||
+      !context.trustedBase.value.coverage.some((row) => row.packageName === root.packageName) ||
+      !execution.surface.value.coverage.some((row) => row.packageName === root.packageName)
+    ) {
       throw new GrowthObservationInvariantError("growth-metadata-root-qualification-invalid");
     }
   }
   const nonRelease = new Set(roots.map((root) => root.packageName));
-  const released = growthUniqueSorted(context.released, (row) => row.packageName).map((row) => row.packageName);
-  return growthCanonicalJson(packages.filter((name) => !nonRelease.has(name))) === growthCanonicalJson(released)
-    ? [] : ["growth-release-topology-mismatch"];
+  const released = growthUniqueSorted(context.released, (row) => row.packageName).map(
+    (row) => row.packageName,
+  );
+  return growthCanonicalJson(packages.filter((name) => !nonRelease.has(name))) ===
+    growthCanonicalJson(released)
+    ? []
+    : ["growth-release-topology-mismatch"];
 }
 
 export interface SdkGrowthAdmissionExecution {
@@ -83,42 +145,96 @@ export interface SdkGrowthAdmissionExecution {
  * comparisons. Persistence and command mapping remain outside this policy.
  * The context boundary owns external verification; unavailable retained history
  * is never reconstructed from a candidate or an empty v1 baseline. */
-export async function admitSdkGrowth(input: {
-  readonly invocation: GrowthInvocation;
-  readonly context: GrowthContextRequest;
-  readonly cancellation: GrowthCancellation;
-}, dependencies: {
-  readonly observation: GrowthObservationPort;
-  readonly context: GrowthInputContextPort;
-  readonly fingerprint: ChangeFingerprint;
-}): Promise<SdkGrowthAdmissionExecution> {
+export async function admitSdkGrowth(
+  input: {
+    readonly invocation: GrowthInvocation;
+    readonly context: GrowthContextRequest;
+    readonly cancellation: GrowthCancellation;
+  },
+  dependencies: {
+    readonly observation: GrowthObservationPort;
+    readonly context: GrowthInputContextPort;
+    readonly signatures?: PublicApiSignatureEquivalence;
+    readonly fingerprint: ChangeFingerprint;
+  },
+): Promise<SdkGrowthAdmissionExecution> {
   const cancellation = input.cancellation;
   cancellation.throwIfCancelled();
   const invocation = structuredClone(normalizeGrowthInvocation(input.invocation));
   const request = structuredClone(input.context);
   try {
-    const execution = structuredClone(await dependencies.observation.observe(structuredClone(invocation), cancellation));
+    const execution = structuredClone(
+      await dependencies.observation.observe(structuredClone(invocation), cancellation),
+    );
     cancellation.throwIfCancelled();
     validateGrowthExecution(execution, invocation);
     const context = structuredClone(await dependencies.context.read(request, cancellation));
     cancellation.throwIfCancelled();
-    const reasons = [...trustedReasons(context, dependencies.fingerprint), ...releaseScopeReasons(context, execution)];
-    const observedComparison = compareGrowthSurfaces({ trustedBefore: context.trustedBase, candidateAfter: execution.surface }, dependencies.fingerprint);
-    const comparison: GrowthComparison = reasons.length === 0 ? observedComparison : {
-      status: "incomplete",
-      reasons: growthUniqueSorted([...reasons, ...(observedComparison.status === "incomplete" ? observedComparison.reasons : [])], (reason) => reason),
-      findings: observedComparison.status === "complete" ? observedComparison.transitions : observedComparison.findings
-    };
-    const nonRelease = new Set((context.nonReleaseMetadataRoots ?? []).map((root) => root.packageName));
-    const compatibility = evaluateGrowthReleaseCompatibility({ current: execution.compatibilitySnapshots.filter((row) => !nonRelease.has(row.packageName)), released: context.released,
-      extractorVersion: invocation.tool.extractorVersion, acceptedDecisions: context.acceptedBreakingDecisions,
-      ...(context.authority.status === "verified" ? { authorityReceiptDigest: context.authority.receiptDigest } : {}) }, dependencies.fingerprint);
+    const reasons = [
+      ...trustedReasons(context, dependencies.fingerprint),
+      ...releaseScopeReasons(context, execution),
+    ];
+    const observedComparison = compareGrowthSurfaces(
+      { trustedBefore: context.trustedBase, candidateAfter: execution.surface },
+      dependencies.fingerprint,
+    );
+    const comparison: GrowthComparison =
+      reasons.length === 0
+        ? observedComparison
+        : {
+            status: "incomplete",
+            reasons: growthUniqueSorted(
+              [
+                ...reasons,
+                ...(observedComparison.status === "incomplete" ? observedComparison.reasons : []),
+              ],
+              (reason) => reason,
+            ),
+            findings:
+              observedComparison.status === "complete"
+                ? observedComparison.transitions
+                : observedComparison.findings,
+          };
+    const nonRelease = new Set(
+      (context.nonReleaseMetadataRoots ?? []).map((root) => root.packageName),
+    );
+    const compatibility = evaluateGrowthReleaseCompatibility(
+      {
+        current: execution.compatibilitySnapshots.filter((row) => !nonRelease.has(row.packageName)),
+        released: context.released,
+        extractorVersion: invocation.tool.extractorVersion,
+        acceptedDecisions: context.acceptedBreakingDecisions,
+        ...(context.authority.status === "verified"
+          ? { authorityReceiptDigest: context.authority.receiptDigest }
+          : {}),
+      },
+      dependencies.fingerprint,
+      dependencies.signatures,
+    );
     const ownerEvidence = context.acceptedBreakingDecisions.growthDecisionAuthority;
-    const authority = context.authority.status === "verified" && ownerEvidence?.status === "available" ? ownerEvidence.value : [];
-    const admission = evaluateGrowthAdmission({ comparison, decisions: context.decisions, authority, compatibility: compatibility.status }, dependencies.fingerprint);
+    const authority =
+      context.authority.status === "verified" && ownerEvidence?.status === "available"
+        ? ownerEvidence.value
+        : [];
+    const admission = evaluateGrowthAdmission(
+      { comparison, decisions: context.decisions, authority, compatibility: compatibility.status },
+      dependencies.fingerprint,
+    );
     cancellation.throwIfCancelled();
-    return { observation: execution, baseReference: context.trustedBaseReference, baseSurface: context.trustedBase, authority: context.authority,
-      admission, decisionDigests: growthUniqueSorted(authority.map((entry) => entry.decisionDigest), (entry) => entry), comparison, compatibility, released: context.released };
+    return {
+      observation: execution,
+      baseReference: context.trustedBaseReference,
+      baseSurface: context.trustedBase,
+      authority: context.authority,
+      admission,
+      decisionDigests: growthUniqueSorted(
+        authority.map((entry) => entry.decisionDigest),
+        (entry) => entry,
+      ),
+      comparison,
+      compatibility,
+      released: context.released,
+    };
   } catch (error) {
     cancellation.throwIfCancelled();
     throw error;

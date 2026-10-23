@@ -89,9 +89,7 @@ function manual(reason: DocumentRecoveryManualReason): DocumentRecoveryDecision 
   return { action: "manual", reason };
 }
 
-function containsZeroIdentity(
-  observation: DocumentRecoveryObservation
-): boolean {
+function containsZeroIdentity(observation: DocumentRecoveryObservation): boolean {
   if (observation.journal.fileIdentity === "zero-identity") {
     return true;
   }
@@ -104,13 +102,12 @@ function containsZeroIdentity(
   ) {
     return true;
   }
-  return observation.journal.version === "v2" &&
-    observation.journal.boundIdentity === "zero-identity";
+  return (
+    observation.journal.version === "v2" && observation.journal.boundIdentity === "zero-identity"
+  );
 }
 
-function containsUnverifiableIdentity(
-  observation: DocumentRecoveryObservation
-): boolean {
+function containsUnverifiableIdentity(observation: DocumentRecoveryObservation): boolean {
   if (observation.journal.fileIdentity === "unverifiable") {
     return true;
   }
@@ -120,12 +117,13 @@ function containsUnverifiableIdentity(
   if (observation.destination.state === "unverifiable") {
     return true;
   }
-  return observation.journal.version === "v2" &&
-    observation.journal.boundIdentity === "unverifiable";
+  return (
+    observation.journal.version === "v2" && observation.journal.boundIdentity === "unverifiable"
+  );
 }
 
 function classifyWithoutJournal(
-  observation: DocumentRecoveryObservation
+  observation: DocumentRecoveryObservation,
 ): DocumentRecoveryDecision {
   if (observation.temporary.state !== "absent") {
     return manual("orphan-temporary");
@@ -144,9 +142,7 @@ function classifyWithoutJournal(
   }
 }
 
-function classifyPrepared(
-  observation: DocumentRecoveryObservation
-): DocumentRecoveryDecision {
+function classifyPrepared(observation: DocumentRecoveryObservation): DocumentRecoveryDecision {
   if (observation.temporary.state !== "absent") {
     return manual("orphan-temporary");
   }
@@ -170,9 +166,7 @@ function classifyPrepared(
   }
 }
 
-function classifyPublishing(
-  observation: DocumentRecoveryObservation
-): DocumentRecoveryDecision {
+function classifyPublishing(observation: DocumentRecoveryObservation): DocumentRecoveryDecision {
   switch (observation.destination.state) {
     case "conflict":
       return manual("destination-conflict");
@@ -190,13 +184,12 @@ function classifyPublishing(
       // when it is the same file as the bound temporary. Preserve evidence.
       return observation.destination.identity === "bound-temporary" &&
         (observation.temporary.state === "absent" || observation.temporary.state === "exact")
-        ? manual("inconsistent-lifecycle") : manual("identity-drift");
+        ? manual("inconsistent-lifecycle")
+        : manual("identity-drift");
   }
 }
 
-function classifyPublished(
-  observation: DocumentRecoveryObservation
-): DocumentRecoveryDecision {
+function classifyPublished(observation: DocumentRecoveryObservation): DocumentRecoveryDecision {
   if (observation.temporary.state !== "absent") {
     return manual("orphan-temporary");
   }
@@ -219,7 +212,7 @@ function classifyPublished(
  * evidence and deliberately has no catch-all optimistic branch.
  */
 export function classifyDocumentRecovery(
-  observation: DocumentRecoveryObservation
+  observation: DocumentRecoveryObservation,
 ): DocumentRecoveryDecision {
   if (containsZeroIdentity(observation)) {
     return manual("zero-identity");

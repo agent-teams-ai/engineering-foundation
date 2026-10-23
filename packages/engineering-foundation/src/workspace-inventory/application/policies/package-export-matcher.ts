@@ -1,7 +1,4 @@
-import type {
-  PackageExportEntry,
-  PackageExportTarget
-} from "../model/workspace-inventory.js";
+import type { PackageExportEntry, PackageExportTarget } from "../model/workspace-inventory.js";
 
 export type PackageExportCondition = "import" | "require";
 
@@ -20,26 +17,25 @@ function patternKeyCompare(left: string, right: string): number {
   return rightStar - leftStar || right.length - left.length;
 }
 
-function packageExportMatches(
-  entry: PackageExportEntry,
-  subpath: string
-): boolean {
+function packageExportMatches(entry: PackageExportEntry, subpath: string): boolean {
   if (!entry.subpath.includes("*")) {
     return entry.subpath === subpath;
   }
   const [prefix, suffix] = entry.subpath.split("*");
-  return prefix !== undefined && suffix !== undefined &&
-    subpath.startsWith(prefix) && subpath.endsWith(suffix) &&
-    subpath.length > prefix.length + suffix.length;
+  return (
+    prefix !== undefined &&
+    suffix !== undefined &&
+    subpath.startsWith(prefix) &&
+    subpath.endsWith(suffix) &&
+    subpath.length > prefix.length + suffix.length
+  );
 }
 
 function selectedPackageExport(
   entries: readonly PackageExportEntry[],
-  subpath: string
+  subpath: string,
 ): PackageExportEntry | undefined {
-  const exact = entries.find(
-    (entry) => !entry.subpath.includes("*") && entry.subpath === subpath
-  );
+  const exact = entries.find((entry) => !entry.subpath.includes("*") && entry.subpath === subpath);
   if (exact !== undefined) {
     return exact;
   }
@@ -63,9 +59,7 @@ type TargetResolution =
   | { readonly kind: "invalid-resolution" }
   | { readonly kind: "undefined" };
 
-function isTargetArray(
-  target: PackageExportTarget
-): target is readonly PackageExportTarget[] {
+function isTargetArray(target: PackageExportTarget): target is readonly PackageExportTarget[] {
   return Array.isArray(target);
 }
 
@@ -87,7 +81,7 @@ function resolveStringTarget(
   target: string,
   capture: string,
   pattern: boolean,
-  requireCondition: boolean
+  requireCondition: boolean,
 ): TargetResolution {
   if (!target.startsWith("./") || target.includes("\\") || hasInvalidSegment(target.slice(2))) {
     return { kind: "invalid-target" };
@@ -129,7 +123,7 @@ function resolveStringTarget(
   try {
     return {
       kind: "available",
-      path: `./${decodeURIComponent(resolved.pathname.slice("/package/".length))}`
+      path: `./${decodeURIComponent(resolved.pathname.slice("/package/".length))}`,
     };
   } catch {
     return { kind: "invalid-resolution" };
@@ -141,7 +135,7 @@ function resolveTarget(
   match: { readonly capture: string; readonly pattern: boolean },
   conditions: ReadonlySet<string>,
   budget: { nodes: number },
-  depth: number
+  depth: number,
 ): TargetResolution {
   budget.nodes += 1;
   if (depth > MAX_EXPORT_TARGET_DEPTH || budget.nodes > MAX_EXPORT_TARGET_NODES) {
@@ -182,7 +176,7 @@ export function resolvePackageExport(
   entries: readonly PackageExportEntry[],
   subpath: string,
   condition: PackageExportCondition,
-  typeOnly = false
+  typeOnly = false,
 ): ResolvedPackageExport {
   const selected = selectedPackageExport(entries, subpath);
   if (selected === undefined) {
@@ -198,7 +192,7 @@ export function resolvePackageExport(
       ? new Set([condition, "types", "node"])
       : new Set(["node", "node-addons", "module-sync", condition]),
     { nodes: 0 },
-    0
+    0,
   );
   return resolved.kind === "available"
     ? { available: true, targetPath: resolved.path }
@@ -207,17 +201,19 @@ export function resolvePackageExport(
 
 export function exactAvailablePackageExport(
   entries: readonly PackageExportEntry[],
-  subpath: string
+  subpath: string,
 ): boolean {
   const selected = selectedPackageExport(entries, subpath);
-  return selected?.subpath === subpath &&
+  return (
+    selected?.subpath === subpath &&
     (resolvePackageExport(entries, subpath, "import").available ||
-      resolvePackageExport(entries, subpath, "require").available);
+      resolvePackageExport(entries, subpath, "require").available)
+  );
 }
 
 export function exactPackageExportTargetPaths(
   entries: readonly PackageExportEntry[],
-  subpath: string
+  subpath: string,
 ): readonly string[] {
   const selected = selectedPackageExport(entries, subpath);
   if (selected?.subpath !== subpath) {
@@ -226,16 +222,21 @@ export function exactPackageExportTargetPaths(
   if (selected.target === undefined) {
     return selected.targetPaths ?? [];
   }
-  return [...new Set(
-    ([
-      ["import", false],
-      ["require", false],
-      ["import", true],
-      ["require", true]
-    ] as const)
-      .map(([condition, typeOnly]) =>
-        resolvePackageExport(entries, subpath, condition, typeOnly).targetPath
+  return [
+    ...new Set(
+      (
+        [
+          ["import", false],
+          ["require", false],
+          ["import", true],
+          ["require", true],
+        ] as const
       )
-      .filter((target): target is string => target !== undefined)
-  )];
+        .map(
+          ([condition, typeOnly]) =>
+            resolvePackageExport(entries, subpath, condition, typeOnly).targetPath,
+        )
+        .filter((target): target is string => target !== undefined),
+    ),
+  ];
 }

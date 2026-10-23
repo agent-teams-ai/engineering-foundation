@@ -10,14 +10,17 @@ import { resolvePnpmInvocation } from "../tools/pnpm-command.mts";
 const repositoryRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 
 async function isFile(path: string): Promise<boolean> {
-  return stat(path).then((metadata) => metadata.isFile(), () => false);
+  return stat(path).then(
+    (metadata) => metadata.isFile(),
+    () => false,
+  );
 }
 
 test("manager admission survives injected npm config env-replacement noise", async (context) => {
   const manager = await resolvePnpmInvocation(process.execPath, "11.20.0");
   const pnpm = manager.kind === "javascript" ? manager.args[0] : manager.command;
   assert.ok(pnpm);
-  if (!await isFile(pnpm)) {
+  if (!(await isFile(pnpm))) {
     context.skip("owned pnpm TEST toolchain is unavailable");
     return;
   }
@@ -29,8 +32,11 @@ test("manager admission survives injected npm config env-replacement noise", asy
     // the injected user config; pnpm reports it to stderr and manager admission
     // must not treat that caller-config noise as entrypoint identity.
     const userNpmrc = join(root, "user.npmrc");
-    await writeFile(userNpmrc,
-      "registry=https://registry.npmjs.org/\n//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}\n", "utf8");
+    await writeFile(
+      userNpmrc,
+      "registry=https://registry.npmjs.org/\n//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}\n",
+      "utf8",
+    );
     const result = spawnSync(
       process.execPath,
       [resolve(repositoryRoot, "tools/pnpm-command.mts"), "--version"],
@@ -43,9 +49,9 @@ test("manager admission survives injected npm config env-replacement noise", asy
           AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: process.execPath,
           AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT: pnpm,
           NPM_CONFIG_USERCONFIG: userNpmrc,
-          npm_config_userconfig: userNpmrc
-        }
-      }
+          npm_config_userconfig: userNpmrc,
+        },
+      },
     );
     assert.equal(result.status, 0, `${result.stdout}${result.stderr}`);
     assert.equal(result.stdout.trim(), "11.20.0");

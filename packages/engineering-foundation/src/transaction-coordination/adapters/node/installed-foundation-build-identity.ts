@@ -9,11 +9,11 @@ const packageRoot = dirname(fileURLToPath(new URL("../../../../package.json", im
 
 export function computeFoundationBuildIdentity(
   root: string,
-  limits: { readonly maximumVisitedEntries?: number } = {}
+  limits: { readonly maximumVisitedEntries?: number } = {},
 ): Promise<FoundationBuildIdentity> {
   return computeInstalledArtifactBuildIdentity(
     { packageRoot: root, roots: ["dist", "schemas", "assets"] },
-    limits
+    limits,
   );
 }
 

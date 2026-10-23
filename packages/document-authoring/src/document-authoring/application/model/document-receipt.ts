@@ -19,16 +19,10 @@ export interface DocumentReceiptDiagnostic {
 }
 
 export interface DocumentCommitObservation {
-  readonly state:
-    | "committed"
-    | "not-published"
-    | "recovery-required"
-    | "manual-recovery-required";
+  readonly state: "committed" | "not-published" | "recovery-required" | "manual-recovery-required";
   readonly publication: "none" | "preexisting-exact" | "published" | "unknown";
   readonly atomicity: "not-applicable" | "single-file-atomic-create";
-  readonly recoverability:
-    | "not-required"
-    | "preserved-for-recovery";
+  readonly recoverability: "not-required" | "preserved-for-recovery";
 }
 
 export interface DocumentReceiptBase {
@@ -66,11 +60,7 @@ export type DocumentReceipt =
       };
     })
   | (DocumentReceiptBase & {
-      readonly outcome:
-        | "authority-stale"
-        | "rejected"
-        | "failed-before-publication"
-        | "cancelled";
+      readonly outcome: "authority-stale" | "rejected" | "failed-before-publication" | "cancelled";
       readonly commit: {
         readonly state: "not-published";
         readonly publication: "none";
@@ -119,10 +109,7 @@ export interface DocumentReceiptV2 {
     readonly recoverability: "not-required" | "preserved-for-recovery";
   };
   readonly directoryMaterialization: {
-    readonly state:
-      | "none-created"
-      | "created-and-retained"
-      | "preserved-unknown";
+    readonly state: "none-created" | "created-and-retained" | "preserved-unknown";
     readonly plannedDirectories: readonly string[];
     readonly observedCreatedDirectories: readonly string[];
   };
@@ -133,8 +120,6 @@ export interface DocumentReceiptV2 {
 export type DocumentReceiptV1 = DocumentReceipt;
 export type DocumentReceiptContract = DocumentReceipt | DocumentReceiptV2;
 
-type WithoutReceiptDigest<T> = T extends unknown
-  ? Omit<T, "receiptDigest">
-  : never;
+type WithoutReceiptDigest<T> = T extends unknown ? Omit<T, "receiptDigest"> : never;
 
 export type DocumentReceiptBody = WithoutReceiptDigest<DocumentReceiptContract>;

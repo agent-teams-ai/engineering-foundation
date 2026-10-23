@@ -10,11 +10,7 @@ export type DocumentPlanningErrorCode =
 export class DocumentPlanningError extends Error {
   readonly code: DocumentPlanningErrorCode;
 
-  constructor(
-    code: DocumentPlanningErrorCode,
-    message: string,
-    options?: ErrorOptions
-  ) {
+  constructor(code: DocumentPlanningErrorCode, message: string, options?: ErrorOptions) {
     super(message, options);
     this.name = "DocumentPlanningError";
     this.code = code;

@@ -1,25 +1,53 @@
-import { isAbsolute, normalize } from 'node:path';
-import { gunzipSync } from 'node:zlib';
+import { isAbsolute, normalize } from "node:path";
+import { gunzipSync } from "node:zlib";
 const MAX_ARCHIVE_BYTES = 8 * 1024 * 1024;
 const MAX_MEMBER_BYTES = 16 * 1024 * 1024;
 const MAX_UNCOMPRESSED_BYTES = 64 * 1024 * 1024;
-export interface ArchiveInspection { readonly aggregateBytes: number; readonly entryCount: number; readonly uncompressedBytes: number; readonly entries: readonly { readonly data: Buffer; readonly name: string; readonly size: number; readonly type: string }[] }
+export interface ArchiveInspection {
+  readonly aggregateBytes: number;
+  readonly entryCount: number;
+  readonly uncompressedBytes: number;
+  readonly entries: readonly {
+    readonly data: Buffer;
+    readonly name: string;
+    readonly size: number;
+    readonly type: string;
+  }[];
+}
 function portableSegmentIdentity(segment: string): string {
   return segment.normalize("NFKC").toUpperCase();
 }
 
 export function portableEntryIdentity(entry: string): string {
-  if (entry.includes("\\") || entry.startsWith("/") || /^[A-Za-z]:\//u.test(entry) || isAbsolute(entry)) {
+  if (
+    entry.includes("\\") ||
+    entry.startsWith("/") ||
+    /^[A-Za-z]:\//u.test(entry) ||
+    isAbsolute(entry)
+  ) {
     throw new Error(`Package contains an unsafe archive member: ${entry}`);
   }
   const rawSegments = entry.endsWith("/") ? entry.slice(0, -1).split("/") : entry.split("/");
-  if (rawSegments.some((segment) => segment === "" || segment === "." || segment === ".." ||
-      /[\p{Cc}<>:"|?*]/u.test(segment) || /[. ]$/u.test(segment))) {
+  if (
+    rawSegments.some(
+      (segment) =>
+        segment === "" ||
+        segment === "." ||
+        segment === ".." ||
+        /[\p{Cc}<>:"|?*]/u.test(segment) ||
+        /[. ]$/u.test(segment),
+    )
+  ) {
     throw new Error(`Package contains an unsafe archive member: ${entry}`);
   }
   const directory = entry.endsWith("/");
   const normalized = normalize(entry).replaceAll("\\", "/").replace(/^\.\//u, "");
-  if (normalized === ".." || normalized.startsWith("../") || normalized === "." || normalized === "") {
+  if (
+    normalized === ".." ||
+    normalized.startsWith("../") ||
+    normalized === "." ||
+    normalized === ""
+  ) {
     throw new Error(`Package contains an unsafe archive member: ${entry}`);
   }
   const identity = directory ? normalized.replace(/\/$/u, "") : normalized;
@@ -69,14 +97,22 @@ function tarField(decoder: TextDecoder, bytes: Buffer): string {
 }
 
 function assertTarTerminator(tar: Buffer, offset: number): void {
-  if (offset + 1024 > tar.length || !tar.subarray(offset, offset + 1024).every((byte) => byte === 0) ||
-      !tar.subarray(offset + 1024).every((byte) => byte === 0)) {
-    throw new Error("Package tar lacks a valid two-zero-block terminator or has hidden trailing data.");
+  if (
+    offset + 1024 > tar.length ||
+    !tar.subarray(offset, offset + 1024).every((byte) => byte === 0) ||
+    !tar.subarray(offset + 1024).every((byte) => byte === 0)
+  ) {
+    throw new Error(
+      "Package tar lacks a valid two-zero-block terminator or has hidden trailing data.",
+    );
   }
 }
 
 function assertSupportedTarMetadata(type: string, data: Buffer): void {
-  if ((type === "x" || type === "g") && /(?:GNU\.sparse\.|SCHILY\.realsize)/u.test(data.toString("utf8"))) {
+  if (
+    (type === "x" || type === "g") &&
+    /(?:GNU\.sparse\.|SCHILY\.realsize)/u.test(data.toString("utf8"))
+  ) {
     throw new Error("Package tar contains prohibited PAX sparse logical-file metadata.");
   }
   if (type === "x" || type === "g") {
@@ -88,7 +124,10 @@ function assertSupportedTarMetadata(type: string, data: Buffer): void {
  * @returns {Readonly<{ aggregateBytes: number, entryCount: number, uncompressedBytes: number,
  *   entries: ReadonlyArray<Readonly<{ data: Buffer, name: string, size: number, type: string }>> }>}
  */
-export function inspectCompressedTarArchive(archiveBytes: Buffer, maximumEntries: number): ArchiveInspection {
+export function inspectCompressedTarArchive(
+  archiveBytes: Buffer,
+  maximumEntries: number,
+): ArchiveInspection {
   if (!Buffer.isBuffer(archiveBytes) || archiveBytes.length > MAX_ARCHIVE_BYTES) {
     throw new Error(`Package archive exceeds ${MAX_ARCHIVE_BYTES} bytes.`);
   }
@@ -97,7 +136,10 @@ export function inspectCompressedTarArchive(archiveBytes: Buffer, maximumEntries
     const maximumTarBytes = MAX_UNCOMPRESSED_BYTES + (maximumEntries + 2) * 1024;
     tar = gunzipSync(archiveBytes, { maxOutputLength: maximumTarBytes });
   } catch (error) {
-    throw new Error(`Package archive cannot be decompressed within its safety bound: ${String(error)}`, { cause: error });
+    throw new Error(
+      `Package archive cannot be decompressed within its safety bound: ${String(error)}`,
+      { cause: error },
+    );
   }
   let aggregateBytes = 0;
   let entryCount = 0;
@@ -122,7 +164,9 @@ export function inspectCompressedTarArchive(archiveBytes: Buffer, maximumEntries
       const prefix = tarField(decoder, header.subarray(345, 500));
       name = prefix === "" ? leaf : `${prefix}/${leaf}`;
     } catch (error) {
-      throw new Error(`Package tar has a malformed UTF-8 member name: ${String(error)}`, { cause: error });
+      throw new Error(`Package tar has a malformed UTF-8 member name: ${String(error)}`, {
+        cause: error,
+      });
     }
     portableEntryIdentity(name);
     if (type === "S") {
@@ -151,7 +195,12 @@ export function inspectCompressedTarArchive(archiveBytes: Buffer, maximumEntries
   if (!terminated || offset !== tar.length) {
     throw new Error("Package tar is truncated or lacks a two-zero-block terminator.");
   }
-  const result = { aggregateBytes, entryCount, uncompressedBytes: tar.length, entries: Object.freeze(entries) };
+  const result = {
+    aggregateBytes,
+    entryCount,
+    uncompressedBytes: tar.length,
+    entries: Object.freeze(entries),
+  };
   Object.defineProperty(result, "entries", { enumerable: false });
   return Object.freeze(result);
 }

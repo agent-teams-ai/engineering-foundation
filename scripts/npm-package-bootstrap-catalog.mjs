@@ -31,9 +31,15 @@ const PROVENANCE_KEYS = ["ref", "workflowPath"];
 const APPROVAL_KEYS = ["archiveIntegrity", "packageTree"];
 const TAG_POLICY_KEYS = ["allowed", "required"];
 const RELEASE_PREDECESSOR_REQUIRED_KEYS = ["archiveIntegrity", "name", "provenance", "version"];
-const RELEASE_PREDECESSOR_PROVENANCE_REQUIRED_KEYS = ["ref", "repository", "sourceCommit", "workflowPath"];
+const RELEASE_PREDECESSOR_PROVENANCE_REQUIRED_KEYS = [
+  "ref",
+  "repository",
+  "sourceCommit",
+  "workflowPath",
+];
 const CI_INPUT_PROOF_PREDECESSOR = Object.freeze({
-  archiveIntegrity: "sha512-aiOC4nvGRfG6CkLKRG2utkqFAOJNtPojZZYLqmmG5OzhZYKqQCh6T2OOMNqA5vlbccWWEXxismMXE6QDl0vo7w==",
+  archiveIntegrity:
+    "sha512-aiOC4nvGRfG6CkLKRG2utkqFAOJNtPojZZYLqmmG5OzhZYKqQCh6T2OOMNqA5vlbccWWEXxismMXE6QDl0vo7w==",
   name: "@agent-teams/ci-input-proof",
   provenance: Object.freeze({
     ref: "refs/heads/main",
@@ -53,7 +59,10 @@ export function fail(message) {
 }
 
 function exactKeys(value, expected, label) {
-  if (!isRecord(value) || Object.keys(value).toSorted().join("\0") !== [...expected].toSorted().join("\0")) {
+  if (
+    !isRecord(value) ||
+    Object.keys(value).toSorted().join("\0") !== [...expected].toSorted().join("\0")
+  ) {
     fail(`${label} keys must be exactly ${expected.join(", ")}.`);
   }
 }
@@ -91,10 +100,13 @@ function portablePath(value, label) {
 function parseDependency(value, label) {
   exactKeys(value, DEPENDENCY_KEYS, label);
   if (
-    !PACKAGE_NAME.test(value.name) || !SEMVER.test(value.version) ||
+    !PACKAGE_NAME.test(value.name) ||
+    !SEMVER.test(value.version) ||
     !["catalog:", "workspace:*", value.version].includes(value.specifier)
   ) {
-    fail(`${label} must contain an exact npm package name, version, and closed workspace specifier.`);
+    fail(
+      `${label} must contain an exact npm package name, version, and closed workspace specifier.`,
+    );
   }
   return Object.freeze({ name: value.name, specifier: value.specifier, version: value.version });
 }
@@ -168,8 +180,10 @@ function parseTagPolicy(value, label) {
   for (const key of TAG_POLICY_KEYS) {
     exactStringArray(value[key], `${label}.${key}`);
   }
-  if (value.required.toSorted().join("\0") !== "bootstrap" ||
-      value.allowed.toSorted().join("\0") !== "bootstrap\0latest") {
+  if (
+    value.required.toSorted().join("\0") !== "bootstrap" ||
+    value.allowed.toSorted().join("\0") !== "bootstrap\0latest"
+  ) {
     fail(`${label} must require bootstrap and allow only bootstrap and latest.`);
   }
   return Object.freeze({
@@ -182,16 +196,24 @@ function parseOptionalDependencies(value, label) {
   if (!Object.hasOwn(value, "optionalDependencies")) {
     return {};
   }
-  if (Object.hasOwn(value, "optionalDependencies") && (
-    !Array.isArray(value.optionalDependencies) || value.optionalDependencies.length === 0 ||
-    new Set(value.optionalDependencies.map((entry) => entry?.name)).size !== value.optionalDependencies.length ||
-    value.optionalDependencies.some((entry) => value.dependencies.some((required) => required.name === entry?.name))
-  )) {
+  if (
+    Object.hasOwn(value, "optionalDependencies") &&
+    (!Array.isArray(value.optionalDependencies) ||
+      value.optionalDependencies.length === 0 ||
+      new Set(value.optionalDependencies.map((entry) => entry?.name)).size !==
+        value.optionalDependencies.length ||
+      value.optionalDependencies.some((entry) =>
+        value.dependencies.some((required) => required.name === entry?.name),
+      ))
+  ) {
     fail(`${label}.optionalDependencies must be non-empty, unique and disjoint from dependencies.`);
   }
   return {
-    optionalDependencies: Object.freeze(value.optionalDependencies.map((entry, index) =>
-      parseDependency(entry, `${label}.optionalDependencies[${index}]`))),
+    optionalDependencies: Object.freeze(
+      value.optionalDependencies.map((entry, index) =>
+        parseDependency(entry, `${label}.optionalDependencies[${index}]`),
+      ),
+    ),
   };
 }
 
@@ -199,13 +221,22 @@ function packageKeys(value) {
   if (!isRecord(value)) {
     return PACKAGE_KEYS;
   }
-  return [...PACKAGE_KEYS, ...["releasePredecessor", "optionalDependencies", "providerPlaceholder", "recovery"].filter((key) => Object.hasOwn(value, key))];
+  return [
+    ...PACKAGE_KEYS,
+    ...["releasePredecessor", "optionalDependencies", "providerPlaceholder", "recovery"].filter(
+      (key) => Object.hasOwn(value, key),
+    ),
+  ];
 }
 
 function parseRegistryRecovery(value, label) {
   const result = {};
   if (Object.hasOwn(value, "providerPlaceholder")) {
-    exactKeys(value.providerPlaceholder, ["version", "archiveIntegrity"], `${label}.providerPlaceholder`);
+    exactKeys(
+      value.providerPlaceholder,
+      ["version", "archiveIntegrity"],
+      `${label}.providerPlaceholder`,
+    );
     if (value.providerPlaceholder.version !== "0.0.0-stage" || value.state === "candidate") {
       fail(`${label}.providerPlaceholder requires reviewed staged history.`);
     }
@@ -216,9 +247,16 @@ function parseRegistryRecovery(value, label) {
   }
   if (Object.hasOwn(value, "recovery")) {
     exactKeys(value.recovery, ["sourceCommit", "runId", "runAttempt"], `${label}.recovery`);
-    if (value.id !== "stack-toolchain" || value.name !== "stack-toolchain" || value.state === "candidate" ||
-        !GIT_OBJECT.test(value.recovery.sourceCommit) || !Number.isSafeInteger(value.recovery.runId) ||
-        value.recovery.runId <= 0 || value.recovery.runAttempt !== 1 || !result.providerPlaceholder) {
+    if (
+      value.id !== "stack-toolchain" ||
+      value.name !== "stack-toolchain" ||
+      value.state === "candidate" ||
+      !GIT_OBJECT.test(value.recovery.sourceCommit) ||
+      !Number.isSafeInteger(value.recovery.runId) ||
+      value.recovery.runId <= 0 ||
+      value.recovery.runAttempt !== 1 ||
+      !result.providerPlaceholder
+    ) {
       fail(`${label}.recovery must identify the reviewed Stack bootstrap publication.`);
     }
     result.recovery = Object.freeze({ ...value.recovery });
@@ -241,7 +279,11 @@ function parsePackage(value, index) {
   if (value.manifestPath !== `${value.root}/package.json`) {
     fail(`${label}.manifestPath must be the package root manifest.`);
   }
-  if (typeof value.deprecationMessage !== "string" || value.deprecationMessage.length < 20 || value.deprecationMessage.includes("\n")) {
+  if (
+    typeof value.deprecationMessage !== "string" ||
+    value.deprecationMessage.length < 20 ||
+    value.deprecationMessage.includes("\n")
+  ) {
     fail(`${label}.deprecationMessage must be one bounded human-readable line.`);
   }
   exactKeys(value.provenance, PROVENANCE_KEYS, `${label}.provenance`);
@@ -249,7 +291,10 @@ function parsePackage(value, index) {
   if (value.provenance.ref !== "refs/heads/main") {
     fail(`${label}.provenance.ref must be refs/heads/main.`);
   }
-  if (!Array.isArray(value.dependencies) || new Set(value.dependencies.map((entry) => entry?.name)).size !== value.dependencies.length) {
+  if (
+    !Array.isArray(value.dependencies) ||
+    new Set(value.dependencies.map((entry) => entry?.name)).size !== value.dependencies.length
+  ) {
     fail(`${label}.dependencies must contain unique package names.`);
   }
   const optionalDependencies = parseOptionalDependencies(value, label);
@@ -269,8 +314,11 @@ function parsePackage(value, index) {
     approval: parseApproval(value.approval, value.state, `${label}.approval`),
     bootstrapVersion: value.bootstrapVersion,
     contentPolicy: parseContentPolicy(value.contentPolicy, `${label}.contentPolicy`),
-    dependencies: Object.freeze(value.dependencies.map((entry, dependencyIndex) =>
-      parseDependency(entry, `${label}.dependencies[${dependencyIndex}]`))),
+    dependencies: Object.freeze(
+      value.dependencies.map((entry, dependencyIndex) =>
+        parseDependency(entry, `${label}.dependencies[${dependencyIndex}]`),
+      ),
+    ),
     ...optionalDependencies,
     ...parseRegistryRecovery(value, label),
     deprecationMessage: value.deprecationMessage,
@@ -314,7 +362,10 @@ export const NPM_PACKAGE_BOOTSTRAP = parseBootstrapCatalog(
   JSON.parse(readFileSync(DEFAULT_CATALOG_URL, "utf8")),
 );
 
-export function bootstrapPackageById(id, { approved = false, catalog = NPM_PACKAGE_BOOTSTRAP } = {}) {
+export function bootstrapPackageById(
+  id,
+  { approved = false, catalog = NPM_PACKAGE_BOOTSTRAP } = {},
+) {
   const profile = catalog.packages.find((entry) => entry.id === id);
   if (profile === undefined) {
     fail("package ID is not in the closed bootstrap catalog.");
@@ -333,10 +384,17 @@ export function assertOptionalDependencyManifest(profile, manifest, packed = fal
     return;
   }
   const actual = manifest.optionalDependencies;
-  const expected = Object.fromEntries(profile.optionalDependencies.map(({ name, version, specifier }) =>
-    [name, packed ? version : specifier]));
-  if (!isRecord(actual) || JSON.stringify(Object.entries(actual).toSorted()) !==
-      JSON.stringify(Object.entries(expected).toSorted())) {
+  const expected = Object.fromEntries(
+    profile.optionalDependencies.map(({ name, version, specifier }) => [
+      name,
+      packed ? version : specifier,
+    ]),
+  );
+  if (
+    !isRecord(actual) ||
+    JSON.stringify(Object.entries(actual).toSorted()) !==
+      JSON.stringify(Object.entries(expected).toSorted())
+  ) {
     fail("optionalDependencies differ from the exact reviewed dependency map.");
   }
 }

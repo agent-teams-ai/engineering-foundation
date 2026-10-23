@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 
 import type {
   DocumentEnvironmentInspection,
-  DocumentEnvironmentInspector
+  DocumentEnvironmentInspector,
 } from "../../application/ports/document-environment-inspector.js";
 
 interface Dependencies {
@@ -19,7 +19,7 @@ type EnvironmentIdentityProviders = Pick<Dependencies, "buildIdentity" | "versio
 const nodeFilesystemDependencies: Omit<Dependencies, "buildIdentity" | "version"> = {
   lstat,
   platform: process.platform,
-  realpath
+  realpath,
 };
 
 export class NodeDocumentEnvironmentInspector implements DocumentEnvironmentInspector {
@@ -27,45 +27,34 @@ export class NodeDocumentEnvironmentInspector implements DocumentEnvironmentInsp
 
   constructor(
     identity: EnvironmentIdentityProviders,
-    filesystem: Partial<Omit<Dependencies, "buildIdentity" | "version">> = {}
+    filesystem: Partial<Omit<Dependencies, "buildIdentity" | "version">> = {},
   ) {
     this.#dependencies = {
       ...nodeFilesystemDependencies,
       ...filesystem,
-      ...identity
+      ...identity,
     };
   }
 
   async inspect(
     consumerRoot: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ): Promise<DocumentEnvironmentInspection> {
     signal?.throwIfAborted();
     const requestedRoot = resolve(consumerRoot);
-    const [metadata, canonicalRoot, installedVersion, installedBuildIdentity] =
-      await Promise.all([
-        this.#dependencies.lstat(requestedRoot),
-        this.#dependencies.realpath(requestedRoot),
-        this.#dependencies.version(),
-        this.#dependencies.buildIdentity()
-      ]);
+    const [metadata, canonicalRoot, installedVersion, installedBuildIdentity] = await Promise.all([
+      this.#dependencies.lstat(requestedRoot),
+      this.#dependencies.realpath(requestedRoot),
+      this.#dependencies.version(),
+      this.#dependencies.buildIdentity(),
+    ]);
     signal?.throwIfAborted();
-    if (
-      metadata.isSymbolicLink() ||
-      !metadata.isDirectory()
-    ) {
-      throw new Error(
-        "Document doctor consumer root must be a canonical real directory."
-      );
+    if (metadata.isSymbolicLink() || !metadata.isDirectory()) {
+      throw new Error("Document doctor consumer root must be a canonical real directory.");
     }
     const canonicalMetadata = await this.#dependencies.lstat(canonicalRoot);
-    if (
-      canonicalMetadata.isSymbolicLink() ||
-      !canonicalMetadata.isDirectory()
-    ) {
-      throw new Error(
-        "Document doctor consumer root must resolve to a real directory."
-      );
+    if (canonicalMetadata.isSymbolicLink() || !canonicalMetadata.isDirectory()) {
+      throw new Error("Document doctor consumer root must resolve to a real directory.");
     }
     signal?.throwIfAborted();
     return Object.freeze({
@@ -75,9 +64,9 @@ export class NodeDocumentEnvironmentInspector implements DocumentEnvironmentInsp
         basis: "platform-contract" as const,
         strictDirectoryDurability:
           this.#dependencies.platform === "win32"
-            ? "platform-unsupported" as const
-            : "platform-supported" as const
-      })
+            ? ("platform-unsupported" as const)
+            : ("platform-supported" as const),
+      }),
     });
   }
 }

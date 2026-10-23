@@ -7,10 +7,13 @@ import {
   missingRuntimeExport,
   unreadableTargetManifest,
   unavailableBuildOutput,
-  unresolvableRuntimeDependency
+  unresolvableRuntimeDependency,
 } from "../../application/inspection-failures.js";
 import { packageMetadata, validatePackageManifest } from "../../application/package-metadata.js";
-import type { FoundationPackageArtifactPolicy, FoundationPackageSelfCheck } from "../../application/package-metadata.js";
+import type {
+  FoundationPackageArtifactPolicy,
+  FoundationPackageSelfCheck,
+} from "../../application/package-metadata.js";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -25,21 +28,12 @@ function isImportOnlyPackageResolution(error: unknown): boolean {
 }
 
 async function assertRequiredRuntimeExports(packageRoot: string): Promise<void> {
-  const [rootExports, localModeExports, scaffoldingExports] =
-    await Promise.all([
-      importUnknown(pathToFileURL(join(packageRoot, "dist", "index.js")).href),
-      importUnknown(
-        pathToFileURL(join(packageRoot, "dist", "local-mode", "index.js")).href
-      ),
-      importUnknown(
-        pathToFileURL(join(packageRoot, "dist", "scaffolding", "index.js")).href
-      )
-    ]);
-  if (
-    !isRecord(rootExports) ||
-    !isRecord(localModeExports) ||
-    !isRecord(scaffoldingExports)
-  ) {
+  const [rootExports, localModeExports, scaffoldingExports] = await Promise.all([
+    importUnknown(pathToFileURL(join(packageRoot, "dist", "index.js")).href),
+    importUnknown(pathToFileURL(join(packageRoot, "dist", "local-mode", "index.js")).href),
+    importUnknown(pathToFileURL(join(packageRoot, "dist", "scaffolding", "index.js")).href),
+  ]);
+  if (!isRecord(rootExports) || !isRecord(localModeExports) || !isRecord(scaffoldingExports)) {
     throw invalidRuntimeModuleExports();
   }
   const requiredRuntimeExports: readonly (readonly [string, unknown])[] = [
@@ -47,7 +41,7 @@ async function assertRequiredRuntimeExports(packageRoot: string): Promise<void> 
     ["FoundationLocalModeService", localModeExports.FoundationLocalModeService],
     ["planScaffoldFromFile", scaffoldingExports.planScaffoldFromFile],
     ["applyFilesystemScaffold", scaffoldingExports.applyFilesystemScaffold],
-    ["inspectFoundationMode", localModeExports.inspectFoundationMode]
+    ["inspectFoundationMode", localModeExports.inspectFoundationMode],
   ];
   for (const [exportName, candidate] of requiredRuntimeExports) {
     if (typeof candidate !== "function") {
@@ -58,13 +52,11 @@ async function assertRequiredRuntimeExports(packageRoot: string): Promise<void> 
 
 export async function inspectFoundationPackage(
   packageRoot: string,
-  artifactPolicy: FoundationPackageArtifactPolicy
+  artifactPolicy: FoundationPackageArtifactPolicy,
 ): Promise<FoundationPackageSelfCheck> {
   let manifest: unknown;
   try {
-    manifest = JSON.parse(
-      await readFile(join(packageRoot, "package.json"), "utf8")
-    ) as unknown;
+    manifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8")) as unknown;
   } catch (error) {
     throw unreadableTargetManifest(error);
   }
@@ -82,9 +74,7 @@ export async function inspectFoundationPackage(
   await assertRequiredRuntimeExports(packageRoot);
 
   const { selfCheck, runtimeDependencyNames } = packageMetadata(manifest);
-  const requireFromTarget = createRequire(
-    join(await realpath(packageRoot), "package.json")
-  );
+  const requireFromTarget = createRequire(join(await realpath(packageRoot), "package.json"));
   for (const dependencyName of runtimeDependencyNames) {
     try {
       requireFromTarget.resolve(dependencyName);

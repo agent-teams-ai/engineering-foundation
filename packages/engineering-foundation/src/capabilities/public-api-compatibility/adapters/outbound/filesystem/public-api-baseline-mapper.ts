@@ -5,7 +5,7 @@ import {
   type PublicApiEntrypointSnapshot,
   type PublicApiItem,
   type PublicApiPackagePolicy,
-  type PublicApiSnapshot
+  type PublicApiSnapshot,
 } from "../../../application/model/public-api.js";
 
 type PublicApiBaselineSchemaId = "package-public-api-baseline/v1";
@@ -37,7 +37,7 @@ function mapItem(value: unknown, index: number): PublicApiItem {
       ? { parentReference: item["parentReference"] }
       : {}),
     parentKind: string(item["parentKind"], `items[${index}].parentKind`),
-    signature: string(item["signature"], `items[${index}].signature`)
+    signature: string(item["signature"], `items[${index}].signature`),
   });
 }
 
@@ -62,13 +62,11 @@ function mapEntrypoint(value: unknown, index: number): PublicApiEntrypointSnapsh
   validateSortedItems(items);
   return Object.freeze({
     exportPath: string(entrypoint["exportPath"], `entrypoints[${index}].exportPath`),
-    items: Object.freeze(items)
+    items: Object.freeze(items),
   });
 }
 
-function validateSortedEntrypoints(
-  entrypoints: readonly PublicApiEntrypointSnapshot[]
-): void {
+function validateSortedEntrypoints(entrypoints: readonly PublicApiEntrypointSnapshot[]): void {
   const paths = entrypoints.map((entrypoint) => entrypoint.exportPath);
   const sortedPaths = paths.toSorted(compareCanonicalReferences);
   if (
@@ -81,7 +79,7 @@ function validateSortedEntrypoints(
 
 function baselineIdentity(
   baseline: Record<string, unknown>,
-  policy: Pick<PublicApiPackagePolicy, "packageName">
+  policy: Pick<PublicApiPackagePolicy, "packageName">,
 ): { readonly packageName: string; readonly packageVersion: string } {
   const packageName = string(baseline["packageName"], "packageName");
   if (packageName !== policy.packageName) {
@@ -103,7 +101,7 @@ export function releasedBaselineSchemaId(input: unknown): PublicApiBaselineSchem
 }
 
 export function promotionBaselineSchemaId(
-  _policy: PublicApiPackagePolicy
+  _policy: PublicApiPackagePolicy,
 ): PublicApiBaselineSchemaId {
   return "package-public-api-baseline/v1";
 }
@@ -112,7 +110,7 @@ export function mapReleasedBaseline(
   input: unknown,
   policy: Pick<PublicApiPackagePolicy, "packageName">,
   _allowReleaseMigration = false,
-  expectedExtractorVersion?: string
+  expectedExtractorVersion?: string,
 ): PublicApiSnapshot {
   const baseline = record(input, "released API baseline");
   if (baseline["schemaVersion"] !== 1) {
@@ -129,8 +127,8 @@ export function mapReleasedBaseline(
       ? [
           Object.freeze({
             exportPath: ".",
-            items: Object.freeze(legacyItemsInput.map(mapItem))
-          })
+            items: Object.freeze(legacyItemsInput.map(mapItem)),
+          }),
         ]
       : inputError("Released API baseline must contain exactly one of entrypoints or items.");
   for (const entrypoint of entrypoints) {
@@ -145,20 +143,20 @@ export function mapReleasedBaseline(
     schemaVersion: 1,
     ...baselineIdentity(baseline, policy),
     extractorVersion,
-    entrypoints: Object.freeze(entrypoints)
+    entrypoints: Object.freeze(entrypoints),
   });
 }
 
 export function baselineMatchesPolicy(
   snapshot: PublicApiSnapshot,
-  policy: PublicApiPackagePolicy
+  policy: PublicApiPackagePolicy,
 ): boolean {
   return (
     snapshot.packageName === policy.packageName &&
     isExactVersion(snapshot.packageVersion) &&
     snapshot.entrypoints.length === policy.entrypoints.length &&
     snapshot.entrypoints.every(
-      (entrypoint, index) => entrypoint.exportPath === policy.entrypoints[index]?.exportPath
+      (entrypoint, index) => entrypoint.exportPath === policy.entrypoints[index]?.exportPath,
     )
   );
 }

@@ -8,15 +8,13 @@ import test from "node:test";
 import {
   applyDocumentationPlan,
   planDocumentationDocument,
-  recoverDocumentationTransaction
+  recoverDocumentationTransaction,
 } from "../packages/document-authoring/dist/index.js";
 
 const fixtures = fileURLToPath(
-  new URL("fixtures/document-planning/orchestrator/", import.meta.url)
+  new URL("fixtures/document-planning/orchestrator/", import.meta.url),
 );
-const requiresStrictDirectoryDurability = process.platform === "win32"
-  ? test.skip
-  : test;
+const requiresStrictDirectoryDurability = process.platform === "win32" ? test.skip : test;
 
 async function withFixture(callback) {
   const root = await mkdtemp(join(tmpdir(), "foundation-document-public-writer-"));
@@ -30,36 +28,39 @@ async function withFixture(callback) {
 
 async function adrPlan(consumerRoot) {
   const { cases, profilePath } = JSON.parse(
-    await readFile(join(consumerRoot, "cases.json"), "utf8")
+    await readFile(join(consumerRoot, "cases.json"), "utf8"),
   );
   const vector = cases.find(({ name }) => name === "adr");
   assert.ok(vector);
   return planDocumentationDocument({
     consumerRoot,
     profilePath,
-    intent: vector.intent
+    intent: vector.intent,
   });
 }
 
-requiresStrictDirectoryDurability("public writer applies once and returns exact-self on replay", async () => {
-  await withFixture(async (consumerRoot) => {
-    const plan = await adrPlan(consumerRoot);
-    const applied = await applyDocumentationPlan({ consumerRoot, plan });
-    assert.equal(applied.outcome, "applied");
-    assert.equal(applied.destination, plan.destination);
-    assert.equal(applied.resultDigest, plan.output.digest);
+requiresStrictDirectoryDurability(
+  "public writer applies once and returns exact-self on replay",
+  async () => {
+    await withFixture(async (consumerRoot) => {
+      const plan = await adrPlan(consumerRoot);
+      const applied = await applyDocumentationPlan({ consumerRoot, plan });
+      assert.equal(applied.outcome, "applied");
+      assert.equal(applied.destination, plan.destination);
+      assert.equal(applied.resultDigest, plan.output.digest);
 
-    const replay = await applyDocumentationPlan({ consumerRoot, plan });
-    assert.equal(replay.outcome, "already-applied");
-    assert.equal(replay.resultDigest, plan.output.digest);
-  });
-});
+      const replay = await applyDocumentationPlan({ consumerRoot, plan });
+      assert.equal(replay.outcome, "already-applied");
+      assert.equal(replay.resultDigest, plan.output.digest);
+    });
+  },
+);
 
 test("public recovery refuses to manufacture a receipt without evidence", async () => {
   await withFixture(async (consumerRoot) => {
     await assert.rejects(
       recoverDocumentationTransaction({ consumerRoot }),
-      /requires a coordinator-qualified recoverable transaction/u
+      /requires a coordinator-qualified recoverable transaction/u,
     );
   });
 });

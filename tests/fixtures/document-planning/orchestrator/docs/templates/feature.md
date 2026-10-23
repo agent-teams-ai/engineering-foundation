@@ -1,4 +1,4 @@
-````markdown
+```markdown
 ---
 placeholder: true
 ---
@@ -22,4 +22,4 @@ placeholder: true
 ## Failure and recovery
 
 ## Verification
-````
+```

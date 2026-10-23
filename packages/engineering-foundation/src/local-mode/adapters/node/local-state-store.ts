@@ -7,7 +7,7 @@ import { LOCAL_STATE_DIRECTORY, LOCAL_STATE_FILE } from "../../application/model
 async function writeLinkState(
   durability: LocalStateDirectory,
   consumerRoot: string,
-  state: FoundationLinkState
+  state: FoundationLinkState,
 ): Promise<void> {
   const directory = join(consumerRoot, LOCAL_STATE_DIRECTORY);
   const destination = join(directory, LOCAL_STATE_FILE);
@@ -24,7 +24,10 @@ async function writeLinkState(
   await durability.sync(directory);
 }
 
-async function removeLinkState(durability: LocalStateDirectory, consumerRoot: string): Promise<void> {
+async function removeLinkState(
+  durability: LocalStateDirectory,
+  consumerRoot: string,
+): Promise<void> {
   const directory = join(consumerRoot, LOCAL_STATE_DIRECTORY);
   const destination = join(directory, LOCAL_STATE_FILE);
   await rm(destination, { force: true });
@@ -34,7 +37,7 @@ async function removeLinkState(durability: LocalStateDirectory, consumerRoot: st
       .filter((entry) => entry.startsWith(`${LOCAL_STATE_FILE}.`) && entry.endsWith(".tmp"))
       .map(async (entry) => {
         await rm(join(directory, entry), { force: true });
-      })
+      }),
   );
   await durability.sync(directory);
   await durability.prune(consumerRoot);
@@ -48,7 +51,8 @@ export interface LocalStateDirectory {
 
 export function createNodeLocalLinkStateStore(durability: LocalStateDirectory) {
   return {
-    write: (consumerRoot: string, state: FoundationLinkState) => writeLinkState(durability, consumerRoot, state),
-    remove: (consumerRoot: string) => removeLinkState(durability, consumerRoot)
+    write: (consumerRoot: string, state: FoundationLinkState) =>
+      writeLinkState(durability, consumerRoot, state),
+    remove: (consumerRoot: string) => removeLinkState(durability, consumerRoot),
   };
 }

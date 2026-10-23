@@ -13,7 +13,7 @@ const comparatorPath = join(
   "packages",
   "engineering-foundation",
   "dist",
-  "binary-string-comparator.js"
+  "binary-string-comparator.js",
 );
 const { compareBinaryStrings, compareBinaryStringSequences } = await import(
   pathToFileURL(comparatorPath).href
@@ -32,8 +32,8 @@ function checkInLocale(consumerRoot, language) {
     [cliPath, "check", "--consumer", consumerRoot, "--format", "json"],
     {
       cwd: repositoryRoot,
-      env: environmentForLocale(language)
-    }
+      env: environmentForLocale(language),
+    },
   );
   assert.equal(result.error, undefined, result.error?.message);
   assert.equal(result.status, 1, result.stderr.toString("utf8"));
@@ -47,14 +47,8 @@ test("keeps canonically equivalent identifiers distinct in binary order", () => 
 
   assert.equal(decomposed.normalize("NFC"), composed);
   assert.notEqual(compareBinaryStrings(decomposed, composed), 0);
-  assert.deepEqual(
-    [composed, decomposed].toSorted(compareBinaryStrings),
-    [decomposed, composed]
-  );
-  assert.notEqual(
-    compareBinaryStringSequences(["a", "\0b"], ["a\0", "b"]),
-    0
-  );
+  assert.deepEqual([composed, decomposed].toSorted(compareBinaryStrings), [decomposed, composed]);
+  assert.notEqual(compareBinaryStringSequences(["a", "\0b"], ["a\0", "b"]), 0);
 });
 
 test("emits byte-identical source diagnostics across LANG settings", async () => {
@@ -63,17 +57,17 @@ test("emits byte-identical source diagnostics across LANG settings", async () =>
       writeFile(
         join(consumerRoot, "packages", "app", "src", "domain", "zebra.ts"),
         "const = ;\n",
-        "utf8"
+        "utf8",
       ),
       writeFile(
         join(consumerRoot, "packages", "app", "src", "domain", "\u00e4lg.ts"),
         "const = ;\n",
-        "utf8"
-      )
+        "utf8",
+      ),
     ]);
 
     const outputs = ["C", "en_US.UTF-8", "sv_SE.UTF-8"].map((language) =>
-      checkInLocale(consumerRoot, language)
+      checkInLocale(consumerRoot, language),
     );
 
     for (const output of outputs.slice(1)) {
@@ -83,10 +77,7 @@ test("emits byte-identical source diagnostics across LANG settings", async () =>
     const report = JSON.parse(outputs[0].toString("utf8"));
     assert.deepEqual(
       report.capabilities[0].diagnostics.map((diagnostic) => diagnostic.location.path),
-      [
-        "packages/app/src/domain/zebra.ts",
-        "packages/app/src/domain/\u00e4lg.ts"
-      ]
+      ["packages/app/src/domain/zebra.ts", "packages/app/src/domain/\u00e4lg.ts"],
     );
   });
 });

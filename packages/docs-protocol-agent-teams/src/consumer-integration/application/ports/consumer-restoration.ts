@@ -1,7 +1,10 @@
 import type { KnownFileTransactionPlanV1 } from "@agent-teams/repository-mutation";
 import type {
-  ConsumerIntegrationDesiredStateV1, ConsumerUpgradeAuthorityV1, ConsumerUpgradeAuthorityV2,
-  QualifiedDocsCohortBindingV1, QualifiedDocsCohortBindingV2
+  ConsumerIntegrationDesiredStateV1,
+  ConsumerUpgradeAuthorityV1,
+  ConsumerUpgradeAuthorityV2,
+  QualifiedDocsCohortBindingV1,
+  QualifiedDocsCohortBindingV2,
 } from "../../domain/model.js";
 import type { RetainedConsumerRestoration } from "../model/consumer-restoration.js";
 

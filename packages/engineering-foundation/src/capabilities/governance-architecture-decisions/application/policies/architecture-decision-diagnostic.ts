@@ -2,7 +2,7 @@ import type { FoundationDiagnostic } from "../../../../features/validation-repor
 import type { MarkdownObservationIssue } from "@agent-teams/document-authoring/observation";
 import {
   ARCHITECTURE_DECISION_GOVERNANCE_RULES,
-  type ArchitectureDecisionGovernanceRuleMetadata
+  type ArchitectureDecisionGovernanceRuleMetadata,
 } from "../rules.js";
 
 interface ArchitectureDecisionDiagnosticInput {
@@ -17,7 +17,7 @@ interface ArchitectureDecisionDiagnosticInput {
 }
 
 export function architectureDecisionDiagnostic(
-  input: ArchitectureDecisionDiagnosticInput
+  input: ArchitectureDecisionDiagnosticInput,
 ): FoundationDiagnostic {
   return {
     evidence: input.evidence ?? [],
@@ -28,23 +28,22 @@ export function architectureDecisionDiagnostic(
         : {
             start: {
               column: input.column ?? 1,
-              line: input.line
-            }
-          })
+              line: input.line,
+            },
+          }),
     },
     message: input.message,
-    relatedLocations:
-      input.relatedPath === undefined ? [] : [{ path: input.relatedPath }],
+    relatedLocations: input.relatedPath === undefined ? [] : [{ path: input.relatedPath }],
     remediation: input.rule.remediation,
     requiresArchitectureReview: input.rule.requiresArchitectureReview,
     ruleId: input.rule.id,
     severity: input.rule.severity,
-    subject: input.subject
+    subject: input.subject,
   };
 }
 
 export function architectureDecisionIssueDiagnostic(
-  issue: MarkdownObservationIssue
+  issue: MarkdownObservationIssue,
 ): FoundationDiagnostic {
   const rule =
     issue.kind === "symbolic-link"
@@ -55,6 +54,6 @@ export function architectureDecisionIssueDiagnostic(
     message: issue.message,
     path: issue.repositoryPath,
     rule,
-    subject: issue.repositoryPath
+    subject: issue.repositoryPath,
   });
 }

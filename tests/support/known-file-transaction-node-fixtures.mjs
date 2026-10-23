@@ -10,10 +10,9 @@ import { compileKnownFileTransactionPlan } from "../../packages/repository-mutat
 
 export const posixTest = process.platform === "win32" ? test.skip : test;
 export const windowsTest = process.platform === "win32" ? test : test.skip;
-const crashWorker = fileURLToPath(new URL(
-  "../fixtures/known-file-transaction-crash-worker.mjs",
-  import.meta.url,
-));
+const crashWorker = fileURLToPath(
+  new URL("../fixtures/known-file-transaction-crash-worker.mjs", import.meta.url),
+);
 
 export async function temporaryDirectory(context, prefix) {
   const root = await mkdtemp(join(tmpdir(), prefix));
@@ -33,11 +32,16 @@ export async function killAtCheckpoint(root, checkpoint, action = "apply") {
   const child = spawn(process.execPath, [crashWorker, root, checkpoint, action], {
     stdio: ["ignore", "pipe", "inherit"],
   });
-  const exited = new Promise((resolve) => { child.once("exit", resolve); });
+  const exited = new Promise((resolve) => {
+    child.once("exit", resolve);
+  });
   let output = "";
   try {
     await new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error(`checkpoint timeout: ${checkpoint}`)), 30_000);
+      const timeout = setTimeout(
+        () => reject(new Error(`checkpoint timeout: ${checkpoint}`)),
+        30_000,
+      );
       child.once("error", reject);
       child.stdout.setEncoding("utf8");
       child.stdout.on("data", (chunk) => {
@@ -58,37 +62,43 @@ export async function killAtCheckpoint(root, checkpoint, action = "apply") {
 }
 
 export function plan() {
-  return compileKnownFileTransactionPlan({ operations: [
-    {
-      path: "managed/existing.txt",
-      precondition: {
-        state: "known-file",
-        acceptedPreimages: [{ bytes: Buffer.from("old\n"), mode: 0o640 }],
+  return compileKnownFileTransactionPlan({
+    operations: [
+      {
+        path: "managed/existing.txt",
+        precondition: {
+          state: "known-file",
+          acceptedPreimages: [{ bytes: Buffer.from("old\n"), mode: 0o640 }],
+        },
+        postimage: { bytes: Buffer.from("new\n"), mode: 0o640 },
       },
-      postimage: { bytes: Buffer.from("new\n"), mode: 0o640 },
-    },
-    {
-      path: "managed/new.txt",
-      precondition: { state: "absent" },
-      postimage: { bytes: Buffer.from("created\n") },
-    },
-  ] });
+      {
+        path: "managed/new.txt",
+        precondition: { state: "absent" },
+        postimage: { bytes: Buffer.from("created\n") },
+      },
+    ],
+  });
 }
 
 export function replacementPlan() {
   const operation = plan().operations[0];
-  return compileKnownFileTransactionPlan({ operations: [{
-    path: operation.path,
-    precondition: {
-      state: "known-file",
-      acceptedPreimages: operation.precondition.acceptedPreimages.map((image) => ({
-        bytes: Buffer.from(image.contentBase64, "base64"),
-        mode: image.mode,
-      })),
-    },
-    postimage: {
-      bytes: Buffer.from(operation.postimage.contentBase64, "base64"),
-      mode: operation.postimage.mode,
-    },
-  }] });
+  return compileKnownFileTransactionPlan({
+    operations: [
+      {
+        path: operation.path,
+        precondition: {
+          state: "known-file",
+          acceptedPreimages: operation.precondition.acceptedPreimages.map((image) => ({
+            bytes: Buffer.from(image.contentBase64, "base64"),
+            mode: image.mode,
+          })),
+        },
+        postimage: {
+          bytes: Buffer.from(operation.postimage.contentBase64, "base64"),
+          mode: operation.postimage.mode,
+        },
+      },
+    ],
+  });
 }

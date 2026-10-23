@@ -1,3 +1,5 @@
+import * as registeredCases1 from "./workspace-dependency-alias-normalization-cases.ts";
+void registeredCases1;
 import assert from "node:assert/strict";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -11,29 +13,38 @@ import { createSchemaCatalog } from "../dist/features/configuration-input/module
 function workspaceAssertion(readSchema) {
   return createSchemaCatalog({
     schemaIds: ["workspace-dependency-declarations/v1", "workspace-dependency-declarations/v2"],
-    dependencies: {}, readSchema,
+    dependencies: {},
+    readSchema,
   }).assertSchema;
 }
 
 import { createWorkspaceDependencyDeclarationsCapability } from "../dist/capabilities/workspace-dependency-declarations/module.js";
 import { createWorkspaceInventoryReader } from "../dist/workspace-inventory/module.js";
 import { check, withFixture } from "./support/dependency-fixtures.mjs";
-import { normalizeDependencyDeclaration, parseNpmAlias } from "../dist/workspace-inventory/application/policies/normalize-dependency-declaration.js";
 
 const configPath = "architecture/foundation/dependency-declarations.yaml";
-const run = (consumerRoot) => createWorkspaceDependencyDeclarationsCapability(createWorkspaceInventoryReader(), readFoundationSchema).run({ consumerRoot, configPath });
+const run = (consumerRoot) =>
+  createWorkspaceDependencyDeclarationsCapability(
+    createWorkspaceInventoryReader(),
+    readFoundationSchema,
+  ).run({ consumerRoot, configPath });
 const rule = (suffix) => `workspace.dependency-declarations.${suffix}`;
-const has = (report, suffix, slot, section = "dependencies") => report.diagnostics.some(
-  (entry) => entry.ruleId === rule(suffix) && entry.subject === `@fixture/app:${section}:${slot}`,
-);
+const has = (report, suffix, slot, section = "dependencies") =>
+  report.diagnostics.some(
+    (entry) => entry.ruleId === rule(suffix) && entry.subject === `@fixture/app:${section}:${slot}`,
+  );
 
 test("workspace feature composition owns one catalog cache for its selected v1/v2 schemas", async () => {
   await withFixture(async (consumerRoot) => {
     const reads = [];
-    const create = () => createWorkspaceDependencyDeclarationsCapability(createWorkspaceInventoryReader(), async (id) => {
-      reads.push(id);
-      return readFoundationSchema(id);
-    });
+    const create = () =>
+      createWorkspaceDependencyDeclarationsCapability(
+        createWorkspaceInventoryReader(),
+        async (id) => {
+          reads.push(id);
+          return readFoundationSchema(id);
+        },
+      );
     const capability = create();
     for (const version of [1, 1, 2, 2]) {
       const path = join(consumerRoot, configPath);
@@ -42,13 +53,31 @@ test("workspace feature composition owns one catalog cache for its selected v1/v
       await writeFile(path, stringify(config));
       assert.equal((await capability.run({ consumerRoot, configPath })).outcome, "passed");
     }
-    assert.deepEqual(reads, ["workspace-dependency-declarations/v1", "workspace-dependency-declarations/v2"]);
+    assert.deepEqual(reads, [
+      "workspace-dependency-declarations/v1",
+      "workspace-dependency-declarations/v2",
+    ]);
     assert.equal((await create().run({ consumerRoot, configPath })).outcome, "passed");
-    assert.deepEqual(reads, ["workspace-dependency-declarations/v1", "workspace-dependency-declarations/v2", "workspace-dependency-declarations/v2"]);
+    assert.deepEqual(reads, [
+      "workspace-dependency-declarations/v1",
+      "workspace-dependency-declarations/v2",
+      "workspace-dependency-declarations/v2",
+    ]);
   });
 });
 
-async function configure(root, { slot = "alias", target = "typescript", version = "7.0.2", route = "catalog:", section = "dependencies", bundle, policy = {} } = {}) {
+async function configure(
+  root,
+  {
+    slot = "alias",
+    target = "typescript",
+    version = "7.0.2",
+    route = "catalog:",
+    section = "dependencies",
+    bundle,
+    policy = {},
+  } = {},
+) {
   const raw = `npm:${target}@${version}`;
   const workspace = parse(await readFile(join(root, "pnpm-workspace.yaml"), "utf8"));
   workspace.catalog[slot] = raw;
@@ -57,19 +86,32 @@ async function configure(root, { slot = "alias", target = "typescript", version 
   const config = parse(await readFile(join(root, configPath), "utf8"));
   Object.assign(config.policies, policy);
   await writeFile(join(root, configPath), stringify(config));
-  await writeFile(join(root, "packages/app/package.json"), JSON.stringify({
-    name: "@fixture/app", [section]: { [slot]: route === "direct" ? raw : route },
-    ...(bundle === undefined ? {} : { [bundle]: [slot] }),
-  }));
+  await writeFile(
+    join(root, "packages/app/package.json"),
+    JSON.stringify({
+      name: "@fixture/app",
+      [section]: { [slot]: route === "direct" ? raw : route },
+      ...(bundle === undefined ? {} : { [bundle]: [slot] }),
+    }),
+  );
 }
 
 for (const route of ["direct", "catalog:", "catalog:legacy"]) {
-  for (const section of ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies"]) {
+  for (const section of [
+    "dependencies",
+    "devDependencies",
+    "optionalDependencies",
+    "peerDependencies",
+  ]) {
     test(`development-only alias target: ${route} in ${section}`, async () => {
       await withFixture(async (root) => {
         await configure(root, { route, section });
         const report = await run(root);
-        assert.equal(has(report, "development-only-package-in-runtime-section", "alias", section), section !== "devDependencies", JSON.stringify(report));
+        assert.equal(
+          has(report, "development-only-package-in-runtime-section", "alias", section),
+          section !== "devDependencies",
+          JSON.stringify(report),
+        );
         if (section === "devDependencies" && route !== "direct") {
           assert.equal(report.outcome, "passed");
         }
@@ -81,8 +123,21 @@ for (const route of ["direct", "catalog:", "catalog:legacy"]) {
   }
   test(`exact-registry alias cannot acquire a direct-pin exception: ${route}`, async () => {
     await withFixture(async (root) => {
-      await configure(root, { route, target: "@agent-teams/engineering-foundation", version: "0.1.1", section: "devDependencies" });
-      assert.equal(has(await run(root), "exact-registry-development-only-package-version-not-exact", "alias", "devDependencies"), true);
+      await configure(root, {
+        route,
+        target: "@agent-teams/engineering-foundation",
+        version: "0.1.1",
+        section: "devDependencies",
+      });
+      assert.equal(
+        has(
+          await run(root),
+          "exact-registry-development-only-package-version-not-exact",
+          "alias",
+          "devDependencies",
+        ),
+        true,
+      );
     });
   });
   test(`reserved targets behind ${route} retain their identity`, async () => {
@@ -98,7 +153,10 @@ for (const bundle of ["bundleDependencies", "bundledDependencies"]) {
     await withFixture(async (root) => {
       await configure(root, { bundle, section: "devDependencies" });
       const report = await run(root);
-      assert.deepEqual(report.diagnostics.map(({ ruleId }) => ruleId), [rule("development-only-package-bundled")]);
+      assert.deepEqual(
+        report.diagnostics.map(({ ruleId }) => ruleId),
+        [rule("development-only-package-bundled")],
+      );
       await configure(root, { bundle, target: "ajv", version: "8.20.0" });
       assert.equal((await run(root)).outcome, "passed");
       const path = join(root, "packages/app/package.json");
@@ -112,7 +170,15 @@ for (const bundle of ["bundleDependencies", "bundledDependencies"]) {
   });
 }
 
-for (const [slot, suffix] of [["typescript", "development-only-package-in-runtime-section"], ["@fixture/missing", "reserved-scope-package-not-in-workspace"], ["@fixture/core", "internal-dependency-without-workspace-protocol"], ["@agent-teams/engineering-foundation", "exact-registry-development-only-package-version-not-exact"]]) {
+for (const [slot, suffix] of [
+  ["typescript", "development-only-package-in-runtime-section"],
+  ["@fixture/missing", "reserved-scope-package-not-in-workspace"],
+  ["@fixture/core", "internal-dependency-without-workspace-protocol"],
+  [
+    "@agent-teams/engineering-foundation",
+    "exact-registry-development-only-package-version-not-exact",
+  ],
+]) {
   test(`protected slot ${slot} cannot be repurposed by an alias`, async () => {
     await withFixture(async (root) => {
       await configure(root, { slot, target: "ajv", version: "8.20.0" });
@@ -123,12 +189,32 @@ for (const [slot, suffix] of [["typescript", "development-only-package-in-runtim
 
 test("catalog lookup retains slot, target, raw specifier and effective version", async () => {
   await withFixture(async (root) => {
-    await configure(root, { target: "@vendor/library", version: "1.2.3-rc.1+build.2", route: "catalog:legacy" });
-    const inventory = await createWorkspaceInventoryReader().read(root, "pnpm-workspace.yaml");
-    const declaration = inventory.packages.find(({ name }) => name === "@fixture/app").dependencies[0];
-    assert.deepEqual({ slot: declaration.dependencyName, raw: declaration.specifier, target: declaration.targetPackageName, effective: declaration.effectiveSpecifier, version: declaration.effectiveVersionSpecifier, provenance: declaration.provenance }, {
-      slot: "alias", raw: "catalog:legacy", target: "@vendor/library", effective: "npm:@vendor/library@1.2.3-rc.1+build.2", version: "1.2.3-rc.1+build.2", provenance: { kind: "catalog", catalogName: "legacy" },
+    await configure(root, {
+      target: "@vendor/library",
+      version: "1.2.3-rc.1+build.2",
+      route: "catalog:legacy",
     });
+    const inventory = await createWorkspaceInventoryReader().read(root, "pnpm-workspace.yaml");
+    const declaration = inventory.packages.find(({ name }) => name === "@fixture/app")
+      .dependencies[0];
+    assert.deepEqual(
+      {
+        slot: declaration.dependencyName,
+        raw: declaration.specifier,
+        target: declaration.targetPackageName,
+        effective: declaration.effectiveSpecifier,
+        version: declaration.effectiveVersionSpecifier,
+        provenance: declaration.provenance,
+      },
+      {
+        slot: "alias",
+        raw: "catalog:legacy",
+        target: "@vendor/library",
+        effective: "npm:@vendor/library@1.2.3-rc.1+build.2",
+        version: "1.2.3-rc.1+build.2",
+        provenance: { kind: "catalog", catalogName: "legacy" },
+      },
+    );
     assert.equal((await run(root)).outcome, "passed");
     const path = join(root, "pnpm-workspace.yaml");
     const workspace = parse(await readFile(path, "utf8"));
@@ -142,12 +228,30 @@ for (const target of ["@fixture/core", "@fixture/missing"]) {
   test(`registry alias does not acquire workspace origin: ${target}`, async () => {
     await withFixture(async (root) => {
       await configure(root, { target });
-      assert.equal(has(await run(root), target.endsWith("/core") ? "internal-dependency-without-workspace-protocol" : "reserved-scope-package-not-in-workspace", "alias"), true);
+      assert.equal(
+        has(
+          await run(root),
+          target.endsWith("/core")
+            ? "internal-dependency-without-workspace-protocol"
+            : "reserved-scope-package-not-in-workspace",
+          "alias",
+        ),
+        true,
+      );
     });
   });
 }
 
-for (const specifier of ["npm:", "npm:foo", "npm:@scope@1.2.3", "npm:@scope/pkg@", "npm:foo@^1.2.3", "npm:foo@latest", "npm:foo@npm:bar@1.2.3", "npm:foo@1.0.0-01"]) {
+for (const specifier of [
+  "npm:",
+  "npm:foo",
+  "npm:@scope@1.2.3",
+  "npm:@scope/pkg@",
+  "npm:foo@^1.2.3",
+  "npm:foo@latest",
+  "npm:foo@npm:bar@1.2.3",
+  "npm:foo@1.0.0-01",
+]) {
   test(`catalog rejects malformed or non-exact alias ${specifier}`, async () => {
     await withFixture(async (root) => {
       await configure(root);
@@ -155,14 +259,28 @@ for (const specifier of ["npm:", "npm:foo", "npm:@scope@1.2.3", "npm:@scope/pkg@
       const workspace = parse(await readFile(path, "utf8"));
       workspace.catalog.alias = specifier;
       await writeFile(path, stringify(workspace));
-      assert.ok((await run(root)).diagnostics.some(({ ruleId }) => ruleId === rule("catalog-version-not-exact")));
+      assert.ok(
+        (await run(root)).diagnostics.some(
+          ({ ruleId }) => ruleId === rule("catalog-version-not-exact"),
+        ),
+      );
     });
   });
 }
 
 // Captured by executing originalBase, independent of the migrated loader/parser.
-const configBaseline = JSON.parse(await readFile(new URL("./fixtures/workspace-dependency-declarations/config-baseline.json", import.meta.url), "utf8"));
-const configSchema = JSON.parse(await readFile(new URL("../schemas/workspace-dependency-declarations/v1.schema.json", import.meta.url), "utf8"));
+const configBaseline = JSON.parse(
+  await readFile(
+    new URL("./fixtures/workspace-dependency-declarations/config-baseline.json", import.meta.url),
+    "utf8",
+  ),
+);
+const configSchema = JSON.parse(
+  await readFile(
+    new URL("../schemas/workspace-dependency-declarations/v1.schema.json", import.meta.url),
+    "utf8",
+  ),
+);
 import { parseCapabilityConfig } from "../dist/capabilities/workspace-dependency-declarations/adapters/inbound/filesystem/parse-capability-config.js";
 import { loadCapabilityConfig } from "../dist/capabilities/workspace-dependency-declarations/adapters/inbound/filesystem/load-capability-config.js";
 for (const entry of configBaseline.cases) {
@@ -184,20 +302,41 @@ for (const entry of configBaseline.cases) {
       };
       if (entry.name === "future-version") {
         const selected = [];
-        const actual = await loadCapabilityConfig({ readYaml: loadStrictYamlFile, assertSchema: workspaceAssertion(async (id) => {
-          selected.push(id);
-          return readFoundationSchema(id);
-        }) }, root, configPath);
+        const actual = await loadCapabilityConfig(
+          {
+            readYaml: loadStrictYamlFile,
+            assertSchema: workspaceAssertion(async (id) => {
+              selected.push(id);
+              return readFoundationSchema(id);
+            }),
+          },
+          root,
+          configPath,
+        );
         assert.deepEqual(selected, ["workspace-dependency-declarations/v2"]);
-        assert.deepEqual(actual, configBaseline.cases.find(({ name }) => name === "valid").settings);
+        assert.deepEqual(
+          actual,
+          configBaseline.cases.find(({ name }) => name === "valid").settings,
+        );
       } else {
-        await settings(() => loadCapabilityConfig({ readYaml: loadStrictYamlFile, assertSchema: workspaceAssertion(readFoundationSchema) }, root, configPath));
+        await settings(() =>
+          loadCapabilityConfig(
+            {
+              readYaml: loadStrictYamlFile,
+              assertSchema: workspaceAssertion(readFoundationSchema),
+            },
+            root,
+            configPath,
+          ),
+        );
       }
       if (!entry.loaderOnly) {
         await settings(async () => {
           const input = parse(entry.yaml);
           await workspaceAssertion(async () => JSON.stringify(configSchema))(
-            "workspace-dependency-declarations/v1", input, "workspace-dependency-declarations-config"
+            "workspace-dependency-declarations/v1",
+            input,
+            "workspace-dependency-declarations-config",
           );
           return parseCapabilityConfig(input);
         });
@@ -219,16 +358,20 @@ test("rejects development-only and reserved targets hidden behind npm aliases", 
     );
     await writeFile(
       join(consumerRoot, "packages", "app", "package.json"),
-      `${JSON.stringify({
-        name: "@fixture/app",
-        version: "0.0.0",
-        dependencies: {
-          "foundation-direct-alias": "npm:@agent-teams/engineering-foundation@0.1.1",
-          "foundation-catalog-alias": "catalog:",
-          "foundation-named-alias": "catalog:legacy",
+      `${JSON.stringify(
+        {
+          name: "@fixture/app",
+          version: "0.0.0",
+          dependencies: {
+            "foundation-direct-alias": "npm:@agent-teams/engineering-foundation@0.1.1",
+            "foundation-catalog-alias": "catalog:",
+            "foundation-named-alias": "catalog:legacy",
+          },
+          bundledDependencies: ["foundation-direct-alias"],
         },
-        bundledDependencies: ["foundation-direct-alias"],
-      }, null, 2)}\n`,
+        null,
+        2,
+      )}\n`,
       "utf8",
     );
     const { report } = check(consumerRoot);
@@ -239,21 +382,49 @@ test("rejects development-only and reserved targets hidden behind npm aliases", 
       "foundation-named-alias",
     ]) {
       const subject = `@fixture/app:dependencies:${slot}`;
-      assert.equal(diagnostics.some(({ ruleId, subject: actual }) =>
-        ruleId.endsWith("development-only-package-in-runtime-section") && actual === subject), true);
-      assert.equal(diagnostics.some(({ ruleId, subject: actual }) =>
-        ruleId.endsWith("exact-registry-development-only-package-version-not-exact") && actual === subject), true);
-      assert.equal(diagnostics.some(({ ruleId, subject: actual }) =>
-        ruleId.endsWith("reserved-scope-package-not-in-workspace") && actual === subject), true);
+      assert.equal(
+        diagnostics.some(
+          ({ ruleId, subject: actual }) =>
+            ruleId.endsWith("development-only-package-in-runtime-section") && actual === subject,
+        ),
+        true,
+      );
+      assert.equal(
+        diagnostics.some(
+          ({ ruleId, subject: actual }) =>
+            ruleId.endsWith("exact-registry-development-only-package-version-not-exact") &&
+            actual === subject,
+        ),
+        true,
+      );
+      assert.equal(
+        diagnostics.some(
+          ({ ruleId, subject: actual }) =>
+            ruleId.endsWith("reserved-scope-package-not-in-workspace") && actual === subject,
+        ),
+        true,
+      );
     }
-    assert.equal(diagnostics.some(({ ruleId, subject }) =>
-      ruleId.endsWith("development-only-package-bundled") &&
-      subject === "@fixture/app:bundle:foundation-direct-alias"), true);
+    assert.equal(
+      diagnostics.some(
+        ({ ruleId, subject }) =>
+          ruleId.endsWith("development-only-package-bundled") &&
+          subject === "@fixture/app:bundle:foundation-direct-alias",
+      ),
+      true,
+    );
   });
 });
 
-
-const declarationBaseline = JSON.parse(await readFile(new URL("./fixtures/workspace-dependency-declarations/declarations-baseline.json", import.meta.url), "utf8"));
+const declarationBaseline = JSON.parse(
+  await readFile(
+    new URL(
+      "./fixtures/workspace-dependency-declarations/declarations-baseline.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+);
 for (const entry of declarationBaseline.cases) {
   test(`original-base declaration diagnostic parity: ${entry.name}`, async () => {
     await withFixture(async (root) => {
@@ -263,50 +434,11 @@ for (const entry of declarationBaseline.cases) {
   });
 }
 
-const registryCases = JSON.parse(await readFile(new URL("./fixtures/workspace-dependency-declarations/registry-alias-specifiers.json", import.meta.url), "utf8"));
-for (const { suffix, registry } of registryCases) {
-  test(`A2 review registry alias normalization: ${suffix}`, () => {
-    const raw = `npm:@vendor/library@${suffix}`;
-    assert.deepEqual(parseNpmAlias(raw), registry ? {
-      targetPackageName: "@vendor/library", versionSpecifier: suffix,
-    } : undefined);
-    for (const specifier of [raw, "catalog:", "catalog:default", "catalog:legacy"]) {
-      const actual = normalizeDependencyDeclaration({
-        catalogs: ["default", "legacy"].map((catalogName) => ({ catalogName, dependencyName: "alias", version: raw })),
-        dependencyName: "alias", manifestPath: "packages/app/package.json",
-        packageName: "@fixture/app", section: "dependencies", specifier,
-      });
-      assert.equal(actual.specifier, specifier);
-      assert.equal(actual.dependencyName, "alias");
-      assert.equal(actual.effectiveSpecifier, raw);
-      assert.deepEqual(actual.provenance, specifier === raw ? { kind: "manifest" } : {
-        kind: "catalog", catalogName: specifier === "catalog:legacy" ? "legacy" : "default",
-      });
-      assert.equal(actual.normalizationProblem, registry ? undefined : "invalid-npm-alias");
-      assert.ok(Object.isFrozen(actual));
-      if (registry) {
-        assert.equal(actual.targetPackageName, "@vendor/library");
-        assert.equal(actual.effectiveVersionSpecifier, suffix);
-      }
-    }
-  });
-}
-
-test("A2 review normalization rejects ambiguous catalog keys in either order", () => {
-  for (const second of ["npm:typescript@7.0.2", "npm:@vendor/library@1.2.3"]) {
-    const catalogs = ["npm:@vendor/library@1.2.3", second].map((version) => ({
-      catalogName: "default", dependencyName: "alias", version,
-    }));
-    for (const entries of [catalogs, catalogs.toReversed()]) {
-      assert.throws(() => normalizeDependencyDeclaration({
-        catalogs: entries, dependencyName: "alias", packageName: "@fixture/app",
-        manifestPath: "packages/app/package.json", section: "dependencies", specifier: "catalog:",
-      }), { name: "TypeError", message: "Catalog default declares alias more than once." });
-    }
-  }
-});
-
-for (const [schemaVersion, kind] of [[1, "pnpm"], [2, "pnpm"], [2, "bun"]]) {
+for (const [schemaVersion, kind] of [
+  [1, "pnpm"],
+  [2, "pnpm"],
+  [2, "bun"],
+]) {
   test(`explicit manager policy v${schemaVersion} ${kind} governs the actual root and CLI`, async () => {
     await withFixture(async (root) => {
       const config = parse(await readFile(join(root, configPath), "utf8"));
@@ -323,26 +455,48 @@ for (const [schemaVersion, kind] of [[1, "pnpm"], [2, "pnpm"], [2, "bun"]]) {
       const { report, result } = check(root);
       assert.equal(result.status, 0);
       assert.equal(report.capabilities[0].outcome, "passed");
-      for (const value of [`${kind === "bun" ? "pnpm" : "bun"}@1.4.3`, `${kind}@^1.4.3`, `${kind}@latest`, kind, undefined]) {
-        if (value === undefined) { delete manifest.packageManager; }
-        else { manifest.packageManager = value; }
+      for (const value of [
+        `${kind === "bun" ? "pnpm" : "bun"}@1.4.3`,
+        `${kind}@^1.4.3`,
+        `${kind}@latest`,
+        kind,
+        undefined,
+      ]) {
+        if (value === undefined) {
+          delete manifest.packageManager;
+        } else {
+          manifest.packageManager = value;
+        }
         await writeFile(path, JSON.stringify(manifest));
         const diagnostics = (await run(root)).diagnostics;
-        assert.deepEqual(diagnostics.map(({ ruleId }) => ruleId), [rule("package-manager-not-exact")]);
+        assert.deepEqual(
+          diagnostics.map(({ ruleId }) => ruleId),
+          [rule("package-manager-not-exact")],
+        );
         assert.equal(diagnostics[0].evidence[0].value, value ?? "missing");
       }
       manifest.packageManager = `${kind}@1.4.3`;
       await writeFile(path, JSON.stringify(manifest));
       await configure(root, { target: "typescript", route: "direct" });
-      assert.equal(has(await run(root), "development-only-package-in-runtime-section", "alias"), true);
+      assert.equal(
+        has(await run(root), "development-only-package-in-runtime-section", "alias"),
+        true,
+      );
       assert.equal(has(await run(root), "external-version-not-cataloged", "alias"), true);
       await configure(root, { target: "@fixture/core" });
-      assert.equal(has(await run(root), "internal-dependency-without-workspace-protocol", "alias"), true);
+      assert.equal(
+        has(await run(root), "internal-dependency-without-workspace-protocol", "alias"),
+        true,
+      );
       const workspacePath = join(root, "pnpm-workspace.yaml");
       const workspace = parse(await readFile(workspacePath, "utf8"));
       workspace.catalog.alias = "^1.4.3";
       await writeFile(workspacePath, stringify(workspace));
-      assert.ok((await run(root)).diagnostics.some(({ ruleId }) => ruleId === rule("catalog-version-not-exact")));
+      assert.ok(
+        (await run(root)).diagnostics.some(
+          ({ ruleId }) => ruleId === rule("catalog-version-not-exact"),
+        ),
+      );
     });
   });
 }

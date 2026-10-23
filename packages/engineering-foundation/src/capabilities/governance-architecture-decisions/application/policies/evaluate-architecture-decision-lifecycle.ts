@@ -3,9 +3,7 @@ import type { ArchitectureDecision } from "../model/architecture-decision.js";
 import { ARCHITECTURE_DECISION_GOVERNANCE_RULES } from "../rules.js";
 import { architectureDecisionDiagnostic } from "./architecture-decision-diagnostic.js";
 
-function statusDiagnostic(
-  decision: ArchitectureDecision
-): FoundationDiagnostic | undefined {
+function statusDiagnostic(decision: ArchitectureDecision): FoundationDiagnostic | undefined {
   const hasSuccessor = decision.supersededBy.length > 0;
   const hasPredecessor = decision.supersedes.length > 0;
   const invalid =
@@ -17,7 +15,7 @@ function statusDiagnostic(
         message: `ADR ${decision.id} has lifecycle references incompatible with status ${decision.status}.`,
         path: decision.document.repositoryPath,
         rule: ARCHITECTURE_DECISION_GOVERNANCE_RULES.lifecycleInvalid,
-        subject: decision.id
+        subject: decision.id,
       })
     : undefined;
 }
@@ -35,8 +33,8 @@ function supersedesDiagnostics(input: {
         message: `ADR ${decision.id} supersedes unknown ADR ${targetId}.`,
         path: decision.document.repositoryPath,
         rule: ARCHITECTURE_DECISION_GOVERNANCE_RULES.supersedesMismatch,
-        subject: decision.id
-      })
+        subject: decision.id,
+      }),
     ];
   }
   const diagnostics: FoundationDiagnostic[] = [];
@@ -48,14 +46,11 @@ function supersedesDiagnostics(input: {
         path: decision.document.repositoryPath,
         relatedPath: target.document.repositoryPath,
         rule: ARCHITECTURE_DECISION_GOVERNANCE_RULES.supersedesMismatch,
-        subject: decision.id
-      })
+        subject: decision.id,
+      }),
     );
   }
-  if (
-    !["accepted", "superseded"].includes(decision.status) ||
-    target.status !== "superseded"
-  ) {
+  if (!["accepted", "superseded"].includes(decision.status) || target.status !== "superseded") {
     diagnostics.push(
       architectureDecisionDiagnostic({
         evidence: [{ kind: "target-adr", value: targetId }],
@@ -63,8 +58,8 @@ function supersedesDiagnostics(input: {
         path: decision.document.repositoryPath,
         relatedPath: target.document.repositoryPath,
         rule: ARCHITECTURE_DECISION_GOVERNANCE_RULES.lifecycleInvalid,
-        subject: decision.id
-      })
+        subject: decision.id,
+      }),
     );
   }
   return diagnostics;
@@ -83,8 +78,8 @@ function supersededByDiagnostics(input: {
         message: `ADR ${decision.id} is superseded by unknown ADR ${targetId}.`,
         path: decision.document.repositoryPath,
         rule: ARCHITECTURE_DECISION_GOVERNANCE_RULES.supersedesMismatch,
-        subject: decision.id
-      })
+        subject: decision.id,
+      }),
     ];
   }
   const diagnostics: FoundationDiagnostic[] = [];
@@ -96,14 +91,11 @@ function supersededByDiagnostics(input: {
         path: decision.document.repositoryPath,
         relatedPath: target.document.repositoryPath,
         rule: ARCHITECTURE_DECISION_GOVERNANCE_RULES.supersedesMismatch,
-        subject: decision.id
-      })
+        subject: decision.id,
+      }),
     );
   }
-  if (
-    decision.status !== "superseded" ||
-    !["accepted", "superseded"].includes(target.status)
-  ) {
+  if (decision.status !== "superseded" || !["accepted", "superseded"].includes(target.status)) {
     diagnostics.push(
       architectureDecisionDiagnostic({
         evidence: [{ kind: "target-adr", value: targetId }],
@@ -111,15 +103,15 @@ function supersededByDiagnostics(input: {
         path: decision.document.repositoryPath,
         relatedPath: target.document.repositoryPath,
         rule: ARCHITECTURE_DECISION_GOVERNANCE_RULES.lifecycleInvalid,
-        subject: decision.id
-      })
+        subject: decision.id,
+      }),
     );
   }
   return diagnostics;
 }
 
 export function architectureDecisionLifecycleDiagnostics(
-  decisions: readonly ArchitectureDecision[]
+  decisions: readonly ArchitectureDecision[],
 ): readonly FoundationDiagnostic[] {
   const diagnostics: FoundationDiagnostic[] = [];
   const decisionsById = new Map(decisions.map((decision) => [decision.id, decision]));
@@ -133,8 +125,8 @@ export function architectureDecisionLifecycleDiagnostics(
         ...supersedesDiagnostics({
           decision,
           target: decisionsById.get(targetId),
-          targetId
-        })
+          targetId,
+        }),
       );
     }
     for (const targetId of decision.supersededBy) {
@@ -142,8 +134,8 @@ export function architectureDecisionLifecycleDiagnostics(
         ...supersededByDiagnostics({
           decision,
           target: decisionsById.get(targetId),
-          targetId
-        })
+          targetId,
+        }),
       );
     }
   }
@@ -151,7 +143,7 @@ export function architectureDecisionLifecycleDiagnostics(
 }
 
 export function architectureDecisionCycleDiagnostics(
-  decisions: readonly ArchitectureDecision[]
+  decisions: readonly ArchitectureDecision[],
 ): readonly FoundationDiagnostic[] {
   const byId = new Map(decisions.map((decision) => [decision.id, decision]));
   const visited = new Set<string>();
@@ -170,8 +162,8 @@ export function architectureDecisionCycleDiagnostics(
             message: `ADR supersession cycle detected: ${cycle.join(" -> ")}.`,
             path: decision.document.repositoryPath,
             rule: ARCHITECTURE_DECISION_GOVERNANCE_RULES.supersedesCycle,
-            subject: id
-          })
+            subject: id,
+          }),
         );
       }
       return;

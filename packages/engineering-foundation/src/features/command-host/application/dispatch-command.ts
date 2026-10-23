@@ -5,7 +5,7 @@ export type FoundationCommandHandler = (invocation: CommandInvocation) => Promis
 
 export async function dispatchFoundationCommand(
   invocation: CommandInvocation,
-  handlers: readonly FoundationCommandHandler[]
+  handlers: readonly FoundationCommandHandler[],
 ): Promise<void> {
   for (const handler of handlers) {
     if (await handler(invocation)) {

@@ -1,28 +1,44 @@
 import type { DocumentMarkdownRepository } from "../ports/document-markdown-repository.js";
 import { compareBinaryStrings } from "../../../binary-string-comparator.js";
-import type { MarkdownDocumentObservation, MarkdownObservationIssue, MarkdownRepositoryObservation } from "../../../documentation-observation/api.js";
+import type {
+  MarkdownDocumentObservation,
+  MarkdownObservationIssue,
+  MarkdownRepositoryObservation,
+} from "../../../documentation-observation/api.js";
 
-import type { DocumentDescriptor, DocumentIdentityProjectionEntry, DocumentationCatalogDiagnostic, DocumentationCatalogSnapshot, DocumentationCatalogSnapshotV2, DocumentationSearchCatalogSnapshot, DocumentationSearchCatalogSnapshotV2, DocumentSearchCorpusEntry } from "../model/document-catalog.js";
-import type { DocumentationCatalogReadRequest, DocumentationSearchCatalogReader } from "../ports/documentation-search-catalog-reader.js";
+import type {
+  DocumentDescriptor,
+  DocumentIdentityProjectionEntry,
+  DocumentationCatalogDiagnostic,
+  DocumentationCatalogSnapshot,
+  DocumentationCatalogSnapshotV2,
+  DocumentationSearchCatalogSnapshot,
+  DocumentationSearchCatalogSnapshotV2,
+  DocumentSearchCorpusEntry,
+} from "../model/document-catalog.js";
+import type {
+  DocumentationCatalogReadRequest,
+  DocumentationSearchCatalogReader,
+} from "../ports/documentation-search-catalog-reader.js";
 import type { DocumentationCatalogReader } from "../ports/documentation-catalog-reader.js";
 import type { DocumentationCatalogReaderV2 } from "../ports/documentation-catalog-reader-v2.js";
 import type { DocumentationSearchCatalogReaderV2 } from "../ports/documentation-search-catalog-reader-v2.js";
 import type {
   DocumentMetadataSidecarReader,
-  DocumentMetadataSidecarSnapshot
+  DocumentMetadataSidecarSnapshot,
 } from "../ports/document-metadata-sidecar-reader.js";
 import type {
   AuthoringProfileReader,
   CatalogCollection,
-  CatalogProfileSnapshot
+  CatalogProfileSnapshot,
 } from "../ports/authoring-profile-reader.js";
 import type {
   MetadataInstanceValidator,
-  MetadataSchemaSnapshot
+  MetadataSchemaSnapshot,
 } from "../ports/metadata-instance-validator.js";
 import type {
   OwnerMembershipReader,
-  OwnerMembershipSnapshot
+  OwnerMembershipSnapshot,
 } from "../ports/owner-membership-reader.js";
 import { DocumentCatalogError } from "../model/document-catalog-error.js";
 import {
@@ -30,15 +46,13 @@ import {
   catalogDiagnostic,
   catalogObservationDiagnostic,
   duplicateIdentityDiagnostics,
-  sortCatalogDiagnostics
+  sortCatalogDiagnostics,
 } from "../policies/document-catalog-diagnostics.js";
-import {
-  inspectCatalogDocument
-} from "../policies/inspect-catalog-document.js";
+import { inspectCatalogDocument } from "../policies/inspect-catalog-document.js";
 import {
   assertSidecarDocumentPaths,
   inspectCatalogDocumentWithSidecar,
-  orphanSidecarDiagnostics
+  orphanSidecarDiagnostics,
 } from "../policies/document-catalog-sidecar.js";
 import { assertCatalogAuthorityStable } from "../policies/document-catalog-authority-stability.js";
 import { documentationCatalogSemanticDigest } from "../policies/document-authoring-semantic-digests.js";
@@ -48,14 +62,15 @@ export interface BuildDocumentationCatalogRequest {
   readonly profilePath: string;
   readonly signal?: AbortSignal;
 }
-interface CatalogObservation { readonly documents: readonly MarkdownDocumentObservation[]; readonly issues: readonly MarkdownObservationIssue[]; }
+interface CatalogObservation {
+  readonly documents: readonly MarkdownDocumentObservation[];
+  readonly issues: readonly MarkdownObservationIssue[];
+}
 
-const matchesPrefix = (path: string, prefix: string): boolean => path === prefix || path.startsWith(`${prefix}/`);
+const matchesPrefix = (path: string, prefix: string): boolean =>
+  path === prefix || path.startsWith(`${prefix}/`);
 
-function collectionContainsPath(
-  collection: CatalogCollection,
-  repositoryPath: string
-): boolean {
+function collectionContainsPath(collection: CatalogCollection, repositoryPath: string): boolean {
   if (collection.kind === "markdown-tree") {
     return matchesPrefix(repositoryPath, collection.root);
   }
@@ -65,23 +80,20 @@ function collectionContainsPath(
   );
 }
 
-function isCatalogDocumentPath(
-  profile: CatalogProfileSnapshot,
-  repositoryPath: string
-): boolean {
+function isCatalogDocumentPath(profile: CatalogProfileSnapshot, repositoryPath: string): boolean {
   return profile.collections.some((collection) =>
-    collectionContainsPath(collection, repositoryPath)
+    collectionContainsPath(collection, repositoryPath),
   );
 }
 
 function catalogDocumentSource(
   profile: CatalogProfileSnapshot,
-  repositoryPath: string
+  repositoryPath: string,
 ): DocumentDescriptor["source"] {
   return profile.collections.some(
     (collection) =>
       collection.kind === "frontmatter-readme" &&
-      collectionContainsPath(collection, repositoryPath)
+      collectionContainsPath(collection, repositoryPath),
   )
     ? "frontmatter-readme"
     : "markdown-tree";
@@ -89,25 +101,20 @@ function catalogDocumentSource(
 
 function catalogObservation(
   observation: MarkdownRepositoryObservation,
-  profile: CatalogProfileSnapshot
+  profile: CatalogProfileSnapshot,
 ): CatalogObservation {
   const rootIssues = new Set(["root-missing", "root-not-directory"]);
   return {
     documents: observation.documents.filter((document) =>
-      isCatalogDocumentPath(profile, document.repositoryPath)
+      isCatalogDocumentPath(profile, document.repositoryPath),
     ),
     issues: observation.issues.filter(
-      (issue) =>
-        rootIssues.has(issue.kind) ||
-        isCatalogDocumentPath(profile, issue.repositoryPath)
-    )
+      (issue) => rootIssues.has(issue.kind) || isCatalogDocumentPath(profile, issue.repositoryPath),
+    ),
   };
 }
 
-function sameObservation(
-  left: CatalogObservation,
-  right: CatalogObservation
-): boolean {
+function sameObservation(left: CatalogObservation, right: CatalogObservation): boolean {
   if (
     left.documents.length !== right.documents.length ||
     left.issues.length !== right.issues.length
@@ -140,11 +147,13 @@ function sameObservation(
 
 function repositoryRoots(profile: CatalogProfileSnapshot): readonly string[] {
   return Object.freeze(
-    [...new Set(
-      profile.collections.flatMap((collection) =>
-        collection.kind === "markdown-tree" ? [collection.root] : collection.roots
-      )
-    )].toSorted(compareBinaryStrings)
+    [
+      ...new Set(
+        profile.collections.flatMap((collection) =>
+          collection.kind === "markdown-tree" ? [collection.root] : collection.roots,
+        ),
+      ),
+    ].toSorted(compareBinaryStrings),
   );
 }
 
@@ -171,25 +180,25 @@ function signalOption(signal: AbortSignal | undefined): {
 
 async function loadCatalogAuthority(
   dependencies: CatalogDependencies,
-  request: BuildDocumentationCatalogRequest
+  request: BuildDocumentationCatalogRequest,
 ): Promise<LoadedCatalogAuthority> {
   const profile = await dependencies.profile.read({
     consumerRoot: request.consumerRoot,
     path: request.profilePath,
-    ...signalOption(request.signal)
+    ...signalOption(request.signal),
   });
   const [owners, metadata] = await Promise.all([
     dependencies.owners.read({
       consumerRoot: request.consumerRoot,
       contract: profile.ownerCatalog.contract,
       path: profile.ownerCatalog.path,
-      ...signalOption(request.signal)
+      ...signalOption(request.signal),
     }),
     dependencies.metadata.load({
       consumerRoot: request.consumerRoot,
       path: profile.metadataSchemaPath,
-      ...signalOption(request.signal)
-    })
+      ...signalOption(request.signal),
+    }),
   ]);
   const knownOwnerIds = new Set(owners.ids);
   for (const artifact of profile.artifactOwnerIds ?? []) {
@@ -197,7 +206,7 @@ async function loadCatalogAuthority(
     if (unknownOwner !== undefined) {
       throw new DocumentCatalogError(
         "DOCUMENT_CATALOG_INPUT_INVALID",
-        `Profile v${profile.schemaVersion ?? 2} artifact type ${artifact.type} allows an owner absent from the owner catalog: ${unknownOwner}.`
+        `Profile v${profile.schemaVersion ?? 2} artifact type ${artifact.type} allows an owner absent from the owner catalog: ${unknownOwner}.`,
       );
     }
   }
@@ -206,13 +215,13 @@ async function loadCatalogAuthority(
     if (dependencies.sidecar === undefined) {
       throw new DocumentCatalogError(
         "DOCUMENT_CATALOG_INPUT_INVALID",
-        "Document metadata sidecar authority requires a sidecar reader."
+        "Document metadata sidecar authority requires a sidecar reader.",
       );
     }
     sidecar = await dependencies.sidecar.read({
       consumerRoot: request.consumerRoot,
       path: profile.metadataSidecar.path,
-      ...signalOption(request.signal)
+      ...signalOption(request.signal),
     });
     assertSidecarDocumentPaths(profile, sidecar);
   }
@@ -220,28 +229,25 @@ async function loadCatalogAuthority(
     metadata,
     owners,
     profile,
-    ...(sidecar === undefined ? {} : { sidecar })
+    ...(sidecar === undefined ? {} : { sidecar }),
   };
 }
 
 async function observeCatalogTwice(
   repository: DocumentMarkdownRepository,
   authority: LoadedCatalogAuthority,
-  request: BuildDocumentationCatalogRequest
+  request: BuildDocumentationCatalogRequest,
 ): Promise<readonly [CatalogObservation, CatalogObservation]> {
   const observationRequest = {
     consumerRoot: request.consumerRoot,
     excludedPrefixes: authority.profile.excludedPrefixes,
     roots: repositoryRoots(authority.profile),
-    ...signalOption(request.signal)
+    ...signalOption(request.signal),
   };
-  const first = catalogObservation(
-    await repository.observe(observationRequest),
-    authority.profile
-  );
+  const first = catalogObservation(await repository.observe(observationRequest), authority.profile);
   const second = catalogObservation(
     await repository.observe(observationRequest),
-    authority.profile
+    authority.profile,
   );
   return [first, second];
 }
@@ -249,7 +255,7 @@ async function observeCatalogTwice(
 async function assertAuthorityRemainedStable(
   dependencies: CatalogDependencies,
   request: BuildDocumentationCatalogRequest,
-  before: LoadedCatalogAuthority
+  before: LoadedCatalogAuthority,
 ): Promise<void> {
   let after: LoadedCatalogAuthority;
   try {
@@ -259,7 +265,7 @@ async function assertAuthorityRemainedStable(
       throw new DocumentCatalogError(
         "DOCUMENT_CATALOG_AUTHORITY_CHANGED",
         "Document catalog authority became unavailable while the repository was observed.",
-        { cause: error }
+        { cause: error },
       );
     }
     throw error;
@@ -269,7 +275,7 @@ async function assertAuthorityRemainedStable(
 
 interface CatalogDocumentInspection<
   Descriptor extends DocumentDescriptor,
-  SearchEntry extends DocumentSearchCorpusEntry
+  SearchEntry extends DocumentSearchCorpusEntry,
 > {
   readonly descriptor?: Descriptor;
   readonly diagnostic?: DocumentationCatalogDiagnostic;
@@ -284,7 +290,7 @@ type CatalogSnapshotFor<Descriptor extends DocumentDescriptor> = Omit<
 
 interface SearchCatalogSnapshotFor<
   Descriptor extends DocumentDescriptor,
-  SearchEntry extends DocumentSearchCorpusEntry
+  SearchEntry extends DocumentSearchCorpusEntry,
 > {
   readonly catalog: CatalogSnapshotFor<Descriptor>;
   readonly documents: readonly SearchEntry[];
@@ -292,7 +298,7 @@ interface SearchCatalogSnapshotFor<
 
 function createCatalogSnapshot<
   Descriptor extends DocumentDescriptor,
-  SearchEntry extends DocumentSearchCorpusEntry
+  SearchEntry extends DocumentSearchCorpusEntry,
 >(
   authority: LoadedCatalogAuthority,
   first: CatalogObservation,
@@ -301,21 +307,21 @@ function createCatalogSnapshot<
     document: MarkdownDocumentObservation,
     metadata: MetadataSchemaSnapshot,
     ownerIds: ReadonlySet<string>,
-    source: DocumentDescriptor["source"]
+    source: DocumentDescriptor["source"],
   ) => CatalogDocumentInspection<Descriptor, SearchEntry>,
-  initialDiagnostics: readonly DocumentationCatalogDiagnostic[] = []
+  initialDiagnostics: readonly DocumentationCatalogDiagnostic[] = [],
 ): SearchCatalogSnapshotFor<Descriptor, SearchEntry> {
   const diagnostics: DocumentationCatalogDiagnostic[] = [
     ...initialDiagnostics,
-    ...second.issues.map(catalogObservationDiagnostic)
+    ...second.issues.map(catalogObservationDiagnostic),
   ];
   if (!sameObservation(first, second)) {
     diagnostics.push(
       catalogDiagnostic(
         "document.catalog.corpus-changed",
         authority.profile.projectId,
-        "Documentation corpus changed between stable observation passes."
-      )
+        "Documentation corpus changed between stable observation passes.",
+      ),
     );
   }
   const documents: Descriptor[] = [];
@@ -327,7 +333,7 @@ function createCatalogSnapshot<
       document,
       authority.metadata,
       ownerIds,
-      catalogDocumentSource(authority.profile, document.repositoryPath)
+      catalogDocumentSource(authority.profile, document.repositoryPath),
     );
     if (inspected.descriptor !== undefined) {
       documents.push(inspected.descriptor);
@@ -345,18 +351,18 @@ function createCatalogSnapshot<
   const sortedIdentity = identityProjection.toSorted(
     (left, right) =>
       compareBinaryStrings(left.id, right.id) ||
-      compareBinaryStrings(left.repositoryPath, right.repositoryPath)
+      compareBinaryStrings(left.repositoryPath, right.repositoryPath),
   );
   diagnostics.push(...duplicateIdentityDiagnostics(sortedIdentity));
   diagnostics.push(
-    ...catalogCollisionDiagnostics(
-      [...new Set([
+    ...catalogCollisionDiagnostics([
+      ...new Set([
         ...second.documents.map((document) => document.repositoryPath),
         ...second.issues
           .filter((issue) => !["root-missing", "root-not-directory"].includes(issue.kind))
-          .map((issue) => issue.repositoryPath)
-      ])]
-    )
+          .map((issue) => issue.repositoryPath),
+      ]),
+    ]),
   );
   const sortedDiagnostics = sortCatalogDiagnostics(diagnostics);
   const catalog: CatalogSnapshotFor<Descriptor> = Object.freeze({
@@ -364,31 +370,26 @@ function createCatalogSnapshot<
       metadataSchema: authority.metadata.evidence,
       ownerCatalog: authority.owners.evidence,
       profile: authority.profile.evidence,
-      ...(authority.sidecar === undefined
-        ? {}
-        : { metadataSidecar: authority.sidecar.evidence })
+      ...(authority.sidecar === undefined ? {} : { metadataSidecar: authority.sidecar.evidence }),
     }),
     diagnostics: Object.freeze(sortedDiagnostics),
     documents: Object.freeze(
       documents.toSorted((left, right) =>
-        compareBinaryStrings(left.repositoryPath, right.repositoryPath)
-      )
+        compareBinaryStrings(left.repositoryPath, right.repositoryPath),
+      ),
     ),
     identityProjection: Object.freeze(sortedIdentity),
     ownerIds: Object.freeze([...authority.owners.ids]),
     projectId: authority.profile.projectId,
-    status: sortedDiagnostics.length === 0 ? "complete" : "partial"
+    status: sortedDiagnostics.length === 0 ? "complete" : "partial",
   });
   return Object.freeze({
     catalog,
     documents: Object.freeze(
       searchDocuments.toSorted((left, right) =>
-        compareBinaryStrings(
-          left.descriptor.repositoryPath,
-          right.descriptor.repositoryPath
-        )
-      )
-    )
+        compareBinaryStrings(left.descriptor.repositoryPath, right.descriptor.repositoryPath),
+      ),
+    ),
   });
 }
 
@@ -416,19 +417,17 @@ export class BuildDocumentationCatalog
     return (await this.read(request)).catalog;
   }
 
-  async read(request: DocumentationCatalogReadRequest): Promise<DocumentationSearchCatalogSnapshot> {
+  async read(
+    request: DocumentationCatalogReadRequest,
+  ): Promise<DocumentationSearchCatalogSnapshot> {
     const dependencies = {
       metadata: this.#metadata,
       owners: this.#owners,
       profile: this.#profile,
-      repository: this.#repository
+      repository: this.#repository,
     };
     const authority = await loadCatalogAuthority(dependencies, request);
-    const [first, second] = await observeCatalogTwice(
-      this.#repository,
-      authority,
-      request
-    );
+    const [first, second] = await observeCatalogTwice(this.#repository, authority, request);
     await assertAuthorityRemainedStable(dependencies, request, authority);
     return createCatalogSnapshot(authority, first, second, inspectCatalogDocument);
   }
@@ -452,55 +451,45 @@ export class BuildDocumentationCatalogV2
   }
 
   async execute(
-    request: BuildDocumentationCatalogRequest
+    request: BuildDocumentationCatalogRequest,
   ): Promise<DocumentationCatalogSnapshotV2> {
     return (await this.read(request)).catalog;
   }
 
   async read(
-    request: DocumentationCatalogReadRequest
+    request: DocumentationCatalogReadRequest,
   ): Promise<DocumentationSearchCatalogSnapshotV2> {
     const dependencies = {
       metadata: this.#metadata,
       owners: this.#owners,
       profile: this.#profile,
       repository: this.#repository,
-      ...(this.#sidecar === undefined ? {} : { sidecar: this.#sidecar })
+      ...(this.#sidecar === undefined ? {} : { sidecar: this.#sidecar }),
     };
     const authority = await loadCatalogAuthority(dependencies, request);
     if (authority.profile.schemaVersion !== 2 && authority.profile.schemaVersion !== 3) {
       throw new DocumentCatalogError(
         "DOCUMENT_CATALOG_INPUT_INVALID",
-        "Documentation Catalog v2 requires document authoring profile schemaVersion 2 or 3."
+        "Documentation Catalog v2 requires document authoring profile schemaVersion 2 or 3.",
       );
     }
-    const [first, second] = await observeCatalogTwice(
-      this.#repository,
-      authority,
-      request
-    );
+    const [first, second] = await observeCatalogTwice(this.#repository, authority, request);
     await assertAuthorityRemainedStable(dependencies, request, authority);
     const snapshot = createCatalogSnapshot(
       authority,
       first,
       second,
       (document, metadata, ownerIds, source) =>
-        inspectCatalogDocumentWithSidecar(
-          authority.sidecar,
-          document,
-          metadata,
-          ownerIds,
-          source
-        ),
-      orphanSidecarDiagnostics(authority.sidecar, second.documents)
+        inspectCatalogDocumentWithSidecar(authority.sidecar, document, metadata, ownerIds, source),
+      orphanSidecarDiagnostics(authority.sidecar, second.documents),
     );
     const catalog: DocumentationCatalogSnapshotV2 = Object.freeze({
       ...snapshot.catalog,
-      semanticDigest: documentationCatalogSemanticDigest(snapshot.catalog)
+      semanticDigest: documentationCatalogSemanticDigest(snapshot.catalog),
     });
     return Object.freeze({
       catalog,
-      documents: snapshot.documents
+      documents: snapshot.documents,
     });
   }
 }

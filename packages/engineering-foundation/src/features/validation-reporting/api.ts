@@ -11,7 +11,7 @@ export type {
   FoundationCheckReport,
   FoundationDiagnostic,
   FoundationOutcome,
-  FoundationProblem
+  FoundationProblem,
 } from "./application/model.js";
 export {
   CapabilityInputError,
@@ -20,7 +20,7 @@ export {
   exitCodeForOutcome,
   foundationReport,
   readCancellationProblem,
-  readCapabilityInputProblem
+  readCapabilityInputProblem,
 } from "./application/reporting.js";
 export type { CapabilityDefinition, CapabilityInvocation } from "./application/reporting.js";
 export { classifyUnexpectedFailure } from "./application/unexpected-failure.js";
@@ -31,9 +31,12 @@ export {
   createCapabilityRegistry,
   createRuleOwners,
   createRuleRegistries,
-  createRuleRegistry
+  createRuleRegistry,
 } from "./application/capability-registries.js";
-export type { CapabilityModuleDescriptor, OwnedRuleContribution } from "./application/capability-registries.js";
+export type {
+  CapabilityModuleDescriptor,
+  OwnedRuleContribution,
+} from "./application/capability-registries.js";
 export { FoundationError } from "./foundation-error.js";
 export type { FoundationErrorCode } from "./foundation-error.js";
 export { assertNotCancelled } from "./application/cancellation.js";

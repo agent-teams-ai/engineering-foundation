@@ -8,6 +8,9 @@ import type { WorkspaceObservationReader } from "./api.js";
 export function createWorkspaceInventoryReader(): WorkspaceObservationReader {
   return new PnpmWorkspaceInventoryReader(
     { readYaml: loadStrictYamlFile },
-    new PnpmPackageManifestSnapshotReader({ read: readContainedRegularFile, pathTraversesSymbolicLink })
+    new PnpmPackageManifestSnapshotReader({
+      read: readContainedRegularFile,
+      pathTraversesSymbolicLink,
+    }),
   );
 }

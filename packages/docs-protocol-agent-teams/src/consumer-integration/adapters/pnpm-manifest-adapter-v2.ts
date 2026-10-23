@@ -4,17 +4,17 @@ import {
   type ConsumerIntegrationDigest,
   type ConsumerIntegrationFileObservation,
   type QualifiedDocsCohortBindingV2,
-  type PnpmManifestPlanV1
+  type PnpmManifestPlanV1,
 } from "../application-api.js";
 import {
   planPnpmManifestTargets,
-  projectPnpmManifestCohortTargets
+  projectPnpmManifestCohortTargets,
 } from "./pnpm-manifest-adapter-v1.js";
 
 function targets(cohort: QualifiedDocsCohortBindingV2) {
   return qualifiedDocsCohortV2DirectPackageEntries(cohort).map(({ name, version }) => ({
     name,
-    version
+    version,
   }));
 }
 
@@ -36,7 +36,7 @@ export function projectPnpmManifestCohortPinsV2(input: {
     bytes: input.bytes,
     targets: targets(input.cohort),
     transitivePackageNames: transitivePackageNames(input.cohort),
-    forbiddenAliasTargetPackageNames: cohortPackageNames(input.cohort)
+    forbiddenAliasTargetPackageNames: cohortPackageNames(input.cohort),
   });
 }
 
@@ -54,6 +54,6 @@ export function planPnpmManifestV2(input: {
     forbiddenAliasTargetPackageNames: cohortPackageNames(input.cohort),
     ...(input.knownPriorScriptsDigest === undefined
       ? {}
-      : { knownPriorScriptsDigest: input.knownPriorScriptsDigest })
+      : { knownPriorScriptsDigest: input.knownPriorScriptsDigest }),
   });
 }

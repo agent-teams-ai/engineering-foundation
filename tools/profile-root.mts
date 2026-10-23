@@ -7,16 +7,18 @@ import { withoutGitRepositorySelectors } from "./git-environment.ts";
 
 function within(parent: string, child: string): boolean {
   const childRelative = relative(parent, child);
-  return childRelative !== "" &&
+  return (
+    childRelative !== "" &&
     childRelative !== "." &&
     childRelative !== ".." &&
     !childRelative.startsWith(`..${sep}`) &&
-    !childRelative.includes(sep);
+    !childRelative.includes(sep)
+  );
 }
 
 export async function assertOwnedProfileRoot(
   candidate: string,
-  root: string = repositoryRoot
+  root: string = repositoryRoot,
 ): Promise<string> {
   const workspace = resolve(root);
   const workspaceMetadata = await lstat(workspace).catch(() => null);
@@ -37,7 +39,7 @@ export async function assertOwnedProfileRoot(
     if (metadata.isSymbolicLink()) {
       throw new Error("A profile parent may not be a symbolic link.");
     }
-    if (await realpath(parent) !== parent) {
+    if ((await realpath(parent)) !== parent) {
       throw new Error("A profile parent may not have foreign ancestry.");
     }
   }
@@ -53,7 +55,7 @@ export async function assertOwnedProfileRoot(
   if (parent !== profiles) {
     throw new Error("A profile root may not traverse a symbolic-link or foreign parent.");
   }
-  if (metadata !== null && (!metadata.isDirectory() || await realpath(target) !== target)) {
+  if (metadata !== null && (!metadata.isDirectory() || (await realpath(target)) !== target)) {
     throw new Error("A profile root must be one actual directory.");
   }
   return target;
@@ -69,13 +71,21 @@ export interface SourceGitAuthority {
 const MAX_GIT_MARKER_BYTES = 8 * 1024;
 
 function sameMarkerIdentity(left: BigIntStats, right: BigIntStats): boolean {
-  return left.dev === right.dev && left.ino === right.ino && left.mode === right.mode &&
-    left.size === right.size && left.mtimeNs === right.mtimeNs && left.ctimeNs === right.ctimeNs;
+  return (
+    left.dev === right.dev &&
+    left.ino === right.ino &&
+    left.mode === right.mode &&
+    left.size === right.size &&
+    left.mtimeNs === right.mtimeNs &&
+    left.ctimeNs === right.ctimeNs
+  );
 }
 
 async function readLinkedGitMarker(marker: string, initial: BigIntStats): Promise<string> {
-  const flags = process.platform === "win32" ? constants.O_RDONLY
-    : constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK;
+  const flags =
+    process.platform === "win32"
+      ? constants.O_RDONLY
+      : constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK;
   const handle = await open(marker, flags);
   try {
     const opened = await handle.stat({ bigint: true });
@@ -86,13 +96,19 @@ async function readLinkedGitMarker(marker: string, initial: BigIntStats): Promis
     let length = 0;
     while (length < bytes.length) {
       const result = await handle.read(bytes, length, bytes.length - length, null);
-      if (result.bytesRead === 0) { break; }
+      if (result.bytesRead === 0) {
+        break;
+      }
       length += result.bytesRead;
     }
     const after = await handle.stat({ bigint: true });
     const current = await lstat(marker, { bigint: true });
-    if (length > MAX_GIT_MARKER_BYTES || BigInt(length) !== initial.size ||
-      !sameMarkerIdentity(initial, after) || !sameMarkerIdentity(initial, current)) {
+    if (
+      length > MAX_GIT_MARKER_BYTES ||
+      BigInt(length) !== initial.size ||
+      !sameMarkerIdentity(initial, after) ||
+      !sameMarkerIdentity(initial, current)
+    ) {
       throw new Error("Source authority .git marker changed or exceeds its bounded size.");
     }
     return bytes.subarray(0, length).toString("utf8");
@@ -101,14 +117,19 @@ async function readLinkedGitMarker(marker: string, initial: BigIntStats): Promis
   }
 }
 
-export async function assertExplicitSourceGitAuthority(sourceRoot: string): Promise<SourceGitAuthority> {
+export async function assertExplicitSourceGitAuthority(
+  sourceRoot: string,
+): Promise<SourceGitAuthority> {
   const canonicalSourceRoot = await realpath(sourceRoot);
   const marker = resolve(canonicalSourceRoot, ".git");
   const markerMetadata = await lstat(marker, { bigint: true }).catch(() => null);
   if (markerMetadata === null) {
     throw new Error("Source authority requires an explicit repository .git marker.");
   }
-  if (markerMetadata.isSymbolicLink() || (!markerMetadata.isDirectory() && !markerMetadata.isFile())) {
+  if (
+    markerMetadata.isSymbolicLink() ||
+    (!markerMetadata.isDirectory() && !markerMetadata.isFile())
+  ) {
     throw new Error("Source authority .git marker must be an actual directory or regular file.");
   }
   let gitDir = marker;
@@ -128,28 +149,28 @@ export async function assertExplicitSourceGitAuthority(sourceRoot: string): Prom
     GIT_OPTIONAL_LOCKS: "0",
     GIT_DIR: gitDir,
     GIT_WORK_TREE: canonicalSourceRoot,
-    GIT_CEILING_DIRECTORIES: dirname(canonicalSourceRoot)
+    GIT_CEILING_DIRECTORIES: dirname(canonicalSourceRoot),
   };
   const observedGitDir = execFileSync("git", ["rev-parse", "--absolute-git-dir"], {
     cwd: canonicalSourceRoot,
     env: environment,
-    encoding: "utf8"
+    encoding: "utf8",
   }).trim();
-  if (await realpath(observedGitDir) !== await realpath(gitDir)) {
+  if ((await realpath(observedGitDir)) !== (await realpath(gitDir))) {
     throw new Error("Explicit Git source authority resolved a different Git directory.");
   }
   const observedRoot = execFileSync("git", ["rev-parse", "--show-toplevel"], {
     cwd: canonicalSourceRoot,
     env: environment,
-    encoding: "utf8"
+    encoding: "utf8",
   }).trim();
-  if (await realpath(observedRoot) !== canonicalSourceRoot) {
+  if ((await realpath(observedRoot)) !== canonicalSourceRoot) {
     throw new Error("Explicit Git source authority resolved a different worktree.");
   }
   const sourceCommit = execFileSync("git", ["rev-parse", "HEAD"], {
     cwd: canonicalSourceRoot,
     env: environment,
-    encoding: "utf8"
+    encoding: "utf8",
   }).trim();
   if (!/^[0-9a-f]{40}$/u.test(sourceCommit)) {
     throw new Error("Explicit Git source authority did not resolve a full source commit.");
@@ -161,6 +182,6 @@ export async function assertExplicitSourceGitAuthority(sourceRoot: string): Prom
     sourceRoot: canonicalSourceRoot,
     gitDir,
     sourceCommit,
-    environment
+    environment,
   };
 }

@@ -2,7 +2,7 @@ export const DEPENDENCY_SECTIONS = [
   "dependencies",
   "devDependencies",
   "optionalDependencies",
-  "peerDependencies"
+  "peerDependencies",
 ] as const;
 
 export type DependencySection = (typeof DEPENDENCY_SECTIONS)[number];

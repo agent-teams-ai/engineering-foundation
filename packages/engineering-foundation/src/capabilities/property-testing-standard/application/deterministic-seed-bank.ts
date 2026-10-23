@@ -67,7 +67,7 @@ function assertNumRuns(value: number, field: string): void {
 }
 
 export function normalizeDeterministicSeedBank(
-  input: DeterministicSeedBank
+  input: DeterministicSeedBank,
 ): DeterministicSeedBank {
   if (readSchemaVersion(input) !== 1) {
     inputError("Seed bank schemaVersion is unsupported.");
@@ -91,12 +91,12 @@ export function normalizeDeterministicSeedBank(
     schemaVersion: 1,
     propertyId: input.propertyId,
     numRuns: input.numRuns,
-    seeds: Object.freeze(seeds)
+    seeds: Object.freeze(seeds),
   });
 }
 
 export function normalizePropertyReplayEvidence(
-  input: PropertyReplayEvidence
+  input: PropertyReplayEvidence,
 ): PropertyReplayEvidence {
   if (readSchemaVersion(input) !== 1) {
     inputError("Replay evidence schemaVersion is unsupported.");
@@ -107,10 +107,7 @@ export function normalizePropertyReplayEvidence(
   if (input.path !== undefined && !REPLAY_PATH.test(input.path)) {
     inputError("Replay path contains unsupported characters.");
   }
-  if (
-    input.counterexampleDigest !== undefined &&
-    !SHA256_DIGEST.test(input.counterexampleDigest)
-  ) {
+  if (input.counterexampleDigest !== undefined && !SHA256_DIGEST.test(input.counterexampleDigest)) {
     inputError("Counterexample digest must be a lowercase sha256 digest.");
   }
   return Object.freeze({
@@ -121,14 +118,14 @@ export function normalizePropertyReplayEvidence(
     ...(input.path === undefined ? {} : { path: input.path }),
     ...(input.counterexampleDigest === undefined
       ? {}
-      : { counterexampleDigest: input.counterexampleDigest })
+      : { counterexampleDigest: input.counterexampleDigest }),
   });
 }
 
 export function createFastCheckParameters(
   bank: DeterministicSeedBank,
   seed: number,
-  replay?: PropertyReplayEvidence
+  replay?: PropertyReplayEvidence,
 ): FastCheckParameters {
   const normalizedBank = normalizeDeterministicSeedBank(bank);
   assertSeed(seed, "selected seed");
@@ -149,6 +146,6 @@ export function createFastCheckParameters(
   return Object.freeze({
     seed,
     numRuns: normalizedBank.numRuns,
-    ...(normalizedReplay.path === undefined ? {} : { path: normalizedReplay.path })
+    ...(normalizedReplay.path === undefined ? {} : { path: normalizedReplay.path }),
   });
 }

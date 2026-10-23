@@ -1,4 +1,8 @@
-import { commandInputFailure, commandFoundationFailure, boundedCommandMessage } from "./command-reporting.js";
+import {
+  commandInputFailure,
+  commandFoundationFailure,
+  boundedCommandMessage,
+} from "./command-reporting.js";
 import { ProcessCancellationError } from "../../../process-execution/api.js";
 import { ScaffoldError } from "../../../scaffolding/scaffold-error.js";
 import { FoundationTransactionError } from "../../../transaction-coordination/application/foundation-transaction-error.js";
@@ -11,7 +15,9 @@ export function foundationCommandFailure(error: unknown): {
   readonly exitCode: 1 | 2 | 130;
 } {
   const inputFailure = commandInputFailure(error);
-  if (inputFailure !== undefined) { return inputFailure; }
+  if (inputFailure !== undefined) {
+    return inputFailure;
+  }
   if (error instanceof ProcessCancellationError) {
     return {
       envelope: {
@@ -28,8 +34,7 @@ export function foundationCommandFailure(error: unknown): {
   }
   if (error instanceof ScaffoldError) {
     const invalidInput =
-      error.code === "SCAFFOLD_INPUT_INVALID" ||
-      error.code === "SCAFFOLD_PLAN_INVALID";
+      error.code === "SCAFFOLD_INPUT_INVALID" || error.code === "SCAFFOLD_PLAN_INVALID";
     return {
       envelope: {
         schemaVersion: 1,
@@ -58,7 +63,9 @@ export function foundationCommandFailure(error: unknown): {
     };
   }
   const foundationFailure = commandFoundationFailure(error);
-  if (foundationFailure !== undefined) { return foundationFailure; }
+  if (foundationFailure !== undefined) {
+    return foundationFailure;
+  }
   return {
     envelope: {
       schemaVersion: 1,
@@ -78,7 +85,9 @@ export function foundationCommandFailureJson(error: unknown): string {
 }
 
 /** Text precedence differs from JSON; exit codes are read after publishing text. */
-export function commandTransactionText(error: unknown): { readonly text: string; readonly exitCode: 1 | 2 } | undefined {
+export function commandTransactionText(
+  error: unknown,
+): { readonly text: string; readonly exitCode: 1 | 2 } | undefined {
   if (error instanceof FoundationTransactionError) {
     return { text: `${error.code}: ${error.message}\n`, exitCode: 1 };
   }
@@ -86,14 +95,18 @@ export function commandTransactionText(error: unknown): { readonly text: string;
     return {
       text: `${error.code}: ${error.message}\n`,
       get exitCode() {
-        return error.code === "SCAFFOLD_INPUT_INVALID" || error.code === "SCAFFOLD_PLAN_INVALID" ? 2 : 1;
-      }
+        return error.code === "SCAFFOLD_INPUT_INVALID" || error.code === "SCAFFOLD_PLAN_INVALID"
+          ? 2
+          : 1;
+      },
     };
   }
   return undefined;
 }
 
-export function commandCancellationText(error: unknown): { readonly text: string; readonly exitCode: 130 } | undefined {
+export function commandCancellationText(
+  error: unknown,
+): { readonly text: string; readonly exitCode: 130 } | undefined {
   if (error instanceof ProcessCancellationError) {
     return { text: `PROCESS_CANCELLED: ${error.message}\n`, exitCode: 130 };
   }

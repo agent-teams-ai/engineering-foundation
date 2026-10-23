@@ -75,8 +75,9 @@ test("retains discoverable marker evidence when marker retirement fails", async 
     });
     const active = await port.begin();
     await assert.rejects(active.complete(), /marker removal failed/u);
-    const evidence = (await readdir(join(root, ".agent-teams-local")))
-      .filter((entry) => entry.startsWith(prefix));
+    const evidence = (await readdir(join(root, ".agent-teams-local"))).filter((entry) =>
+      entry.startsWith(prefix),
+    );
     assert.equal(evidence.length, 1);
     assert.match(evidence[0], new RegExp(`^${prefix}${token}\\.retired\\.`));
   });
@@ -86,25 +87,18 @@ test("rejects a pre-existing terminal-root link without escaping state", async (
   await withRoot(async (root) => {
     const outside = await mkdtemp(join(tmpdir(), "foundation-cleanup-outside-"));
     try {
-      const active = await portableTransition(root)
-        .begin();
+      const active = await portableTransition(root).begin();
       await symlink(
         outside,
-        join(
-          root,
-          ".agent-teams-local",
-          "foundation-cleanup-retired-evidence",
-        ),
+        join(root, ".agent-teams-local", "foundation-cleanup-retired-evidence"),
         process.platform === "win32" ? "junction" : "dir",
       );
-      await assert.rejects(
-        active.complete(),
-        /real operation-owned directory/u,
-      );
+      await assert.rejects(active.complete(), /real operation-owned directory/u);
       assert.deepEqual(await readdir(outside), []);
       assert.equal(
         (await readdir(join(root, ".agent-teams-local"))).some((entry) =>
-          entry.startsWith(`${prefix}${token}.retired.`)),
+          entry.startsWith(`${prefix}${token}.retired.`),
+        ),
         true,
       );
     } finally {
@@ -146,10 +140,7 @@ test("rejects a swapped marker without deleting foreign evidence", async () => {
       },
     });
     const active = await port.begin();
-    await assert.rejects(
-      active.complete(),
-      /marker authority changed/u,
-    );
+    await assert.rejects(active.complete(), /marker authority changed/u);
     const marker = join(root, ".agent-teams-local", `${prefix}${token}`);
     assert.equal(await readFile(marker, "utf8"), "foundation cleanup transition\n");
     assert.equal(await readFile(`${marker}.owned`, "utf8"), "foundation cleanup transition\n");
@@ -207,10 +198,7 @@ test("cleanup marker creation fails closed when strict directory sync is unsuppo
         return import("node:fs/promises").then(({ open }) => open(...args));
       },
     });
-    await assert.rejects(
-      port.begin(),
-      (error) => error?.code === "EINVAL",
-    );
+    await assert.rejects(port.begin(), (error) => error?.code === "EINVAL");
     assert.equal(opened, true);
     const entries = await readdir(join(root, ".agent-teams-local"));
     assert.deepEqual(entries, [`${prefix}${token}`]);

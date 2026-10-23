@@ -65,9 +65,7 @@ export type DocumentTransactionInspectionV2 =
       readonly schemaVersion: 2;
       readonly state: "recoverable";
       readonly operationKind: "document-authoring";
-      readonly format:
-        | "document-authoring-envelope-v3"
-        | "document-authoring-envelope-v4";
+      readonly format: "document-authoring-envelope-v3" | "document-authoring-envelope-v4";
       readonly foundationVersion: string;
       readonly foundationBuildIdentity: string;
       readonly recovery: {
@@ -77,9 +75,15 @@ export type DocumentTransactionInspectionV2 =
       };
       readonly diagnostics: readonly DocumentTransactionInspectionDiagnostic[];
     }
-  | (Omit<Extract<DocumentTransactionInspectionV1, {
-      readonly state: "manual-recovery-required";
-    }>, "schemaVersion"> & { readonly schemaVersion: 2 });
+  | (Omit<
+      Extract<
+        DocumentTransactionInspectionV1,
+        {
+          readonly state: "manual-recovery-required";
+        }
+      >,
+      "schemaVersion"
+    > & { readonly schemaVersion: 2 });
 
 export type DocumentTransactionInspection =
   | DocumentTransactionInspectionV1

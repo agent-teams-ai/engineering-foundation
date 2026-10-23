@@ -1,20 +1,23 @@
-import { isQualityGateExecutionCancellation, qualityGateSetupCancellationFailure, requireQualityGateConfigPath, requireQualityGateProfile } from "../../../application/policies/quality-gate-input.js";
+import {
+  isQualityGateExecutionCancellation,
+  qualityGateSetupCancellationFailure,
+  requireQualityGateConfigPath,
+  requireQualityGateProfile,
+} from "../../../application/policies/quality-gate-input.js";
 import type { QualityGateCommand } from "../../../api.js";
 import {
   projectQualityGateRun,
   projectQualityGateSetupCancellation,
   type QualityGateCancellationSource,
   type QualityGateCliProjection,
-  type QualityGateOperatorCancellation
+  type QualityGateOperatorCancellation,
 } from "./quality-gate-cli.js";
 import type { QualityGateSettingsReader } from "../../../application/ports/quality-gate-settings-reader.js";
 
 export interface QualityGateCliCommandDependencies {
   readonly failureJson: (error: unknown) => string;
   readonly cancellationSource: QualityGateCancellationSource;
-  readonly commandFactory: (
-    environment: NodeJS.ProcessEnv
-  ) => QualityGateCommand;
+  readonly commandFactory: (environment: NodeJS.ProcessEnv) => QualityGateCommand;
   readonly foundationConfigLoader: QualityGateSettingsReader;
 }
 
@@ -27,7 +30,7 @@ export interface QualityGateCliArguments {
 
 export type QualityGateCliCommand = (
   parsed: QualityGateCliArguments,
-  environment: NodeJS.ProcessEnv
+  environment: NodeJS.ProcessEnv,
 ) => Promise<boolean>;
 
 function setupCancellationFailureJson(failureJson: (error: unknown) => string): string {
@@ -35,9 +38,7 @@ function setupCancellationFailureJson(failureJson: (error: unknown) => string): 
   return failureJson(error);
 }
 
-function writeProjection(
-  projection: QualityGateCliProjection
-): void {
+function writeProjection(projection: QualityGateCliProjection): void {
   if (projection.stdout.length > 0) {
     process.stdout.write(projection.stdout);
   }
@@ -48,7 +49,7 @@ function writeProjection(
 }
 
 export function createQualityGateCliCommand(
-  dependencies: QualityGateCliCommandDependencies
+  dependencies: QualityGateCliCommandDependencies,
 ): QualityGateCliCommand {
   return async (parsed, environment) => {
     if (parsed.command !== "gate.run") {
@@ -65,15 +66,15 @@ export function createQualityGateCliCommand(
     try {
       const settings = await dependencies.foundationConfigLoader(
         parsed.consumerRoot,
-        controller.signal
+        controller.signal,
       );
       if (cancellation !== undefined) {
         writeProjection(
           projectQualityGateSetupCancellation(
             parsed.format,
             cancellation,
-            setupCancellationFailureJson(dependencies.failureJson)
-          )
+            setupCancellationFailureJson(dependencies.failureJson),
+          ),
         );
         return true;
       }
@@ -82,7 +83,7 @@ export function createQualityGateCliCommand(
         consumerRoot: parsed.consumerRoot,
         configPath,
         profileId,
-        signal: controller.signal
+        signal: controller.signal,
       });
       writeProjection(projectQualityGateRun(report, parsed.format, cancellation));
       return true;
@@ -92,8 +93,8 @@ export function createQualityGateCliCommand(
           projectQualityGateSetupCancellation(
             parsed.format,
             cancellation,
-            setupCancellationFailureJson(dependencies.failureJson)
-          )
+            setupCancellationFailureJson(dependencies.failureJson),
+          ),
         );
         return true;
       }
@@ -103,4 +104,3 @@ export function createQualityGateCliCommand(
     }
   };
 }
-

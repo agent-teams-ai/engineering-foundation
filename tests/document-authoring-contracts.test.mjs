@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
+import test from "node:test";
+import { registerDocumentEvidenceCases } from "./support/document-contract-evidence-cases.ts";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import test from "node:test";
-
-import { canonicalJson, CanonicalJsonError, sha256Bytes, sha256Json, parseStrictJson, StrictJsonError } from "../packages/repository-mutation/dist/index.js";
+import {
+  canonicalJson,
+  CanonicalJsonError,
+  sha256Bytes,
+  sha256Json,
+} from "../packages/repository-mutation/dist/index.js";
 import {
   assertDocumentPlanDigests,
   assertDocumentReceiptDigest,
@@ -14,14 +19,10 @@ import {
   documentReceiptDigest,
   documentReferencedDocumentDigest,
 } from "../packages/document-authoring/dist/document-authoring/application/policies/document-contract-digests.js";
-import {
-  documentTemporaryPath,
-} from "../packages/document-authoring/dist/document-authoring/application/policies/document-temporary-path.js";
+import { documentTemporaryPath } from "../packages/document-authoring/dist/document-authoring/application/policies/document-temporary-path.js";
 import { assertSchema } from "../packages/document-authoring/dist/document-authoring/adapters/node/schema-catalog.js";
-
 import { createDocumentEnvelopeV3 } from "./fixtures/document-authoring-envelope-v3.mjs";
-import { readHistoricalSchema } from "./support/historical-schema-fixtures.mjs";
-import { Ajv2020 } from "ajv/dist/2020.js";
+registerDocumentEvidenceCases();
 
 const fixturePath = fileURLToPath(
   new URL("fixtures/document-authoring-contracts/valid-v1.json", import.meta.url),
@@ -34,9 +35,7 @@ function clone(value) {
 }
 
 function bodyWithout(value, key) {
-  return Object.fromEntries(
-    Object.entries(value).filter(([entryKey]) => entryKey !== key),
-  );
+  return Object.fromEntries(Object.entries(value).filter(([entryKey]) => entryKey !== key));
 }
 
 function documentEnvelope(state = "PREPARED") {
@@ -67,44 +66,92 @@ test("applies the same bounded repository path grammar to every public surface",
   const atLimit = "a".repeat(255);
   const overLimit = "a".repeat(256);
   const surfaces = [
-    ["document-authoring-profile/v1", () => {
-      const value = clone(fixture.profile);
-      value.catalog.metadataSchemaPath = atLimit;
-      return [value, (invalid) => { invalid.catalog.metadataSchemaPath = overLimit; }];
-    }],
-    ["document-intent/v1", () => {
-      const value = { ...clone(fixture.intent), destination: atLimit };
-      return [value, (invalid) => { invalid.destination = overLimit; }];
-    }],
-    ["document-plan/v1", () => {
-      const value = clone(fixture.plan);
-      value.destination = atLimit;
-      return [value, (invalid) => { invalid.destination = overLimit; }];
-    }],
-    ["document-receipt/v1", () => {
-      const value = clone(fixture.receipt);
-      value.destination = atLimit;
-      return [value, (invalid) => { invalid.destination = overLimit; }];
-    }],
-    ["document-command-envelope/v1", () => {
-      const value = {
-        schemaVersion: 1,
-        command: "docs.new",
-        outcome: "success",
-        diagnostics: [],
-        result: {
-          kind: "new",
-          documentPath: atLimit,
-          reachability: { state: "not-required" },
-        },
-      };
-      return [value, (invalid) => { invalid.result.documentPath = overLimit; }];
-    }],
-    ["foundation-transaction-envelope/v3", () => {
-      const value = documentEnvelope();
-      value.journal.plan.destination = atLimit;
-      return [value, (invalid) => { invalid.journal.plan.destination = overLimit; }];
-    }],
+    [
+      "document-authoring-profile/v1",
+      () => {
+        const value = clone(fixture.profile);
+        value.catalog.metadataSchemaPath = atLimit;
+        return [
+          value,
+          (invalid) => {
+            invalid.catalog.metadataSchemaPath = overLimit;
+          },
+        ];
+      },
+    ],
+    [
+      "document-intent/v1",
+      () => {
+        const value = { ...clone(fixture.intent), destination: atLimit };
+        return [
+          value,
+          (invalid) => {
+            invalid.destination = overLimit;
+          },
+        ];
+      },
+    ],
+    [
+      "document-plan/v1",
+      () => {
+        const value = clone(fixture.plan);
+        value.destination = atLimit;
+        return [
+          value,
+          (invalid) => {
+            invalid.destination = overLimit;
+          },
+        ];
+      },
+    ],
+    [
+      "document-receipt/v1",
+      () => {
+        const value = clone(fixture.receipt);
+        value.destination = atLimit;
+        return [
+          value,
+          (invalid) => {
+            invalid.destination = overLimit;
+          },
+        ];
+      },
+    ],
+    [
+      "document-command-envelope/v1",
+      () => {
+        const value = {
+          schemaVersion: 1,
+          command: "docs.new",
+          outcome: "success",
+          diagnostics: [],
+          result: {
+            kind: "new",
+            documentPath: atLimit,
+            reachability: { state: "not-required" },
+          },
+        };
+        return [
+          value,
+          (invalid) => {
+            invalid.result.documentPath = overLimit;
+          },
+        ];
+      },
+    ],
+    [
+      "foundation-transaction-envelope/v3",
+      () => {
+        const value = documentEnvelope();
+        value.journal.plan.destination = atLimit;
+        return [
+          value,
+          (invalid) => {
+            invalid.journal.plan.destination = overLimit;
+          },
+        ];
+      },
+    ],
   ];
   for (const [schemaId, makeSurface] of surfaces) {
     const [valid, invalidate] = makeSurface();
@@ -121,10 +168,7 @@ test("bounds temporaries and models the repository root as expected-parent dot",
   longBasenamePlan.expectedParent.path = "docs";
   longBasenamePlan.planDigest = documentPlanDigest(longBasenamePlan);
   assert.equal(
-    documentTemporaryPath(
-      longBasenamePlan.destination,
-      longBasenamePlan.planDigest,
-    ),
+    documentTemporaryPath(longBasenamePlan.destination, longBasenamePlan.planDigest),
     `docs/.foundation-document-${longBasenamePlan.planDigest.slice("sha256:".length)}.tmp`,
   );
   assert.doesNotThrow(() => assertDocumentPlanDigests(longBasenamePlan));
@@ -152,10 +196,7 @@ test("rejects a destination parent that cannot contain the bounded temporary", (
   plan.destination = `${parent}/x.md`;
   plan.expectedParent.path = parent;
   plan.planDigest = documentPlanDigest(plan);
-  assert.throws(
-    () => assertDocumentPlanDigests(plan),
-    /publication bindings are invalid/u,
-  );
+  assert.throws(() => assertDocumentPlanDigests(plan), /publication bindings are invalid/u);
 });
 
 test("envelope-owned paths enforce the per-segment bound", async () => {
@@ -177,10 +218,30 @@ test("envelope-owned paths enforce the per-segment bound", async () => {
 
 test("schema requires a closed creator-handle identity", async (context) => {
   for (const [name, mutate] of [
-    ["missing", (identity) => { delete identity.adapter; }],
-    ["forged adapter", (identity) => { identity.adapter = "forged"; }],
-    ["non-canonical zero inode", (identity) => { identity.ino = "00"; }],
-    ["open shape", (identity) => { identity.extra = "open"; }],
+    [
+      "missing",
+      (identity) => {
+        delete identity.adapter;
+      },
+    ],
+    [
+      "forged adapter",
+      (identity) => {
+        identity.adapter = "forged";
+      },
+    ],
+    [
+      "non-canonical zero inode",
+      (identity) => {
+        identity.ino = "00";
+      },
+    ],
+    [
+      "open shape",
+      (identity) => {
+        identity.extra = "open";
+      },
+    ],
   ]) {
     await context.test(name, async () => {
       const envelope = clone(documentEnvelope("PUBLISHING"));
@@ -197,26 +258,18 @@ test("freezes canonical JSON and every content-addressed fixture field", () => {
   assert.equal(documentPlanDigest(fixture.plan), fixture.plan.planDigest);
   assert.equal(documentReceiptDigest(fixture.receipt), fixture.receipt.receiptDigest);
   assert.doesNotThrow(() => assertDocumentPlanDigests(fixture.plan));
-  assert.doesNotThrow(() =>
-    assertDocumentReceiptDigest(fixture.receipt, fixture.plan),
-  );
+  assert.doesNotThrow(() => assertDocumentReceiptDigest(fixture.receipt, fixture.plan));
 
   const envelope = documentEnvelope();
   assert.equal(sha256Json(envelope.journal), envelope.payloadDigest);
-  assert.equal(
-    sha256Json(bodyWithout(envelope, "envelopeDigest")),
-    envelope.envelopeDigest,
-  );
+  assert.equal(sha256Json(bodyWithout(envelope, "envelopeDigest")), envelope.envelopeDigest);
 });
 
 test("detects a same-shape Plan digest tamper", async () => {
   const plan = clone(fixture.plan);
   plan.destination = "docs/decisions/0084-tampered.md";
   await assertSchema("document-plan/v1", plan, "tampered-plan-shape");
-  assert.notEqual(
-    documentPlanDigest(plan),
-    plan.planDigest,
-  );
+  assert.notEqual(documentPlanDigest(plan), plan.planDigest);
 });
 
 test("enforces the frozen per-authority byte budgets", async () => {
@@ -266,10 +319,7 @@ test("freezes domain-separated document digest preimages", () => {
   assert.deepEqual(fixture.digestPreimages, expected);
   assert.deepEqual(
     Object.fromEntries(
-      Object.entries(expected).map(([name, preimage]) => [
-        name,
-        canonicalJson(preimage),
-      ]),
+      Object.entries(expected).map(([name, preimage]) => [name, canonicalJson(preimage)]),
     ),
     fixture.digestPreimageCanonicalJson,
   );
@@ -371,12 +421,7 @@ test("neutral canonical JSON rejects executable or ambiguous containers", () => 
     enumerable: true,
     value: "ambiguous",
   });
-  for (const invalid of [
-    arrayAccessor,
-    symbolicArray,
-    nonEnumerableArray,
-    leadingZeroIndex,
-  ]) {
+  for (const invalid of [arrayAccessor, symbolicArray, nonEnumerableArray, leadingZeroIndex]) {
     assert.throws(
       () => neutralCanonicalJson(invalid),
       (error) => error instanceof CanonicalJsonError,
@@ -450,10 +495,7 @@ test("digest verification binds publication paths and rejects executable inputs"
   const wrongParent = clone(fixture.plan);
   wrongParent.expectedParent.path = "docs";
   wrongParent.planDigest = documentPlanDigest(wrongParent);
-  assert.throws(
-    () => assertDocumentPlanDigests(wrongParent),
-    /publication bindings/u,
-  );
+  assert.throws(() => assertDocumentPlanDigests(wrongParent), /publication bindings/u);
 
   const wrongParentState = clone(fixture.plan);
   wrongParentState.expectedParent.state = "file";
@@ -487,9 +529,7 @@ test("digest verification binds publication paths and rejects executable inputs"
   unsupportedOutcome.outcome = "forged";
   delete unsupportedOutcome.resultDigest;
   unsupportedOutcome.receiptDigest = documentReceiptDigest(unsupportedOutcome);
-  assert.throws(() =>
-    assertDocumentReceiptDigest(unsupportedOutcome, fixture.plan),
-  );
+  assert.throws(() => assertDocumentReceiptDigest(unsupportedOutcome, fixture.plan));
 
   let getterCalls = 0;
   for (const [subject, verify] of [
@@ -522,10 +562,7 @@ test("digest verification binds publication paths and rejects executable inputs"
 
 test("document output validation rejects a raw UTF-8 BOM", () => {
   const plan = clone(fixture.plan);
-  const bytes = Buffer.concat([
-    Buffer.from([0xef, 0xbb, 0xbf]),
-    Buffer.from("hello\n"),
-  ]);
+  const bytes = Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from("hello\n")]);
   plan.output.contentBase64 = bytes.toString("base64");
   plan.output.size = bytes.byteLength;
   plan.output.digest = sha256Bytes(bytes);
@@ -725,10 +762,7 @@ test("retains consumer-selected roots only for explicit placement", async () => 
   };
   await assertSchema("document-authoring-profile/v1", explicit, "explicit-profile");
 
-  for (const field of [
-    "minimumSegmentsBeforeRequired",
-    "minimumSegmentsAfterRequired",
-  ]) {
+  for (const field of ["minimumSegmentsBeforeRequired", "minimumSegmentsAfterRequired"]) {
     const invalid = clone(explicit);
     delete invalid.authoring.artifactTypes[0].placement[field];
     await rejectsSchema("document-authoring-profile/v1", invalid);
@@ -772,102 +806,18 @@ test("closes bounded reachability strategies and their placement compatibility",
   await assertSchema("document-authoring-profile/v1", colocated, "colocated-profile");
 
   for (const mutate of [
-    (value) => { value.authoring.artifactTypes[0].reachability.extra = true; },
-    (value) => { value.authoring.artifactTypes[0].reachability.indexBasename = "INDEX.md"; },
-    (value) => { value.authoring.artifactTypes[0].reachability.pathPrefix = "nearest-parent"; },
+    (value) => {
+      value.authoring.artifactTypes[0].reachability.extra = true;
+    },
+    (value) => {
+      value.authoring.artifactTypes[0].reachability.indexBasename = "INDEX.md";
+    },
+    (value) => {
+      value.authoring.artifactTypes[0].reachability.pathPrefix = "nearest-parent";
+    },
   ]) {
     const invalid = clone(colocated);
     mutate(invalid);
     await rejectsSchema("document-authoring-profile/v1", invalid);
   }
-});
-
-test("binds Receipt result evidence to a proven output outcome", async () => {
-  const missingResult = clone(fixture.receipt);
-  delete missingResult.resultDigest;
-  await rejectsSchema("document-receipt/v1", missingResult);
-
-  const rejectedWithResult = clone(fixture.receipt);
-  rejectedWithResult.outcome = "rejected";
-  rejectedWithResult.commit = {
-    state: "not-published",
-    publication: "none",
-    atomicity: "not-applicable",
-    recoverability: "not-required",
-  };
-  await rejectsSchema("document-receipt/v1", rejectedWithResult);
-});
-
-test("binds transaction payloads to closed Document Authoring recovery handlers", async () => {
-  const mismatchedHandler = documentEnvelope();
-  mismatchedHandler.recoveryHandler.id = "foundation.scaffolding";
-  await rejectsSchema("foundation-transaction-envelope/v3", mismatchedHandler);
-
-  const unknownPayload = documentEnvelope();
-  unknownPayload.payloadKind = "consumer.callback/v1";
-  await rejectsSchema("foundation-transaction-envelope/v3", unknownPayload);
-});
-
-test("binds each JSON command to its closed result shape", async () => {
-  const wrongResult = clone(fixture.command);
-  wrongResult.command = "docs.new";
-  await rejectsSchema("document-command-envelope/v1", wrongResult);
-
-  const zeroMatches = clone(fixture.command);
-  await assertSchema("document-command-envelope/v1", zeroMatches, "zero-matches");
-  assert.equal(zeroMatches.result.matches, 0);
-  assert.equal(zeroMatches.outcome, "success");
-});
-
-test("strict JSON rejects duplicate contract keys before schema validation", () => {
-  assert.throws(
-    () => parseStrictJson('{"schemaVersion":1,"schemaVersion":1}'),
-    (error) =>
-      error instanceof StrictJsonError && error.failure === "duplicate-key",
-  );
-  assert.throws(
-    () => parseStrictJson('{"schemaVersion":1,"nested":{"id":"a","id":"b"}}'),
-    (error) =>
-      error instanceof StrictJsonError && error.failure === "duplicate-key",
-  );
-});
-
-test("native archived evidence and the entire frozen Plan/envelope closure remain byte-exact", async () => {
-  const root = new URL("../packages/document-authoring/tests/fixtures/schema-recovery/", import.meta.url);
-  const origin = JSON.parse(await readFile(new URL("origin.json", root)));
-  for (const [name, expected] of Object.entries(origin.sha256)) {
-    assert.equal(sha256Bytes(await readFile(new URL(name, root))), `sha256:${expected}`, name);
-  }
-  const historical = new Ajv2020({ strict: true, strictTuples: false, validateFormats: false });
-  for (const [name, expected] of Object.entries(origin.frozenSchemaSha256)) {
-    const { bytes, schema } = await readHistoricalSchema(name);
-    assert.equal(sha256Bytes(bytes), `sha256:${expected}`, name);
-    historical.addSchema(schema);
-  }
-  for (const generation of [1, 2]) {
-    const plan = JSON.parse(await readFile(new URL(`native-old-plan-v${generation}.json`, root)));
-    const receipt = JSON.parse(await readFile(new URL(`native-old-receipt-v${generation}.json`, root)));
-    assert.equal(historical.validate(`https://agent-teams.ai/schemas/document-plan/v${generation}`, plan), true);
-    assert.equal(historical.validate(`https://agent-teams.ai/schemas/document-receipt/v${generation}`, receipt), true);
-    await assertSchema(`document-plan/v${generation}`, plan, "native-old-plan");
-    await assertSchema(`document-receipt/v${generation}`, receipt, "native-old-receipt");
-    await assert.rejects(assertSchema(`document-authoring/document-plan/v${generation}`, plan, "old-plan-refused"));
-    const envelope = JSON.parse(await readFile(new URL(`native-old-envelope-v${generation}.json`, root)));
-    assert.equal(historical.validate(`https://agent-teams.ai/schemas/foundation-transaction-envelope/v${generation + 2}`, envelope), true);
-    await assertSchema(`foundation-transaction-envelope/v${generation + 2}`, envelope, "native-old-envelope");
-    await assert.rejects(assertSchema(generation === 1
-      ? "document-authoring/document-file-transaction-envelope/v1"
-      : "document-authoring/document-directory-transaction-envelope/v1", envelope, "old-envelope-refused"));
-    assertDocumentPlanDigests(plan);
-    assertDocumentReceiptDigest(receipt, plan);
-  }
-});
-
-test("schema catalog accepts only explicit names and never follows cross-package traversal", async () => {
-  const { readDocumentAuthoringSchema } = await import("../packages/document-authoring/dist/index.js");
-  for (const name of ["../../repository-mutation/schemas/known-file-transaction-plan/v1", "../document-plan/v1", "__proto__", "constructor", "document-plan/v99"]) {
-    await assert.rejects(readDocumentAuthoringSchema(name), /Unknown Document Authoring schema catalog name/u);
-  }
-  assert.equal(JSON.parse(await readDocumentAuthoringSchema("document-authoring/document-plan/v2")).$id,
-    "https://agent-teams.ai/schemas/document-authoring/document-plan/v2");
 });

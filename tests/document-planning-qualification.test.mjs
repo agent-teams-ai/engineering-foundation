@@ -18,14 +18,10 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import {
-  planDocumentationDocument,
-} from "../packages/document-authoring/dist/index.js";
-import {DocumentPlanningError} from "../packages/document-authoring/dist/document-authoring/application/model/document-planning-error.js";
+import { planDocumentationDocument } from "../packages/document-authoring/dist/index.js";
+import { DocumentPlanningError } from "../packages/document-authoring/dist/document-authoring/application/model/document-planning-error.js";
 
-const fixtures = fileURLToPath(
-  new URL("fixtures/document-planning/", import.meta.url),
-);
+const fixtures = fileURLToPath(new URL("fixtures/document-planning/", import.meta.url));
 
 const planErrorCodes = new Set([
   "DOCUMENT_PLANNING_AUTHORITY_CHANGED",
@@ -43,21 +39,19 @@ const sha256 = (bytes) => `sha256:${createHash("sha256").update(bytes).digest("h
 async function withFixture(name, callback) {
   const root = await mkdtemp(join(tmpdir(), `foundation-document-plan-${name}-`));
   try {
-    await cp(join(fixtures, name), root, {recursive: true});
+    await cp(join(fixtures, name), root, { recursive: true });
     return await callback(root);
   } finally {
-    await rm(root, {force: true, recursive: true});
+    await rm(root, { force: true, recursive: true });
   }
 }
 
 async function orchestratorCases() {
-  return JSON.parse(
-    await readFile(join(fixtures, "orchestrator", "cases.json"), "utf8"),
-  );
+  return JSON.parse(await readFile(join(fixtures, "orchestrator", "cases.json"), "utf8"));
 }
 
 async function compile(root, intent, profilePath = "document-authoring.yaml") {
-  return planDocumentationDocument({consumerRoot: root, profilePath, intent});
+  return planDocumentationDocument({ consumerRoot: root, profilePath, intent });
 }
 
 function assertPlanningError(error, expectedCodes) {
@@ -78,15 +72,15 @@ async function snapshotTree(root) {
       const stat = await lstat(join(root, path));
       const mode = stat.mode & 0o7777;
       if (stat.isDirectory()) {
-        entries.push({path, kind: "directory", mode});
+        entries.push({ path, kind: "directory", mode });
         await visit(path);
       } else if (stat.isFile()) {
         const bytes = await readFile(join(root, path));
-        entries.push({path, kind: "file", mode, bytes: bytes.toString("base64")});
+        entries.push({ path, kind: "file", mode, bytes: bytes.toString("base64") });
       } else if (stat.isSymbolicLink()) {
-        entries.push({path, kind: "symlink", mode});
+        entries.push({ path, kind: "symlink", mode });
       } else {
-        entries.push({path, kind: "special", mode});
+        entries.push({ path, kind: "special", mode });
       }
     }
   }
@@ -113,14 +107,16 @@ test("compiles all six static donor vectors twice to exact canonical bytes", asy
 });
 
 test("normalizes semantic Intent permutations without authority-byte tricks", async () => {
-  const {cases} = await orchestratorCases();
-  const vector = cases.find(({name}) => name === "feature");
+  const { cases } = await orchestratorCases();
+  const vector = cases.find(({ name }) => name === "feature");
   assert.ok(vector);
   await withFixture("orchestrator", async (root) => {
     const permuted = {
       additionalMetadata: {
         blocked_by: ["OD-001"],
-        code_anchors: [{enforcement: "required", pattern: "packages/example/src/features/create-widget/*.ts"}],
+        code_anchors: [
+          { enforcement: "required", pattern: "packages/example/src/features/create-widget/*.ts" },
+        ],
       },
       related: ["ADR-0001", "OD-001"],
       destination: vector.intent.destination,
@@ -136,8 +132,8 @@ test("normalizes semantic Intent permutations without authority-byte tricks", as
 });
 
 test("normalizes a CRLF template to the same LF Plan output", async () => {
-  const {cases} = await orchestratorCases();
-  const vector = cases.find(({name}) => name === "adr");
+  const { cases } = await orchestratorCases();
+  const vector = cases.find(({ name }) => name === "adr");
   assert.ok(vector);
   await withFixture("orchestrator", async (root) => {
     const templatePath = join(root, "docs/templates/adr.md");
@@ -160,11 +156,11 @@ test("derives Unicode slugs and requires an explicit fallback for an empty deriv
   };
   await withFixture("orchestrator", async (root) => {
     const decomposedTitle = "Cre\u0300me bru\u0302le\u0301e de\u0301ja\u0300 vu";
-    const derived = await compile(root, {...base, title: decomposedTitle});
+    const derived = await compile(root, { ...base, title: decomposedTitle });
     assert.equal(derived.destination, "docs/contracts/creme-brulee-deja-vu.md");
     assert.equal(derived.intent.title, decomposedTitle.normalize("NFC"));
     await assert.rejects(
-      compile(root, {...base, id: "contract.example.empty", title: "中文"}),
+      compile(root, { ...base, id: "contract.example.empty", title: "中文" }),
       (error) => assertPlanningError(error, ["DOCUMENT_PLANNING_INPUT_INVALID"]),
     );
     const fallback = await compile(root, {
@@ -178,41 +174,38 @@ test("derives Unicode slugs and requires an explicit fallback for an empty deriv
 });
 
 test("rejects missing parents, duplicate relations, unsupported types, and partial catalogs", async () => {
-  const {cases} = await orchestratorCases();
-  const adr = cases.find(({name}) => name === "adr");
-  const feature = cases.find(({name}) => name === "feature");
+  const { cases } = await orchestratorCases();
+  const adr = cases.find(({ name }) => name === "adr");
+  const feature = cases.find(({ name }) => name === "feature");
   assert.ok(adr && feature);
   await withFixture("orchestrator", async (root) => {
-    await rm(join(root, dirname(adr.destination)), {recursive: true});
-    await assert.rejects(
-      compile(root, adr.intent),
-      (error) => assertPlanningError(error, ["DOCUMENT_PLANNING_PARENT_UNAVAILABLE"]),
+    await rm(join(root, dirname(adr.destination)), { recursive: true });
+    await assert.rejects(compile(root, adr.intent), (error) =>
+      assertPlanningError(error, ["DOCUMENT_PLANNING_PARENT_UNAVAILABLE"]),
     );
   });
   await withFixture("orchestrator", async (root) => {
     await assert.rejects(
-      compile(root, {...feature.intent, related: ["ADR-0001", "ADR-0001"]}),
+      compile(root, { ...feature.intent, related: ["ADR-0001", "ADR-0001"] }),
       (error) => assertPlanningError(error, ["DOCUMENT_PLANNING_INPUT_INVALID"]),
     );
     await assert.rejects(
-      compile(root, {...feature.intent, related: ["cafe\u0301", "café"]}),
+      compile(root, { ...feature.intent, related: ["cafe\u0301", "café"] }),
       (error) => assertPlanningError(error, ["DOCUMENT_PLANNING_INPUT_INVALID"]),
     );
-    await assert.rejects(
-      compile(root, {...adr.intent, type: "unknown"}),
-      (error) => assertPlanningError(error, ["DOCUMENT_PLANNING_INPUT_INVALID"]),
+    await assert.rejects(compile(root, { ...adr.intent, type: "unknown" }), (error) =>
+      assertPlanningError(error, ["DOCUMENT_PLANNING_INPUT_INVALID"]),
     );
     await writeFile(join(root, "docs/existing/broken.md"), "not governed markdown\n", "utf8");
-    await assert.rejects(
-      compile(root, adr.intent),
-      (error) => assertPlanningError(error, ["DOCUMENT_PLANNING_CATALOG_PARTIAL"]),
+    await assert.rejects(compile(root, adr.intent), (error) =>
+      assertPlanningError(error, ["DOCUMENT_PLANNING_CATALOG_PARTIAL"]),
     );
   });
 });
 
 test("admits only exact logical self and rejects false-self, ID, and path collisions", async () => {
-  const {cases} = await orchestratorCases();
-  const vector = cases.find(({name}) => name === "adr");
+  const { cases } = await orchestratorCases();
+  const vector = cases.find(({ name }) => name === "adr");
   assert.ok(vector);
   await withFixture("orchestrator", async (root) => {
     const planned = await compile(root, vector.intent);
@@ -221,63 +214,81 @@ test("admits only exact logical self and rejects false-self, ID, and path collis
   });
   await withFixture("orchestrator", async (root) => {
     await writeFile(join(root, vector.destination), "third-party collision\n", "utf8");
-    await assert.rejects(
-      compile(root, vector.intent),
-      (error) => assertPlanningError(error, ["DOCUMENT_PLANNING_CONFLICT", "DOCUMENT_PLANNING_CATALOG_PARTIAL"]),
+    await assert.rejects(compile(root, vector.intent), (error) =>
+      assertPlanningError(error, [
+        "DOCUMENT_PLANNING_CONFLICT",
+        "DOCUMENT_PLANNING_CATALOG_PARTIAL",
+      ]),
     );
   });
   await withFixture("orchestrator", async (root) => {
     const expected = await readFile(join(root, vector.expected));
     await writeFile(join(root, "docs/existing/same-id.md"), expected);
-    await assert.rejects(
-      compile(root, vector.intent),
-      (error) => assertPlanningError(error, ["DOCUMENT_PLANNING_CONFLICT", "DOCUMENT_PLANNING_CATALOG_PARTIAL"]),
+    await assert.rejects(compile(root, vector.intent), (error) =>
+      assertPlanningError(error, [
+        "DOCUMENT_PLANNING_CONFLICT",
+        "DOCUMENT_PLANNING_CATALOG_PARTIAL",
+      ]),
     );
   });
   await withFixture("orchestrator", async (root) => {
     await writeFile(join(root, "docs/decisions/9001-FROZEN-ADR.md"), "collision\n", "utf8");
-    await assert.rejects(
-      compile(root, vector.intent),
-      (error) => assertPlanningError(error, ["DOCUMENT_PLANNING_CONFLICT", "DOCUMENT_PLANNING_CATALOG_PARTIAL"]),
+    await assert.rejects(compile(root, vector.intent), (error) =>
+      assertPlanningError(error, [
+        "DOCUMENT_PLANNING_CONFLICT",
+        "DOCUMENT_PLANNING_CATALOG_PARTIAL",
+      ]),
     );
   });
 });
 
 test("rejects directory, symlink, FIFO, and case-alias destination states", async (t) => {
-  const {cases} = await orchestratorCases();
-  const vector = cases.find(({name}) => name === "runbook");
+  const { cases } = await orchestratorCases();
+  const vector = cases.find(({ name }) => name === "runbook");
   assert.ok(vector);
   const scenarios = [
     ["directory", async (path) => mkdir(path)],
     ["symlink", async (path, root) => symlink(join(root, "docs/existing/adr-0001.md"), path)],
   ];
   if (process.platform !== "win32") {
-    scenarios.push(["fifo", async (path) => {
-      const result = spawnSync("mkfifo", [path]);
-      assert.equal(result.status, 0, result.stderr?.toString());
-    }]);
+    scenarios.push([
+      "fifo",
+      async (path) => {
+        const result = spawnSync("mkfifo", [path]);
+        assert.equal(result.status, 0, result.stderr?.toString());
+      },
+    ]);
   }
   for (const [name, arrange] of scenarios) {
-    await t.test(name, async () => withFixture("orchestrator", async (root) => {
-      await arrange(join(root, vector.destination), root);
-      await assert.rejects(
-        compile(root, vector.intent),
-        (error) => assertPlanningError(error, ["DOCUMENT_PLANNING_CATALOG_PARTIAL", "DOCUMENT_PLANNING_CONFLICT", "DOCUMENT_PLANNING_PARENT_UNAVAILABLE"]),
-      );
-    }));
-  }
-  await t.test("case alias", async () => withFixture("orchestrator", async (root) => {
-    await writeFile(join(root, "docs/operations/FROZEN-WIDGET-OUTAGE.md"), "alias\n", "utf8");
-    await assert.rejects(
-      compile(root, vector.intent),
-      (error) => assertPlanningError(error, ["DOCUMENT_PLANNING_CONFLICT", "DOCUMENT_PLANNING_CATALOG_PARTIAL"]),
+    await t.test(name, async () =>
+      withFixture("orchestrator", async (root) => {
+        await arrange(join(root, vector.destination), root);
+        await assert.rejects(compile(root, vector.intent), (error) =>
+          assertPlanningError(error, [
+            "DOCUMENT_PLANNING_CATALOG_PARTIAL",
+            "DOCUMENT_PLANNING_CONFLICT",
+            "DOCUMENT_PLANNING_PARENT_UNAVAILABLE",
+          ]),
+        );
+      }),
     );
-  }));
+  }
+  await t.test("case alias", async () =>
+    withFixture("orchestrator", async (root) => {
+      await writeFile(join(root, "docs/operations/FROZEN-WIDGET-OUTAGE.md"), "alias\n", "utf8");
+      await assert.rejects(compile(root, vector.intent), (error) =>
+        assertPlanningError(error, [
+          "DOCUMENT_PLANNING_CONFLICT",
+          "DOCUMENT_PLANNING_CATALOG_PARTIAL",
+        ]),
+      );
+    }),
+  );
 });
 
 test("planning leaves every fixture name, byte, and mode unchanged", async () => {
-  const {cases} = await orchestratorCases();
-  const vector = cases.find(({name}) => name === "contract");
+  const { cases } = await orchestratorCases();
+  const vector = cases.find(({ name }) => name === "contract");
   assert.ok(vector);
   await withFixture("orchestrator", async (root) => {
     await chmod(join(root, "docs/existing/adr-0001.md"), 0o640);
@@ -297,12 +308,15 @@ test("compiles a heterogeneous profile without compiler customization", async ()
       title: "Service Recovery",
       owner: "team/knowledge",
       summary: "Recover the service deterministically.",
-      additionalMetadata: {labels: {zeta: "last", alpha: "first", middle: "middle"}},
+      additionalMetadata: { labels: { zeta: "last", alpha: "first", middle: "middle" } },
     };
     const expected = await readFile(join(root, "expected/playbook.md"));
     const plan = await compile(root, intent);
     assert.equal(plan.destination, "handbook/content/service/recovery/README.md");
     assert.deepEqual(bytesFromPlan(plan), expected);
-    assert.match(expected.toString("utf8"), /labels:\n  alpha: first\n  middle: middle\n  zeta: last/u);
+    assert.match(
+      expected.toString("utf8"),
+      /labels:\n  alpha: first\n  middle: middle\n  zeta: last/u,
+    );
   });
 });

@@ -12,7 +12,7 @@ export interface PackageScriptExecutorCandidates {
  * switch is the only dispatch seam and performs no task effect itself.
  */
 export function createPackageManagerScriptExecutor(
-  candidates: PackageScriptExecutorCandidates
+  candidates: PackageScriptExecutorCandidates,
 ): PackageScriptExecutor {
   return Object.freeze({
     async run(input: {
@@ -22,10 +22,7 @@ export function createPackageManagerScriptExecutor(
       readonly timeoutMs?: number;
       readonly signal?: AbortSignal;
     }) {
-      return selectClosedPackageManager(
-        input.packageManager,
-        candidates
-      ).run(input);
-    }
+      return selectClosedPackageManager(input.packageManager, candidates).run(input);
+    },
   });
 }

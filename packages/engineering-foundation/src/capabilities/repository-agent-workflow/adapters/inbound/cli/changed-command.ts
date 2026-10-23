@@ -11,27 +11,23 @@ export interface AgentWorkflowChangedInput {
 }
 
 export function createAgentWorkflowChangedCommand(
-  dependencies: AgentWorkflowChangedDependencies
+  dependencies: AgentWorkflowChangedDependencies,
 ): (input: AgentWorkflowChangedInput) => Promise<void> {
   return async (input) => {
     const report = await runChangedAgentWorkflow(
       {
         consumerRoot: input.consumerRoot,
-        policy: await dependencies.loadPolicy(
-          input.consumerRoot,
-          input.configPath,
-          input.signal
-        ),
+        policy: await dependencies.loadPolicy(input.consumerRoot, input.configPath, input.signal),
         ...(input.baseRef === undefined ? {} : { baseRef: input.baseRef }),
-        ...(input.signal === undefined ? {} : { signal: input.signal })
+        ...(input.signal === undefined ? {} : { signal: input.signal }),
       },
       dependencies.changesReader,
-      dependencies.scriptRunner
+      dependencies.scriptRunner,
     );
     process.stdout.write(
       input.format === "json"
         ? `${JSON.stringify(report, null, 2)}\n`
-        : renderAgentWorkflowReport(report)
+        : renderAgentWorkflowReport(report),
     );
     process.exitCode = report.outcome === "passed" ? 0 : 1;
   };

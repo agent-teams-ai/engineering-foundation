@@ -1,7 +1,7 @@
 import { assertNotCancelled } from "../../../../features/validation-reporting/api.js";
 import type {
   ProtobufEvolutionConfiguration,
-  ProtobufEvolutionPolicy
+  ProtobufEvolutionPolicy,
 } from "../model/protobuf-release-evidence.js";
 import type { AcceptedDecisionEvidencePort } from "../ports/accepted-decision-evidence.js";
 import type { BufBreakingQualificationEvidencePort } from "../ports/buf-breaking-qualification-evidence.js";
@@ -21,7 +21,7 @@ export interface ResolveProtobufEvolutionPolicyDependencies {
 
 export async function resolveProtobufEvolutionPolicy(
   input: ResolveProtobufEvolutionPolicyInput,
-  dependencies: ResolveProtobufEvolutionPolicyDependencies
+  dependencies: ResolveProtobufEvolutionPolicyDependencies,
 ): Promise<ProtobufEvolutionPolicy> {
   assertNotCancelled(input.signal);
   const baselinePath = input.configuration.acceptedDecisionBaselinePath;
@@ -36,18 +36,17 @@ export async function resolveProtobufEvolutionPolicy(
         consumerRoot: input.consumerRoot,
         baselinePath,
         governanceConfigPath,
-        ...(input.signal === undefined ? {} : { signal: input.signal })
+        ...(input.signal === undefined ? {} : { signal: input.signal }),
       })
     ).acceptedDecisionIds;
   } else if (governanceConfigPath !== undefined) {
     throw new Error("Protobuf governance evidence configuration is internally inconsistent.");
   }
-  const qualifiedBreakingEvidence =
-    await dependencies.bufBreakingQualificationEvidence.read({
-      consumerRoot: input.consumerRoot,
-      configuration: input.configuration,
-      ...(input.signal === undefined ? {} : { signal: input.signal })
-    });
+  const qualifiedBreakingEvidence = await dependencies.bufBreakingQualificationEvidence.read({
+    consumerRoot: input.consumerRoot,
+    configuration: input.configuration,
+    ...(input.signal === undefined ? {} : { signal: input.signal }),
+  });
   assertNotCancelled(input.signal);
   return Object.freeze({
     acceptedDecisionIds,
@@ -56,8 +55,7 @@ export async function resolveProtobufEvolutionPolicy(
     current: Object.freeze({
       ...input.configuration.current,
       breaking: qualifiedBreakingEvidence.breaking,
-      releasedDescriptorImageDigest:
-        qualifiedBreakingEvidence.releasedDescriptorImageDigest
-    })
+      releasedDescriptorImageDigest: qualifiedBreakingEvidence.releasedDescriptorImageDigest,
+    }),
   });
 }

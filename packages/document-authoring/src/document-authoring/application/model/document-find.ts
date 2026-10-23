@@ -2,7 +2,7 @@ import type {
   DocumentAuthorityDigest,
   DocumentDescriptor,
   DocumentDescriptorV2,
-  DocumentationCatalogDiagnostic
+  DocumentationCatalogDiagnostic,
 } from "./document-catalog.js";
 
 export interface DocumentFindFilters {
@@ -24,8 +24,7 @@ export interface DocumentFindResult {
   readonly matches: number;
 }
 
-export interface DocumentFindResultV2
-  extends Omit<DocumentFindResult, "documents"> {
+export interface DocumentFindResultV2 extends Omit<DocumentFindResult, "documents"> {
   readonly catalogSemanticDigest: DocumentAuthorityDigest;
   readonly documents: readonly DocumentDescriptorV2[];
 }

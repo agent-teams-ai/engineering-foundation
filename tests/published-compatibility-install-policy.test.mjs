@@ -147,7 +147,9 @@ test("published compatibility fails closed when cleanup fails", async () => {
   let installs = 0;
   const cleanupFailure = new Error("cleanup failed");
   const install = createPublishedCompatibilityInstallPolicy({
-    cleanup: async () => { throw cleanupFailure; },
+    cleanup: async () => {
+      throw cleanupFailure;
+    },
     runInstall: async () => {
       installs += 1;
       throw timeout();
@@ -160,19 +162,27 @@ test("published compatibility fails closed when cleanup fails", async () => {
 function compatibilityChecks(calls) {
   return {
     args: [],
-    qualifyPublicDocs: async () => { throw new Error("current public completion ran in preflight"); },
+    qualifyPublicDocs: async () => {
+      throw new Error("current public completion ran in preflight");
+    },
     verifyAuthoring: async ({ installPackage, temporaryRoot }) => {
       assert.equal(typeof installPackage, "function");
       assert.equal((await lstat(temporaryRoot)).isDirectory(), true);
       calls.push("authoring");
     },
-    verifyBootstrap: async () => { calls.push("bootstrap"); return ["bootstrap@0.0.0"]; },
+    verifyBootstrap: async () => {
+      calls.push("bootstrap");
+      return ["bootstrap@0.0.0"];
+    },
     verifyScaffolding: async ({ installPackage }) => {
       assert.equal(typeof installPackage, "function");
       calls.push("scaffolding");
     },
     verifyTransactions: async ({ currentCliPath, installPackage }) => {
-      assert.equal(currentCliPath, join(repositoryRoot, "packages/engineering-foundation/dist/cli.js"));
+      assert.equal(
+        currentCliPath,
+        join(repositoryRoot, "packages/engineering-foundation/dist/cli.js"),
+      );
       assert.equal(typeof installPackage, "function");
       calls.push("transactions");
     },
@@ -193,19 +203,32 @@ test("ordinary compatibility defers public completion and retains all historical
 });
 
 test("historical check failures still stop compatibility before reconciliation", async () => {
-  for (const check of ["verifyBootstrap", "verifyTransactions", "verifyAuthoring", "verifyScaffolding"]) {
+  for (const check of [
+    "verifyBootstrap",
+    "verifyTransactions",
+    "verifyAuthoring",
+    "verifyScaffolding",
+  ]) {
     const calls = [];
     const failure = new Error(`${check} failed`);
     let reconciled = false;
-    await assert.rejects(async () => {
-      await runPublishedCompatibility({
-        ...compatibilityChecks(calls),
-        [check]: async () => { throw failure; },
-      });
-      reconciled = true;
-    }, (error) => error === failure);
+    await assert.rejects(
+      async () => {
+        await runPublishedCompatibility({
+          ...compatibilityChecks(calls),
+          [check]: async () => {
+            throw failure;
+          },
+        });
+        reconciled = true;
+      },
+      (error) => error === failure,
+    );
     assert.equal(reconciled, false);
-    assert.equal(calls.some((line) => line.includes("PASS")), false);
+    assert.equal(
+      calls.some((line) => line.includes("PASS")),
+      false,
+    );
   }
 });
 
@@ -214,19 +237,27 @@ test("published compatibility preserves its primary failure when cleanup also fa
   const cleanup = Object.assign(new Error("directory not empty"), { code: "ENOTEMPTY" });
   let root;
   try {
-    await assert.rejects(runPublishedCompatibility({
-      ...compatibilityChecks([]),
-      verifyScaffolding: async ({ temporaryRoot }) => { root = temporaryRoot; throw primary; },
-      removeTemporaryRoot: async temporaryRoot => {
-        assert.equal(temporaryRoot, root);
-        throw cleanup;
+    await assert.rejects(
+      runPublishedCompatibility({
+        ...compatibilityChecks([]),
+        verifyScaffolding: async ({ temporaryRoot }) => {
+          root = temporaryRoot;
+          throw primary;
+        },
+        removeTemporaryRoot: async (temporaryRoot) => {
+          assert.equal(temporaryRoot, root);
+          throw cleanup;
+        },
+      }),
+      (error) => {
+        assert.ok(error instanceof AggregateError);
+        assert.deepEqual(error.errors, [primary, cleanup]);
+        return true;
       },
-    }), error => {
-      assert.ok(error instanceof AggregateError);
-      assert.deepEqual(error.errors, [primary, cleanup]);
-      return true;
-    });
+    );
   } finally {
-    if (root !== undefined) { await rm(root, { recursive: true, force: true }); }
+    if (root !== undefined) {
+      await rm(root, { recursive: true, force: true });
+    }
   }
 });

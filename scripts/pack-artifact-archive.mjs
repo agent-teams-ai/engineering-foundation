@@ -17,8 +17,14 @@ export function portableEntryIdentity(entry) {
 }
 
 const forbiddenEntries = [
-  "/.git/", "/node_modules/", "/src/", "/tests/", ".env", "auth.json",
-  "foundation-link.json", "/secret-fixtures/",
+  "/.git/",
+  "/node_modules/",
+  "/src/",
+  "/tests/",
+  ".env",
+  "auth.json",
+  "foundation-link.json",
+  "/secret-fixtures/",
 ];
 const MAX_ARCHIVE_BYTES = 8 * 1024 * 1024;
 const DEFAULT_MAX_ARCHIVE_ENTRIES = 2_500;
@@ -53,7 +59,11 @@ const PACKAGE_MAX_ARCHIVE_ENTRIES = Object.freeze({
   // the quality-findings-baseline/v1 schema.
   // The full-inventory regression requires requalification for any growth;
   // every other package retains the existing 2,500-entry bound.
-  "@agent-teams/engineering-foundation": 2_789,
+  // F3 reviewed production-module migration: exact archive census 2,783 ->
+  // 2,871 (+88 = 22 ordinary production TS modules x four compiler outputs).
+  // Full tuples are retained in tests/fixtures/package-archive-budget/f3-production-modules.json.
+  // No tests/cache members were added; default and decompression bounds stay fixed.
+  "@agent-teams/engineering-foundation": 2_871,
 });
 
 export function maximumArchiveEntries(packageName) {
@@ -72,7 +82,9 @@ function archiveEntries(listing, packageName) {
     const identity = portableEntryIdentity(entry);
     const previous = identities.get(identity);
     if (previous !== undefined) {
-      throw new Error(`Package contains duplicate or normalized-colliding archive members: ${previous}, ${entry}`);
+      throw new Error(
+        `Package contains duplicate or normalized-colliding archive members: ${previous}, ${entry}`,
+      );
     }
     identities.set(identity, entry);
   }
@@ -93,7 +105,9 @@ export function assertArchiveListing(
   const entries = archiveEntries(listing, packageName);
   const entrySet = new Set(entries);
   const requiredEntries = [
-    "package/package.json", "package/LICENSE", "package/README.md",
+    "package/package.json",
+    "package/LICENSE",
+    "package/README.md",
     ...requiredArtifactPaths.map((path) => `package/${path}`),
   ];
   for (const required of requiredEntries) {
@@ -110,23 +124,39 @@ export function assertArchiveListing(
     }
   }
   for (const entry of entries) {
-    const packagePath = entry.startsWith("package/") ? entry.slice("package/".length).replace(/\/$/u, "") : "";
-    const manifestAllows = allowedArtifactPaths.some((allowed) =>
-      packagePath === allowed || packagePath.startsWith(`${allowed.replace(/\/$/u, "")}/`));
-    if (!requiredDirectories.has(entry) && !entry.startsWith("package/dist/") &&
-        !requiredEntries.includes(entry) && !manifestAllows) {
+    const packagePath = entry.startsWith("package/")
+      ? entry.slice("package/".length).replace(/\/$/u, "")
+      : "";
+    const manifestAllows = allowedArtifactPaths.some(
+      (allowed) =>
+        packagePath === allowed || packagePath.startsWith(`${allowed.replace(/\/$/u, "")}/`),
+    );
+    if (
+      !requiredDirectories.has(entry) &&
+      !entry.startsWith("package/dist/") &&
+      !requiredEntries.includes(entry) &&
+      !manifestAllows
+    ) {
       throw new Error(`Package entry is outside the release allowlist: ${entry}`);
     }
   }
 }
 
 export function inspectCompressedTarArchive(archiveBytes, packageName) {
-  return archiveCodec().inspectCompressedTarArchive(archiveBytes, maximumArchiveEntries(packageName));
+  return archiveCodec().inspectCompressedTarArchive(
+    archiveBytes,
+    maximumArchiveEntries(packageName),
+  );
 }
 
 function sameFileState(left, right) {
-  return left.dev === right.dev && left.ino === right.ino && left.size === right.size &&
-    left.mtimeMs === right.mtimeMs && left.ctimeMs === right.ctimeMs;
+  return (
+    left.dev === right.dev &&
+    left.ino === right.ino &&
+    left.size === right.size &&
+    left.mtimeMs === right.mtimeMs &&
+    left.ctimeMs === right.ctimeMs
+  );
 }
 
 export async function readRegularArchive(path) {
@@ -142,7 +172,9 @@ async function readRegularArchiveWithSymlinkError(path, symlinkError) {
     );
   } catch (error) {
     if (error?.code === "ELOOP") {
-      throw new Error(symlinkError ?? `Package archive is not a bounded regular file: ${path}.`, { cause: error });
+      throw new Error(symlinkError ?? `Package archive is not a bounded regular file: ${path}.`, {
+        cause: error,
+      });
     }
     throw error;
   }
@@ -162,8 +194,12 @@ async function readRegularArchiveWithSymlinkError(path, symlinkError) {
     const overflow = Buffer.alloc(1);
     const { bytesRead: overflowBytes } = await handle.read(overflow, 0, 1, bytes.length);
     const [after, pathnameAfter] = await Promise.all([handle.stat(), lstat(path)]);
-    if (bytesRead !== bytes.length || overflowBytes !== 0 || !sameFileState(opened, after) ||
-        !sameFileState(opened, pathnameAfter)) {
+    if (
+      bytesRead !== bytes.length ||
+      overflowBytes !== 0 ||
+      !sameFileState(opened, after) ||
+      !sameFileState(opened, pathnameAfter)
+    ) {
       throw new Error(`Package archive changed during verification: ${path}.`);
     }
     return bytes;
@@ -172,7 +208,9 @@ async function readRegularArchiveWithSymlinkError(path, symlinkError) {
   }
 }
 
-export function sha256(bytes) { return createHash("sha256").update(bytes).digest("hex"); }
+export function sha256(bytes) {
+  return createHash("sha256").update(bytes).digest("hex");
+}
 
 export async function readVerifiedArchive(path, expectedSha256) {
   const bytes = await readRegularArchiveWithSymlinkError(
@@ -186,22 +224,39 @@ export async function readVerifiedArchive(path, expectedSha256) {
 }
 
 export async function readQualifiedReleaseArtifact(artifact, packageInfo) {
-  if (artifact === undefined || artifact.packageName !== packageInfo.name ||
-      artifact.packageVersion !== packageInfo.version) {
-    throw new Error(`Qualified archive identity differs from release state for ${packageInfo.name}.`);
+  if (
+    artifact === undefined ||
+    artifact.packageName !== packageInfo.name ||
+    artifact.packageVersion !== packageInfo.version
+  ) {
+    throw new Error(
+      `Qualified archive identity differs from release state for ${packageInfo.name}.`,
+    );
   }
   const { archivePath, sha256: digest } = artifact;
   const bytes = await readVerifiedArchive(archivePath, digest);
   const inspection = inspectCompressedTarArchive(bytes, packageInfo.name);
-  const manifests = inspection.entries.filter(entry => entry.name === "package/package.json" && entry.type === "0");
-  if (manifests.length !== 1 || inspection.entries.some(entry => !["0", "5"].includes(entry.type))) {
+  const manifests = inspection.entries.filter(
+    (entry) => entry.name === "package/package.json" && entry.type === "0",
+  );
+  if (
+    manifests.length !== 1 ||
+    inspection.entries.some((entry) => !["0", "5"].includes(entry.type))
+  ) {
     throw new Error("Qualified package archive has an unsafe manifest or special entry.");
   }
   const manifest = JSON.parse(manifests[0].data.toString("utf8"));
   if (manifest.name !== packageInfo.name || manifest.version !== packageInfo.version) {
-    throw new Error(`Qualified manifest identity differs from release state for ${packageInfo.name}.`);
+    throw new Error(
+      `Qualified manifest identity differs from release state for ${packageInfo.name}.`,
+    );
   }
-  return { archivePath, sha256: digest, integrity: `sha512-${createHash("sha512").update(bytes).digest("base64")}`, manifest };
+  return {
+    archivePath,
+    sha256: digest,
+    integrity: `sha512-${createHash("sha512").update(bytes).digest("base64")}`,
+    manifest,
+  };
 }
 
 export function assertNoSpecialTarEntries(verboseListing) {

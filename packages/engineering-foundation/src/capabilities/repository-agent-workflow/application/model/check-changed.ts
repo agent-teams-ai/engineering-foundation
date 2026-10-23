@@ -48,7 +48,11 @@ export interface CoverageExecution {
   readonly observation: TestDispatchObservation | null;
   readonly binding: ObservationBinding;
   /** null means the executor rejected without an observed exit status. */
-  readonly commands: readonly { readonly script: string; readonly exitCode: number | null; readonly durationMs: number }[];
+  readonly commands: readonly {
+    readonly script: string;
+    readonly exitCode: number | null;
+    readonly durationMs: number;
+  }[];
 }
 export interface CoverageRow {
   readonly path: string;
@@ -59,10 +63,22 @@ export interface CoverageRow {
 }
 export interface CheckChangedReport {
   readonly reportSchemaVersion: 2;
-  readonly outcome: "passed" | "feedback-only" | "not-checked" | "uncovered" | "failed" | "cancelled" | "stale";
+  readonly outcome:
+    | "passed"
+    | "feedback-only"
+    | "not-checked"
+    | "uncovered"
+    | "failed"
+    | "cancelled"
+    | "stale";
   readonly reason: string;
   readonly source: RepositoryChanges | null;
-  readonly base: { readonly requestedRef: string | null; readonly resolvedRef: string; readonly commit: string | null; readonly mergeBaseCommit: string | null } | null;
+  readonly base: {
+    readonly requestedRef: string | null;
+    readonly resolvedRef: string;
+    readonly commit: string | null;
+    readonly mergeBaseCommit: string | null;
+  } | null;
   readonly head: { readonly ref: "HEAD"; readonly commit: string | null } | null;
   readonly scopeDigest: string | null;
   readonly changeGroups: RepositoryChanges["changeGroups"] | null;
@@ -74,7 +90,11 @@ export interface CheckChangedReport {
     readonly binding: "qualified-host-precondition" | "unverified";
     readonly limitation: string;
   };
-  readonly plannedChecks: readonly { readonly id: string; readonly target: "repository"; readonly reason: string }[];
+  readonly plannedChecks: readonly {
+    readonly id: string;
+    readonly target: "repository";
+    readonly reason: string;
+  }[];
   readonly steps: readonly (CoverageExecution & { readonly id: string; readonly script: string })[];
   readonly coverage: readonly CoverageRow[];
 }

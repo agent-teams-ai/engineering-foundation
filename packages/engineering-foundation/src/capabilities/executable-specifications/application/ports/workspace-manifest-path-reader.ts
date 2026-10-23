@@ -2,6 +2,6 @@ export interface WorkspaceManifestPathReader {
   discoverManifestPaths(
     consumerRoot: string,
     workspaceManifestPath: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ): Promise<readonly string[]>;
 }

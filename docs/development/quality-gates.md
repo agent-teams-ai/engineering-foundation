@@ -11,7 +11,7 @@ weakening the merge gate.
 | Layer | Command | Purpose |
 | --- | --- | --- |
 | Changed | `bun tools/dev.mts check:changed` | Foundation-routed checks for the current Git delta |
-| Fast | `bun tools/dev.mts check:fast` | Terminology contract, fail-closed test manifests, Oxlint syntax/correctness, and pinned TypeScript 7 |
+| Fast | `bun tools/dev.mts check:fast` | Terminology contract, fail-closed test manifests, formatting, Oxlint syntax/correctness, and pinned TypeScript 7 |
 | Terminology | `pnpm docs:terminology:check` | Canonical glossary sections, qualification scopes, and entry-point links |
 | Architecture | `pnpm foundation:check` | All declared deterministic capabilities, including docs and ADR governance |
 | Workflow security | `pnpm security:workflows` | Pinned Actionlint and Zizmor capability qualification for all workflows and local actions |
@@ -561,6 +561,11 @@ TypeScript projects in the required `typecheck` command. Related non-major API
 model and Oxc updates are reviewed with their coupled evidence.
 
 ## Lint contract
+
+`format:check` runs the installed Stack Toolchain CLI through the source-owned
+repository command catalog on the qualified Node runtime. Both `check` and
+`check:fast` require it before lint. It checks the full configured format scope
+and its exact frozen-artifact exclusions without rewriting files.
 
 Oxlint is the only JavaScript/TypeScript linter until a concrete missing rule
 proves that ESLint is required. The published presets enable correctness,

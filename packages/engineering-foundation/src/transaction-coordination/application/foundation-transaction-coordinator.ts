@@ -1,19 +1,14 @@
 import { FoundationTransactionError } from "./foundation-transaction-error.js";
-import type {
-  FoundationMutationKind
-} from "./model/transaction-status.js";
+import type { FoundationMutationKind } from "./model/transaction-status.js";
 import type { InternalFoundationTransactionStatus } from "./model/internal-transaction-status.js";
 import type { FoundationOperationLock } from "./ports/foundation-operation-lock.js";
 import type { FoundationTransactionSlot } from "./ports/foundation-transaction-slot.js";
 
-function preservePrimaryFailure(
-  primaryFailure: unknown,
-  releaseFailure: unknown
-): unknown {
+function preservePrimaryFailure(primaryFailure: unknown, releaseFailure: unknown): unknown {
   if (!(primaryFailure instanceof Error)) {
     return new AggregateError(
       [primaryFailure, releaseFailure],
-      "Foundation transaction and operation-lock release both failed."
+      "Foundation transaction and operation-lock release both failed.",
     );
   }
 
@@ -23,18 +18,18 @@ function preservePrimaryFailure(
       ? releaseFailure
       : new AggregateError(
           [previousCause, releaseFailure],
-          "The primary failure cause and operation-lock release both failed."
+          "The primary failure cause and operation-lock release both failed.",
         );
   const attached = Reflect.defineProperty(primaryFailure, "cause", {
     configurable: true,
     value: releaseEvidence,
-    writable: true
+    writable: true,
   });
   return attached
     ? primaryFailure
     : new AggregateError(
         [primaryFailure, releaseFailure],
-        "Foundation transaction and operation-lock release both failed."
+        "Foundation transaction and operation-lock release both failed.",
       );
 }
 
@@ -42,10 +37,15 @@ function isKnownFileRecoveryAllowed(
   status: InternalFoundationTransactionStatus,
   options: {
     readonly requestedMutation: FoundationMutationKind;
-    readonly allowRecoveryOf?: "document-authoring" | "known-file-transaction" | "local-mode" | "scaffolding";
-  }
+    readonly allowRecoveryOf?:
+      | "document-authoring"
+      | "known-file-transaction"
+      | "local-mode"
+      | "scaffolding";
+  },
 ): boolean {
-  return status.state === "pending" &&
+  return (
+    status.state === "pending" &&
     status.operationKind === "known-file-transaction" &&
     status.recoveryArtifacts !== undefined &&
     status.recoveryArtifacts.schemaVersion === 6 &&
@@ -53,13 +53,16 @@ function isKnownFileRecoveryAllowed(
     status.recoveryArtifacts.kernelArtifact.name === status.recoveryArtifacts.ownerArtifact.name &&
     status.recoveryArtifacts.ownerArtifact.version === status.foundationVersion &&
     status.recoveryArtifacts.ownerArtifact.buildIdentity === status.foundationBuildIdentity &&
-    status.recoveryArtifacts.kernelArtifact.version === status.recoveryArtifacts.ownerArtifact.version &&
-    status.recoveryArtifacts.kernelArtifact.buildIdentity === status.recoveryArtifacts.ownerArtifact.buildIdentity &&
+    status.recoveryArtifacts.kernelArtifact.version ===
+      status.recoveryArtifacts.ownerArtifact.version &&
+    status.recoveryArtifacts.kernelArtifact.buildIdentity ===
+      status.recoveryArtifacts.ownerArtifact.buildIdentity &&
     status.recovery.exactFoundationVersion === status.foundationVersion &&
     status.recovery.exactFoundationBuildIdentity === status.foundationBuildIdentity &&
     options.allowRecoveryOf === "known-file-transaction" &&
     options.requestedMutation === "known-file-transaction" &&
-    !status.diagnostics.some(({ code }) => code === "FOUNDATION_TRANSACTION_VERSION_MISMATCH");
+    !status.diagnostics.some(({ code }) => code === "FOUNDATION_TRANSACTION_VERSION_MISMATCH")
+  );
 }
 
 function isLegacyScaffoldingPreflightRefusal(status: InternalFoundationTransactionStatus): boolean {
@@ -97,7 +100,11 @@ export class FoundationTransactionCoordinator {
 
   async acquire(options: {
     readonly requestedMutation: FoundationMutationKind;
-    readonly allowRecoveryOf?: "document-authoring" | "known-file-transaction" | "local-mode" | "scaffolding";
+    readonly allowRecoveryOf?:
+      | "document-authoring"
+      | "known-file-transaction"
+      | "local-mode"
+      | "scaffolding";
   }): Promise<FoundationTransactionLease> {
     // This observation may only deny. Admission still uses a fresh inspection
     // under the existing lock, including when an old writer appears afterward.
@@ -107,7 +114,7 @@ export class FoundationTransactionCoordinator {
     if (preflight.state !== "idle" && isLegacyScaffoldingPreflightRefusal(preflight)) {
       throw new FoundationTransactionError({
         requestedMutation: options.requestedMutation,
-        status: preflight
+        status: preflight,
       });
     }
     const release = await this.#lock.acquire();
@@ -117,14 +124,10 @@ export class FoundationTransactionCoordinator {
       const scaffoldingRecoveryAllowed =
         status.state === "pending" &&
         status.operationKind === "scaffolding" &&
-        ["foundation-scaffolding-envelope-v6", "legacy-scaffolding-v1"].includes(
-          status.format
-        ) &&
+        ["foundation-scaffolding-envelope-v6", "legacy-scaffolding-v1"].includes(status.format) &&
         options.allowRecoveryOf === status.operationKind &&
         options.requestedMutation === status.operationKind &&
-        !status.diagnostics.some(
-          ({ code }) => code === "FOUNDATION_TRANSACTION_VERSION_MISMATCH"
-        );
+        !status.diagnostics.some(({ code }) => code === "FOUNDATION_TRANSACTION_VERSION_MISMATCH");
       const localModeRecoveryAllowed =
         status.state === "pending" &&
         status.operationKind === "local-mode" &&
@@ -140,7 +143,7 @@ export class FoundationTransactionCoordinator {
       ) {
         throw new FoundationTransactionError({
           requestedMutation: options.requestedMutation,
-          status
+          status,
         });
       }
       return {
@@ -150,7 +153,7 @@ export class FoundationTransactionCoordinator {
             await release(releaseOptions);
             held = false;
           }
-        }
+        },
       };
     } catch (error) {
       try {

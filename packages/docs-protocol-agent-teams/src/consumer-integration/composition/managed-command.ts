@@ -6,7 +6,7 @@ import {
   checkConsumerIntegration,
   planNodeConsumerIntegration,
   recoverConsumerIntegration,
-  upgradeConsumerIntegrationToGeneration
+  upgradeConsumerIntegrationToGeneration,
 } from "./node-consumer-integration.js";
 
 export { createManagedDocsCli } from "../adapters/inbound/managed-cli.js";
@@ -18,5 +18,5 @@ export const managedConsumerCommand = createManagedConsumerCommand({
   check: checkConsumerIntegration,
   plan: planNodeConsumerIntegration,
   recover: recoverConsumerIntegration,
-  upgrade: upgradeConsumerIntegrationToGeneration
+  upgrade: upgradeConsumerIntegrationToGeneration,
 });

@@ -1,12 +1,15 @@
 import { lstat, readFile, realpath } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 
-import { assertWorkflowObservationActive, rejectWorkflowEvidence } from "../../../application/policies/workflow-input.js";
+import {
+  assertWorkflowObservationActive,
+  rejectWorkflowEvidence,
+} from "../../../application/policies/workflow-input.js";
 import type {
   AgentInstructionPaths,
   InstructionFileEvidence,
   RepositoryAgentWorkflowEvidence,
-  RepositoryAgentWorkflowPolicy
+  RepositoryAgentWorkflowPolicy,
 } from "../../../application/model/repository-agent-workflow.js";
 import type { RepositoryAgentWorkflowReader } from "../../../application/ports/repository-agent-workflow-reader.js";
 
@@ -15,12 +18,15 @@ const PACKAGE_MANIFEST = "package.json";
 
 function contained(root: string, candidate: string): boolean {
   const relation = relative(root, candidate);
-  return relation === "" || (!isAbsolute(relation) && relation !== ".." && !relation.startsWith(`..${sep}`));
+  return (
+    relation === "" ||
+    (!isAbsolute(relation) && relation !== ".." && !relation.startsWith(`..${sep}`))
+  );
 }
 
 async function readInstruction(
   root: string,
-  repositoryPath: string
+  repositoryPath: string,
 ): Promise<InstructionFileEvidence> {
   const candidate = resolve(root, repositoryPath);
   if (!contained(root, candidate)) {
@@ -53,10 +59,16 @@ async function readPackageScripts(root: string): Promise<Readonly<Record<string,
   try {
     input = JSON.parse(await readFile(resolve(root, PACKAGE_MANIFEST), "utf8")) as unknown;
   } catch {
-    rejectWorkflowEvidence("REPOSITORY_AGENT_WORKFLOW_PACKAGE_INVALID", "package.json must be valid JSON.");
+    rejectWorkflowEvidence(
+      "REPOSITORY_AGENT_WORKFLOW_PACKAGE_INVALID",
+      "package.json must be valid JSON.",
+    );
   }
   if (typeof input !== "object" || input === null || Array.isArray(input)) {
-    rejectWorkflowEvidence("REPOSITORY_AGENT_WORKFLOW_PACKAGE_INVALID", "package.json must be an object.");
+    rejectWorkflowEvidence(
+      "REPOSITORY_AGENT_WORKFLOW_PACKAGE_INVALID",
+      "package.json must be an object.",
+    );
   }
   const scriptsInput = (input as Record<string, unknown>)["scripts"];
   if (typeof scriptsInput !== "object" || scriptsInput === null || Array.isArray(scriptsInput)) {
@@ -75,26 +87,27 @@ export class FilesystemRepositoryAgentWorkflowReader implements RepositoryAgentW
   async read(
     consumerRoot: string,
     policy: RepositoryAgentWorkflowPolicy,
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ): Promise<RepositoryAgentWorkflowEvidence> {
     assertWorkflowObservationActive(signal);
     const root = await realpath(consumerRoot).catch(() =>
       rejectWorkflowEvidence(
         "REPOSITORY_AGENT_WORKFLOW_ROOT_UNAVAILABLE",
-        "The consumer root is unavailable."
-      )
+        "The consumer root is unavailable.",
+      ),
     );
     const entries = await Promise.all(
       (Object.entries(policy.instructions) as Array<[keyof AgentInstructionPaths, string]>).map(
-        async ([kind, repositoryPath]) => [kind, await readInstruction(root, repositoryPath)] as const
-      )
+        async ([kind, repositoryPath]) =>
+          [kind, await readInstruction(root, repositoryPath)] as const,
+      ),
     );
     assertWorkflowObservationActive(signal);
     return Object.freeze({
       instructionFiles: Object.freeze(Object.fromEntries(entries)) as Readonly<
         Record<keyof AgentInstructionPaths, InstructionFileEvidence>
       >,
-      packageScripts: await readPackageScripts(root)
+      packageScripts: await readPackageScripts(root),
     });
   }
 }

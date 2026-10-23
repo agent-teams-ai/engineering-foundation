@@ -11,7 +11,7 @@ import {
   rm,
   stat,
   symlink,
-  writeFile
+  writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -26,23 +26,18 @@ import { createScriptedSequence } from "./support/scripted-sequence.mjs";
 import { createNodeFoundationTransactionCoordinator } from "../packages/engineering-foundation/dist/composition/node-foundation-transaction-coordinator.js";
 import {
   canonicalJson,
-  compileRepositoryMutationEnvelope
+  compileRepositoryMutationEnvelope,
 } from "../packages/repository-mutation/dist/index.js";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
-const fixtureRoot = join(
-  repositoryRoot,
-  "tests",
-  "fixtures",
-  "scaffolding-authority-consumer"
-);
+const fixtureRoot = join(repositoryRoot, "tests", "fixtures", "scaffolding-authority-consumer");
 
 function journalWithOperationState(value, state) {
   return {
     ...value,
     operations: value.operations.map((operation, index) =>
-      index === 0 ? { ...operation, state } : operation
-    )
+      index === 0 ? { ...operation, state } : operation,
+    ),
   };
 }
 
@@ -55,13 +50,13 @@ async function withStore(run) {
   try {
     const plan = await planScaffoldFromFile({
       consumerRoot: root,
-      intentPath: "intents/create-fixture.yaml"
+      intentPath: "intents/create-fixture.yaml",
     });
     await run({
       journal: freshAuthorityScaffoldJournal(plan),
       path,
       root,
-      state
+      state,
     });
   } finally {
     await rm(root, { force: true, recursive: true });
@@ -76,7 +71,10 @@ test("writes and recovers the closed Foundation schema6 owner composition", asyn
     assert.equal(envelope.schemaVersion, 6);
     assert.equal(envelope.operationKind, "scaffolding");
     assert.equal(envelope.recoveryHandler.id, "agent-teams.engineering-foundation.scaffolding/v1");
-    assert.equal(envelope.payloadKind, "agent-teams.engineering-foundation.scaffold-recovery-journal/v1");
+    assert.equal(
+      envelope.payloadKind,
+      "agent-teams.engineering-foundation.scaffold-recovery-journal/v1",
+    );
     assert.equal(envelope.state, "PREPARED");
     assert.equal(envelope.ownerArtifact.name, "@agent-teams/engineering-foundation");
     assert.equal(envelope.kernelArtifact.name, "@agent-teams/repository-mutation");
@@ -89,7 +87,17 @@ test("writes and recovers the closed Foundation schema6 owner composition", asyn
   });
 });
 
-for (const corruption of ["handler", "payload-kind", "state", "owner-build", "owner-version", "owner-name", "kernel-build", "kernel-version", "kernel-name"]) {
+for (const corruption of [
+  "handler",
+  "payload-kind",
+  "state",
+  "owner-build",
+  "owner-version",
+  "owner-name",
+  "kernel-build",
+  "kernel-version",
+  "kernel-name",
+]) {
   test(`preserves schema6 Foundation evidence with wrong ${corruption}`, async () => {
     await withStore(async ({ journal, path, root }) => {
       const store = new NodeScaffoldJournalStore(root, assertSchema, scaffoldTransactionArtifacts);
@@ -103,7 +111,7 @@ for (const corruption of ["handler", "payload-kind", "state", "owner-build", "ow
         adapterContractVersion: envelope.adapterContractVersion,
         payloadKind: envelope.payloadKind,
         state: envelope.state,
-        payload: envelope.payload
+        payload: envelope.payload,
       };
       if (corruption === "handler") {
         input.recoveryHandler = { ...input.recoveryHandler, id: "unknown-handler/v1" };
@@ -116,8 +124,12 @@ for (const corruption of ["handler", "payload-kind", "state", "owner-build", "ow
         const key = artifact === "owner" ? "ownerArtifact" : "kernelArtifact";
         input[key] = {
           ...input[key],
-          [field === "build" ? "buildIdentity" : field]: field === "build"
-            ? `sha256:${"0".repeat(64)}` : field === "name" ? "@foreign/artifact" : "999.0.0"
+          [field === "build" ? "buildIdentity" : field]:
+            field === "build"
+              ? `sha256:${"0".repeat(64)}`
+              : field === "name"
+                ? "@foreign/artifact"
+                : "999.0.0",
         };
       }
       const incompatible = compileRepositoryMutationEnvelope(input);
@@ -126,9 +138,13 @@ for (const corruption of ["handler", "payload-kind", "state", "owner-build", "ow
       const coordinator = await createNodeFoundationTransactionCoordinator(root);
       const status = await coordinator.inspect();
       assert.equal(status.state, "manual-recovery-required");
-      await assert.rejects(coordinator.acquire({ requestedMutation: "scaffolding", allowRecoveryOf: "scaffolding" }));
+      await assert.rejects(
+        coordinator.acquire({ requestedMutation: "scaffolding", allowRecoveryOf: "scaffolding" }),
+      );
       await assert.rejects(store.read());
-      assert.ok((await stat(join(root, ".agent-teams-local", "foundation-operation.lock"))).isFile());
+      assert.ok(
+        (await stat(join(root, ".agent-teams-local", "foundation-operation.lock"))).isFile(),
+      );
       assert.equal(await readFile(path, "utf8"), evidence);
     });
   });
@@ -154,7 +170,7 @@ test("replace rejects same bytes on a different inode without mutation", async (
 
     await assert.rejects(
       store.replace(initial, journalWithOperationState(journal, "publishing")),
-      /identity or bytes changed/u
+      /identity or bytes changed/u,
     );
     assert.deepEqual(await readFile(path), bytes);
     await stat(`${path}.original`);
@@ -170,12 +186,12 @@ test("replace never overwrites a slot occupied before publication", async () => 
         if (point.phase === "after-shared-quarantine-synced") {
           await writeFile(path, "foreign during transition\n", "utf8");
         }
-      }
+      },
     });
     const initial = await store.create(journal);
     await assert.rejects(
       store.replace(initial, journalWithOperationState(journal, "publishing")),
-      /slot is occupied/u
+      /slot is occupied/u,
     );
     assert.equal(await readFile(path, "utf8"), "foreign during transition\n");
   });
@@ -190,15 +206,13 @@ test("stabilization exposes committed canonical and transition residue", async (
           fault = true;
           throw new Error("commit then throw");
         }
-      }
+      },
     });
     await assert.rejects(store.create(journal), /commit then throw/u);
     assert.equal(fault, true);
     const observation = await store.stabilizeForReconciliation();
     assert.ok(observation.canonical);
-    assert.deepEqual(observation.residueNames, [
-      "scaffolding-transaction.json.tmp"
-    ]);
+    assert.deepEqual(observation.residueNames, ["scaffolding-transaction.json.tmp"]);
   });
 });
 
@@ -207,24 +221,21 @@ test("private retirement never deletes a pathname-swapped foreign file", async (
     let swappedPath;
     const store = new NodeScaffoldJournalStore(root, assertSchema, scaffoldTransactionArtifacts, {
       faultInjector: async (point) => {
-        if (
-          point.phase === "before-private-retirement" &&
-          point.evidence === "previous"
-        ) {
+        if (point.phase === "before-private-retirement" && point.evidence === "previous") {
           const quarantine = (await readdir(state)).find((entry) =>
-            entry.startsWith("scaffolding-transaction.json.scaffold-quarantine.")
+            entry.startsWith("scaffolding-transaction.json.scaffold-quarantine."),
           );
           assert.ok(quarantine);
           swappedPath = join(state, quarantine, "evidence");
           await rename(swappedPath, `${swappedPath}.owned`);
           await writeFile(swappedPath, "foreign retired replacement\n", "utf8");
         }
-      }
+      },
     });
     const initial = await store.create(journal);
     await assert.rejects(
       store.replace(initial, journalWithOperationState(journal, "publishing")),
-      /identity or bytes changed/u
+      /identity or bytes changed/u,
     );
     assert.ok(swappedPath);
     assert.equal(await readFile(swappedPath, "utf8"), "foreign retired replacement\n");
@@ -237,19 +248,16 @@ test("logical retirement never deletes a replacement after the final proof", asy
     let swappedPath;
     const store = new NodeScaffoldJournalStore(root, assertSchema, scaffoldTransactionArtifacts, {
       faultInjector: async (point) => {
-        if (
-          point.phase === "before-logical-retirement" &&
-          point.evidence === "candidate"
-        ) {
+        if (point.phase === "before-logical-retirement" && point.evidence === "candidate") {
           const retired = (await readdir(state)).find((entry) =>
-            entry.startsWith("scaffolding-transaction.json.scaffold-retired.")
+            entry.startsWith("scaffolding-transaction.json.scaffold-retired."),
           );
           assert.ok(retired);
           swappedPath = join(state, retired, "evidence");
           await rename(swappedPath, `${swappedPath}.owned`);
           await writeFile(swappedPath, "foreign final replacement\n", "utf8");
         }
-      }
+      },
     });
     await assert.rejects(store.create(journal), /identity or bytes changed/u);
     assert.equal(await readFile(swappedPath, "utf8"), "foreign final replacement\n");
@@ -264,18 +272,16 @@ test("terminal retirement rejects a pre-existing link without escaping state", a
       await symlink(
         outside,
         join(state, "scaffolding-transaction.json.completed-scaffold-evidence"),
-        process.platform === "win32" ? "junction" : "dir"
+        process.platform === "win32" ? "junction" : "dir",
       );
       const store = new NodeScaffoldJournalStore(root, assertSchema, scaffoldTransactionArtifacts);
-      await assert.rejects(
-        store.create(journal),
-        /real operation-owned directory/u
-      );
+      await assert.rejects(store.create(journal), /real operation-owned directory/u);
       assert.deepEqual(await readdir(outside), []);
       assert.equal(
         (await readdir(state)).some((entry) =>
-          entry.startsWith("scaffolding-transaction.json.scaffold-retired.")),
-        true
+          entry.startsWith("scaffolding-transaction.json.scaffold-retired."),
+        ),
+        true,
       );
     } finally {
       await rm(outside, { force: true, recursive: true });
@@ -287,14 +293,11 @@ test("create never reports success after canonical replacement during retirement
   await withStore(async ({ journal, path, root }) => {
     const store = new NodeScaffoldJournalStore(root, assertSchema, scaffoldTransactionArtifacts, {
       faultInjector: async (point) => {
-        if (
-          point.phase === "before-private-retirement" &&
-          point.evidence === "candidate"
-        ) {
+        if (point.phase === "before-private-retirement" && point.evidence === "candidate") {
           await rename(path, `${path}.owned-canonical`);
           await writeFile(path, "foreign canonical replacement\n", "utf8");
         }
-      }
+      },
     });
 
     await assert.rejects(store.create(journal), /identity or bytes changed/u);
@@ -315,15 +318,12 @@ test("remove never reports success after canonical recreation", async () => {
         ) {
           await writeFile(path, "foreign canonical recreation\n", "utf8");
         }
-      }
+      },
     });
     const initial = await store.create(journal);
     recreate = true;
 
-    await assert.rejects(
-      store.remove(initial),
-      /invalid strict JSON|recreated concurrently/u
-    );
+    await assert.rejects(store.remove(initial), /invalid strict JSON|recreated concurrently/u);
     assert.equal(await readFile(path, "utf8"), "foreign canonical recreation\n");
   });
 });
@@ -339,7 +339,7 @@ test("historical candidate pathname replacement is preserved", async () => {
           await writeFile(candidate, "foreign candidate replacement\n", "utf8");
           replacement = candidate;
         }
-      }
+      },
     });
     await assert.rejects(store.create(journal), /temporary identity or bytes changed/u);
     assert.equal(await readFile(replacement, "utf8"), "foreign candidate replacement\n");
@@ -356,13 +356,10 @@ test("create never links a same-inode mutated temporary", async () => {
         if (point.phase === "after-candidate-synced") {
           await writeFile(candidate, foreign, "utf8");
         }
-      }
+      },
     });
 
-    await assert.rejects(
-      store.create(journal),
-      /temporary identity or bytes changed/u
-    );
+    await assert.rejects(store.create(journal), /temporary identity or bytes changed/u);
     await assert.rejects(stat(path), { code: "ENOENT" });
     assert.equal(await readFile(candidate, "utf8"), foreign);
   });
@@ -376,15 +373,8 @@ test("terminal retirement rejects a pre-existing link during removal", async () 
     const outside = await mkdtemp(join(tmpdir(), "scaffold-journal-remove-outside-"));
     try {
       await rm(terminalRoot, { force: true, recursive: true });
-      await symlink(
-        outside,
-        terminalRoot,
-        process.platform === "win32" ? "junction" : "dir"
-      );
-      await assert.rejects(
-        store.remove(initial),
-        /real operation-owned directory/u
-      );
+      await symlink(outside, terminalRoot, process.platform === "win32" ? "junction" : "dir");
+      await assert.rejects(store.remove(initial), /real operation-owned directory/u);
       assert.deepEqual(await readdir(outside), []);
     } finally {
       await rm(outside, { force: true, recursive: true });
@@ -401,13 +391,10 @@ test("candidate authority is re-proved immediately before canonical publication"
           await rename(candidate, `${candidate}.owned`);
           await writeFile(candidate, "foreign late candidate\n", "utf8");
         }
-      }
+      },
     });
 
-    await assert.rejects(
-      store.create(journal),
-      /temporary identity or bytes changed/u
-    );
+    await assert.rejects(store.create(journal), /temporary identity or bytes changed/u);
     await assert.rejects(stat(path), { code: "ENOENT" });
     assert.equal(await readFile(candidate, "utf8"), "foreign late candidate\n");
     await stat(`${candidate}.owned`);
@@ -421,13 +408,13 @@ test("replace re-proves prior authority immediately before shared quarantine", a
         if (point.phase === "before-shared-quarantine") {
           await writeFile(path, "foreign in-place mutation\n", "utf8");
         }
-      }
+      },
     });
     const initial = await store.create(journal);
 
     await assert.rejects(
       store.replace(initial, journalWithOperationState(journal, "publishing")),
-      /identity or bytes changed/u
+      /identity or bytes changed/u,
     );
     assert.equal(await readFile(path, "utf8"), "foreign in-place mutation\n");
     await stat(`${path}.tmp`);
@@ -442,7 +429,7 @@ test("remove re-proves prior authority immediately before shared quarantine", as
           await rename(path, `${path}.owned`);
           await writeFile(path, "foreign removal replacement\n", "utf8");
         }
-      }
+      },
     });
     const initial = await store.create(journal);
 
@@ -470,7 +457,7 @@ test("shared rename syncs destination before source", async () => {
             recording = false;
           }
         }
-      }
+      },
     });
     const initial = await store.create(journal);
     syncs.length = 0;
@@ -495,7 +482,7 @@ test("post-removal failure stabilizes to a durable empty slot", async () => {
         if (fail && point.phase === "before-final-directory-sync") {
           throw new Error("remove commit then throw");
         }
-      }
+      },
     });
     const initial = await store.create(journal);
     fail = true;
@@ -503,7 +490,7 @@ test("post-removal failure stabilizes to a durable empty slot", async () => {
     await assert.rejects(store.remove(initial), /remove commit then throw/u);
     await assert.rejects(store.read(), /must be stabilized/u);
     assert.deepEqual(await store.stabilizeForReconciliation(), {
-      outcome: "committed"
+      outcome: "committed",
     });
   });
 });
@@ -516,20 +503,14 @@ test("stabilization keeps mutation ambiguity sticky when durability is unproven"
         if (point.phase === "after-canonical-synced") {
           throw new Error("publication result ambiguous");
         }
-        if (
-          stabilizationFails &&
-          point.phase === "before-reconciliation-directory-sync"
-        ) {
+        if (stabilizationFails && point.phase === "before-reconciliation-directory-sync") {
           throw new Error("reconciliation durability failed");
         }
-      }
+      },
     });
     await assert.rejects(store.create(journal), /publication result ambiguous/u);
     stabilizationFails = true;
-    await assert.rejects(
-      store.stabilizeForReconciliation(),
-      /reconciliation durability failed/u
-    );
+    await assert.rejects(store.stabilizeForReconciliation(), /reconciliation durability failed/u);
     await assert.rejects(store.read(), /must be stabilized/u);
   });
 });
@@ -539,7 +520,7 @@ test("rejects an invalid journal before creating transaction evidence", async ()
     const store = new NodeScaffoldJournalStore(root, assertSchema, scaffoldTransactionArtifacts);
     await assert.rejects(
       store.create({ schemaVersion: 1, state: "PREPARED" }),
-      /does not satisfy the released contract/u
+      /does not satisfy the released contract/u,
     );
     await assert.rejects(stat(path), { code: "ENOENT" });
     assert.ok(!(await readdir(state)).includes("scaffolding-transaction.json.tmp"));
@@ -551,15 +532,12 @@ test("strict directory durability failure remains sticky", async () => {
     const store = new NodeScaffoldJournalStore(root, assertSchema, scaffoldTransactionArtifacts, {
       syncDirectoryStrictly: async () => {
         throw new Error("strict directory durability unsupported");
-      }
+      },
     });
-    await assert.rejects(
-      store.create(journal),
-      /strict directory durability unsupported/u
-    );
+    await assert.rejects(store.create(journal), /strict directory durability unsupported/u);
     await assert.rejects(
       store.stabilizeForReconciliation(),
-      /strict directory durability unsupported/u
+      /strict directory durability unsupported/u,
     );
     await assert.rejects(store.read(), /must be stabilized/u);
   });
@@ -573,13 +551,10 @@ test("transition residue keeps ambiguity sticky after a durable observation", as
         if (point.phase === "after-canonical-synced") {
           throw new Error("durable create result");
         }
-      }
+      },
     });
     await assert.rejects(store.create(journal), /durable create result/u);
-    assert.equal(
-      (await store.stabilizeForReconciliation()).outcome,
-      "recovery-required"
-    );
+    assert.equal((await store.stabilizeForReconciliation()).outcome, "recovery-required");
     await rename(candidate, `${candidate}.externally-moved`);
     await assert.rejects(store.read(), /must be stabilized/u);
   });
@@ -597,13 +572,13 @@ test("replace commit-then-throw exposes committed after clean retirement", async
         ) {
           throw new Error("replace commit then throw");
         }
-      }
+      },
     });
     const initial = await store.create(journal);
     replaceActive = true;
     await assert.rejects(
       store.replace(initial, journalWithOperationState(journal, "publishing")),
-      /replace commit then throw/u
+      /replace commit then throw/u,
     );
     const observation = await store.stabilizeForReconciliation();
     assert.equal(observation.outcome, "committed");
@@ -616,12 +591,16 @@ test("bounds cleanup-residue enumeration before whole-directory allocation", asy
   try {
     const parent = join(root, "managed");
     await mkdir(parent);
-    await Promise.all(Array.from({ length: 1025 }, (_, index) =>
-      writeFile(join(parent, "entry-" + index), "")));
-    await assert.rejects(assertNoOwnedCleanupResidue(root, {
-      planDigest: "sha256:" + "0".repeat(64),
-      operations: [{ id: "fixture", path: "managed/output.txt" }]
-    }), /too many entries/u);
+    await Promise.all(
+      Array.from({ length: 1025 }, (_, index) => writeFile(join(parent, "entry-" + index), "")),
+    );
+    await assert.rejects(
+      assertNoOwnedCleanupResidue(root, {
+        planDigest: "sha256:" + "0".repeat(64),
+        operations: [{ id: "fixture", path: "managed/output.txt" }],
+      }),
+      /too many entries/u,
+    );
   } finally {
     await rm(root, { force: true, recursive: true });
   }
@@ -631,8 +610,8 @@ test("bounded state scan fails closed after 1024 entries", async () => {
   await withStore(async ({ root, state }) => {
     await Promise.all(
       Array.from({ length: 1025 }, (_, index) =>
-        writeFile(join(state, `entry-${String(index).padStart(4, "0")}`), "")
-      )
+        writeFile(join(state, `entry-${String(index).padStart(4, "0")}`), ""),
+      ),
     );
     const store = new NodeScaffoldJournalStore(root, assertSchema, scaffoldTransactionArtifacts);
     await assert.rejects(store.read(), /too many entries/u);
@@ -641,9 +620,7 @@ test("bounded state scan fails closed after 1024 entries", async () => {
 
 test("historical document quarantine residue blocks scaffolding", async () => {
   await withStore(async ({ journal, root, state }) => {
-    await mkdir(
-      join(state, "scaffolding-transaction.json.document-quarantine.legacy")
-    );
+    await mkdir(join(state, "scaffolding-transaction.json.document-quarantine.legacy"));
     const store = new NodeScaffoldJournalStore(root, assertSchema, scaffoldTransactionArtifacts);
     await assert.rejects(store.create(journal), /reconciled before mutation/u);
   });

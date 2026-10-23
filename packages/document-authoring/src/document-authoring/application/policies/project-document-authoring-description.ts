@@ -1,17 +1,22 @@
 import { compareBinaryStrings } from "../../../binary-string-comparator.js";
 import { resolvedArtifactOwnerIds } from "../model/validated-document-authoring-profile.js";
-import type { DocumentAuthoringProfileDescriptionV2, DocumentAuthoringProfileDescriptionV3, DocumentAuthoringTypeDescriptionV2, DocumentReachabilityStrategyV2 } from "../model/document-authoring-profile-description.js";
-import type { DocumentIdentityStrategy, DocumentPlacementStrategy } from "../model/document-planning.js";
-import { documentAuthoringProfileSemanticDigest, documentAuthoringProfileSemanticDigestV3 } from "./document-authoring-semantic-digests.js";
+import type {
+  DocumentAuthoringProfileDescriptionV2,
+  DocumentAuthoringProfileDescriptionV3,
+  DocumentAuthoringTypeDescriptionV2,
+  DocumentReachabilityStrategyV2,
+} from "../model/document-authoring-profile-description.js";
+import type {
+  DocumentIdentityStrategy,
+  DocumentPlacementStrategy,
+} from "../model/document-planning.js";
+import {
+  documentAuthoringProfileSemanticDigest,
+  documentAuthoringProfileSemanticDigestV3,
+} from "./document-authoring-semantic-digests.js";
 import { DocumentCatalogError } from "../model/document-catalog-error.js";
 import type { LoadedDescriptionAuthority } from "../model/document-description-authority.js";
-const BASE_REQUIRED_METADATA = Object.freeze([
-  "id",
-  "type",
-  "status",
-  "owner",
-  "summary"
-]);
+const BASE_REQUIRED_METADATA = Object.freeze(["id", "type", "status", "owner", "summary"]);
 
 function freezeIdentity(identity: DocumentIdentityStrategy): DocumentIdentityStrategy {
   return identity.format === "qualified"
@@ -19,8 +24,8 @@ function freezeIdentity(identity: DocumentIdentityStrategy): DocumentIdentityStr
         ...identity,
         grammar: Object.freeze({
           ...identity.grammar,
-          prefixSegments: Object.freeze([...identity.grammar.prefixSegments])
-        })
+          prefixSegments: Object.freeze([...identity.grammar.prefixSegments]),
+        }),
       })
     : Object.freeze({ ...identity });
 }
@@ -30,95 +35,105 @@ function freezePlacement(placement: DocumentPlacementStrategy): DocumentPlacemen
     ? Object.freeze({
         ...placement,
         allowedRoots: Object.freeze([...placement.allowedRoots]),
-        requiredSegmentsInOrder: Object.freeze([
-          ...placement.requiredSegmentsInOrder
-        ])
+        requiredSegmentsInOrder: Object.freeze([...placement.requiredSegmentsInOrder]),
       })
     : Object.freeze({ ...placement });
 }
 
 export function freezeReachability(value: unknown): DocumentReachabilityStrategyV2 {
   if (value === null || typeof value !== "object" || Array.isArray(value) || !("kind" in value)) {
-    throw new DocumentCatalogError("DOCUMENT_CATALOG_INPUT_INVALID", "Document reachability strategy is invalid.");
+    throw new DocumentCatalogError(
+      "DOCUMENT_CATALOG_INPUT_INVALID",
+      "Document reachability strategy is invalid.",
+    );
   }
   const keys = Object.keys(value).toSorted().join(",");
-  if (value.kind === "manual-fixed-index" && keys === "indexPath,kind" &&
-    "indexPath" in value && typeof value.indexPath === "string") {
+  if (
+    value.kind === "manual-fixed-index" &&
+    keys === "indexPath,kind" &&
+    "indexPath" in value &&
+    typeof value.indexPath === "string"
+  ) {
     return Object.freeze({ kind: value.kind, indexPath: value.indexPath });
   }
-  if (value.kind === "manual-colocated-index" && keys === "indexBasename,kind,pathPrefix" &&
-    "indexBasename" in value && value.indexBasename === "README.md" &&
-    "pathPrefix" in value && value.pathPrefix === "before-required-segments") {
-    return Object.freeze({ kind: value.kind, indexBasename: value.indexBasename, pathPrefix: value.pathPrefix });
+  if (
+    value.kind === "manual-colocated-index" &&
+    keys === "indexBasename,kind,pathPrefix" &&
+    "indexBasename" in value &&
+    value.indexBasename === "README.md" &&
+    "pathPrefix" in value &&
+    value.pathPrefix === "before-required-segments"
+  ) {
+    return Object.freeze({
+      kind: value.kind,
+      indexBasename: value.indexBasename,
+      pathPrefix: value.pathPrefix,
+    });
   }
-  if (value.kind === "not-required" && keys === "kind,reason" &&
-    "reason" in value && typeof value.reason === "string") {
+  if (
+    value.kind === "not-required" &&
+    keys === "kind,reason" &&
+    "reason" in value &&
+    typeof value.reason === "string"
+  ) {
     return Object.freeze({ kind: value.kind, reason: value.reason });
   }
-  throw new DocumentCatalogError("DOCUMENT_CATALOG_INPUT_INVALID", "Document reachability strategy is invalid.");
+  throw new DocumentCatalogError(
+    "DOCUMENT_CATALOG_INPUT_INVALID",
+    "Document reachability strategy is invalid.",
+  );
 }
 
 function describeType(
   artifactType: Record<string, unknown>,
   allowedOwnerIds: readonly string[],
-  requiredMetadata: readonly string[]
+  requiredMetadata: readonly string[],
 ): DocumentAuthoringTypeDescriptionV2 {
   return Object.freeze({
-    allowedOwnerIds: Object.freeze(
-      [...allowedOwnerIds].toSorted(
-        compareBinaryStrings
-      )
-    ),
+    allowedOwnerIds: Object.freeze([...allowedOwnerIds].toSorted(compareBinaryStrings)),
     heading: Object.freeze({
-      ...(artifactType["heading"] as { kind: "id-colon-title" | "title" })
+      ...(artifactType["heading"] as { kind: "id-colon-title" | "title" }),
     }),
-    identity: freezeIdentity(
-      artifactType["identity"] as DocumentIdentityStrategy
-    ),
+    identity: freezeIdentity(artifactType["identity"] as DocumentIdentityStrategy),
     initialStatus: artifactType["initialStatus"] as string,
-    placement: freezePlacement(
-      artifactType["placement"] as DocumentPlacementStrategy
-    ),
+    placement: freezePlacement(artifactType["placement"] as DocumentPlacementStrategy),
     reachability: freezeReachability(artifactType["reachability"]),
     requiredMetadata,
     template: Object.freeze({
       ...(artifactType["template"] as {
         kind: "fenced-markdown-body";
         path: string;
-      })
+      }),
     }),
-    type: artifactType["type"] as string
+    type: artifactType["type"] as string,
   });
 }
 
 export function projectDescription(
-  authority: LoadedDescriptionAuthority
+  authority: LoadedDescriptionAuthority,
 ): DocumentAuthoringProfileDescriptionV2 | DocumentAuthoringProfileDescriptionV3 {
   const { metadata, ownerCatalog, profile, profileEvidence } = authority;
-  const ownerIds = Object.freeze(
-    [...ownerCatalog.ids].toSorted(compareBinaryStrings)
-  );
+  const ownerIds = Object.freeze([...ownerCatalog.ids].toSorted(compareBinaryStrings));
   const ownerSet = new Set(ownerIds);
   for (const artifactType of profile.authoring.artifactTypes) {
     const allowedOwnerIds = resolvedArtifactOwnerIds(profile, artifactType);
     if (allowedOwnerIds === undefined) {
       throw new DocumentCatalogError(
         "DOCUMENT_CATALOG_INPUT_INVALID",
-        `Profile v${profile.schemaVersion} artifact type does not declare authoring owners: ${artifactType.type}.`
+        `Profile v${profile.schemaVersion} artifact type does not declare authoring owners: ${artifactType.type}.`,
       );
     }
     if (allowedOwnerIds.some((owner) => !ownerSet.has(owner))) {
       throw new DocumentCatalogError(
         "DOCUMENT_CATALOG_INPUT_INVALID",
-        `Profile v${profile.schemaVersion} artifact type contains an owner absent from the owner catalog: ${artifactType.type}.`
+        `Profile v${profile.schemaVersion} artifact type contains an owner absent from the owner catalog: ${artifactType.type}.`,
       );
     }
   }
   const requiredMetadata = Object.freeze(
-    [...new Set([
-      ...BASE_REQUIRED_METADATA,
-      ...(metadata.requiredProperties ?? [])
-    ])].toSorted(compareBinaryStrings)
+    [...new Set([...BASE_REQUIRED_METADATA, ...(metadata.requiredProperties ?? [])])].toSorted(
+      compareBinaryStrings,
+    ),
   );
   const types = Object.freeze(
     profile.authoring.artifactTypes
@@ -127,12 +142,12 @@ export function projectDescription(
         if (allowedOwnerIds === undefined) {
           throw new DocumentCatalogError(
             "DOCUMENT_CATALOG_INPUT_INVALID",
-            `Profile v${profile.schemaVersion} artifact type does not declare authoring owners: ${artifactType.type}.`
+            `Profile v${profile.schemaVersion} artifact type does not declare authoring owners: ${artifactType.type}.`,
           );
         }
         return describeType(artifactType, allowedOwnerIds, requiredMetadata);
       })
-      .toSorted((left, right) => compareBinaryStrings(left.type, right.type))
+      .toSorted((left, right) => compareBinaryStrings(left.type, right.type)),
   );
   const templates = Object.freeze(
     types.map((type) => {
@@ -140,11 +155,11 @@ export function projectDescription(
       if (evidence === undefined) {
         throw new DocumentCatalogError(
           "DOCUMENT_CATALOG_AUTHORITY_UNAVAILABLE",
-          `Document template evidence is unavailable: ${type.template.path}.`
+          `Document template evidence is unavailable: ${type.template.path}.`,
         );
       }
       return Object.freeze({ evidence, type: type.type });
-    })
+    }),
   );
   const common = Object.freeze({
     authority: Object.freeze({
@@ -154,7 +169,7 @@ export function projectDescription(
         : { metadataSidecar: authority.sidecarEvidence }),
       ownerCatalog: ownerCatalog.evidence,
       profile: profileEvidence,
-      templates
+      templates,
     }),
     authorityPaths: Object.freeze({
       metadataSchema: metadata.evidence.path,
@@ -162,7 +177,7 @@ export function projectDescription(
         ? {}
         : { metadataSidecar: authority.sidecarEvidence.path }),
       ownerCatalog: ownerCatalog.evidence.path,
-      profile: profileEvidence.path
+      profile: profileEvidence.path,
     }),
     catalog: Object.freeze({
       collections: Object.freeze(
@@ -172,52 +187,46 @@ export function projectDescription(
               collection.kind === "frontmatter-readme"
                 ? {
                     ...collection,
-                    roots: Object.freeze(
-                      [...collection.roots].toSorted(compareBinaryStrings)
-                    )
+                    roots: Object.freeze([...collection.roots].toSorted(compareBinaryStrings)),
                   }
-                : { ...collection }
-            )
+                : { ...collection },
+            ),
           )
           .toSorted((left, right) =>
             compareBinaryStrings(
               left.kind === "markdown-tree" ? left.root : left.roots.join("/"),
-              right.kind === "markdown-tree" ? right.root : right.roots.join("/")
-            )
-          )
+              right.kind === "markdown-tree" ? right.root : right.roots.join("/"),
+            ),
+          ),
       ),
       excludedPrefixes: Object.freeze(
-        [...(profile.catalog.excludedPrefixes ?? [])].toSorted(compareBinaryStrings)
-      )
+        [...(profile.catalog.excludedPrefixes ?? [])].toSorted(compareBinaryStrings),
+      ),
     }),
     ownerIds,
     projectId: profile.projectId,
-    types
+    types,
   });
   if (profile.schemaVersion === 2) {
-    const withoutDigest: Omit<
-      DocumentAuthoringProfileDescriptionV2,
-      "semanticDigest"
-    > = Object.freeze({
-      ...common,
-      profileSchemaVersion: 2,
-      schemaVersion: 2
-    });
+    const withoutDigest: Omit<DocumentAuthoringProfileDescriptionV2, "semanticDigest"> =
+      Object.freeze({
+        ...common,
+        profileSchemaVersion: 2,
+        schemaVersion: 2,
+      });
     return Object.freeze({
       ...withoutDigest,
-      semanticDigest: documentAuthoringProfileSemanticDigest(withoutDigest)
+      semanticDigest: documentAuthoringProfileSemanticDigest(withoutDigest),
     });
   }
-  const withoutDigest: Omit<
-    DocumentAuthoringProfileDescriptionV3,
-    "semanticDigest"
-  > = Object.freeze({
-    ...common,
-    profileSchemaVersion: 3,
-    schemaVersion: 3
-  });
+  const withoutDigest: Omit<DocumentAuthoringProfileDescriptionV3, "semanticDigest"> =
+    Object.freeze({
+      ...common,
+      profileSchemaVersion: 3,
+      schemaVersion: 3,
+    });
   return Object.freeze({
     ...withoutDigest,
-    semanticDigest: documentAuthoringProfileSemanticDigestV3(withoutDigest)
+    semanticDigest: documentAuthoringProfileSemanticDigestV3(withoutDigest),
   });
 }

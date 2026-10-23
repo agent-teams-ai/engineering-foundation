@@ -57,6 +57,9 @@ export async function preparePackages() {
   }
 }
 
-if (process.argv[1] !== undefined && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {
+if (
+  process.argv[1] !== undefined &&
+  pathToFileURL(resolve(process.argv[1])).href === import.meta.url
+) {
   await preparePackages();
 }

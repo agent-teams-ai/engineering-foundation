@@ -28,7 +28,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function exactKeys(value: unknown, expected: readonly string[], label: string): asserts value is Record<string, unknown> {
+function exactKeys(
+  value: unknown,
+  expected: readonly string[],
+  label: string,
+): asserts value is Record<string, unknown> {
   if (
     !isRecord(value) ||
     Object.keys(value).toSorted().join("\0") !== [...expected].toSorted().join("\0")
@@ -41,10 +45,14 @@ function parseRelease(value: unknown, index: number): ChangesetRelease {
   const label = `Changesets release[${index}]`;
   exactKeys(value, ["changesets", "name", "newVersion", "oldVersion", "type"], label);
   if (
-    typeof value.name !== "string" || value.name === "" ||
-    typeof value.type !== "string" || !["major", "minor", "patch", "none"].includes(value.type) ||
-    typeof value.oldVersion !== "string" || parsePublishedVersion(value.oldVersion) === undefined ||
-    typeof value.newVersion !== "string" || parsePublishedVersion(value.newVersion) === undefined ||
+    typeof value.name !== "string" ||
+    value.name === "" ||
+    typeof value.type !== "string" ||
+    !["major", "minor", "patch", "none"].includes(value.type) ||
+    typeof value.oldVersion !== "string" ||
+    parsePublishedVersion(value.oldVersion) === undefined ||
+    typeof value.newVersion !== "string" ||
+    parsePublishedVersion(value.newVersion) === undefined ||
     !Array.isArray(value.changesets) ||
     value.changesets.some((entry) => typeof entry !== "string" || entry === "") ||
     new Set(value.changesets).size !== value.changesets.length
@@ -68,7 +76,9 @@ export function plannedReleaseVersions(value: unknown): Readonly<Record<string, 
   if (new Set(releases.map(({ name }) => name)).size !== releases.length) {
     fail("Changesets release plan contains duplicate package names.");
   }
-  return Object.freeze(Object.fromEntries(releases.map(({ name, newVersion }) => [name, newVersion])));
+  return Object.freeze(
+    Object.fromEntries(releases.map(({ name, newVersion }) => [name, newVersion])),
+  );
 }
 
 function executeChangesetStatus(cwd: string, outputPath: string): Promise<void> {

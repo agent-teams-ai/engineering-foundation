@@ -8,19 +8,17 @@ import { Ajv2020 } from "ajv/dist/2020.js";
 import {
   canonicalCallerWorkflow,
   canonicalManagedState,
-  describeCanonicalConsumerAssets
+  describeCanonicalConsumerAssets,
 } from "../dist/consumer-integration/index.js";
 import {
   CANONICAL_CALLER_WORKFLOW_TEMPLATE,
   canonicalConsumerIntegrationJson,
   canonicalDocsScriptsDigest,
   canonicalManagedRoute,
-  digestBytes
+  digestBytes,
 } from "../dist/consumer-integration/application/policies/consumer-integration-assets.js";
-import { projectManagedSuccessorState } from
-  "../dist/consumer-integration/application/policies/managed-successor-state.js";
-import { loadPackedManagedRuntimePolicy } from
-  "../dist/consumer-integration/adapters/unselected-cohort-v3-loader.js";
+import { projectManagedSuccessorState } from "../dist/consumer-integration/application/policies/managed-successor-state.js";
+import { loadPackedManagedRuntimePolicy } from "../dist/consumer-integration/adapters/unselected-cohort-v3-loader.js";
 
 const digest = (character) => `sha256:${character.repeat(64)}`;
 const integrity = (character) => `sha512-${character.repeat(86)}==`;
@@ -30,7 +28,7 @@ const [cohortSchema, managedStateSchema, cohortV3Schema, managedStateV3Schema] =
   readFile(new URL("qualified-docs-cohort/v2.schema.json", schemaRoot), "utf8"),
   readFile(new URL("docs-consumer-managed-state/v2.schema.json", schemaRoot), "utf8"),
   readFile(new URL("qualified-docs-cohort/v3.schema.json", schemaRoot), "utf8"),
-  readFile(new URL("docs-consumer-managed-state/v3.schema.json", schemaRoot), "utf8")
+  readFile(new URL("docs-consumer-managed-state/v3.schema.json", schemaRoot), "utf8"),
 ]);
 const ajv = new Ajv2020({ allErrors: true, strict: true });
 ajv.addSchema(JSON.parse(cohortSchema));
@@ -44,20 +42,20 @@ const workflow = Object.freeze({
   repository: "agent-teams-ai/.github",
   path: ".github/workflows/docs-protocol-check.yml",
   revision: "1".repeat(40),
-  blobSha: "2".repeat(40)
+  blobSha: "2".repeat(40),
 });
 
 const assetCoordinates = Object.freeze({
   skillDigest: digest("3"),
   callerWorkflowDigest: digest("4"),
   assetCatalogDigest: digest("5"),
-  transitionCatalogDigest: digest("6")
+  transitionCatalogDigest: digest("6"),
 });
 
 const managedAssets = Object.freeze({
   ...assetCoordinates,
   agentsRouteDigest: digest("7"),
-  docsScriptsDigest: digest("8")
+  docsScriptsDigest: digest("8"),
 });
 
 function desiredV1() {
@@ -66,7 +64,7 @@ function desiredV1() {
     repository: {
       provider: "github",
       id: "123456789",
-      nameWithOwner: "agent-teams-ai/docs-sandbox"
+      nameWithOwner: "agent-teams-ai/docs-sandbox",
     },
     integrationRoot: ".",
     packageManager: "pnpm",
@@ -85,7 +83,7 @@ function desiredV1() {
       rollbackTo: ["docs-2026-09-02-stable1"],
       packages: {
         docsProtocol: { version: "0.4.0", integrity: integrity("A") },
-        engineeringFoundation: { version: "0.19.0", integrity: integrity("B") }
+        engineeringFoundation: { version: "0.19.0", integrity: integrity("B") },
       },
       workflow,
       assets: assetCoordinates,
@@ -93,9 +91,9 @@ function desiredV1() {
       runtime: {
         node: ">=24.18.0 <25",
         pnpm: ">=11.17.0 <12",
-        runtimeClosureDigest: digest("b")
-      }
-    }
+        runtimeClosureDigest: digest("b"),
+      },
+    },
   };
 }
 
@@ -106,7 +104,7 @@ function desiredV3() {
     repository: {
       provider: "github",
       id: "123456789",
-      nameWithOwner: "agent-teams-ai/docs-sandbox"
+      nameWithOwner: "agent-teams-ai/docs-sandbox",
     },
     integrationRoot: ".",
     packageManager: "pnpm",
@@ -116,7 +114,7 @@ function desiredV3() {
     managedStatePath: "architecture/foundation/docs-protocol-managed-state.json",
     qualification: {
       contractPath: "architecture/foundation/docs-protocol-qualification.json",
-      gateCommand: "pnpm docs:protocol:check"
+      gateCommand: "pnpm docs:protocol:check",
     },
     cohort: {
       schemaVersion: 2,
@@ -132,7 +130,7 @@ function desiredV3() {
         documentAuthoring: packageCoordinate,
         docsProtocol: packageCoordinate,
         docsProtocolAgentTeams: packageCoordinate,
-        engineeringFoundation: packageCoordinate
+        engineeringFoundation: packageCoordinate,
       },
       workflow,
       assets: assetCoordinates,
@@ -140,9 +138,9 @@ function desiredV3() {
       runtime: {
         node: ">=24.18.0 <25",
         pnpm: ">=11.17.0 <12",
-        runtimeClosureDigest: digest("e")
-      }
-    }
+        runtimeClosureDigest: digest("e"),
+      },
+    },
   };
 }
 
@@ -154,7 +152,7 @@ function desiredV4() {
     repository: {
       provider: "github",
       id: "123456789",
-      nameWithOwner: "agent-teams-ai/docs-sandbox"
+      nameWithOwner: "agent-teams-ai/docs-sandbox",
     },
     integrationRoot: ".",
     packageManager: "pnpm",
@@ -164,7 +162,7 @@ function desiredV4() {
     managedStatePath: "architecture/foundation/docs-protocol-managed-state.json",
     qualification: {
       contractPath: "architecture/foundation/docs-protocol-qualification.json",
-      gateCommand: "pnpm docs:protocol:check"
+      gateCommand: "pnpm docs:protocol:check",
     },
     cohort: {
       schemaVersion: 3,
@@ -181,32 +179,39 @@ function desiredV4() {
         documentAuthoring: packageCoordinate,
         docsProtocol: packageCoordinate,
         docsProtocolAgentTeams: packageCoordinate,
-        engineeringFoundation: packageCoordinate
+        engineeringFoundation: packageCoordinate,
       },
       workflow,
       assets: assetCoordinates,
-      schemas: { consumerIntegration: 4, managedState: 3, qualificationReceipt: 1, docsProtocol: 1 },
+      schemas: {
+        consumerIntegration: 4,
+        managedState: 3,
+        qualificationReceipt: 1,
+        docsProtocol: 1,
+      },
       runtime: {
         policy: {
           id: packedManagedPolicy.policyId,
           version: packedManagedPolicy.policyVersion,
-          digest: packedManagedPolicy.sourceDigest
+          digest: packedManagedPolicy.sourceDigest,
         },
         selectedLane: "node-26-managed-qualified",
         node: lane.node,
         pnpm: packedManagedPolicy.pnpm,
         qualificationRuntime: lane.qualificationRuntime,
-        runtimeClosure: { domain: "agent-teams.docs-runtime-closure/v2", digest: digest("2") }
-      }
-    }
+        runtimeClosure: { domain: "agent-teams.docs-runtime-closure/v2", digest: digest("2") },
+      },
+    },
   };
 }
 
 function successorAssets() {
   return {
     ...assetCoordinates,
-    agentsRouteDigest: digestBytes(Buffer.from(canonicalManagedRoute(desiredV4().skillPath), "utf8")),
-    docsScriptsDigest: canonicalDocsScriptsDigest(desiredV4().profilePath)
+    agentsRouteDigest: digestBytes(
+      Buffer.from(canonicalManagedRoute(desiredV4().skillPath), "utf8"),
+    ),
+    docsScriptsDigest: canonicalDocsScriptsDigest(desiredV4().profilePath),
   };
 }
 
@@ -222,12 +227,14 @@ test("renders managed-state v2 from only an explicit profile v3 and five-package
   const serialized = canonicalManagedState(desired, managedAssets);
   const state = JSON.parse(serialized);
   const { stateDigest, ...body } = state;
-  const expectedStateDigest = `sha256:${createHash("sha256").update(
-    canonicalConsumerIntegrationJson({
-      domain: "agent-teams.docs-protocol.managed-state/v2",
-      body
-    })
-  ).digest("hex")}`;
+  const expectedStateDigest = `sha256:${createHash("sha256")
+    .update(
+      canonicalConsumerIntegrationJson({
+        domain: "agent-teams.docs-protocol.managed-state/v2",
+        body,
+      }),
+    )
+    .digest("hex")}`;
 
   assert.equal(serialized.endsWith("\n"), true);
   assert.equal(state.schemaVersion, 2);
@@ -236,12 +243,12 @@ test("renders managed-state v2 from only an explicit profile v3 and five-package
     "docsProtocolAgentTeams",
     "documentAuthoring",
     "engineeringFoundation",
-    "repositoryMutation"
+    "repositoryMutation",
   ]);
   assert.deepEqual(state.schemas, {
     consumerIntegration: 3,
     docsProtocol: 1,
-    managedState: 2
+    managedState: 2,
   });
   assert.equal(stateDigest, expectedStateDigest);
   assert.equal(serialized, `${canonicalConsumerIntegrationJson(state)}\n`);
@@ -259,22 +266,32 @@ test("canonical profile4 state3 remains identical to the existing successor proj
   const state = JSON.parse(serialized);
   assert.equal(validateManagedStateV3(state), true, JSON.stringify(validateManagedStateV3.errors));
   const { stateDigest, ...body } = state;
-  assert.equal(stateDigest, digestBytes(Buffer.from(canonicalConsumerIntegrationJson({
-    domain: "agent-teams.docs-protocol.managed-state/v3",
-    body
-  }), "utf8")));
+  assert.equal(
+    stateDigest,
+    digestBytes(
+      Buffer.from(
+        canonicalConsumerIntegrationJson({
+          domain: "agent-teams.docs-protocol.managed-state/v3",
+          body,
+        }),
+        "utf8",
+      ),
+    ),
+  );
   assert.equal(serialized, `${canonicalConsumerIntegrationJson(state)}\n`);
   assert.throws(
     () => projectManagedSuccessorState(desired, { ...assets, skillDigest: digest("e") }),
-    /Successor state assets do not bind the cohort/u
+    /Successor state assets do not bind the cohort/u,
   );
 });
 
 test("uses the same canonical workflow and asset description for cohort bindings v1 and v2", () => {
   const v1 = desiredV1().cohort;
   const v2 = desiredV3().cohort;
-  const expectedWorkflow = CANONICAL_CALLER_WORKFLOW_TEMPLATE
-    .replace("{{REUSABLE_WORKFLOW_REPOSITORY}}", workflow.repository)
+  const expectedWorkflow = CANONICAL_CALLER_WORKFLOW_TEMPLATE.replace(
+    "{{REUSABLE_WORKFLOW_REPOSITORY}}",
+    workflow.repository,
+  )
     .replace("{{REUSABLE_WORKFLOW_PATH}}", workflow.path)
     .replace("{{REUSABLE_WORKFLOW_REVISION}}", workflow.revision);
 

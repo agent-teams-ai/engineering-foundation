@@ -7,10 +7,9 @@ export function configurationInputError(message: string): never {
     code: "JSON_SCHEMA_RELEASE_CONFIG_INVALID",
     message,
     phase: "json-schema-release-config",
-    retryable: false
+    retryable: false,
   });
 }
-
 
 export function assertConfigurationRepositoryPath(path: string): void {
   assertRepositoryRelativePath(path, "json-schema-release-config");

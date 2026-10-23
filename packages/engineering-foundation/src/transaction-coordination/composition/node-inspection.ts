@@ -5,16 +5,21 @@ import { inspectSchema6TransactionStatus } from "../adapters/node/schema6-transa
 import {
   createFoundationTransactionInspection as createInspection,
   type FoundationTransactionInspection,
-  type InstalledFoundationInspectionIdentity
+  type InstalledFoundationInspectionIdentity,
 } from "../inspection.js";
 import type { FoundationTransactionInspectors } from "../application/ports/foundation-transaction-inspection.js";
 
 export function createNodeFoundationTransactionInspection(
   assertSchema: Parameters<typeof inspectLegacyDocumentTransaction>[1],
-  scaffolding: Pick<FoundationTransactionInspectors, "legacyScaffoldingJournal" | "legacyScaffoldingEnvelope" | "currentScaffolding">
+  scaffolding: Pick<
+    FoundationTransactionInspectors,
+    "legacyScaffoldingJournal" | "legacyScaffoldingEnvelope" | "currentScaffolding"
+  >,
 ) {
   return {
-    createFoundationTransactionInspection(installed: InstalledFoundationInspectionIdentity): FoundationTransactionInspection {
+    createFoundationTransactionInspection(
+      installed: InstalledFoundationInspectionIdentity,
+    ): FoundationTransactionInspection {
       return createInspection(installed, {
         legacyScaffoldingJournal: scaffolding.legacyScaffoldingJournal,
         legacyScaffoldingEnvelope: scaffolding.legacyScaffoldingEnvelope,
@@ -22,8 +27,8 @@ export function createNodeFoundationTransactionInspection(
         document: inspectDocumentTransactionStatus,
         knownFile: inspectKnownFileTransactionStatus,
         currentScaffolding: scaffolding.currentScaffolding,
-        schema6: inspectSchema6TransactionStatus
+        schema6: inspectSchema6TransactionStatus,
       });
-    }
+    },
   };
 }

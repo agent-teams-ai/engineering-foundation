@@ -15,7 +15,11 @@ export interface FindingsBaselinePolicy {
 
 /** Observes the current findings of one rule namespace. */
 export interface FindingsProducer {
-  observe(input: { readonly consumerRoot: string; readonly policy: FindingsBaselinePolicy; readonly signal?: AbortSignal }): Promise<readonly Finding[]>;
+  observe(input: {
+    readonly consumerRoot: string;
+    readonly policy: FindingsBaselinePolicy;
+    readonly signal?: AbortSignal;
+  }): Promise<readonly Finding[]>;
 }
 
 export interface FindingsBaselineStore {

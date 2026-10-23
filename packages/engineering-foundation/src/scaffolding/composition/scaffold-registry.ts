@@ -4,8 +4,8 @@ import { CONFORMANCE_FIXTURE_DEFINITIONS } from "../definitions/conformance-fixt
 import { NODE_TYPESCRIPT_LIBRARY_DEFINITIONS } from "../definitions/node-typescript-library.js";
 
 export function createAuthorityScaffoldRegistry(): ScaffoldDefinitionRegistry {
-  return new ScaffoldDefinitionRegistry([
-    ...CONFORMANCE_FIXTURE_DEFINITIONS,
-    ...NODE_TYPESCRIPT_LIBRARY_DEFINITIONS
-  ], new AjvScaffoldParameterValidation());
+  return new ScaffoldDefinitionRegistry(
+    [...CONFORMANCE_FIXTURE_DEFINITIONS, ...NODE_TYPESCRIPT_LIBRARY_DEFINITIONS],
+    new AjvScaffoldParameterValidation(),
+  );
 }

@@ -50,10 +50,7 @@ test("routes prerelease publications to a non-latest hermetic tag", () => {
 });
 
 test("rejects a missing package version", () => {
-  assert.throws(
-    () => registryPublicationTag(""),
-    /requires a package version/u,
-  );
+  assert.throws(() => registryPublicationTag(""), /requires a package version/u);
 });
 
 test("reconciles only a confirmed publish timeout with the exact registry archive", async () => {
@@ -76,25 +73,31 @@ test("reconciles only a confirmed publish timeout with the exact registry archiv
     }),
   });
   assert.equal(observed, true);
-  assert.equal(await exactRegistryArchiveObserved({
-    ...publication,
-    readArchive: async () => archive,
-    readVersion: async () => ({
-      name: publication.name,
-      version: publication.version,
-      dist: { integrity, shasum: "0".repeat(40) },
+  assert.equal(
+    await exactRegistryArchiveObserved({
+      ...publication,
+      readArchive: async () => archive,
+      readVersion: async () => ({
+        name: publication.name,
+        version: publication.version,
+        dist: { integrity, shasum: "0".repeat(40) },
+      }),
     }),
-  }), false);
+    false,
+  );
 
   let observationCalls = 0;
-  assert.equal(await publishWithExactEffectReconciliation({
-    ...publication,
-    observe: async () => {
-      observationCalls += 1;
-      return true;
-    },
-    publish: async () => {},
-  }), "published");
+  assert.equal(
+    await publishWithExactEffectReconciliation({
+      ...publication,
+      observe: async () => {
+        observationCalls += 1;
+        return true;
+      },
+      publish: async () => {},
+    }),
+    "published",
+  );
   assert.equal(observationCalls, 0);
   const result = await publishWithExactEffectReconciliation({
     ...publication,
@@ -167,8 +170,7 @@ test("seeds distinct packages concurrently while serializing package versions", 
 
   assert.equal(maximumActiveCommands, 2);
   assert.ok(
-    events.indexOf("end:publish:0-alpha@1.0.0.tgz") <
-      events.indexOf("start:pack:alpha@2.0.0"),
+    events.indexOf("end:publish:0-alpha@1.0.0.tgz") < events.indexOf("start:pack:alpha@2.0.0"),
   );
 });
 
@@ -218,8 +220,7 @@ test("retries one confirmed timeout with fresh bounded install state", async () 
   const delayed = [];
   const result = await installRegistryConsumerWithRetry({
     cleanupAttempt: async (context) => cleaned.push(context),
-    createAttempt: async (attempt) =>
-      registryInstallAttemptPaths("/registry-e2e", attempt),
+    createAttempt: async (attempt) => registryInstallAttemptPaths("/registry-e2e", attempt),
     delay: async (delayMs) => delayed.push(delayMs),
     runInstall: async (context, options) => {
       attempts.push({ context, options });
@@ -331,34 +332,46 @@ test("registry phase timing reports pass and timeout failure", async () => {
   ]);
 });
 
-test("registry seed preserves executable members without changing source manifests", { skip: process.platform === "win32" }, async t => {
-  const { mkdtemp, mkdir, writeFile, readFile, stat, rm } = await import("node:fs/promises");
-  const { tmpdir } = await import("node:os");
-  const { join } = await import("node:path");
-  const { promisify } = await import("node:util");
-  const { execFile } = await import("node:child_process");
-  const { packPackage } = await import("../scripts/registry-install-e2e.mjs");
-  const { createPnpmRunner } = await import("../scripts/pack-test-support.mjs");
-  const root = await mkdtemp(join(tmpdir(), "TEST-registry-seed-mode-"));
-  t.after(() => rm(root, { recursive: true, force: true }));
-  const source = join(root, "source");
-  await mkdir(join(source, "lib"), { recursive: true });
-  const bytes = JSON.stringify({ name: "seed-mode-fixture", version: "1.0.0", files: ["tsrs", "lib"] });
-  await writeFile(join(source, "package.json"), bytes);
-  for (const member of ["tsrs", "lib/tsc"]) { await writeFile(join(source, member), "native fixture", { mode: 0o755 }); }
-  const archive = await packPackage({ root: source, identity: "seed-mode-fixture@1.0.0" }, 0,
-    { temporaryRoot: root, runPnpm: createPnpmRunner() });
-  const extracted = join(root, "extracted");
-  await mkdir(extracted);
-  await promisify(execFile)("tar", ["-xzf", archive, "-C", extracted]);
-  for (const member of ["tsrs", "lib/tsc"]) {
-    assert.notEqual((await stat(join(extracted, "package", member))).mode & 0o111, 0);
-    assert.notEqual((await stat(join(source, member))).mode & 0o111, 0);
-  }
-  assert.equal(await readFile(join(source, "package.json"), "utf8"), bytes);
-});
+test(
+  "registry seed preserves executable members without changing source manifests",
+  { skip: process.platform === "win32" },
+  async (t) => {
+    const { mkdtemp, mkdir, writeFile, readFile, stat, rm } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const { promisify } = await import("node:util");
+    const { execFile } = await import("node:child_process");
+    const { packPackage } = await import("../scripts/registry-install-e2e.mjs");
+    const { createPnpmRunner } = await import("../scripts/pack-test-support.mjs");
+    const root = await mkdtemp(join(tmpdir(), "TEST-registry-seed-mode-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const source = join(root, "source");
+    await mkdir(join(source, "lib"), { recursive: true });
+    const bytes = JSON.stringify({
+      name: "seed-mode-fixture",
+      version: "1.0.0",
+      files: ["tsrs", "lib"],
+    });
+    await writeFile(join(source, "package.json"), bytes);
+    for (const member of ["tsrs", "lib/tsc"]) {
+      await writeFile(join(source, member), "native fixture", { mode: 0o755 });
+    }
+    const archive = await packPackage({ root: source, identity: "seed-mode-fixture@1.0.0" }, 0, {
+      temporaryRoot: root,
+      runPnpm: createPnpmRunner(),
+    });
+    const extracted = join(root, "extracted");
+    await mkdir(extracted);
+    await promisify(execFile)("tar", ["-xzf", archive, "-C", extracted]);
+    for (const member of ["tsrs", "lib/tsc"]) {
+      assert.notEqual((await stat(join(extracted, "package", member))).mode & 0o111, 0);
+      assert.notEqual((await stat(join(source, member))).mode & 0o111, 0);
+    }
+    assert.equal(await readFile(join(source, "package.json"), "utf8"), bytes);
+  },
+);
 
-test("registry executable inventory refuses its entry bound", async t => {
+test("registry executable inventory refuses its entry bound", async (t) => {
   const { seedExecutableFiles } = await import("../scripts/registry-install-e2e.mjs");
   const { tmpdir } = await import("node:os");
   const { mkdtemp, writeFile, rm } = await import("node:fs/promises");

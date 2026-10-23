@@ -3,16 +3,16 @@ import type {
   ConsumerGateBinding,
   ExecutableSpecification,
   ExecutableSpecificationCatalog,
-  ExecutableSpecificationObservation
+  ExecutableSpecificationObservation,
 } from "../model/executable-specification.js";
 import {
   EXECUTABLE_SPECIFICATION_RULES,
-  type ExecutableSpecificationRuleMetadata
+  type ExecutableSpecificationRuleMetadata,
 } from "../rules.js";
 import {
   executableSpecificationPathDeclarations,
   portableExecutableSpecificationPathIdentity,
-  portableExecutableSpecificationPathProblem
+  portableExecutableSpecificationPathProblem,
 } from "./portable-executable-specification-path.js";
 
 function diagnostic(input: {
@@ -31,7 +31,7 @@ function diagnostic(input: {
     relatedLocations: [],
     evidence: input.evidence ?? [],
     remediation: input.rule.remediation,
-    requiresArchitectureReview: input.rule.requiresArchitectureReview
+    requiresArchitectureReview: input.rule.requiresArchitectureReview,
   };
 }
 
@@ -67,17 +67,17 @@ function gateKey(binding: ConsumerGateBinding): string {
 }
 
 function specificationGates(
-  specification: ExecutableSpecification
+  specification: ExecutableSpecification,
 ): readonly (readonly [string, ConsumerGateBinding])[] {
   return [
     ...(specification.gateBindings.typeGeneration === undefined
       ? []
-      : ([['typeGeneration', specification.gateBindings.typeGeneration]] as const)),
+      : ([["typeGeneration", specification.gateBindings.typeGeneration]] as const)),
     ["property", specification.gateBindings.property],
     ["mutation", specification.gateBindings.mutation],
     ...(specification.stateModel.kind === "xstate"
       ? ([["spec-model", specification.stateModel.gateBinding]] as const)
-      : [])
+      : []),
   ];
 }
 
@@ -89,29 +89,29 @@ function generatedAndModelPaths(specification: ExecutableSpecification): readonl
           specification.stateModel.modelPath,
           specification.stateModel.adapterPath,
           specification.stateModel.tracesPath,
-          specification.stateModel.diagramPath
+          specification.stateModel.diagramPath,
         ]
-      : [])
+      : []),
   ];
 }
 
 function duplicatePathDiagnostics(
   paths: readonly string[],
-  description: string
+  description: string,
 ): readonly FoundationDiagnostic[] {
   return duplicatePaths(paths).map((path) =>
     diagnostic({
       rule: EXECUTABLE_SPECIFICATION_RULES.pathCollision,
       subject: `catalog-path:${path}`,
       path,
-      message: `${description}: ${path}.`
-    })
+      message: `${description}: ${path}.`,
+    }),
   );
 }
 
 function evaluateSpecificationTopology(
   specification: ExecutableSpecification,
-  catalogPath: string
+  catalogPath: string,
 ): readonly FoundationDiagnostic[] {
   const diagnostics: FoundationDiagnostic[] = [];
   const hasGeneratedTypes = specification.generatedTypes.length > 0;
@@ -124,36 +124,36 @@ function evaluateSpecificationTopology(
         path: catalogPath,
         message: hasGeneratedTypes
           ? "Generated type outputs require a type-generation gate binding."
-          : "A data-only specification must not declare a type-generation gate binding."
-      })
+          : "A data-only specification must not declare a type-generation gate binding.",
+      }),
     );
   }
   for (const schemaId of duplicateValues(
-    specification.generatedTypes.map((binding) => binding.schemaId)
+    specification.generatedTypes.map((binding) => binding.schemaId),
   )) {
     diagnostics.push(
       diagnostic({
         rule: EXECUTABLE_SPECIFICATION_RULES.generatedTypeBindingDuplicate,
         subject: `${specification.id}:schema:${schemaId}`,
         path: specification.generatedTypes[0]?.outputPath ?? catalogPath,
-        message: `Schema ID has more than one generated type binding: ${schemaId}.`
-      })
+        message: `Schema ID has more than one generated type binding: ${schemaId}.`,
+      }),
     );
   }
   for (const outputPath of duplicateValues(
-    specification.generatedTypes.map((binding) => binding.outputPath)
+    specification.generatedTypes.map((binding) => binding.outputPath),
   )) {
     diagnostics.push(
       diagnostic({
         rule: EXECUTABLE_SPECIFICATION_RULES.generatedTypeBindingDuplicate,
         subject: `${specification.id}:output:${outputPath}`,
         path: outputPath,
-        message: `Generated type output path is bound more than once: ${outputPath}.`
-      })
+        message: `Generated type output path is bound more than once: ${outputPath}.`,
+      }),
     );
   }
   for (const duplicate of duplicateValues(
-    specificationGates(specification).map(([, binding]) => gateKey(binding))
+    specificationGates(specification).map(([, binding]) => gateKey(binding)),
   )) {
     const [packageName = "", script = ""] = duplicate.split("\u0000");
     diagnostics.push(
@@ -161,8 +161,8 @@ function evaluateSpecificationTopology(
         rule: EXECUTABLE_SPECIFICATION_RULES.gateNotDistinct,
         subject: `${specification.id}:gate:${packageName}:${script}`,
         path: catalogPath,
-        message: `Gate script is reused by more than one evidence role: ${packageName}#${script}.`
-      })
+        message: `Gate script is reused by more than one evidence role: ${packageName}#${script}.`,
+      }),
     );
   }
   return diagnostics;
@@ -170,17 +170,19 @@ function evaluateSpecificationTopology(
 
 /** Pure topology validation. It must run before any consumer artifact inspection. */
 export function evaluateExecutableSpecificationTopology(
-  catalog: ExecutableSpecificationCatalog
+  catalog: ExecutableSpecificationCatalog,
 ): readonly FoundationDiagnostic[] {
   const diagnostics: FoundationDiagnostic[] = [];
-  for (const id of duplicateValues(catalog.specifications.map((specification) => specification.id))) {
+  for (const id of duplicateValues(
+    catalog.specifications.map((specification) => specification.id),
+  )) {
     diagnostics.push(
       diagnostic({
         rule: EXECUTABLE_SPECIFICATION_RULES.specificationIdDuplicate,
         subject: `specification:${id}`,
         path: catalog.catalogPath,
-        message: `Executable specification ID is declared more than once: ${id}.`
-      })
+        message: `Executable specification ID is declared more than once: ${id}.`,
+      }),
     );
   }
   for (const specification of catalog.specifications) {
@@ -195,15 +197,12 @@ export function evaluateExecutableSpecificationTopology(
           rule: EXECUTABLE_SPECIFICATION_RULES.pathCollision,
           subject: `catalog-path:${declaration.path}`,
           path: declaration.path,
-          message: `Executable specification path is not portable: ${declaration.path} (${portabilityProblem}).`
-        })
+          message: `Executable specification path is not portable: ${declaration.path} (${portabilityProblem}).`,
+        }),
       );
     }
   }
-  const firstDeclarationByIdentity = new Map<
-    string,
-    (typeof pathDeclarations)[number]
-  >();
+  const firstDeclarationByIdentity = new Map<string, (typeof pathDeclarations)[number]>();
   for (const declaration of pathDeclarations) {
     const identity = portableExecutableSpecificationPathIdentity(declaration.path);
     const first = firstDeclarationByIdentity.get(identity);
@@ -221,14 +220,14 @@ export function evaluateExecutableSpecificationTopology(
           rule: EXECUTABLE_SPECIFICATION_RULES.pathCollision,
           subject: `catalog-path:${declaration.path}`,
           path: declaration.path,
-          message: `Executable specification path roles collide: ${first.role}:${first.path} and ${declaration.role}:${declaration.path}.`
-        })
+          message: `Executable specification path roles collide: ${first.role}:${first.path} and ${declaration.role}:${declaration.path}.`,
+        }),
       );
     }
   }
   const schemaPaths = catalog.specifications.flatMap((specification) => specification.schemaPaths);
   const documentPaths = catalog.specifications.flatMap((specification) =>
-    specification.documents.map((document) => document.path)
+    specification.documents.map((document) => document.path),
   );
   const generatedModelPaths = catalog.specifications.flatMap(generatedAndModelPaths);
   const sourcePaths = catalog.specifications.flatMap((specification) => [
@@ -240,25 +239,17 @@ export function evaluateExecutableSpecificationTopology(
     ...specification.ownerDocs,
     ...specification.adrRefs,
     ...specification.schemaPaths,
-    ...specification.documents.map((document) => document.path)
+    ...specification.documents.map((document) => document.path),
   ]);
   diagnostics.push(
-    ...duplicatePathDiagnostics(
-      schemaPaths,
-      "Schema path is declared more than once"
-    ),
-    ...duplicatePathDiagnostics(
-      documentPaths,
-      "Document path is declared more than once"
-    ),
+    ...duplicatePathDiagnostics(schemaPaths, "Schema path is declared more than once"),
+    ...duplicatePathDiagnostics(documentPaths, "Document path is declared more than once"),
     ...duplicatePathDiagnostics(
       generatedModelPaths,
-      "Generated or executable artifact path is assigned more than once"
-    )
+      "Generated or executable artifact path is assigned more than once",
+    ),
   );
-  const sourcePathSet = new Set(
-    sourcePaths.map(portableExecutableSpecificationPathIdentity)
-  );
+  const sourcePathSet = new Set(sourcePaths.map(portableExecutableSpecificationPathIdentity));
   for (const path of [...new Set(generatedModelPaths)].toSorted()) {
     if (
       sourcePathSet.has(portableExecutableSpecificationPathIdentity(path)) ||
@@ -269,8 +260,8 @@ export function evaluateExecutableSpecificationTopology(
           rule: EXECUTABLE_SPECIFICATION_RULES.pathCollision,
           subject: `catalog-path:${path}`,
           path,
-          message: `Generated or executable artifact collides with a source, owner, ADR, schema, or document path: ${path}.`
-        })
+          message: `Generated or executable artifact collides with a source, owner, ADR, schema, or document path: ${path}.`,
+        }),
       );
     }
   }
@@ -279,7 +270,7 @@ export function evaluateExecutableSpecificationTopology(
 
 function evaluateBindings(
   specification: ExecutableSpecification,
-  observation: ExecutableSpecificationObservation
+  observation: ExecutableSpecificationObservation,
 ): readonly FoundationDiagnostic[] {
   const diagnostics: FoundationDiagnostic[] = [];
   const schemaIds = new Set(observation.jsonSchemas.schemaIds);
@@ -290,8 +281,8 @@ function evaluateBindings(
           rule: EXECUTABLE_SPECIFICATION_RULES.schemaBindingUnknown,
           subject: `${specification.id}:document:${document.path}`,
           path: document.path,
-          message: `Document binds an unknown local schema ID: ${document.schemaId}.`
-        })
+          message: `Document binds an unknown local schema ID: ${document.schemaId}.`,
+        }),
       );
     }
   }
@@ -302,8 +293,8 @@ function evaluateBindings(
           rule: EXECUTABLE_SPECIFICATION_RULES.schemaBindingUnknown,
           subject: `${specification.id}:generated-type:${binding.outputPath}`,
           path: binding.outputPath,
-          message: `Generated type binds an unknown local schema ID: ${binding.schemaId}.`
-        })
+          message: `Generated type binds an unknown local schema ID: ${binding.schemaId}.`,
+        }),
       );
     }
   }
@@ -312,7 +303,7 @@ function evaluateBindings(
 
 function evaluateGates(
   specification: ExecutableSpecification,
-  observation: ExecutableSpecificationObservation
+  observation: ExecutableSpecificationObservation,
 ): readonly FoundationDiagnostic[] {
   const diagnostics: FoundationDiagnostic[] = [];
   const gates = specificationGates(specification);
@@ -327,8 +318,8 @@ function evaluateGates(
           message:
             observed?.packageExists === true
               ? `Gate ${role} binds a missing package script: ${observed.packageName}#${observed.script}.`
-              : `Gate ${role} binds a missing workspace package: ${observed?.packageName ?? "unknown"}.`
-        })
+              : `Gate ${role} binds a missing workspace package: ${observed?.packageName ?? "unknown"}.`,
+        }),
       );
     }
   }
@@ -337,7 +328,7 @@ function evaluateGates(
 
 function evaluateSpecification(
   specification: ExecutableSpecification,
-  observation: ExecutableSpecificationObservation
+  observation: ExecutableSpecificationObservation,
 ): readonly FoundationDiagnostic[] {
   const diagnostics: FoundationDiagnostic[] = [];
   for (const path of observation.missingArtifactPaths) {
@@ -347,8 +338,8 @@ function evaluateSpecification(
         subject: `${specification.id}:artifact:${path}`,
         path,
         message: `Declared executable specification artifact is missing: ${path}.`,
-        evidence: [{ kind: "artifact-corpus-digest", value: observation.artifactDigest }]
-      })
+        evidence: [{ kind: "artifact-corpus-digest", value: observation.artifactDigest }],
+      }),
     );
   }
   for (const result of observation.jsonSchemas.fixtureResults) {
@@ -362,9 +353,9 @@ function evaluateSpecification(
           message: "JSON specification document does not conform to its declared schema.",
           evidence: [
             { kind: "schema-set-digest", value: observation.jsonSchemas.schemaSetDigest },
-            { kind: "document-corpus-digest", value: observation.jsonSchemas.fixtureCorpusDigest }
-          ]
-        })
+            { kind: "document-corpus-digest", value: observation.jsonSchemas.fixtureCorpusDigest },
+          ],
+        }),
       );
     }
   }
@@ -375,7 +366,7 @@ function evaluateSpecification(
 
 export function evaluateExecutableSpecifications(
   catalog: ExecutableSpecificationCatalog,
-  observations: readonly ExecutableSpecificationObservation[]
+  observations: readonly ExecutableSpecificationObservation[],
 ): readonly FoundationDiagnostic[] {
   const diagnostics: FoundationDiagnostic[] = [];
   for (const [index, specification] of catalog.specifications.entries()) {

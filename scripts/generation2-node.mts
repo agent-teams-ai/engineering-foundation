@@ -9,7 +9,10 @@ export const GENERATION2_NODE_ENV = "PACK_TEST_GENERATION2_NODE";
 /** The only child-process surface the test runners use: exit/error events and termination. */
 export interface TestProcess {
   once(event: "error", listener: (error: Error) => void): unknown;
-  once(event: "exit", listener: (code: number | null, signal: NodeJS.Signals | null) => void): unknown;
+  once(
+    event: "exit",
+    listener: (code: number | null, signal: NodeJS.Signals | null) => void,
+  ): unknown;
   kill(signal?: NodeJS.Signals): unknown;
 }
 
@@ -28,11 +31,16 @@ export const GENERATION2_LEGACY_TEST_FILES: readonly string[] = Object.freeze([
   "packages/docs-protocol-agent-teams/tests/consumer-integration-e2e.test.mjs",
 ]);
 
-export function partitionGeneration2Tests(files: readonly string[]): { current: string[]; legacy: string[] } {
+export function partitionGeneration2Tests(files: readonly string[]): {
+  current: string[];
+  legacy: string[];
+} {
   const legacyFiles = new Set(GENERATION2_LEGACY_TEST_FILES);
   const current: string[] = [];
   const legacy: string[] = [];
-  for (const file of files) { (legacyFiles.has(file.replaceAll("\\", "/")) ? legacy : current).push(file); }
+  for (const file of files) {
+    (legacyFiles.has(file.replaceAll("\\", "/")) ? legacy : current).push(file);
+  }
   return { current, legacy };
 }
 
@@ -54,7 +62,10 @@ export async function resolveGeneration2Node(
   if (!isAbsolute(node)) {
     throw new Error(`${GENERATION2_NODE_ENV} must be an absolute Node executable path.`);
   }
-  const { stdout } = await execFileAsync(node, ["--version"], { timeout: 30_000, windowsHide: true });
+  const { stdout } = await execFileAsync(node, ["--version"], {
+    timeout: 30_000,
+    windowsHide: true,
+  });
   const minor = generation2Minor(stdout);
   if (minor === undefined || minor < 18) {
     throw new Error(

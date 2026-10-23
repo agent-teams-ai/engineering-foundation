@@ -9,10 +9,10 @@ import { createQualificationRunner } from "../features/qualification/application
 export const interruptAndRecover = createInterruptAndRecover({
   readProfile: readQualificationProfile,
   planDocument: planDocumentationDocumentV2,
-  crashAtDurablePublishing
+  crashAtDurablePublishing,
 });
 export const runDocsProtocolQualification = createQualificationRunner({
   workspace: qualificationWorkspace,
   createProtocol,
-  interruptAndRecover
+  interruptAndRecover,
 });

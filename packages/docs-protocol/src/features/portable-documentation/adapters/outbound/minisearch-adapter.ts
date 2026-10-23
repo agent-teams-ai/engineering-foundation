@@ -4,7 +4,7 @@ import {
   CommunityContextError,
   type CommunitySearchHit,
   type CommunitySearchIndex,
-  type CommunitySearchRecord
+  type CommunitySearchRecord,
 } from "../../application/ranked-search.js";
 
 function stringSearchHitId(value: unknown): string {
@@ -23,7 +23,7 @@ const SEARCH_FIELDS = [
   "type",
   "status",
   "related",
-  "blockedBy"
+  "blockedBy",
 ] as const;
 
 function createIndex(): MiniSearch<CommunitySearchRecord> {
@@ -34,8 +34,8 @@ function createIndex(): MiniSearch<CommunitySearchRecord> {
       boost: { id: 4, title: 3, summary: 2, repositoryPath: 1.5 },
       combineWith: "AND",
       fuzzy: 0.2,
-      prefix: true
-    }
+      prefix: true,
+    },
   });
 }
 
@@ -54,10 +54,15 @@ export class CommunityMiniSearchIndex implements CommunitySearchIndex {
 
   search(query: string): readonly CommunitySearchHit[] {
     try {
-      return Object.freeze(this.#index.search(query).map(({ id, score }) =>
-        Object.freeze({ id: stringSearchHitId(id), score })));
+      return Object.freeze(
+        this.#index
+          .search(query)
+          .map(({ id, score }) => Object.freeze({ id: stringSearchHitId(id), score })),
+      );
     } catch (error) {
-      if (error instanceof CommunityContextError) {throw error;}
+      if (error instanceof CommunityContextError) {
+        throw error;
+      }
       throw new CommunityContextError("Search index could not evaluate the canonical query.");
     }
   }

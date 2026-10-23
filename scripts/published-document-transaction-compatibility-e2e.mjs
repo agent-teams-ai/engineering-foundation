@@ -11,17 +11,32 @@ const publishedVersion = "0.14.0";
 const expectedIntegrity = publishedFoundationIntegrity(publishedVersion);
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 
-async function assertPublishedMutationBlocked({ operation, packageRoot, consumerRoot, targetRoot }) {
+async function assertPublishedMutationBlocked({
+  operation,
+  packageRoot,
+  consumerRoot,
+  targetRoot,
+}) {
   const observation = await executePublishedFoundationOperation({
-    packageRoot, version: publishedVersion, consumerRoot, operation,
+    packageRoot,
+    version: publishedVersion,
+    consumerRoot,
+    operation,
     ...(targetRoot === undefined ? {} : { targetRoot }),
   });
   if (
-    observation.outcome !== "threw" || !(
-      (["SCAFFOLD_RECOVERY_REQUIRED", "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED"].includes(observation.error.code) &&
-        observation.error.message === "Foundation transaction schema version 3 is unsupported and was preserved.") ||
+    observation.outcome !== "threw" ||
+    !(
+      (["SCAFFOLD_RECOVERY_REQUIRED", "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED"].includes(
+        observation.error.code,
+      ) &&
+        observation.error.message ===
+          "Foundation transaction schema version 3 is unsupported and was preserved.") ||
       (observation.error.code === "LOCAL_STATE_INVALID" &&
-        /^(?:Foundation operation lock path must be a real local directory|Another foundation operation is active or its lock is not safely recoverable)\.$/u.test(observation.error.message)))
+        /^(?:Foundation operation lock path must be a real local directory|Another foundation operation is active or its lock is not safely recoverable)\.$/u.test(
+          observation.error.message,
+        ))
+    )
   ) {
     throw new Error(
       `Published Foundation ${publishedVersion} operation ${operation} did not fail closed.`,
@@ -43,21 +58,11 @@ export async function verifyPublishedDocumentTransactionCompatibility({
   });
   const contractFixture = JSON.parse(
     await readFile(
-      join(
-        repositoryRoot,
-        "tests",
-        "fixtures",
-        "document-authoring-contracts",
-        "valid-v1.json",
-      ),
+      join(repositoryRoot, "tests", "fixtures", "document-authoring-contracts", "valid-v1.json"),
       "utf8",
     ),
   );
-  const transactionPath = join(
-    consumerRoot,
-    ".agent-teams-local",
-    "scaffolding-transaction.json",
-  );
+  const transactionPath = join(consumerRoot, ".agent-teams-local", "scaffolding-transaction.json");
   await mkdir(dirname(transactionPath), { recursive: true });
   const transactionBytes = Buffer.from(
     `${JSON.stringify(createDocumentEnvelopeV3(contractFixture), null, 2)}\n`,
@@ -69,7 +74,10 @@ export async function verifyPublishedDocumentTransactionCompatibility({
   await writeFile(sentinelPath, sentinelBytes);
 
   const statusObservation = await executePublishedFoundationOperation({
-    packageRoot: installed.packageRoot, version: publishedVersion, consumerRoot, operation: "status",
+    packageRoot: installed.packageRoot,
+    version: publishedVersion,
+    consumerRoot,
+    operation: "status",
   });
   const status = statusObservation.outcome === "returned" ? statusObservation.value : undefined;
   if (

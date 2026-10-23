@@ -15,12 +15,8 @@ export type {
 export type { MutationClaim } from "../transaction-coordination/application/mutation-lease.js";
 export { recoverKnownFileTransactionWithFaults as recoverKnownFileTransaction } from "../composition/node-known-file.js";
 export { applyKnownFileTransactionWithFaults as applyKnownFileTransaction } from "../composition/node-known-file.js";
-export {
-  readBoundedRegularFileWithFaults as readBoundedRegularFile
-} from "../transaction-coordination/adapters/node/node-bounded-regular-file.js";
-export {
-  readBoundedRegularFile as readBoundedRegularFileRuntime,
-} from "../transaction-coordination/adapters/node/node-bounded-regular-file.js";
+export { readBoundedRegularFileWithFaults as readBoundedRegularFile } from "../transaction-coordination/adapters/node/node-bounded-regular-file.js";
+export { readBoundedRegularFile as readBoundedRegularFileRuntime } from "../transaction-coordination/adapters/node/node-bounded-regular-file.js";
 export type {
   BoundedRegularFileRead,
   BoundedRegularFileReadFaultInjector,
@@ -28,9 +24,7 @@ export type {
 export { prepareExactSiblingTemporaryWithFaults as prepareExactSiblingTemporary } from "../composition/node-known-file.js";
 export type { PrepareExactSiblingTemporaryOptions } from "../repository-mutation/adapters/node/node-prepare-exact-sibling-temporary.js";
 export type { PortablePathIdentity } from "../path-identity.js";
-export {
-  publishPreparedAbsentFileWithFaults as publishPreparedAbsentFile
-} from "../repository-mutation/adapters/node/node-publish-prepared-absent-file.js";
+export { publishPreparedAbsentFileWithFaults as publishPreparedAbsentFile } from "../repository-mutation/adapters/node/node-publish-prepared-absent-file.js";
 export type { PublishPreparedAbsentFileOptions } from "../repository-mutation/adapters/node/node-publish-prepared-absent-file.js";
 export { publishAbsentFileWithFaults as publishAbsentFile } from "../composition/node-known-file.js";
 export type {

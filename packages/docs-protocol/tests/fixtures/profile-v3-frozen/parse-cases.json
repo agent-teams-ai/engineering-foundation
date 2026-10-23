@@ -16,18 +16,14 @@
         "adoption": "portable-v1",
         "skillPath": ".agents/skills/docs-authoring/SKILL.md"
       },
-      "semanticValidatorIds": [
-        "documentation.domain-semantics"
-      ]
+      "semanticValidatorIds": ["documentation.domain-semantics"]
     },
     "output": {
       "protocol": {
         "id": "agent-teams.docs-protocol",
         "version": 1
       },
-      "semanticValidatorIds": [
-        "documentation.domain-semantics"
-      ],
+      "semanticValidatorIds": ["documentation.domain-semantics"],
       "adoptionPolicy": "portable-v1",
       "agentWorkflow": {
         "adoption": "portable-v1",
@@ -58,18 +54,14 @@
         "adoption": "portable-v1",
         "skillPath": ".agents/skills/docs-authoring/SKILL.md"
       },
-      "semanticValidatorIds": [
-        "documentation.domain-semantics"
-      ]
+      "semanticValidatorIds": ["documentation.domain-semantics"]
     },
     "output": {
       "protocol": {
         "id": "agent-teams.docs-protocol",
         "version": 1
       },
-      "semanticValidatorIds": [
-        "documentation.domain-semantics"
-      ],
+      "semanticValidatorIds": ["documentation.domain-semantics"],
       "adoptionPolicy": "portable-v1",
       "agentWorkflow": {
         "adoption": "portable-v1",
@@ -100,9 +92,7 @@
         "adoption": "portable-v1",
         "skillPath": ".agents/skills/docs-authoring/SKILL.md"
       },
-      "semanticValidatorIds": [
-        "documentation.domain-semantics"
-      ],
+      "semanticValidatorIds": ["documentation.domain-semantics"],
       "hooks": []
     },
     "error": {
@@ -127,10 +117,7 @@
         "adoption": "portable-v1",
         "skillPath": ".agents/skills/docs-authoring/SKILL.md"
       },
-      "semanticValidatorIds": [
-        "same",
-        "same"
-      ]
+      "semanticValidatorIds": ["same", "same"]
     },
     "error": {
       "name": "DocsProfileError",
@@ -154,9 +141,7 @@
         "adoption": "portable-v1",
         "skillPath": ".agents/skills/docs-authoring/SKILL.md"
       },
-      "semanticValidatorIds": [
-        "documentation.domain-semantics"
-      ]
+      "semanticValidatorIds": ["documentation.domain-semantics"]
     },
     "error": {
       "name": "DocsProfileError",

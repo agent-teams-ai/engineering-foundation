@@ -2,7 +2,7 @@ import {
   capabilityFailureReport,
   capabilityReport,
   type CapabilityDefinition,
-  type CapabilityInvocation
+  type CapabilityInvocation,
 } from "../../features/validation-reporting/api.js";
 import type { SourceTreeReader } from "./application/ports/source-tree-reader.js";
 import type { SourceArchitectureConfigSchemaVersion } from "./application/model/source-workspace.js";
@@ -13,15 +13,19 @@ import { PnpmSourceWorkspaceTopologyInspector } from "./adapters/outbound/node/p
 import { OxcSourceDependencyParser } from "./adapters/outbound/oxc/oxc-source-dependency-parser.js";
 import { analyzeSourceDependencies } from "./application/use-cases/analyze-source-dependencies.js";
 import { SOURCE_DEPENDENCY_RULES_BY_ID } from "./application/rules.js";
-import {
-  CAPABILITY_CONFIG_SCHEMA_VERSION,
-  CAPABILITY_ID
-} from "./contract/config.js";
+import { CAPABILITY_CONFIG_SCHEMA_VERSION, CAPABILITY_ID } from "./contract/config.js";
 
-import { loadCapabilityConfig, type SourceArchitectureConfigurationDependencies } from "./adapters/inbound/configuration/load-capability-config.js";
+import {
+  loadCapabilityConfig,
+  type SourceArchitectureConfigurationDependencies,
+} from "./adapters/inbound/configuration/load-capability-config.js";
 import { loadStrictYamlFile } from "../../features/configuration-input/node.js";
 import { createSourceTreeReader } from "../../source-inventory/module.js";
-import { observeSourceGraph as observe, type ObserveSourceGraphInput, type SourceGraph } from "./application/use-cases/observe-source-graph.js";
+import {
+  observeSourceGraph as observe,
+  type ObserveSourceGraphInput,
+  type SourceGraph,
+} from "./application/use-cases/observe-source-graph.js";
 import { readContainedRegularFile } from "../../source-inventory/node.js";
 import type { SourceWorkspaceFileReader } from "./api.js";
 
@@ -31,8 +35,16 @@ export { SOURCE_DEPENDENCY_RULES_BY_ID };
 export { createSourceCensusReader } from "./adapters/outbound/node/source-census-reader.js";
 export { stronglyConnectedComponents } from "./application/use-cases/observe-source-graph.js";
 export type {
-  ObserveSourceGraphInput, SourceGraph, SourceGraphEdge, SourceGraphExport, SourceGraphExternal,
-  SourceGraphFileExports, SourceGraphReferenceKind, SourceGraphRuntimeReference, SourceGraphUnresolved, SourceGraphUnsupportedExport
+  ObserveSourceGraphInput,
+  SourceGraph,
+  SourceGraphEdge,
+  SourceGraphExport,
+  SourceGraphExternal,
+  SourceGraphFileExports,
+  SourceGraphReferenceKind,
+  SourceGraphRuntimeReference,
+  SourceGraphUnresolved,
+  SourceGraphUnsupportedExport,
 } from "./application/use-cases/observe-source-graph.js";
 export { createSourceArchitecturePolicyReader } from "./adapters/inbound/configuration/load-capability-config.js";
 
@@ -42,7 +54,9 @@ export interface SourceDependenciesCapabilityDependencies {
   readonly sourceReader: SourceTreeReader;
 }
 
-export function createSourceDependenciesCapability(input: SourceDependenciesCapabilityDependencies): CapabilityDefinition {
+export function createSourceDependenciesCapability(
+  input: SourceDependenciesCapabilityDependencies,
+): CapabilityDefinition {
   const inventoryReader = input.inventoryReader;
   const dependencies = Object.freeze({
     inventoryReader,
@@ -50,8 +64,10 @@ export function createSourceDependenciesCapability(input: SourceDependenciesCapa
     resolver: new NodeSourceDependencyResolver(),
     sourceReader: input.sourceReader,
     topologyInspector: new PnpmSourceWorkspaceTopologyInspector({
-      inventoryReader, fileReader, workspaceManifestLoader: loadStrictYamlFile
-    })
+      inventoryReader,
+      fileReader,
+      workspaceManifestLoader: loadStrictYamlFile,
+    }),
   });
   return Object.freeze({
     id: CAPABILITY_ID,
@@ -66,7 +82,7 @@ export function createSourceDependenciesCapability(input: SourceDependenciesCapa
           invocation.signal,
           (schemaVersion) => {
             requestedSchemaVersion = schemaVersion;
-          }
+          },
         );
         return capabilityReport({
           capabilityId: CAPABILITY_ID,
@@ -75,26 +91,28 @@ export function createSourceDependenciesCapability(input: SourceDependenciesCapa
             {
               consumerRoot: invocation.consumerRoot,
               policy,
-              ...(invocation.signal === undefined
-                ? {}
-                : { signal: invocation.signal })
+              ...(invocation.signal === undefined ? {} : { signal: invocation.signal }),
             },
-            dependencies
-          )
+            dependencies,
+          ),
         });
       } catch (error) {
         return capabilityFailureReport({
           capabilityId: CAPABILITY_ID,
           capabilityConfigSchemaVersion: requestedSchemaVersion,
           error,
-          phase: "source-dependency-execution"
+          phase: "source-dependency-execution",
         });
       }
-    }
+    },
   });
 }
 
 /** The files under `input.roots` and their resolved import edges; no architecture vocabulary. */
 export function observeSourceGraph(input: ObserveSourceGraphInput): Promise<SourceGraph> {
-  return observe(input, { parser: new OxcSourceDependencyParser(), resolver: new NodeSourceDependencyResolver(), sourceReader: createSourceTreeReader() });
+  return observe(input, {
+    parser: new OxcSourceDependencyParser(),
+    resolver: new NodeSourceDependencyResolver(),
+    sourceReader: createSourceTreeReader(),
+  });
 }

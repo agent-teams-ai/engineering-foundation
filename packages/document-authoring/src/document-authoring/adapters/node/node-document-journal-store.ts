@@ -10,9 +10,13 @@ import {
   type JournalSlotFailure,
   type JournalSlotFailureContext,
   type JournalSlotFaultPoint,
-  type JournalSlotSubject
+  type JournalSlotSubject,
 } from "@agent-teams/repository-mutation/node";
-import { canonicalJson, parseStrictJson, type CanonicalJsonValue } from "@agent-teams/repository-mutation/serialization";
+import {
+  canonicalJson,
+  parseStrictJson,
+  type CanonicalJsonValue,
+} from "@agent-teams/repository-mutation/serialization";
 import { type PortablePathIdentity } from "@agent-teams/repository-mutation/paths";
 
 import { FOUNDATION_TRANSACTION_FILE } from "../../application/model/state-contract.js";
@@ -24,7 +28,7 @@ import type {
   DocumentJournalStore,
   JournalAuthority,
   JournalIdentity,
-  StoredDocumentJournal
+  StoredDocumentJournal,
 } from "../../application/ports/document-journal-store.js";
 import type { NodeDocumentJournalFaultInjector } from "./node-document-journal-store-faults.js";
 
@@ -50,14 +54,12 @@ function portableIdentity(identity: JournalIdentity): PortablePathIdentity {
     !/^[1-9][0-9]{0,19}$/u.test(identity.ino) ||
     !/^[1-9][0-9]{0,19}$/u.test(identity.birthtimeNs)
   ) {
-    throw new NodeDocumentJournalStoreError(
-      "Document journal identity is invalid or zero."
-    );
+    throw new NodeDocumentJournalStoreError("Document journal identity is invalid or zero.");
   }
   return {
     birthtimeNs: BigInt(identity.birthtimeNs),
     dev: BigInt(identity.dev),
-    ino: BigInt(identity.ino)
+    ino: BigInt(identity.ino),
   };
 }
 
@@ -67,7 +69,7 @@ function journalIdentity(identity: PortablePathIdentity): JournalIdentity {
     version: 1,
     birthtimeNs: identity.birthtimeNs.toString(),
     dev: identity.dev.toString(),
-    ino: identity.ino.toString()
+    ino: identity.ino.toString(),
   };
   portableIdentity(result);
   return result;
@@ -76,29 +78,25 @@ function journalIdentity(identity: PortablePathIdentity): JournalIdentity {
 function wireAuthority(authority: JournalSlotAuthority): JournalAuthority {
   return {
     authorityDigest: authority.authorityDigest,
-    identity: journalIdentity(authority.identity)
+    identity: journalIdentity(authority.identity),
   };
 }
 
 function slotAuthority(authority: JournalAuthority): JournalSlotAuthority {
   return {
     authorityDigest: authority.authorityDigest,
-    identity: portableIdentity(authority.identity)
+    identity: portableIdentity(authority.identity),
   };
 }
 
-async function canonicalEnvelopeBytes(
-  envelope: DocumentTransactionEnvelope
-): Promise<Buffer> {
+async function canonicalEnvelopeBytes(envelope: DocumentTransactionEnvelope): Promise<Buffer> {
   const validated = await assertDocumentTransactionEnvelope({ assertSchema }, envelope);
   const bytes = Buffer.from(
     `${canonicalJson(validated as unknown as CanonicalJsonValue)}\n`,
-    "utf8"
+    "utf8",
   );
   if (bytes.byteLength > maximumJournalBytes) {
-    throw new NodeDocumentJournalStoreError(
-      "Document journal exceeds its strict size limit."
-    );
+    throw new NodeDocumentJournalStoreError("Document journal exceeds its strict size limit.");
   }
   return bytes;
 }
@@ -110,15 +108,12 @@ async function parseEnvelope(bytes: Buffer): Promise<DocumentTransactionEnvelope
     candidate = parseStrictJson(strictUtf8.decode(bytes));
     envelope = await assertDocumentTransactionEnvelope({ assertSchema }, candidate);
   } catch (error) {
-    throw new NodeDocumentJournalStoreError(
-      untrustedDocumentEnvelopeReason(candidate),
-      { cause: error }
-    );
+    throw new NodeDocumentJournalStoreError(untrustedDocumentEnvelopeReason(candidate), {
+      cause: error,
+    });
   }
   if (!bytes.equals(await canonicalEnvelopeBytes(envelope))) {
-    throw new NodeDocumentJournalStoreError(
-      "Document journal JSON is not in canonical byte form."
-    );
+    throw new NodeDocumentJournalStoreError("Document journal JSON is not in canonical byte form.");
   }
   return envelope;
 }
@@ -137,7 +132,7 @@ function subjectDescription(context: JournalSlotFailureContext): string {
     evidence,
     quarantine: "Quarantined document journal",
     replacement: "Replacement document journal",
-    "retired-evidence": `Retired ${evidence}`
+    "retired-evidence": `Retired ${evidence}`,
   };
   return descriptions[context.subject ?? "canonical"];
 }
@@ -145,83 +140,70 @@ function subjectDescription(context: JournalSlotFailureContext): string {
 function failed(message: string, context: JournalSlotFailureContext): Error {
   return new NodeDocumentJournalStoreError(
     message,
-    context.cause === undefined ? undefined : { cause: context.cause }
+    context.cause === undefined ? undefined : { cause: context.cause },
   );
 }
 
-const failures: Record<
-  JournalSlotFailure,
-  (context: JournalSlotFailureContext) => Error
-> = {
-  "candidate-exists": (context) => failed(
-    "Document journal transition candidate already exists and was preserved.",
-    context
-  ),
-  "candidate-unavailable": (context) => context.cause instanceof Error
-    ? context.cause
-    : failed("Document journal transition candidate could not be created safely.", context),
-  "canonical-recreated": (context) => failed(
-    "Canonical document journal was recreated concurrently; all evidence was preserved.",
-    context
-  ),
-  changed: (context) => failed(
-    `${subjectDescription(context)} identity or canonical bytes changed concurrently; all evidence was preserved.`,
-    context
-  ),
-  "must-be-stabilized": (context) => failed(
-    "Document journal mutation must be stabilized before another operation.",
-    context
-  ),
-  "not-regular-file": (context) => failed(
-    "Document journal is not a stable bounded regular file.",
-    context
-  ),
-  "publication-conflict": (context) => failed(
-    context.mutation === "replace"
-      ? "Canonical document journal slot changed during transition; all evidence was preserved."
-      : "Canonical document journal slot is occupied; transition evidence was preserved.",
-    context
-  ),
-  "quarantine-unavailable": (context) => failed(
-    context.mutation === "remove"
-      ? "Document journal could not enter its verified removal quarantine."
-      : "Document journal could not enter its verified quarantine transition; evidence was preserved.",
-    context
-  ),
-  "slot-occupied": (context) => failed(
-    "Canonical document journal slot is occupied; it was preserved.",
-    context
-  ),
-  "state-directory-missing": (context) => failed(
-    "Foundation state directory must exist before journal access.",
-    context
-  ),
-  "too-many-entries": (context) => failed(
-    "Document journal directory contains too many entries to inspect safely.",
-    context
-  ),
-  "transition-residue": (context) => failed(
-    "Incomplete document journal transition evidence was preserved and requires recovery.",
-    context
-  )
+const failures: Record<JournalSlotFailure, (context: JournalSlotFailureContext) => Error> = {
+  "candidate-exists": (context) =>
+    failed("Document journal transition candidate already exists and was preserved.", context),
+  "candidate-unavailable": (context) =>
+    context.cause instanceof Error
+      ? context.cause
+      : failed("Document journal transition candidate could not be created safely.", context),
+  "canonical-recreated": (context) =>
+    failed(
+      "Canonical document journal was recreated concurrently; all evidence was preserved.",
+      context,
+    ),
+  changed: (context) =>
+    failed(
+      `${subjectDescription(context)} identity or canonical bytes changed concurrently; all evidence was preserved.`,
+      context,
+    ),
+  "must-be-stabilized": (context) =>
+    failed("Document journal mutation must be stabilized before another operation.", context),
+  "not-regular-file": (context) =>
+    failed("Document journal is not a stable bounded regular file.", context),
+  "publication-conflict": (context) =>
+    failed(
+      context.mutation === "replace"
+        ? "Canonical document journal slot changed during transition; all evidence was preserved."
+        : "Canonical document journal slot is occupied; transition evidence was preserved.",
+      context,
+    ),
+  "quarantine-unavailable": (context) =>
+    failed(
+      context.mutation === "remove"
+        ? "Document journal could not enter its verified removal quarantine."
+        : "Document journal could not enter its verified quarantine transition; evidence was preserved.",
+      context,
+    ),
+  "slot-occupied": (context) =>
+    failed("Canonical document journal slot is occupied; it was preserved.", context),
+  "state-directory-missing": (context) =>
+    failed("Foundation state directory must exist before journal access.", context),
+  "too-many-entries": (context) =>
+    failed("Document journal directory contains too many entries to inspect safely.", context),
+  "transition-residue": (context) =>
+    failed(
+      "Incomplete document journal transition evidence was preserved and requires recovery.",
+      context,
+    ),
 };
 
 function documentJournalFailure(
   failure: JournalSlotFailure,
-  context: JournalSlotFailureContext
+  context: JournalSlotFailureContext,
 ): Error {
   return failures[failure](context);
 }
 
-function retirementEvidence(
-  evidence: "candidate" | "previous"
-): "candidate" | "quarantine" {
+function retirementEvidence(evidence: "candidate" | "previous"): "candidate" | "quarantine" {
   return evidence === "candidate" ? "candidate" : "quarantine";
 }
 
-function mapFaultPoint(
-  point: JournalSlotFaultPoint
-): NodeDocumentJournalFaultPoint | undefined {
+function mapFaultPoint(point: JournalSlotFaultPoint): NodeDocumentJournalFaultPoint | undefined {
   switch (point.phase) {
     case "after-candidate-synced":
       return { phase: "after-candidate-synced" };
@@ -232,9 +214,7 @@ function mapFaultPoint(
     case "after-shared-quarantine-synced":
       return { phase: "after-canonical-quarantined" };
     case "after-final-directory-sync":
-      return point.mutation === "create"
-        ? undefined
-        : { phase: "after-quarantine-removed" };
+      return point.mutation === "create" ? undefined : { phase: "after-quarantine-removed" };
     case "before-final-directory-sync":
       return { operation: point.mutation, phase: "before-final-directory-sync" };
     case "before-shared-quarantine":
@@ -244,21 +224,21 @@ function mapFaultPoint(
         evidence: retirementEvidence(point.evidence),
         operation: point.mutation,
         path: point.path,
-        phase: "before-private-cleanup"
+        phase: "before-private-cleanup",
       };
     case "before-logical-retirement":
       return {
         evidence: retirementEvidence(point.evidence),
         operation: point.mutation,
         path: point.path,
-        phase: "before-logical-retirement"
+        phase: "before-logical-retirement",
       };
     case "before-directory-sync":
       return {
         operation: point.mutation,
         path: point.path,
         phase: "before-directory-sync",
-        role: point.role
+        role: point.role,
       };
     case "before-canonical-link":
     case "after-canonical-linked":
@@ -281,13 +261,13 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
 
   public constructor(
     readonly journalPath: string,
-    readonly operations: NodeDocumentJournalOperations = {}
+    readonly operations: NodeDocumentJournalOperations = {},
   ) {
     const parent = dirname(journalPath);
     const canonicalName = basename(journalPath);
     if (canonicalName !== FOUNDATION_TRANSACTION_FILE) {
       throw new NodeDocumentJournalStoreError(
-        "Document journal store must use the historical Foundation transaction slot."
+        "Document journal store must use the historical Foundation transaction slot.",
       );
     }
     const { faultInjector } = operations;
@@ -301,7 +281,7 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
             faultInjector: (point: JournalSlotFaultPoint) => {
               const mapped = mapFaultPoint(point);
               return mapped === undefined ? undefined : faultInjector(mapped);
-            }
+            },
           }),
       maximumBytes: maximumJournalBytes,
       naming: {
@@ -311,15 +291,15 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
         residues: [
           { exact: `${canonicalName}.document-transition` },
           { prefix: `${canonicalName}.document-quarantine.` },
-          { prefix: `${canonicalName}.document-retired.` }
+          { prefix: `${canonicalName}.document-retired.` },
         ],
         retiredDirectoryName: () => `${canonicalName}.document-retired.${randomUUID()}`,
-        terminalRootName: `${canonicalName}.completed-document-evidence`
+        terminalRootName: `${canonicalName}.completed-document-evidence`,
       },
       canonicalInspection: "authority",
       observableSyncStages: ["transition"],
       reconciliation: "residue-only",
-      syncDirectory: syncDirectoryStrictly
+      syncDirectory: syncDirectoryStrictly,
     });
   }
 
@@ -333,9 +313,7 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
     if (observation.outcome === "recovery-required") {
       throw documentJournalFailure("transition-residue", { mutation: "stabilize" });
     }
-    return observation.stored === undefined
-      ? undefined
-      : storedDocumentJournal(observation.stored);
+    return observation.stored === undefined ? undefined : storedDocumentJournal(observation.stored);
   }
 
   async create(envelope: DocumentTransactionEnvelope): Promise<JournalAuthority> {
@@ -347,7 +325,7 @@ export class NodeDocumentJournalStore implements DocumentJournalStore {
     readonly envelope: DocumentTransactionEnvelope;
   }): Promise<JournalAuthority> {
     return wireAuthority(
-      await this.#store.replace(slotAuthority(request.expectedAuthority), request.envelope)
+      await this.#store.replace(slotAuthority(request.expectedAuthority), request.envelope),
     );
   }
 

@@ -4,10 +4,7 @@ import { join } from "node:path";
 import { portableRepositoryPathIdentity } from "../../application/model/repository-path.js";
 import { isLexicallyContainedPath } from "./node-repository-path.js";
 
-export type ExistingRepositoryAncestorProblem =
-  | "name-collision"
-  | "not-directory"
-  | "outside-root";
+export type ExistingRepositoryAncestorProblem = "name-collision" | "not-directory" | "outside-root";
 
 export class ExistingRepositoryAncestorError extends Error {
   readonly problem: ExistingRepositoryAncestorProblem;
@@ -16,7 +13,7 @@ export class ExistingRepositoryAncestorError extends Error {
 
   constructor(
     problem: ExistingRepositoryAncestorProblem,
-    options: { readonly existingName?: string; readonly requestedName?: string } = {}
+    options: { readonly existingName?: string; readonly requestedName?: string } = {},
   ) {
     super(`Existing repository ancestor is unsafe: ${problem}.`);
     this.name = "ExistingRepositoryAncestorError";
@@ -28,9 +25,7 @@ export class ExistingRepositoryAncestorError extends Error {
 
 function isMissing(error: unknown): boolean {
   return (
-    error instanceof Error &&
-    "code" in error &&
-    (error as NodeJS.ErrnoException).code === "ENOENT"
+    error instanceof Error && "code" in error && (error as NodeJS.ErrnoException).code === "ENOENT"
   );
 }
 
@@ -39,7 +34,7 @@ export async function assertNoPortableNameCollision(
   requestedName: string,
   pathIdentity: (path: string) => string = portableRepositoryPathIdentity,
   ordering: "binary" | "filesystem" = "binary",
-  readEntries: (path: string) => Promise<string[]> = readdir
+  readEntries: (path: string) => Promise<string[]> = readdir,
 ): Promise<void> {
   const observedEntries = await readEntries(parent).catch((error: unknown) => {
     if (isMissing(error)) {
@@ -47,18 +42,20 @@ export async function assertNoPortableNameCollision(
     }
     throw error;
   });
-  const entries = ordering === "binary"
-    ? observedEntries.toSorted((left, right) =>
-        Buffer.compare(Buffer.from(left), Buffer.from(right)))
-    : observedEntries;
+  const entries =
+    ordering === "binary"
+      ? observedEntries.toSorted((left, right) =>
+          Buffer.compare(Buffer.from(left), Buffer.from(right)),
+        )
+      : observedEntries;
   const requestedIdentity = pathIdentity(requestedName);
   const collision = entries.find(
-    (entry) => entry !== requestedName && pathIdentity(entry) === requestedIdentity
+    (entry) => entry !== requestedName && pathIdentity(entry) === requestedIdentity,
   );
   if (collision !== undefined) {
     throw new ExistingRepositoryAncestorError("name-collision", {
       existingName: collision,
-      requestedName
+      requestedName,
     });
   }
 }
@@ -67,7 +64,7 @@ export async function assertSafeExistingRepositoryAncestors(
   root: string,
   repositoryPath: string,
   pathIdentity: (path: string) => string = portableRepositoryPathIdentity,
-  ordering: "binary" | "filesystem" = "binary"
+  ordering: "binary" | "filesystem" = "binary",
 ): Promise<void> {
   const segments = repositoryPath.split("/");
   let current = root;
@@ -92,10 +89,5 @@ export async function assertSafeExistingRepositoryAncestors(
     }
     current = canonical;
   }
-  await assertNoPortableNameCollision(
-    current,
-    segments.at(-1) ?? "",
-    pathIdentity,
-    ordering
-  );
+  await assertNoPortableNameCollision(current, segments.at(-1) ?? "", pathIdentity, ordering);
 }

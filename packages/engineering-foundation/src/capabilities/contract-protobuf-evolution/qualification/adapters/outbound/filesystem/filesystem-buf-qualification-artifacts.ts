@@ -4,12 +4,18 @@ import { setTimeout as wait } from "node:timers/promises";
 
 import { lock } from "proper-lockfile";
 
-import { CapabilityInputError,assertNotCancelled } from "../../../../../../features/validation-reporting/api.js";
+import {
+  CapabilityInputError,
+  assertNotCancelled,
+} from "../../../../../../features/validation-reporting/api.js";
 import { ContainedFileReadError } from "../../../../../../source-inventory/api.js";
-import { pathTraversesSymbolicLink, readContainedRegularFile } from "../../../../../../source-inventory/node.js";
+import {
+  pathTraversesSymbolicLink,
+  readContainedRegularFile,
+} from "../../../../../../source-inventory/node.js";
 import type {
   BufQualificationArtifacts,
-  BufQualificationEvidenceWriteResult
+  BufQualificationEvidenceWriteResult,
 } from "../../../ports/buf-qualification-artifacts.js";
 
 const MAX_EVIDENCE_BYTES = 8 * 1024 * 1024;
@@ -17,7 +23,7 @@ const WRITE_LOCK_OPTIONS = Object.freeze({
   realpath: false,
   retries: 0,
   stale: 30_000,
-  update: 10_000
+  update: 10_000,
 });
 const WRITE_LOCK_RETRIES = 30;
 const WRITE_LOCK_MIN_DELAY_MS = 25;
@@ -46,7 +52,7 @@ function qualificationError(code: string, message: string): CapabilityInputError
     code,
     message,
     phase: "protobuf-buf-qualification-artifacts",
-    retryable: false
+    retryable: false,
   });
 }
 
@@ -68,7 +74,11 @@ function contained(root: string, candidate: string): boolean {
   );
 }
 
-function readFailure(error: ContainedFileReadError, path: string, optional: boolean): never | undefined {
+function readFailure(
+  error: ContainedFileReadError,
+  path: string,
+  optional: boolean,
+): never | undefined {
   if (optional && error.failure === "missing") {
     return undefined;
   }
@@ -76,7 +86,7 @@ function readFailure(error: ContainedFileReadError, path: string, optional: bool
     error.failure === "symlink" || error.failure === "escape"
       ? "BUF_QUALIFICATION_PATH_UNSAFE"
       : "BUF_QUALIFICATION_INPUT_UNAVAILABLE",
-    `Qualification artifact is unavailable, unsafe, or changed while reading: ${path}.`
+    `Qualification artifact is unavailable, unsafe, or changed while reading: ${path}.`,
   );
 }
 
@@ -90,7 +100,7 @@ async function readContained(input: {
     return await readContainedRegularFile({
       candidate: resolve(input.consumerRoot, input.path),
       maxBytes: input.maxBytes,
-      root: input.consumerRoot
+      root: input.consumerRoot,
     });
   } catch (error) {
     if (!(error instanceof ContainedFileReadError)) {
@@ -117,7 +127,10 @@ async function assertSafeCandidate(target: WriteTarget): Promise<void> {
     String(parentMetadata.dev) !== target.parentDevice ||
     String(parentMetadata.ino) !== target.parentInode
   ) {
-    inputError("BUF_QUALIFICATION_PATH_UNSAFE", "Evidence directory identity changed during qualification.");
+    inputError(
+      "BUF_QUALIFICATION_PATH_UNSAFE",
+      "Evidence directory identity changed during qualification.",
+    );
   }
   try {
     const metadata = await stat(target.candidate);
@@ -139,23 +152,32 @@ async function canonicalWriteTarget(consumerRoot: string, path: string): Promise
   }
   const parent = dirname(lexicalCandidate);
   if (await pathTraversesSymbolicLink(root, parent)) {
-    inputError("BUF_QUALIFICATION_PATH_UNSAFE", "Evidence directory cannot traverse a symbolic link.");
+    inputError(
+      "BUF_QUALIFICATION_PATH_UNSAFE",
+      "Evidence directory cannot traverse a symbolic link.",
+    );
   }
   await mkdir(parent, { recursive: true });
   if (await pathTraversesSymbolicLink(root, parent)) {
-    inputError("BUF_QUALIFICATION_PATH_UNSAFE", "Evidence directory cannot traverse a symbolic link.");
+    inputError(
+      "BUF_QUALIFICATION_PATH_UNSAFE",
+      "Evidence directory cannot traverse a symbolic link.",
+    );
   }
   const canonicalParent = await realpath(parent);
   const parentMetadata = await stat(canonicalParent, { bigint: true });
   if (!contained(root, canonicalParent) || !parentMetadata.isDirectory()) {
-    inputError("BUF_QUALIFICATION_PATH_UNSAFE", "Evidence directory escapes the consumer repository.");
+    inputError(
+      "BUF_QUALIFICATION_PATH_UNSAFE",
+      "Evidence directory escapes the consumer repository.",
+    );
   }
   const target = {
     candidate: join(canonicalParent, basename(lexicalCandidate)),
     parent: canonicalParent,
     parentDevice: String(parentMetadata.dev),
     parentInode: String(parentMetadata.ino),
-    root
+    root,
   };
   await assertSafeCandidate(target);
   return target;
@@ -184,10 +206,7 @@ async function waitForLockRetry(delayMs: number, signal?: AbortSignal): Promise<
   assertNotCancelled(signal);
 }
 
-async function acquireWriteLock(
-  path: string,
-  signal?: AbortSignal
-): Promise<() => Promise<void>> {
+async function acquireWriteLock(path: string, signal?: AbortSignal): Promise<() => Promise<void>> {
   for (let attempt = 0; attempt <= WRITE_LOCK_RETRIES; attempt += 1) {
     assertNotCancelled(signal);
     try {
@@ -199,7 +218,7 @@ async function acquireWriteLock(
     }
     const delayMs = Math.min(
       WRITE_LOCK_MAX_DELAY_MS,
-      WRITE_LOCK_MIN_DELAY_MS * (WRITE_LOCK_BACKOFF ** attempt)
+      WRITE_LOCK_MIN_DELAY_MS * WRITE_LOCK_BACKOFF ** attempt,
     );
     await waitForLockRetry(delayMs, signal);
   }
@@ -209,14 +228,14 @@ async function acquireWriteLock(
 async function writeAtomic(
   target: WriteTarget,
   source: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<void> {
   assertNotCancelled(signal);
   const expected = Buffer.from(source, "utf8");
   if (expected.length > MAX_EVIDENCE_BYTES) {
     inputError(
       "BUF_QUALIFICATION_EVIDENCE_TOO_LARGE",
-      "Canonical Buf qualification evidence exceeds the supported size limit."
+      "Canonical Buf qualification evidence exceeds the supported size limit.",
     );
   }
   const temporaryRoot = await mkdtemp(join(target.parent, ".buf-evidence-"));
@@ -241,12 +260,12 @@ async function writeAtomic(
     const persisted = await readContainedRegularFile({
       candidate: target.candidate,
       maxBytes: MAX_EVIDENCE_BYTES,
-      root: target.root
+      root: target.root,
     });
     if (!persisted.equals(expected)) {
       inputError(
         "BUF_QUALIFICATION_WRITE_OUTCOME_UNCERTAIN",
-        "Evidence bytes changed during atomic publication."
+        "Evidence bytes changed during atomic publication.",
       );
     }
     await assertSafeCandidate(target);
@@ -260,7 +279,7 @@ async function writeAtomic(
     ) {
       failure = qualificationError(
         "BUF_QUALIFICATION_WRITE_OUTCOME_UNCERTAIN",
-        "Evidence was replaced but final durability or containment could not be proven."
+        "Evidence was replaced but final durability or containment could not be proven.",
       );
     } else {
       failure = errorObject(error, "Evidence publication failed.");
@@ -279,13 +298,13 @@ async function writeAtomic(
     if (durable) {
       inputError(
         "BUF_QUALIFICATION_POST_COMMIT_CLEANUP_FAILED",
-        "Evidence was durably published, but temporary artifact cleanup failed."
+        "Evidence was durably published, but temporary artifact cleanup failed.",
       );
     }
     if (replaced) {
       inputError(
         "BUF_QUALIFICATION_WRITE_OUTCOME_UNCERTAIN",
-        "Evidence was replaced, but publication completion could not be proven."
+        "Evidence was replaced, but publication completion could not be proven.",
       );
     }
     throw cleanupFailure;
@@ -295,7 +314,7 @@ async function writeAtomic(
 async function readExistingForWrite(
   consumerRoot: string,
   path: string,
-  target: WriteTarget
+  target: WriteTarget,
 ): Promise<ExistingEvidence> {
   let metadata;
   try {
@@ -316,7 +335,7 @@ async function readExistingForWrite(
     consumerRoot,
     path,
     maxBytes: MAX_EVIDENCE_BYTES,
-    optional: false
+    optional: false,
   });
   return { exists: true, ...(bytes === undefined ? {} : { source: bytes.toString("utf8") }) };
 }
@@ -358,11 +377,7 @@ export class FilesystemBufQualificationArtifacts implements BufQualificationArti
       release = await acquireWriteLock(target.candidate, input.signal);
       assertNotCancelled(input.signal);
       await assertSafeCandidate(target);
-      const existing = await readExistingForWrite(
-        input.consumerRoot,
-        input.path,
-        target
-      );
+      const existing = await readExistingForWrite(input.consumerRoot, input.path, target);
       if (existing.source === input.source) {
         return "unchanged";
       }
@@ -375,7 +390,7 @@ export class FilesystemBufQualificationArtifacts implements BufQualificationArti
       }
       return inputError(
         "BUF_QUALIFICATION_WRITE_UNAVAILABLE",
-        "Buf qualification evidence could not be locked or replaced safely."
+        "Buf qualification evidence could not be locked or replaced safely.",
       );
     } finally {
       try {
@@ -384,7 +399,7 @@ export class FilesystemBufQualificationArtifacts implements BufQualificationArti
         if (!failed) {
           inputError(
             "BUF_QUALIFICATION_LOCK_RELEASE_FAILED",
-            "Evidence was published but its cooperative write lock could not be released."
+            "Evidence was published but its cooperative write lock could not be released.",
           );
         }
       }

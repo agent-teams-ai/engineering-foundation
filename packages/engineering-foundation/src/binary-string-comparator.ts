@@ -17,7 +17,7 @@ export function compareBinaryStrings(left: string, right: string): number {
 
 export function compareBinaryStringSequences(
   left: readonly string[],
-  right: readonly string[]
+  right: readonly string[],
 ): number {
   const commonLength = Math.min(left.length, right.length);
   for (let index = 0; index < commonLength; index += 1) {

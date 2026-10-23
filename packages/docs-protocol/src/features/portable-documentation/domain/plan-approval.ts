@@ -6,11 +6,17 @@ export type PlanApproval =
 
 export function inspectPlanApproval(
   expectedPlanDigest: unknown,
-  actualPlanDigest?: string
+  actualPlanDigest?: string,
 ): PlanApproval {
-  if (expectedPlanDigest === undefined) {return Object.freeze({ state: "direct" });}
-  if (typeof expectedPlanDigest !== "string" || !PLAN_DIGEST.test(expectedPlanDigest)) {return Object.freeze({ state: "malformed" });}
-  if (actualPlanDigest === undefined) {return Object.freeze({ state: "pending" });}
+  if (expectedPlanDigest === undefined) {
+    return Object.freeze({ state: "direct" });
+  }
+  if (typeof expectedPlanDigest !== "string" || !PLAN_DIGEST.test(expectedPlanDigest)) {
+    return Object.freeze({ state: "malformed" });
+  }
+  if (actualPlanDigest === undefined) {
+    return Object.freeze({ state: "pending" });
+  }
   if (expectedPlanDigest !== actualPlanDigest) {
     return Object.freeze({ state: "stale" });
   }

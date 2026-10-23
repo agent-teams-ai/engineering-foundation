@@ -2,13 +2,15 @@ import type { DocumentFileReader } from "../../application/ports/document-file-r
 import type {
   AuthoringProfileReader,
   CatalogCollection,
-  CatalogProfileSnapshot
+  CatalogProfileSnapshot,
 } from "../../application/ports/authoring-profile-reader.js";
 import { DocumentCatalogError } from "../../application/model/document-catalog-error.js";
-import { InvalidDocumentAuthoringProfileError, resolvedArtifactOwnerIds, resolvedProfileMetadataSidecar } from "../../application/model/validated-document-authoring-profile.js";
 import {
-  loadValidatedDocumentAuthoringProfileV2} from "./load-validated-document-authoring-profile-v2.js";
-
+  InvalidDocumentAuthoringProfileError,
+  resolvedArtifactOwnerIds,
+  resolvedProfileMetadataSidecar,
+} from "../../application/model/validated-document-authoring-profile.js";
+import { loadValidatedDocumentAuthoringProfileV2 } from "./load-validated-document-authoring-profile-v2.js";
 
 function freezeCollection(collection: CatalogCollection): CatalogCollection {
   return collection.kind === "markdown-tree"
@@ -24,16 +26,19 @@ export class NodeAuthoringProfileReaderV2 implements AuthoringProfileReader {
     readonly signal?: AbortSignal;
   }): Promise<CatalogProfileSnapshot> {
     try {
-      const { evidence, profile } = await loadValidatedDocumentAuthoringProfileV2(this.readFile, request);
+      const { evidence, profile } = await loadValidatedDocumentAuthoringProfileV2(
+        this.readFile,
+        request,
+      );
       const metadataSidecar = resolvedProfileMetadataSidecar(profile);
       return Object.freeze({
         artifactOwnerIds: Object.freeze(
           profile.authoring.artifactTypes.map((artifactType) => {
             return Object.freeze({
               ids: Object.freeze([...(resolvedArtifactOwnerIds(profile, artifactType) ?? [])]),
-              type: artifactType.type
+              type: artifactType.type,
             });
-          })
+          }),
         ),
         collections: Object.freeze(profile.catalog.collections.map(freezeCollection)),
         evidence,
@@ -46,15 +51,15 @@ export class NodeAuthoringProfileReaderV2 implements AuthoringProfileReader {
         projectId: profile.projectId,
         schemaVersion: profile.schemaVersion,
         templatePaths: Object.freeze(
-          profile.authoring.artifactTypes.map((artifactType) => artifactType.template.path)
-        )
+          profile.authoring.artifactTypes.map((artifactType) => artifactType.template.path),
+        ),
       });
     } catch (error) {
       if (error instanceof InvalidDocumentAuthoringProfileError) {
         throw new DocumentCatalogError(
           "DOCUMENT_CATALOG_INPUT_INVALID",
           `Document authoring profile is invalid: ${error.message}`,
-          { cause: error }
+          { cause: error },
         );
       }
       throw error;

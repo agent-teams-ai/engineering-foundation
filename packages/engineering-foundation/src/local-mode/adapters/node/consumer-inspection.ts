@@ -1,10 +1,20 @@
 import { readFile, realpath } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { parseDocument } from "yaml";
-import { inspectBunRegistryProvenance, readBoundedConsumerManifest } from "./bun-registry-inspection.js";
+import {
+  inspectBunRegistryProvenance,
+  readBoundedConsumerManifest,
+} from "./bun-registry-inspection.js";
 import { bunLocalMutationUnsupported } from "../../application/inspection-failures.js";
-import { inspectConsumerManifest, inspectLockfile, isSupportedPnpmManager } from "../../application/consumer-policy.js";
-import type { ConsumerPolicyInspection, RegistryProvenanceInspection } from "../../application/model.js";
+import {
+  inspectConsumerManifest,
+  inspectLockfile,
+  isSupportedPnpmManager,
+} from "../../application/consumer-policy.js";
+import type {
+  ConsumerPolicyInspection,
+  RegistryProvenanceInspection,
+} from "../../application/model.js";
 import { FOUNDATION_PACKAGE_NAME } from "../../application/model.js";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -13,7 +23,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 async function readConsumerManifest(
   consumerRoot: string,
-  issues: string[]
+  issues: string[],
 ): Promise<Record<string, unknown> | undefined> {
   try {
     const candidate = await readBoundedConsumerManifest(consumerRoot);
@@ -27,7 +37,9 @@ async function readConsumerManifest(
   return undefined;
 }
 
-export async function inspectFoundationDevOnly(consumerRoot: string): Promise<ConsumerPolicyInspection> {
+export async function inspectFoundationDevOnly(
+  consumerRoot: string,
+): Promise<ConsumerPolicyInspection> {
   const issues: string[] = [];
   const manifest = await readConsumerManifest(consumerRoot, issues);
   return inspectConsumerManifest(consumerRoot, manifest, issues);
@@ -35,7 +47,7 @@ export async function inspectFoundationDevOnly(consumerRoot: string): Promise<Co
 
 function readLockfileObject(source: string): Record<string, unknown> {
   const document = parseDocument(source, {
-    uniqueKeys: true
+    uniqueKeys: true,
   });
   if (document.errors.length > 0) {
     throw new Error(document.errors.map((error) => error.message).join("; "));
@@ -49,17 +61,24 @@ function readLockfileObject(source: string): Record<string, unknown> {
 
 export async function inspectFoundationRegistryProvenance(
   consumerRoot: string,
-  dependencySpec: string | undefined
+  dependencySpec: string | undefined,
 ): Promise<RegistryProvenanceInspection> {
   const consumer = await inspectFoundationDevOnly(consumerRoot);
   if (consumer.packageManager?.startsWith("bun@") === true) {
     if (consumer.issues.length !== 0 || consumer.dependencySpec !== dependencySpec) {
-      return { issues: [...consumer.issues, "Bun registry inspection requires the exact admitted manifest dependency."] };
+      return {
+        issues: [
+          ...consumer.issues,
+          "Bun registry inspection requires the exact admitted manifest dependency.",
+        ],
+      };
     }
     return inspectBunRegistryProvenance(consumerRoot, dependencySpec);
   }
   if (consumer.packageManager === undefined || !isSupportedPnpmManager(consumer.packageManager)) {
-    return { issues: [...consumer.issues, "Registry inspection requires an admitted package manager."] };
+    return {
+      issues: [...consumer.issues, "Registry inspection requires an admitted package manager."],
+    };
   }
   const issues: string[] = [];
   const lockfilePath = join(consumerRoot, "pnpm-lock.yaml");
@@ -68,28 +87,17 @@ export async function inspectFoundationRegistryProvenance(
     lockfile = readLockfileObject(await readFile(lockfilePath, "utf8"));
   } catch {
     return {
-      issues: ["Consumer pnpm-lock.yaml cannot be parsed safely."]
+      issues: ["Consumer pnpm-lock.yaml cannot be parsed safely."],
     };
   }
 
-  const rootProvenance = inspectLockfile(
-    lockfile,
-    "consumer pnpm-lock.yaml",
-    dependencySpec
-  );
+  const rootProvenance = inspectLockfile(lockfile, "consumer pnpm-lock.yaml", dependencySpec);
   issues.push(...rootProvenance.issues);
 
-  const virtualStoreLockfilePath = join(
-    consumerRoot,
-    "node_modules",
-    ".pnpm",
-    "lock.yaml"
-  );
+  const virtualStoreLockfilePath = join(consumerRoot, "node_modules", ".pnpm", "lock.yaml");
   let virtualStoreLockfile: Record<string, unknown>;
   try {
-    virtualStoreLockfile = readLockfileObject(
-      await readFile(virtualStoreLockfilePath, "utf8")
-    );
+    virtualStoreLockfile = readLockfileObject(await readFile(virtualStoreLockfilePath, "utf8"));
   } catch {
     issues.push("Installed pnpm virtual-store lockfile cannot be parsed safely.");
     return { issues };
@@ -97,7 +105,7 @@ export async function inspectFoundationRegistryProvenance(
   const installedProvenance = inspectLockfile(
     virtualStoreLockfile,
     "installed pnpm virtual-store lockfile",
-    dependencySpec
+    dependencySpec,
   );
   issues.push(...installedProvenance.issues);
   if (
@@ -106,7 +114,7 @@ export async function inspectFoundationRegistryProvenance(
     rootProvenance.integrity !== installedProvenance.integrity
   ) {
     issues.push(
-      `${FOUNDATION_PACKAGE_NAME} root and installed pnpm lockfile provenance must match.`
+      `${FOUNDATION_PACKAGE_NAME} root and installed pnpm lockfile provenance must match.`,
     );
   }
 
@@ -118,15 +126,17 @@ export async function inspectFoundationRegistryProvenance(
           provenance: {
             lockfilePath,
             packageKey: rootProvenance.packageKey,
-            integrity: rootProvenance.integrity
-          }
+            integrity: rootProvenance.integrity,
+          },
         }
       : {}),
-    issues
+    issues,
   };
 }
 
-export async function inspectCanonicalConsumerDevOnly(consumerPath: string): Promise<ConsumerPolicyInspection> {
+export async function inspectCanonicalConsumerDevOnly(
+  consumerPath: string,
+): Promise<ConsumerPolicyInspection> {
   return inspectFoundationDevOnly(await realpath(resolve(consumerPath)));
 }
 

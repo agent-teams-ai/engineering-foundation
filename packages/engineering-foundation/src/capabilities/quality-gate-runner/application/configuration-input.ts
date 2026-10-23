@@ -5,7 +5,6 @@ export function configurationInputError(message: string): never {
     code: "QUALITY_GATE_RUNNER_CONFIG_INVALID",
     message,
     phase: "quality-gate-runner-config",
-    retryable: false
+    retryable: false,
   });
 }
-

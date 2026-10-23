@@ -1,10 +1,6 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
-import {
-  mkdir,
-  mkdtemp,
-  writeFile,
-} from "node:fs/promises";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { PassThrough } from "node:stream";
@@ -36,7 +32,9 @@ function createInjectedSpawnHarness() {
       const deadline = { cancelled: false, label, milliseconds };
       deadlines.push(deadline);
       return {
-        cancel() { deadline.cancelled = true; },
+        cancel() {
+          deadline.cancelled = true;
+        },
         promise: new Promise(() => {}),
       };
     },
@@ -57,7 +55,9 @@ function createInjectedSpawnHarness() {
     async terminateTree(child) {
       terminations.push(child);
       child.signalCode = "SIGTERM";
-      queueMicrotask(() => { child.emit("close", null, "SIGTERM"); });
+      queueMicrotask(() => {
+        child.emit("close", null, "SIGTERM");
+      });
     },
     terminations,
   };
@@ -119,7 +119,9 @@ test("bounded CLI spawn shapes share managed tree termination", async (context) 
 async function writeFixturePnpm(root, taskAuthorities = {}) {
   await writeFixtureBoundaryClient(root);
   const entrypoint = join(root, "fixture-pnpm.cjs");
-  await writeFile(entrypoint, `const { spawn } = require("node:child_process");
+  await writeFile(
+    entrypoint,
+    `const { spawn } = require("node:child_process");
 const { once } = require("node:events");
 const { readFileSync } = require("node:fs");
 const { setTimeout: delay } = require("node:timers/promises");
@@ -158,14 +160,18 @@ process.exit(code ?? 1);
   process.stderr.write(String(error?.stack ?? error));
   process.exit(1);
 });
-`, "utf8");
+`,
+    "utf8",
+  );
   return entrypoint;
 }
 
-async function writeNeverEndingTaskFixture(root, filename, effectPath, {
-  descendantEnvironment,
-  readinessRoles = ["package-manager", "parent", "descendant"],
-} = {}) {
+async function writeNeverEndingTaskFixture(
+  root,
+  filename,
+  effectPath,
+  { descendantEnvironment, readinessRoles = ["package-manager", "parent", "descendant"] } = {},
+) {
   await writeFixtureBoundaryClient(root);
   const descendantSource = `const { connect } = require("./fixture-boundary-client.cjs");
 void (async () => {
@@ -174,7 +180,9 @@ void (async () => {
   setInterval(() => {}, 60000);
 })().catch((error) => { throw error; });
 `;
-  await writeFile(join(root, filename), `const { spawn } = require("node:child_process");
+  await writeFile(
+    join(root, filename),
+    `const { spawn } = require("node:child_process");
 const { once } = require("node:events");
 const { renameSync, writeFileSync } = require("node:fs");
 const { setTimeout: delay } = require("node:timers/promises");
@@ -203,7 +211,9 @@ writeFileSync(readinessPath, JSON.stringify({
 renameSync(readinessPath, ${JSON.stringify(effectPath)});
 setInterval(() => {}, 60000);
 })().catch((error) => { throw error; });
-`, "utf8");
+`,
+    "utf8",
+  );
 }
 
 function parseOwnedReadiness(boundary, roles) {
@@ -216,20 +226,36 @@ function parseOwnedReadiness(boundary, roles) {
 
 async function writeConsumer(root, profileSource, scripts, packageManagerVersion = "11.20.0") {
   await mkdir(join(root, "architecture", "foundation"), { recursive: true });
-  await writeFile(join(root, "package.json"), `${JSON.stringify({
-    name: "quality-gate-test-consumer",
-    private: true,
-    packageManager: `pnpm@${packageManagerVersion}`,
-    scripts,
-  }, null, 2)}\n`, "utf8");
-  await writeFile(join(root, "foundation.config.yaml"), `schemaVersion: 1
+  await writeFile(
+    join(root, "package.json"),
+    `${JSON.stringify(
+      {
+        name: "quality-gate-test-consumer",
+        private: true,
+        packageManager: `pnpm@${packageManagerVersion}`,
+        scripts,
+      },
+      null,
+      2,
+    )}\n`,
+    "utf8",
+  );
+  await writeFile(
+    join(root, "foundation.config.yaml"),
+    `schemaVersion: 1
 project:
   id: quality-gate-test
 capabilities:
   quality.gate-runner:
     configPath: architecture/foundation/quality-gates.yaml
-`, "utf8");
-  await writeFile(join(root, "architecture", "foundation", "quality-gates.yaml"), profileSource, "utf8");
+`,
+    "utf8",
+  );
+  await writeFile(
+    join(root, "architecture", "foundation", "quality-gates.yaml"),
+    profileSource,
+    "utf8",
+  );
 }
 
 async function writeConcurrentManagedTaskFixture(root) {
@@ -254,7 +280,9 @@ async function writeConcurrentManagedTaskFixture(root) {
     ...task,
     roles: [task.packageManagerRole, task.parentRole, task.descendantRole],
   }));
-  await writeConsumer(root, `schemaVersion: 1
+  await writeConsumer(
+    root,
+    `schemaVersion: 1
 packageManager: pnpm
 profiles:
   - id: verify
@@ -262,29 +290,39 @@ profiles:
     tasks:
       - id: slow-a
       - id: slow-b
-`, Object.fromEntries(tasks.map(({ filename, scriptId }) => [scriptId, `node ${filename}`])));
+`,
+    Object.fromEntries(tasks.map(({ filename, scriptId }) => [scriptId, `node ${filename}`])),
+  );
   return {
     tasks,
   };
 }
 
 async function createConcurrentTaskBoundaries(root, tasks) {
-  const boundaries = await createSyntheticFixtureBoundaries(tasks.map(({ roles }) => ({
-    expectedRoles: roles,
-    shutdownGraceMs: 20_000,
-  })));
+  const boundaries = await createSyntheticFixtureBoundaries(
+    tasks.map(({ roles }) => ({
+      expectedRoles: roles,
+      shutdownGraceMs: 20_000,
+    })),
+  );
   for (const [index, task] of tasks.entries()) {
     await writeNeverEndingTaskFixture(root, task.filename, task.effectPath, {
       descendantEnvironment: boundaries[index].environmentFor(task.descendantRole),
       readinessRoles: task.roles,
     });
   }
-  const fixturePnpm = await writeFixturePnpm(root, Object.fromEntries(
-    tasks.map(({ packageManagerRole, parentRole, scriptId }, index) => [scriptId, {
-      packageManager: boundaries[index].environmentFor(packageManagerRole),
-      task: boundaries[index].environmentFor(parentRole),
-    }]),
-  ));
+  const fixturePnpm = await writeFixturePnpm(
+    root,
+    Object.fromEntries(
+      tasks.map(({ packageManagerRole, parentRole, scriptId }, index) => [
+        scriptId,
+        {
+          packageManager: boundaries[index].environmentFor(packageManagerRole),
+          task: boundaries[index].environmentFor(parentRole),
+        },
+      ]),
+    ),
+  );
   return { boundaries, fixturePnpm };
 }
 
@@ -292,25 +330,29 @@ test("CLI preserves a failing script exit code and emits versioned JSON evidence
   const root = await mkdtemp(join(tmpdir(), "foundation-quality-gate-cli-"));
   let execution;
   try {
-    await writeConsumer(root, `schemaVersion: 1
+    await writeConsumer(
+      root,
+      `schemaVersion: 1
 packageManager: pnpm
 profiles:
   - id: verify
     concurrency: 1
     tasks:
       - id: fail
-`, {
-      fail: "node failure-fixture.cjs",
-    });
+`,
+      {
+        fail: "node failure-fixture.cjs",
+      },
+    );
     await writeFile(
       join(root, "failure-fixture.cjs"),
       "process.stderr.write('failure-tail'); process.exit(7);\n",
       "utf8",
     );
     const fixturePnpm = await writeFixturePnpm(root);
-    execution = startCli([
-      "gate", "run", "verify", "--consumer", root, "--format", "json",
-    ], { env: { ...process.env, npm_execpath: fixturePnpm } });
+    execution = startCli(["gate", "run", "verify", "--consumer", root, "--format", "json"], {
+      env: { ...process.env, npm_execpath: fixturePnpm },
+    });
     const completed = await execution.result;
     assert.equal(completed.status, 7, JSON.stringify(completed));
     const report = JSON.parse(completed.stdout);
@@ -329,19 +371,21 @@ test("static capability check validates an opted-in profile without running scri
   const guardedSource = `require("node:fs").writeFileSync(${JSON.stringify(marker)}, "")`;
   let execution;
   try {
-    await writeConsumer(root, `schemaVersion: 1
+    await writeConsumer(
+      root,
+      `schemaVersion: 1
 packageManager: pnpm
 profiles:
   - id: verify
     concurrency: 1
     tasks:
       - id: guarded
-`, {
-      guarded: `node --eval ${JSON.stringify(guardedSource)}`,
-    });
-    execution = startCli([
-      "check", "quality.gate-runner", "--consumer", root, "--format", "json",
-    ]);
+`,
+      {
+        guarded: `node --eval ${JSON.stringify(guardedSource)}`,
+      },
+    );
+    execution = startCli(["check", "quality.gate-runner", "--consumer", root, "--format", "json"]);
     const completed = await execution.result;
     assert.equal(completed.status, 0, JSON.stringify(completed));
     assert.equal(JSON.parse(completed.stdout).outcome, "passed");
@@ -378,16 +422,18 @@ test("CLI rejects missing scripts, recursion, invalid timeout, and cycles before
     const root = await mkdtemp(join(tmpdir(), `foundation-quality-gate-invalid-${index}-`));
     let execution;
     try {
-      await writeConsumer(root, `schemaVersion: 1
+      await writeConsumer(
+        root,
+        `schemaVersion: 1
 packageManager: pnpm
 profiles:
   - id: verify
     concurrency: 1
     tasks:
-${candidate.source}`, candidate.scripts);
-      execution = startCli([
-        "gate", "run", "verify", "--consumer", root,
-      ]);
+${candidate.source}`,
+        candidate.scripts,
+      );
+      execution = startCli(["gate", "run", "verify", "--consumer", root]);
       const completed = await execution.result;
       assert.equal(completed.status, 2);
       assert.match(completed.stderr, new RegExp(`^${candidate.expected}:`, "u"));
@@ -405,16 +451,20 @@ test("readiness failure cleans up and awaits the credential-owned fixture bounda
   let execution;
   try {
     boundary = await createSyntheticFixtureBoundary({ expectedRoles: roles });
-    await writeConsumer(root, `schemaVersion: 1
+    await writeConsumer(
+      root,
+      `schemaVersion: 1
 packageManager: pnpm
 profiles:
   - id: verify
     concurrency: 1
     tasks:
       - id: slow
-`, {
-      slow: "node readiness-failure-fixture.cjs",
-    });
+`,
+      {
+        slow: "node readiness-failure-fixture.cjs",
+      },
+    );
     await writeNeverEndingTaskFixture(root, "readiness-failure-fixture.cjs", effectPath, {
       descendantEnvironment: boundary.environmentFor("descendant"),
     });
@@ -424,9 +474,7 @@ profiles:
         task: boundary.environmentFor("parent"),
       },
     });
-    execution = startCli([
-      "gate", "run", "verify", "--consumer", root, "--format", "json",
-    ], {
+    execution = startCli(["gate", "run", "verify", "--consumer", root, "--format", "json"], {
       deferWatchdogUntilReady: true,
       env: {
         ...process.env,
@@ -465,17 +513,23 @@ test("runtime marker rejects dynamically assembled recursive gate commands", asy
   let execution;
   try {
     boundary = await createSyntheticFixtureBoundary({ expectedRoles: roles });
-    await writeConsumer(root, `schemaVersion: 1
+    await writeConsumer(
+      root,
+      `schemaVersion: 1
 packageManager: pnpm
 profiles:
   - id: verify
     concurrency: 1
     tasks:
       - id: dynamic
-`, {
-      dynamic: "node recursion-fixture.cjs",
-    });
-    await writeFile(join(root, "recursion-fixture.cjs"), `const { spawn } = require("node:child_process");
+`,
+      {
+        dynamic: "node recursion-fixture.cjs",
+      },
+    );
+    await writeFile(
+      join(root, "recursion-fixture.cjs"),
+      `const { spawn } = require("node:child_process");
 const { once } = require("node:events");
 const { renameSync, writeFileSync } = require("node:fs");
 const { setTimeout: delay } = require("node:timers/promises");
@@ -502,16 +556,16 @@ nested = spawn(process.execPath, [
 const [code] = await once(nested, "exit");
 process.exit(code ?? 1);
 })().catch((error) => { throw error; });
-`, "utf8");
+`,
+      "utf8",
+    );
     const fixturePnpm = await writeFixturePnpm(root, {
       dynamic: {
         packageManager: boundary.environmentFor("package-manager"),
         task: boundary.environmentFor("recursion"),
       },
     });
-    execution = startCli([
-      "gate", "run", "verify", "--consumer", root, "--format", "json",
-    ], {
+    execution = startCli(["gate", "run", "verify", "--consumer", root, "--format", "json"], {
       deferWatchdogUntilReady: true,
       env: {
         ...process.env,
@@ -537,122 +591,130 @@ process.exit(code ?? 1);
   }
 });
 
-test("SIGTERM cancels an active gate with the documented exit code", {
-  skip: process.platform === "win32",
-}, async () => {
-  const root = await mkdtemp(join(tmpdir(), "foundation-quality-gate-sigterm-"));
-  const effectPath = join(root, ".cancellation-readiness.json");
-  const roles = ["package-manager", "parent", "descendant"];
-  let boundary;
-  let execution;
-  try {
-    boundary = await createSyntheticFixtureBoundary({ expectedRoles: roles });
-    await writeConsumer(root, `schemaVersion: 1
+test(
+  "SIGTERM cancels an active gate with the documented exit code",
+  {
+    skip: process.platform === "win32",
+  },
+  async () => {
+    const root = await mkdtemp(join(tmpdir(), "foundation-quality-gate-sigterm-"));
+    const effectPath = join(root, ".cancellation-readiness.json");
+    const roles = ["package-manager", "parent", "descendant"];
+    let boundary;
+    let execution;
+    try {
+      boundary = await createSyntheticFixtureBoundary({ expectedRoles: roles });
+      await writeConsumer(
+        root,
+        `schemaVersion: 1
 packageManager: pnpm
 profiles:
   - id: verify
     concurrency: 1
     tasks:
       - id: slow
-`, {
-      slow: "node cancellation-fixture.cjs",
-    });
-    await writeNeverEndingTaskFixture(root, "cancellation-fixture.cjs", effectPath, {
-      descendantEnvironment: boundary.environmentFor("descendant"),
-    });
-    const fixturePnpm = await writeFixturePnpm(root, {
-      slow: {
-        packageManager: boundary.environmentFor("package-manager"),
-        task: boundary.environmentFor("parent"),
-      },
-    });
-    execution = startCli([
-      "gate", "run", "verify", "--consumer", root, "--format", "json",
-    ], {
-      deferWatchdogUntilReady: true,
-      env: {
-        ...process.env,
-        npm_execpath: fixturePnpm,
-      },
-      fixtureBoundary: boundary,
-    });
-    await waitForFixtureEffect(effectPath, execution, parseOwnedReadiness(boundary, roles));
-    await boundary.waitForRoles();
-    let cliCompleted = false;
-    const completion = execution.result.then((result) => {
-      cliCompleted = true;
-      return result;
-    });
-    assert.equal(execution.command.kill("SIGTERM"), true);
-    await boundary.assertStopped();
-    assert.equal(cliCompleted, false, "owned roles must stop before final CLI completion");
-    const result = await completion;
-    assert.deepEqual(
-      { code: result.status, signal: result.signal },
-      { code: 143, signal: null },
-    );
-    assert.equal(result.stderr, "");
-    const report = JSON.parse(result.stdout);
-    assert.equal(report.outcome, "cancelled");
-    assert.equal(report.tasks[0].outcome, "cancelled");
-  } finally {
-    await cleanupSyntheticFixture({
-      boundaries: [boundary],
-      executions: [execution],
-      roots: [root],
-    });
-  }
-});
+`,
+        {
+          slow: "node cancellation-fixture.cjs",
+        },
+      );
+      await writeNeverEndingTaskFixture(root, "cancellation-fixture.cjs", effectPath, {
+        descendantEnvironment: boundary.environmentFor("descendant"),
+      });
+      const fixturePnpm = await writeFixturePnpm(root, {
+        slow: {
+          packageManager: boundary.environmentFor("package-manager"),
+          task: boundary.environmentFor("parent"),
+        },
+      });
+      execution = startCli(["gate", "run", "verify", "--consumer", root, "--format", "json"], {
+        deferWatchdogUntilReady: true,
+        env: {
+          ...process.env,
+          npm_execpath: fixturePnpm,
+        },
+        fixtureBoundary: boundary,
+      });
+      await waitForFixtureEffect(effectPath, execution, parseOwnedReadiness(boundary, roles));
+      await boundary.waitForRoles();
+      let cliCompleted = false;
+      const completion = execution.result.then((result) => {
+        cliCompleted = true;
+        return result;
+      });
+      assert.equal(execution.command.kill("SIGTERM"), true);
+      await boundary.assertStopped();
+      assert.equal(cliCompleted, false, "owned roles must stop before final CLI completion");
+      const result = await completion;
+      assert.deepEqual({ code: result.status, signal: result.signal }, { code: 143, signal: null });
+      assert.equal(result.stderr, "");
+      const report = JSON.parse(result.stdout);
+      assert.equal(report.outcome, "cancelled");
+      assert.equal(report.tasks[0].outcome, "cancelled");
+    } finally {
+      await cleanupSyntheticFixture({
+        boundaries: [boundary],
+        executions: [execution],
+        roots: [root],
+      });
+    }
+  },
+);
 
-test("SIGTERM closes both simultaneous task-specific managed boundaries", {
-  skip: process.platform === "win32",
-}, async () => {
-  const root = await mkdtemp(join(tmpdir(), "foundation-quality-gate-concurrent-sigterm-"));
-  let boundaries = [];
-  let execution;
-  try {
-    const fixture = await writeConcurrentManagedTaskFixture(root);
-    const managed = await createConcurrentTaskBoundaries(
-      root,
-      fixture.tasks,
-    );
-    boundaries = managed.boundaries;
-    execution = startCli([
-      "gate", "run", "verify", "--consumer", root, "--format", "json",
-    ], {
-      deferWatchdogUntilReady: true,
-      env: { ...process.env, npm_execpath: managed.fixturePnpm },
-    });
-    await Promise.all(fixture.tasks.map(({ effectPath, roles }, index) => (
-      waitForFixtureEffect(effectPath, execution, parseOwnedReadiness(boundaries[index], roles))
-    )));
-    await Promise.all(boundaries.map((boundary) => boundary.waitForRoles()));
-    await Promise.all(boundaries.map((boundary) => boundary.assertActive()));
-    let cliCompleted = false;
-    const completion = execution.result.then((result) => {
-      cliCompleted = true;
-      return result;
-    });
-    assert.equal(execution.command.kill("SIGTERM"), true);
-    await Promise.all(boundaries.map((boundary) => boundary.assertStopped()));
-    assert.equal(cliCompleted, false, "owned boundaries must stop before final CLI completion");
-    const result = await completion;
-    assert.deepEqual(
-      { code: result.status, signal: result.signal },
-      { code: 143, signal: null },
-    );
-    assert.equal(result.stderr, "");
-    const report = JSON.parse(result.stdout);
-    assert.equal(report.outcome, "cancelled");
-    assert.deepEqual(
-      report.tasks.map(({ id, outcome }) => [id, outcome]),
-      [["slow-a", "cancelled"], ["slow-b", "cancelled"]],
-    );
-  } finally {
-    await cleanupSyntheticFixture({
-      boundaries,
-      executions: [execution],
-      roots: [root],
-    });
-  }
-});
+test(
+  "SIGTERM closes both simultaneous task-specific managed boundaries",
+  {
+    skip: process.platform === "win32",
+  },
+  async () => {
+    const root = await mkdtemp(join(tmpdir(), "foundation-quality-gate-concurrent-sigterm-"));
+    let boundaries = [];
+    let execution;
+    try {
+      const fixture = await writeConcurrentManagedTaskFixture(root);
+      const managed = await createConcurrentTaskBoundaries(root, fixture.tasks);
+      boundaries = managed.boundaries;
+      execution = startCli(["gate", "run", "verify", "--consumer", root, "--format", "json"], {
+        deferWatchdogUntilReady: true,
+        env: { ...process.env, npm_execpath: managed.fixturePnpm },
+      });
+      await Promise.all(
+        fixture.tasks.map(({ effectPath, roles }, index) =>
+          waitForFixtureEffect(
+            effectPath,
+            execution,
+            parseOwnedReadiness(boundaries[index], roles),
+          ),
+        ),
+      );
+      await Promise.all(boundaries.map((boundary) => boundary.waitForRoles()));
+      await Promise.all(boundaries.map((boundary) => boundary.assertActive()));
+      let cliCompleted = false;
+      const completion = execution.result.then((result) => {
+        cliCompleted = true;
+        return result;
+      });
+      assert.equal(execution.command.kill("SIGTERM"), true);
+      await Promise.all(boundaries.map((boundary) => boundary.assertStopped()));
+      assert.equal(cliCompleted, false, "owned boundaries must stop before final CLI completion");
+      const result = await completion;
+      assert.deepEqual({ code: result.status, signal: result.signal }, { code: 143, signal: null });
+      assert.equal(result.stderr, "");
+      const report = JSON.parse(result.stdout);
+      assert.equal(report.outcome, "cancelled");
+      assert.deepEqual(
+        report.tasks.map(({ id, outcome }) => [id, outcome]),
+        [
+          ["slow-a", "cancelled"],
+          ["slow-b", "cancelled"],
+        ],
+      );
+    } finally {
+      await cleanupSyntheticFixture({
+        boundaries,
+        executions: [execution],
+        roots: [root],
+      });
+    }
+  },
+);

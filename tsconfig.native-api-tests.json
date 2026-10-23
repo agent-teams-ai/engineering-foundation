@@ -4,6 +4,11 @@
     "packages/engineering-foundation/tests/*.test.ts"
   ],
   "files": [
-    "tests/support/native-public-api-fixture.ts"
-  ]
+    "tests/support/native-public-api-fixture.ts",
+    "tests/public-api-growth-route-cases.ts",
+    "tests/support/public-api-growth-decision-cases.ts"
+  ],
+  "compilerOptions": {
+    "allowJs": true
+  }
 }

@@ -6,9 +6,7 @@ if (
   consumerRoot === undefined ||
   requestedMutation === undefined
 ) {
-  throw new Error(
-    "coordinator module path, consumer root, and mutation kind are required",
-  );
+  throw new Error("coordinator module path, consumer root, and mutation kind are required");
 }
 
 const { createNodeFoundationTransactionCoordinator } = await import(

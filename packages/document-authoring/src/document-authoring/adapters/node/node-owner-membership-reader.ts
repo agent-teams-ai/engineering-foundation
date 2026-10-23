@@ -1,12 +1,14 @@
-import { isDocumentInputFailure, assertDocumentAuthoringActive } from "../../application/policies/document-input-failure.js";
+import {
+  isDocumentInputFailure,
+  assertDocumentAuthoringActive,
+} from "../../application/policies/document-input-failure.js";
 import type { DocumentFileReader } from "../../application/ports/document-file-reader.js";
-
 
 import { compareBinaryStrings } from "../../../binary-string-comparator.js";
 import { parseStrictYamlSource } from "./strict-yaml.js";
 import type {
   OwnerMembershipReader,
-  OwnerMembershipSnapshot
+  OwnerMembershipSnapshot,
 } from "../../application/ports/owner-membership-reader.js";
 import { DocumentCatalogError } from "../../application/model/document-catalog-error.js";
 import { readDocumentAuthorityFile } from "./read-document-authority-file.js";
@@ -23,7 +25,7 @@ function invalidOwnerCatalog(message: string, cause?: unknown): never {
   throw new DocumentCatalogError(
     "DOCUMENT_CATALOG_INPUT_INVALID",
     message,
-    cause === undefined ? undefined : { cause }
+    cause === undefined ? undefined : { cause },
   );
 }
 
@@ -48,21 +50,19 @@ function parseOwnerIds(source: string): readonly string[] {
     input.version !== 1 ||
     !isRecord(input.owners)
   ) {
-    invalidOwnerCatalog(
-      "Document owner catalog must contain only version 1 and an owners object."
-    );
+    invalidOwnerCatalog("Document owner catalog must contain only version 1 and an owners object.");
   }
   const owners = input.owners;
   const ids = Object.keys(owners).toSorted(compareBinaryStrings);
   if (ids.length === 0 || ids.length > MAX_OWNER_COUNT) {
     invalidOwnerCatalog(
-      `Document owner catalog must contain between 1 and ${MAX_OWNER_COUNT} owners.`
+      `Document owner catalog must contain between 1 and ${MAX_OWNER_COUNT} owners.`,
     );
   }
   for (const id of ids) {
     if (id.length > 214 || !OWNER_ID.test(id) || !isRecord(owners[id])) {
       invalidOwnerCatalog(
-        "Document owner IDs must be normalized opaque identifiers with object metadata."
+        "Document owner IDs must be normalized opaque identifiers with object metadata.",
       );
     }
   }
@@ -81,7 +81,7 @@ export class NodeOwnerMembershipReader implements OwnerMembershipReader {
     const file = await readDocumentAuthorityFile(this.readFile, {
       consumerRoot: request.consumerRoot,
       maxBytes: MAX_OWNER_CATALOG_BYTES,
-      path: request.path
+      path: request.path,
     });
     assertDocumentAuthoringActive(request.signal);
     return Object.freeze({ evidence: file.evidence, ids: parseOwnerIds(file.source) });

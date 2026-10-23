@@ -23,7 +23,7 @@ async function isRegularFile(path: string): Promise<boolean> {
 }
 
 async function nodeEntrypoint(
-  candidates: readonly (string | undefined)[]
+  candidates: readonly (string | undefined)[],
 ): Promise<string | undefined> {
   for (const candidate of candidates) {
     if (candidate !== undefined && isAbsolute(candidate)) {
@@ -31,7 +31,7 @@ async function nodeEntrypoint(
       if (
         canonical !== null &&
         /\.(?:c|m)?js$/iu.test(canonical) &&
-        await isRegularFile(canonical)
+        (await isRegularFile(canonical))
       ) {
         return canonical;
       }
@@ -40,9 +40,7 @@ async function nodeEntrypoint(
   return undefined;
 }
 
-async function resolvePnpmInvocation(
-  environment: PnpmProcessEnvironment
-): Promise<PnpmInvocation> {
+async function resolvePnpmInvocation(environment: PnpmProcessEnvironment): Promise<PnpmInvocation> {
   if (
     process.platform !== "win32" &&
     environment.npmExecPath !== undefined &&
@@ -51,7 +49,7 @@ async function resolvePnpmInvocation(
     // Same precedence as the quality-gate executor: an explicit native
     // npmExecPath wins, classified on the canonical executed target.
     const canonical = await realpath(environment.npmExecPath).catch(() => null);
-    if (canonical !== null && await isRegularFile(canonical)) {
+    if (canonical !== null && (await isRegularFile(canonical))) {
       if (!/\.(?:c|m)?js$/iu.test(canonical)) {
         return { command: canonical, argsPrefix: [] };
       }
@@ -63,10 +61,7 @@ async function resolvePnpmInvocation(
     environment.pnpmHome === undefined
       ? undefined
       : resolve(environment.pnpmHome, "..", "pnpm", "bin", "pnpm.cjs");
-  const entrypoint = await nodeEntrypoint([
-    environment.npmExecPath,
-    pnpmPackageEntrypoint
-  ]);
+  const entrypoint = await nodeEntrypoint([environment.npmExecPath, pnpmPackageEntrypoint]);
   if (entrypoint !== undefined) {
     if (environment.nodeExecutablePath === undefined) {
       rejectWorkflowExecutor();
@@ -77,15 +72,13 @@ async function resolvePnpmInvocation(
     return { command: "pnpm", argsPrefix: [] };
   }
   const executableCandidates = [
-    ...(environment.pnpmHome === undefined
-      ? []
-      : [resolve(environment.pnpmHome, "pnpm.exe")]),
+    ...(environment.pnpmHome === undefined ? [] : [resolve(environment.pnpmHome, "pnpm.exe")]),
     ...(environment.pathValue === undefined
       ? []
       : environment.pathValue
           .split(delimiter)
           .filter((path) => path.length > 0)
-          .map((path) => resolve(path, "pnpm.exe")))
+          .map((path) => resolve(path, "pnpm.exe"))),
   ];
   for (const candidate of executableCandidates) {
     if (await isRegularFile(candidate)) {
@@ -98,7 +91,7 @@ async function resolvePnpmInvocation(
 export class PnpmPackageScriptRunner implements PackageScriptRunner {
   constructor(
     private readonly environment: PnpmProcessEnvironment,
-    private readonly execute: ExecuteWorkflowProcess
+    private readonly execute: ExecuteWorkflowProcess,
   ) {}
 
   async run(input: {
@@ -111,19 +104,11 @@ export class PnpmPackageScriptRunner implements PackageScriptRunner {
     if (input.packageManager !== "pnpm") {
       rejectWorkflowExecutor();
     }
-    const args = [
-      "run",
-      input.script,
-      ...(input.paths.length === 0 ? [] : ["--", ...input.paths])
-    ];
+    const args = ["run", input.script, ...(input.paths.length === 0 ? [] : ["--", ...input.paths])];
     const invocation = await resolvePnpmInvocation(this.environment);
-    return this.execute(
-      invocation.command,
-      [...invocation.argsPrefix, ...args],
-      {
-        cwd: input.consumerRoot,
-        ...(input.signal === undefined ? {} : { signal: input.signal })
-      }
-    );
+    return this.execute(invocation.command, [...invocation.argsPrefix, ...args], {
+      cwd: input.consumerRoot,
+      ...(input.signal === undefined ? {} : { signal: input.signal }),
+    });
   }
 }

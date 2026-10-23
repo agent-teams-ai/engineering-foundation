@@ -107,12 +107,28 @@ export interface UnselectedCohortV3 {
   readonly candidateDigest: string;
   readonly lifecycleState: "QUALIFIED" | "CANARY" | "RECOMMENDED";
   readonly canaryRepositoryIds: readonly string[];
-  readonly packages: Readonly<Record<"repositoryMutation" | "documentAuthoring" | "docsProtocol" |
-    "docsProtocolAgentTeams" | "engineeringFoundation", { readonly version: string; readonly integrity: `sha512-${string}` }>>;
-  readonly workflow: { readonly repository: "agent-teams-ai/.github"; readonly path: ".github/workflows/docs-protocol-check.yml";
-    readonly revision: string; readonly blobSha: string };
-  readonly assets: { readonly skillDigest: string; readonly callerWorkflowDigest: string;
-    readonly assetCatalogDigest: string; readonly transitionCatalogDigest: string };
+  readonly packages: Readonly<
+    Record<
+      | "repositoryMutation"
+      | "documentAuthoring"
+      | "docsProtocol"
+      | "docsProtocolAgentTeams"
+      | "engineeringFoundation",
+      { readonly version: string; readonly integrity: `sha512-${string}` }
+    >
+  >;
+  readonly workflow: {
+    readonly repository: "agent-teams-ai/.github";
+    readonly path: ".github/workflows/docs-protocol-check.yml";
+    readonly revision: string;
+    readonly blobSha: string;
+  };
+  readonly assets: {
+    readonly skillDigest: string;
+    readonly callerWorkflowDigest: string;
+    readonly assetCatalogDigest: string;
+    readonly transitionCatalogDigest: string;
+  };
   readonly schemas: {
     readonly consumerIntegration: 4;
     readonly managedState: 3;
@@ -120,7 +136,11 @@ export interface UnselectedCohortV3 {
     readonly docsProtocol: 1;
   };
   readonly runtime: {
-    readonly policy: { readonly id: "agent-teams.docs-protocol-current-policy"; readonly version: "3.0.0"; readonly digest: string };
+    readonly policy: {
+      readonly id: "agent-teams.docs-protocol-current-policy";
+      readonly version: "3.0.0";
+      readonly digest: string;
+    };
     readonly selectedLane: "node-24-production-default" | "node-26-managed-qualified";
     readonly node: string;
     readonly pnpm: string;
@@ -130,7 +150,10 @@ export interface UnselectedCohortV3 {
       readonly platform: string;
       readonly architecture: string;
     };
-    readonly runtimeClosure: { readonly domain: "agent-teams.docs-runtime-closure/v2"; readonly digest: string };
+    readonly runtimeClosure: {
+      readonly domain: "agent-teams.docs-runtime-closure/v2";
+      readonly digest: string;
+    };
   };
 }
 
@@ -180,7 +203,11 @@ export interface ConsumerIntegrationDesiredStateV3 {
 /** Closed unselected Profile4 binding over Cohort3; it grants no lifecycle selection. */
 export interface ManagedSuccessorProfile {
   readonly schemaVersion: 4;
-  readonly repository: { readonly provider: "github"; readonly id: string; readonly nameWithOwner: string };
+  readonly repository: {
+    readonly provider: "github";
+    readonly id: string;
+    readonly nameWithOwner: string;
+  };
   readonly integrationRoot: ".";
   readonly packageManager: "pnpm";
   readonly profilePath: string;
@@ -242,12 +269,7 @@ export interface ConsumerIntegrationIssue {
 }
 
 export interface ConsumerIntegrationAssetPlan {
-  readonly id:
-    | "agents-route"
-    | "caller-workflow"
-    | "managed-state"
-    | "package-manifest"
-    | "skill";
+  readonly id: "agents-route" | "caller-workflow" | "managed-state" | "package-manifest" | "skill";
   readonly path: string;
   readonly ownership: "full-bytes" | "partial-fields" | "managed-block";
   readonly state: ConsumerIntegrationAssetState;

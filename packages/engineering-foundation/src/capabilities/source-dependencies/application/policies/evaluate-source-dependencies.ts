@@ -1,17 +1,11 @@
 import type {
   DiagnosticEvidence,
-  FoundationDiagnostic
+  FoundationDiagnostic,
 } from "../../../../features/validation-reporting/api.js";
-import type {
-  ObservedSourceGraph,
-  SourceArchitecturePolicy
-} from "../model/source-workspace.js";
+import type { ObservedSourceGraph, SourceArchitecturePolicy } from "../model/source-workspace.js";
 import { evaluateSourceDependencyCycles } from "./evaluate-source-dependency-cycles.js";
 import { evaluateResolvedSourceDependency } from "./evaluate-resolved-source-dependency.js";
-import {
-  SOURCE_DEPENDENCY_RULES,
-  type SourceDependencyRuleMetadata
-} from "../rules.js";
+import { SOURCE_DEPENDENCY_RULES, type SourceDependencyRuleMetadata } from "../rules.js";
 
 interface EvaluationInput {
   readonly policy: SourceArchitecturePolicy;
@@ -33,17 +27,16 @@ function diagnostic(input: {
     subject: input.subject,
     message: input.message,
     location: { path: input.path },
-    relatedLocations:
-      input.relatedPath === undefined ? [] : [{ path: input.relatedPath }],
+    relatedLocations: input.relatedPath === undefined ? [] : [{ path: input.relatedPath }],
     evidence: input.evidence ?? [],
     remediation: input.rule.remediation,
-    requiresArchitectureReview: input.rule.requiresArchitectureReview
+    requiresArchitectureReview: input.rule.requiresArchitectureReview,
   };
 }
 
 function entrypointDeclarationDiagnostics(
   policy: SourceArchitecturePolicy,
-  graph: ObservedSourceGraph
+  graph: ObservedSourceGraph,
 ): readonly FoundationDiagnostic[] {
   const nodesByPath = new Map(graph.nodes.map((node) => [node.path, node]));
   const diagnostics: FoundationDiagnostic[] = [];
@@ -62,8 +55,8 @@ function entrypointDeclarationDiagnostics(
               ? `Boundary entrypoint is not a governed classified source file: ${entrypoint}.`
               : `Boundary entrypoint belongs to ${node.boundaryId}, not ${boundary.id}: ${entrypoint}.`,
           path: entrypoint,
-          evidence: [{ kind: "boundary", value: boundary.id }]
-        })
+          evidence: [{ kind: "boundary", value: boundary.id }],
+        }),
       );
     }
   }
@@ -71,11 +64,11 @@ function entrypointDeclarationDiagnostics(
 }
 
 export function evaluateSourceDependencies(
-  input: EvaluationInput
+  input: EvaluationInput,
 ): readonly FoundationDiagnostic[] {
   const diagnostics: FoundationDiagnostic[] = [];
   const boundariesById = new Map(
-    input.policy.boundaries.map((boundary) => [boundary.id, boundary])
+    input.policy.boundaries.map((boundary) => [boundary.id, boundary]),
   );
   const developmentBoundariesByPackage = new Map<string, string[]>();
   for (const node of input.graph.nodes) {
@@ -95,8 +88,8 @@ export function evaluateSourceDependencies(
         rule: SOURCE_DEPENDENCY_RULES.unclassifiedSourceFile,
         subject: path,
         message: "Governed source file does not belong to an architecture boundary.",
-        path
-      })
+        path,
+      }),
     );
   }
   for (const failure of input.graph.parseFailures) {
@@ -106,8 +99,8 @@ export function evaluateSourceDependencies(
         subject: failure.path,
         message: `Source parser reported ${failure.parseErrorCount} error(s).`,
         path: failure.path,
-        evidence: [{ kind: "parse-error-count", value: String(failure.parseErrorCount) }]
-      })
+        evidence: [{ kind: "parse-error-count", value: String(failure.parseErrorCount) }],
+      }),
     );
   }
   for (const unresolvedReference of input.graph.unresolvedRuntimeReferences) {
@@ -123,9 +116,9 @@ export function evaluateSourceDependencies(
         path: unresolvedReference.path,
         evidence: [
           { kind: "reference-kind", value: unresolvedReference.kind },
-          { kind: "offset", value: String(unresolvedReference.start) }
-        ]
-      })
+          { kind: "offset", value: String(unresolvedReference.start) },
+        ],
+      }),
     );
   }
   diagnostics.push(...entrypointDeclarationDiagnostics(input.policy, input.graph));
@@ -136,8 +129,8 @@ export function evaluateSourceDependencies(
         policy: input.policy,
         boundariesById,
         developmentBoundariesByPackage,
-        packageExportBoundaries: input.packageExportBoundaries ?? new Map()
-      })
+        packageExportBoundaries: input.packageExportBoundaries ?? new Map(),
+      }),
     );
   }
   diagnostics.push(...evaluateSourceDependencyCycles(input.graph));

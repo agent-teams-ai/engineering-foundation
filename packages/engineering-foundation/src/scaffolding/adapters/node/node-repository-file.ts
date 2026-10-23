@@ -1,9 +1,7 @@
 import { realpath } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 
-import type {
-  ScaffoldReadAssertionV1
-} from "../../application/model/scaffold-compilation.js";
+import type { ScaffoldReadAssertionV1 } from "../../application/model/scaffold-compilation.js";
 import { sha256Bytes } from "../../kernel/canonical-json.js";
 import { ScaffoldError } from "../../scaffold-error.js";
 import type { ScaffoldAuthorityObservation } from "../../application/ports/authority-observation.js";
@@ -34,7 +32,7 @@ function decodeUtf8(bytes: Uint8Array, repositoryPath: string): string {
       "SCAFFOLD_INPUT_INVALID",
       `Scaffolding input must contain valid UTF-8: ${repositoryPath}.`,
       [],
-      { cause: error }
+      { cause: error },
     );
   }
 }
@@ -44,7 +42,7 @@ export async function readContainedRepositoryFile(
   repositoryPath: string,
   phase: string,
   observation: ScaffoldAuthorityObservation,
-  maxBytes = MAX_INPUT_BYTES
+  maxBytes = MAX_INPUT_BYTES,
 ): Promise<LoadedRepositoryFile> {
   try {
     assertScaffoldAuthorityPath(repositoryPath, phase);
@@ -53,21 +51,21 @@ export async function readContainedRepositoryFile(
     if (await observation.pathTraversesSymbolicLink(canonicalRoot, candidate)) {
       throw new ScaffoldError(
         "SCAFFOLD_INPUT_INVALID",
-        `Scaffolding input cannot traverse a symbolic link: ${repositoryPath}.`
+        `Scaffolding input cannot traverse a symbolic link: ${repositoryPath}.`,
       );
     }
     const canonicalCandidate = await realpath(candidate);
     if (!isContained(canonicalRoot, canonicalCandidate)) {
       throw new ScaffoldError(
         "SCAFFOLD_INPUT_INVALID",
-        `Scaffolding input escapes the consumer repository: ${repositoryPath}.`
+        `Scaffolding input escapes the consumer repository: ${repositoryPath}.`,
       );
     }
     const result = await readBoundedRegularFile(canonicalCandidate, maxBytes);
     if (result.outcome === "invalid") {
       throw new ScaffoldError(
         "SCAFFOLD_INPUT_INVALID",
-        `Scaffolding input must be a regular file no larger than ${maxBytes} bytes: ${repositoryPath}.`
+        `Scaffolding input must be a regular file no larger than ${maxBytes} bytes: ${repositoryPath}.`,
       );
     }
     if (
@@ -77,13 +75,13 @@ export async function readContainedRepositoryFile(
     ) {
       throw new ScaffoldError(
         "SCAFFOLD_INPUT_INVALID",
-        `Scaffolding input changed while it was being read: ${repositoryPath}.`
+        `Scaffolding input changed while it was being read: ${repositoryPath}.`,
       );
     }
     return {
       path: repositoryPath,
       bytes: result.bytes,
-      source: decodeUtf8(result.bytes, repositoryPath)
+      source: decodeUtf8(result.bytes, repositoryPath),
     };
   } catch (error) {
     if (error instanceof ScaffoldError) {
@@ -93,20 +91,17 @@ export async function readContainedRepositoryFile(
       "SCAFFOLD_INPUT_INVALID",
       `Cannot read scaffolding input: ${repositoryPath}.`,
       [],
-      { cause: error }
+      { cause: error },
     );
   }
 }
 
 export function assertion(file: LoadedRepositoryFile): ScaffoldReadAssertionV1 {
-  const canonicalBytes = Buffer.from(
-    file.source.replace(/\r\n?/gu, "\n"),
-    "utf8"
-  );
+  const canonicalBytes = Buffer.from(file.source.replace(/\r\n?/gu, "\n"), "utf8");
   return Object.freeze({
     path: file.path,
     state: "file" as const,
     digest: sha256Bytes(canonicalBytes),
-    size: canonicalBytes.byteLength
+    size: canonicalBytes.byteLength,
   });
 }

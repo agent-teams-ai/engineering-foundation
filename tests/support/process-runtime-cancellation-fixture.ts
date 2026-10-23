@@ -10,11 +10,13 @@ import { readProcessFailureFacts } from "../../packages/engineering-foundation/d
 export async function waitForFixtureMarker(
   marker: string,
   fixtureProcess: Promise<unknown>,
-  timeoutMs = 5_000
+  timeoutMs = 5_000,
 ): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   let failure: unknown = new Error("Fixture marker readiness failed before its first observation.");
-  const observation: { settled: boolean; rejection?: { readonly error: unknown } } = { settled: false };
+  const observation: { settled: boolean; rejection?: { readonly error: unknown } } = {
+    settled: false,
+  };
   const observedProcess = fixtureProcess.then(
     () => {
       observation.settled = true;
@@ -24,7 +26,7 @@ export async function waitForFixtureMarker(
       observation.settled = true;
       observation.rejection = { error };
       return false;
-    }
+    },
   );
   while (Date.now() < deadline) {
     if (observation.settled) {
@@ -45,21 +47,23 @@ export async function waitForFixtureMarker(
   throw failure;
 }
 
-
-export async function assertCancellationPrecedence(childRuntime: string, fixtureRoot: string): Promise<void> {
+export async function assertCancellationPrecedence(
+  childRuntime: string,
+  fixtureRoot: string,
+): Promise<void> {
   const marker = join(fixtureRoot, `observed-${String(Date.now())}-${String(process.pid)}`);
   const controller = new AbortController();
   const script = [
     "process.on('SIGTERM',()=>process.exit(23));",
     "process.stdout.write('before cancellation');process.stderr.write('failure detail');",
     `require('node:fs').writeFileSync(${JSON.stringify(marker)},'x');`,
-    "setTimeout(()=>process.exit(23),1000)"
+    "setTimeout(()=>process.exit(23),1000)",
   ].join("");
   const cancelled = executeManagedProcess({
     command: childRuntime,
     args: ["-e", script],
     cwd: fixtureRoot,
-    signal: controller.signal
+    signal: controller.signal,
   });
   try {
     await waitForFixtureMarker(marker, cancelled);
@@ -79,14 +83,20 @@ export async function assertCancellationPrecedence(childRuntime: string, fixture
     await rm(marker, { force: true });
   }
 
-  await assert.rejects(executeManagedProcess({
-    command: childRuntime,
-    args: ["-e", "process.on('SIGTERM',()=>process.exit(23));setTimeout(()=>process.exit(23),1000)"],
-    cwd: fixtureRoot,
-    timeoutMs: 25
-  }), (error: unknown) => {
-    assert.ok(error instanceof ProcessTimeoutError);
-    assert.deepEqual({ ...readProcessFailureFacts(error) }, { reason: "timeout", timeoutMs: 25 });
-    return true;
-  });
+  await assert.rejects(
+    executeManagedProcess({
+      command: childRuntime,
+      args: [
+        "-e",
+        "process.on('SIGTERM',()=>process.exit(23));setTimeout(()=>process.exit(23),1000)",
+      ],
+      cwd: fixtureRoot,
+      timeoutMs: 25,
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof ProcessTimeoutError);
+      assert.deepEqual({ ...readProcessFailureFacts(error) }, { reason: "timeout", timeoutMs: 25 });
+      return true;
+    },
+  );
 }

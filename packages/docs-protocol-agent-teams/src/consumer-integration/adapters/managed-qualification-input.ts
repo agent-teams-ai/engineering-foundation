@@ -1,20 +1,19 @@
 import {
   canonicalConsumerRoot,
   MAXIMUM_PROFILE_BYTES,
-  readStableConsumerFile
+  readStableConsumerFile,
 } from "./node-consumer-repository-files.js";
-import { projectQualifiedCohortAuthority } from
-  "./github-cohort-authority-reader.js";
+import { projectQualifiedCohortAuthority } from "./github-cohort-authority-reader.js";
 import {
   projectCohortV3Authority,
-  type CohortV3AuthorityProjectorRequest
+  type CohortV3AuthorityProjectorRequest,
 } from "./cohort-v3-authority-projector.js";
 import { createLazyPackedManagedRuntimePolicyObserver } from "./unselected-cohort-v3-loader.js";
 import type {
   ConsumerQualificationAuthorityV3,
   ConsumerIntegrationDesiredStateV1,
   ConsumerUpgradeAuthorityV1,
-  ConsumerUpgradeAuthorityV2
+  ConsumerUpgradeAuthorityV2,
 } from "../application-api.js";
 import { bindUnselectedCohortV3 } from "../application-api.js";
 
@@ -35,7 +34,7 @@ const observePackedManagedRuntimePolicy = createLazyPackedManagedRuntimePolicyOb
 
 /** Curated read-only qualification seam; ordinary upgrade readers remain generation1/2-only. */
 export function projectQualificationAuthorityV3(
-  input: CohortV3AuthorityProjectorRequest
+  input: CohortV3AuthorityProjectorRequest,
 ): ConsumerQualificationAuthorityV3 {
   return Object.freeze({
     repository: "agent-teams-ai/.github",
@@ -43,13 +42,13 @@ export function projectQualificationAuthorityV3(
     revision: input.revision,
     cohort: bindUnselectedCohortV3(
       projectCohortV3Authority(input),
-      observePackedManagedRuntimePolicy()
-    )
+      observePackedManagedRuntimePolicy(),
+    ),
   });
 }
 
 function isAuthorityV2(
-  authority: ConsumerUpgradeAuthorityV1 | ConsumerUpgradeAuthorityV2
+  authority: ConsumerUpgradeAuthorityV1 | ConsumerUpgradeAuthorityV2,
 ): authority is ConsumerUpgradeAuthorityV2 {
   return authority.cohort.schemaVersion === 2;
 }
@@ -57,7 +56,7 @@ function isAuthorityV2(
 /** Filesystem observation stays behind the consumer-integration adapter boundary. */
 export async function readManagedQualificationProfileInput(
   consumerRoot: string,
-  integrationPath: string
+  integrationPath: string,
 ): Promise<{
   readonly consumerRoot: string;
   readonly profile: { readonly schemaVersion?: unknown };
@@ -67,7 +66,7 @@ export async function readManagedQualificationProfileInput(
     canonicalRoot,
     integrationPath,
     MAXIMUM_PROFILE_BYTES,
-    true
+    true,
   );
   if (observation.state !== "file") {
     throw new TypeError("Managed integration profile is unavailable.");
@@ -76,6 +75,6 @@ export async function readManagedQualificationProfileInput(
     consumerRoot: canonicalRoot,
     profile: JSON.parse(Buffer.from(observation.bytes).toString("utf8")) as {
       readonly schemaVersion?: unknown;
-    }
+    },
   });
 }

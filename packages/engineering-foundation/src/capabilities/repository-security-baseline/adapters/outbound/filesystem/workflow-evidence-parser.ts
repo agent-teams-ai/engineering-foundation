@@ -7,16 +7,16 @@ import type {
   WorkflowJobEvidence,
   WorkflowPermission,
   WorkflowStepEvidence,
-  WorkflowUseEvidence
+  WorkflowUseEvidence,
 } from "../../../application/model/repository-security.js";
 import {
   repositorySecurityInputError,
-  requireRecord
+  requireRecord,
 } from "../../../application/policies/repository-security-input.js";
 
 function permissions(
   value: unknown,
-  field: string
+  field: string,
 ): Readonly<Record<string, WorkflowPermission>> | "read-all" | "write-all" | undefined {
   if (value === undefined) {
     return undefined;
@@ -30,7 +30,7 @@ function permissions(
     if (permission !== "none" && permission !== "read" && permission !== "write") {
       repositorySecurityInputError(
         "REPOSITORY_SECURITY_WORKFLOW_INVALID",
-        `${field}.${name} must be none, read, or write.`
+        `${field}.${name} must be none, read, or write.`,
       );
     }
     result[name] = permission;
@@ -46,7 +46,7 @@ function triggers(value: unknown): readonly string[] {
     if (!value.every((entry) => typeof entry === "string")) {
       repositorySecurityInputError(
         "REPOSITORY_SECURITY_WORKFLOW_INVALID",
-        "Workflow triggers must be strings."
+        "Workflow triggers must be strings.",
       );
     }
     return Object.freeze(value.toSorted());
@@ -60,7 +60,7 @@ function unconditionalTriggers(value: unknown): readonly string[] {
   }
   if (Array.isArray(value)) {
     return Object.freeze(
-      value.filter((entry): entry is string => typeof entry === "string").toSorted()
+      value.filter((entry): entry is string => typeof entry === "string").toSorted(),
     );
   }
   const input = requireRecord(value, "workflow.on");
@@ -77,7 +77,7 @@ function unconditionalTriggers(value: unknown): readonly string[] {
         );
       })
       .map(([trigger]) => trigger)
-      .toSorted()
+      .toSorted(),
   );
 }
 
@@ -85,7 +85,7 @@ const PULL_REQUEST_CODE_CHANGE_TYPES = Object.freeze([
   "opened",
   "ready_for_review",
   "reopened",
-  "synchronize"
+  "synchronize",
 ]);
 
 function pullRequestCodeChangesCovered(value: unknown): boolean {
@@ -121,7 +121,7 @@ function requiredString(value: unknown, field: string): string {
   if (typeof value !== "string" || value.length === 0) {
     repositorySecurityInputError(
       "REPOSITORY_SECURITY_WORKFLOW_INVALID",
-      `${field} must be a non-empty string.`
+      `${field} must be a non-empty string.`,
     );
   }
   return value;
@@ -134,28 +134,31 @@ function containerImage(value: unknown, field: string): string {
   return requiredString(requireRecord(value, field)["image"], `${field}.image`);
 }
 
-function containers(value: Record<string, unknown>, field: string): readonly WorkflowContainerEvidence[] {
+function containers(
+  value: Record<string, unknown>,
+  field: string,
+): readonly WorkflowContainerEvidence[] {
   const discovered: WorkflowContainerEvidence[] = [];
   if (value["container"] !== undefined) {
     discovered.push(
       Object.freeze({
         image: containerImage(value["container"], `${field}.container`),
         name: "container",
-        scope: "job"
-      })
+        scope: "job",
+      }),
     );
   }
   if (value["services"] !== undefined) {
     const services = requireRecord(value["services"], `${field}.services`);
     for (const [name, service] of Object.entries(services).toSorted(([left], [right]) =>
-      compareBinaryStrings(left, right)
+      compareBinaryStrings(left, right),
     )) {
       discovered.push(
         Object.freeze({
           image: containerImage(service, `${field}.services.${name}`),
           name,
-          scope: "service"
-        })
+          scope: "service",
+        }),
       );
     }
   }
@@ -170,16 +173,14 @@ function needs(value: unknown, field: string): readonly string[] {
   if (!Array.isArray(entries)) {
     repositorySecurityInputError(
       "REPOSITORY_SECURITY_WORKFLOW_INVALID",
-      `${field} must be a non-empty job ID or an array of non-empty job IDs.`
+      `${field} must be a non-empty job ID or an array of non-empty job IDs.`,
     );
   }
-  const normalized = entries.map((entry, index) =>
-    requiredString(entry, `${field}[${index}]`)
-  );
+  const normalized = entries.map((entry, index) => requiredString(entry, `${field}[${index}]`));
   if (new Set(normalized).size !== normalized.length) {
     repositorySecurityInputError(
       "REPOSITORY_SECURITY_WORKFLOW_INVALID",
-      `${field} cannot declare duplicate job IDs.`
+      `${field} cannot declare duplicate job IDs.`,
     );
   }
   return Object.freeze(normalized);
@@ -195,7 +196,7 @@ function condition(value: unknown, field: string): string | undefined {
   if (typeof value !== "string" || value.trim().length === 0) {
     repositorySecurityInputError(
       "REPOSITORY_SECURITY_WORKFLOW_INVALID",
-      `${field} must be a non-empty expression or boolean.`
+      `${field} must be a non-empty expression or boolean.`,
     );
   }
   return value;
@@ -208,7 +209,7 @@ function steps(value: unknown, field: string): readonly WorkflowStepEvidence[] {
   if (!Array.isArray(value)) {
     repositorySecurityInputError(
       "REPOSITORY_SECURITY_WORKFLOW_INVALID",
-      `${field} must be an array.`
+      `${field} must be an array.`,
     );
   }
   return Object.freeze(
@@ -219,26 +220,29 @@ function steps(value: unknown, field: string): readonly WorkflowStepEvidence[] {
       return Object.freeze({
         conditional: stepCondition !== undefined,
         ...(stepCondition === undefined ? {} : { condition: stepCondition }),
-        nonBlocking:
-          step["continue-on-error"] !== undefined && step["continue-on-error"] !== false,
+        nonBlocking: step["continue-on-error"] !== undefined && step["continue-on-error"] !== false,
         inputs: Object.freeze(
-          stepInputs === undefined ? {} : requireRecord(stepInputs, `${field}[${index}].with`)
+          stepInputs === undefined ? {} : requireRecord(stepInputs, `${field}[${index}].with`),
         ),
         ...(typeof step["uses"] === "string" ? { uses: step["uses"] } : {}),
-        ...(typeof step["run"] === "string" ? { run: step["run"] } : {})
+        ...(typeof step["run"] === "string" ? { run: step["run"] } : {}),
       });
-    })
+    }),
   );
 }
 
-export function parseWorkflow(parseYaml: SecurityEvidenceObservation["parseYaml"], path: string, source: string): WorkflowEvidence {
+export function parseWorkflow(
+  parseYaml: SecurityEvidenceObservation["parseYaml"],
+  path: string,
+  source: string,
+): WorkflowEvidence {
   const input = requireRecord(parseYaml(source, `workflow:${path}`), `workflow ${path}`);
   const jobsInput = requireRecord(input["jobs"], `workflow ${path}.jobs`);
   const jobs: WorkflowJobEvidence[] = Object.entries(jobsInput).map(([id, value]) => {
     const job = requireRecord(value, `workflow ${path}.jobs.${id}`);
     const jobPermissions = permissions(
       job["permissions"],
-      `workflow ${path}.jobs.${id}.permissions`
+      `workflow ${path}.jobs.${id}.permissions`,
     );
     const jobCondition = condition(job["if"], `workflow ${path}.jobs.${id}.if`);
     return Object.freeze({
@@ -246,12 +250,11 @@ export function parseWorkflow(parseYaml: SecurityEvidenceObservation["parseYaml"
       ...(jobCondition === undefined ? {} : { condition: jobCondition }),
       containers: containers(job, `workflow ${path}.jobs.${id}`),
       needs: needs(job["needs"], `workflow ${path}.jobs.${id}.needs`),
-      nonBlocking:
-        job["continue-on-error"] !== undefined && job["continue-on-error"] !== false,
+      nonBlocking: job["continue-on-error"] !== undefined && job["continue-on-error"] !== false,
       id,
       ...(typeof job["uses"] === "string" ? { uses: job["uses"] } : {}),
       ...(jobPermissions === undefined ? {} : { permissions: jobPermissions }),
-      steps: steps(job["steps"], `workflow ${path}.jobs.${id}.steps`)
+      steps: steps(job["steps"], `workflow ${path}.jobs.${id}.steps`),
     });
   });
   const workflowPermissions = permissions(input["permissions"], `workflow ${path}.permissions`);
@@ -261,12 +264,12 @@ export function parseWorkflow(parseYaml: SecurityEvidenceObservation["parseYaml"
     unconditionalTriggers: unconditionalTriggers(input["on"]),
     pullRequestCodeChangesCovered: pullRequestCodeChangesCovered(input["on"]),
     ...(workflowPermissions === undefined ? {} : { permissions: workflowPermissions }),
-    jobs: Object.freeze(jobs.toSorted((left, right) => compareBinaryStrings(left.id, right.id)))
+    jobs: Object.freeze(jobs.toSorted((left, right) => compareBinaryStrings(left.id, right.id))),
   });
 }
 
 export function collectWorkflowUses(
-  workflows: readonly WorkflowEvidence[]
+  workflows: readonly WorkflowEvidence[],
 ): readonly WorkflowUseEvidence[] {
   const uses: WorkflowUseEvidence[] = [];
   for (const workflow of workflows) {
@@ -275,7 +278,7 @@ export function collectWorkflowUses(
         uses.push({
           path: workflow.path,
           subject: `${workflow.path}:jobs.${job.id}`,
-          uses: job.uses
+          uses: job.uses,
         });
       }
       for (const [index, step] of job.steps.entries()) {
@@ -283,7 +286,7 @@ export function collectWorkflowUses(
           uses.push({
             path: workflow.path,
             subject: `${workflow.path}:jobs.${job.id}.steps[${index}]`,
-            uses: step.uses
+            uses: step.uses,
           });
         }
       }
@@ -295,28 +298,28 @@ export function collectWorkflowUses(
 export function collectCompositeActionUses(
   parseYaml: SecurityEvidenceObservation["parseYaml"],
   path: string,
-  source: Uint8Array
+  source: Uint8Array,
 ): CompositeActionEvidence {
   const input = requireRecord(
     parseYaml(Buffer.from(source).toString("utf8"), `composite-action:${path}`),
-    `composite action ${path}`
+    `composite action ${path}`,
   );
   const runs = requireRecord(input["runs"], `composite action ${path}.runs`);
   if (runs["using"] !== "composite") {
     repositorySecurityInputError(
       "REPOSITORY_SECURITY_LOCAL_ACTION_RUNTIME_UNSUPPORTED",
-      `Local action must use the auditable composite runtime: ${path}.`
+      `Local action must use the auditable composite runtime: ${path}.`,
     );
   }
   const compositeSteps = steps(runs["steps"], `composite action ${path}.runs.steps`);
   return Object.freeze({
     path,
-    steps: compositeSteps
+    steps: compositeSteps,
   });
 }
 
 export function collectCompositeActionWorkflowUses(
-  action: CompositeActionEvidence
+  action: CompositeActionEvidence,
 ): readonly WorkflowUseEvidence[] {
   return Object.freeze(
     action.steps.flatMap((step, index) =>
@@ -326,9 +329,9 @@ export function collectCompositeActionWorkflowUses(
             {
               path: action.path,
               subject: `${action.path}:runs.steps[${index}]`,
-              uses: step.uses
-            }
-          ]
-    )
+              uses: step.uses,
+            },
+          ],
+    ),
   );
 }

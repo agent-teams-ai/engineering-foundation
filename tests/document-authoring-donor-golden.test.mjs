@@ -15,10 +15,7 @@ import {
 } from "../packages/document-authoring/dist/document-authoring/adapters/canonical-markdown.js";
 
 const corpusRoot = fileURLToPath(
-  new URL(
-    "fixtures/document-authoring-contracts/orchestrator-golden-v1/",
-    import.meta.url,
-  ),
+  new URL("fixtures/document-authoring-contracts/orchestrator-golden-v1/", import.meta.url),
 );
 const manifest = JSON.parse(await readFile(join(corpusRoot, "manifest.json"), "utf8"));
 
@@ -35,10 +32,7 @@ const explicitSlugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 async function loadSchema(name) {
   return JSON.parse(
     await readFile(
-      new URL(
-        `../packages/document-authoring/schemas/${name}/v1.schema.json`,
-        import.meta.url,
-      ),
+      new URL(`../packages/document-authoring/schemas/${name}/v1.schema.json`, import.meta.url),
       "utf8",
     ),
   );
@@ -67,10 +61,7 @@ function frontmatterKeys(source) {
 test("keeps the donor corpus self-contained and provenance-addressed", () => {
   assert.equal(manifest.schemaVersion, 1);
   assert.equal(manifest.provenance.repository, "agent-teams-ai/Orchestrator");
-  assert.equal(
-    manifest.provenance.commit,
-    "b9685a15552087cc8d83bfb8c4ce408231dcce70",
-  );
+  assert.equal(manifest.provenance.commit, "b9685a15552087cc8d83bfb8c4ce408231dcce70");
   assert.equal(
     manifest.provenance.sourceManifestSha256,
     "b65ccc4b45d4baf91f8bc3e3ea07ede901f0368be614ca60cd07c13caf38aea5",
@@ -145,26 +136,25 @@ test("validates the six-type donor profile through the public wire schema", asyn
   const artifactTypes = manifest.normalizedPolicyVectors.map((policy) => ({
     type: policy.type,
     initialStatus: "proposed",
-    identity: policy.identity.kind === "qualified"
-      ? {
-          kind: "explicit",
-          format: "qualified",
-          grammar: {
-            prefixSegments: policy.identity.prefixSegments,
-            minSuffixSegments: policy.identity.minSuffixSegments,
-            maxSuffixSegments: policy.identity.maxSuffixSegments,
-          },
-        }
-      : policy.identity,
+    identity:
+      policy.identity.kind === "qualified"
+        ? {
+            kind: "explicit",
+            format: "qualified",
+            grammar: {
+              prefixSegments: policy.identity.prefixSegments,
+              minSuffixSegments: policy.identity.minSuffixSegments,
+              maxSuffixSegments: policy.identity.maxSuffixSegments,
+            },
+          }
+        : policy.identity,
     placement: policy.placement,
     template: {
       kind: "fenced-markdown-body",
       path: `docs/templates/${policy.type}.md`,
     },
     heading: {
-      kind: policy.type === "adr" || policy.type === "open-decision"
-        ? "id-colon-title"
-        : "title",
+      kind: policy.type === "adr" || policy.type === "open-decision" ? "id-colon-title" : "title",
     },
     reachability: { kind: "not-required" },
   }));
@@ -198,9 +188,10 @@ test("enforces slug and destination presence for all six donor placements", asyn
       owner: "architecture/tooling",
       summary: "Public wire presence vector.",
     };
-    const intent = placement === "explicit"
-      ? { ...base, destination: goldenCase.path }
-      : { ...base, slug: goldenCase.slug };
+    const intent =
+      placement === "explicit"
+        ? { ...base, destination: goldenCase.path }
+        : { ...base, slug: goldenCase.slug };
     assert.equal(validate(intent), true, `${goldenCase.type}: ${JSON.stringify(validate.errors)}`);
     assert.equal(validate({ ...base, slug: goldenCase.slug, destination: goldenCase.path }), true);
   }
@@ -213,16 +204,10 @@ test("renders all six donor documents through the production canonical adapter",
     const frontmatter = parseYaml(raw.slice(4, frontmatterEnd));
     const headingMatch = /^# (?<heading>[^\n]+)$/mu.exec(raw.slice(frontmatterEnd + 5));
     assert.ok(headingMatch?.groups?.heading);
-    const {
-      id,
-      type,
-      status,
-      owner,
-      summary,
-      related,
-      ...additionalMetadata
-    } = frontmatter;
-    const template = parseGovernedTemplateSkeleton(`\`\`\`\`markdown\n${raw.trimEnd()}\n\`\`\`\`\n`);
+    const { id, type, status, owner, summary, related, ...additionalMetadata } = frontmatter;
+    const template = parseGovernedTemplateSkeleton(
+      `\`\`\`\`markdown\n${raw.trimEnd()}\n\`\`\`\`\n`,
+    );
     const rendered = renderCanonicalDocument({
       frontmatter: {
         id,
@@ -238,10 +223,7 @@ test("renders all six donor documents through the production canonical adapter",
     });
     if (goldenCase.type === "feature") {
       assert.notEqual(rendered, raw);
-      assert.deepEqual(
-        parseYaml(rendered.slice(4, rendered.indexOf("\n---\n", 4))),
-        frontmatter,
-      );
+      assert.deepEqual(parseYaml(rendered.slice(4, rendered.indexOf("\n---\n", 4))), frontmatter);
       assert.match(rendered, /  - enforcement: required\n    pattern:/u);
     } else {
       assert.equal(rendered, raw, goldenCase.type);
@@ -275,4 +257,6 @@ test("freezes donor path projection for all six artifact types", () => {
   });
 });
 
-function parseGovernedTemplateSkeleton(source) { return parseSkeletonWithReader(source, readMarkdownSyntax); }
+function parseGovernedTemplateSkeleton(source) {
+  return parseSkeletonWithReader(source, readMarkdownSyntax);
+}

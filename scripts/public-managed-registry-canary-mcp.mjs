@@ -53,17 +53,26 @@ export function assertSupportingMcpNpmLockCoordinates(lockfileBytes, authority, 
   const docsCoordinate = docsProtocolCoordinate(authority);
   const expected = [docsCoordinate, coordinate];
   const rootDependencies = lock.packages?.[""]?.devDependencies;
-  if (rootDependencies?.[docsCoordinate.name] !== docsCoordinate.version ||
-      rootDependencies?.[coordinate.name] !== coordinate.version) {
+  if (
+    rootDependencies?.[docsCoordinate.name] !== docsCoordinate.version ||
+    rootDependencies?.[coordinate.name] !== coordinate.version
+  ) {
     throw new Error("Supporting MCP install root is not bound to exact trusted versions.");
   }
   for (const item of expected) {
     const suffix = `node_modules/${item.name}`;
-    const matches = Object.entries(lock.packages ?? {}).filter(([path]) =>
-      path === suffix || path.endsWith(`/${suffix}`));
-    if (matches.length === 0 || matches.some(([, entry]) =>
-      entry.version !== item.version || entry.integrity !== item.integrity ||
-      !entry.resolved?.startsWith("https://registry.npmjs.org/"))) {
+    const matches = Object.entries(lock.packages ?? {}).filter(
+      ([path]) => path === suffix || path.endsWith(`/${suffix}`),
+    );
+    if (
+      matches.length === 0 ||
+      matches.some(
+        ([, entry]) =>
+          entry.version !== item.version ||
+          entry.integrity !== item.integrity ||
+          !entry.resolved?.startsWith("https://registry.npmjs.org/"),
+      )
+    ) {
       throw new Error(`Supporting MCP npm lock evidence differs for ${item.name}.`);
     }
   }
@@ -72,33 +81,60 @@ export function assertSupportingMcpNpmLockCoordinates(lockfileBytes, authority, 
 async function installSupportingMcp(root, authority, coordinate) {
   const docsCoordinate = docsProtocolCoordinate(authority);
   await mkdir(root, { recursive: true });
-  await writeFile(join(root, ".npmrc"), [
-    `registry=${authority.registry}`,
-    `@agent-teams:registry=${authority.registry}`,
-    "audit=false",
-    "fund=false",
-    "provenance=false",
-    "",
-  ].join("\n"), "utf8");
-  await writeFile(join(root, "package.json"), `${JSON.stringify({
-    name: "public-managed-canary-supporting-mcp",
-    private: true,
-    type: "module",
-    devDependencies: {
-      [docsCoordinate.name]: docsCoordinate.version,
-      [coordinate.name]: coordinate.version,
-    },
-  }, null, 2)}\n`, "utf8");
-  await runNpmCommand([
-    "install", "--ignore-scripts", "--no-audit", "--no-fund", "--package-lock=true",
-    "--registry", authority.registry, "--userconfig", join(root, ".npmrc"),
-  ], root, { timeoutMs: commandTimeout });
+  await writeFile(
+    join(root, ".npmrc"),
+    [
+      `registry=${authority.registry}`,
+      `@agent-teams:registry=${authority.registry}`,
+      "audit=false",
+      "fund=false",
+      "provenance=false",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+  await writeFile(
+    join(root, "package.json"),
+    `${JSON.stringify(
+      {
+        name: "public-managed-canary-supporting-mcp",
+        private: true,
+        type: "module",
+        devDependencies: {
+          [docsCoordinate.name]: docsCoordinate.version,
+          [coordinate.name]: coordinate.version,
+        },
+      },
+      null,
+      2,
+    )}\n`,
+    "utf8",
+  );
+  await runNpmCommand(
+    [
+      "install",
+      "--ignore-scripts",
+      "--no-audit",
+      "--no-fund",
+      "--package-lock=true",
+      "--registry",
+      authority.registry,
+      "--userconfig",
+      join(root, ".npmrc"),
+    ],
+    root,
+    { timeoutMs: commandTimeout },
+  );
   const lockfile = await readFile(join(root, "package-lock.json"));
   const lockfileBytes = Buffer.from(lockfile);
   const lockfileDigest = sha256(lockfileBytes);
   assertSupportingMcpNpmLockCoordinates(lockfileBytes, authority, coordinate);
-  const installedDocsRoot = await realpath(join(root, "node_modules", ...docsCoordinate.name.split("/")));
-  const installedMcpRoot = await realpath(join(root, "node_modules", ...coordinate.name.split("/")));
+  const installedDocsRoot = await realpath(
+    join(root, "node_modules", ...docsCoordinate.name.split("/")),
+  );
+  const installedMcpRoot = await realpath(
+    join(root, "node_modules", ...coordinate.name.split("/")),
+  );
   for (const [installedRoot, expected] of [
     [installedDocsRoot, docsCoordinate],
     [installedMcpRoot, coordinate],
@@ -124,18 +160,32 @@ async function installSupportingMcp(root, authority, coordinate) {
 }
 
 async function npmSignatureEvidence(root, authority) {
-  const result = await runNpmCommand([
-    "audit", "signatures", "--json", "--include-attestations", "--registry", authority.registry,
-    "--userconfig", join(root, ".npmrc"),
-  ], root, { timeoutMs: commandTimeout });
+  const result = await runNpmCommand(
+    [
+      "audit",
+      "signatures",
+      "--json",
+      "--include-attestations",
+      "--registry",
+      authority.registry,
+      "--userconfig",
+      join(root, ".npmrc"),
+    ],
+    root,
+    { timeoutMs: commandTimeout },
+  );
   return JSON.parse(result.stdout);
 }
 
 function assertProvenanceAncestor(provenanceCommit, expectedCommit, packageName) {
-  const result = spawnSync("git", ["merge-base", "--is-ancestor", provenanceCommit, expectedCommit], {
-    cwd: repositoryRoot,
-    encoding: "utf8",
-  });
+  const result = spawnSync(
+    "git",
+    ["merge-base", "--is-ancestor", provenanceCommit, expectedCommit],
+    {
+      cwd: repositoryRoot,
+      encoding: "utf8",
+    },
+  );
   if (result.error !== undefined) {
     throw result.error;
   }
@@ -148,15 +198,29 @@ function assertProvenanceAncestor(provenanceCommit, expectedCommit, packageName)
 async function packInventory(root, coordinate, authority) {
   const destination = join(root, "packs", coordinate.name.replaceAll("/", "-").replace("@", ""));
   await mkdir(destination, { recursive: true });
-  const result = await runNpmCommand([
-    "pack", `${coordinate.name}@${coordinate.version}`, "--json", "--ignore-scripts",
-    "--pack-destination", destination, "--registry", authority.registry,
-    "--userconfig", join(root, ".npmrc"),
-  ], root, { timeoutMs: commandTimeout });
+  const result = await runNpmCommand(
+    [
+      "pack",
+      `${coordinate.name}@${coordinate.version}`,
+      "--json",
+      "--ignore-scripts",
+      "--pack-destination",
+      destination,
+      "--registry",
+      authority.registry,
+      "--userconfig",
+      join(root, ".npmrc"),
+    ],
+    root,
+    { timeoutMs: commandTimeout },
+  );
   const report = JSON.parse(result.stdout);
   const item = Array.isArray(report) ? report[0] : report;
-  if (item?.name !== coordinate.name || item.version !== coordinate.version ||
-      item.integrity !== coordinate.integrity) {
+  if (
+    item?.name !== coordinate.name ||
+    item.version !== coordinate.version ||
+    item.integrity !== coordinate.integrity
+  ) {
     throw new Error(`npm pack identity differs from authority for ${coordinate.name}.`);
   }
   const archives = (await readdir(destination)).filter((name) => name.endsWith(".tgz"));
@@ -164,10 +228,14 @@ async function packInventory(root, coordinate, authority) {
     throw new Error(`npm pack did not create one bounded archive for ${coordinate.name}.`);
   }
   const archivePath = join(destination, archives[0]);
-  const listed = await runCommand("tar", ["-tzf", archivePath], root, { timeoutMs: commandTimeout });
+  const listed = await runCommand("tar", ["-tzf", archivePath], root, {
+    timeoutMs: commandTimeout,
+  });
   const entries = listed.stdout.trim().split("\n").filter(Boolean);
   assertSafeTarballInventory(entries, coordinate.name);
-  const verbose = await runCommand("tar", ["-tvzf", archivePath], root, { timeoutMs: commandTimeout });
+  const verbose = await runCommand("tar", ["-tvzf", archivePath], root, {
+    timeoutMs: commandTimeout,
+  });
   assertTarballEntryTypes(verbose.stdout, coordinate.name);
   return Object.freeze({ entries, report: item });
 }
@@ -176,7 +244,11 @@ export async function qualifySupportingMcp(root, authority, coordinate) {
   const install = await installSupportingMcp(root, authority, coordinate);
   const signatureEvidence = await npmSignatureEvidence(root, authority);
   const inventory = await packInventory(root, coordinate, authority);
-  const provenance = verifiedProvenanceFromNpmAudit(signatureEvidence, coordinate, authority.source);
+  const provenance = verifiedProvenanceFromNpmAudit(
+    signatureEvidence,
+    coordinate,
+    authority.source,
+  );
   const packageEvidence = Object.freeze({
     integrity: coordinate.integrity,
     latest: coordinate.version,

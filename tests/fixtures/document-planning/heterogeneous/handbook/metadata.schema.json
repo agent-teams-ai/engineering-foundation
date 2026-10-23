@@ -4,11 +4,11 @@
   "additionalProperties": false,
   "required": ["id", "type", "status", "owner", "summary", "labels"],
   "properties": {
-    "id": {"type": "string"},
-    "type": {"const": "playbook"},
-    "status": {"const": "draft"},
-    "owner": {"type": "string"},
-    "summary": {"type": "string"},
-    "labels": {"type": "object", "additionalProperties": {"type": "string"}}
+    "id": { "type": "string" },
+    "type": { "const": "playbook" },
+    "status": { "const": "draft" },
+    "owner": { "type": "string" },
+    "summary": { "type": "string" },
+    "labels": { "type": "object", "additionalProperties": { "type": "string" } }
   }
 }

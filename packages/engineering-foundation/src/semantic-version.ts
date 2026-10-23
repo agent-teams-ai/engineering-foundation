@@ -12,12 +12,17 @@ interface ParsedVersion {
 
 function parseExactVersion(value: string): ParsedVersion {
   const match = EXACT_SEMVER_PATTERN.exec(value);
-  if (match === null || match[1] === undefined || match[2] === undefined || match[3] === undefined) {
+  if (
+    match === null ||
+    match[1] === undefined ||
+    match[2] === undefined ||
+    match[3] === undefined
+  ) {
     throw new TypeError(`Invalid exact semantic version: ${value}.`);
   }
   return {
     core: [BigInt(match[1]), BigInt(match[2]), BigInt(match[3])],
-    prerelease: match[4]?.split(".") ?? []
+    prerelease: match[4]?.split(".") ?? [],
   };
 }
 
@@ -75,7 +80,7 @@ export type SemanticVersionBump = "major" | "minor" | "patch";
 export function sameNumberedPrereleaseTrain(
   left: string,
   right: string,
-  expectedTag?: string
+  expectedTag?: string,
 ): boolean {
   const leftVersion = parseExactVersion(left);
   const rightVersion = parseExactVersion(right);
@@ -92,7 +97,7 @@ export function sameNumberedPrereleaseTrain(
 
 export function semanticVersionBumpBetween(
   released: string,
-  candidate: string
+  candidate: string,
 ): SemanticVersionBump | undefined {
   if (compareExactVersions(released, candidate) >= 0) {
     return undefined;

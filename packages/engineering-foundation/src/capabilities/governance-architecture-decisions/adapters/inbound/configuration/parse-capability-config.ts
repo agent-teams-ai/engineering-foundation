@@ -1,12 +1,15 @@
 import type {
   ArchitectureDecisionIndexPolicy,
   ArchitectureDecisionPolicy,
-  ArchitectureDecisionStatus
+  ArchitectureDecisionStatus,
 } from "../../../application/model/architecture-decision.js";
 
 import { CAPABILITY_CONFIG_SCHEMA_VERSION } from "../../../contract/config.js";
 
-import { configurationInputError as inputError, assertConfigurationRepositoryPath } from "../../../application/configuration-input.js";
+import {
+  configurationInputError as inputError,
+  assertConfigurationRepositoryPath,
+} from "../../../application/configuration-input.js";
 
 const STATUSES = ["proposed", "accepted", "superseded"] as const;
 
@@ -51,12 +54,12 @@ function indexPolicy(value: unknown): ArchitectureDecisionIndexPolicy {
   const sectionInput = record(index["sections"], "index.sections");
   onlyKeys(sectionInput, STATUSES, "index.sections");
   const sections = Object.fromEntries(
-    STATUSES.map((status) => [
-      status,
-      string(sectionInput[status], `index.sections.${status}`)
-    ])
+    STATUSES.map((status) => [status, string(sectionInput[status], `index.sections.${status}`)]),
   ) as Record<ArchitectureDecisionStatus, string>;
-  if (new Set(Object.values(sections).map((section) => section.trim().toLocaleLowerCase("en-US"))).size !== STATUSES.length) {
+  if (
+    new Set(Object.values(sections).map((section) => section.trim().toLocaleLowerCase("en-US")))
+      .size !== STATUSES.length
+  ) {
     inputError("index.sections values must be distinct.");
   }
   return Object.freeze({ path, sections: Object.freeze(sections) });
@@ -84,19 +87,16 @@ export function parseCapabilityConfig(input: unknown): ArchitectureDecisionPolic
   if (!adrRoots.some((adrRoot) => pathInside(index.path, adrRoot))) {
     inputError("index.path must be inside one configured adrRoots directory.");
   }
-  const acceptedBaselinePath = string(
-    root["acceptedBaselinePath"],
-    "acceptedBaselinePath"
-  );
+  const acceptedBaselinePath = string(root["acceptedBaselinePath"], "acceptedBaselinePath");
   assertConfigurationRepositoryPath(acceptedBaselinePath);
   if (acceptedBaselinePath !== "architecture/decisions/accepted-decisions.json") {
     inputError(
-      "acceptedBaselinePath must use the stable architecture/decisions/accepted-decisions.json anchor."
+      "acceptedBaselinePath must use the stable architecture/decisions/accepted-decisions.json anchor.",
     );
   }
   return Object.freeze({
     acceptedBaselinePath,
     adrRoots: Object.freeze([...adrRoots].toSorted()),
-    index
+    index,
   });
 }

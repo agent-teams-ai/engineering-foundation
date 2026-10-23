@@ -2,7 +2,7 @@ import type {
   DocumentCreatedDirectoryEvidenceV2,
   DocumentParentMaterializationInspectionV2,
   DocumentParentMaterializationJournalV2,
-  DocumentParentMaterializationPlanV2
+  DocumentParentMaterializationPlanV2,
 } from "../model/document-parent-materialization.js";
 import type { DocumentPhysicalIdentity } from "../model/document-physical-identity.js";
 
@@ -24,8 +24,6 @@ export interface DocumentParentMaterializerV2 {
     readonly consumerRoot: string;
     readonly expectedParentIdentity: DocumentPhysicalIdentity;
     readonly path: string;
-    readonly bindCreatedDirectory: (
-      evidence: DocumentCreatedDirectoryEvidenceV2
-    ) => Promise<void>;
+    readonly bindCreatedDirectory: (evidence: DocumentCreatedDirectoryEvidenceV2) => Promise<void>;
   }): Promise<void>;
 }

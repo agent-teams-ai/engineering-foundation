@@ -62,36 +62,60 @@ interface Observation {
 
 function boundBytes(observation: Observation, add: number): void {
   observation.bytes += add;
-  if (observation.bytes > MAX_TOTAL_BYTES) {throw new Error("Input observation exceeds byte bound.");}
+  if (observation.bytes > MAX_TOTAL_BYTES) {
+    throw new Error("Input observation exceeds byte bound.");
+  }
 }
 
-async function observeLink(path: string, candidate: string, metadata: EntryMetadata, observation: Observation): Promise<void> {
+async function observeLink(
+  path: string,
+  candidate: string,
+  metadata: EntryMetadata,
+  observation: Observation,
+): Promise<void> {
   const link = await readlink(candidate);
   const fingerprint = createHash("sha256").update(link).digest("hex");
   boundBytes(observation, Buffer.byteLength(link));
   const mode = String(metadata.mode);
   observation.hash.update(JSON.stringify([path, "link", mode]));
   observation.hash.update(fingerprint);
-  observation.cache.set(path, { identity: `${mode}:${metadata.size}:${metadata.mtimeNs}`, fingerprint });
+  observation.cache.set(path, {
+    identity: `${mode}:${metadata.size}:${metadata.mtimeNs}`,
+    fingerprint,
+  });
 }
 
-async function observeFile(path: string, candidate: string, metadata: EntryMetadata, observation: Observation): Promise<void> {
-  if (metadata.size > BigInt(MAX_FILE_BYTES)) {throw new Error("Input is not a bounded regular file.");}
+async function observeFile(
+  path: string,
+  candidate: string,
+  metadata: EntryMetadata,
+  observation: Observation,
+): Promise<void> {
+  if (metadata.size > BigInt(MAX_FILE_BYTES)) {
+    throw new Error("Input is not a bounded regular file.");
+  }
   boundBytes(observation, Number(metadata.size));
   const mode = String(metadata.mode);
   const identity = `${mode}:${metadata.size}:${metadata.mtimeNs}`;
   const cached = observation.cache.get(path);
-  let fingerprint = cached !== undefined && cached.identity === identity ? cached.fingerprint : undefined;
+  let fingerprint =
+    cached !== undefined && cached.identity === identity ? cached.fingerprint : undefined;
   if (fingerprint === undefined) {
     // Contained read: no leaf-symlink follow, ancestry re-checked, snapshot
     // stable across the read. Races surface as read failures, never bytes.
-    const bytes = await observation.files.read({ candidate, root: observation.root, maxBytes: MAX_FILE_BYTES });
+    const bytes = await observation.files.read({
+      candidate,
+      root: observation.root,
+      maxBytes: MAX_FILE_BYTES,
+    });
     fingerprint = createHash("sha256").update(bytes).digest("hex");
     observation.cache.set(path, { identity, fingerprint });
   }
   observation.hash.update(JSON.stringify([path, "file", mode]));
   observation.hash.update(fingerprint);
-  if (path === observation.configPath) {observation.configIdentity = fingerprint;}
+  if (path === observation.configPath) {
+    observation.configIdentity = fingerprint;
+  }
 }
 
 async function observePath(path: string, observation: Observation): Promise<void> {
@@ -99,7 +123,9 @@ async function observePath(path: string, observation: Observation): Promise<void
   for (const part of path.split("/").slice(0, -1)) {
     parent = join(parent, part);
     const metadata = await statOrMissing(parent);
-    if (metadata !== null && !metadata.isDirectory()) {throw new Error("Input ancestor is not a directory.");}
+    if (metadata !== null && !metadata.isDirectory()) {
+      throw new Error("Input ancestor is not a directory.");
+    }
   }
   const candidate = join(observation.root, path);
   const metadata = await statOrMissing(candidate);
@@ -123,21 +149,62 @@ async function observePath(path: string, observation: Observation): Promise<void
 /** Diagnostics over Git-visible files, never a complete dependency custody
  * implementation. The mutable classification cannot produce exact-byte PASS,
  * including when a transient ABA edit leaves these brackets unchanged. */
-export function createMutableCheckInputCustody(execute: ExecuteWorkflowProcess, files: ContainedFileReader): CheckInputCustody {
-  async function observe(root: string, configPath: string, cache: Map<string, PathFingerprint>, signal?: AbortSignal) {
+export function createMutableCheckInputCustody(
+  execute: ExecuteWorkflowProcess,
+  files: ContainedFileReader,
+): CheckInputCustody {
+  async function observe(
+    root: string,
+    configPath: string,
+    cache: Map<string, PathFingerprint>,
+    signal?: AbortSignal,
+  ) {
     assertConfigRepositoryRelativePath(configPath);
-    const result = await execute("git", ["--no-optional-locks", "--no-replace-objects", "-c", "core.fsmonitor=false", "ls-files", "--cached", "--others", "--exclude-standard", "-z"], { cwd: root, strictUtf8: true, ...(signal === undefined ? {} : { signal }) });
-    if (result.exitCode !== 0 || (result.stdout.length > 0 && !result.stdout.endsWith("\0"))) {throw new Error("Cannot observe Git-visible input scope.");}
-    const paths = [...new Set([...result.stdout.split("\0").filter(Boolean), configPath])].toSorted();
-    if (paths.length > MAX_OBSERVED_PATHS) {throw new Error("Input observation exceeds path bound.");}
-    const observation: Observation = { root, configPath, files, cache, hash: createHash("sha256"), bytes: 0, configIdentity: "" };
+    const result = await execute(
+      "git",
+      [
+        "--no-optional-locks",
+        "--no-replace-objects",
+        "-c",
+        "core.fsmonitor=false",
+        "ls-files",
+        "--cached",
+        "--others",
+        "--exclude-standard",
+        "-z",
+      ],
+      { cwd: root, strictUtf8: true, ...(signal === undefined ? {} : { signal }) },
+    );
+    if (result.exitCode !== 0 || (result.stdout.length > 0 && !result.stdout.endsWith("\0"))) {
+      throw new Error("Cannot observe Git-visible input scope.");
+    }
+    const paths = [
+      ...new Set([...result.stdout.split("\0").filter(Boolean), configPath]),
+    ].toSorted();
+    if (paths.length > MAX_OBSERVED_PATHS) {
+      throw new Error("Input observation exceeds path bound.");
+    }
+    const observation: Observation = {
+      root,
+      configPath,
+      files,
+      cache,
+      hash: createHash("sha256"),
+      bytes: 0,
+      configIdentity: "",
+    };
     for (const path of paths) {
       signal?.throwIfAborted();
       assertConfigRepositoryRelativePath(path);
       await observePath(path, observation);
     }
-    if (observation.configIdentity === "") {throw new Error("Workflow configuration is missing.");}
-    return { sourceIdentity: observation.hash.digest("hex"), configIdentity: observation.configIdentity };
+    if (observation.configIdentity === "") {
+      throw new Error("Workflow configuration is missing.");
+    }
+    return {
+      sourceIdentity: observation.hash.digest("hex"),
+      configIdentity: observation.configIdentity,
+    };
   }
   return {
     async acquire({ consumerRoot, configPath, signal }) {
@@ -145,18 +212,30 @@ export function createMutableCheckInputCustody(execute: ExecuteWorkflowProcess, 
       const cache = new Map<string, PathFingerprint>();
       const initial = await observe(executionRoot, configPath, cache, signal);
       return {
-        executionRoot, classification: "mutable", ...initial,
+        executionRoot,
+        classification: "mutable",
+        ...initial,
         closureIdentity: `unverified-git-visible:${initial.sourceIdentity}`,
         changesReader: new GitRepositoryChangesReader(execute),
         async assertCurrent(currentSignal) {
           try {
             const current = await observe(executionRoot, configPath, cache, currentSignal);
-            if (current.sourceIdentity !== initial.sourceIdentity || current.configIdentity !== initial.configIdentity) {
+            if (
+              current.sourceIdentity !== initial.sourceIdentity ||
+              current.configIdentity !== initial.configIdentity
+            ) {
               throw new InputRevocationError();
             }
           } catch (error) {
-            if (error instanceof InputRevocationError) {throw error;}
-            if (currentSignal?.aborted === true || (error instanceof Error && error.name === "AbortError")) {throw error;}
+            if (error instanceof InputRevocationError) {
+              throw error;
+            }
+            if (
+              currentSignal?.aborted === true ||
+              (error instanceof Error && error.name === "AbortError")
+            ) {
+              throw error;
+            }
             // Failure to re-verify the lease is revocation: the run must stop
             // as stale instead of continuing on an unproven input set.
             const revoked = new InputRevocationError();
@@ -164,8 +243,10 @@ export function createMutableCheckInputCustody(execute: ExecuteWorkflowProcess, 
             throw revoked;
           }
         },
-        async release() { /* No enforcement resource acquired by mutable diagnostics. */ }
+        async release() {
+          /* No enforcement resource acquired by mutable diagnostics. */
+        },
       };
-    }
+    },
   };
 }

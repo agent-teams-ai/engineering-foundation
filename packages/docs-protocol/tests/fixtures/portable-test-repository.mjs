@@ -10,8 +10,15 @@ export async function snapshot(root, relative = "") {
   for (const name of (await readdir(join(root, relative))).toSorted()) {
     const path = relative ? `${relative}/${name}` : name;
     const state = await lstat(join(root, path));
-    result.push({ path, mode: state.mode, ino: state.ino, ...(state.isFile() ? { bytes: (await readFile(join(root, path))).toString("base64") } : {}) });
-    if (state.isDirectory()) {result.push(...await snapshot(root, path));}
+    result.push({
+      path,
+      mode: state.mode,
+      ino: state.ino,
+      ...(state.isFile() ? { bytes: (await readFile(join(root, path))).toString("base64") } : {}),
+    });
+    if (state.isDirectory()) {
+      result.push(...(await snapshot(root, path)));
+    }
   }
   return result;
 }
@@ -19,7 +26,11 @@ export async function snapshot(root, relative = "") {
 export async function portableRepository(run, { bootstrap = true } = {}) {
   const root = await mkdtemp(join(tmpdir(), "portable-dx-"));
   try {
-    const init = { consumerRoot: root, projectId: "example/widgets", ownerId: "documentation/team" };
+    const init = {
+      consumerRoot: root,
+      projectId: "example/widgets",
+      ownerId: "documentation/team",
+    };
     if (bootstrap) {
       const preview = await docsInitPlan(init);
       const applied = await docsInitApply({ ...init, expectedPlanDigest: preview.planDigest });

@@ -6,7 +6,7 @@ const WINDOWS_RESERVED_NAMES = new Set([
   "NUL",
   "PRN",
   ...Array.from({ length: 9 }, (_unused, index) => `COM${index + 1}`),
-  ...Array.from({ length: 9 }, (_unused, index) => `LPT${index + 1}`)
+  ...Array.from({ length: 9 }, (_unused, index) => `LPT${index + 1}`),
 ]);
 
 function isPortableAbsolutePath(repositoryPath: string): boolean {
@@ -19,7 +19,7 @@ function isPortableAbsolutePath(repositoryPath: string): boolean {
 
 /** Preserves the published scaffolding v1 path contract exactly. */
 export function legacyScaffoldingRepositoryPathProblem(
-  repositoryPath: string
+  repositoryPath: string,
 ): PortableRepositoryPathProblem | undefined {
   if (repositoryPath.length > 512) {
     return "path-too-long";
@@ -44,16 +44,10 @@ export function legacyScaffoldingRepositoryPathProblem(
     if (segment.endsWith(".")) {
       return "trailing-dot";
     }
-    if (
-      Array.from(segment).some(
-        (character) => (character.codePointAt(0) ?? 0) < 32
-      )
-    ) {
+    if (Array.from(segment).some((character) => (character.codePointAt(0) ?? 0) < 32)) {
       return "control-character";
     }
-    if (
-      WINDOWS_RESERVED_NAMES.has((segment.split(".")[0] ?? "").toUpperCase())
-    ) {
+    if (WINDOWS_RESERVED_NAMES.has((segment.split(".")[0] ?? "").toUpperCase())) {
       return "reserved-name";
     }
   }

@@ -12,10 +12,13 @@ try {
   const report = JSON.parse(await readFile(reportPath, "utf8"));
   if (report.reportSchemaVersion === 1 && Array.isArray(report.capabilities)) {
     const candidate = report.capabilities.find((entry) => entry?.capabilityId === capabilityId);
-    if (candidate && outcomes.has(candidate.outcome) &&
+    if (
+      candidate &&
+      outcomes.has(candidate.outcome) &&
       Number.isInteger(candidate.summary?.errors) &&
       Number.isInteger(candidate.summary?.warnings) &&
-      Number.isInteger(candidate.summary?.infos)) {
+      Number.isInteger(candidate.summary?.infos)
+    ) {
       capability = candidate;
     }
   }
@@ -42,7 +45,14 @@ if (capability === undefined) {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;");
   if (details.length <= 40_000) {
-    lines.push("", "<details><summary>Full SDK capability report</summary>", "", `<pre>${details}</pre>`, "", "</details>");
+    lines.push(
+      "",
+      "<details><summary>Full SDK capability report</summary>",
+      "",
+      `<pre>${details}</pre>`,
+      "",
+      "</details>",
+    );
   } else {
     lines.push("", "Full report exceeds the summary size limit. See the Foundation check log.");
   }

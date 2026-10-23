@@ -2,12 +2,8 @@ import type { ScaffoldFilesystemDependencies } from "./scaffold-filesystem-depen
 import { realpath } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
-import type {
-  AuthorityScaffoldReceipt
-} from "../../contract/receipt-authority-types.js";
-import type {
-  AuthorityScaffoldRecoveryScope
-} from "../../application/model/recovery-scope.js";
+import type { AuthorityScaffoldReceipt } from "../../contract/receipt-authority-types.js";
+import type { AuthorityScaffoldRecoveryScope } from "../../application/model/recovery-scope.js";
 import { assertScaffoldRecoveryScopeMatchesPlan } from "../../kernel/recovery-scope.js";
 import { LOCAL_STATE_DIRECTORY } from "../../application/policies/transaction-identity.js";
 import { acquireScaffoldingTransaction } from "../../application/policies/scaffold-transaction.js";
@@ -15,7 +11,7 @@ import { assertSafeOperationPaths } from "./filesystem-path-guard.js";
 import { SCAFFOLD_JOURNAL_FILE } from "./node-scaffold-journal-evidence.js";
 import {
   continueAuthorityScaffoldJournal,
-  type ScaffoldAuthorityFaultInjector
+  type ScaffoldAuthorityFaultInjector,
 } from "./filesystem-authority-workspace.js";
 import { scaffoldTransactionEvidenceExists } from "./node-scaffold-journal-transaction-evidence.js";
 
@@ -24,14 +20,10 @@ export async function recoverAuthorityFilesystemScaffoldWithFaultInjection(
   consumerRoot: string,
   scope: AuthorityScaffoldRecoveryScope | undefined,
   faultInjector: ScaffoldAuthorityFaultInjector | undefined,
-  dependencies: ScaffoldFilesystemDependencies
+  dependencies: ScaffoldFilesystemDependencies,
 ): Promise<AuthorityScaffoldReceipt | undefined> {
   const canonicalRoot = await realpath(resolve(consumerRoot));
-  const journalPath = join(
-    canonicalRoot,
-    LOCAL_STATE_DIRECTORY,
-    SCAFFOLD_JOURNAL_FILE
-  );
+  const journalPath = join(canonicalRoot, LOCAL_STATE_DIRECTORY, SCAFFOLD_JOURNAL_FILE);
   const transactions = await dependencies.createTransactions(canonicalRoot);
   const lease = await acquireScaffoldingTransaction(transactions.coordinator);
   try {
@@ -54,7 +46,7 @@ export async function recoverAuthorityFilesystemScaffoldWithFaultInjection(
       journalStore,
       journalFaultContext: {},
       recovered: true,
-      ...(faultInjector === undefined ? {} : { faultInjector })
+      ...(faultInjector === undefined ? {} : { faultInjector }),
     });
   } finally {
     await lease.releaseAfterInspection(() => scaffoldTransactionEvidenceExists(journalPath));

@@ -9,8 +9,10 @@ export async function isPhysicallyContainedPath(root, candidate) {
     realpath(candidate),
   ]);
   const relation = relative(canonicalRoot, canonicalCandidate);
-  return relation === "" ||
-    (relation !== ".." && !relation.startsWith(`..${sep}`) && !isAbsolute(relation));
+  return (
+    relation === "" ||
+    (relation !== ".." && !relation.startsWith(`..${sep}`) && !isAbsolute(relation))
+  );
 }
 
 export function catalogEntry(name) {
@@ -43,14 +45,16 @@ export function tarArchive(entries) {
   const chunks = [];
   for (const { data = Buffer.alloc(0), name, type = "0" } of entries) {
     chunks.push(tarHeader(name, data.length, type), data);
-    chunks.push(Buffer.alloc((512 - data.length % 512) % 512));
+    chunks.push(Buffer.alloc((512 - (data.length % 512)) % 512));
   }
   return gzipSync(Buffer.concat([...chunks, Buffer.alloc(1024)]));
 }
 
 export function compressedTar(name, declaredSize, payload = Buffer.alloc(0)) {
-  const padding = Buffer.alloc((512 - payload.length % 512) % 512);
-  return gzipSync(Buffer.concat([tarHeader(name, declaredSize), payload, padding, Buffer.alloc(1024)]));
+  const padding = Buffer.alloc((512 - (payload.length % 512)) % 512);
+  return gzipSync(
+    Buffer.concat([tarHeader(name, declaredSize), payload, padding, Buffer.alloc(1024)]),
+  );
 }
 export function qualifiedArchive(manifest, extraEntries = []) {
   return tarArchive([
@@ -71,8 +75,10 @@ export async function createPackFixture(t, prefix) {
   await mkdir(temporaryRoot, { recursive: true });
   await writeFile(join(repositoryRoot, "LICENSE"), "fixture license\n");
   await writeFile(join(repositoryRoot, "pnpm-workspace.yaml"), "packages:\n  - packages/*\n");
-  await writeFile(join(packageRoot, "package.json"),
-    JSON.stringify({ name: "@fixture/qualified", version: "1.2.3" }));
+  await writeFile(
+    join(packageRoot, "package.json"),
+    JSON.stringify({ name: "@fixture/qualified", version: "1.2.3" }),
+  );
   await writeFile(join(packageRoot, "README.md"), "# Fixture\n");
   return { packageRoot, repositoryRoot, temporaryRoot };
 }

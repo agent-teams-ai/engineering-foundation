@@ -1,3 +1,7 @@
+import {
+  configureMixedPackage,
+  nativeNodeExportResolution,
+} from "./support/source-export-fixture.ts";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
@@ -18,129 +22,22 @@ const mixedPackageRule =
 const exportRule = "architecture.source-dependencies.package-subpath-not-exported";
 const unresolvedRule = "architecture.source-dependencies.unresolved-local-import";
 const unsupportedRule = "architecture.source-dependencies.unsupported-import-specifier";
-const undeclaredExternalRule =
-  "architecture.source-dependencies.undeclared-external-dependency";
-
-function boundaryYaml({
-  allowedPackages = [],
-  claims = [],
-  dependencyMode = "runtime",
-  entrypoint,
-  id,
-  root,
-}) {
-  const packageExports = claims.length === 0
-    ? ""
-    : `    packageExports:\n${claims.map((claim) => `      - ${JSON.stringify(claim)}`).join("\n")}\n`;
-  const packages = allowedPackages.length === 0
-    ? "[]"
-    : `\n${allowedPackages.map((packageName) => `        - ${JSON.stringify(packageName)}`).join("\n")}`;
-  return `  - id: ${id}\n    dependencyMode: ${dependencyMode}\n${packageExports}    roots:\n      - ${root}\n    entrypoints:\n      - ${entrypoint}\n    allow:\n      boundaries: []\n      packages: ${packages}\n      builtins: []\n      runtimeReferences: []\n`;
-}
+const undeclaredExternalRule = "architecture.source-dependencies.undeclared-external-dependency";
 
 function reportDetails(report) {
-  return JSON.stringify({
-    diagnostics: report.diagnostics,
-    outcome: report.outcome,
-    problem: report.problem,
-  }, null, 2);
+  return JSON.stringify(
+    {
+      diagnostics: report.diagnostics,
+      outcome: report.outcome,
+      problem: report.problem,
+    },
+    null,
+    2,
+  );
 }
 
 function problemPhaseCode(problem) {
   return { code: problem?.code, phase: problem?.phase };
-}
-
-async function nativeNodeExportResolution(exports, condition) {
-  const consumerRoot = await mkdtemp(join(tmpdir(), "foundation-node-export-oracle-"));
-  try {
-    const packageRoot = join(consumerRoot, "node_modules", "@fixture", "oracle");
-    await mkdir(join(packageRoot, "dist"), { recursive: true });
-    await Promise.all([
-      writeFile(
-        join(packageRoot, "package.json"),
-        `${JSON.stringify({ name: "@fixture/oracle", exports })}\n`,
-        "utf8",
-      ),
-      writeFile(join(packageRoot, "dist", "index.cjs"), "module.exports = 1;\n", "utf8"),
-    ]);
-    return spawnSync(
-      process.execPath,
-      [
-        ...(condition === "import" ? ["--input-type=module"] : []),
-        "--eval",
-        condition === "import"
-          ? 'await import("@fixture/oracle");'
-          : 'require("@fixture/oracle");',
-      ],
-      { cwd: consumerRoot, encoding: "utf8" },
-    );
-  } finally {
-    await rm(consumerRoot, { force: true, recursive: true });
-  }
-}
-
-async function configureMixedPackage(consumerRoot, options = {}) {
-  const appSpecifier = options.appSpecifier ?? "@fixture/core";
-  const appFile = options.appFile ?? "index.ts";
-  const coreRoot = join(consumerRoot, "packages", "core");
-  const developmentRoot = join(coreRoot, "src", "development");
-  await mkdir(developmentRoot, { recursive: true });
-  if (appFile !== "index.ts") {
-    await rm(join(consumerRoot, "packages", "app", "src", "index.ts"));
-  }
-  await Promise.all([
-    writeFile(
-      join(consumerRoot, "packages", "app", "src", appFile),
-      options.appSource ?? `import value from ${JSON.stringify(appSpecifier)};\nexport { value };\n`,
-      "utf8",
-    ),
-    writeFile(join(coreRoot, "src", "index.ts"), "export default 1;\n", "utf8"),
-    writeFile(join(developmentRoot, "index.ts"), "export default 2;\n", "utf8"),
-    writeFile(
-      join(coreRoot, "package.json"),
-      `${JSON.stringify({
-        name: "@fixture/core",
-        version: "0.0.0",
-        private: true,
-        type: "module",
-        exports: options.exports ?? { ".": "./dist/index.js" },
-      }, null, 2)}\n`,
-      "utf8",
-    ),
-  ]);
-  const boundaries = [
-    boundaryYaml({
-      allowedPackages: options.appAllowedPackages ?? ["@fixture/core"],
-      dependencyMode: options.appDependencyMode,
-      entrypoint: `packages/app/src/${appFile}`,
-      id: "app.surface",
-      root: "packages/app/src",
-    }),
-    ...(options.developmentOnly
-      ? []
-      : [boundaryYaml({
-          claims: options.runtimeClaims,
-          entrypoint: "packages/core/src/index.ts",
-          id: "core.runtime",
-          root: "packages/core/src/index.ts",
-        })]),
-    boundaryYaml({
-      claims: options.developmentClaims,
-      dependencyMode: "development",
-      entrypoint: options.developmentOnly
-        ? "packages/core/src/index.ts"
-        : "packages/core/src/development/index.ts",
-      id: "core.development",
-      root: options.developmentOnly
-        ? "packages/core/src"
-        : "packages/core/src/development",
-    }),
-  ].join("");
-  await writeFile(
-    sourceConfigPath(consumerRoot),
-    `schemaVersion: 2\nworkspace:\n  kind: pnpm\n  manifest: pnpm-workspace.yaml\npackageRoots:\n  - packages\ngovernedRoots:\n  - packages/app/src\n  - packages/core/src\nboundaries:\n${boundaries}`,
-    "utf8",
-  );
 }
 
 async function setAppDeclarations(consumerRoot, declarations) {
@@ -169,26 +66,33 @@ test("full capability requires exact runtime export ownership for mixed packages
   const runtimeClaim = await mixedReport({ runtimeClaims: ["."] });
   assert.equal(runtimeClaim.outcome, "passed", reportDetails(runtimeClaim));
   assert.deepEqual(ruleIds((await mixedReport({})).diagnostics), [mixedPackageRule]);
+  assert.deepEqual(ruleIds((await mixedReport({ developmentClaims: ["."] })).diagnostics), [
+    mixedPackageRule,
+  ]);
   assert.deepEqual(
-    ruleIds((await mixedReport({ developmentClaims: ["."] })).diagnostics),
+    ruleIds(
+      (
+        await mixedReport({
+          developmentClaims: ["."],
+          developmentOnly: true,
+        })
+      ).diagnostics,
+    ),
     [mixedPackageRule],
   );
   assert.deepEqual(
-    ruleIds((await mixedReport({
-      developmentClaims: ["."],
-      developmentOnly: true,
-    })).diagnostics),
-    [mixedPackageRule],
-  );
-  assert.deepEqual(
-    ruleIds((await mixedReport({
-      appSpecifier: "@fixture/core/qualification.js",
-      exports: {
-        ".": "./dist/index.js",
-        "./qualification.js": "./dist/qualification.js",
-      },
-      runtimeClaims: ["."],
-    })).diagnostics),
+    ruleIds(
+      (
+        await mixedReport({
+          appSpecifier: "@fixture/core/qualification.js",
+          exports: {
+            ".": "./dist/index.js",
+            "./qualification.js": "./dist/qualification.js",
+          },
+          runtimeClaims: ["."],
+        })
+      ).diagnostics,
+    ),
     [mixedPackageRule],
   );
   const conditionalClaim = await mixedReport({
@@ -209,16 +113,31 @@ test("full capability requires an unambiguous workspace protocol binding", async
   // This fixture's 0.0.0 provider proves declaration recognition does not
   // decide release-window compatibility, including the runtime peer+dev pair.
   for (const declarations of [
-    ...["workspace:*", "workspace:^", "workspace:~", "workspace:^0.0.0", "workspace:0.0.0", "workspace:^1.8.0 || ^2.0.0"]
-      .map(specifier => ({ dependencies: { "@fixture/core": specifier } })),
-    { peerDependencies: { "@fixture/core": "workspace:^1.8.0 || ^2.0.0" }, devDependencies: { "@fixture/core": "workspace:*" } },
-    ...["optionalDependencies", "peerDependencies"].map(section => ({ [section]: { "@fixture/core": "workspace:*" } })),
+    ...[
+      "workspace:*",
+      "workspace:^",
+      "workspace:~",
+      "workspace:^0.0.0",
+      "workspace:0.0.0",
+      "workspace:^1.8.0 || ^2.0.0",
+    ].map((specifier) => ({ dependencies: { "@fixture/core": specifier } })),
+    {
+      peerDependencies: { "@fixture/core": "workspace:^1.8.0 || ^2.0.0" },
+      devDependencies: { "@fixture/core": "workspace:*" },
+    },
+    ...["optionalDependencies", "peerDependencies"].map((section) => ({
+      [section]: { "@fixture/core": "workspace:*" },
+    })),
   ]) {
     await withCopiedFixture("v2-valid", async (consumerRoot) => {
       await configureMixedPackage(consumerRoot, { runtimeClaims: ["."] });
       await setAppDeclarations(consumerRoot, declarations);
       const report = await runSourceCapability(consumerRoot);
-      assert.equal(report.outcome, "passed", `${JSON.stringify(declarations)}\n${reportDetails(report)}`);
+      assert.equal(
+        report.outcome,
+        "passed",
+        `${JSON.stringify(declarations)}\n${reportDetails(report)}`,
+      );
     });
   }
 
@@ -253,9 +172,15 @@ test("full capability requires an unambiguous workspace protocol binding", async
     { dependencies: { "@fixture/core": "https://example.invalid/core.tgz" } },
     { dependencies: { "@fixture/core": "^0.0.0" } },
     { dependencies: { "@fixture/core": "workspace:-" } },
-    ...["workspace:^1.8.0 || *", "workspace:^1.8.0 || ^2.0", "workspace:^1.8.0 || ^2.0.0-rc.0",
-      "workspace:^1.8.0||^2.0.0", "workspace:^1.8.0 || >=2.0.0", "workspace:^1.8.0 || ^02.0.0",
-      "workspace:^1.8.0 || "].map(specifier => ({
+    ...[
+      "workspace:^1.8.0 || *",
+      "workspace:^1.8.0 || ^2.0",
+      "workspace:^1.8.0 || ^2.0.0-rc.0",
+      "workspace:^1.8.0||^2.0.0",
+      "workspace:^1.8.0 || >=2.0.0",
+      "workspace:^1.8.0 || ^02.0.0",
+      "workspace:^1.8.0 || ",
+    ].map((specifier) => ({
       peerDependencies: { "@fixture/core": specifier },
       devDependencies: { "@fixture/core": "workspace:*" },
     })),
@@ -334,7 +259,10 @@ test("full capability never treats pnpm local identities as registry externals",
     ["link:../tool", 'packages:\n  - "packages/*"\n'],
     ["file:../tool", 'packages:\n  - "packages/*"\n'],
     ["catalog:", 'packages:\n  - "packages/*"\ncatalog:\n  fixture-tool: "link:../tool"\n'],
-    ["catalog:local", 'packages:\n  - "packages/*"\ncatalogs:\n  local:\n    fixture-tool: "workspace:*"\n'],
+    [
+      "catalog:local",
+      'packages:\n  - "packages/*"\ncatalogs:\n  local:\n    fixture-tool: "workspace:*"\n',
+    ],
   ]) {
     await withCopiedFixture("v2-valid", async (consumerRoot) => {
       await configureMixedPackage(consumerRoot, {
@@ -346,7 +274,11 @@ test("full capability never treats pnpm local identities as registry externals",
       });
       await writeFile(join(consumerRoot, "pnpm-workspace.yaml"), workspaceManifest, "utf8");
       const report = await runSourceCapability(consumerRoot);
-      assert.deepEqual(ruleIds(report.diagnostics), [undeclaredExternalRule], reportDetails(report));
+      assert.deepEqual(
+        ruleIds(report.diagnostics),
+        [undeclaredExternalRule],
+        reportDetails(report),
+      );
     });
   }
 });
@@ -360,11 +292,7 @@ test("full capability follows ordered Node runtime export targets", async () => 
       appSource,
       exports: { ".": { node: null, default: "./dist/index.js" } },
     });
-    assert.deepEqual(
-      ruleIds(blocked.diagnostics),
-      [exportRule, mixedPackageRule],
-      appSource,
-    );
+    assert.deepEqual(ruleIds(blocked.diagnostics), [exportRule, mixedPackageRule], appSource);
 
     const arrayFallback = await mixedReport({
       appSource,
@@ -383,10 +311,7 @@ test("full capability follows ordered Node runtime export targets", async () => 
   const moduleSyncBlocked = await mixedReport({
     exports: { ".": { "module-sync": null, default: "./dist/index.js" } },
   });
-  assert.deepEqual(
-    ruleIds(moduleSyncBlocked.diagnostics),
-    [exportRule, mixedPackageRule],
-  );
+  assert.deepEqual(ruleIds(moduleSyncBlocked.diagnostics), [exportRule, mixedPackageRule]);
 
   const importBlocked = await mixedReport({
     exports: { ".": { import: null, require: "./dist/index.cjs" } },
@@ -416,17 +341,29 @@ test("full capability follows ordered Node runtime export targets", async () => 
     assert.deepEqual(ruleIds(report.diagnostics), [exportRule, mixedPackageRule]);
   }
 
-  const unreachableTypes = await mixedReport({ exports: {
-    ".": { types: "./src/development/index.ts", default: "./dist/index.js" },
-  }, runtimeClaims: ["."] });
-  assert.equal(unreachableTypes.problem?.code, "SOURCE_EXPORT_BOUNDARY_INVALID", reportDetails(unreachableTypes));
+  const unreachableTypes = await mixedReport({
+    exports: {
+      ".": { types: "./src/development/index.ts", default: "./dist/index.js" },
+    },
+    runtimeClaims: ["."],
+  });
+  assert.equal(
+    unreachableTypes.problem?.code,
+    "SOURCE_EXPORT_BOUNDARY_INVALID",
+    reportDetails(unreachableTypes),
+  );
 
-  const defaultPrecedesTypes = await mixedReport({ exports: {
-    ".": { default: "./dist/index.js", types: "./src/development/index.ts" },
-  }, runtimeClaims: ["."] });
+  const defaultPrecedesTypes = await mixedReport({
+    exports: {
+      ".": { default: "./dist/index.js", types: "./src/development/index.ts" },
+    },
+    runtimeClaims: ["."],
+  });
   assert.equal(defaultPrecedesTypes.outcome, "passed", reportDetails(defaultPrecedesTypes));
 
-  const typesOnly = await mixedReport({ exports: { ".": { types: "./src/development/index.ts" } } });
+  const typesOnly = await mixedReport({
+    exports: { ".": { types: "./src/development/index.ts" } },
+  });
   assert.deepEqual(ruleIds(typesOnly.diagnostics), [exportRule, mixedPackageRule]);
 });
 
@@ -435,10 +372,7 @@ test("full capability derives static .cts export conditions without changing dyn
     appFile: "index.cts",
     exports: { ".": { import: "./dist/index.js", require: null } },
   });
-  assert.deepEqual(
-    ruleIds(staticBlocked.diagnostics),
-    [exportRule, mixedPackageRule],
-  );
+  assert.deepEqual(ruleIds(staticBlocked.diagnostics), [exportRule, mixedPackageRule]);
 
   const staticAvailable = await mixedReport({
     appFile: "index.cts",
@@ -473,20 +407,38 @@ async function nativeTypeScriptCtsResolution(exports) {
         `${JSON.stringify({ name: "@fixture/oracle", exports })}\n`,
         "utf8",
       ),
-      writeFile(join(packageRoot, "dist", "import.d.mts"), "declare const value: 1; export default value;\n", "utf8"),
-      writeFile(join(packageRoot, "dist", "require.d.cts"), "declare const value: 1; export = value;\n", "utf8"),
-      writeFile(join(consumerRoot, "app.cts"), 'import value = require("@fixture/oracle");\nexport = value;\n', "utf8"),
-      writeFile(join(consumerRoot, "tsconfig.json"), JSON.stringify({
-        compilerOptions: { module: "NodeNext", moduleResolution: "NodeNext", noEmit: true },
-        files: ["app.cts"],
-      }), "utf8"),
+      writeFile(
+        join(packageRoot, "dist", "import.d.mts"),
+        "declare const value: 1; export default value;\n",
+        "utf8",
+      ),
+      writeFile(
+        join(packageRoot, "dist", "require.d.cts"),
+        "declare const value: 1; export = value;\n",
+        "utf8",
+      ),
+      writeFile(
+        join(consumerRoot, "app.cts"),
+        'import value = require("@fixture/oracle");\nexport = value;\n',
+        "utf8",
+      ),
+      writeFile(
+        join(consumerRoot, "tsconfig.json"),
+        JSON.stringify({
+          compilerOptions: { module: "NodeNext", moduleResolution: "NodeNext", noEmit: true },
+          files: ["app.cts"],
+        }),
+        "utf8",
+      ),
     ]);
     return spawnSync(
       process.execPath,
       [
         join(process.cwd(), "node_modules", "typescript", "lib", "tsc.js"),
-        "--project", join(consumerRoot, "tsconfig.json"),
-        "--pretty", "false",
+        "--project",
+        join(consumerRoot, "tsconfig.json"),
+        "--pretty",
+        "false",
       ],
       { cwd: consumerRoot, encoding: "utf8" },
     );
@@ -537,7 +489,11 @@ test("full capability uses importer package type for static TypeScript exports",
 test("full capability uses the nearest containing package scope for static TypeScript exports", async () => {
   await withCopiedFixture("v2-valid", async (consumerRoot) => {
     await mkdir(join(consumerRoot, "packages", "app", "src", "esm"), { recursive: true });
-    await writeFile(join(consumerRoot, "packages", "app", "src", "esm", "package.json"), '{"type":"module"}\n', "utf8");
+    await writeFile(
+      join(consumerRoot, "packages", "app", "src", "esm", "package.json"),
+      '{"type":"module"}\n',
+      "utf8",
+    );
     await configureMixedPackage(consumerRoot, {
       appFile: "esm/index.ts",
       exports: { ".": { import: null, require: "./dist/index.cjs" } },
@@ -548,8 +504,13 @@ test("full capability uses the nearest containing package scope for static TypeS
 });
 
 test("full capability rejects package subpath traversal before package classification", async () => {
-  for (const appSpecifier of ["@fixture/core/../evil", "@fixture/core/./evil",
-    "@fixture/core/%2e%2e/evil", "@fixture/core/%2fhidden", "@fixture/core/..\\evil"]) {
+  for (const appSpecifier of [
+    "@fixture/core/../evil",
+    "@fixture/core/./evil",
+    "@fixture/core/%2e%2e/evil",
+    "@fixture/core/%2fhidden",
+    "@fixture/core/..\\evil",
+  ]) {
     const report = await mixedReport({ appSpecifier });
     assert.deepEqual(ruleIds(report.diagnostics), [unsupportedRule], reportDetails(report));
   }
@@ -561,7 +522,10 @@ test("full capability rejects export targets beyond the deterministic structure 
     target = [target];
   }
   const report = await mixedReport({ exports: { ".": target } });
-  assert.deepEqual(problemPhaseCode(report.problem), { code: "PACKAGE_EXPORTS_INVALID", phase: "package-manifest" });
+  assert.deepEqual(problemPhaseCode(report.problem), {
+    code: "PACKAGE_EXPORTS_INVALID",
+    phase: "package-manifest",
+  });
 });
 
 test("full capability follows ordered TypeScript types export targets", async () => {
@@ -583,14 +547,11 @@ test("full capability follows ordered TypeScript types export targets", async ()
   }
 });
 
-
 test("pinned native Node confirms ordered export-target oracle cases", async () => {
   for (const condition of ["import", "require"]) {
     assert.notEqual(
-      (await nativeNodeExportResolution(
-        { node: null, default: "./dist/index.cjs" },
-        condition,
-      )).status,
+      (await nativeNodeExportResolution({ node: null, default: "./dist/index.cjs" }, condition))
+        .status,
       0,
     );
     assert.equal(
@@ -598,10 +559,8 @@ test("pinned native Node confirms ordered export-target oracle cases", async () 
       0,
     );
     assert.equal(
-      (await nativeNodeExportResolution(
-        { default: "./dist/index.cjs", node: null },
-        condition,
-      )).status,
+      (await nativeNodeExportResolution({ default: "./dist/index.cjs", node: null }, condition))
+        .status,
       0,
     );
     const invalid = await nativeNodeExportResolution("../outside.cjs", condition);
@@ -623,17 +582,13 @@ test("pinned native Node confirms ordered export-target oracle cases", async () 
     assert.match(moduleSyncBlocked.stderr, /ERR_PACKAGE_PATH_NOT_EXPORTED/u);
   }
   assert.notEqual(
-    (await nativeNodeExportResolution(
-      { import: null, require: "./dist/index.cjs" },
-      "import",
-    )).status,
+    (await nativeNodeExportResolution({ import: null, require: "./dist/index.cjs" }, "import"))
+      .status,
     0,
   );
   assert.equal(
-    (await nativeNodeExportResolution(
-      { import: null, require: "./dist/index.cjs" },
-      "require",
-    )).status,
+    (await nativeNodeExportResolution({ import: null, require: "./dist/index.cjs" }, "require"))
+      .status,
     0,
   );
 });
@@ -650,7 +605,10 @@ test("full capability rejects duplicate, stale, wildcard, hidden, and nonportabl
     code: "SCHEMA_INVALID",
     phase: "source-architecture-config",
   });
-  const hidden = await mixedReport({ appSpecifier: "@fixture/core/hidden.js", runtimeClaims: ["."] });
+  const hidden = await mixedReport({
+    appSpecifier: "@fixture/core/hidden.js",
+    runtimeClaims: ["."],
+  });
   assert.deepEqual(ruleIds(hidden.diagnostics), [exportRule, mixedPackageRule]);
 
   await withCopiedFixture("v2-valid", async (consumerRoot) => {
@@ -666,7 +624,8 @@ test("full capability rejects duplicate, stale, wildcard, hidden, and nonportabl
       );
       await writeFile(sourceConfigPath(consumerRoot), candidate, "utf8");
       await assert.rejects(
-        () => loadCapabilityConfig(consumerRoot, "architecture/foundation/source-dependencies.yaml"),
+        () =>
+          loadCapabilityConfig(consumerRoot, "architecture/foundation/source-dependencies.yaml"),
         (error) => {
           assert.deepEqual(problemPhaseCode(error?.problem), {
             code: expectedCode,
@@ -689,10 +648,12 @@ test("v2 dotted claims load while direct source targets honor portable identity"
       },
       runtimeClaims: ["./package.json"],
     });
-    assert.equal((await loadCapabilityConfig(
-      consumerRoot,
-      "architecture/foundation/source-dependencies.yaml",
-    )).boundaries.find(({ id }) => id === "core.runtime").packageExports[0], "./package.json");
+    assert.equal(
+      (
+        await loadCapabilityConfig(consumerRoot, "architecture/foundation/source-dependencies.yaml")
+      ).boundaries.find(({ id }) => id === "core.runtime").packageExports[0],
+      "./package.json",
+    );
     const report = await runSourceCapability(consumerRoot);
     assert.equal(report.outcome, "passed", reportDetails(report));
   });
@@ -749,7 +710,6 @@ test("full capability follows Node wildcard priority and rejects empty captures"
   assert.deepEqual(ruleIds(empty.diagnostics), [exportRule, mixedPackageRule]);
 });
 
-
 async function configureGeneratedOutput(consumerRoot, schemaVersion, dependencyMode, specifier) {
   const packageRoots = schemaVersion === 2 ? "packageRoots:\n  - packages\n" : "";
   await writeFile(
@@ -772,11 +732,13 @@ test("full capability admits only canonical missing development output without c
     "../dist/bad<.js",
     "../dist/bad>.js",
     "../dist/bad|.js",
-    "../dist/bad\".js",
+    '../dist/bad".js',
   ]) {
     await withCopiedFixture("v2-valid", async (consumerRoot) => {
       await configureGeneratedOutput(consumerRoot, 2, "development", specifier);
-      assert.deepEqual(ruleIds((await runSourceCapability(consumerRoot)).diagnostics), [unresolvedRule]);
+      assert.deepEqual(ruleIds((await runSourceCapability(consumerRoot)).diagnostics), [
+        unresolvedRule,
+      ]);
     });
   }
   for (const [schemaVersion, dependencyMode, expected] of [
@@ -785,10 +747,18 @@ test("full capability admits only canonical missing development output without c
     [1, "development", [unresolvedRule]],
   ]) {
     await withCopiedFixture("v2-valid", async (consumerRoot) => {
-      await configureGeneratedOutput(consumerRoot, schemaVersion, dependencyMode, "../dist/index.js");
+      await configureGeneratedOutput(
+        consumerRoot,
+        schemaVersion,
+        dependencyMode,
+        "../dist/index.js",
+      );
       const report = await runSourceCapability(consumerRoot);
       assert.deepEqual(ruleIds(report.diagnostics), expected);
-      assert.equal(ruleIds(report.diagnostics).some((id) => id.includes("cycle")), false);
+      assert.equal(
+        ruleIds(report.diagnostics).some((id) => id.includes("cycle")),
+        false,
+      );
     });
   }
 });
@@ -808,7 +778,9 @@ test("full capability validates every existing generated-output filesystem kind"
     await mkdir(join(consumerRoot, "packages", "app", "dist", "index.js"), {
       recursive: true,
     });
-    assert.deepEqual(ruleIds((await runSourceCapability(consumerRoot)).diagnostics), [unresolvedRule]);
+    assert.deepEqual(ruleIds((await runSourceCapability(consumerRoot)).diagnostics), [
+      unresolvedRule,
+    ]);
   });
 
   await withCopiedFixture("v2-valid", async (consumerRoot) => {
@@ -816,7 +788,9 @@ test("full capability validates every existing generated-output filesystem kind"
     const dist = join(consumerRoot, "packages", "app", "dist");
     await mkdir(dist, { recursive: true });
     await writeFile(join(dist, "nested"), "not a directory\n", "utf8");
-    assert.deepEqual(ruleIds((await runSourceCapability(consumerRoot)).diagnostics), [unresolvedRule]);
+    assert.deepEqual(ruleIds((await runSourceCapability(consumerRoot)).diagnostics), [
+      unresolvedRule,
+    ]);
   });
 });
 
@@ -851,7 +825,11 @@ test("full capability rejects root and nested dist symlinks but keeps ordinary l
   }
   await withCopiedFixture("v2-valid", async (consumerRoot) => {
     await configureGeneratedOutput(consumerRoot, 2, "development", "./local.js");
-    await writeFile(join(consumerRoot, "packages", "app", "src", "local.ts"), "export default 1;\n", "utf8");
+    await writeFile(
+      join(consumerRoot, "packages", "app", "src", "local.ts"),
+      "export default 1;\n",
+      "utf8",
+    );
     const report = await runSourceCapability(consumerRoot);
     assert.equal(report.outcome, "passed", reportDetails(report));
   });

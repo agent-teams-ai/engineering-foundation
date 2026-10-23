@@ -8,22 +8,23 @@ import test from "node:test";
 
 import { createNodeFoundationTransactionCoordinator } from "../packages/engineering-foundation/dist/composition/node-foundation-transaction-coordinator.js";
 
-const worker = fileURLToPath(new URL(
-  "support/foundation-cleanup-marker-crash-worker.mjs",
-  import.meta.url
-));
+const worker = fileURLToPath(
+  new URL("support/foundation-cleanup-marker-crash-worker.mjs", import.meta.url),
+);
 const posixTest = process.platform === "win32" ? test.skip : test;
 const residuePrefix = "foundation-transaction.cleanup-residue.";
 
 async function crashAt(root, checkpoint) {
   const child = spawn(process.execPath, [worker, root, checkpoint], {
-    stdio: ["ignore", "pipe", "pipe"]
+    stdio: ["ignore", "pipe", "pipe"],
   });
   child.stdout.setEncoding("utf8");
   child.stderr.setEncoding("utf8");
   let stdout = "";
   let stderr = "";
-  child.stderr.on("data", (chunk) => { stderr += chunk; });
+  child.stderr.on("data", (chunk) => {
+    stderr += chunk;
+  });
   await new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       child.kill("SIGKILL");
@@ -43,9 +44,9 @@ async function crashAt(root, checkpoint) {
     child.once("exit", (code, signal) => {
       if (!stdout.includes(`CHECKPOINT:${checkpoint}\n`)) {
         clearTimeout(timeout);
-        reject(new Error(
-          `Marker worker exited early: code=${code} signal=${signal} stderr=${stderr}`
-        ));
+        reject(
+          new Error(`Marker worker exited early: code=${code} signal=${signal} stderr=${stderr}`),
+        );
       }
     });
   });
@@ -56,10 +57,7 @@ async function crashAt(root, checkpoint) {
   assert.deepEqual(exit, { code: null, signal: "SIGKILL" });
 }
 
-for (const checkpoint of [
-  "after-marker-synced",
-  "after-marker-retirement-synced"
-]) {
+for (const checkpoint of ["after-marker-synced", "after-marker-retirement-synced"]) {
   posixTest(`SIGKILL at ${checkpoint} leaves a global marker-only mutation barrier`, async () => {
     const root = await mkdtemp(join(tmpdir(), "foundation-cleanup-marker-crash-"));
     try {
@@ -75,7 +73,7 @@ for (const checkpoint of [
       assert.equal(status.reason, "journal-transition-residue");
       await assert.rejects(
         coordinator.acquire({ requestedMutation: "document-authoring" }),
-        /incomplete Foundation transaction transition/u
+        /incomplete Foundation transaction transition/u,
       );
 
       for (const entry of entries.filter((name) => name.startsWith(residuePrefix))) {

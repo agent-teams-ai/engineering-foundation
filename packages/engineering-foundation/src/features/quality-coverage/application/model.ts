@@ -63,11 +63,20 @@ export interface QualityToolSession {
 }
 
 export interface QualityCoverageReader {
-  read(consumerRoot: string, configPath: string, signal?: AbortSignal): Promise<QualityCoverageObservation>;
+  read(
+    consumerRoot: string,
+    configPath: string,
+    signal?: AbortSignal,
+  ): Promise<QualityCoverageObservation>;
 }
 
 export interface QualityToolProvider {
-  prepare(consumerRoot: string, configPath: string, sourcePaths: readonly string[], signal?: AbortSignal): Promise<QualityToolSession>;
+  prepare(
+    consumerRoot: string,
+    configPath: string,
+    sourcePaths: readonly string[],
+    signal?: AbortSignal,
+  ): Promise<QualityToolSession>;
 }
 
 /** A measured rule fired with a message that carries no value; the producer maps it to its own input error. */

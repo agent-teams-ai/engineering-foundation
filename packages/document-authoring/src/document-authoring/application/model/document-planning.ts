@@ -2,7 +2,7 @@ import type {
   DocumentAuthorityDigest,
   DocumentAuthorityEvidence,
   DocumentIdentityProjectionEntry,
-  DocumentationCatalogSnapshotContract
+  DocumentationCatalogSnapshotContract,
 } from "./document-catalog.js";
 import type { DocumentParentMaterializationPlanV2 } from "./document-parent-materialization.js";
 
@@ -220,7 +220,7 @@ export interface DocumentPlanV2 extends Omit<DocumentPlanCommon, "authority"> {
   readonly parentMaterialization: DocumentParentMaterializationPlanV2;
   readonly requiredAdapterCapabilities: readonly [
     "create-directories-no-replace/v1",
-    "create-file-no-replace/v1"
+    "create-file-no-replace/v1",
   ];
 }
 

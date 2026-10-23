@@ -1,4 +1,7 @@
-import type { ScaffoldAuthorityObservation, ScaffoldInstalledVersion } from "../../application/ports/authority-observation.js";
+import type {
+  ScaffoldAuthorityObservation,
+  ScaffoldInstalledVersion,
+} from "../../application/ports/authority-observation.js";
 import type { ScaffoldDefinitionRegistry } from "../../kernel/definition-registry.js";
 
 export interface ScaffoldAuthorityDependencies {

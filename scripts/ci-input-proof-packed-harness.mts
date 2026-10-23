@@ -1,8 +1,8 @@
-import { copyFile, mkdir, writeFile } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { copyFile, mkdir, writeFile } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
 
 export async function writeJson(path: string, value: unknown): Promise<void> {
-  await writeFile(path, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
+  await writeFile(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
 export const packedDeepImportSource = `// @ts-expect-error The public package root deliberately rejects deep imports.
@@ -393,88 +393,109 @@ process.stdout.write(JSON.stringify({
 `;
 
 const windowsManagedProcessRuntimeFiles = Object.freeze([
-  'binary-string-comparator.js',
-  'features/validation-reporting/api.js',
-  'features/validation-reporting/application/cancellation.js',
-  'features/validation-reporting/application/capability-registries.js',
-  'features/validation-reporting/application/model.js',
-  'features/validation-reporting/application/reporting.js',
-  'features/validation-reporting/application/unexpected-failure.js',
-  'features/validation-reporting/application/unique-registry.js',
-  'features/validation-reporting/foundation-error.js',
-  'features/validation-reporting/process-failure-facts.js',
-  'process-execution/application/errors.js',
-  'process-execution/application/process-failure-policy.js',
-  'process-execution/node-runtime-verifier.js',
-  'process-execution/windows-command-launch.js',
-  'process-execution/windows-managed-process-diagnostics.js',
-  'process-execution/windows-managed-process.js',
-  'process-execution/windows-process-host.js',
+  "binary-string-comparator.js",
+  "features/validation-reporting/api.js",
+  "features/validation-reporting/application/cancellation.js",
+  "features/validation-reporting/application/capability-registries.js",
+  "features/validation-reporting/application/model.js",
+  "features/validation-reporting/application/reporting.js",
+  "features/validation-reporting/application/unexpected-failure.js",
+  "features/validation-reporting/application/unique-registry.js",
+  "features/validation-reporting/foundation-error.js",
+  "features/validation-reporting/process-failure-facts.js",
+  "process-execution/application/errors.js",
+  "process-execution/application/process-failure-policy.js",
+  "process-execution/node-runtime-verifier.js",
+  "process-execution/windows-command-launch.js",
+  "process-execution/windows-managed-process-diagnostics.js",
+  "process-execution/windows-managed-process.js",
+  "process-execution/windows-process-host.js",
 ]);
 
 export async function writePackedCiInputProofHarness(
   consumerRoot: string,
   repositoryRoot: string,
 ): Promise<void> {
-  await mkdir(join(consumerRoot, 'scripts'), { recursive: true });
+  await mkdir(join(consumerRoot, "scripts"), { recursive: true });
   await copyFile(
-    resolve(repositoryRoot, 'scripts/ci-input-proof-foundation-adapter.mts'),
-    join(consumerRoot, 'scripts', 'ci-input-proof-foundation-adapter.mts'),
+    resolve(repositoryRoot, "scripts/ci-input-proof-foundation-adapter.mts"),
+    join(consumerRoot, "scripts", "ci-input-proof-foundation-adapter.mts"),
   );
   await copyFile(
-    resolve(repositoryRoot, 'scripts/ci-input-proof-full.mts'),
-    join(consumerRoot, 'scripts', 'ci-input-proof-full.mts'),
+    resolve(repositoryRoot, "scripts/ci-input-proof-foundation-types.ts"),
+    join(consumerRoot, "scripts", "ci-input-proof-foundation-types.ts"),
+  );
+  await copyFile(
+    resolve(repositoryRoot, "scripts/ci-input-proof-full.mts"),
+    join(consumerRoot, "scripts", "ci-input-proof-full.mts"),
   );
   for (const relativePath of windowsManagedProcessRuntimeFiles) {
-    const destination = join(consumerRoot, 'packages', 'engineering-foundation', 'dist', relativePath);
+    const destination = join(
+      consumerRoot,
+      "packages",
+      "engineering-foundation",
+      "dist",
+      relativePath,
+    );
     await mkdir(dirname(destination), { recursive: true });
     await copyFile(
-      resolve(repositoryRoot, 'packages', 'engineering-foundation', 'dist', relativePath),
+      resolve(repositoryRoot, "packages", "engineering-foundation", "dist", relativePath),
       destination,
     );
   }
-  for (const assetName of ['bootstrap.ps1', 'WindowsManagedProcess.cs']) {
+  for (const assetName of ["bootstrap.ps1", "WindowsManagedProcess.cs"]) {
     const destination = join(
       consumerRoot,
-      'packages',
-      'engineering-foundation',
-      'assets',
-      'windows-managed-process',
+      "packages",
+      "engineering-foundation",
+      "assets",
+      "windows-managed-process",
       assetName,
     );
     await mkdir(dirname(destination), { recursive: true });
     await copyFile(
-      resolve(repositoryRoot, 'packages', 'engineering-foundation', 'assets', 'windows-managed-process', assetName),
+      resolve(
+        repositoryRoot,
+        "packages",
+        "engineering-foundation",
+        "assets",
+        "windows-managed-process",
+        assetName,
+      ),
       destination,
     );
   }
   await copyFile(
-    resolve(repositoryRoot, 'tests/fixtures/ci-input-proof/foundation-pilot.TEST.mts'),
-    join(consumerRoot, 'typed-public-api.TEST.mts'),
+    resolve(repositoryRoot, "tests/fixtures/ci-input-proof/foundation-pilot.TEST.mts"),
+    join(consumerRoot, "typed-public-api.TEST.mts"),
   );
-  await writeFile(join(consumerRoot, 'deep-import-rejected.TEST.mts'), packedDeepImportSource, 'utf8');
-  await writeFile(join(consumerRoot, 'adapter-conformance.TEST.mts'), packedRunnerSource, 'utf8');
-  await writeJson(join(consumerRoot, 'tsconfig.json'), {
+  await writeFile(
+    join(consumerRoot, "deep-import-rejected.TEST.mts"),
+    packedDeepImportSource,
+    "utf8",
+  );
+  await writeFile(join(consumerRoot, "adapter-conformance.TEST.mts"), packedRunnerSource, "utf8");
+  await writeJson(join(consumerRoot, "tsconfig.json"), {
     compilerOptions: {
       exactOptionalPropertyTypes: true,
       allowImportingTsExtensions: true,
       forceConsistentCasingInFileNames: true,
-      module: 'NodeNext',
-      moduleResolution: 'NodeNext',
+      module: "NodeNext",
+      moduleResolution: "NodeNext",
       noEmit: true,
       noUncheckedIndexedAccess: true,
       skipLibCheck: false,
       strict: true,
-      target: 'ES2024',
-      types: ['node'],
+      target: "ES2024",
+      types: ["node"],
       verbatimModuleSyntax: true,
     },
     include: [
-      'scripts/ci-input-proof-foundation-adapter.mts',
-      'scripts/ci-input-proof-full.mts',
-      'typed-public-api.TEST.mts',
-      'deep-import-rejected.TEST.mts',
-      'adapter-conformance.TEST.mts',
+      "scripts/ci-input-proof-foundation-adapter.mts",
+      "scripts/ci-input-proof-full.mts",
+      "typed-public-api.TEST.mts",
+      "deep-import-rejected.TEST.mts",
+      "adapter-conformance.TEST.mts",
     ],
   });
 }

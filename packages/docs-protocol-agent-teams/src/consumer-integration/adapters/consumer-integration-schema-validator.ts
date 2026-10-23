@@ -6,47 +6,67 @@ import { Ajv2020, type ValidateFunction } from "ajv/dist/2020.js";
 import {
   assertManagedSuccessorProfileV4,
   bindUnselectedCohortV3,
-  type UnselectedCohortV3
+  type UnselectedCohortV3,
 } from "../application-api.js";
 import { loadPackedManagedRuntimePolicy } from "./unselected-cohort-v3-loader.js";
 
 const validators = new Map<string, Promise<ValidateFunction>>();
 
-type SchemaId = "docs-protocol-agent-teams/docs-consumer-integration-execution" |
-  "docs-consumer-integration-profile" |
-  "docs-consumer-integration-profile-v2" |
-  "docs-consumer-integration-profile-v3" |
-  "docs-consumer-integration-profile-v4" |
-  "docs-protocol-agent-teams/docs-consumer-upgrade-execution" |
-  "docs-protocol-agent-teams/docs-consumer-restoration-execution";
+type SchemaId =
+  | "docs-protocol-agent-teams/docs-consumer-integration-execution"
+  | "docs-consumer-integration-profile"
+  | "docs-consumer-integration-profile-v2"
+  | "docs-consumer-integration-profile-v3"
+  | "docs-consumer-integration-profile-v4"
+  | "docs-protocol-agent-teams/docs-consumer-upgrade-execution"
+  | "docs-protocol-agent-teams/docs-consumer-restoration-execution";
 
-async function validator(
-  id: SchemaId
-): Promise<ValidateFunction> {
+async function validator(id: SchemaId): Promise<ValidateFunction> {
   const existing = validators.get(id);
-  if (existing !== undefined) {return existing;}
+  if (existing !== undefined) {
+    return existing;
+  }
   const loading = (async () => {
     const ajv = new Ajv2020({ allErrors: true, strict: true });
-    if (id === "docs-protocol-agent-teams/docs-consumer-restoration-execution" || id === "docs-protocol-agent-teams/docs-consumer-integration-execution" || id === "docs-protocol-agent-teams/docs-consumer-upgrade-execution") {
+    if (
+      id === "docs-protocol-agent-teams/docs-consumer-restoration-execution" ||
+      id === "docs-protocol-agent-teams/docs-consumer-integration-execution" ||
+      id === "docs-protocol-agent-teams/docs-consumer-upgrade-execution"
+    ) {
       const [plan, mutationReceipt] = await Promise.all([
-        readFile(new URL(
-          "../../../schemas/docs-consumer-integration-plan/v1.schema.json",
-          import.meta.url
-        ), "utf8"),
-        readFile(new URL(import.meta.resolve(
-          "@agent-teams/repository-mutation/schemas/repository-mutation/known-file-transaction-receipt/v1.schema.json"
-        )), "utf8")
+        readFile(
+          new URL(
+            "../../../schemas/docs-consumer-integration-plan/v1.schema.json",
+            import.meta.url,
+          ),
+          "utf8",
+        ),
+        readFile(
+          new URL(
+            import.meta
+              .resolve("@agent-teams/repository-mutation/schemas/repository-mutation/known-file-transaction-receipt/v1.schema.json"),
+          ),
+          "utf8",
+        ),
       ]);
       ajv.addSchema(JSON.parse(plan) as object);
       ajv.addSchema(JSON.parse(mutationReceipt) as object);
     }
-    if (id === "docs-consumer-integration-profile-v3" || id === "docs-consumer-integration-profile-v4") {
-      const cohort = JSON.parse(await readFile(new URL(
-        id === "docs-consumer-integration-profile-v3"
-          ? "../../../schemas/qualified-docs-cohort/v2.schema.json"
-          : "../../../schemas/qualified-docs-cohort/v3.schema.json",
-        import.meta.url
-      ), "utf8")) as object;
+    if (
+      id === "docs-consumer-integration-profile-v3" ||
+      id === "docs-consumer-integration-profile-v4"
+    ) {
+      const cohort = JSON.parse(
+        await readFile(
+          new URL(
+            id === "docs-consumer-integration-profile-v3"
+              ? "../../../schemas/qualified-docs-cohort/v2.schema.json"
+              : "../../../schemas/qualified-docs-cohort/v3.schema.json",
+            import.meta.url,
+          ),
+          "utf8",
+        ),
+      ) as object;
       ajv.addSchema(cohort);
     }
     const schemaUrl = new URL(
@@ -56,8 +76,8 @@ async function validator(
           ? "../../../schemas/docs-consumer-integration-profile/v3.schema.json"
           : id === "docs-consumer-integration-profile-v4"
             ? "../../../schemas/docs-consumer-integration-profile/v4.schema.json"
-          : `../../../schemas/${id}/v1.schema.json`,
-      import.meta.url
+            : `../../../schemas/${id}/v1.schema.json`,
+      import.meta.url,
     );
     return ajv.compile(JSON.parse(await readFile(schemaUrl, "utf8")) as object);
   })();
@@ -65,12 +85,11 @@ async function validator(
   return loading;
 }
 
-async function assertSchema(
-  id: SchemaId,
-  value: unknown
-): Promise<void> {
+async function assertSchema(id: SchemaId, value: unknown): Promise<void> {
   const validate = await validator(id);
-  if (validate(value)) {return;}
+  if (validate(value)) {
+    return;
+  }
   const problems = (validate.errors ?? [])
     .slice(0, 8)
     .map(({ instancePath, message }) => `${instancePath || "/"} ${message ?? "is invalid"}`)
@@ -80,9 +99,10 @@ async function assertSchema(
 }
 
 export function assertConsumerIntegrationProfileSchema(value: unknown): Promise<void> {
-  const version = typeof value === "object" && value !== null && "schemaVersion" in value
-    ? (value as { readonly schemaVersion?: unknown }).schemaVersion
-    : undefined;
+  const version =
+    typeof value === "object" && value !== null && "schemaVersion" in value
+      ? (value as { readonly schemaVersion?: unknown }).schemaVersion
+      : undefined;
   if (version === 1) {
     return assertSchema("docs-consumer-integration-profile", value);
   }
@@ -93,16 +113,21 @@ export function assertConsumerIntegrationProfileSchema(value: unknown): Promise<
     return assertSchema("docs-consumer-integration-profile-v3", value);
   }
   if (version === 4) {
-    return assertSchema("docs-consumer-integration-profile-v4", value).then(async (): Promise<void> => {
-      assertManagedSuccessorProfileV4(value);
-      // The binder reads core fields only; Profile4 omits full-cohort lifecycle fields.
-      bindUnselectedCohortV3(value.cohort as UnselectedCohortV3, await loadPackedManagedRuntimePolicy());
-      return undefined;
-    });
+    return assertSchema("docs-consumer-integration-profile-v4", value).then(
+      async (): Promise<void> => {
+        assertManagedSuccessorProfileV4(value);
+        // The binder reads core fields only; Profile4 omits full-cohort lifecycle fields.
+        bindUnselectedCohortV3(
+          value.cohort as UnselectedCohortV3,
+          await loadPackedManagedRuntimePolicy(),
+        );
+        return undefined;
+      },
+    );
   }
-  return Promise.reject(new TypeError(
-    "docs-consumer-integration-profile schemaVersion must be exactly 1, 2, 3, or 4."
-  ));
+  return Promise.reject(
+    new TypeError("docs-consumer-integration-profile schemaVersion must be exactly 1, 2, 3, or 4."),
+  );
 }
 
 export function assertConsumerIntegrationExecutionSchema(value: unknown): Promise<void> {
@@ -114,13 +139,21 @@ export function assertConsumerUpgradeExecutionSchema(value: unknown): Promise<vo
 }
 
 export async function readManagedPortableProfileV3(value: unknown): Promise<DocsProtocolProfileV3> {
-  const schema: unknown = JSON.parse(await readFile(new URL(import.meta.resolve(
-    "@agent-teams/docs-protocol/schemas/docs-protocol-profile/v3.schema.json"
-  )), "utf8"));
+  const schema: unknown = JSON.parse(
+    await readFile(
+      new URL(
+        import.meta
+          .resolve("@agent-teams/docs-protocol/schemas/docs-protocol-profile/v3.schema.json"),
+      ),
+      "utf8",
+    ),
+  );
   if (typeof schema !== "object" || schema === null || Array.isArray(schema)) {
     throw new TypeError("Portable profile schema must be an object.");
   }
-  const validate = new Ajv2020({ allErrors: true, strict: true }).compile<DocsProtocolProfileV3>(schema);
+  const validate = new Ajv2020({ allErrors: true, strict: true }).compile<DocsProtocolProfileV3>(
+    schema,
+  );
   if (!validate(value)) {
     throw new TypeError("Managed portable projection requires one closed portable profile v3.");
   }

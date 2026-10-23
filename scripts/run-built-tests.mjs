@@ -3,7 +3,11 @@ import { constants as osConstants } from "node:os";
 import { resolve as resolvePath } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { repositoryRoot, selectTestPathsForPlatform, validateTestManifests } from "./check-test-manifests.mjs";
+import {
+  repositoryRoot,
+  selectTestPathsForPlatform,
+  validateTestManifests,
+} from "./check-test-manifests.mjs";
 import { partitionGeneration2Tests, resolveGeneration2Node } from "./generation2-node.mts";
 import { maybeRunMandatoryNodeTests } from "./mandatory-node-test.mjs";
 
@@ -50,12 +54,17 @@ async function runChild(spawnChild, node, tests) {
  * }} [options]
  * @returns {Promise<number>}
  */
-export async function runPartitionedBuiltTests(tests, { spawnChild = spawn, runMandatory = maybeRunMandatoryNodeTests } = {}) {
+export async function runPartitionedBuiltTests(
+  tests,
+  { spawnChild = spawn, runMandatory = maybeRunMandatoryNodeTests } = {},
+) {
   const { current, legacy } = partitionGeneration2Tests(tests);
   // Fail before any test starts when the explicit Node 24 is unavailable.
   const legacyNode = legacy.length > 0 ? await resolveGeneration2Node() : undefined;
   const mandatoryExit = await runMandatory(current);
-  let exitCode = mandatoryExit ?? (current.length === 0 ? 0 : await runChild(spawnChild, process.execPath, current));
+  let exitCode =
+    mandatoryExit ??
+    (current.length === 0 ? 0 : await runChild(spawnChild, process.execPath, current));
   if (legacyNode !== undefined) {
     // Always dispatch the legacy lane, even after a current failure; keep the first nonzero code.
     const legacyExit = await runChild(spawnChild, legacyNode, legacy);
@@ -69,9 +78,8 @@ export async function runBuiltTests(options = {}) {
   return runPartitionedBuiltTests(selectTestPathsForPlatform(manifest, manifest.tests), options);
 }
 
-const invokedPath = process.argv[1] === undefined
-  ? undefined
-  : pathToFileURL(resolvePath(process.argv[1])).href;
+const invokedPath =
+  process.argv[1] === undefined ? undefined : pathToFileURL(resolvePath(process.argv[1])).href;
 if (invokedPath === import.meta.url) {
   process.exitCode = await runBuiltTests();
 }

@@ -5,10 +5,11 @@ import test from "node:test";
 
 test("consumer JSON mode survives bounded argv failures without accepting aliases", () => {
   const cliPath = join(import.meta.dirname, "..", "dist", "cli.js");
-  const invoke = (args) => spawnSync(process.execPath, [cliPath, ...args], {
-    encoding: "utf8",
-    env: { ...process.env, NO_PROXY: "*" },
-  });
+  const invoke = (args) =>
+    spawnSync(process.execPath, [cliPath, ...args], {
+      encoding: "utf8",
+      env: { ...process.env, NO_PROXY: "*" },
+    });
   for (const args of [
     ["check", "--consumer", "--json"],
     ["check", "x".repeat(4097), "--json"],
@@ -40,17 +41,28 @@ test("consumer JSON mode survives bounded argv failures without accepting aliase
 
   const urls = [
     "https://registry.example/archive.tgz?key=/opt/object&expires=123",
-    "http://registry.example/archive.tgz?key=/tmp/object&expires=123"
+    "http://registry.example/archive.tgz?key=/tmp/object&expires=123",
   ];
-  const queryFailure = invoke(["check", "--json", ...urls,
-    "store=/node26-native-test-tmp/cli-query-NEWTEST/store/v11", "node_modules/.pnpm"]);
+  const queryFailure = invoke([
+    "check",
+    "--json",
+    ...urls,
+    "store=/node26-native-test-tmp/cli-query-NEWTEST/store/v11",
+    "node_modules/.pnpm",
+  ]);
   assert.equal(queryFailure.status, 2, queryFailure.stderr);
   assert.equal(queryFailure.stderr, "");
   assert.deepEqual(JSON.parse(queryFailure.stdout), {
     schemaVersion: 1,
     command: "consumer.check",
     outcome: "blocked",
-    issues: [{ code: "DOCS_CONSUMER_CLI_INVALID", severity: "error", subject: "check",
-      message: `Unknown consumer arguments: ${urls.join(" ")} store=<local-path> node_modules/.pnpm.` }]
+    issues: [
+      {
+        code: "DOCS_CONSUMER_CLI_INVALID",
+        severity: "error",
+        subject: "check",
+        message: `Unknown consumer arguments: ${urls.join(" ")} store=<local-path> node_modules/.pnpm.`,
+      },
+    ],
   });
 });

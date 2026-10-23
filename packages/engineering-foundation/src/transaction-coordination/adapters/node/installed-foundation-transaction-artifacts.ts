@@ -2,7 +2,7 @@ import {
   installedRepositoryMutationBuildIdentity,
   installedRepositoryMutationVersion,
   REPOSITORY_MUTATION_PACKAGE_NAME,
-  type RepositoryMutationArtifactIdentity
+  type RepositoryMutationArtifactIdentity,
 } from "@agent-teams/repository-mutation";
 import { installedFoundationVersion } from "./installed-foundation-version.js";
 import { installedFoundationBuildIdentity } from "./installed-foundation-build-identity.js";
@@ -21,19 +21,19 @@ export async function resolveInstalledFoundationTransactionArtifacts(): Promise<
         installedFoundationVersion(),
         installedFoundationBuildIdentity(),
         installedRepositoryMutationVersion(),
-        installedRepositoryMutationBuildIdentity()
+        installedRepositoryMutationBuildIdentity(),
       ]);
     return {
       owner: {
         name: "@agent-teams/engineering-foundation",
         version: ownerVersion,
-        buildIdentity: ownerBuildIdentity
+        buildIdentity: ownerBuildIdentity,
       },
       kernel: {
         name: REPOSITORY_MUTATION_PACKAGE_NAME,
         version: kernelVersion,
-        buildIdentity: kernelBuildIdentity
-      }
+        buildIdentity: kernelBuildIdentity,
+      },
     };
   })();
   return installedArtifacts;

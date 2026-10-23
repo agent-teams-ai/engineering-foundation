@@ -424,9 +424,7 @@
         "devDependencies": {
           "@agent-teams/engineering-foundation": "0.1.1"
         },
-        "bundledDependencies": [
-          "@agent-teams/engineering-foundation"
-        ]
+        "bundledDependencies": ["@agent-teams/engineering-foundation"]
       },
       "report": {
         "capabilityId": "workspace.dependency-declarations",

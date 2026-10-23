@@ -8,17 +8,21 @@ export async function withGitIndexSnapshot<T>(
   execute: ExecuteWorkflowProcess,
   root: string,
   operation: (read: ExecuteWorkflowProcess) => Promise<T>,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<T> {
   const index = await execute("git", ["--no-optional-locks", "rev-parse", "--git-path", "index"], {
-    cwd: root, strictUtf8: true, ...(signal === undefined ? {} : { signal })
+    cwd: root,
+    strictUtf8: true,
+    ...(signal === undefined ? {} : { signal }),
   });
   if (index.exitCode !== 0 || index.stdout.trim().length === 0) {
     throw new Error("Unable to locate the repository index for read-only changed scope.");
   }
   const indexPath = resolve(root, index.stdout.replace(/\r?\n$/u, ""));
   const metadata = await lstat(indexPath).catch((error: unknown) => {
-    if (error instanceof Error && "code" in error && error.code === "ENOENT") { return null; }
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      return null;
+    }
     throw error;
   });
   if (metadata !== null && (!metadata.isFile() || metadata.isSymbolicLink())) {
@@ -39,7 +43,8 @@ export async function withGitIndexSnapshot<T>(
       delete environment.GIT_OPTIONAL_LOCKS;
       delete environment.GIT_INDEX_FILE;
       return execute(command, args, {
-        ...options, environment: { ...environment, GIT_OPTIONAL_LOCKS: "0", GIT_INDEX_FILE: snapshot }
+        ...options,
+        environment: { ...environment, GIT_OPTIONAL_LOCKS: "0", GIT_INDEX_FILE: snapshot },
       });
     };
     return await operation(read);

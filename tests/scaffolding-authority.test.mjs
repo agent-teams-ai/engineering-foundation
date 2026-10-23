@@ -1,8 +1,17 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import {
-  chmod, cp, mkdir, mkdtemp, readFile, readdir,
-  rename, rm, stat, utimes, writeFile,
+  chmod,
+  cp,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rename,
+  rm,
+  stat,
+  utimes,
+  writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -10,8 +19,12 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import {
-  applyFilesystemScaffold, assertScaffoldPlanDigest, assertScaffoldReceiptDigest,
-  planScaffoldFromFile, recoverFilesystemScaffold, validateScaffoldReceipt,
+  applyFilesystemScaffold,
+  assertScaffoldPlanDigest,
+  assertScaffoldReceiptDigest,
+  planScaffoldFromFile,
+  recoverFilesystemScaffold,
+  validateScaffoldReceipt,
 } from "../packages/engineering-foundation/dist/scaffolding/index.js";
 import { sha256Json } from "../packages/engineering-foundation/dist/scaffolding/kernel/canonical-json.js";
 import { applyAuthorityFilesystemScaffoldWithFaultInjection } from "../packages/engineering-foundation/dist/composition/scaffold-filesystem.js";
@@ -19,25 +32,15 @@ import { assertSchema } from "../packages/engineering-foundation/dist/schema-cat
 import { parseStrictYamlSource } from "../packages/engineering-foundation/dist/features/configuration-input/yaml.js";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
-const fixtureRoot = join(
-  repositoryRoot,
-  "tests",
-  "fixtures",
-  "scaffolding-authority-consumer"
-);
-const crashWorkerPath = join(
-  repositoryRoot,
-  "tests",
-  "fixtures",
-  "scaffolding-crash-worker.mjs"
-);
+const fixtureRoot = join(repositoryRoot, "tests", "fixtures", "scaffolding-authority-consumer");
+const crashWorkerPath = join(repositoryRoot, "tests", "fixtures", "scaffolding-crash-worker.mjs");
 const filesystemAuthorityWorkspaceModulePath = join(
   repositoryRoot,
   "packages",
   "engineering-foundation",
   "dist",
   "composition",
-  "scaffold-filesystem.js"
+  "scaffold-filesystem.js",
 );
 
 async function createConsumer() {
@@ -49,7 +52,7 @@ async function createConsumer() {
 async function plan(root) {
   return planScaffoldFromFile({
     consumerRoot: root,
-    intentPath: "intents/create-fixture.yaml"
+    intentPath: "intents/create-fixture.yaml",
   });
 }
 
@@ -81,7 +84,7 @@ async function setOwnerStatus(root, status) {
   await writeFile(
     path,
     (await readFile(path, "utf8")).replace(/^status: .+$/mu, `status: ${status}`),
-    "utf8"
+    "utf8",
   );
 }
 
@@ -125,8 +128,8 @@ async function waitForCrashPoint(child) {
     child.once("exit", (code, signal) => {
       reject(
         new Error(
-          `Crash worker exited before the fault point: code=${String(code)} signal=${String(signal)} ${stderr}`
-        )
+          `Crash worker exited before the fault point: code=${String(code)} signal=${String(signal)} ${stderr}`,
+        ),
       );
     });
   });
@@ -154,9 +157,9 @@ async function crashDuringApply(root, scaffoldPlan, phase, operationIndex) {
       planPath,
       "applyAuthorityFilesystemScaffoldWithFaultInjection",
       phase,
-      ...(operationIndex === undefined ? [] : [String(operationIndex)])
+      ...(operationIndex === undefined ? [] : [String(operationIndex)]),
     ],
-    { stdio: ["ignore", "pipe", "pipe"] }
+    { stdio: ["ignore", "pipe", "pipe"] },
   );
   await waitForCrashPoint(child);
   let killed = false;
@@ -164,7 +167,7 @@ async function crashDuringApply(root, scaffoldPlan, phase, operationIndex) {
     await utimes(
       join(root, ".agent-teams-local", "foundation-operation.lock"),
       new Date(0),
-      new Date(0)
+      new Date(0),
     ).catch((error) => {
       if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) {
         throw error;
@@ -187,20 +190,9 @@ test("compiles deterministic authority evidence and preserves LF/CRLF authority 
     assert.deepEqual(first, second);
     assert.equal(first.readSet.length, 3);
     assert.equal(first.authorityEvidence.sources.length, 3);
-    assert.equal(
-      first.authorityEvidence.ownerDocument.path,
-      "docs/decisions/adr-0060.md"
-    );
-    for (const path of [
-      configPath(crlfRoot),
-      catalogPath(crlfRoot),
-      ownerPath(crlfRoot)
-    ]) {
-      await writeFile(
-        path,
-        (await readFile(path, "utf8")).replace(/\r?\n/gu, "\r\n"),
-        "utf8"
-      );
+    assert.equal(first.authorityEvidence.ownerDocument.path, "docs/decisions/adr-0060.md");
+    for (const path of [configPath(crlfRoot), catalogPath(crlfRoot), ownerPath(crlfRoot)]) {
+      await writeFile(path, (await readFile(path, "utf8")).replace(/\r?\n/gu, "\r\n"), "utf8");
     }
     assert.deepEqual(first, await plan(crlfRoot));
   } finally {
@@ -217,7 +209,7 @@ test("fails closed when owner status, owner binding, or catalog binding changes 
       await writeFile(
         replacement,
         "---\nid: ADR-0060\nstatus: accepted\n---\n\n# Replacement\n",
-        "utf8"
+        "utf8",
       );
     },
     async (root) => {
@@ -230,11 +222,11 @@ test("fails closed when owner status, owner binding, or catalog binding changes 
         catalogPath(root),
         (await readFile(catalogPath(root), "utf8")).replace(
           "owner_document: ADR-0060",
-          "owner_document: ADR-0061"
+          "owner_document: ADR-0061",
         ),
-        "utf8"
+        "utf8",
       );
-    }
+    },
   ];
   for (const mutateAuthority of scenarios) {
     const root = await createConsumer();
@@ -261,14 +253,11 @@ test("does not allow target A authority evidence to authorize target B", async (
     scaffoldPlan.target = {
       ...scaffoldPlan.target,
       id: "testing.other",
-      path: "packages/testing/other"
+      path: "packages/testing/other",
     };
     scaffoldPlan.operations = scaffoldPlan.operations.map((operation) => ({
       ...operation,
-      path: operation.path.replace(
-        "packages/testing/generated/",
-        "packages/testing/other/"
-      )
+      path: operation.path.replace("packages/testing/generated/", "packages/testing/other/"),
     }));
     const forged = withRecomputedPlanDigest(scaffoldPlan);
     assert.throws(() => assertScaffoldPlanDigest(forged), /Evidence is not bound/u);
@@ -282,28 +271,25 @@ test("binds each authority source role to its canonical path", async () => {
   try {
     const scaffoldPlan = structuredClone(await plan(root));
     const configSource = scaffoldPlan.authorityEvidence.sources.find(
-      ({ role }) => role === "config"
+      ({ role }) => role === "config",
     );
     const ownerSource = scaffoldPlan.authorityEvidence.sources.find(
-      ({ role }) => role === "owner-document"
+      ({ role }) => role === "owner-document",
     );
     assert.ok(configSource);
     assert.ok(ownerSource);
     configSource.role = "owner-document";
     ownerSource.role = "config";
-    const { evidenceDigest: _evidenceDigest, ...evidenceBody } =
-      scaffoldPlan.authorityEvidence;
+    const { evidenceDigest: _evidenceDigest, ...evidenceBody } = scaffoldPlan.authorityEvidence;
     scaffoldPlan.authorityEvidence.evidenceDigest = sha256Json({
       ...evidenceBody,
-      sources: evidenceBody.sources.toSorted((left, right) =>
-        left.role.localeCompare(right.role)
-      )
+      sources: evidenceBody.sources.toSorted((left, right) => left.role.localeCompare(right.role)),
     });
     const forged = withRecomputedPlanDigest(scaffoldPlan);
 
     assert.throws(
       () => assertScaffoldPlanDigest(forged),
-      /source roles are not bound to canonical paths/u
+      /source roles are not bound to canonical paths/u,
     );
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -317,16 +303,16 @@ test("rejects unknown authority verifier/version and schema extensions", async (
         configPath(root),
         (await readFile(configPath(root), "utf8")).replace(
           "foundation.markdown-yaml-owner",
-          "consumer.unknown-verifier"
+          "consumer.unknown-verifier",
         ),
-        "utf8"
+        "utf8",
       );
     },
     async (root) => {
       const source = await readFile(configPath(root), "utf8");
       const mutated = source.replace(
         /contractVersion: 1(\r?\n        parameters:)/u,
-        "contractVersion: 2$1"
+        "contractVersion: 2$1",
       );
       assert.notEqual(mutated, source, "Verifier version fixture must mutate.");
       await writeFile(configPath(root), mutated, "utf8");
@@ -335,9 +321,9 @@ test("rejects unknown authority verifier/version and schema extensions", async (
       await writeFile(
         configPath(root),
         `${await readFile(configPath(root), "utf8")}    forbidden: true\n`,
-        "utf8"
+        "utf8",
       );
-    }
+    },
   ];
   for (const mutateConfig of scenarios) {
     const root = await createConsumer();
@@ -355,12 +341,8 @@ test("rejects unknown authority verifier/version and schema extensions", async (
     const evidence = structuredClone(scaffoldPlan.authorityEvidence);
     evidence.extension = true;
     await assert.rejects(
-      assertSchema(
-        "scaffold-authority-evidence/v1",
-        evidence,
-        "scaffold-authority-evidence"
-      ),
-      /additional properties/u
+      assertSchema("scaffold-authority-evidence/v1", evidence, "scaffold-authority-evidence"),
+      /additional properties/u,
     );
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -382,7 +364,7 @@ test("preserves outputs and journal after revocation at first, middle, and final
           ) {
             await setOwnerStatus(root, "proposed");
           }
-        }
+        },
       );
       assert.equal(receipt.outcome, "recovery-required", String(operationIndex));
       assert.equal(receipt.commit.state, "recovery-required", String(operationIndex));
@@ -392,7 +374,7 @@ test("preserves outputs and journal after revocation at first, middle, and final
         if (index <= operationIndex) {
           assert.deepEqual(
             await readFile(outputPath),
-            Buffer.from(operation.after.contentBase64, "base64")
+            Buffer.from(operation.after.contentBase64, "base64"),
           );
         } else {
           await assertMissing(outputPath);
@@ -421,24 +403,21 @@ test("preserves preexisting and newly published postimages after authority becom
       root,
       scaffoldPlan,
       async (point) => {
-        if (
-          point.phase === "after-journal-operation-published" &&
-          point.operationIndex === 1
-        ) {
+        if (point.phase === "after-journal-operation-published" && point.operationIndex === 1) {
           await setOwnerStatus(root, "proposed");
         }
-      }
+      },
     );
     assert.equal(receipt.outcome, "recovery-required");
     assert.deepEqual(
       await readFile(preexistingPath),
-      Buffer.from(preexisting.after.contentBase64, "base64")
+      Buffer.from(preexisting.after.contentBase64, "base64"),
     );
     const published = scaffoldPlan.operations[1];
     assert.ok(published);
     assert.deepEqual(
       await readFile(join(root, ...published.path.split("/"))),
-      Buffer.from(published.after.contentBase64, "base64")
+      Buffer.from(published.after.contentBase64, "base64"),
     );
     await assertCurrentJournal(root);
   } finally {
@@ -457,14 +436,11 @@ test("retains third-party state and journal when authority becomes stale", async
       root,
       scaffoldPlan,
       async (point) => {
-        if (
-          point.phase === "after-journal-operation-published" &&
-          point.operationIndex === 0
-        ) {
+        if (point.phase === "after-journal-operation-published" && point.operationIndex === 0) {
           await writeFile(firstPath, "user-owned third state\n", "utf8");
           await setOwnerStatus(root, "proposed");
         }
-      }
+      },
     );
     assert.equal(receipt.outcome, "recovery-required");
     assert.equal(receipt.commit.state, "recovery-required");
@@ -483,22 +459,19 @@ test("restart recovery preserves persisted outputs when authority was revoked", 
     assert.ok(first);
     await assert.rejects(
       applyAuthorityFilesystemScaffoldWithFaultInjection(root, scaffoldPlan, async (point) => {
-        if (
-          point.phase === "after-journal-operation-published" &&
-          point.operationIndex === 0
-        ) {
+        if (point.phase === "after-journal-operation-published" && point.operationIndex === 0) {
           await setOwnerStatus(root, "proposed");
           throw new Error("simulated process interruption");
         }
       }),
-      /simulated process interruption/u
+      /simulated process interruption/u,
     );
     const receipt = await recoverFilesystemScaffold(root);
     assert.equal(receipt?.outcome, "recovery-required");
     assert.equal(receipt?.commit.state, "recovery-required");
     assert.deepEqual(
       await readFile(join(root, ...first.path.split("/"))),
-      Buffer.from(first.after.contentBase64, "base64")
+      Buffer.from(first.after.contentBase64, "base64"),
     );
     await assertCurrentJournal(root);
   } finally {
@@ -518,7 +491,7 @@ test("forged persisted ownership never authorizes restart deletion", async () =>
           throw new Error("interrupted-before-publication");
         }
       }),
-      /interrupted-before-publication/u
+      /interrupted-before-publication/u,
     );
     const destination = join(root, ...first.path.split("/"));
     await mkdir(dirname(destination), { recursive: true });
@@ -532,10 +505,7 @@ test("forged persisted ownership never authorizes restart deletion", async () =>
       recoverFilesystemScaffold(root),
       /transaction slot is corrupt, tampered, or incompatible; it was preserved/iu,
     );
-    assert.deepEqual(
-      await readFile(destination),
-      Buffer.from(first.after.contentBase64, "base64")
-    );
+    assert.deepEqual(await readFile(destination), Buffer.from(first.after.contentBase64, "base64"));
     assert.match(await readFile(journalPath(root), "utf8"), /"published"/u);
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -550,27 +520,21 @@ test("unverifiable authority preserves persisted outputs and journal", async () 
     assert.ok(first);
     await assert.rejects(
       applyAuthorityFilesystemScaffoldWithFaultInjection(root, scaffoldPlan, (point) => {
-        if (
-          point.phase === "after-journal-operation-published" &&
-          point.operationIndex === 0
-        ) {
+        if (point.phase === "after-journal-operation-published" && point.operationIndex === 0) {
           throw new Error("interrupted-after-publication");
         }
       }),
-      /interrupted-after-publication/u
+      /interrupted-after-publication/u,
     );
     await writeFile(ownerPath(root), "not markdown frontmatter\n", "utf8");
 
     const receipt = await recoverFilesystemScaffold(root);
     assert.equal(receipt?.outcome, "recovery-required");
     assert.ok(receipt?.operations.every(({ outcome }) => outcome === "unobserved"));
-    assert.match(
-      receipt?.diagnostics[0]?.ruleId ?? "",
-      /authority\.unverifiable/u
-    );
+    assert.match(receipt?.diagnostics[0]?.ruleId ?? "", /authority\.unverifiable/u);
     assert.deepEqual(
       await readFile(join(root, ...first.path.split("/"))),
-      Buffer.from(first.after.contentBase64, "base64")
+      Buffer.from(first.after.contentBase64, "base64"),
     );
     await assertCurrentJournal(root);
   } finally {
@@ -590,28 +554,19 @@ test("never deletes an exact third-party replacement after publication", async (
       root,
       scaffoldPlan,
       async (point) => {
-        if (
-          point.phase === "after-journal-operation-published" &&
-          point.operationIndex === 0
-        ) {
+        if (point.phase === "after-journal-operation-published" && point.operationIndex === 0) {
           await rm(destination);
-          await writeFile(
-            destination,
-            Buffer.from(first.after.contentBase64, "base64")
-          );
+          await writeFile(destination, Buffer.from(first.after.contentBase64, "base64"));
           if (process.platform !== "win32") {
             await chmod(destination, 0o644);
           }
           await setOwnerStatus(root, "proposed");
         }
-      }
+      },
     );
 
     assert.equal(receipt.outcome, "recovery-required");
-    assert.deepEqual(
-      await readFile(destination),
-      Buffer.from(first.after.contentBase64, "base64")
-    );
+    assert.deepEqual(await readFile(destination), Buffer.from(first.after.contentBase64, "base64"));
     await assertCurrentJournal(root);
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -622,18 +577,21 @@ test("recovers journal progress at preparation, publishing, and published crash 
   for (const phase of [
     "after-journal-prepared",
     "after-journal-operation-publishing",
-    "after-journal-operation-published"
+    "after-journal-operation-published",
   ]) {
     const root = await createConsumer();
     try {
       const scaffoldPlan = await plan(root);
       await assert.rejects(
         applyAuthorityFilesystemScaffoldWithFaultInjection(root, scaffoldPlan, (point) => {
-          if (point.phase === phase && (phase === "after-journal-prepared" || point.operationIndex === 0)) {
+          if (
+            point.phase === phase &&
+            (phase === "after-journal-prepared" || point.operationIndex === 0)
+          ) {
             throw new Error(`interrupted:${phase}`);
           }
         }),
-        new RegExp(`interrupted:${phase}`, "u")
+        new RegExp(`interrupted:${phase}`, "u"),
       );
       const receipt = await recoverFilesystemScaffold(root);
       assert.equal(receipt?.outcome, "failed-recovered", phase);
@@ -646,47 +604,47 @@ test("recovers journal progress at preparation, publishing, and published crash 
 
 test("fails safely after process death at every source-bound publication boundary", async () => {
   for (const scenario of [
-    { phase: "after-journal-temporary-synced", expected: "temporary-preserved", replaceTemporary: true, revokeAuthority: true },
+    {
+      phase: "after-journal-temporary-synced",
+      expected: "temporary-preserved",
+      replaceTemporary: true,
+      revokeAuthority: true,
+    },
     { phase: "after-journal-temporary-synced", operationIndex: 0, expected: "temporary-preserved" },
     { phase: "after-journal-prepared", expected: "failed-recovered" },
     {
       phase: "after-journal-operation-publishing",
       operationIndex: 0,
-      expected: "failed-recovered"
+      expected: "failed-recovered",
     },
     {
       phase: "after-temporary-written",
       operationIndex: 0,
-      expected: "recovery-required"
+      expected: "recovery-required",
     },
     {
       phase: "after-temporary-synced",
       operationIndex: 0,
-      expected: "recovery-required"
+      expected: "recovery-required",
     },
     {
       phase: "after-hard-link",
       operationIndex: 0,
-      expected: "recovery-required"
+      expected: "recovery-required",
     },
     {
       phase: "after-journal-operation-published",
       operationIndex: 0,
-      expected: "failed-recovered"
+      expected: "failed-recovered",
     },
     { phase: "before-final-authority-recheck", expected: "failed-recovered" },
     { phase: "after-final-verification", expected: "failed-recovered" },
-    { phase: "after-journal-unlinked", expected: "already-applied-after-unlink" }
+    { phase: "after-journal-unlinked", expected: "already-applied-after-unlink" },
   ]) {
     const root = await createConsumer();
     try {
       const scaffoldPlan = await plan(root);
-      await crashDuringApply(
-        root,
-        scaffoldPlan,
-        scenario.phase,
-        scenario.operationIndex
-      );
+      await crashDuringApply(root, scaffoldPlan, scenario.phase, scenario.operationIndex);
       if (scenario.expected === "temporary-preserved") {
         const temporary = `${journalPath(root)}.tmp`;
         const bytes = await readFile(temporary);
@@ -713,7 +671,7 @@ test("fails safely after process death at every source-bound publication boundar
         assert.equal(
           (await applyFilesystemScaffold(root, scaffoldPlan)).outcome,
           "already-applied",
-          scenario.phase
+          scenario.phase,
         );
       } else {
         assert.equal(receipt?.outcome, scenario.expected, scenario.phase);
@@ -724,12 +682,14 @@ test("fails safely after process death at every source-bound publication boundar
       ) {
         await assertMissing(journalPath(root));
         assert.equal(
-          (await readdir(root, { recursive: true })).some((entry) =>
-            entry.includes(".foundation-") && !entry.includes(".foundation-retired-evidence-") &&
-            !entry.includes("foundation-operation.lock.released.")
+          (await readdir(root, { recursive: true })).some(
+            (entry) =>
+              entry.includes(".foundation-") &&
+              !entry.includes(".foundation-retired-evidence-") &&
+              !entry.includes("foundation-operation.lock.released."),
           ),
           false,
-          scenario.phase
+          scenario.phase,
         );
       } else {
         await assertCurrentJournal(root);
@@ -759,36 +719,36 @@ test("validates the Plan and Receipt schemas, idempotency, and Windows-safe path
       outcome: "recovery-required",
       commit: {
         state: "recovery-required",
-        atomicity: "journaled-recoverable"
+        atomicity: "journaled-recoverable",
       },
-      operations: []
+      operations: [],
     });
     assert.throws(
       () => assertScaffoldReceiptDigest(emptyRecoveryRequired, scaffoldPlan),
-      /requires operation evidence/u
+      /requires operation evidence/u,
     );
     await assert.rejects(
       validateScaffoldReceipt(emptyRecoveryRequired, scaffoldPlan),
-      /must NOT have fewer than 1 items/u
+      /must NOT have fewer than 1 items/u,
     );
 
     const oversizedReadSet = structuredClone(scaffoldPlan);
     oversizedReadSet.readSet.push(structuredClone(oversizedReadSet.readSet[0]));
     await assert.rejects(
       assertSchema("scaffold-plan/v1", oversizedReadSet, "scaffold-plan-authority"),
-      /must NOT have more than 3 items/u
+      /must NOT have more than 3 items/u,
     );
 
     const configValue = parseStrictYamlSource(
       await readFile(configPath(root), "utf8"),
-      "scaffolding-config-authority"
+      "scaffolding-config-authority",
     );
     configValue.compositions[0].authorityVerifiers.push(
-      structuredClone(configValue.compositions[0].authorityVerifiers[0])
+      structuredClone(configValue.compositions[0].authorityVerifiers[0]),
     );
     await assert.rejects(
       assertSchema("scaffolding-config/v1", configValue, "scaffolding-config-authority"),
-      /must NOT have more than 1 items/u
+      /must NOT have more than 1 items/u,
     );
 
     const memoryReceipt = structuredClone(applied);
@@ -803,17 +763,17 @@ test("validates the Plan and Receipt schemas, idempotency, and Windows-safe path
       operations: scaffoldPlan.operations.map((operation) => ({
         operationId: operation.id,
         path: operation.path,
-        state: "pending"
-      }))
+        state: "pending",
+      })),
     };
     forgedJournal.plan.compiler.extension = true;
     await assert.rejects(
       assertSchema(
         "scaffold-recovery-journal/v1",
         forgedJournal,
-        "scaffold-recovery-journal-authority"
+        "scaffold-recovery-journal-authority",
       ),
-      /additional properties/u
+      /additional properties/u,
     );
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -825,14 +785,14 @@ test("validates the Plan and Receipt schemas, idempotency, and Windows-safe path
       catalogPath(unsafeRoot),
       (await readFile(catalogPath(unsafeRoot), "utf8")).replace(
         "packages/testing/generated",
-        "CON/generated"
+        "CON/generated",
       ),
-      "utf8"
+      "utf8",
     );
     const unsafePlan = await plan(unsafeRoot);
     await assert.rejects(
       applyFilesystemScaffold(unsafeRoot, unsafePlan),
-      /operation path is unsafe/u
+      /operation path is unsafe/u,
     );
   } finally {
     await rm(unsafeRoot, { recursive: true, force: true });

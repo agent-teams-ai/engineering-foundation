@@ -1,12 +1,9 @@
-import type {
-  DocumentAuthorityDigest,
-  DocumentAuthorityEvidence
-} from "./document-catalog.js";
+import type { DocumentAuthorityDigest, DocumentAuthorityEvidence } from "./document-catalog.js";
 import type {
   DocumentCatalogCollection,
   DocumentIdentityStrategy,
   DocumentPlacementStrategy,
-  DocumentReachabilityStrategy
+  DocumentReachabilityStrategy,
 } from "./document-planning.js";
 
 export type DocumentReachabilityStrategyV2 =

@@ -2,5 +2,5 @@
 export const SOURCE_DEPENDENCIES_SCHEMA_IDS = [
   "architecture-source-dependencies/v1",
   "architecture-source-dependencies/v2",
-  "architecture-source-dependencies/v3"
+  "architecture-source-dependencies/v3",
 ] as const;

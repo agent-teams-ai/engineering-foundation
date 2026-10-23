@@ -15,7 +15,6 @@ export interface QualityGatePnpmEnvironment {
   readonly pathValue?: string;
 }
 
-
 interface PnpmInvocation {
   readonly command: string;
   readonly argsPrefix: readonly string[];
@@ -27,7 +26,7 @@ async function isRegularFile(path: string): Promise<boolean> {
 }
 
 async function nodeEntrypoint(
-  candidates: readonly (string | undefined)[]
+  candidates: readonly (string | undefined)[],
 ): Promise<string | undefined> {
   for (const candidate of candidates) {
     if (candidate !== undefined && isAbsolute(candidate)) {
@@ -35,7 +34,7 @@ async function nodeEntrypoint(
       if (
         canonical !== null &&
         /\.(?:c|m)?js$/iu.test(canonical) &&
-        await isRegularFile(canonical)
+        (await isRegularFile(canonical))
       ) {
         return canonical;
       }
@@ -45,7 +44,7 @@ async function nodeEntrypoint(
 }
 
 async function resolvePnpmInvocation(
-  environment: QualityGatePnpmEnvironment
+  environment: QualityGatePnpmEnvironment,
 ): Promise<PnpmInvocation> {
   if (
     process.platform !== "win32" &&
@@ -53,7 +52,7 @@ async function resolvePnpmInvocation(
     isAbsolute(environment.npmExecPath)
   ) {
     const canonical = await realpath(environment.npmExecPath).catch(() => null);
-    if (canonical !== null && await isRegularFile(canonical)) {
+    if (canonical !== null && (await isRegularFile(canonical))) {
       // Classify JS-vs-native on the canonical executed target, never the
       // unresolved spelling, so an explicit native npmExecPath is never ignored.
       if (!/\.(?:c|m)?js$/iu.test(canonical)) {
@@ -63,18 +62,21 @@ async function resolvePnpmInvocation(
       rejectQualityGateExecutor();
     }
   }
-  const homeEntrypoint = environment.pnpmHome === undefined
-    ? undefined
-    : resolve(environment.pnpmHome, "..", "pnpm", "bin", "pnpm.cjs");
-  const pathEntrypoints = environment.pathValue === undefined
-    ? []
-    : environment.pathValue.split(delimiter)
-        .filter((path) => path.length > 0)
-        .map((path) => resolve(path, process.platform === "win32" ? "pnpm.exe" : "pnpm"));
+  const homeEntrypoint =
+    environment.pnpmHome === undefined
+      ? undefined
+      : resolve(environment.pnpmHome, "..", "pnpm", "bin", "pnpm.cjs");
+  const pathEntrypoints =
+    environment.pathValue === undefined
+      ? []
+      : environment.pathValue
+          .split(delimiter)
+          .filter((path) => path.length > 0)
+          .map((path) => resolve(path, process.platform === "win32" ? "pnpm.exe" : "pnpm"));
   const entrypoint = await nodeEntrypoint([
     environment.npmExecPath,
     homeEntrypoint,
-    ...pathEntrypoints
+    ...pathEntrypoints,
   ]);
   if (entrypoint !== undefined) {
     if (environment.nodeExecutablePath === undefined) {
@@ -86,14 +88,13 @@ async function resolvePnpmInvocation(
     return { command: "pnpm", argsPrefix: [] };
   }
   const candidates = [
-    ...(environment.pnpmHome === undefined
-      ? []
-      : [resolve(environment.pnpmHome, "pnpm.exe")]),
+    ...(environment.pnpmHome === undefined ? [] : [resolve(environment.pnpmHome, "pnpm.exe")]),
     ...(environment.pathValue === undefined
       ? []
-      : environment.pathValue.split(delimiter)
+      : environment.pathValue
+          .split(delimiter)
           .filter((path) => path.length > 0)
-          .map((path) => resolve(path, "pnpm.exe")))
+          .map((path) => resolve(path, "pnpm.exe"))),
   ];
   for (const candidate of candidates) {
     if (await isRegularFile(candidate)) {
@@ -106,7 +107,7 @@ async function resolvePnpmInvocation(
 export class PnpmQualityGateScriptExecutor implements PackageScriptExecutor {
   constructor(
     private readonly environment: QualityGatePnpmEnvironment,
-    private readonly processExecutor: QualityGateManagedProcessExecutor
+    private readonly processExecutor: QualityGateManagedProcessExecutor,
   ) {}
 
   async run(input: {
@@ -126,7 +127,7 @@ export class PnpmQualityGateScriptExecutor implements PackageScriptExecutor {
       cwd: input.consumerRoot,
       environment: this.environment.childEnvironment,
       ...(input.timeoutMs === undefined ? {} : { timeoutMs: input.timeoutMs }),
-      ...(input.signal === undefined ? {} : { signal: input.signal })
+      ...(input.signal === undefined ? {} : { signal: input.signal }),
     });
   }
 }

@@ -5,33 +5,50 @@ export function digest(value: Uint8Array | string): `sha256:${string}` {
   return `sha256:${createHash("sha256").update(value).digest("hex")}`;
 }
 
-export function requireSuccess(label: string, execution: { readonly envelope?: unknown; readonly exitCode: number }): void {
+export function requireSuccess(
+  label: string,
+  execution: { readonly envelope?: unknown; readonly exitCode: number },
+): void {
   if (execution.exitCode !== 0) {
-    throw new Error(`Docs Protocol qualification ${label} failed with exit code ${execution.exitCode}: ${JSON.stringify(execution.envelope ?? {})}.`);
+    throw new Error(
+      `Docs Protocol qualification ${label} failed with exit code ${execution.exitCode}: ${JSON.stringify(execution.envelope ?? {})}.`,
+    );
   }
 }
 
-export function documentResult(execution: { readonly envelope: { readonly result: unknown }; readonly exitCode: number }): {
+export function documentResult(execution: {
+  readonly envelope: { readonly result: unknown };
+  readonly exitCode: number;
+}): {
   readonly documentPath: string;
   readonly planDigest: string;
-  readonly compiled?: { readonly document?: { readonly content?: string; readonly digest?: string } };
+  readonly compiled?: {
+    readonly document?: { readonly content?: string; readonly digest?: string };
+  };
   readonly receiptDigest?: string;
   readonly reachability: unknown;
 } {
   requireSuccess("document", execution);
   const result = execution.envelope.result as Record<string, unknown>;
-  if (typeof result["documentPath"] !== "string" || typeof result["planDigest"] !== "string" || !("reachability" in result)) {
+  if (
+    typeof result["documentPath"] !== "string" ||
+    typeof result["planDigest"] !== "string" ||
+    !("reachability" in result)
+  ) {
     throw new Error("Docs Protocol qualification expected a successful document result.");
   }
   return {
     documentPath: result["documentPath"],
     planDigest: result["planDigest"],
-    ...((typeof result["compiled"] === "object" && result["compiled"] !== null) ? { compiled: result["compiled"] } : {}),
-    ...(typeof result["receiptDigest"] === "string" ? { receiptDigest: result["receiptDigest"] } : {}),
-    reachability: result["reachability"]
+    ...(typeof result["compiled"] === "object" && result["compiled"] !== null
+      ? { compiled: result["compiled"] }
+      : {}),
+    ...(typeof result["receiptDigest"] === "string"
+      ? { receiptDigest: result["receiptDigest"] }
+      : {}),
+    reachability: result["reachability"],
   };
 }
-
 
 export interface PortableQualificationProtocol {
   readonly checkV2: (input: {
@@ -123,12 +140,20 @@ export interface PortableQualificationProtocol {
         | {
             readonly kind: "recover";
             readonly transactionState: "recovered" | "recovery-required";
-            readonly writeState: "committed" | "published-recovery-required" | "unchanged" | "unknown";
+            readonly writeState:
+              | "committed"
+              | "published-recovery-required"
+              | "unchanged"
+              | "unknown";
             readonly receiptDigest: `sha256:${string}`;
             readonly receipt: {
               readonly commit: {
                 readonly publication: "none" | "preexisting-exact" | "published" | "unknown";
-                readonly state: "committed" | "manual-recovery-required" | "not-published" | "recovery-required";
+                readonly state:
+                  | "committed"
+                  | "manual-recovery-required"
+                  | "not-published"
+                  | "recovery-required";
               };
               readonly directoryMaterialization?: {
                 readonly observedCreatedDirectories: readonly string[];

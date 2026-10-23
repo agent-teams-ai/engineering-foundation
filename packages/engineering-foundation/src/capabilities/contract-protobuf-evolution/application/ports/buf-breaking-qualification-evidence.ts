@@ -1,7 +1,7 @@
 import type {
   BufBreakingEvidence,
   ProtobufEvolutionConfiguration,
-  Sha256Digest
+  Sha256Digest,
 } from "../model/protobuf-release-evidence.js";
 
 export interface ReadBufBreakingQualificationEvidenceInput {
@@ -17,6 +17,6 @@ export interface ResolvedBufBreakingQualificationEvidence {
 
 export interface BufBreakingQualificationEvidencePort {
   read(
-    input: ReadBufBreakingQualificationEvidenceInput
+    input: ReadBufBreakingQualificationEvidenceInput,
   ): Promise<ResolvedBufBreakingQualificationEvidence>;
 }

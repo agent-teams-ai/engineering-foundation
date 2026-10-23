@@ -8,16 +8,14 @@ import {
   type JournalSlotFailure,
   type JournalSlotFailureContext,
   type JournalSlotFaultPoint,
-  type JournalSlotSubject
+  type JournalSlotSubject,
 } from "@agent-teams/repository-mutation/node";
 import {
   FOUNDATION_TRANSACTION_FILE,
   FOUNDATION_TRANSACTION_TEMPORARY_FILE,
-  LOCAL_STATE_DIRECTORY
+  LOCAL_STATE_DIRECTORY,
 } from "../../application/policies/transaction-identity.js";
-import type {
-  AuthorityScaffoldJournal
-} from "../../contract/types.js";
+import type { AuthorityScaffoldJournal } from "../../contract/types.js";
 import { syncDirectory } from "./filesystem-path-guard.js";
 import {
   parseScaffoldJournal,
@@ -27,7 +25,7 @@ import {
   serializeScaffoldJournal,
   type ScaffoldJournalAuthority,
   type ScaffoldJournalSlotObservation,
-  type StoredScaffoldJournal
+  type StoredScaffoldJournal,
 } from "./node-scaffold-journal-evidence.js";
 import type { NodeScaffoldJournalStoreFaultInjector } from "./node-scaffold-journal-store-faults.js";
 import { MAX_SCAFFOLD_PLAN_BYTES } from "./node-scaffold-limits.js";
@@ -35,11 +33,10 @@ import { MAX_SCAFFOLD_PLAN_BYTES } from "./node-scaffold-limits.js";
 export type {
   ScaffoldJournalAuthority,
   ScaffoldJournalSlotObservation,
-  StoredScaffoldJournal
+  StoredScaffoldJournal,
 } from "./node-scaffold-journal-evidence.js";
 
-type NodeScaffoldJournalStoreFaultPoint =
-  Parameters<NodeScaffoldJournalStoreFaultInjector>[0];
+type NodeScaffoldJournalStoreFaultPoint = Parameters<NodeScaffoldJournalStoreFaultInjector>[0];
 
 export interface NodeScaffoldJournalStoreOperations {
   readonly faultInjector?: NodeScaffoldJournalStoreFaultInjector;
@@ -60,7 +57,7 @@ function subjectDescription(context: JournalSlotFailureContext): string {
     evidence: "Scaffolding journal evidence",
     quarantine: "Quarantined scaffolding journal",
     replacement: "Canonical scaffolding journal",
-    "retired-evidence": "Retired scaffolding journal evidence"
+    "retired-evidence": "Retired scaffolding journal evidence",
   };
   return descriptions[context.subject ?? "canonical"];
 }
@@ -89,56 +86,57 @@ function rawCause(context: JournalSlotFailureContext, fallback: string): Error {
     : scaffoldJournalRecoveryRequired(fallback, context.cause);
 }
 
-const failures: Record<
-  JournalSlotFailure,
-  (context: JournalSlotFailureContext) => Error
-> = {
-  "candidate-exists": (context) => scaffoldJournalRecoveryRequired(
-    "Scaffolding journal temporary already exists and was preserved.",
-    context.cause
-  ),
-  "candidate-unavailable": (context) => scaffoldJournalRecoveryRequired(
-    "Scaffolding journal temporary could not be created safely.",
-    context.cause
-  ),
-  "canonical-recreated": () => scaffoldJournalRecoveryRequired(
-    "Canonical scaffolding journal was recreated concurrently; all evidence was preserved."
-  ),
-  changed: (context) => scaffoldJournalRecoveryRequired(
-    `${subjectDescription(context)} identity or bytes changed; all evidence was preserved.`
-  ),
-  "must-be-stabilized": (context) =>
-    scaffoldJournalRecoveryRequired(stabilizationMessage(context)),
-  "not-regular-file": () => scaffoldJournalRecoveryRequired(
-    "Scaffolding journal is not a stable bounded regular file."
-  ),
-  "publication-conflict": (context) => scaffoldJournalRecoveryRequired(
-    "Canonical scaffolding journal slot is occupied; all evidence was preserved.",
-    context.cause
-  ),
+const failures: Record<JournalSlotFailure, (context: JournalSlotFailureContext) => Error> = {
+  "candidate-exists": (context) =>
+    scaffoldJournalRecoveryRequired(
+      "Scaffolding journal temporary already exists and was preserved.",
+      context.cause,
+    ),
+  "candidate-unavailable": (context) =>
+    scaffoldJournalRecoveryRequired(
+      "Scaffolding journal temporary could not be created safely.",
+      context.cause,
+    ),
+  "canonical-recreated": () =>
+    scaffoldJournalRecoveryRequired(
+      "Canonical scaffolding journal was recreated concurrently; all evidence was preserved.",
+    ),
+  changed: (context) =>
+    scaffoldJournalRecoveryRequired(
+      `${subjectDescription(context)} identity or bytes changed; all evidence was preserved.`,
+    ),
+  "must-be-stabilized": (context) => scaffoldJournalRecoveryRequired(stabilizationMessage(context)),
+  "not-regular-file": () =>
+    scaffoldJournalRecoveryRequired("Scaffolding journal is not a stable bounded regular file."),
+  "publication-conflict": (context) =>
+    scaffoldJournalRecoveryRequired(
+      "Canonical scaffolding journal slot is occupied; all evidence was preserved.",
+      context.cause,
+    ),
   "quarantine-unavailable": (context) =>
     rawCause(context, "Scaffolding journal could not enter its quarantine transition."),
-  "slot-occupied": () => scaffoldJournalRecoveryRequired(
-    "Canonical scaffolding journal slot is already occupied; it was preserved."
-  ),
+  "slot-occupied": () =>
+    scaffoldJournalRecoveryRequired(
+      "Canonical scaffolding journal slot is already occupied; it was preserved.",
+    ),
   "state-directory-missing": (context) =>
     rawCause(context, "Scaffolding state directory is missing."),
-  "too-many-entries": () => scaffoldJournalRecoveryRequired(
-    "Scaffolding state contains too many entries to inspect safely."
-  ),
-  "transition-residue": (context) =>
-    scaffoldJournalRecoveryRequired(residueMessage(context))
+  "too-many-entries": () =>
+    scaffoldJournalRecoveryRequired(
+      "Scaffolding state contains too many entries to inspect safely.",
+    ),
+  "transition-residue": (context) => scaffoldJournalRecoveryRequired(residueMessage(context)),
 };
 
 function scaffoldJournalFailure(
   failure: JournalSlotFailure,
-  context: JournalSlotFailureContext
+  context: JournalSlotFailureContext,
 ): Error {
   return failures[failure](context);
 }
 
 function mapFaultPoint(
-  point: JournalSlotFaultPoint
+  point: JournalSlotFaultPoint,
 ): NodeScaffoldJournalStoreFaultPoint | undefined {
   switch (point.phase) {
     case "before-reconciliation-directory-sync":
@@ -158,11 +156,23 @@ function mapFaultPoint(
     case "after-canonical-synced":
       return { mutation: point.mutation, phase: "after-canonical-synced" };
     case "before-private-retirement":
-      return { evidence: point.evidence, mutation: point.mutation, phase: "before-private-retirement" };
+      return {
+        evidence: point.evidence,
+        mutation: point.mutation,
+        phase: "before-private-retirement",
+      };
     case "before-private-retirement-rename":
-      return { evidence: point.evidence, mutation: point.mutation, phase: "before-private-retirement-rename" };
+      return {
+        evidence: point.evidence,
+        mutation: point.mutation,
+        phase: "before-private-retirement-rename",
+      };
     case "before-logical-retirement":
-      return { evidence: point.evidence, mutation: point.mutation, phase: "before-logical-retirement" };
+      return {
+        evidence: point.evidence,
+        mutation: point.mutation,
+        phase: "before-logical-retirement",
+      };
     case "before-directory-sync":
       return { mutation: point.mutation, path: point.path, phase: point.phase, role: point.role };
     case "after-final-directory-sync":
@@ -185,7 +195,7 @@ export class NodeScaffoldJournalStore implements ScaffoldJournalStore {
     consumerRoot: string,
     assertSchema: ScaffoldSchemaValidator,
     observeArtifacts: ScaffoldTransactionArtifacts,
-    operations: NodeScaffoldJournalStoreOperations = {}
+    operations: NodeScaffoldJournalStoreOperations = {},
   ) {
     const parent = join(consumerRoot, LOCAL_STATE_DIRECTORY);
     const { faultInjector } = operations;
@@ -193,7 +203,7 @@ export class NodeScaffoldJournalStore implements ScaffoldJournalStore {
       canonicalPath: join(parent, FOUNDATION_TRANSACTION_FILE),
       codec: {
         parse: (bytes) => parseScaffoldJournal(bytes, assertSchema, observeArtifacts),
-        serialize: (journal) => serializeScaffoldJournal(journal, assertSchema, observeArtifacts)
+        serialize: (journal) => serializeScaffoldJournal(journal, assertSchema, observeArtifacts),
       },
       failure: scaffoldJournalFailure,
       ...(faultInjector === undefined
@@ -202,7 +212,7 @@ export class NodeScaffoldJournalStore implements ScaffoldJournalStore {
             faultInjector: (point: JournalSlotFaultPoint) => {
               const mapped = mapFaultPoint(point);
               return mapped === undefined ? undefined : faultInjector(mapped);
-            }
+            },
           }),
       maximumBytes: MAX_SCAFFOLD_PLAN_BYTES,
       naming: {
@@ -214,15 +224,15 @@ export class NodeScaffoldJournalStore implements ScaffoldJournalStore {
           { prefix: `${FOUNDATION_TRANSACTION_FILE}.document-quarantine.` },
           { prefix: `${FOUNDATION_TRANSACTION_FILE}.document-retired.` },
           { prefix: scaffoldQuarantinePrefix },
-          { prefix: scaffoldRetiredPrefix }
+          { prefix: scaffoldRetiredPrefix },
         ],
         retiredDirectoryName: () => privateEvidenceName(scaffoldRetiredPrefix),
-        terminalRootName: `${FOUNDATION_TRANSACTION_FILE}.completed-scaffold-evidence`
+        terminalRootName: `${FOUNDATION_TRANSACTION_FILE}.completed-scaffold-evidence`,
       },
       canonicalInspection: "parsed",
       observableSyncStages: ["candidate", "final", "publication", "transition"],
       reconciliation: "sticky-pending",
-      syncDirectory: operations.syncDirectoryStrictly ?? syncDirectory
+      syncDirectory: operations.syncDirectoryStrictly ?? syncDirectory,
     });
   }
 
@@ -234,15 +244,13 @@ export class NodeScaffoldJournalStore implements ScaffoldJournalStore {
     return this.#store.stabilizeForReconciliation();
   }
 
-  public create(
-    journal: AuthorityScaffoldJournal
-  ): Promise<ScaffoldJournalAuthority> {
+  public create(journal: AuthorityScaffoldJournal): Promise<ScaffoldJournalAuthority> {
     return this.#store.create(journal);
   }
 
   public replace(
     expected: ScaffoldJournalAuthority,
-    journal: AuthorityScaffoldJournal
+    journal: AuthorityScaffoldJournal,
   ): Promise<ScaffoldJournalAuthority> {
     return this.#store.replace(expected, journal);
   }

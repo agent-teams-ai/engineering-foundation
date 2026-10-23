@@ -1,13 +1,9 @@
 import type {
   AuthorityScaffoldJournal,
-  AuthorityScaffoldOperationReceipt
+  AuthorityScaffoldOperationReceipt,
 } from "../../contract/types.js";
-import type {
-  AuthorityScaffoldPlan
-} from "../../application/model/scaffold-compilation.js";
-import type {
-  AuthorityScaffoldReceipt
-} from "../../contract/receipt-authority-types.js";
+import type { AuthorityScaffoldPlan } from "../../application/model/scaffold-compilation.js";
+import type { AuthorityScaffoldReceipt } from "../../contract/receipt-authority-types.js";
 import type { AssessScaffoldPlanAuthority } from "./scaffold-filesystem-dependencies.js";
 import { assertSafeExistingAncestors } from "./filesystem-path-guard.js";
 import { classifyFilesystemOperation } from "./filesystem-operation-state.js";
@@ -28,13 +24,13 @@ export function recoveryRequiredForAuthority(options: {
     subject: options.plan.projectId,
     message: options.message,
     remediation: options.remediation,
-    ...(options.operations === undefined ? {} : { operations: options.operations })
+    ...(options.operations === undefined ? {} : { operations: options.operations }),
   });
 }
 
 export async function safeClassifyPlan(
   root: string,
-  plan: AuthorityScaffoldPlan
+  plan: AuthorityScaffoldPlan,
 ): Promise<
   readonly {
     readonly operation: AuthorityScaffoldPlan["operations"][number];
@@ -49,7 +45,7 @@ export async function safeClassifyPlan(
     await assertSafeExistingAncestors(root, operation.path);
     classifications.push({
       operation,
-      state: await classifyFilesystemOperation(root, operation)
+      state: await classifyFilesystemOperation(root, operation),
     });
   }
   return classifications;
@@ -62,10 +58,7 @@ export async function resolveAuthority(options: {
   readonly recovered: boolean;
   readonly observedOperations?: readonly AuthorityScaffoldOperationReceipt[];
 }): Promise<AuthorityScaffoldReceipt | undefined> {
-  const assessment = await options.assessPlanAuthority(
-    options.root,
-    options.journal.plan
-  );
+  const assessment = await options.assessPlanAuthority(options.root, options.journal.plan);
   if (assessment.state === "current") {
     return undefined;
   }
@@ -79,7 +72,7 @@ export async function resolveAuthority(options: {
       remediation: "Restore readable authority sources, then retry recovery.",
       ...(options.observedOperations === undefined
         ? {}
-        : { operations: options.observedOperations })
+        : { operations: options.observedOperations }),
     });
   }
   return recoveryRequiredForAuthority({
@@ -89,8 +82,6 @@ export async function resolveAuthority(options: {
     message:
       "Authority changed after publication began; outputs and journal were preserved because portable file ownership cannot be proven.",
     remediation: "Resolve the transaction state explicitly, then compile a new Plan.",
-    ...(options.observedOperations === undefined
-      ? {}
-      : { operations: options.observedOperations })
+    ...(options.observedOperations === undefined ? {} : { operations: options.observedOperations }),
   });
 }

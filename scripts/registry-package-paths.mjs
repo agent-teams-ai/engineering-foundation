@@ -6,6 +6,10 @@ export function isSameCanonicalPath(left, right) {
 
 export function isCanonicalPathInside(root, candidate) {
   const relation = relative(root, candidate);
-  return relation !== "" && relation !== ".." &&
-    !relation.startsWith(`..${sep}`) && !isAbsolute(relation);
+  return (
+    relation !== "" &&
+    relation !== ".." &&
+    !relation.startsWith(`..${sep}`) &&
+    !isAbsolute(relation)
+  );
 }

@@ -2,12 +2,12 @@ import { compareBinaryStrings } from "../../../../binary-string-comparator.js";
 import type { FoundationDiagnostic } from "../../../../features/validation-reporting/api.js";
 import type {
   MarkdownDocumentObservation,
-  MarkdownRepositoryObservation
+  MarkdownRepositoryObservation,
 } from "@agent-teams/document-authoring/observation";
 import {
   immutableArchitectureDecisionPayload,
   type ArchitectureDecision,
-  type ArchitectureDecisionPolicy
+  type ArchitectureDecisionPolicy,
 } from "../model/architecture-decision.js";
 import type { ArchitectureDecisionBaselineReadResult } from "../ports/architecture-decision-baseline-repository.js";
 import type { ArchitectureDecisionFingerprint } from "../ports/architecture-decision-fingerprint.js";
@@ -15,15 +15,15 @@ import { ARCHITECTURE_DECISION_GOVERNANCE_RULES } from "../rules.js";
 import { parseAcceptedArchitectureDecisionBaseline } from "./accepted-architecture-decision-baseline.js";
 import {
   architectureDecisionDiagnostic,
-  architectureDecisionIssueDiagnostic
+  architectureDecisionIssueDiagnostic,
 } from "./architecture-decision-diagnostic.js";
 import {
   evaluateArchitectureDecisionIndex,
-  type ArchitectureDecisionIndexMembership
+  type ArchitectureDecisionIndexMembership,
 } from "./evaluate-architecture-decision-index.js";
 import {
   architectureDecisionCycleDiagnostics,
-  architectureDecisionLifecycleDiagnostics
+  architectureDecisionLifecycleDiagnostics,
 } from "./evaluate-architecture-decision-lifecycle.js";
 import { parseArchitectureDecisionDocument } from "./parse-architecture-decision-document.js";
 
@@ -57,7 +57,7 @@ function uniqueArchitectureDecisions(input: {
 
   const decisions: ArchitectureDecision[] = [];
   for (const [id, group] of [...decisionsById.entries()].toSorted(([left], [right]) =>
-    compareBinaryStrings(left, right)
+    compareBinaryStrings(left, right),
   )) {
     if (group.length === 1) {
       const decision = group[0];
@@ -73,8 +73,8 @@ function uniqueArchitectureDecisions(input: {
           message: `ADR identifier ${id} is duplicated.`,
           path: decision.document.repositoryPath,
           rule: ARCHITECTURE_DECISION_GOVERNANCE_RULES.duplicateId,
-          subject: id
-        })
+          subject: id,
+        }),
       );
     }
   }
@@ -82,10 +82,7 @@ function uniqueArchitectureDecisions(input: {
 }
 
 function baselineAvailabilityDiagnostic(input: {
-  readonly baseline: Exclude<
-    ArchitectureDecisionBaselineReadResult,
-    { readonly kind: "valid" }
-  >;
+  readonly baseline: Exclude<ArchitectureDecisionBaselineReadResult, { readonly kind: "valid" }>;
   readonly path: string;
 }): FoundationDiagnostic {
   if (input.baseline.kind === "missing") {
@@ -93,7 +90,7 @@ function baselineAvailabilityDiagnostic(input: {
       message: "Configured accepted-decision baseline is missing.",
       path: input.path,
       rule: ARCHITECTURE_DECISION_GOVERNANCE_RULES.acceptedBaselineUnavailable,
-      subject: input.path
+      subject: input.path,
     });
   }
   return architectureDecisionDiagnostic({
@@ -101,7 +98,7 @@ function baselineAvailabilityDiagnostic(input: {
     message: "Configured accepted-decision baseline is unavailable or invalid.",
     path: input.path,
     rule: ARCHITECTURE_DECISION_GOVERNANCE_RULES.acceptedBaselineInvalid,
-    subject: input.path
+    subject: input.path,
   });
 }
 
@@ -125,8 +122,8 @@ function currentDecisionBaselineDiagnostics(input: {
           message: `Accepted ADR ${decision.id} is absent from the immutable baseline.`,
           path: decision.document.repositoryPath,
           rule: ARCHITECTURE_DECISION_GOVERNANCE_RULES.acceptedBaselineMissing,
-          subject: decision.id
-        })
+          subject: decision.id,
+        }),
       );
       continue;
     }
@@ -138,25 +135,23 @@ function currentDecisionBaselineDiagnostics(input: {
           path: decision.document.repositoryPath,
           relatedPath: entry.path,
           rule: ARCHITECTURE_DECISION_GOVERNANCE_RULES.baselinePathMismatch,
-          subject: decision.id
-        })
+          subject: decision.id,
+        }),
       );
     }
-    const actualDigest = input.fingerprint.digest(
-      immutableArchitectureDecisionPayload(decision)
-    );
+    const actualDigest = input.fingerprint.digest(immutableArchitectureDecisionPayload(decision));
     if (entry.immutableDigest !== actualDigest) {
       diagnostics.push(
         architectureDecisionDiagnostic({
           evidence: [
             { kind: "baseline-digest", value: entry.immutableDigest },
-            { kind: "actual-digest", value: actualDigest }
+            { kind: "actual-digest", value: actualDigest },
           ],
           message: `Accepted ADR ${decision.id} differs from its immutable baseline.`,
           path: decision.document.repositoryPath,
           rule: ARCHITECTURE_DECISION_GOVERNANCE_RULES.acceptedDecisionMutated,
-          subject: decision.id
-        })
+          subject: decision.id,
+        }),
       );
     }
   }
@@ -179,8 +174,8 @@ export function evaluateArchitectureDecisionBaselineDiagnostics(input: {
         message: "Accepted-decision baseline does not match the required immutable baseline shape.",
         path: input.path,
         rule: ARCHITECTURE_DECISION_GOVERNANCE_RULES.acceptedBaselineInvalid,
-        subject: input.path
-      })
+        subject: input.path,
+      }),
     ];
   }
 
@@ -189,8 +184,8 @@ export function evaluateArchitectureDecisionBaselineDiagnostics(input: {
     ...currentDecisionBaselineDiagnostics({
       baselineById: new Map(baseline.decisions.map((entry) => [entry.id, entry])),
       decisions: input.decisions,
-      fingerprint: input.fingerprint
-    })
+      fingerprint: input.fingerprint,
+    }),
   ];
   for (const entry of baseline.decisions) {
     const current = currentById.get(entry.id);
@@ -202,8 +197,8 @@ export function evaluateArchitectureDecisionBaselineDiagnostics(input: {
           path: input.path,
           relatedPath: entry.path,
           rule: ARCHITECTURE_DECISION_GOVERNANCE_RULES.acceptedDecisionMissing,
-          subject: entry.id
-        })
+          subject: entry.id,
+        }),
       );
     }
   }
@@ -212,32 +207,32 @@ export function evaluateArchitectureDecisionBaselineDiagnostics(input: {
 
 export function parseArchitectureDecisionCatalog(
   observation: MarkdownRepositoryObservation,
-  policy: ArchitectureDecisionPolicy
+  policy: ArchitectureDecisionPolicy,
 ): ParsedArchitectureDecisionCatalog {
   const diagnostics: FoundationDiagnostic[] = observation.issues.map(
-    architectureDecisionIssueDiagnostic
+    architectureDecisionIssueDiagnostic,
   );
   const documents = observation.documents.filter(
-    (document) => document.repositoryPath !== policy.index.path
+    (document) => document.repositoryPath !== policy.index.path,
   );
   const parsed = documents.map(parseArchitectureDecisionDocument);
   diagnostics.push(...parsed.flatMap((entry) => entry.diagnostics));
   const candidates = parsed.flatMap((entry) =>
-    entry.decision === undefined ? [] : [entry.decision]
+    entry.decision === undefined ? [] : [entry.decision],
   );
   const decisions = uniqueArchitectureDecisions({ candidates, diagnostics });
   const index = observation.documents.find(
-    (document) => document.repositoryPath === policy.index.path
+    (document) => document.repositoryPath === policy.index.path,
   );
   return Object.freeze({
     decisions: Object.freeze(decisions),
     diagnostics: Object.freeze(diagnostics),
-    index
+    index,
   });
 }
 
 export function evaluateArchitectureDecisionCatalog(
-  input: CatalogEvaluationInput
+  input: CatalogEvaluationInput,
 ): ArchitectureDecisionCatalogEvaluation {
   const diagnostics = [...input.catalog.diagnostics];
   diagnostics.push(
@@ -246,14 +241,12 @@ export function evaluateArchitectureDecisionCatalog(
       index: input.catalog.index,
       memberships: input.memberships,
       policy: input.policy,
-    })
+    }),
   );
-  diagnostics.push(
-    ...architectureDecisionLifecycleDiagnostics(input.catalog.decisions)
-  );
+  diagnostics.push(...architectureDecisionLifecycleDiagnostics(input.catalog.decisions));
   diagnostics.push(...architectureDecisionCycleDiagnostics(input.catalog.decisions));
   return Object.freeze({
     decisions: input.catalog.decisions,
-    diagnostics: Object.freeze(diagnostics)
+    diagnostics: Object.freeze(diagnostics),
   });
 }

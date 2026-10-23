@@ -38,7 +38,9 @@ export function parseBenchmarkRecords(output) {
       throw new Error("Benchmark emitted an invalid record");
     }
     const measurementKeys = Object.keys(record.measurements).toSorted();
-    if (measurementKeys.join("\0") !== [...benchmarkContract[record.benchmark]].toSorted().join("\0")) {
+    if (
+      measurementKeys.join("\0") !== [...benchmarkContract[record.benchmark]].toSorted().join("\0")
+    ) {
       throw new Error("Benchmark emitted unexpected measurement keys");
     }
     for (const value of Object.values(record.measurements)) {
@@ -48,9 +50,9 @@ export function parseBenchmarkRecords(output) {
     }
     records.push(record);
   }
-  const expectedPairs = Object.keys(benchmarkContract).flatMap((benchmark) =>
-    expectedCounts().map((count) => `${benchmark}\0${count}`),
-  ).toSorted();
+  const expectedPairs = Object.keys(benchmarkContract)
+    .flatMap((benchmark) => expectedCounts().map((count) => `${benchmark}\0${count}`))
+    .toSorted();
   const actualPairs = records.map(({ benchmark, count }) => `${benchmark}\0${count}`).toSorted();
   if (actualPairs.join("\u0001") !== expectedPairs.join("\u0001")) {
     throw new Error("Benchmark records do not match the exact benchmark/count contract");
@@ -83,17 +85,21 @@ function outputArgument(arguments_) {
 }
 
 async function run() {
-  const child = spawn(process.execPath, [
-    "--test",
-    "--test-concurrency=1",
-    "--test-name-pattern=benchmark",
-    "tests/document-catalog.test.mjs",
-    "tests/document-find.test.mjs",
-  ], {
-    cwd: process.cwd(),
-    env: { ...process.env, FOUNDATION_PERFORMANCE: "1" },
-    stdio: ["ignore", "pipe", "inherit"],
-  });
+  const child = spawn(
+    process.execPath,
+    [
+      "--test",
+      "--test-concurrency=1",
+      "--test-name-pattern=benchmark",
+      "tests/document-catalog.test.mjs",
+      "tests/document-find.test.mjs",
+    ],
+    {
+      cwd: process.cwd(),
+      env: { ...process.env, FOUNDATION_PERFORMANCE: "1" },
+      stdio: ["ignore", "pipe", "inherit"],
+    },
+  );
   let output = "";
   child.stdout.setEncoding("utf8");
   child.stdout.on("data", (chunk) => {
@@ -117,19 +123,31 @@ async function run() {
   if (process.env.GITHUB_STEP_SUMMARY !== undefined) {
     const rows = records.map((record) => {
       const values = Object.entries(record.measurements)
-        .map(([name, value]) => name === "samples" ? `${name}=${value}` : `${name}=${value.toFixed(1)}ms`)
+        .map(([name, value]) =>
+          name === "samples" ? `${name}=${value}` : `${name}=${value.toFixed(1)}ms`,
+        )
         .join(", ");
       return `| ${record.benchmark} | ${record.count} | ${values} |`;
     });
     await appendFile(
       process.env.GITHUB_STEP_SUMMARY,
-      [`## Advisory performance`, "", "Timings are historical signals, not blocking budgets.", "", "| Benchmark | Documents | Measurements |", "|---|---:|---|", ...rows, ""].join("\n"),
+      [
+        `## Advisory performance`,
+        "",
+        "Timings are historical signals, not blocking budgets.",
+        "",
+        "| Benchmark | Documents | Measurements |",
+        "|---|---:|---|",
+        ...rows,
+        "",
+      ].join("\n"),
       "utf8",
     );
   }
 }
 
-const invokedPath = process.argv[1] === undefined ? undefined : pathToFileURL(resolvePath(process.argv[1])).href;
+const invokedPath =
+  process.argv[1] === undefined ? undefined : pathToFileURL(resolvePath(process.argv[1])).href;
 if (invokedPath === import.meta.url) {
   await run();
 }

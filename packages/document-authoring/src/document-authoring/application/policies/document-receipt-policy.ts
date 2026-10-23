@@ -1,20 +1,18 @@
-import { canonicalJson, type CanonicalJsonValue } from "@agent-teams/repository-mutation/serialization";
+import {
+  canonicalJson,
+  type CanonicalJsonValue,
+} from "@agent-teams/repository-mutation/serialization";
 import type { DocumentSchemaValidator } from "../ports/document-schema-validator.js";
 import type {
   DocumentReceipt,
   DocumentReceiptContract,
-  DocumentReceiptBody
+  DocumentReceiptBody,
 } from "../model/document-receipt.js";
 import type { DocumentPlanContract as DocumentPlan } from "../model/document-planning.js";
-import {
-  assertDocumentReceiptDigest,
-  documentReceiptDigest
-} from "./document-contract-digests.js";
+import { assertDocumentReceiptDigest, documentReceiptDigest } from "./document-contract-digests.js";
 
 function snapshotBody(body: DocumentReceiptBody): DocumentReceiptBody {
-  return JSON.parse(
-    canonicalJson(body as unknown as CanonicalJsonValue)
-  ) as DocumentReceiptBody;
+  return JSON.parse(canonicalJson(body as unknown as CanonicalJsonValue)) as DocumentReceiptBody;
 }
 
 function deepFreezeCanonical<T>(value: T): T {
@@ -29,9 +27,8 @@ function deepFreezeCanonical<T>(value: T): T {
     }
     for (const key of Reflect.ownKeys(current)) {
       const descriptor = Object.getOwnPropertyDescriptor(current, key);
-      const child: unknown = descriptor !== undefined && "value" in descriptor
-        ? descriptor.value
-        : undefined;
+      const child: unknown =
+        descriptor !== undefined && "value" in descriptor ? descriptor.value : undefined;
       if (typeof child === "object" && child !== null) {
         pending.push(child);
       }
@@ -41,9 +38,7 @@ function deepFreezeCanonical<T>(value: T): T {
   return value;
 }
 
-function requireDocumentPlan(
-  plan: DocumentPlan | undefined
-): asserts plan is DocumentPlan {
+function requireDocumentPlan(plan: DocumentPlan | undefined): asserts plan is DocumentPlan {
   if (plan === undefined) {
     throw new TypeError("Document Receipt requires the exact referenced Plan.");
   }
@@ -51,43 +46,43 @@ function requireDocumentPlan(
 
 function assertDirectoryPrefix(
   receipt: Extract<DocumentReceiptContract, { readonly schemaVersion: 2 }>,
-  plan: Extract<DocumentPlan, { readonly schemaVersion: 2 }>
+  plan: Extract<DocumentPlan, { readonly schemaVersion: 2 }>,
 ): void {
   const evidence = receipt.directoryMaterialization;
   const planned = plan.parentMaterialization.missingDirectories;
-  if (evidence.plannedDirectories.length !== planned.length ||
+  if (
+    evidence.plannedDirectories.length !== planned.length ||
     evidence.plannedDirectories.some((path, index) => path !== planned[index]) ||
     evidence.observedCreatedDirectories.length > planned.length ||
-    evidence.observedCreatedDirectories.some((path, index) => path !== planned[index])) {
+    evidence.observedCreatedDirectories.some((path, index) => path !== planned[index])
+  ) {
     throw new TypeError(
-      "Document Receipt directory evidence must bind the exact ordered Plan prefix."
+      "Document Receipt directory evidence must bind the exact ordered Plan prefix.",
     );
   }
 }
 
 function inconsistentDirectoryOutcome(
   receipt: Extract<DocumentReceiptContract, { readonly schemaVersion: 2 }>,
-  plan: Extract<DocumentPlan, { readonly schemaVersion: 2 }>
+  plan: Extract<DocumentPlan, { readonly schemaVersion: 2 }>,
 ): boolean {
   const evidence = receipt.directoryMaterialization;
   const planned = plan.parentMaterialization.missingDirectories;
-  return (evidence.state === "none-created" &&
-      evidence.observedCreatedDirectories.length !== 0) ||
+  return (
+    (evidence.state === "none-created" && evidence.observedCreatedDirectories.length !== 0) ||
     (evidence.state === "preserved-unknown" &&
       receipt.outcome !== "recovery-required" &&
       receipt.outcome !== "manual-recovery-required") ||
     (receipt.outcome === "already-applied" && evidence.state !== "none-created") ||
-    (receipt.outcome === "applied" && planned.length === 0 &&
-      evidence.state !== "none-created") ||
-    (receipt.outcome === "applied" && planned.length > 0 &&
+    (receipt.outcome === "applied" && planned.length === 0 && evidence.state !== "none-created") ||
+    (receipt.outcome === "applied" &&
+      planned.length > 0 &&
       (evidence.state !== "created-and-retained" ||
-        evidence.observedCreatedDirectories.length !== planned.length));
+        evidence.observedCreatedDirectories.length !== planned.length))
+  );
 }
 
-function assertV2DirectoryReceipt(
-  receipt: DocumentReceiptContract,
-  plan: DocumentPlan
-): void {
+function assertV2DirectoryReceipt(receipt: DocumentReceiptContract, plan: DocumentPlan): void {
   if (receipt.schemaVersion !== 2 || plan.schemaVersion !== 2) {
     return;
   }
@@ -100,19 +95,19 @@ function assertV2DirectoryReceipt(
 export async function createDocumentReceipt(
   schema: DocumentSchemaValidator,
   body: DocumentReceiptBody,
-  plan: DocumentPlan | undefined
+  plan: DocumentPlan | undefined,
 ): Promise<DocumentReceiptContract> {
   const snapshot = deepFreezeCanonical(snapshotBody(body));
   const receipt = deepFreezeCanonical({
     ...snapshot,
     receiptDigest: documentReceiptDigest(
-      snapshot as unknown as Readonly<Record<string, CanonicalJsonValue>>
-    )
+      snapshot as unknown as Readonly<Record<string, CanonicalJsonValue>>,
+    ),
   }) as DocumentReceiptContract;
   await schema.assertSchema(
     receipt.schemaVersion === 2 ? "document-receipt/v2" : "document-receipt/v1",
     receipt,
-    "document-receipt"
+    "document-receipt",
   );
   requireDocumentPlan(plan);
   assertV2DirectoryReceipt(receipt, plan);
@@ -123,17 +118,17 @@ export async function createDocumentReceipt(
 export async function assertDocumentReceipt(
   schema: DocumentSchemaValidator,
   receipt: unknown,
-  plan: DocumentPlan | undefined
+  plan: DocumentPlan | undefined,
 ): Promise<DocumentReceipt> {
   const snapshot = deepFreezeCanonical(
-    JSON.parse(canonicalJson(receipt as CanonicalJsonValue)) as unknown
+    JSON.parse(canonicalJson(receipt as CanonicalJsonValue)) as unknown,
   );
   await schema.assertSchema(
     (snapshot as { readonly schemaVersion?: unknown }).schemaVersion === 2
       ? "document-receipt/v2"
       : "document-receipt/v1",
     snapshot,
-    "document-receipt"
+    "document-receipt",
   );
   requireDocumentPlan(plan);
   const documentReceipt = snapshot as DocumentReceipt;

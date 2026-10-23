@@ -1,10 +1,18 @@
 import { createNodeDocumentAuthority } from "../../packages/document-authoring/dist/document-authoring/module.js";
-import { FilesystemMarkdownRepository, readContainedRegularFile, readMarkdownSyntax } from "../../packages/document-authoring/dist/documentation-observation/module.js";
+import {
+  FilesystemMarkdownRepository,
+  readContainedRegularFile,
+  readMarkdownSyntax,
+} from "../../packages/document-authoring/dist/documentation-observation/module.js";
 import { readFile } from "node:fs/promises";
 
 import { applyNodeDocumentationPlan as applyNodeDocumentationPlanWithAuthority } from "../../packages/document-authoring/dist/document-authoring/adapters/node/node-document-writing.js";
 
-const observation = { repository: new FilesystemMarkdownRepository(), readFile: readContainedRegularFile, syntax: readMarkdownSyntax };
+const observation = {
+  repository: new FilesystemMarkdownRepository(),
+  readFile: readContainedRegularFile,
+  syntax: readMarkdownSyntax,
+};
 const [consumerRoot, planPath, checkpoint] = process.argv.slice(2);
 if (consumerRoot === undefined || planPath === undefined || checkpoint === undefined) {
   throw new Error("Expected consumer root, Plan path, and crash checkpoint.");
@@ -32,8 +40,14 @@ await applyNodeDocumentationPlanPrivately(
         process.exitCode = 124;
       }, 30_000);
       await new Promise(() => {});
-    }
-  }
+    },
+  },
 );
 
-function applyNodeDocumentationPlanPrivately(request, operations) { return applyNodeDocumentationPlanWithAuthority(request, createNodeDocumentAuthority(observation), operations); }
+function applyNodeDocumentationPlanPrivately(request, operations) {
+  return applyNodeDocumentationPlanWithAuthority(
+    request,
+    createNodeDocumentAuthority(observation),
+    operations,
+  );
+}

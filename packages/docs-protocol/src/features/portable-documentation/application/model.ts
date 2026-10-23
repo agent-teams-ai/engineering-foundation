@@ -1,7 +1,16 @@
 import type { DocumentJsonValue } from "../domain/metadata.js";
 import type { ReachabilityAction } from "../domain/documentation-model.js";
-export { DOCS_PROTOCOL_ID, DOCS_PROTOCOL_VERSION, DOCS_ADOPTION_MAX_ROUTING_BYTES, DOCS_ADOPTION_MAX_SKILL_BYTES } from "../domain/documentation-model.js";
-export type { DocsCodeAnchor, DocsTypeProfile, ReachabilityAction } from "../domain/documentation-model.js";
+export {
+  DOCS_PROTOCOL_ID,
+  DOCS_PROTOCOL_VERSION,
+  DOCS_ADOPTION_MAX_ROUTING_BYTES,
+  DOCS_ADOPTION_MAX_SKILL_BYTES,
+} from "../domain/documentation-model.js";
+export type {
+  DocsCodeAnchor,
+  DocsTypeProfile,
+  ReachabilityAction,
+} from "../domain/documentation-model.js";
 
 export type DocsCommandOutcome =
   | "authority-stale"
@@ -78,8 +87,14 @@ export interface DocsNewRequest {
 }
 
 export type DocsReceiptOutcome =
-  | "applied" | "already-applied" | "authority-stale" | "rejected"
-  | "recovery-required" | "manual-recovery-required" | "failed-before-publication" | "cancelled";
+  | "applied"
+  | "already-applied"
+  | "authority-stale"
+  | "rejected"
+  | "recovery-required"
+  | "manual-recovery-required"
+  | "failed-before-publication"
+  | "cancelled";
 
 export type DocsNewResult =
   | Readonly<{
@@ -88,8 +103,33 @@ export type DocsNewResult =
       writeState: "blocked";
       transaction: Readonly<
         | { state: "idle" }
-        | { state: "recoverable"; transactionKind: "document"; recovery: Readonly<{ commandId: "docs.recover"; args: Readonly<{ exactFoundationBuildIdentity: string; exactFoundationVersion: string }> }> }
-        | { state: "manual-recovery-required"; transactionKind?: "corrupt" | "document" | "local-mode" | "scaffold" | "transition-residue" | "unknown" | "version-mismatch"; reason: string; recovery?: { readonly commandId: "detach" | "docs-recover" | "scaffold-recover"; readonly args: Readonly<Record<string, string>> } }
+        | {
+            state: "recoverable";
+            transactionKind: "document";
+            recovery: Readonly<{
+              commandId: "docs.recover";
+              args: Readonly<{
+                exactFoundationBuildIdentity: string;
+                exactFoundationVersion: string;
+              }>;
+            }>;
+          }
+        | {
+            state: "manual-recovery-required";
+            transactionKind?:
+              | "corrupt"
+              | "document"
+              | "local-mode"
+              | "scaffold"
+              | "transition-residue"
+              | "unknown"
+              | "version-mismatch";
+            reason: string;
+            recovery?: {
+              readonly commandId: "detach" | "docs-recover" | "scaffold-recover";
+              readonly args: Readonly<Record<string, string>>;
+            };
+          }
       >;
     }>
   | Readonly<{
@@ -127,7 +167,12 @@ export type DocsNewResult =
       receiptDigest: `sha256:${string}`;
       receiptOutcome: DocsReceiptOutcome;
       reservation: "none";
-      writeState: "already-applied" | "applied" | "published-recovery-required" | "unchanged" | "unknown";
+      writeState:
+        | "already-applied"
+        | "applied"
+        | "published-recovery-required"
+        | "unchanged"
+        | "unknown";
     }>;
 
 export interface CodeAnchorMatcher {

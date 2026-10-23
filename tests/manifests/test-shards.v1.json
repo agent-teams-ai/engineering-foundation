@@ -347,6 +347,7 @@
         "tests/features/quality-coverage/governed-assets.test.ts",
         "packages/stack-toolchain/tests/cli.test.ts",
         "packages/stack-toolchain/tests/configuration.test.ts",
+        "packages/stack-toolchain/tests/doctor.test.ts",
         "packages/stack-toolchain/tests/executables.test.ts",
         "packages/stack-toolchain/tests/lint-presets.test.ts",
         "packages/stack-toolchain/tests/process.test.ts",

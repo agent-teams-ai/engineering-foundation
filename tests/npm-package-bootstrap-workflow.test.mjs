@@ -275,6 +275,14 @@ test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance
       ({ run }) => run === "node scripts/npm-package-bootstrap-local-evidence.mjs --output \"${RUNNER_TEMP}/npm-package-bootstrap-writer-evidence\"",
     ),
   );
+  const writerStep = ci.jobs["linux-package"].steps.find(
+    ({ name }) => name === "Verify approved bootstrap writer evidence",
+  );
+  assert.equal(writerStep.env.AGENT_TEAMS_FOUNDATION_SOURCE_ROOT, "${{ github.workspace }}");
+  const packageCheckout = ci.jobs["linux-package"].steps.find(
+    ({ uses }) => uses?.startsWith("actions/checkout@"),
+  );
+  assert.equal(packageCheckout.with["fetch-depth"], 0);
   assert.ok(
     ci.jobs["linux-package"].steps.some(({ uses, if: condition }) =>
       uses?.startsWith("actions/upload-artifact@") && condition === "${{ always() }}",

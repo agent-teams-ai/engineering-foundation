@@ -7,12 +7,137 @@ import {
   resolveCompilerExecutable,
   resolveToolExecutable,
   resolveExecutables,
+  resolveDoctorExecutable,
 } from "../dist/features/toolchain-execution/adapters/executables.js";
 
 void test("compiler resolves qualified native tsc directly", () => {
   const executable = resolveCompilerExecutable();
   assert.match(executable.command, /[/\\]lib[/\\]tsc(?:\.exe)?$/u);
   assert.deepEqual(executable.prefix, []);
+});
+
+function physicalFixture(
+  tool: "typescript" | "tsrs" | "oxlint" | "oxlint-tsgolint",
+  sourceDevelopment = false,
+) {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "TEST-toolchain-files-"));
+  const consumer = path.join(directory, "consumer");
+  const root = sourceDevelopment
+    ? path.join(directory, "source-stack-toolchain")
+    : path.join(consumer, "node_modules/stack-toolchain");
+  const modules = sourceDevelopment
+    ? path.join(root, "node_modules")
+    : path.join(consumer, "node_modules");
+  const pins = JSON.parse(
+    fs.readFileSync(new URL("../toolchain-manifest.json", import.meta.url), "utf8"),
+  ) as Record<string, string>;
+  const libc =
+    process.platform === "linux"
+      ? (process.report.getReport() as { header: { glibcVersionRuntime?: string } }).header
+          .glibcVersionRuntime !== undefined
+        ? "-gnu"
+        : "-musl"
+      : "";
+  const nativeName =
+    tool === "typescript"
+      ? `@typescript/typescript-${process.platform}-${process.arch}`
+      : tool === "tsrs"
+        ? `@tsrs/${process.platform}-${process.arch}${libc}`
+        : tool === "oxlint"
+          ? `@oxlint/binding-${process.platform}-${process.arch}${libc || (process.platform === "win32" ? "-msvc" : "")}`
+          : `@oxlint-tsgolint/${process.platform}-${process.arch}`;
+  const wrapper = path.join(modules, tool);
+  const native = path.join(modules, nativeName);
+  fs.mkdirSync(root, { recursive: true });
+  fs.mkdirSync(wrapper, { recursive: true });
+  fs.mkdirSync(native, { recursive: true });
+  fs.writeFileSync(
+    path.join(root, "package.json"),
+    JSON.stringify({ name: "stack-toolchain", dependencies: { [tool]: pins[tool] } }),
+  );
+  fs.writeFileSync(
+    path.join(wrapper, "package.json"),
+    JSON.stringify({ version: pins[tool], optionalDependencies: { [nativeName]: pins[tool] } }),
+  );
+  fs.writeFileSync(path.join(native, "package.json"), JSON.stringify({ version: pins[tool] }));
+  const binary =
+    tool === "typescript"
+      ? path.join(native, "lib", process.platform === "win32" ? "tsc.exe" : "tsc")
+      : tool === "tsrs"
+        ? path.join(native, process.platform === "win32" ? "tsrs.exe" : "tsrs")
+        : tool === "oxlint"
+          ? path.join(
+              native,
+              `oxlint.${process.platform}-${process.arch}${libc || (process.platform === "win32" ? "-msvc" : "")}.node`,
+            )
+          : path.join(native, process.platform === "win32" ? "tsgolint.exe" : "tsgolint");
+  fs.mkdirSync(path.dirname(binary), { recursive: true });
+  fs.writeFileSync(binary, "never executed", { mode: 0o755 });
+  const entry = path.join(wrapper, "bin", tool);
+  fs.mkdirSync(path.dirname(entry), { recursive: true });
+  fs.writeFileSync(entry, "never executed", { mode: 0o755 });
+  const outside = path.join(directory, "outside", "payload");
+  fs.mkdirSync(path.dirname(outside));
+  fs.writeFileSync(outside, "never executed", { mode: 0o755 });
+  return { directory, root, modules, binary, entry, outside };
+}
+
+void test("final tool files cannot escape an installed dependency boundary through symlinks", () => {
+  const cases = [
+    { tool: "typescript", entry: false },
+    { tool: "tsrs", entry: false },
+    { tool: "oxlint-tsgolint", entry: false },
+    { tool: "oxlint", entry: false },
+    { tool: "oxlint", entry: true },
+  ] as const;
+  for (const subject of cases) {
+    const f = physicalFixture(subject.tool);
+    try {
+      const filename = subject.entry ? f.entry : f.binary;
+      fs.unlinkSync(filename);
+      fs.symlinkSync(f.outside, filename, "file");
+      assert.throws(
+        () => resolveDoctorExecutable(subject.tool, f.root),
+        /TOOLCHAIN_DEPENDENCY_OUTSIDE_INSTALLATION/u,
+        `${subject.tool}:${subject.entry ? "wrapper" : "native"}`,
+      );
+    } finally {
+      fs.rmSync(f.directory, { recursive: true, force: true });
+    }
+  }
+});
+
+void test("contained pnpm and Bun store paths with hardlinked files remain admitted", () => {
+  for (const store of [".pnpm", ".bun"]) {
+    const f = physicalFixture("oxlint-tsgolint");
+    try {
+      const retained = path.join(f.modules, store, "fixture", "native");
+      fs.mkdirSync(path.dirname(retained), { recursive: true });
+      fs.linkSync(f.outside, retained);
+      fs.unlinkSync(f.binary);
+      fs.symlinkSync(retained, f.binary, "file");
+      assert.equal(
+        resolveDoctorExecutable("oxlint-tsgolint", f.root)?.command,
+        fs.realpathSync(retained),
+      );
+    } finally {
+      fs.rmSync(f.directory, { recursive: true, force: true });
+    }
+  }
+});
+
+void test("explicit source-development resolution retains its existing external file layout", () => {
+  const f = physicalFixture("oxlint-tsgolint", true);
+  try {
+    fs.unlinkSync(f.binary);
+    fs.symlinkSync(f.outside, f.binary, "file");
+    assert.equal(
+      resolveDoctorExecutable("oxlint-tsgolint", f.root)?.command,
+      fs.realpathSync(f.outside),
+    );
+  } finally {
+    fs.rmSync(f.directory, { recursive: true, force: true });
+  }
 });
 void test("missing required compiler rejects without PATH fallback", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "TEST-toolchain-executable-"));
@@ -36,6 +161,52 @@ void test("installed wrong compiler pin is terminal", () => {
     assert.throws(() => resolveCompilerExecutable(root), /TOOLCHAIN_PIN_MISMATCH/u);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+void test("dependency wrapper cannot escape the installation to its exact parent", () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "TEST-toolchain-parent-"));
+  const consumer = path.join(directory, "consumer");
+  const root = path.join(consumer, "node_modules/stack-toolchain");
+  const pins = JSON.parse(
+    fs.readFileSync(new URL("../toolchain-manifest.json", import.meta.url), "utf8"),
+  ) as Record<string, string>;
+  const nativeName = `@typescript/typescript-${process.platform}-${process.arch}`;
+  try {
+    fs.mkdirSync(root, { recursive: true });
+    fs.writeFileSync(
+      path.join(root, "package.json"),
+      JSON.stringify({
+        name: "stack-toolchain",
+        dependencies: { typescript: pins["typescript"] },
+      }),
+    );
+    fs.writeFileSync(
+      path.join(consumer, "package.json"),
+      JSON.stringify({
+        name: "typescript",
+        version: pins["typescript"],
+        optionalDependencies: { [nativeName]: pins["typescript"] },
+      }),
+    );
+    const native = path.join(consumer, "node_modules", nativeName);
+    fs.mkdirSync(path.join(native, "lib"), { recursive: true });
+    fs.writeFileSync(
+      path.join(native, "package.json"),
+      JSON.stringify({ version: pins["typescript"] }),
+    );
+    fs.writeFileSync(
+      path.join(native, "lib", process.platform === "win32" ? "tsc.exe" : "tsc"),
+      "never executed",
+      { mode: 0o755 },
+    );
+    fs.symlinkSync(consumer, path.join(consumer, "node_modules/typescript"), "junction");
+    assert.throws(
+      () => resolveCompilerExecutable(root),
+      /TOOLCHAIN_DEPENDENCY_OUTSIDE_INSTALLATION/u,
+    );
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
   }
 });
 

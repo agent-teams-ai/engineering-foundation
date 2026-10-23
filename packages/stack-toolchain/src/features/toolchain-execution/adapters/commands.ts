@@ -11,6 +11,7 @@ import {
 } from "./executables.js";
 import { createCheckerRunner, type CheckerExecutable } from "./process.js";
 import { typecheck } from "../application/typecheck.js";
+import { doctor } from "./doctor.js";
 
 export interface CommandInput {
   readonly command: "typecheck" | "lint" | "format:check" | "compile" | "doctor";
@@ -53,23 +54,6 @@ async function execute(
     throw new Error("TOOLCHAIN_INCOMPLETE_PROCESS_RESULT");
   }
   return result;
-}
-async function doctor(input: CommandInput): Promise<Record<string, unknown>> {
-  const executables = resolveExecutables();
-  const versions: Record<string, unknown> = {};
-  for (const [engine, executable] of Object.entries(executables)) {
-    if (executable === null) {
-      versions[engine] = { available: false };
-      continue;
-    }
-    const result = await execute(executable, ["--version"], input.cwd, input.signal);
-    versions[engine] = {
-      available: result.exitCode === 0,
-      version: result.stdout.trim(),
-      stderr: result.stderr,
-    };
-  }
-  return versions;
 }
 async function compile(input: CommandInput, executable: CheckerExecutable | null) {
   if (executable === null) {
@@ -200,9 +184,11 @@ export async function runCommand(input: CommandInput): Promise<CommandReport> {
       fs.readFileSync(new URL("../../../../toolchain-manifest.json", import.meta.url), "utf8"),
     ) as unknown;
     if (input.command === "doctor") {
-      const details = await doctor(input);
-      const required = details["typescript"] as { available: boolean };
-      return report(required.available ? "passed" : "failed", required.available ? 0 : 2, details);
+      const details = await doctor(input.signal, (executable) =>
+        execute(executable, ["--version"], input.cwd, input.signal),
+      );
+      const failed = details.findings.some((finding) => finding.severity === "error");
+      return report(failed ? "failed" : "passed", failed ? 2 : 0, details);
     }
     if (input.command === "compile") {
       const result = await compile(input, resolveCompilerExecutable());

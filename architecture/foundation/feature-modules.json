@@ -2248,6 +2248,7 @@
               "roots": [
                 "packages/stack-toolchain/src/features/toolchain-execution/adapters/commands.ts",
                 "packages/stack-toolchain/src/features/toolchain-execution/adapters/configuration.ts",
+                "packages/stack-toolchain/src/features/toolchain-execution/adapters/doctor.ts",
                 "packages/stack-toolchain/src/features/toolchain-execution/adapters/executables.ts",
                 "packages/stack-toolchain/src/features/toolchain-execution/adapters/process.ts",
                 "packages/stack-toolchain/src/features/toolchain-execution/adapters/run-cli.ts"
@@ -2257,6 +2258,7 @@
           "testRoots": [
             "packages/stack-toolchain/tests/cli.test.ts",
             "packages/stack-toolchain/tests/configuration.test.ts",
+            "packages/stack-toolchain/tests/doctor.test.ts",
             "packages/stack-toolchain/tests/executables.test.ts",
             "packages/stack-toolchain/tests/lint-presets.test.ts",
             "packages/stack-toolchain/tests/process.test.ts",
@@ -2267,6 +2269,7 @@
       "testRoots": [
         "packages/stack-toolchain/tests/cli.test.ts",
         "packages/stack-toolchain/tests/configuration.test.ts",
+        "packages/stack-toolchain/tests/doctor.test.ts",
         "packages/stack-toolchain/tests/executables.test.ts",
         "packages/stack-toolchain/tests/lint-presets.test.ts",
         "packages/stack-toolchain/tests/process.test.ts",

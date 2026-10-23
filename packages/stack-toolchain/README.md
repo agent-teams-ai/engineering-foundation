@@ -33,6 +33,32 @@ separate packages rather than mandatory dependencies of every installation.
 | `compile --build <path>`   | Build a TypeScript reference graph explicitly                   |
 | `doctor`                   | Explain profile, tool versions and executable availability      |
 
+`doctor --json` requires no consumer configuration and never installs or repairs
+tools. Its existing outer `schemaVersion: 1` report contains doctor details with
+`schemaVersion: 1`, the actual installed `packageVersion`, and a flat entry for
+each tool in the exported `toolchain-manifest.json`. Each entry reports
+`expectedVersion`, `installedVersion`, `resolvedVersion`, `required`, `available`
+and `versionSource`; executed probes retain their raw `version` and `stderr`.
+The typed companion has no supported version command: its installed package and
+native package versions and executable permission are checked without launching
+its unsupported CLI, and `versionSource` is `installed-package`.
+
+Doctor exits 2 for required absence (`TOOLCHAIN_TOOL_UNAVAILABLE`), installed or
+reported pin mismatch (`TOOLCHAIN_TOOL_PIN_MISMATCH`), or an unsuccessful or
+unrecognized version probe (`TOOLCHAIN_TOOL_PROBE_FAILED`). Findings name the
+tool and their `error` or `info` severity; failed executable resolution also
+retains a bounded `resolutionCode`. Normal optional tsrs/Bun absence produces
+`TOOLCHAIN_OPTIONAL_TOOL_UNAVAILABLE` information and permits exit 0. Typecheck
+keeps its existing sequential fallback; doctor does not select a checker or
+replace the consumer's qualification and dependency policies.
+
+Installed dependency resolution checks physical package, executable, wrapper and
+native binding paths against the installation's `node_modules` boundary.
+Contained `.pnpm` and `.bun` stores and hardlinked files remain supported;
+symlinks escaping that boundary reject before execution. Explicit source
+development retains its existing external dependency layout and does not prove
+the containment of an installed or registry-qualified package.
+
 ## Type checking and fallback
 
 Optional tsrs and Bun binaries without execution permission are reported as unavailable; lifecycle scripts are never enabled to repair them.

@@ -8,16 +8,18 @@ historical ADR bytes.
 
 ## Authority delta reviewed
 
-CMS guidance commit: `300e7e1c459c08f5e271627e4ca7d2486bdf5e1f`
+CMS guidance commit: `7131d0d7a6bb5dd4c3e8906ccac065c0be0e0333`
 
-CMS guidance SHA-256: `c2fe582a14ff6e79620b232ca7ffc914afb0474ec21fd43f208251dd7252f4a3`
+CMS guidance SHA-256: `a6dac5d303adf80be3151c6703c919b715fd880a941a4ad68e927c87a7ee5882`
 
 The complete reviewed Consumer Module Standard input is Get Modular
 `docs/architecture/common-assembly.md#consumer-module-standard`, blob
-`ae6792543bd19acc948e177e8d55632c9d51134e`. This exact commit was observed as
-upstream `main` on 2026-10-20. The complete current document, provenance and
-delta against the previously reviewed pin are retained as
-[review evidence](evidence/runtime-profile-guidance-20261020/README.md).
+`dad8b6280cf999d9079d3106094e5626b63d83f4`. Its bytes match exact upstream
+`main` at `eadd9d391657ae6f508a874dd30e923bdc4054f0`, observed on 2026-10-22;
+the reviewed content pin remains `7131d0d7a6bb5dd4c3e8906ccac065c0be0e0333`.
+The complete current document, provenance and delta from the previous
+`300e7e1c459c08f5e271627e4ca7d2486bdf5e1f` input are retained as
+[review evidence](evidence/doctor-guidance-20261022/README.md).
 The previous reviewed commit `3dd68a6b26f42159714a4640b613534a55c2c6aa`, blob
 `250f312d3cae733935d0ac48ddde8502665417df`, SHA-256
 `e5cb510c5ea83e54a6833cc40b6ad31fc5cf8c70d9838e4e0c6923edc6f70919` remains
@@ -219,4 +221,34 @@ owns its operation, tool, mode and argument requirements. The declared source
 edges and private entrypoint add no independently composed module or lifetime,
 public npm export or runtime manager. The retained CMS pin was compared with
 Get Modular `ddf1e0b0053f546f12ca70190b237b4f7e78d09d`: its guidance bytes are
-identical. The outstanding later private guidance follow-up remains pending.
+identical. The later observation-drain input is reviewed in the current doctor
+guidance record below.
+
+## Stack Toolchain diagnostic adapter classification
+
+Doctor boundary: `existing-static-adapter`
+
+Doctor owner: `stack-toolchain/toolchain-execution`
+
+Doctor lifecycle: `caller-owned process budget and cleanup; no Assembly adoption`
+
+The private `packages/stack-toolchain/src/features/toolchain-execution/adapters/doctor.ts`
+and physical executable-resolution helpers in
+`packages/stack-toolchain/src/features/toolchain-execution/adapters/executables.ts`
+remain inside the existing
+ADR-0064 toolchain-execution adapter owner. They report installed and resolved
+tool identity through the existing command/report contract; they add no module,
+replaceable relationship, independent lifetime or public package root.
+`packages/stack-toolchain/tests/doctor.test.ts` belongs to that feature's existing
+test owner, strict project and canonical inventory. Stack Toolchain continues to
+depend on node-or-bun for process execution. Host budgets, signals and physical
+cleanup authority remain with the caller. This classification does not certify
+the incoming implementation, registry artifact or final native qualification.
+
+The full CMS input was reviewed against exact upstream
+`eadd9d391657ae6f508a874dd30e923bdc4054f0` on 2026-10-22. Its complete bytes match
+the reviewed `7131d0d7a6bb5dd4c3e8906ccac065c0be0e0333` input. The seven-line delta
+from the previous `300e7e1c459c08f5e271627e4ca7d2486bdf5e1f` pin requires retained
+observation load drain after escalation; this static diagnostic adapter owns no
+observation loader or subscription. All previous accepted ADR and guidance
+evidence bytes remain immutable. The scope remains `not-adopted`.

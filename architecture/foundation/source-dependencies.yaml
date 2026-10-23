@@ -4342,12 +4342,14 @@ boundaries:
     roots:
       - packages/stack-toolchain/src/features/toolchain-execution/adapters/commands.ts
       - packages/stack-toolchain/src/features/toolchain-execution/adapters/configuration.ts
+      - packages/stack-toolchain/src/features/toolchain-execution/adapters/doctor.ts
       - packages/stack-toolchain/src/features/toolchain-execution/adapters/executables.ts
       - packages/stack-toolchain/src/features/toolchain-execution/adapters/process.ts
       - packages/stack-toolchain/src/features/toolchain-execution/adapters/run-cli.ts
     entrypoints:
       - packages/stack-toolchain/src/features/toolchain-execution/adapters/commands.ts
       - packages/stack-toolchain/src/features/toolchain-execution/adapters/configuration.ts
+      - packages/stack-toolchain/src/features/toolchain-execution/adapters/doctor.ts
       - packages/stack-toolchain/src/features/toolchain-execution/adapters/executables.ts
       - packages/stack-toolchain/src/features/toolchain-execution/adapters/process.ts
       - packages/stack-toolchain/src/features/toolchain-execution/adapters/run-cli.ts

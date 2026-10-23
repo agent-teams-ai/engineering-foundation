@@ -1,5 +1,14 @@
 {
   "extends": "../tsconfig.ci-tooling.json",
-  "compilerOptions": { "noUncheckedIndexedAccess": true },
-  "include": ["**/*.mts", "git-environment.ts", "profile-source.ts", "repository-oxlint.ts"]
+  "compilerOptions": {
+    "noUncheckedIndexedAccess": true
+  },
+  "include": [
+    "**/*.mts",
+    "git-environment.ts",
+    "profile-source.ts",
+    "repository-oxlint.ts",
+    "repository-tool-catalog.ts",
+    "producer-source-dependencies.ts"
+  ]
 }

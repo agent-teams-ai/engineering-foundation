@@ -24,6 +24,7 @@
         "pnpm": "catalog:",
         "publint": "catalog:",
         "semver": "catalog:",
+        "stack-toolchain": "0.1.0",
         "typescript": "catalog:",
         "verdaccio": "catalog:",
         "yaml": "catalog:",
@@ -156,28 +157,6 @@
       "devDependencies": {
         "@types/node": "catalog:",
         "typescript": "catalog:",
-      },
-    },
-    "packages/stack-toolchain": {
-      "name": "stack-toolchain",
-      "version": "0.1.0",
-      "bin": {
-        "stack-toolchain": "./dist/cli.js",
-      },
-      "dependencies": {
-        "jsonc-parser": "catalog:",
-        "node-or-bun": "catalog:",
-        "oxfmt": "catalog:",
-        "oxlint": "catalog:",
-        "oxlint-tsgolint": "catalog:",
-        "typescript": "catalog:",
-      },
-      "devDependencies": {
-        "@types/node": "catalog:",
-      },
-      "optionalDependencies": {
-        "bun": "catalog:",
-        "tsrs": "catalog:",
       },
     },
     "spikes/source-dependency-parser": {
@@ -1581,7 +1560,7 @@
 
     "sshpk": ["sshpk@1.18.0", "", { "dependencies": { "asn1": "0.2.6", "assert-plus": "1.0.0", "bcrypt-pbkdf": "1.0.2", "dashdash": "1.14.1", "ecc-jsbn": "0.1.2", "getpass": "0.1.7", "jsbn": "0.1.1", "safer-buffer": "2.1.2", "tweetnacl": "0.14.5" }, "bin": { "sshpk-conv": "bin/sshpk-conv", "sshpk-sign": "bin/sshpk-sign", "sshpk-verify": "bin/sshpk-verify" } }, "sha512-2p2KJZTSqQ/I3+HX42EpYOa2l3f8Erv8MWKsy2I9uf4wA7yFIkXRffYdsx86y6z4vHtV8u7g+pPlr8/4ouAxsQ=="],
 
-    "stack-toolchain": ["stack-toolchain@workspace:packages/stack-toolchain"],
+    "stack-toolchain": ["stack-toolchain@0.1.0", "", { "dependencies": { "jsonc-parser": "3.3.1", "node-or-bun": "0.2.2", "oxfmt": "0.74.0", "oxlint": "1.83.0", "oxlint-tsgolint": "7.0.2001", "typescript": "7.0.2" }, "optionalDependencies": { "bun": "1.4.3", "tsrs": "0.18.0-ts7.1.0-dev.20260929" }, "bin": { "stack-toolchain": "dist/cli.js" } }, "sha512-HU+yLceArzkSYmd42JyAfKONn29L779EWroBzkVYVXZY+/7dYhvvMuO25dW1fjs+WRc8tsOAJW+qSocC0RdZCw=="],
 
     "statuses": ["statuses@2.0.2", "", {}, "sha512-DvEy55V3DB7uknRo+4iOGT5fP1slR8wQohVdknigZPMpMstaKJQWhwiYBACJE3Ul2pTnATihhBYnRhZQHGBiRw=="],
 

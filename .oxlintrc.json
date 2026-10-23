@@ -1,8 +1,8 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "extends": [
-    "./packages/engineering-foundation/presets/oxlint/node.json",
-    "./packages/engineering-foundation/presets/oxlint/maintainability.json",
+    "./node_modules/stack-toolchain/presets/oxlint/node.json",
+    "./node_modules/stack-toolchain/presets/oxlint/maintainability.json",
     "./.oxlintrc.repository-mutation-budgets.json"
   ],
   "ignorePatterns": [

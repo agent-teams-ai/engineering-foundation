@@ -52,8 +52,6 @@ packages:
     nonTypeExports:
       - exportPath: "./package.json"
         kind: data
-      - exportPath: "./presets/*"
-        kind: wildcard
       - exportPath: "./schemas/*"
         kind: wildcard
     tsconfigPath: packages/engineering-foundation/tsconfig.json

@@ -1,19 +1,10 @@
-schemaVersion: 2
+schemaVersion: 4
 sourcePolicyPath: architecture/foundation/source-dependencies.yaml
 suppressionPolicyPath: architecture/foundation/suppression-governance.yaml
 featureProfilePath: architecture/foundation/feature-modules.json
 lintConfigPath: .oxlintrc.type-aware.json
 bridgeAdmissionsPath: architecture/foundation/quality-explicit-unknown-bridges.json
-compilerProjects:
-  - packages/stack-toolchain/tsconfig.json
-  - packages/feature-module-standard/tsconfig.json
-  - packages/ci-input-proof/tsconfig.json
-  - packages/repository-mutation/tsconfig.json
-  - packages/document-authoring/tsconfig.json
-  - packages/engineering-foundation/tsconfig.json
-  - packages/docs-protocol/tsconfig.json
-  - packages/docs-protocol-mcp/tsconfig.json
-  - packages/docs-protocol-agent-teams/tsconfig.json
+toolchainConfigPath: toolchain.config.json
 scripts:
   fast: check:fast
   full: check

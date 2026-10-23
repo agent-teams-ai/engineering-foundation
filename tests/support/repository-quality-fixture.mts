@@ -11,7 +11,7 @@ export async function writeRepositoryQualityFixture(root: string, repositoryRoot
   const pins = await copyPinnedToolchain(root);
   for (const name of ["base", "node", "type-aware", "maintainability"]) {
     await put(`presets/${name}.json`, await readFile(
-      join(repositoryRoot, "packages/engineering-foundation/presets/oxlint", `${name}.json`), "utf8"));
+      join(repositoryRoot, "packages/stack-toolchain/presets/oxlint", `${name}.json`), "utf8"));
   }
   await put("package.json", { name: "test-bun-quality-binding", private: true, type: "module",
     packageManager: "bun@1.4.3",

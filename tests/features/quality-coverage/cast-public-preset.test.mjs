@@ -53,17 +53,16 @@ async function runFixture(packageRoot) {
 }
 
 test("built public quality preset retains typed checks and tuple representation", async () => {
-  await runFixture(join(repository, "packages/engineering-foundation"));
+  await runFixture(join(repository, "packages/stack-toolchain"));
 });
 
-const installed = process.env["EF_331_INSTALLED_PACKAGE_ROOT"];
+const installed = process.env["STACK_TOOLCHAIN_INSTALLED_PACKAGE_ROOT"];
 if (installed !== undefined) {
   test("installed public quality preset retains the same typed baseline", async () => {
     const physical = await realpath(installed);
-    assert.match(physical, /node_modules\/.*engineering-foundation/u);
+    assert.match(physical, /node_modules\/.*stack-toolchain/u);
     const manifest = JSON.parse(await readFile(join(physical, "package.json"), "utf8"));
-    assert.equal(manifest.name, "@agent-teams/engineering-foundation");
-    assert.equal(manifest.version, "1.5.1");
+    assert.equal(manifest.name, "stack-toolchain");
     await runFixture(installed);
   });
 }

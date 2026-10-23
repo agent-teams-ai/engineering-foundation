@@ -4,15 +4,6 @@ import { isExactVersion } from "../../semantic-version.js";
 import { FOUNDATION_LOCAL_MODE_PROTOCOL_VERSION, FOUNDATION_PACKAGE_NAME } from "./model.js";
 
 export const FOUNDATION_METADATA_SCHEMA_VERSION = 1 as const;
-const FOUNDATION_REQUIRED_PRESET_PATHS = [
-  "presets/oxlint/base.json",
-  "presets/oxlint/maintainability-tests.json",
-  "presets/oxlint/maintainability.json",
-  "presets/oxlint/node.json",
-  "presets/oxlint/type-aware.json",
-  "presets/typescript/base.json",
-  "presets/typescript/node.json"
-] as const;
 export interface FoundationPackageArtifactPolicy {
   readonly requiredArtifactPaths: readonly string[];
   readonly packageFileAllowlist: readonly string[];
@@ -30,7 +21,6 @@ export function createFoundationPackageArtifactPolicy(schemaIds: readonly string
     "dist/local-mode/index.js",
     "dist/scaffolding/index.d.ts",
     "dist/scaffolding/index.js",
-    ...FOUNDATION_REQUIRED_PRESET_PATHS,
     ...schemaIds.map((schemaId) => `schemas/${schemaId}.schema.json`),
     "assets/windows-managed-process/bootstrap.ps1",
     "assets/windows-managed-process/WindowsManagedProcess.cs"
@@ -38,7 +28,6 @@ export function createFoundationPackageArtifactPolicy(schemaIds: readonly string
   const packageFileAllowlist = [
     "dist",
     historicalDocumentPlanPath,
-    ...FOUNDATION_REQUIRED_PRESET_PATHS,
     ...schemaIds.map((schemaId) => `schemas/${schemaId}.schema.json`),
     "assets/windows-managed-process/bootstrap.ps1",
     "assets/windows-managed-process/WindowsManagedProcess.cs",
@@ -238,7 +227,6 @@ export function validatePackageManifest(manifest: unknown, packageFileAllowlist:
     import: "./dist/scaffolding/index.js"
   });
   validateExport(manifest.exports, "./schemas/*", "./schemas/*");
-  validateExport(manifest.exports, "./presets/*", "./presets/*");
   validateExport(manifest.exports, "./package.json", "./package.json");
 }
 

@@ -1,0 +1,42 @@
+--- f5653f5630057524a4ee44e50c16e138442a9b42/docs/engineering-quality-standard.md
++++ 1b17053bc92766742fec2329ee153171395e658e/docs/engineering-quality-standard.md
+@@ -103,6 +103,30 @@
+ their successor process.
+ 
+ Repository agent instructions link here; they do not duplicate this direction.
++
++## Universal tooling and discoverability
++
++Owner direction recorded on 2026-10-21: reusable tools are universal products.
++Their public package, CLI, configuration and API names must describe their
++purpose without coupling them to the Agent Teams organization or a consumer
++product. Repository ownership and hosting location do not restrict who can use
++a tool. Existing published identities change only through a scoped migration;
++this rule does not silently rename released artifacts.
++
++A general-purpose tool must work in an ordinary external project without
++organization credentials, product catalogs, governance admission or an
++organization-specific runtime. Keep optional organization policy separate from
++the portable mechanism and explicit stack presets. Universal does not mean
++loading every technology, introducing a plugin platform or guessing future needs.
++
++Document a tool before implementation: what it does, when to use it, ownership
++of consumer configuration, supported tasks and limits, and its actual availability.
++Its owning README is the authority for released installation and usage. Keep
++the [development tools catalog](development-tools.md) as agent navigation to
++that authority. Read the catalog before choosing or duplicating shared tooling.
++Mark planned work honestly; a plan is not an installable package. Repository
++agent instructions must route to this guidance explicitly; placing a file in
++the organization `.github` repository does not automatically load it elsewhere.
+ 
+ ## Clean Architecture and ownership
+ 
+@@ -249,7 +273,7 @@
+ | --- | --- |
+ | Feature ownership, layers and dependency mechanisms | [Feature Module Standard index](architecture/feature-module-standard/README.md), [v1](architecture/feature-module-standard/v1.md) and [v1.1](architecture/feature-module-standard/v1.1.md); the consumer's local adoption profile owns its exact scope |
+ | Get Modular construction and consumer adoption, when applicable | [Consumer Module Standard](https://github.com/agent-teams-ai/get-modular/blob/main/docs/architecture/common-assembly.md#consumer-module-standard); use the consumer's reviewed pin |
+-| Reusable development tooling and checks | [Engineering Foundation](https://github.com/agent-teams-ai/engineering-foundation); repository profiles own applicability and actual commands |
++| Reusable development tooling, purpose and availability | [Development tools catalog](development-tools.md), then the owning package README; [Engineering Foundation](https://github.com/agent-teams-ai/engineering-foundation) owns shared implementation, and consumer profiles own applicability and actual commands |
+ | Commit and PR authorship | [Maintained owner policy](../GOVERNANCE.md#commit-and-pull-request-authorship) and [canonical identity/status rule](../governance/commit-author-identity.json); preserve external human authorship |
+ | Contributions and decisions | [Contribution rules](../CONTRIBUTING.md) and [governance boundaries](../GOVERNANCE.md) |
+ | Security reporting and organization defaults | [Security policy](../SECURITY.md) and [security baseline](organization-security-baseline.md) |

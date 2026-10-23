@@ -22,7 +22,7 @@ async function governedDistFixture(t) {
   const pins = await copyPinnedToolchain(root);
   for (const name of ["base", "node", "type-aware", "maintainability"]) {
     await mkdir(join(root, "presets"), { recursive: true });
-    await cp(join(repository, "packages/engineering-foundation/presets/oxlint", `${name}.json`), join(root, "presets", `${name}.json`));
+    await cp(join(repository, "packages/stack-toolchain/presets/oxlint", `${name}.json`), join(root, "presets", `${name}.json`));
   }
   await put("package.json", { name: "governed-dist-test", private: true, type: "module",
     scripts: { "check:fast": "pnpm quality:scope", check: "pnpm lint:typed",
@@ -142,7 +142,7 @@ test("built public quality check rejects unknown chains and accepts exact eviden
     const pins = await copyPinnedToolchain(root);
     await mkdir(join(root, "presets"));
     for (const name of ["base", "node", "type-aware", "maintainability"]) {
-      await cp(join(repository, "packages/engineering-foundation/presets/oxlint", `${name}.json`),
+      await cp(join(repository, "packages/stack-toolchain/presets/oxlint", `${name}.json`),
         join(root, "presets", `${name}.json`));
     }
     const moduleRoot = "packages/worker";

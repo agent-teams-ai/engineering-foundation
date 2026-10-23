@@ -1,3 +1,4 @@
+import { copyInstalledToolchainPresets } from "./copied-toolchain.mjs";
 import assert from "node:assert/strict";
 import { link, mkdir, mkdtemp, readFile, readdir, rename, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -35,6 +36,7 @@ const scripts = {
 async function fixture(t: TestContext) {
   const root = await mkdtemp(join(tmpdir(), "TEST-quality-assets-"));
   t.after(() => rm(root, { recursive: true, force: true }));
+  await copyInstalledToolchainPresets(root);
   const put = async (path: string, bytes: string) => {
     await mkdir(dirname(join(root, path)), { recursive: true });
     await writeFile(join(root, path), bytes);
@@ -54,8 +56,8 @@ async function fixture(t: TestContext) {
     topology: { sourcePolicy: "source.yaml" },
     modules: [{ root: moduleRoot, sourceRoot, testRoots: [`${moduleRoot}/tests`] }]
   }));
-  const typed = JSON.parse(await readFile(new URL("../../../packages/engineering-foundation/presets/oxlint/type-aware.json", import.meta.url), "utf8"));
-  const budgets = JSON.parse(await readFile(new URL("../../../packages/engineering-foundation/presets/oxlint/maintainability.json", import.meta.url), "utf8"));
+  const typed = JSON.parse(await readFile(new URL("../../../packages/stack-toolchain/presets/oxlint/type-aware.json", import.meta.url), "utf8"));
+  const budgets = JSON.parse(await readFile(new URL("../../../packages/stack-toolchain/presets/oxlint/maintainability.json", import.meta.url), "utf8"));
   await put("lint.json", JSON.stringify({ options: { ...typed.options, respectEslintDisableDirectives: false, reportUnusedDisableDirectives: "error" }, rules: { ...typed.rules, ...budgets.rules } }));
   const reader = createQualityCoverageReader({
     census: createSourceCensusReader({ read: readContainedRegularFile }),

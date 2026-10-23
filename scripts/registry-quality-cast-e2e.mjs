@@ -56,17 +56,21 @@ export async function verifyRegistryQualityCast({ consumerRoot, installedRoot })
   await put("suppressions.yaml", {
     schemaVersion: 1, governedRoots: [sourceRoot], nonWaivableRulePrefixes: [], waivers: [],
   });
+  await put("toolchain.config.json", {
+    schemaVersion: 1, profile: "typescript-node", typecheck: { projects: ["config/production.json"] },
+    lint: { config: "lint.json", paths: [sourceRoot] }, format: { paths: [sourceRoot] }
+  });
   await put("lint.json", {
     options: { respectEslintDisableDirectives: false, reportUnusedDisableDirectives: "error" },
     extends: [
-      "./node_modules/@agent-teams/engineering-foundation/presets/oxlint/type-aware.json",
-      "./node_modules/@agent-teams/engineering-foundation/presets/oxlint/maintainability.json",
+      "./node_modules/stack-toolchain/presets/oxlint/type-aware.json",
+      "./node_modules/stack-toolchain/presets/oxlint/maintainability.json",
     ],
   });
   const quality = {
-    schemaVersion: 1, sourcePolicyPath: "source.yaml", suppressionPolicyPath: "suppressions.yaml",
+    schemaVersion: 4, sourcePolicyPath: "source.yaml", suppressionPolicyPath: "suppressions.yaml",
     featureProfilePath: "features.json", lintConfigPath: "lint.json",
-    compilerProjects: ["config/production.json"],
+    toolchainConfigPath: "toolchain.config.json",
     scripts: { fast: "check:fast", full: "check", scope: "quality:scope", typed: "lint:typed" },
   };
   await put("quality.yaml", quality);
@@ -117,6 +121,6 @@ test("parsePair admits only two finite numbers", () => {
     end: start + expression.length, sha256: createHash("sha256").update(expression).digest("hex"),
     rationale: "The parser checks exact length and finite numeric element types before this tuple assertion.",
     rejectingTest: "tests/pair-rejection.test.mjs" }] });
-  await put("quality.yaml", { ...quality, schemaVersion: 2, bridgeAdmissionsPath: "bridges.json" });
+  await put("quality.yaml", { ...quality, schemaVersion: 4, bridgeAdmissionsPath: "bridges.json" });
   assert.equal((await invoke(0)).outcome, "passed");
 }

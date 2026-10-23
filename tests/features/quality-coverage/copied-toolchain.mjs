@@ -1,5 +1,6 @@
 import { cp, mkdir, readFile, realpath } from "node:fs/promises";
 import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 /** Disposable real tool inputs; no links to the source installation survive copying. */
@@ -22,7 +23,33 @@ export async function copyPinnedToolchain(consumerRoot) {
       await copy(dependency, local);
     }
   }
-  const pins = { oxlint: "1.83.0", "oxlint-tsgolint": "7.0.2001", typescript: "7.0.2" };
-  for (const name of Object.keys(pins)) { await copy(name, resolveFromTest); }
-  return pins;
+  const { installed } = await installedToolchain();
+  await copy("stack-toolchain", resolveFromTest);
+  return { "stack-toolchain": installed.version };
+}
+
+async function installedToolchain() {
+  const resolveFromTest = createRequire(import.meta.url);
+  const manifestPath = await realpath(resolveFromTest.resolve("stack-toolchain/package.json"));
+  const installed = JSON.parse(await readFile(manifestPath, "utf8"));
+  if (installed.name !== "stack-toolchain" || !/^\d+\.\d+\.\d+$/u.test(installed.version)) {
+    throw new Error("Fixture requires an installed released Stack Toolchain identity");
+  }
+  const repositoryRoot = dirname(dirname(dirname(dirname(fileURLToPath(import.meta.url)))));
+  const sourceRoot = await realpath(join(repositoryRoot, "packages/stack-toolchain"));
+  if (dirname(manifestPath) === sourceRoot) {
+    throw new Error("Fixture refuses producer workspace Stack Toolchain source");
+  }
+  return { manifestPath, installed };
+}
+
+/** Static protected-config fixtures need presets, not compiler executables. */
+export async function copyInstalledToolchainPresets(consumerRoot) {
+  const { manifestPath } = await installedToolchain();
+  const source = dirname(manifestPath);
+  const destination = join(consumerRoot, "node_modules/stack-toolchain");
+  await mkdir(destination, { recursive: true });
+  for (const entry of ["package.json", "toolchain-manifest.json", "presets"]) {
+    await cp(join(source, entry), join(destination, entry), { recursive: true, dereference: true });
+  }
 }

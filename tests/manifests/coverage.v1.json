@@ -7,6 +7,7 @@
   "processBootstrap": "scripts/coverage-process-bootstrap.mjs",
   "include": [
     "packages/ci-input-proof/dist/**/*.js",
+    "packages/release-checks/dist/**/*.js",
     "packages/repository-mutation/dist/**/*.js",
     "packages/document-authoring/dist/**/*.js",
     "packages/docs-protocol/dist/**/*.js",
@@ -18,6 +19,7 @@
   ],
   "exclude": [
     "packages/ci-input-proof/dist/**/*.d.ts",
+    "packages/release-checks/dist/**/*.d.ts",
     "packages/repository-mutation/dist/**/*.d.ts",
     "packages/document-authoring/dist/**/*.d.ts",
     "packages/docs-protocol/dist/**/*.d.ts",

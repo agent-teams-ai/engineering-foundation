@@ -1,5 +1,4 @@
 import { spawn } from "node:child_process";
-import { createRequire } from "node:module";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -70,21 +69,18 @@ function packageManagerOptions(options) {
 }
 
 export function createPnpmRunner() {
+  let invocation;
   return async (args, cwd, options = {}) => {
-    const { readRepositoryRuntimePolicy } = await import("../tools/runtime-policy.mts");
-    const { verifyQualificationNode } = await import("../tools/executable-policy.mts");
-    // A pnpm-generated shell shim exports its repository's NODE_PATH into the
-    // consumer. Invoke the installed public CLI with the verified Node instead.
-    const manifestPath = createRequire(import.meta.url).resolve("pnpm");
-    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-    const policy = await readRepositoryRuntimePolicy();
-    if (manifest.name !== "pnpm" || manifest.version !== policy.toolchain.pnpm.version ||
-        manifest.bin?.pnpm !== "bin/pnpm.mjs") {
-      throw new Error("Package qualification requires the installed pinned pnpm public CLI.");
-    }
-    const node = await verifyQualificationNode(process.execPath);
-    return runCommand(node, [join(dirname(manifestPath), manifest.bin.pnpm), ...args],
-      cwd, packageManagerOptions(options));
+    invocation ??= import("./packaging-pnpm.ts").then(({ resolvePackagingPnpm }) => resolvePackagingPnpm());
+    const { node, entrypoint } = await invocation;
+    const trustedOptions = packageManagerOptions(options);
+    // pnpm's generated .bin shim adds workspace paths to NODE_PATH. Independent
+    // packed consumers must resolve only their own installed dependencies.
+    const environment = Object.fromEntries(
+      Object.entries(trustedOptions.environment ?? process.env)
+        .filter(([key]) => !/^NODE_(?:PATH|OPTIONS)$/iu.test(key))
+    );
+    return runCommand(node, [entrypoint, ...args], cwd, { ...trustedOptions, environment });
   };
 }
 

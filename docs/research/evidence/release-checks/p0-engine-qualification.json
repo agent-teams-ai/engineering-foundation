@@ -1,0 +1,877 @@
+{
+  "kind": "release-checks-p0-actual-engines",
+  "node": "v26.11.1",
+  "scope": "Disposable manifest/Git fixtures; actual pinned CLI status/version; no real repository versioning or publication; changelog formatter replaced with bundled @changesets/cli/changelog to avoid provider IO",
+  "harnessTransportNote": "Initial Node spawnSync wrapper produced anomalous EPERM error fields despite completed processes. All decisive status/version operations were reset and rerun directly by rerun-shell.sh; this report uses the clean shell exit codes and logs.",
+  "owners": {
+    "foundation": {
+      "version": "2.31.1",
+      "cli": "/workspace/scratch/57dc7bcc28f6/engineering-foundation/node_modules/.bun/@changesets+cli@2.31.1+9711fee6065d6088/node_modules/@changesets/cli/bin.js",
+      "cliBinSha256": "c17dddb4b7cf4733109a995caa33f2a9bdb01ffdfe71bce6f2d184dc52276a29",
+      "cliManifestSha256": "125f72a39cf1f14126d793f016982579a491107e3441faf715e78b53ae5cabf7",
+      "sourceHead": "80fcc900f0f0844aac1ee07647515556828a00e3",
+      "sourceStatus": "",
+      "lockSha256": "13c1be69d75d2e9774420d2c8e778abf5bd586b89af8e659f566f9b2e5706d32"
+    },
+    "gm": {
+      "version": "3.0.2",
+      "cli": "/workspace/scratch/57dc7bcc28f6/get-modular/node_modules/.pnpm/@changesets+cli@3.0.2/node_modules/@changesets/cli/bin.js",
+      "cliBinSha256": "322da1d9fd0f95fa4e9d47badf66e2e6f78315645986f249ae1a15e048770c2d",
+      "cliManifestSha256": "f01c1e244a3a257b1cdbcf2ab30cd63068ad0bdfe2ea8dc88428f247b3fb8eea",
+      "sourceHead": "ddf1e0b0053f546f12ca70190b237b4f7e78d09d",
+      "sourceStatus": "",
+      "lockSha256": "048ead2ca34259c02790924af0935b553a644ea753a90177dc136c6bcedd8f6f"
+    }
+  },
+  "cases": [
+    {
+      "id": "foundation-fms-inrange",
+      "engine": "2.31.1",
+      "fixtureSourceSha": "ceecb714ad87cc340f7c808300d471bef992b61b",
+      "configSha256": "2adfbe05017a43cd90057404f2092e0e5fa88c7e42ef1483cef0998920b118ab",
+      "planSha256": "cb47b5a53149c25ee6010ae8de93541b3645b34b7a65399465ed43c6f4c4e5f5",
+      "diffSha256": "f9a046194c6c1486e679c9675424b8fdae8086bfcf757484bdeca4755a0aae9f",
+      "status": {
+        "planStatus": 0,
+        "versionStatus": 0
+      },
+      "plan": {
+        "changesets": [
+          {
+            "releases": [
+              {
+                "name": "@agent-teams/engineering-foundation",
+                "type": "minor"
+              },
+              {
+                "name": "@agent-teams/feature-module-standard",
+                "type": "patch"
+              }
+            ],
+            "summary": "Qualification release.",
+            "id": "release"
+          }
+        ],
+        "releases": [
+          {
+            "name": "@agent-teams/engineering-foundation",
+            "type": "minor",
+            "oldVersion": "1.10.1",
+            "changesets": [
+              "release"
+            ],
+            "newVersion": "1.11.0"
+          },
+          {
+            "name": "@agent-teams/feature-module-standard",
+            "type": "patch",
+            "oldVersion": "0.1.2",
+            "changesets": [
+              "release"
+            ],
+            "newVersion": "0.1.3"
+          }
+        ]
+      },
+      "changes": [
+        {
+          "name": "@agent-teams/engineering-foundation",
+          "oldVersion": "1.10.1",
+          "newVersion": "1.11.0",
+          "versionOnly": true
+        },
+        {
+          "name": "@agent-teams/feature-module-standard",
+          "oldVersion": "0.1.2",
+          "newVersion": "0.1.3",
+          "versionOnly": true
+        }
+      ],
+      "consumedIntents": [
+        "release.md"
+      ],
+      "remainingIntents": [],
+      "versionStdoutSha256": "dcccf189565497aac06bf5d1ce187bd2c26431861f43a9a26c1b895b21ac30af",
+      "versionStderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "foundation-fms-outofrange",
+      "engine": "2.31.1",
+      "fixtureSourceSha": "a46bb4e28a7735c0e5df40fe429afeffa5ff9c9d",
+      "configSha256": "2adfbe05017a43cd90057404f2092e0e5fa88c7e42ef1483cef0998920b118ab",
+      "planSha256": "ac062ddff6a2bd23079599f770ce5b9b82597248617733e1ef5dcd7052e11541",
+      "diffSha256": "e3f064620c42610ac6bd825b6d9a804eb216066247605f1decc35f212453b866",
+      "status": {
+        "planStatus": 0,
+        "versionStatus": 0
+      },
+      "plan": {
+        "changesets": [
+          {
+            "releases": [
+              {
+                "name": "@agent-teams/engineering-foundation",
+                "type": "major"
+              }
+            ],
+            "summary": "Qualification release.",
+            "id": "release"
+          }
+        ],
+        "releases": [
+          {
+            "name": "@agent-teams/engineering-foundation",
+            "type": "major",
+            "oldVersion": "1.10.1",
+            "changesets": [
+              "release"
+            ],
+            "newVersion": "2.0.0"
+          },
+          {
+            "name": "@agent-teams/feature-module-standard",
+            "type": "major",
+            "oldVersion": "0.1.2",
+            "changesets": [],
+            "newVersion": "1.0.0"
+          }
+        ]
+      },
+      "changes": [
+        {
+          "name": "@agent-teams/engineering-foundation",
+          "oldVersion": "1.10.1",
+          "newVersion": "2.0.0",
+          "versionOnly": true
+        },
+        {
+          "name": "@agent-teams/feature-module-standard",
+          "oldVersion": "0.1.2",
+          "newVersion": "1.0.0",
+          "versionOnly": false
+        }
+      ],
+      "consumedIntents": [
+        "release.md"
+      ],
+      "remainingIntents": [],
+      "versionStdoutSha256": "dcccf189565497aac06bf5d1ce187bd2c26431861f43a9a26c1b895b21ac30af",
+      "versionStderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "foundation-private",
+      "engine": "2.31.1",
+      "fixtureSourceSha": "63458fd0873a222728feb52fc873830e08d68b48",
+      "configSha256": "2adfbe05017a43cd90057404f2092e0e5fa88c7e42ef1483cef0998920b118ab",
+      "planSha256": "6da2633dc4441df82b8ee6b9c11ba76a34b6543f1f84ca9d8ff92439acafe159",
+      "diffSha256": "e49edee7f4231657bb685acbdc48a9e136bd0259c81bc66ce7ca0557247e9b1e",
+      "status": {
+        "planStatus": 0,
+        "versionStatus": 0
+      },
+      "plan": {
+        "changesets": [
+          {
+            "releases": [
+              {
+                "name": "@qualification/private-test",
+                "type": "minor"
+              }
+            ],
+            "summary": "Qualification private.",
+            "id": "private"
+          },
+          {
+            "releases": [
+              {
+                "name": "@agent-teams/engineering-foundation",
+                "type": "patch"
+              }
+            ],
+            "summary": "Qualification release.",
+            "id": "release"
+          }
+        ],
+        "releases": [
+          {
+            "name": "@qualification/private-test",
+            "type": "minor",
+            "oldVersion": "0.1.0",
+            "changesets": [
+              "private"
+            ],
+            "newVersion": "0.2.0"
+          },
+          {
+            "name": "@agent-teams/engineering-foundation",
+            "type": "patch",
+            "oldVersion": "1.10.1",
+            "changesets": [
+              "release"
+            ],
+            "newVersion": "1.10.2"
+          },
+          {
+            "name": "@agent-teams/feature-module-standard",
+            "type": "none",
+            "oldVersion": "0.1.2",
+            "changesets": [],
+            "newVersion": "0.1.2"
+          }
+        ]
+      },
+      "changes": [
+        {
+          "name": "@agent-teams/engineering-foundation",
+          "oldVersion": "1.10.1",
+          "newVersion": "1.10.2",
+          "versionOnly": true
+        },
+        {
+          "name": "@qualification/private-test",
+          "oldVersion": "0.1.0",
+          "newVersion": "0.2.0",
+          "versionOnly": true
+        }
+      ],
+      "consumedIntents": [
+        "private.md",
+        "release.md"
+      ],
+      "remainingIntents": [],
+      "versionStdoutSha256": "dcccf189565497aac06bf5d1ce187bd2c26431861f43a9a26c1b895b21ac30af",
+      "versionStderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "foundation-ignored",
+      "engine": "2.31.1",
+      "fixtureSourceSha": "5f170b3ef2c3bf48873a9dae24027ef7e37c9a00",
+      "configSha256": "0f6745e23876972f49ed33235e9347f7c9d09904b59531f8025ce8e204b5e361",
+      "planSha256": "ccb13184517794dff70060cb732fbfc257e8baff01f2bd063479efe78743c27e",
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "status": {
+        "planStatus": 0,
+        "versionStatus": 0
+      },
+      "plan": {
+        "changesets": [
+          {
+            "releases": [
+              {
+                "name": "@agent-teams/ci-input-proof",
+                "type": "minor"
+              }
+            ],
+            "summary": "Qualification ignored.",
+            "id": "ignored"
+          }
+        ],
+        "releases": []
+      },
+      "changes": [],
+      "consumedIntents": [],
+      "remainingIntents": [
+        "ignored.md"
+      ],
+      "versionStdoutSha256": "dcccf189565497aac06bf5d1ce187bd2c26431861f43a9a26c1b895b21ac30af",
+      "versionStderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "foundation-empty",
+      "engine": "2.31.1",
+      "fixtureSourceSha": "7df65d2f1b3f6b561a9c3e568897d2368b233c47",
+      "configSha256": "2adfbe05017a43cd90057404f2092e0e5fa88c7e42ef1483cef0998920b118ab",
+      "planSha256": "c920f7087960503db189c7135cbe79fc64613aef478ff6bd281a182349d12889",
+      "diffSha256": "dbaf8049680a8eafd74039c8ad4635e84493c8aaeef1bb70acbaf8de262e5dce",
+      "status": {
+        "planStatus": 0,
+        "versionStatus": 0
+      },
+      "plan": {
+        "changesets": [
+          {
+            "releases": [],
+            "summary": "Qualification empty.",
+            "id": "empty"
+          }
+        ],
+        "releases": []
+      },
+      "changes": [],
+      "consumedIntents": [
+        "empty.md"
+      ],
+      "remainingIntents": [],
+      "versionStdoutSha256": "dcccf189565497aac06bf5d1ce187bd2c26431861f43a9a26c1b895b21ac30af",
+      "versionStderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "gm-symbolic",
+      "engine": "3.0.2",
+      "fixtureSourceSha": "28e150250f84a78074b4d80244b64dafb8463599",
+      "configSha256": "9e8c42fe9e2a94ec2ea8d5e122f0aff0636c3e9ded8fe7ed2e6559cdfbf548f6",
+      "planSha256": "19f8bd09f74d9f8be8829bda2a384d6151209428e635cae1653efb19269d8cc2",
+      "diffSha256": "fe319db70120201464497f35b4f3fd3a9464ccb02b8e212e12fc18d6520ed2ad",
+      "status": {
+        "planStatus": 0,
+        "versionStatus": 0
+      },
+      "plan": {
+        "changesets": [
+          {
+            "releases": [
+              {
+                "name": "@get-modular/core",
+                "type": "minor"
+              },
+              {
+                "name": "@get-modular/resources",
+                "type": "minor"
+              }
+            ],
+            "summary": "Qualification release.",
+            "id": "release"
+          }
+        ],
+        "releases": [
+          {
+            "name": "@get-modular/core",
+            "type": "minor",
+            "oldVersion": "0.6.0",
+            "changesets": [
+              "release"
+            ],
+            "newVersion": "0.7.0"
+          },
+          {
+            "name": "@get-modular/resources",
+            "type": "minor",
+            "oldVersion": "0.2.0",
+            "changesets": [
+              "release"
+            ],
+            "newVersion": "0.3.0"
+          },
+          {
+            "name": "@get-modular/assembly",
+            "type": "patch",
+            "oldVersion": "0.6.0",
+            "changesets": [],
+            "newVersion": "0.6.1"
+          },
+          {
+            "name": "@get-modular/conformance",
+            "type": "patch",
+            "oldVersion": "0.4.0",
+            "changesets": [],
+            "newVersion": "0.4.1"
+          },
+          {
+            "name": "@get-modular/observation",
+            "type": "patch",
+            "oldVersion": "0.1.0",
+            "changesets": [],
+            "newVersion": "0.1.1"
+          }
+        ]
+      },
+      "changes": [
+        {
+          "name": "@get-modular/assembly",
+          "oldVersion": "0.6.0",
+          "newVersion": "0.6.1",
+          "versionOnly": true
+        },
+        {
+          "name": "@get-modular/conformance",
+          "oldVersion": "0.4.0",
+          "newVersion": "0.4.1",
+          "versionOnly": true
+        },
+        {
+          "name": "@get-modular/core",
+          "oldVersion": "0.6.0",
+          "newVersion": "0.7.0",
+          "versionOnly": true
+        },
+        {
+          "name": "@get-modular/observation",
+          "oldVersion": "0.1.0",
+          "newVersion": "0.1.1",
+          "versionOnly": true
+        },
+        {
+          "name": "@get-modular/resources",
+          "oldVersion": "0.2.0",
+          "newVersion": "0.3.0",
+          "versionOnly": true
+        }
+      ],
+      "consumedIntents": [
+        "release.md"
+      ],
+      "remainingIntents": [],
+      "versionStdoutSha256": "74c9321d72ace35c8103a655610ebe9054642673a2abf4d00ec4f15c7bca35f2",
+      "versionStderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "gm-private",
+      "engine": "3.0.2",
+      "fixtureSourceSha": "705939047d965eaf591a3cc26f4ee604c945c5d4",
+      "configSha256": "9e8c42fe9e2a94ec2ea8d5e122f0aff0636c3e9ded8fe7ed2e6559cdfbf548f6",
+      "planSha256": "a7780f9e1f8ff25ca6a4b2ffb1a555ec03399b5663f4f6460e19a2ba1a8495a1",
+      "diffSha256": "525188146333b71d2eb1b1f13efb9f74dec1b9e4ca6515f519864bb3c9017b99",
+      "status": {
+        "planStatus": 0,
+        "versionStatus": 0
+      },
+      "plan": {
+        "changesets": [
+          {
+            "releases": [
+              {
+                "name": "@get-modular/lifecycle-kernel",
+                "type": "minor"
+              }
+            ],
+            "summary": "Qualification private.",
+            "id": "private"
+          },
+          {
+            "releases": [
+              {
+                "name": "@get-modular/core",
+                "type": "patch"
+              }
+            ],
+            "summary": "Qualification release.",
+            "id": "release"
+          }
+        ],
+        "releases": [
+          {
+            "name": "@get-modular/core",
+            "type": "patch",
+            "oldVersion": "0.6.0",
+            "changesets": [
+              "release"
+            ],
+            "newVersion": "0.6.1"
+          },
+          {
+            "name": "@get-modular/assembly",
+            "type": "patch",
+            "oldVersion": "0.6.0",
+            "changesets": [],
+            "newVersion": "0.6.1"
+          }
+        ]
+      },
+      "changes": [
+        {
+          "name": "@get-modular/assembly",
+          "oldVersion": "0.6.0",
+          "newVersion": "0.6.1",
+          "versionOnly": true
+        },
+        {
+          "name": "@get-modular/core",
+          "oldVersion": "0.6.0",
+          "newVersion": "0.6.1",
+          "versionOnly": true
+        }
+      ],
+      "consumedIntents": [
+        "release.md"
+      ],
+      "remainingIntents": [
+        "private.md"
+      ],
+      "versionStdoutSha256": "74c9321d72ace35c8103a655610ebe9054642673a2abf4d00ec4f15c7bca35f2",
+      "versionStderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "gm-ignored",
+      "engine": "3.0.2",
+      "fixtureSourceSha": "b4990e6289d15085cfa64cc61defa057eb8b7e55",
+      "configSha256": "04a2c39e1ddcaba67c3c93311dd381436d63b35fb2cc4e87e93dd0b969f4c584",
+      "planSha256": "893174388055a76481340158c6176e6a55136c679758334a034ce27c5b4d8ae0",
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "status": {
+        "planStatus": 0,
+        "versionStatus": 0
+      },
+      "plan": {
+        "changesets": [
+          {
+            "releases": [
+              {
+                "name": "@get-modular/observation",
+                "type": "minor"
+              }
+            ],
+            "summary": "Qualification ignored.",
+            "id": "ignored"
+          }
+        ],
+        "releases": []
+      },
+      "changes": [],
+      "consumedIntents": [],
+      "remainingIntents": [
+        "ignored.md"
+      ],
+      "versionStdoutSha256": "74c9321d72ace35c8103a655610ebe9054642673a2abf4d00ec4f15c7bca35f2",
+      "versionStderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "gm-empty",
+      "engine": "3.0.2",
+      "fixtureSourceSha": "6d1ba1cb269bc1c5252be5c98befab941b250d46",
+      "configSha256": "9e8c42fe9e2a94ec2ea8d5e122f0aff0636c3e9ded8fe7ed2e6559cdfbf548f6",
+      "planSha256": "c920f7087960503db189c7135cbe79fc64613aef478ff6bd281a182349d12889",
+      "diffSha256": "dbaf8049680a8eafd74039c8ad4635e84493c8aaeef1bb70acbaf8de262e5dce",
+      "status": {
+        "planStatus": 0,
+        "versionStatus": 0
+      },
+      "plan": {
+        "changesets": [
+          {
+            "releases": [],
+            "summary": "Qualification empty.",
+            "id": "empty"
+          }
+        ],
+        "releases": []
+      },
+      "changes": [],
+      "consumedIntents": [
+        "empty.md"
+      ],
+      "remainingIntents": [],
+      "versionStdoutSha256": "74c9321d72ace35c8103a655610ebe9054642673a2abf4d00ec4f15c7bca35f2",
+      "versionStderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "foundation-no-intent",
+      "engine": "2.31.1",
+      "fixtureSourceSha": "5e0bcb75bb332ec56a21847d3612529ca69aed16",
+      "configSha256": "2adfbe05017a43cd90057404f2092e0e5fa88c7e42ef1483cef0998920b118ab",
+      "planSha256": "4ec7c626b19296521c4582c178975c4327a5ab42a27d2883138e9f3a605c2441",
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "status": {
+        "planStatus": 0,
+        "versionStatus": 0
+      },
+      "plan": {
+        "changesets": [],
+        "releases": []
+      },
+      "changes": [],
+      "consumedIntents": [],
+      "remainingIntents": [],
+      "versionStdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "versionStderrSha256": "e34d2851691a23e25efa3442636a3e2c45820d80f980167d5c474f2cca606c57"
+    },
+    {
+      "id": "gm-no-intent",
+      "engine": "3.0.2",
+      "fixtureSourceSha": "29ff09e9cf44483acaac50de94203b7385100f06",
+      "configSha256": "9e8c42fe9e2a94ec2ea8d5e122f0aff0636c3e9ded8fe7ed2e6559cdfbf548f6",
+      "planSha256": "4ec7c626b19296521c4582c178975c4327a5ab42a27d2883138e9f3a605c2441",
+      "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "status": {
+        "planStatus": 0,
+        "versionStatus": 1
+      },
+      "plan": {
+        "changesets": [],
+        "releases": []
+      },
+      "changes": [],
+      "consumedIntents": [],
+      "remainingIntents": [],
+      "versionStdoutSha256": "663c0246d6adf26e688c21fd8d7460b290ff1b1a7f1487f13ce2de0f1b53acc4",
+      "versionStderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "gm-symbolic-v2",
+      "engine": "2.31.1",
+      "fixtureSourceSha": "5eb3a44d921e82d455755a6abb3c70b91fd2b5de",
+      "configSha256": "9e8c42fe9e2a94ec2ea8d5e122f0aff0636c3e9ded8fe7ed2e6559cdfbf548f6",
+      "planSha256": "e335ab75a22f58da73a6c3a12d9603eb6698f9d10dccb71a45b71a7562edd3e8",
+      "diffSha256": "0730fd21df7230e6709a80afe3b9a295e35bca57b5acb87563dc5d1a8c8ca01a",
+      "status": {
+        "planStatus": 0,
+        "versionStatus": 0
+      },
+      "plan": {
+        "changesets": [
+          {
+            "releases": [
+              {
+                "name": "@get-modular/core",
+                "type": "minor"
+              },
+              {
+                "name": "@get-modular/resources",
+                "type": "minor"
+              }
+            ],
+            "summary": "Qualification release.",
+            "id": "release"
+          }
+        ],
+        "releases": [
+          {
+            "name": "@get-modular/core",
+            "type": "minor",
+            "oldVersion": "0.6.0",
+            "changesets": [
+              "release"
+            ],
+            "newVersion": "0.7.0"
+          },
+          {
+            "name": "@get-modular/resources",
+            "type": "minor",
+            "oldVersion": "0.2.0",
+            "changesets": [
+              "release"
+            ],
+            "newVersion": "0.3.0"
+          },
+          {
+            "name": "@get-modular/assembly",
+            "type": "patch",
+            "oldVersion": "0.6.0",
+            "changesets": [],
+            "newVersion": "0.6.1"
+          },
+          {
+            "name": "@get-modular/conformance",
+            "type": "major",
+            "oldVersion": "0.4.0",
+            "changesets": [],
+            "newVersion": "1.0.0"
+          },
+          {
+            "name": "@get-modular/observation",
+            "type": "major",
+            "oldVersion": "0.1.0",
+            "changesets": [],
+            "newVersion": "1.0.0"
+          }
+        ]
+      },
+      "changes": [
+        {
+          "name": "@get-modular/assembly",
+          "oldVersion": "0.6.0",
+          "newVersion": "0.6.1",
+          "versionOnly": true
+        },
+        {
+          "name": "@get-modular/conformance",
+          "oldVersion": "0.4.0",
+          "newVersion": "1.0.0",
+          "versionOnly": true
+        },
+        {
+          "name": "@get-modular/core",
+          "oldVersion": "0.6.0",
+          "newVersion": "0.7.0",
+          "versionOnly": true
+        },
+        {
+          "name": "@get-modular/observation",
+          "oldVersion": "0.1.0",
+          "newVersion": "1.0.0",
+          "versionOnly": true
+        },
+        {
+          "name": "@get-modular/resources",
+          "oldVersion": "0.2.0",
+          "newVersion": "0.3.0",
+          "versionOnly": true
+        }
+      ],
+      "consumedIntents": [
+        "release.md"
+      ],
+      "remainingIntents": [],
+      "versionStdoutSha256": "dcccf189565497aac06bf5d1ce187bd2c26431861f43a9a26c1b895b21ac30af",
+      "versionStderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "foundation-mixed",
+      "engine": "2.31.1",
+      "fixtureSourceSha": "c37e4bd8bb1ae5e23a18abb9e0a9c4b0e8a5492a",
+      "configSha256": "0f6745e23876972f49ed33235e9347f7c9d09904b59531f8025ce8e204b5e361",
+      "planSha256": "916290cce831e43f4ae57ba4f44dc3e3dfe6275d9c3acb147e97108668a5b6f9",
+      "diffSha256": "c1c7a8f392e6c227df9478a4a3967735468f8d8012bed824042f73a979138d5c",
+      "status": {
+        "planStatus": 0,
+        "versionStatus": 0
+      },
+      "plan": {
+        "changesets": [
+          {
+            "releases": [],
+            "summary": "Qualification empty.",
+            "id": "empty"
+          },
+          {
+            "releases": [
+              {
+                "name": "@agent-teams/ci-input-proof",
+                "type": "minor"
+              }
+            ],
+            "summary": "Qualification ignored.",
+            "id": "ignored"
+          },
+          {
+            "releases": [
+              {
+                "name": "@agent-teams/engineering-foundation",
+                "type": "patch"
+              }
+            ],
+            "summary": "Qualification release.",
+            "id": "release"
+          }
+        ],
+        "releases": [
+          {
+            "name": "@agent-teams/engineering-foundation",
+            "type": "patch",
+            "oldVersion": "1.10.1",
+            "changesets": [
+              "release"
+            ],
+            "newVersion": "1.10.2"
+          },
+          {
+            "name": "@agent-teams/feature-module-standard",
+            "type": "none",
+            "oldVersion": "0.1.2",
+            "changesets": [],
+            "newVersion": "0.1.2"
+          }
+        ]
+      },
+      "changes": [
+        {
+          "name": "@agent-teams/engineering-foundation",
+          "oldVersion": "1.10.1",
+          "newVersion": "1.10.2",
+          "versionOnly": true
+        }
+      ],
+      "consumedIntents": [
+        "empty.md",
+        "release.md"
+      ],
+      "remainingIntents": [
+        "ignored.md"
+      ],
+      "versionStdoutSha256": "dcccf189565497aac06bf5d1ce187bd2c26431861f43a9a26c1b895b21ac30af",
+      "versionStderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "gm-mixed",
+      "engine": "3.0.2",
+      "fixtureSourceSha": "4836eb95c3746459463ca6eca99f37ed1cc54d0f",
+      "configSha256": "04a2c39e1ddcaba67c3c93311dd381436d63b35fb2cc4e87e93dd0b969f4c584",
+      "planSha256": "e64fcde803ac74810a913db40cba95b9164994b7aa6b29e6aa70c75a3866714f",
+      "diffSha256": "b143e173f359a8e9687ef4ffa950b151bb5282426b6f9b0ec22509d60b8177c8",
+      "status": {
+        "planStatus": 0,
+        "versionStatus": 0
+      },
+      "plan": {
+        "changesets": [
+          {
+            "releases": [],
+            "summary": "Qualification empty.",
+            "id": "empty"
+          },
+          {
+            "releases": [
+              {
+                "name": "@get-modular/observation",
+                "type": "minor"
+              }
+            ],
+            "summary": "Qualification ignored.",
+            "id": "ignored"
+          },
+          {
+            "releases": [
+              {
+                "name": "@get-modular/lifecycle-kernel",
+                "type": "minor"
+              }
+            ],
+            "summary": "Qualification private.",
+            "id": "private"
+          },
+          {
+            "releases": [
+              {
+                "name": "@get-modular/core",
+                "type": "patch"
+              }
+            ],
+            "summary": "Qualification release.",
+            "id": "release"
+          }
+        ],
+        "releases": [
+          {
+            "name": "@get-modular/core",
+            "type": "patch",
+            "oldVersion": "0.6.0",
+            "changesets": [
+              "release"
+            ],
+            "newVersion": "0.6.1"
+          },
+          {
+            "name": "@get-modular/assembly",
+            "type": "patch",
+            "oldVersion": "0.6.0",
+            "changesets": [],
+            "newVersion": "0.6.1"
+          }
+        ]
+      },
+      "changes": [
+        {
+          "name": "@get-modular/assembly",
+          "oldVersion": "0.6.0",
+          "newVersion": "0.6.1",
+          "versionOnly": true
+        },
+        {
+          "name": "@get-modular/core",
+          "oldVersion": "0.6.0",
+          "newVersion": "0.6.1",
+          "versionOnly": true
+        }
+      ],
+      "consumedIntents": [
+        "empty.md",
+        "release.md"
+      ],
+      "remainingIntents": [
+        "ignored.md",
+        "private.md"
+      ],
+      "versionStdoutSha256": "74c9321d72ace35c8103a655610ebe9054642673a2abf4d00ec4f15c7bca35f2",
+      "versionStderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

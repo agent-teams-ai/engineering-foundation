@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-10-23T19:43:53.915693+00:00",
+  "scope": "P0 interactive maintainer readiness, not token creation or publication authority",
+  "npmIdentity": "ilyazelenko",
+  "organization": "agent-teams",
+  "organizationRole": "owner",
+  "cliLogin": "successful after owner security-key confirmation",
+  "existingFoundationPackageAccess": "read-write",
+  "interactiveGranularTokenForm": "accessible after separate owner security-key confirmation",
+  "availablePackagePermission": "Read and write (publish and stage)",
+  "tokenCreated": false,
+  "environment": "npm-package-bootstrap",
+  "environmentReviewer": "777genius",
+  "environmentSecrets": [],
+  "bootstrapEnabled": false,
+  "pending": [
+    "successful final-head/current-base full native qualification",
+    "fresh merged-main CI with all five bootstrap contexts before timed token creation",
+    "protected bootstrap and separate Trusted Publisher setup/credential cleanup",
+    "supported release and real public consumer qualification"
+  ]
+}

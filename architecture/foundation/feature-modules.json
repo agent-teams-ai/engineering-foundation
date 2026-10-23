@@ -2275,6 +2275,52 @@
         "packages/stack-toolchain/tests/process.test.ts",
         "packages/stack-toolchain/tests/typecheck.test.ts"
       ]
+    },
+    {
+      "id": "release-checks",
+      "packageName": "@agent-teams/release-checks",
+      "root": "packages/release-checks",
+      "sourceRoot": "packages/release-checks/src",
+      "role": "platform",
+      "preferredFeatureRoot": "packages/release-checks/src/features",
+      "publicEntrypoints": [
+        "packages/release-checks/src/index.ts",
+        "packages/release-checks/src/features/candidate-checking/conformance.ts"
+      ],
+      "moduleAssembly": [
+        "packages/release-checks/src/index.ts"
+      ],
+      "generatedRoots": [],
+      "exceptions": [],
+      "features": [
+        {
+          "id": "candidate-checking",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/release-checks/src/features/candidate-checking/application",
+                "packages/release-checks/src/features/candidate-checking/api.ts"
+              ]
+            },
+            {
+              "role": "testing",
+              "roots": [
+                "packages/release-checks/src/features/candidate-checking/conformance.ts"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/features/release-checks/candidate-checking.test.ts",
+            "tests/features/release-checks/conformance.test.ts"
+          ]
+        }
+      ],
+      "testRoots": [
+        "tests/features/release-checks/candidate-checking.test.ts",
+        "tests/features/release-checks/conformance.test.ts"
+      ]
     }
   ],
   "productionRoots": [

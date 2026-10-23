@@ -10,7 +10,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { NPM_PACKAGE_BOOTSTRAP, bootstrapPackageById } from "../scripts/npm-package-bootstrap.mjs";
 import { PUBLISHABLE_PACKAGE_DEPENDENCIES, PUBLISHABLE_PACKAGES, publishablePackageByName } from "../scripts/publishable-packages.mjs";
 import { DOCS_MCP_PACKAGE } from "../scripts/release-publish-ordered.mjs";
-import { commandEnvironment, commandShim } from "./support/release-publish-policy-fixtures.mjs";
+import { commandEnvironment, commandShim, publicLeafFixture } from "./support/release-publish-policy-fixtures.mjs";
 import {
   changesetsPublishArguments,
   main,
@@ -22,6 +22,7 @@ import {
 
 const foundation = { name: "@agent-teams/engineering-foundation", version: "0.16.0" };
 const ciInputProof = { name: "@agent-teams/ci-input-proof", version: "0.0.0" };
+const releaseChecks = { name: publishablePackageByName("@agent-teams/release-checks").name, version: "0.0.0" };
 const featureModuleStandard = { name: "@agent-teams/feature-module-standard", version: "0.0.0" };
 const repositoryMutation = { name: publishablePackageByName("@agent-teams/repository-mutation").name, version: "0.0.0" };
 const documentAuthoring = { name: publishablePackageByName("@agent-teams/document-authoring").name, version: "0.0.0" };
@@ -381,10 +382,9 @@ async function fixture(root, registry) {
   await writeFile(join(root, "bunfig.toml"), "[install]\nlinkWorkspacePackages = false\n");
   await writeFile(join(root, ".node-version"), "24.6.0\n");
   await writeFile(join(root, ".pnpmfile.cjs"), "module.exports = { hooks: {} };\n");
-  await json(join(root, "packages/ci-input-proof/package.json"), { ...ciInputProof, publishConfig: { registry } });
-  await writeFile(join(root, "packages/ci-input-proof/dist.js"), "export const proof = 1;\n");
-  await json(join(root, "packages/feature-module-standard/package.json"), { ...featureModuleStandard, publishConfig: { registry } });
-  await writeFile(join(root, "packages/feature-module-standard/dist.js"), "export const standard = 1;\n");
+  await publicLeafFixture(root, ciInputProof, registry, "proof");
+  await publicLeafFixture(root, releaseChecks, registry, "checks");
+  await publicLeafFixture(root, featureModuleStandard, registry, "standard");
   await json(join(root, "packages/document-authoring/package.json"), {
     ...documentAuthoring,
     dependencies: Object.fromEntries(PUBLISHABLE_PACKAGE_DEPENDENCIES[documentAuthoring.name]
@@ -400,8 +400,7 @@ async function fixture(root, registry) {
     version: docsBootstrap.dependencies[0].version,
   });
   await writeFile(join(root, "packages/engineering-foundation/dist.js"), "export const build = 1;\n");
-  await json(join(root, "packages/repository-mutation/package.json"), { ...repositoryMutation, publishConfig: { registry } });
-  await writeFile(join(root, "packages/repository-mutation/dist.js"), "export const mutation = 1;\n");
+  await publicLeafFixture(root, repositoryMutation, registry, "mutation");
   await json(join(root, "packages/docs-protocol/package.json"), {
     ...docsProtocol,
     dependencies: Object.fromEntries(PUBLISHABLE_PACKAGE_DEPENDENCIES[docsProtocol.name]
@@ -431,6 +430,7 @@ async function fixture(root, registry) {
     initialVersions: {
       ...freshPreState.initialVersions, "stack-toolchain": "0.0.0",
       [ciInputProof.name]: ciInputProof.version,
+      [releaseChecks.name]: releaseChecks.version,
       [featureModuleStandard.name]: featureModuleStandard.version,
       [docsProtocol.name]: docsProtocol.version,
       [docsProtocolAdapter.name]: docsProtocolAdapter.version,
@@ -581,7 +581,7 @@ test("publish entrypoint independently rejects every publish-control drift bound
 
 test("real release entrypoint proves multi-package registry state and fails closed on drift", async (t) => {
   const versions = new Map([["stack-toolchain", new Set(["0.0.0"])],
-    ...[ciInputProof, featureModuleStandard, docsProtocol, docsProtocolAdapter, documentAuthoring, foundation, repositoryMutation]
+    ...[ciInputProof, releaseChecks, featureModuleStandard, docsProtocol, docsProtocolAdapter, documentAuthoring, foundation, repositoryMutation]
       .map((item) => [item.name, new Set([item.version])]),
     [docsProtocolMcp.name, new Set([docsProtocolMcpBaselineVersion])],
   ]);

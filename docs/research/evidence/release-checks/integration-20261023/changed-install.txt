@@ -1,0 +1,24 @@
+Source: e162299f0505b95af02adca4edf9a363c91a731a
+Profile: /workspace/scratch/57dc7bcc28f6/foundation-release-checks-oct23/.worker-tmp/profiles/check-changed-TJ6L4Y
+Scope: all 12 workspace projects
+? Verifying lockfile against supply-chain policies (804 entries)...
+✓ Lockfile passes supply-chain policies (804 entries in 8ms)
+Lockfile is up to date, resolution step is skipped
+Progress: resolved 1, reused 0, downloaded 0, added 0
+Packages: +645
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Progress: resolved 645, reused 202, downloaded 0, added 0
+Packages are copied from the content-addressable store to the virtual store.
+  Content-addressable store is at: /root/.local/share/pnpm/store/v11
+  Virtual store is at:             node_modules/.pnpm
+Progress: resolved 645, reused 353, downloaded 52, added 4
+Progress: resolved 645, reused 353, downloaded 101, added 8
+Progress: resolved 645, reused 353, downloaded 156, added 13
+Progress: resolved 645, reused 353, downloaded 269, added 23
+Progress: resolved 645, reused 353, downloaded 273, added 24
+Progress: resolved 645, reused 353, downloaded 278, added 24
+[WARN] GET https://registry.npmjs.org/@openai/codex/-/codex-0.146.0-linux-x64.tgz error (23). Will retry in 10 seconds. 2 retries left.
+[WARN] GET https://registry.npmjs.org/@oven/bun-linux-x64/-/bun-linux-x64-1.4.3.tgz error (23). Will retry in 10 seconds. 2 retries left.
+Progress: resolved 645, reused 353, downloaded 290, added 384
+Progress: resolved 645, reused 353, downloaded 290, added 642
+Progress: resolved 645, reused 353, downloaded 290, added 643

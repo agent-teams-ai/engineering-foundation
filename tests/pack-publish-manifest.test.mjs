@@ -14,9 +14,10 @@ import { PUBLISHABLE_PACKAGES } from "../scripts/publishable-packages.mjs";
 import { packAndInspectArtifact, snapshotVerifiedArtifact } from "../scripts/pack-artifact-e2e.mjs";
 import { canonicalPublishManifest, npmPackManifest } from "../scripts/pack-artifact-stage-support.mjs";
 import { createPackFixture, qualifiedArchive } from "./pack-publishable-artifacts-support.mjs";
+import { repositorySourceRoot } from "./support/repository-source.ts";
 
 test("pending Foundation releases version FMS when its canonical packed manifest changes", async () => {
-  const root = fileURLToPath(new URL("..", import.meta.url));
+  const root = await repositorySourceRoot();
   const require = createRequire(import.meta.url);
   const changesets = createRequire(require.resolve("@changesets/cli/package.json"));
   const plan = await changesets("@changesets/get-release-plan").default(root);
@@ -27,7 +28,7 @@ test("pending Foundation releases version FMS when its canonical packed manifest
     return;
   }
   const manifest = JSON.parse(await readFile(new URL("../packages/feature-module-standard/package.json", import.meta.url), "utf8"));
-  const rootManifest = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+  const rootManifest = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
   const project = version => canonicalPublishManifest(manifest, {
     catalogVersions: new Map(Object.entries(rootManifest.workspaces.catalog)),
     internalPackageVersions: new Map([[foundationName, version]]),
@@ -51,7 +52,7 @@ test("official Changesets status and version keep the compatible Foundation 2 FM
   const root = await mkdtemp(join(tmpdir(), "fms-compatible-release-TEST-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   // Status consults Git's base; borrow only committed objects, with fixture-owned refs.
-  const sourceRoot = fileURLToPath(new URL("..", import.meta.url));
+  const sourceRoot = await repositorySourceRoot();
   const clone = spawnSync("git", ["clone", "--shared", "--no-checkout", "--quiet", sourceRoot, root], { encoding: "utf8" });
   assert.equal(clone.status, 0, clone.stdout + clone.stderr);
   const base = spawnSync("git", ["update-ref", "refs/heads/main", "HEAD"], { cwd: root, encoding: "utf8" });

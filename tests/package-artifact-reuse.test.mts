@@ -12,7 +12,7 @@ import { retainArchiveCustody, verifyArchiveCustody } from "../scripts/package-a
 import { runCommand } from "../scripts/pack-test-support.mjs";
 import { verifyInstalledTargetPayload } from "../scripts/registry-installed-package-qualification.mjs";
 import { qualifiedArchive } from "./pack-publishable-artifacts-support.mjs";
-import { projectPackageManager } from "../tools/dev.mts";
+import { readRepositoryRuntimePolicy } from "../tools/runtime-policy.mts";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 
@@ -127,6 +127,10 @@ async function producerFixture(t: TestContext, { failBuild = false } = {}) {
   const source = join(root, "source");
   await mkdir(source);
   await cp(join(repositoryRoot, "scripts"), join(source, "scripts"), { recursive: true });
+  for (const path of ["tools/executable-policy.mts", "tools/runtime-policy.mts", "architecture/foundation/repository-runtime.json"]) {
+    await mkdir(dirname(join(source, path)), { recursive: true });
+    await copyFile(join(repositoryRoot, path), join(source, path));
+  }
   await mkdir(join(source, "packages"));
   // Use the real compiled library with its assets and package-local dependencies;
   // only the two disposable publication targets below belong to TEST authority.
@@ -146,8 +150,9 @@ async function producerFixture(t: TestContext, { failBuild = false } = {}) {
   }
   // This owned producer declares pnpm for its real packaging commands; linked
   // dependencies remain the source graph, not a freshly installed pnpm profile.
-  await writeFile(join(source, "package.json"), projectPackageManager(
-    await readFile(join(repositoryRoot, "package.json"), "utf8"), "pnpm@11.20.0"));
+  const manifest = JSON.parse(await readFile(join(repositoryRoot, "package.json"), "utf8"));
+  manifest.packageManager = `pnpm@${(await readRepositoryRuntimePolicy()).toolchain.pnpm.version}`;
+  await writeFile(join(source, "package.json"), JSON.stringify(manifest));
   await writeFile(join(source, "pnpm-workspace.yaml"), "packages:\n  - packages/*\n");
   const catalog = ["a", "b"].map(leaf => ({ name: `@fixture/${leaf}`, root: `packages/${leaf}`,
     manifestPath: `packages/${leaf}/package.json`, changelogPath: `packages/${leaf}/CHANGELOG.md` }));

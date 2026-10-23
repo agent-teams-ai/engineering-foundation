@@ -321,6 +321,11 @@
       "id": "ADR-0067",
       "path": "docs/decisions/0067-foundation-three-preset-export-removal.md",
       "immutableDigest": "sha256:3775a92f1ab66ad01f2a6d11756491c9f95573cf01d20cf6bd5f8683031b7614"
+    },
+    {
+      "id": "ADR-0068",
+      "path": "docs/decisions/0068-release-checks-package-admission.md",
+      "immutableDigest": "sha256:07027f445a8f61324e2999a892372c19696878b7d7732d653d56b73ec7217d66"
     }
   ]
 }

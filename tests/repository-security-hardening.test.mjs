@@ -9,6 +9,7 @@ import test from "node:test";
 
 import { parse as parseYaml } from "yaml";
 import { sha256, digestWorkflows } from "./support/repository-security-digests.mjs";
+import { repositorySourceRoot } from "./support/repository-source.ts";
 
 registerSecurityObservationPortTests();
 
@@ -466,9 +467,10 @@ test("rejects a stale pull_request_target workflow declaration", async () => {
 });
 
 test("repository CI preserves admitted runtime security scans and Node qualification gates", async () => {
+  const sourceRoot = await repositorySourceRoot();
   const [workflow, manifest, policy, runtimeBytes, { TOOL_COMMANDS }, profileDriver, securityToolchain] = await Promise.all([
     readFile(join(repositoryRoot, ".github", "workflows", "ci.yml"), "utf8"),
-    readFile(join(repositoryRoot, "package.json"), "utf8"),
+    readFile(join(sourceRoot, "package.json"), "utf8"),
     readFile(join(repositoryRoot, "architecture/foundation/repository-security-baseline.yaml"), "utf8"),
     readFile(join(repositoryRoot, "architecture/foundation/repository-runtime.json"), "utf8"),
     import("../tools/repository-tool-catalog.ts"),
@@ -486,10 +488,8 @@ test("repository CI preserves admitted runtime security scans and Node qualifica
   assert.match(macosMutationQualification, /tests\/known-file-transaction-node\.test\.mjs[\s\S]*tests\/known-file-transaction-plan\.test\.mjs[\s\S]*tests\/scaffolding-recovery-scope\.test\.mjs/u);
   for (const [jobId, job] of Object.entries(ci.jobs)) {
     if (jobId === "dependency-review") { continue; }
-    assert.ok(
-      Array.isArray(job.needs) ? job.needs.includes("dependency-review") : job.needs === "dependency-review",
-      `${jobId} must depend directly on dependency-review`,
-    );
+    assert.ok(Array.isArray(job.needs) ? job.needs.includes("dependency-review") : job.needs === "dependency-review",
+      `${jobId} must depend directly on dependency-review`);
   }
   const staticSteps = ci.jobs["linux-static"].steps;
   const installIndex = staticSteps.findIndex(({ run }) => run === "bun tools/dev.mts install");

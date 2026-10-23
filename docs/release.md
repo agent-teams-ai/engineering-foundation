@@ -439,6 +439,22 @@ package outside that Cohort, admitted by
 only the deprecated bootstrap `0.0.0` registry version. Its reviewed bootstrap
 integrity and package tree remain in the historical catalog; the runner and its
 first supported `0.1.0` release pass the normal release gates.
+The dependency-free `@agent-teams/release-checks` is an independent source
+package outside that Cohort, admitted by
+[ADR-0068](decisions/0068-release-checks-package-admission.md). Its source
+manifest is `0.0.0` with minor Changesets intent; the
+[admission record](development/release-checks-admission.md) distinguishes its
+current source, installed qualification and pending publication. Its exact
+Ubuntu writer tree/SRI received retained content review on 2026-10-23 and is
+approved in the bootstrap profile. Adding it to the closed catalog blocks
+**every ordinary Foundation publication** until the existing protected
+namespace bootstrap has reviewed approval and the immutable deprecated
+`0.0.0` baseline. Required interactive npm readiness was blocked at preflight,
+so public admission remains unmerged while source/review/CI preparation is
+completed. Final-head/current-base full CI must reproduce that approved archive
+under the current writer inputs before merge; the retained earlier run does not
+qualify the integrated source. Require fresh protected-main CI after merge before creating its timed
+credential. Provision no short-lived token or bootstrap enablement early.
 An internal package is declared once, as `workspace:*`. The one exception is an
 optional peer caret range (`peerDependencies` `workspace:^`, or an explicit stable
 minimum such as `workspace:^1.8.0`, or explicit stable caret branches such as
@@ -543,7 +559,7 @@ fresh metadata with `--prefer-online`. It retries the exact package attestation
 E404 or a successful audit whose `invalid`, `missing` and `verified` arrays are
 all empty. Every other result must pass the complete cryptographic checks
 immediately. The audit keeps the 120-second subprocess bound and forced termination. The Release job remains bounded to 60 minutes overall;
-eight worst-case visibility waits need not fit in one run. A failed partial
+ten worst-case visibility waits need not fit in one run. A failed partial
 train still requires fresh state review and exact immutable reuse before an
 owner-controlled continuation; availability alone does not complete the
 GitHub reconciliation or required public consumer qualification.

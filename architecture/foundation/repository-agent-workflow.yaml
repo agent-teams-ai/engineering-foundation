@@ -45,7 +45,7 @@ scopes:
     checks: [repository]
 checks:
   - id: repository
-    script: check
+    script: check:changed:repository
     prerequisites: []
     supplies: [lint, typecheck, tests, standards, architecture]
     observation: test-dispatch/v1

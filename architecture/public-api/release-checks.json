@@ -1,0 +1,221 @@
+{
+  "schemaVersion": 1,
+  "packageName": "@agent-teams/release-checks",
+  "packageVersion": "0.0.0",
+  "extractorVersion": "typescript-native/7.0.2",
+  "entrypoints": [
+    {
+      "exportPath": ".",
+      "items": [
+        {
+          "canonicalReference": "@agent-teams/release-checks!ChangeKind:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/release-checks!",
+          "parentKind": "EntryPoint",
+          "signature": "export type ChangeKind = 'added' | 'modified' | 'deleted';"
+        },
+        {
+          "canonicalReference": "@agent-teams/release-checks!CheckReport:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/release-checks!",
+          "parentKind": "EntryPoint",
+          "signature": "export type CheckReport = Readonly<{\n    schemaVersion: 1;\n    outcome: 'passed';\n    diagnostics: readonly [\n    ];\n    packageChanges: readonly PackageChange[];\n}> | Readonly<{\n    schemaVersion: 1;\n    outcome: 'rejected';\n    diagnostics: readonly Diagnostic[];\n    packageChanges: readonly PackageChange[];\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/release-checks!ConsumptionEffect:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/release-checks!",
+          "parentKind": "EntryPoint",
+          "signature": "export type ConsumptionEffect = Readonly<{\n    kind: 'remove';\n}> | Readonly<{\n    kind: 'record';\n    evidencePath: string;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/release-checks!Diagnostic:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/release-checks!",
+          "parentKind": "EntryPoint",
+          "signature": "export type Diagnostic = Readonly<{\n    code: DiagnosticCode;\n    packageName?: string;\n    path?: string;\n    intentId?: string;\n    message: string;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/release-checks!DiagnosticCode:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/release-checks!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DiagnosticCode = 'input.invalid' | 'identity.duplicate' | 'inventory.ambiguous' | 'binding.mismatch' | 'package.unknown' | 'manifest.missing' | 'manifest.identity' | 'manifest.source-mismatch' | 'manifest.content-changed' | 'plan.version-mismatch' | 'plan.unexpected-version' | 'intent.unknown' | 'intent.coverage' | 'intent.consumption' | 'diff.unexpected' | 'diff.inconsistent';"
+        },
+        {
+          "canonicalReference": "@agent-teams/release-checks!ExpectedInputs:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/release-checks!",
+          "parentKind": "EntryPoint",
+          "signature": "export type ExpectedInputs = Readonly<{\n    binding: InputBinding;\n    packages: readonly WorkspacePackage[];\n    intents: readonly ReleaseIntent[];\n    plan: Readonly<{\n        releases: readonly PlannedRelease[];\n        consumptions: readonly PlannedConsumption[];\n    }>;\n    permittedChanges: readonly PermittedChange[];\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/release-checks!FileChange:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/release-checks!",
+          "parentKind": "EntryPoint",
+          "signature": "export type FileChange = Readonly<{\n    path: string;\n    classification: string;\n    kind: ChangeKind;\n    before: FileLeaf | null;\n    after: FileLeaf | null;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/release-checks!FileLeaf:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/release-checks!",
+          "parentKind": "EntryPoint",
+          "signature": "export type FileLeaf = LeafShape & Readonly<{\n    digest: string;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/release-checks!InputBinding:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/release-checks!",
+          "parentKind": "EntryPoint",
+          "signature": "export type InputBinding = Readonly<{\n    source: Readonly<{\n        repository: string;\n        identity: string;\n        digest: string;\n    }>;\n    engine: Readonly<{\n        name: string;\n        version: string;\n        digest: string;\n    }>;\n    configDigest: string;\n    inventoryDigest: string;\n    policyDigest: string;\n    intentsDigest: string;\n    planDigest: string;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/release-checks!Json:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/release-checks!",
+          "parentKind": "EntryPoint",
+          "signature": "export type Json = null | boolean | number | string | readonly Json[] | JsonRecord;"
+        },
+        {
+          "canonicalReference": "@agent-teams/release-checks!JsonRecord:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/release-checks!",
+          "parentKind": "EntryPoint",
+          "signature": "export type JsonRecord = {\n    readonly [key: string]: Json;\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/release-checks!LeafShape:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/release-checks!",
+          "parentKind": "EntryPoint",
+          "signature": "export type LeafShape = Readonly<{\n    type: 'file';\n    mode: '100644' | '100755';\n}> | Readonly<{\n    type: 'symlink';\n    mode: '120000';\n}> | Readonly<{\n    type: 'gitlink';\n    mode: '160000';\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/release-checks!ManifestSnapshot:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/release-checks!",
+          "parentKind": "EntryPoint",
+          "signature": "export type ManifestSnapshot = Readonly<{\n    file: FileLeaf;\n    semantic: JsonRecord;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/release-checks!ObservedCandidate:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/release-checks!",
+          "parentKind": "EntryPoint",
+          "signature": "export type ObservedCandidate = Readonly<{\n    binding: InputBinding;\n    candidateIdentity: string;\n    manifests: readonly ObservedManifest[];\n    consumptions: readonly ObservedConsumption[];\n    diff: readonly FileChange[];\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/release-checks!ObservedConsumption:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/release-checks!",
+          "parentKind": "EntryPoint",
+          "signature": "export type ObservedConsumption = Readonly<{\n    intentId: string;\n    digest: string;\n    effect: ConsumptionEffect;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/release-checks!ObservedManifest:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/release-checks!",
+          "parentKind": "EntryPoint",
+          "signature": "export type ObservedManifest = Readonly<{\n    manifestPath: string;\n    before: ManifestSnapshot | null;\n    after: ManifestSnapshot | null;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/release-checks!PackageChange:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/release-checks!",
+          "parentKind": "EntryPoint",
+          "signature": "export type PackageChange = Readonly<{\n    packageName: string;\n    manifestPath: string;\n    oldVersion: string | null;\n    newVersion: string | null;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/release-checks!PermittedChange:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/release-checks!",
+          "parentKind": "EntryPoint",
+          "signature": "export type PermittedChange = Readonly<{\n    path: string;\n    classification: string;\n    kind: ChangeKind;\n    before: LeafShape | null;\n    after: LeafShape | null;\n    contentAuthority: string;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/release-checks!PlannedConsumption:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/release-checks!",
+          "parentKind": "EntryPoint",
+          "signature": "export type PlannedConsumption = Readonly<{\n    intentId: string;\n    effect: ConsumptionEffect;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/release-checks!PlannedRelease:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/release-checks!",
+          "parentKind": "EntryPoint",
+          "signature": "export type PlannedRelease = Readonly<{\n    packageName: string;\n    manifestPath: string;\n    type: ReleaseType | 'none';\n    oldVersion: string | null;\n    newVersion: string | null;\n    intentIds: readonly string[];\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/release-checks!ReleaseCandidateInput:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/release-checks!",
+          "parentKind": "EntryPoint",
+          "signature": "export type ReleaseCandidateInput = Readonly<{\n    schemaVersion: 1;\n    expected: ExpectedInputs;\n    observed: ObservedCandidate;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/release-checks!ReleaseIntent:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/release-checks!",
+          "parentKind": "EntryPoint",
+          "signature": "export type ReleaseIntent = Readonly<{\n    id: string;\n    path: string;\n    digest: string;\n    participation: 'pending' | 'retained';\n    requests: readonly Readonly<{\n        packageName: string;\n        type: ReleaseType;\n    }>[];\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/release-checks!ReleaseType:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/release-checks!",
+          "parentKind": "EntryPoint",
+          "signature": "export type ReleaseType = 'major' | 'minor' | 'patch';"
+        },
+        {
+          "canonicalReference": "@agent-teams/release-checks!WorkspacePackage:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/release-checks!",
+          "parentKind": "EntryPoint",
+          "signature": "export type WorkspacePackage = Readonly<{\n    name: string;\n    root: string;\n    manifestPath: string;\n    classification: 'public' | 'private';\n    versioning: 'versioned' | 'unversioned' | 'ignored';\n    before: ManifestSnapshot;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/release-checks!checkReleaseCandidate:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/release-checks!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function checkReleaseCandidate(input: unknown): CheckReport;"
+        }
+      ]
+    },
+    {
+      "exportPath": "./conformance",
+      "items": [
+        {
+          "canonicalReference": "@agent-teams/release-checks!ConformanceCase:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/release-checks!",
+          "parentKind": "EntryPoint",
+          "signature": "export type ConformanceCase = Readonly<{\n    id: string;\n    input: unknown;\n    expected: Readonly<{\n        outcome: 'passed' | 'rejected';\n        diagnosticCodes: readonly DiagnosticCode[];\n        packageChanges: readonly PackageChange[];\n    }>;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/release-checks!DiagnosticCode:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/release-checks!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DiagnosticCode = 'input.invalid' | 'identity.duplicate' | 'inventory.ambiguous' | 'binding.mismatch' | 'package.unknown' | 'manifest.missing' | 'manifest.identity' | 'manifest.source-mismatch' | 'manifest.content-changed' | 'plan.version-mismatch' | 'plan.unexpected-version' | 'intent.unknown' | 'intent.coverage' | 'intent.consumption' | 'diff.unexpected' | 'diff.inconsistent';"
+        },
+        {
+          "canonicalReference": "@agent-teams/release-checks!PackageChange:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/release-checks!",
+          "parentKind": "EntryPoint",
+          "signature": "export type PackageChange = Readonly<{\n    packageName: string;\n    manifestPath: string;\n    oldVersion: string | null;\n    newVersion: string | null;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/release-checks!releaseCandidateConformanceCases:var",
+          "kind": "Variable",
+          "parentReference": "@agent-teams/release-checks!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare const releaseCandidateConformanceCases: readonly ConformanceCase[];"
+        }
+      ]
+    }
+  ]
+}

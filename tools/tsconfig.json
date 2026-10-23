@@ -9,6 +9,7 @@
     "profile-source.ts",
     "repository-oxlint.ts",
     "repository-tool-catalog.ts",
-    "producer-source-dependencies.ts"
+    "producer-source-dependencies.ts",
+    "check-changed-repository.ts"
   ]
 }

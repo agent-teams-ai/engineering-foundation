@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 1,
+  "scope": "Local working-tree feedback; no final-head CI or public-release qualification",
+  "source": {
+    "featureParent": "e162299f0505b95af02adca4edf9a363c91a731a",
+    "integratedMain": "97f7b16f25823149f8f884db761edb9ffb43a535",
+    "reviewedIndexTreeBeforeEvidenceAppend": "b9c38037a9a80cb24328e341902a1b7b738c89c8",
+    "unchangedReleaseChecksTree": "76a214bd459937b28786880b4deb08cb20916da7"
+  },
+  "toolchain": {
+    "bun": "1.4.3",
+    "node": "26.11.1",
+    "pnpm": "11.20.0",
+    "typescript": "7.0.2"
+  },
+  "build": {
+    "command": "bun tools/dev.mts build",
+    "exitCode": 0,
+    "outputBytes": 0
+  },
+  "checks": [
+    {
+      "command": "bun tools/dev.mts install",
+      "exitCode": 0,
+      "detail": "Exact source dependency installation",
+      "log": "install.txt",
+      "sha256": "bd8b05d8be641e62be3a4353d7110a821beda8e5660e58a377942be2adfe68e3"
+    },
+    {
+      "command": "node --test --test-concurrency=1 <focused integration selection>",
+      "exitCode": 0,
+      "detail": "374 tests: 373 passed, one opt-in case skipped; before approval and final fixture cleanup",
+      "log": "focused.txt",
+      "sha256": "081ebeb27753c88c006bd8301c4895d832f3195a7c7577ca78e200ff55817aa9"
+    },
+    {
+      "command": "node --test --test-concurrency=1 tests/npm-package-bootstrap-policy.test.mjs tests/npm-package-bootstrap-successor-policy.test.mts tests/npm-package-bootstrap-workflow.test.mjs",
+      "exitCode": 0,
+      "detail": "50 passed, no skips; after exact reviewed approval",
+      "log": "approved-policy.txt",
+      "sha256": "d38e2f40b5642cb17d0e9a0f6d56abd60fa5f010eaa3a262a01c18675e7e60a3"
+    },
+    {
+      "command": "AGENT_TEAMS_FOUNDATION_RUN_CHANGESETS_TEST=1 node --test --test-name-pattern=\"actual pinned Changesets TEST\" tests/repository-release-runtime.test.mts",
+      "exitCode": 0,
+      "detail": "1 passed, no skips; actual engine accepted generated release and rejected forged Bun SRI",
+      "log": "actual-engine.txt",
+      "sha256": "4c89f0a30a9b9fe37a2228cda82a627308f5bf74912a002555429d9521de0aa3"
+    },
+    {
+      "command": "bun tools/dev.mts check:fast",
+      "exitCode": 1,
+      "detail": "Initial integration rejected two test max-lines violations",
+      "log": "fast.txt",
+      "sha256": "32552294e57c34aab816f4bcb828eee05fdf0b9578bbec2a4fa71fe07bd776ca"
+    },
+    {
+      "command": "bun tools/dev.mts check:fast",
+      "exitCode": 0,
+      "detail": "After byte-equivalent fixture simplification and explicit ten-package RC/latest assertions",
+      "log": "fast-corrected.txt",
+      "sha256": "e41f0ae4a8213f2151b127419c8e30fff03fc8666c518e5a56ed9526041d5302"
+    },
+    {
+      "command": "node --test --test-concurrency=1 tests/release-pr-freshness.test.mjs tests/release-publish-ordered.test.mjs",
+      "exitCode": 0,
+      "detail": "85 passed, no skips; final fixture forms",
+      "log": "release-fixtures.txt",
+      "sha256": "ee42a18364507ae0de17117313991c5b853b45a44c049b4fc9d3ae2df6a2bed6"
+    },
+    {
+      "command": "bun tools/dev.mts security:workflows",
+      "exitCode": 1,
+      "detail": "Initial pinned-runtime observation failed during resource pressure; not qualification",
+      "log": "security.txt",
+      "sha256": "fe9c082bb2b8671ff40eb4972d16b0a72776a21b4ee99cf57d19eff191afc5b8"
+    },
+    {
+      "command": "bun tools/dev.mts security:workflows",
+      "exitCode": 0,
+      "detail": "Unchanged exact pinned Actionlint/Zizmor route passed",
+      "log": "security-retry.txt",
+      "sha256": "dd77747b8bec7177f1ac54f149cb4f828a07eb39531e97f886bc5216ee934b7a"
+    },
+    {
+      "command": "bun tools/dev.mts check:changed",
+      "exitCode": 1,
+      "detail": "Failed while installing its isolated pnpm profile; full check did not start",
+      "log": "changed.txt",
+      "sha256": "f7532ab1a686236895f1d09b1fc2c2cb19d17cf178d44e54d62fa2b1427adf4a"
+    }
+  ],
+  "focusedFilesObservedFromStaticTestNames": [
+    "tests/capability-reporting-architecture.test.mjs",
+    "tests/features/release-checks/candidate-checking.test.ts",
+    "tests/features/release-checks/conformance.test.ts",
+    "tests/npm-bootstrap-recovery.test.ts",
+    "tests/npm-package-bootstrap-policy.test.mjs",
+    "tests/npm-package-bootstrap-successor-policy.test.mts",
+    "tests/npm-package-bootstrap-workflow.test.mjs",
+    "tests/release-candidate-host.test.ts",
+    "tests/release-pr-freshness.test.mjs",
+    "tests/release-publish-diagnostics.test.mjs",
+    "tests/release-publish-ordered.test.mjs",
+    "tests/release-publish-policy.test.mjs",
+    "tests/reporting-rest.test.mjs",
+    "tests/repository-release-runtime.test.mts",
+    "tests/root-package-projections.test.mjs",
+    "tests/scaffolding-owner-composition.test.mjs",
+    "tests/windows-test-partitions.test.mts"
+  ],
+  "focusedFilesMethod": "Static test names matched against the retained output; this field does not reconstruct the original invocation argv. The complete output is retained.",
+  "changedCheckLimit": {
+    "fullCheckExecuted": false,
+    "terminalMessage": "check-changed: failed (step-failed); 1 executed steps; input binding unverified",
+    "retainedInstallerTail": "643 of 645 packages added; two archive fetches reported error (23)",
+    "contemporaneousDiskAvailableBytes": 0,
+    "causalLimit": "Disk exhaustion was directly observed; the retained installer log has no terminal ENOSPC exception. No full-check result is inferred."
+  },
+  "independentSourceReview": {
+    "role": "independent integration reviewer",
+    "verdict": "PASS for local integration commit",
+    "reviewedIndexTree": "b9c38037a9a80cb24328e341902a1b7b738c89c8",
+    "preservedMainLedgerRecords": 63,
+    "preservedMainFeatureModules": 9,
+    "preservedMainBootstrapProfiles": 8,
+    "canonicalSuites": 311,
+    "windowsSuites": 303
+  },
+  "pending": [
+    "successful changed/full qualification in a provisioned environment",
+    "correct-identity remote commit transport",
+    "final-head/current-base full native CI and approved writer reproduction",
+    "interactive npm maintainer readiness",
+    "canonical owner merge, fresh protected-main proof, bootstrap and supported release",
+    "public npm readback, latest, and real consumer adoption"
+  ]
+}

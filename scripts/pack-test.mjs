@@ -22,6 +22,7 @@ import { writePackedConsumerDocumentAuthoringFixture } from "./packed-consumer-d
 import { verifyPackedConsumer } from "./packed-consumer-e2e.mjs";
 import { verifyPackedCiInputProof } from "./packed-ci-input-proof.mts";
 import { verifyPackedFeatureModuleStandard } from "./packed-feature-module-standard.mjs";
+import { verifyPackedReleaseChecks } from "./packed-release-checks.ts";
 import { verifyPackedLocalMode } from "./packed-local-mode-e2e.mjs";
 import {
   createPnpmRunner,
@@ -610,6 +611,8 @@ export function qualifyPackedConsumers(handle, group) {
         );
         await verifyPackedFeatureModuleStandard({ artifacts, temporaryRoot, packageManager, runPnpm,
           typescript: (await toolingVersions()).typescript });
+        await verifyPackedReleaseChecks({ artifact: artifacts["@agent-teams/release-checks"],
+          temporaryRoot, repositoryRoot, packageManager, runPnpm });
       }),
       consumerPhase("SDK growth qualification", current =>
         testPackedSdkGrowth({ consumerRoot: current.consumerRoot, artifact })),

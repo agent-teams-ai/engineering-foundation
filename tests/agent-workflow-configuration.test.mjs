@@ -13,6 +13,7 @@ import { parseAgentWorkflowPolicy } from "../packages/engineering-foundation/dis
 import { CapabilityInputError } from "../packages/engineering-foundation/dist/features/validation-reporting/api.js";
 import { assertSchema as assertFoundationSchema } from "../packages/engineering-foundation/dist/schema-catalog.js";
 import { BunPackageScriptRunner } from "../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/adapters/outbound/bun/bun-package-script-runner.js";
+import { repositorySourceRoot } from "./support/repository-source.ts";
 
 function configuration() {
   return {
@@ -137,6 +138,7 @@ async function ownedTemporaryRoot(prefix) {
 }
 
 async function minimalSource(root) {
+  const sourceRoot = await repositorySourceRoot();
   await mkdir(join(root, "architecture/foundation"), { recursive: true });
   await mkdir(join(root, ".worker-tmp/profiles"), { recursive: true });
   await writeFile(join(root, "package.json"), `${JSON.stringify({
@@ -146,7 +148,7 @@ async function minimalSource(root) {
   }, null, 2)}\n`);
   await writeFile(join(root, "pnpm-workspace.yaml"),
     'packages:\n  - "packages/*"\ncatalog: {}\ncatalogs: {}\noverrides: {}\n');
-  await copyFile(join(repositoryRoot, "architecture/foundation/dependency-declarations.yaml"),
+  await copyFile(join(sourceRoot, "architecture/foundation/dependency-declarations.yaml"),
     join(root, "architecture/foundation/dependency-declarations.yaml"));
   await copyFile(join(repositoryRoot, "architecture/foundation/repository-runtime.json"),
     join(root, "architecture/foundation/repository-runtime.json"));
@@ -202,10 +204,7 @@ capabilities:
     for (const [profile, root, executable] of [
       ["bun", sourceRoot, tools.bun], ["node", targetRoot, tools.node]
     ]) {
-      const result = spawnSync(executable, [
-        join(repositoryRoot, "packages/engineering-foundation/dist/cli.js"),
-        "agent-workflow", "changed", "--base", "HEAD", "--consumer", root, "--format", "json"
-      ], { cwd: root, encoding: "utf8", env: {
+      const environment = Object.fromEntries(Object.entries({
         ...process.env, ...authority.environment,
         GIT_WORK_TREE: root,
         AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE: profile,
@@ -214,7 +213,11 @@ capabilities:
         AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT: pnpmEntrypoint,
         AGENT_TEAMS_FOUNDATION_RUNTIME_OBSERVATION: observation,
         npm_execpath: pnpmEntrypoint
-      } });
+      }).filter(([name]) => name.toLowerCase() !== "npm_config_user_agent"));
+      const result = spawnSync(executable, [
+        join(repositoryRoot, "packages/engineering-foundation/dist/cli.js"),
+        "agent-workflow", "changed", "--base", "HEAD", "--consumer", root, "--format", "json"
+      ], { cwd: root, encoding: "utf8", env: environment });
       assert.equal(result.status, 0, `${profile}: ${result.stdout}${result.stderr}`);
     }
     const records = (await readFile(observation, "utf8")).trim().split("\n").map((line) => JSON.parse(line));

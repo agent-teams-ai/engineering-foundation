@@ -1,0 +1,814 @@
+# Release Checks implementation qualification
+
+Status: Foundation source implementation and focused qualification complete.
+Final-source review, complete CI and local changed-check results are recorded on
+[owner PR 421](https://github.com/agent-teams-ai/engineering-foundation/pull/421).
+Public admission remains unmerged until the existing npm provider-readiness gate
+is established. Publication and external adoption are not completed by this record.
+
+The [delivery plan](../development/release-checks-delivery-plan.md) passed its
+three sequential improvements and three sequential critical reviews before
+implementation. [Their record](release-checks-plan-review.md) retains the actual
+reviewed revisions and ten material findings. This file records implementation
+qualification separately.
+
+## Implementation corrections
+
+| Observed issue | Correction and verification |
+| --- | --- |
+| Clean artifact stages need an explicit compiler development input | Reused the exact TypeScript catalog declaration and existing compiler custody; two actual clean builds and installed consumers prove the compiler is not a runtime dependency |
+| The conformance declaration referred to two types not exported from that entry | Re-exported its already root-public `DiagnosticCode` and `PackageChange` types; native extraction and installed declaration compilation passed |
+| A normalized `none` record could carry different old/new versions | Both the official-plan normalizer and pure boundary reject that contradiction; retained engine and pure counterexamples passed without computing a version |
+| Native executable bytes are specific to the operating system | Portable engine binding uses the runtime version and package contents; local custody retains actual paths and native executable hash; copied-installation and independent-base tests passed |
+| Reusing the retained files-policy module during its top-level CLI await deadlocked | Completed module initialization before running the CLI, with explicit fatal error handling; the actual files CLI passes valid engine output and rejects a forged Bun lock SRI |
+| The normal all-package API promoter encounters a pending earlier public API addition | Created only the new initial anchor through the existing native promotion owner; kept the full production policy and verified all nine typed/artifact surfaces and all 13 unchanged historical baseline hashes |
+| Complete source coverage found the new package missing from suppression governance | Added its complete source root to the existing governed roots; no waiver or suppression was added |
+| The actual installed TEST canary has no Git-root package manifest | Removed the unconditional root-manifest assumption; the inventory must contain actual packages and retain exact paths and complete manifest/diff relations. Shared nested-package positive and unclassified-root negative cases cover the correction |
+| The Host's intent filename rule differed from the pinned Changesets reader | Matched Changesets 2.31.1 direct, non-hidden lowercase `.md` discovery and case-insensitive README exclusion. Real engine release and no-release cases retain those documents and reject their edits; dotted intent names and the V2 `AGENTS.md` intent remain accepted |
+| A nested pnpm script exposed workspace packages to an independent packed consumer through the generated shim's `NODE_PATH` | The private packaging runner binds its own installed policy-pinned pnpm JavaScript bin and verified qualification Node, removes module-search overrides only from the child environment, and preserves existing subprocess custody. A real generated-shim control reproduces the old CJS leak before the corrected runner proves both CJS and ESM isolation |
+
+No generic release manager, compiler-stage exception, public Foundation facade,
+new publisher or version-selection algorithm was added.
+
+The packaging correction is loaded only when pnpm is actually called, preserving
+bootstrap commands that run before dependency installation. Copied producer
+fixtures retain their real dependency graph and now include the private runtime
+policy inputs used by that runner. Their existing build, archive and cleanup
+assertions remain intact. The focused bootstrap, packaging, staging and process
+lifecycle owners are run together; final normal-script packaging and complete
+native CI results belong to the exact source recorded on owner PR 421.
+
+The earlier `e8ca01e2ea1677602ebc9f33c23458958b440f95` local full-check and
+literal package-script failures remain failed evidence. A later successful
+execution of the exact package-script body established that the package
+assertions could pass without the nested shim, but did not qualify the normal
+launcher. It motivated this source correction and cannot replace its own
+normal-script and final-head CI qualification.
+
+## Executed local qualification
+
+These are actual pre-commit source checks. The final required native CI must
+qualify its own exact head/base and cannot reuse these as hosted receipts.
+
+| Boundary | Observed result |
+| --- | --- |
+| Pure core and shared conformance | 22 tests passed again after the typed correction below with normal Node process isolation; before that correction the combined core and six actual-engine Host tests passed all 28 cases |
+| Actual-engine Foundation Host | 6 integration tests passed, covering frozen plans, pre-baseline checks, independent base reconstruction, complete diff, execution drift and the actual pinned reader's filename rules |
+| Retained release, freshness, bootstrap and migration routes | 118 tests passed; final collector/registry delta suite passed 16 tests |
+| Authentic pinned action/Changesets lock fixture | Actual Changesets 2.31.1, Bun 1.4.3, pnpm 11.20.0 and Node 26.11.1 passed generation and source/lock checks; the FMS peer floor was preserved and a forged Bun SRI rejected |
+| Admission and catalog authorities | 68 tests passed; nine-package release, source and feature inventories and complete 338-test/eight-shard manifests passed |
+| Installed package | Two byte-identical clean-stage archives; offline packed and no-uplink registry consumers passed TypeScript 7.0.2 declarations and all 12 public common cases |
+| Initial API evidence | One new initial anchor; complete nine-package typed/artifact check passed; 13 historical baseline files unchanged |
+| Workflow security | Required pinned workflow security command passed with no new findings or suppressions |
+| Required pre-PR source gates | `bun tools/dev.mts check:changed` passed its complete `fast-full` selection against the original accepted base; the separate `bun tools/dev.mts check:fast` also passed after complete suppression-governance admission |
+
+The retained [installed qualification](evidence/release-checks/p1-installed-qualification.json)
+binds archive SHA-256
+`d5e6eb3a48ea65f900ec18060dc1bfdb46fa2c3b694d2db1b239c698329318fe`.
+This is candidate `0.0.0` from local clean stages and a local registry; it is not
+the protected Ubuntu publication writer, a public npm release or E2E completion.
+The [initial API record](evidence/release-checks/p1-initial-api-baseline.json)
+retains the exact new write and all old baseline digests.
+
+## Final review and delivery record
+
+The independent release correctness and source-custody reviewer returned GO on
+the actual working-tree implementation over documentation HEAD
+`b72bb4945968461e365b72adbe25f1472e1cdadd`, independently matching source-tree
+digest `214b4a809815be2f8339e53fadc9c7dd98dd06590d4d747418af58bd7eb061bb`.
+The reviewer ran all 25 kernel, conformance and actual-engine Host tests with
+normal Node isolation, verified the one initial API anchor and all 13 unchanged
+historical baseline hashes, and found no material defect. Two suspected
+counterexamples were rejected by retained policy or Changesets itself.
+
+That review predates the one-line suppression-governance admission correction
+above. Confirmation against the eventual exact implementation commit and its
+intervening delta remains required. The documentation HEAD alone does not
+contain the implementation and is not a reviewed implementation commit.
+
+An independent delta review of the later nested-package correction returned GO
+for behavior at source-tree digest
+`344f4793880d323383c3cf0755e21a267751c07b2d8037dbb7a7bfd3178fdc6d`, over
+`99fd92f61c39958b98317bb1c70a9c7c69f07cda`. All 12 public common cases and
+additional missing-manifest, hidden-field, wrong-root and unexpected-root-diff
+counterexamples passed. The reviewer requested one public README clarification:
+the complete nonempty inventory includes a root manifest when it actually
+exists, and paths always remain relative to the full Git repository. That
+clarification is applied. The delta review also verified exact preservation of
+the upstream owner release and the one-line suppression-governance admission.
+
+The later consumer review exposed a separate Host filename mismatch. Foundation
+uses Changesets 2.31.1 and its actual `@changesets/read` 0.6.7 behavior; its
+adapter does not inherit the additional instruction-document exclusions in the
+consumers' Changesets 3.0.2. Ignored files remain in the complete Git observation
+and have no permitted candidate change. The added actual-engine case passes
+both a release and a no-release source, then rejects edits to every ignored
+document. This Host-only correction left the then-qualified leaf archive
+unchanged. The later typed correction and its new archive are recorded below.
+
+Required final-head CI, owner PR, publication and three separate real consumer
+adoptions will be recorded here as they are observed. The existing canary's
+fresh complete owner-PR chain remains a distinct P6 requirement.
+
+## First full CI corrections
+
+[PR 421](https://github.com/agent-teams-ai/engineering-foundation/pull/421) was
+opened at `f849ec4882df164d357f2c2e1ac3271488aaff56` against protected base
+`4ca4ad30b1efc5e3b43a2c012348ea8afea21864`. Independent exact-commit review
+returned GO and is recorded on the PR. The explicitly requested
+[first full CI](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/39464340579)
+then exposed additional integration gaps. Its failed results remain failed;
+they do not qualify the subsequent corrected head.
+
+- Typed source coverage rejected a double `unknown` assertion at the input
+  boundary. The complete runtime validator now expresses its result through an
+  assertion signature. Explicit descriptor booleans and an immutable empty tuple
+  also satisfy the actual typed linter. No validation or governed source scope
+  was removed. Build, full typed lint and all 22 pure/common cases passed.
+- Historical published compatibility called the global publication guard before
+  inspecting the newly admitted `0.0.0` candidate. Its separate owning entrypoint
+  now validates all source manifests and reports bootstrap-stage packages as
+  pending, with publication unclaimed. Every advanced historical baseline keeps
+  its previous verification. Both candidate admission and the later approved
+  `0.0.0` approval PR can run compatibility before the first publication. Default
+  live-baseline verification and full-baseline verification remain strict.
+  The ordinary release entry additionally checks the complete approval catalog
+  before selecting a release subset. The scoped bootstrap/compatibility suite
+  passed 65 tests, including rejecting counterexamples for the publication hold.
+- Current publication fixtures still modeled eight packages. They now contain
+  the ninth leaf with its own archive identity and provenance, retaining exact
+  publication, inspection, recovery, tag and signature assertions. Ordered
+  publication passed 42 tests, publication policy passed 14 and diagnostics
+  passed 42. The runtime probe supplies the unreleased leaf's staged changelog
+  only inside its disposable intercepted child. Historical accepted evidence
+  and the real unreleased changelog are unchanged.
+- Architecture and clean-rebuild fixtures now represent the actual ninth
+  package. Complete Windows traversal expectations include the newly admitted
+  tests; neither their union nor their platform scope was reduced. The focused
+  inventory suite passed 15 tests and the actual compile-clean-rebuild case
+  passed.
+- Two Windows Host fixture failures were reproduced independently. Git checkout
+  filters changed accepted source bytes during replay, and a copied CLI fixture
+  assumed all dependencies were installed in one ancestor directory. Owned test
+  repositories now set `core.autocrlf=false` before their initial commit, and the
+  copied CLI preserves real declared dependency links resolved by its original
+  issuer. Raw source and installation digests remain mandatory. All six Host
+  scenarios passed; the affected prerelease case passed again after replacing
+  its unchecked JSON assertion. The same confirmed checkout-filter correction
+  in the owned freshness fixture passed all 32 existing freshness cases.
+  Production Host custody was not weakened.
+- Independent review rejected an initial bootstrap fixture correction: seeding
+  YAML concealed that the real authority step runs before dependency install.
+  The bootstrap CLI now loads the Host only in `check-release`, after the global
+  approval guard. The clean-source fixture again has no `node_modules` or
+  generated package output. Actual token-window, prepare and early candidate
+  rejection are covered by the 74 passing scoped bootstrap tests.
+
+Three macOS jobs in the first run were cancelled before acquiring a runner.
+Their check annotations report hosted macOS arm64 capacity constraints. They
+executed no qualification and require real native execution in the fresh matrix.
+
+Separate independent reviewers returned GO for the typed correction and the
+bootstrap/fixture corrections. The retained installed qualification now binds
+the new archive above: two byte-identical clean builds, unchanged declarations,
+all 12 public common cases, packed and local-registry consumers, and no runtime
+dependencies. The earlier archive
+`4c46ed8e2aa0cdd24e2b6b3d45acdf22f0614a777f9baccdf687f0630a55a027`
+remains historical preparation evidence in the consumer repositories.
+
+The corrected combined commit still requires its own complete head/base CI.
+The npm maintainer-readiness and public-adoption holds remain in force.
+
+## Upstream release reconciliation
+
+After the original pre-PR source gates passed, protected main advanced to
+`4ca4ad30b1efc5e3b43a2c012348ea8afea21864`. This existing owner release consumed
+seven prior intents, advanced seven package versions and promoted their owned
+API baselines. It changes no implementation source or compiler dependency graph.
+The implementation branch incorporates that revision without rewriting the
+six plan-review commits. All upstream manifest, changelog and historical API
+baseline bytes remain authoritative; only the new package's initial anchor is
+additional. The initial API record above retains its original historical input
+hashes and is not relabeled as evidence for these later baseline versions.
+
+Final required source gates, independent commit confirmation and hosted CI
+must qualify the reconciled head against the updated protected base.
+
+Protected main subsequently advanced to
+`d5cbfc7bc9f9b735e2874de669814aa8c2435d44`, admitting the explicit changed-check
+coverage successor. The branch incorporates its implementation, six canonical
+tests, complete mandatory Node test contract, strict TypeScript project, workflow
+diagnostic paths, exact pnpm development input and both release intentions.
+The combined canonical inventory contains 300 files; all three release-checks
+suites retain their explicit Linux and Windows placements. The existing
+Foundation archive bound remains 2,776 and the supported FMS peer windows retain
+their upstream declaration. Changesets owns the combined release plan.
+
+Both branches had independently allocated ADR-0063. The protected schema ADR,
+its API-disposition reference and immutable digest are preserved. Only the
+unmerged release-checks admission is renumbered to ADR-0064, with its owning
+links and actual digest updated; its decision text changes only that identifier.
+The prior branch identity and bytes remain in Git history. None of the six
+completed plan-review revisions or their recorded hashes is rewritten.
+
+Independent merge review caught a raw-file hash in the new ADR ledger entry.
+The existing `architecture-decisions-promote-baseline` owner re-admitted ADR-0064
+from the exact protected historical catalog. Its canonical immutable payload
+digest is
+`sha256:b38ca4441dd30f66cc58b22864005121f48f740556f3659e3f64df2110349a49`;
+all 60 historical entries remain unchanged. The source gates run in a clean
+worktree of the resulting committed revision.
+
+## Source-owned changed-check composition
+
+At `854efdfe637406d046e38d02cb68625ada05a051`, the new source-owned changed
+check reached successful native Foundation checking and the Nx graph, then
+stopped. A minimal runtime probe confirmed that the local environment lacked
+the explicit generation2 Node required before dispatching built tests. Official
+Node 24.21.0 and the historical managed Node 26.10.0 were acquired with their
+published archive checksums; the existing managed-test-tools owner provisioned
+and verified both copies with pnpm 11.20.0. The default remains Node 26.11.1.
+The original failed result is retained, not relabeled as a successful check.
+
+Before repeating the full command, two independent reviewers confirmed a
+separate composition contradiction inherited from protected main. C1 selects
+`bun run check` in the actual source checkout, but the unchanged package owner
+requires the real isolated pnpm projection. An actual pack-owner preflight
+rejected the source Bun root before creating any package stage. A Node launcher
+for `check:changed` still returns to the source Bun operation and cannot resolve
+that contradiction.
+
+The private `check:changed:repository` wrapper now delegates to the existing
+Node-profile install and full-check commands. It verifies the actual Node,
+binds the actual source root and HEAD, and creates a fresh owned profile instead
+of accepting an inherited target that installation could replace. Ordinary
+Git selectors are removed. Installation failure or cancellation prevents the
+check, and a full-check failure remains a failure. No projection receipt is
+manufactured. The ordinary full script, source Bun selection, all five coverage
+facets, scopes, exclusions, escalation and complete test/package inventories
+remain unchanged. Changesets, the release-checks leaf and publisher are untouched.
+
+Nine focused process tests passed, including concurrent profile isolation,
+hostile inherited source/target selectors, child failure and cancellation, and
+linked-parent rejection. Both strict tooling projects passed on TypeScript
+7.0.2; the new wrapper passed the existing fast and typed linters, and the test
+file passed fast lint. These
+boundary probes do not claim actual profile installation or full qualification;
+the final real changed check and complete head/base CI provide their own results.
+A successful mutable C1 command still supplies feedback only, with unverified
+input binding and no qualified facets. The public-admission hold remains active.
+
+The independent composition reviewer returned GO for the complete eight-file
+correction, committed as `c78d5af0b319cb5d1fd08da2de4734d50264ce12`. The review
+verified unchanged full-check scope and the existing outer C1 process-containment
+owner; the private wrapper introduces no separate process framework.
+
+The preceding source revision `854efdfe637406d046e38d02cb68625ada05a051` completed
+[full CI 39472384148](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/39472384148)
+against base `d5cbfc7bc9f9b735e2874de669814aa8c2435d44`: all 35 jobs succeeded,
+including Linux coverage, all Windows lanes and every native macOS group. This
+is retained evidence for that head/base, not a substitute for the correction's
+new complete qualification.
+
+Protected main also completed the Changesets-owned metadata release
+`18bc5d1c1310b9837f26ac43b16dab63a087154f`: Foundation 2.0.0 and Feature Module
+Standard 0.2.0. The branch incorporates its exact ten-file delta, including the
+consumed intentions, manifest/changelog versions, API baselines and Bun lock
+updates. That upstream commit changes no implementation or compiler dependency
+graph. Its versions and accepted baselines remain authoritative for the final
+head/base review and CI; the six historical plan reviews remain unchanged.
+
+## Ordered publisher visibility reconciliation
+
+Protected main advanced to
+`d43f9aeb245549d5efe64c2cfe7fb4013098a71a` with a bounded fifteen-minute
+monotonic visibility deadline after the single npm publication invocation.
+The combined branch retains both upstream production publisher files byte for
+byte, including deadline propagation through response bodies, uncertain-outcome
+reconciliation and constructed lifecycle diagnostics.
+
+The two test conflicts preserve every upstream regression and the existing
+nine-package graph. The delayed-visibility positive case begins with the new
+leaf already published, still invokes publication exactly once, and verifies
+nine signatures and reconciliations. The shared fixture retains all nine
+artifacts while adopting the upstream virtual clock and visibility budget. The
+runbook counts nine possible waits. A whitespace-only import reflow preserves
+the existing test-file line budget without removing assertions or adding a waiver.
+
+The independent composition reviewer returned source GO. The actual combined
+ordered and diagnostics suites passed 97 tests on Node 26.11.1 with normal
+process isolation: 49 ordered and 48 diagnostics, no failures, skips or
+cancellations. The authored test files passed the existing scoped fast linter.
+Leaf, Host, private/public C1, API, lock, governance and platform-selection bytes
+remain unchanged from the preceding reviewed branch. Complete qualification for
+the resulting head/base is recorded on the owner PR; earlier runs retain their
+original source bindings. The npm maintainer-readiness hold remains active.
+
+## Native Windows cancellation expectation
+
+[Full CI 39478898482](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/39478898482)
+completed for `82784dc35bb9f635a9e9334f4006c6dd0d0c4a78` against
+`18bc5d1c1310b9837f26ac43b16dab63a087154f` with 32 successful jobs. Windows B
+reported one failed test; its failure propagated to the Windows and full-CI
+aggregates. The cancellation fixture expected POSIX status 143, whereas its
+actual Windows child returned 1. The
+[libuv Windows source used by Node 26.11.1](https://github.com/nodejs/node/blob/v26.11.1/deps/uv/src/win/process.c#L1294-L1305)
+uses `TerminateProcess(process_handle, 1)` for that termination path.
+
+The existing assertion now requires the exact platform status: 1 on Windows,
+143 on POSIX. It retains the real self-terminating installation child and the
+exact observation that only installation ran. Production status propagation,
+containment, all test registrations and platform selections remain unchanged;
+the test is not skipped. Its fresh native Windows result belongs to the new
+complete head/base run, not the earlier failed run.
+
+## Source inputs in the full Node profile
+
+Revision `ee99b559e2dde8bcce779b422457ed679e76783d` completed
+[full CI 39488511960, attempt 2](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/39488511960/attempts/2)
+against `d43f9aeb245549d5efe64c2cfe7fb4013098a71a`, with all 35 jobs successful.
+The local source-owned changed check then returned a numeric failed step during
+the complete built-test phase. Its mutable runner deliberately omits raw child
+output; that original result remains failed.
+
+Independent source review and direct Node execution in the retained genuine
+profile reproduced 15 failures in six existing test files. The three diagnostic
+runs executed 119 tests: 103 passed, 15 failed and the existing opt-in external
+Changesets TEST remained skipped. These runs identify concrete failures without
+claiming to reconstruct the discarded original report. The strict-project
+admission test passed in 74.7 seconds; its timeout remains unchanged.
+
+The affected fixtures treated their execution directory as the original Bun
+checkout. A small test-only helper now resolves source inputs through the
+existing explicit Git authority. Original policies, intended Bun manifests and
+source Git objects come from that checkout. Runtime imports, tools, compiled
+code and temporary profile roots keep their execution ownership. The fixture
+which explicitly represents a Bun source also uses the actual Bun installation.
+The pnpm setup probe has its own literal workspace boundary, preserving the
+rejected manager policy and the observed setup-step exception.
+
+The correction preserves all test identities, negative assertions, strict
+projectors, production guards, timeouts and governed inventories. The new helper
+belongs to the existing strict tooling project. Fresh focused qualification and
+complete final-head CI are required for the corrected revision; the successful
+`ee99` run is evidence only for its own head/base.
+
+The existing install/build owners created a fresh genuine Node profile for the
+correction. All six focused suites then completed: 119 tests, 118 passed, no
+failures or cancellations and the same one existing opt-in skip. The strict
+tooling project passed on TypeScript 7.0.2. Independent semantic review returned
+GO for the source-input correction and preserved test registrations and guards.
+Final committed-source local gates and full CI are recorded on the owner PR.
+
+## Static Host declaration reconciliation
+
+Protected main advanced to
+`39d283dba54d9e1cb38ae01b457e53b1eba30048`, adding bounded static Host command
+declarations and their quality-source observations. The branch incorporates its
+complete eighteen-file delta without conflicts. Seventeen paths retain exact
+upstream bytes; the source-dependency policy combines the three new upstream
+entries with the existing leaf boundaries. Release-checks, its private Host,
+publisher production code, source-owned C1 composition and source-fixture
+correction remain unchanged.
+
+The shared private lexer admits a declaration for the owner's later checks; it
+does not establish execution or qualification. Missing scripts, cycles, depth,
+literal failure, OR and multiline rejection, and full versus scoped coverage
+guards remain authoritative. Package script bodies have a 16 KiB UTF-8 bound;
+profile and path scalars retain their existing 1,024-character bound. The native
+contract retains every earlier record and adds four, for 52 required records.
+The complete 300-file canonical and 344-file built inventories remain intact.
+
+The one new private module contributes four compiler outputs. The Foundation
+archive ceiling is the upstream 2,780 members, with a regression rejecting the
+2,781st. Other package ceilings and the 8 MiB archive bound are unchanged. The
+upstream patch Changeset for Foundation and Feature Module Standard remains
+intact, including the packed development-input consequence for the latter.
+
+A fresh source build passed. Six focused suites executed 106 tests: 105 passed
+and one failed because the local invocation omitted its required job-owned
+`C1_TEST_SCRATCH`. The complete affected four-test suite then passed with that
+input, without source changes, skips or cancellations. This includes the new
+static declaration case; the initial run also passed the quality observations,
+native contract owner, pack manifest and exact archive-boundary regressions.
+
+The preceding `cf1cf7117b54121cc158e05883c5acdd39ac8231` fast and workflow-security
+gates passed. Its local full changed check and
+[requested CI 39504380668](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/39504380668)
+were cancelled after protected main advanced. The existing local cancellation
+owner drained its selected process group. Those cancelled runs do not qualify
+this integration; independent final-source review and fresh complete head/base
+gates are recorded on the owner PR. The npm maintainer-readiness hold remains.
+
+## Subsequent protected release and local session recovery
+
+Protected main subsequently advanced to
+`1218dbb53369d3beb3ee5b1b7544c261bf93136c`. Its existing Changesets route
+generated Foundation 2.0.1 and Feature Module Standard 0.2.1 for the static Host
+correction. This integration retains the intent consumption, package versions,
+changelog history and three release-owned version identities exactly as that
+upstream release produced them. The Bun lock combines its two workspace version
+updates with the existing release-checks workspace records. Runtime source,
+public API contents, the native migration packet, leaf, private Host and
+publication policy remain unchanged.
+
+The preceding `fe30823c747347bd0a0d247213c0ad422ef67879` fast gate passed in
+104.411 seconds; workflow security passed without new findings. Its local full
+changed-check supervisor disappeared when the tool session became unavailable.
+The exact selected process group was observed orphaned, then drained with one
+termination signal; its separate owned Nx daemon was stopped through the
+existing reset command. The local changed check has no terminal qualification
+result and is recorded as interrupted. Recovery must rerun the same complete
+owner commands with durable terminal evidence; no test or timeout is omitted.
+
+[CI 39506955635](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/39506955635)
+attempt 1 reached the existing Linux pair 3-4 job deadline after its actual
+tests and coverage uploads passed. Its second attempt was cancelled after
+protected main advanced, so neither attempt qualifies this new integration.
+Independent comparison confirmed that all three new canonical suites belong to
+shard 1 and that shards 2-8 retain every previous assignment. No shard or timeout
+change is justified by a new-test concentration claim. Fresh final-source review,
+complete local gates and exact current-head/base CI remain required and are
+recorded on the owner PR. Public admission retains the maintainer-readiness hold.
+
+## Governed asset integration and disposable producer metadata
+
+The preceding `eee9230897c27bb05372c168b87b641416befa74` completed all 35
+required CI jobs, including the four aggregates, in attempt 1 of
+[CI 39514277272](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/39514277272)
+against base `1218dbb53369d3beb3ee5b1b7544c261bf93136c`. Its separate local
+changed check returned exit 1 after 5,423.881 seconds. The mutable C1 adapter
+omits raw child output; no retained inner failure report was recovered. The
+failed local run is not qualification, and CI applies only to its recorded pair.
+
+A direct existing-owner diagnostic in that unchanged genuine Node profile ran
+all 24 package-artifact-reuse tests: 16 passed and eight failed in fixture setup.
+The fixture passed an already projected pnpm manifest through the source
+package-manager projector a second time. It now sets its own disposable
+producer metadata from the existing validated runtime policy, following the
+neighboring package-qualification fixture. Scripts, compiled packages and
+dependencies retain the executing profile's ownership. Production projectors,
+archive custody, negative assertions and test inventories remain unchanged.
+This counterexample does not reconstruct the discarded full-run diagnostics or
+establish that it was their only cause.
+
+Protected main also advanced to
+`5a0173568f051a4cf7273d621441499a038430b5`. This integration retains its
+complete 34-file governed-asset and retired-duplicate observation change,
+including the v3 schema, packed consumer, exact archive-entry budget and
+Changeset. The five overlapping ownership, strict-project and inventory files
+preserve both upstream additions and release-checks registrations. The leaf,
+private release Host, C1 wrapper and publication workflows are unchanged by
+this integration. Focused correction evidence, independent source review and
+fresh final-source gates belong to the owner PR; the npm maintainer-readiness
+hold remains in force.
+
+## Changed-check profile lifetime and bounded diagnostics
+
+On `0bba3c82f7aa5bb60118280da1fbe6cc0b54d41b`, the corrected producer-fixture
+owner and C1 configuration owner passed in a newly installed and built genuine
+Node profile. The strict tooling project also passed. The subsequent fast gate
+rejected a symbolic link inside a retained, completed changed-check profile.
+The existing source census rejects that link before the newly integrated
+retired-duplicate observer runs; its scope and rejection remain unchanged.
+The original full-run failure still has no recovered inner report.
+
+Independent review confirmed that the private changed-check wrapper allocated
+a profile without releasing it after ordinary completion. It now waits for
+child output to drain, rechecks its existing owned-root guard and removes only
+its own freshly allocated profile in `finally`. Install failure still prevents
+check execution; original failure and handled cancellation statuses are retained.
+Unsafe cleanup refuses the target, preserves an existing nonzero result and
+turns an otherwise successful invocation into failure. Disposable invocations
+set the supported `NX_DAEMON=false`; the graph operation remains in the check.
+
+The same private wrapper retains the first 1 MiB of diagnostics in a fresh
+mode-0600 log beside the profile directory. Both streams continue draining after
+the limit, and a truncation marker identifies an incomplete log. A late failure
+may therefore be absent. This is mutable diagnostic feedback, not a qualified
+receipt; the public C1 output, input-binding classification and facets do not
+change. Cleanup covers ordinary completion and handled run cancellation, not
+SIGKILL or every interruption during asynchronous cleanup.
+
+The existing real-child suite passed all eleven tests, without skips, including
+concurrent ownership, install/check/signal/cancellation results, bounded output,
+generated-source cleanup and refusal of a substituted symlink target. The same
+reviewed file bytes passed the TypeScript 7.0.2 strict tooling project.
+Independent source review returned GO. Final committed-source gates and native
+Windows qualification remain recorded on the owner PR; no test inventory,
+timeout, source-census scope or publication control is relaxed.
+
+## Owned-asset release reconciliation
+
+Protected main advanced to `145a3fb20392239fe4979c9e4f06684d6af08848`, the
+existing Changesets release of the implementation already integrated from
+`5a0173568f051a4cf7273d621441499a038430b5`. Its complete 28-file delta is
+retained: consumed intent, seven package versions and changelogs, matching Bun
+workspace versions, and twelve public API/artifact records. Those records also
+capture the already implemented v3 quality schema and retired-duplicate API;
+they are preserved as actual upstream records, not reduced to version edits.
+The lock retains the new release-checks workspace. Runtime source, fixtures,
+CI workflows, inventories, the leaf and its private Host remain unchanged.
+
+A genuine clean checkout of `d7109cc347ecbbd62afb484a97ea72303743e680` passed
+source install and build. Its fast gate then rejected a filesystem stability
+observation for `packages/docs-protocol-mcp`. The generic retained message
+does not identify the changed field or actor. The same architecture owner
+subsequently passed all nine modules on unchanged source in 18.012 seconds;
+the separately observed directory metadata stayed stable during that run.
+This diagnostic does not rewrite the initial failure or qualify the full fast
+gate. The clean checkout avoids reusing historical disposable source profiles.
+
+Independent review, fresh source-bound local gates and complete native CI for
+this release reconciliation are recorded on the owner PR. Earlier executions
+remain bound to their own source/base. Maintainer readiness still precedes
+public admission and the existing bootstrap/OIDC route.
+
+## Nested manager observations and permission-test prerequisites
+
+On `1cb6bcadc702391f2f95d2c5ba1973644b505cf0`, source install, build, the
+complete fast gate and workflow security passed. The bounded local changed-check
+log then exposed an inherited pnpm user-agent in a real Bun fixture and a failed
+permission-test child launch. These observations are failures, not qualification.
+
+Reproducing the observed outer pnpm environment through the existing selected
+owner ran all 50 tests in the workflow configuration, gate configuration and ADR
+replacement suites: 48 passed and both Bun manager observations failed. The two
+fixtures now remove only the case-insensitive `npm_config_user_agent` field from
+their final child environment. Actual managers must supply their own observations;
+explicit executable selection, Git authority and every runtime assertion remain.
+Production environment handling and the global process environment are unchanged.
+
+The dropped-UID test could not traverse the private ancestor of the original
+Node executable. A byte-identical physical Node 26.11.1 in a dedicated traversable
+runtime directory passed an actual UID/GID 65534 launch. Its test scratch parent
+is also traversable; workspace permissions are unchanged. The unchanged ADR test
+already passed with these execution inputs before the source correction. Its
+only source edit retains a useful spawn error when stderr is null. The protected
+baseline directory remains mode 0555, and child status, exact EACCES, unchanged
+baseline bytes and absence of temporary files remain mandatory.
+
+With the same reproduced ambient user-agent, all 50 tests then passed without
+skips in 48.210 seconds; strict TypeScript 7.0.2 tooling passed in 2.754 seconds.
+The existing optional Node 24 case was not activated by this focused run; native
+compatibility evidence remains a separate CI responsibility. Independent review
+and the final committed-source gates are recorded on the owner PR. This correction
+does not change inventories, timeouts or the maintainer-readiness publication hold.
+
+## Complete pnpm fixture distribution
+
+[Native run 39646438463](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/39646438463)
+failed for `93e0289272d5638284995a53d80f9ccbbdb80143` on base
+`cef8f6f840ef471df612c7a7c6e3b8fcfbcca644`. Windows B rejected the new nested-pnpm
+fixture; the retained diagnostic omitted the failed command phase and child
+output, so its precise cause is not established. Linux pair 3–4 separately
+exceeded its existing 25-minute bound after broad timing increases. Its partial
+raw coverage cannot replace a complete producer result. No Linux implementation,
+inventory, coverage or timeout change follows from that observation.
+
+The exact installed pnpm 11.20.0 directory fetcher recursively excludes every
+directory named `node_modules`. Using that directory as a `file:` dependency
+therefore drops pnpm's genuine bundled native dependencies beneath
+`dist/node_modules`. A workspace-copy alternative preserved those files but
+failed the unchanged contamination control: its workspace-only dependency graph
+did not populate the shim's hoist directory. That intermediate fixture was
+rejected, not counted as a successful regression check.
+
+The test now packs the genuine installed pinned manager through the existing npm
+helper, with lifecycle scripts disabled and a disposable cache and destination.
+It validates the single pnpm 11.20.0 tarball result, installs a short relative
+tarball dependency through real offline pnpm, and compares an installed bundled
+manifest with its source bytes. Actual pnpm still creates the platform shim.
+The control must reproduce ambient CommonJS resolution before either corrected
+qualification mode runs. All runtime, ESM, environment-immutability and isolation
+assertions remain mandatory on Windows as well as other platforms.
+
+A test-local wrapper places the phase, exit status and bounded child output
+before the original exception's absolute command path. It preserves that
+exception as the cause and leaves command timeouts, process handling and cleanup
+unchanged. The six complete affected files passed on the recorded corrected
+test bytes: 76 pass, no failures or cancellations, and two existing platform
+skips. Complete fast and workflow-security checks also passed. The old-helper
+negative control, committed-source review and fresh native result remain bound
+to their actual evidence on the owner PR; Linux execution does not establish
+Windows success.
+
+The source also preserves the complete nine-file owning release delta at
+`0e0de78d4c2089be8effc37da4cfd70eab22358c`, including Foundation 2.1.1, Feature
+Module Standard 0.2.3, their consumed Changeset, changelogs, versioned baselines
+and Bun workspace versions. The public-admission hold remains in force until
+actual npm maintainer readiness permits the existing bootstrap/OIDC sequence.
+
+## Native fixture environment and bounded shard redistribution
+
+[Native run 39655280660, attempt 1](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/39655280660)
+is terminal for head `5b4740bcc845072cada7fe035c4ce3fe236c3b0c` and base
+`0e0de78d4c2089be8effc37da4cfd70eab22358c`: 35 jobs, with 29 successful,
+four failed, one cancelled and one skipped. The canonical protected-base helper
+actually exited 1. Its overall cancelled result and skipped coverage owner do
+not qualify this pair. The separately completed ordinary local package owner
+and architecture owner actually exited 0 on that source; their exact receipts
+and source bindings remain on the owner PR.
+
+Windows B now identifies the fixture installation phase, after the actual npm
+pack succeeded and before the contamination control. The retained 48-character
+error prefix identifies the managed Windows wrapper, but omits its full child
+diagnostic. Source review found a concrete fixture defect: copying `process.env`
+into a plain object and adding `PATH` can retain Windows `Path` as a second key.
+The existing native environment builder correctly refuses names that differ
+only by case. The npm helper already normalizes its path, whereas this fixture
+installation invokes the command runner directly. That supports the diagnosis;
+it does not reconstruct the unavailable child stderr as established evidence.
+
+The fixture now removes every case variant of each deliberately replaced or
+removed variable before setting its one Node-prefixed path and disposable npm
+cache. It leaves the original environment untouched. Its bounded diagnostic
+prefers stderr, falls back to stdout and puts the actual stream's final 48
+characters first while preserving the original exception as the cause. The
+native duplicate-name rejection, process containment, real pnpm tarball,
+generated-shim control, both qualification modes and all assertions remain.
+
+Linux pair 3–4 completed both full selected inventories: shard 3 passed all 26
+files and 836 tests; shard 4 passed all 52 files and 635 tests with three existing
+platform skips. The job nevertheless exceeded its unchanged 25-minute limit.
+Its observed whole-file sums were 584.541 seconds and 1457.257 seconds; the
+portable C1 rejection file accounted for 346.855 seconds in shard 4. These are
+diagnostic timings from a failed job, not accepted coverage qualification.
+
+Only that file moves from canonical shard 4 to shard 3. The observed sums
+project approximately 931.396 and 1110.402 seconds before setup and runtime
+variance. The canonical 301-file union and the full 345-file union retain their
+exact multiplicities. The loader remains in shard 3, all managed-runtime suites
+remain in shard 4, and Windows lane bytes, all eight shards, 35 native jobs,
+coverage thresholds and timeouts are unchanged. One canonical traversal index
+in the existing Windows partition test changes from 137 to 138; its lane
+assertions remain intact.
+
+The moved file needs no shard-4 managed-tool provisioning and retains its seven
+mandatory identities. Shard 3 consequently uses the existing mandatory Node
+execution route for its complete selection; that route retains serial process
+isolation and the existing coverage inputs. Final-source qualification must
+prove this actual route, including the loader and all selected files. No timing
+projection or earlier source result replaces the fresh complete native run.
+The maintainer-readiness and public-admission hold remains in force.
+
+## Current-main integration and retained writer review — 2026-10-23
+
+The previous sections retain their original source and execution facts. The
+current integration combines feature head
+`e162299f0505b95af02adca4edf9a363c91a731a` with protected main
+`97f7b16f25823149f8f884db761edb9ffb43a535`. It preserves main's released Stack
+Toolchain `0.1.0`, its closed bootstrap recovery, package versions, baseline
+promotions and runtime changes. Release-checks remains one independent pure
+package and a private source-built Host; no universal release manager is added.
+
+All ten feature modules, nine bootstrap profiles and both complete lockfile
+projections are retained. The canonical test inventory contains 311 unique
+files across all eight shards; Windows retains its complete 303-file union.
+The previously recorded failed timing evidence and bounded shard relocation
+remain intact. No threshold, timeout, native lane or assertion is relaxed.
+Integration fixtures now model the actual ten-package graph, and the bootstrap
+prepare fixture supplies its required operating commit.
+
+Main's accepted ADR-0064/0065/0066 remain byte-exact. The unmerged admission is
+ADR-0067; the actual built architecture-decisions promoter added its canonical
+digest `sha256:b9038161b1a0f5ea4289dceed2b39af32567844f22e4654046243c81f81f07fb`
+while retaining all 63 protected ledger records. Earlier branch numbering and
+the former separate approval-PR description are historical. Current admission
+requires reviewed approval on this same PR before its final CI and merge.
+
+The [actual Ubuntu artifact review](evidence/release-checks/p1-ubuntu-writer-review-20261023.json)
+records download and inspection of artifact `12376897004` from full CI run
+`39664614732`, attempt 2, writer job `119463834854`. ZIP digest, receipt binding,
+manifest, both tar listings and all 40 archive entries passed inspection. An
+independent release evidence reviewer recomputed the content bindings and gave
+GO for the bounded package-tree/SRI approval. Every nonmanifest payload byte
+matches the current build/source for the unchanged leaf. The catalog records
+that exact approval, and the policy suite retains candidate refusal through an
+explicit candidate fixture.
+
+The inspection's derived pack-report shape is a projection of the original
+archive, not an original pnpm report or a new writer execution. The retained
+earlier full CI does not qualify this integrated source. Final-head/current-base
+full native CI must reproduce the approved bytes under the current packaging
+inputs; changed output requires new reviewed writer evidence.
+
+The exact Bun 1.4.3 source install and full build passed using the pinned Node
+26.11.1, pnpm 11.20.0 and TypeScript 7.0.2 toolchain. The focused integration
+run completed 374 tests: 373 passed, none failed or cancelled, and
+the existing opt-in actual Changesets TEST case was skipped by its flag. That
+run covers the pure leaf, Host, bootstrap recovery/policy/workflow, release
+guards and publisher, runtime projections and inventory/reporting consumers.
+The [retained local checks](evidence/release-checks/integration-20261023/checks.json)
+include complete logs, failed attempts and the subsequent outcomes. After
+approval, all 50 affected bootstrap tests passed. The opt-in actual engine case
+then passed without skips, accepting generated version/changelog/locks and
+rejecting a forged Bun graph SRI. The two final release fixture suites passed
+all 85 tests without skips.
+
+The initial fast gate rejected two test files exceeding the existing 800-line
+rule. A byte-equivalent fixture template and one explicit ten-package RC/latest
+assertion loop removed duplication without exclusions or relaxed assertions;
+Stack Toolchain now receives those two assertions too. The complete fast gate
+then passed. The workflow-security owner also passed with its unchanged pinned
+Actionlint/Zizmor route after an initial failed runtime observation.
+
+The required changed-check owner failed during its owned isolated pnpm install;
+the full check did not start. Its retained log ends at 643 of 645 dependencies,
+with archive-download error (23) for two packages. The filesystem concurrently
+reported zero available bytes, but the retained installer output contains no
+terminal ENOSPC exception; that observation does not establish a more precise
+failure cause. Only this task's disposable files were cleaned. The changed/full
+gate remains outstanding and is not replaced by focused success.
+
+The independent integration reviewer found no blocking source findings on index
+tree `b9c38037a9a80cb24328e341902a1b7b738c89c8` before this evidence append.
+That review preserved all main authorities, the complete assertions and the
+unchanged release-checks package tree. Local mutable checks are feedback, not
+final-head native CI or publication authority.
+
+node-or-bun independently integrated its actual main
+`b000bbdaf5ffe1bfa87f2b5ef8f6f03625c5cff2` as local merge
+`f67df0056705ec4db782fd31c142eed2547cc5a7`. Its retained evidence records strict
+Stack typecheck, typed lint and format, 29 release tests, and a disposable
+current-source Changesets `0.2.3` to `0.2.4` cycle followed by npm packing and
+installed Node, Bun and Node-in-Bun qualification. Production remains `0.2.3`;
+this TEST uses the local leaf and does not establish public `0.1.0` adoption.
+
+Public delivery is still pending. The exact leaf version remains absent from
+the public registry. The connected browser has no originating context, so npm
+maintainer readiness is unestablished. The current GitHub connector cannot set
+the canonical raw owner commit identity; ordinary Git/CLI write authentication
+is unavailable. Preserve correct local owner commits and the ready source rather
+than publish an invalid identity. These are capability limits, not a request
+for renewed owner authorization. Keep admission unmerged until provider
+readiness, actual final remote CI and the canonical merge protocol can complete.
+
+### Completed retry record and transport checkpoint
+
+The [subsequent changed-check record](evidence/release-checks/integration-20261023/changed-retries.json)
+retains both later attempts against committed source
+`48c2a328616bcfbed0588d11c5b34e5d50ac1dad`, with the complete diagnostic logs and
+their hashes. The first retry installed all 645 dependencies and completed
+standards, lint, strict TypeScript, all Foundation capabilities and the other
+checks preceding the full 355-file test selection. C1 tests then rejected the
+operator's missing job-owned scratch environment. The operator cancelled this
+attempt with exit 130; it is incomplete feedback, not successful qualification.
+
+The next attempt supplied the explicit C1 scratch, TMPDIR/TMP/TEMP and qualified
+managed-tool roots without changing source or tests. pnpm reported all 645
+dependencies installed and the peer checker reported no issues, then a child
+process terminated by SIGKILL. The full check command graph did not appear in
+the retained output. A post-failure filesystem observation reported 39 MB free,
+but the signal and shared resource observations do not establish the failure
+cause. The required changed/full gate therefore remains outstanding.
+
+An independent read-only transport review confirmed that the exposed connector
+cannot upload the existing local commit objects or specify the required raw
+author and committer. Its available defaults do not satisfy canonical owner
+identity, and no existing workflow provides an alternative source transport.
+The existing npm bootstrap route separately requires accessible maintainer
+readiness before admission merge. Anonymous registry readback at
+2026-10-23T17:15:56Z still returned 404 for the package and exact 0.1.0 version.
+No branch ref, provider configuration, protected merge or publication was
+changed by these retries. The prepared commits require authenticated owner Git
+transport and a connected npm maintainer session to continue public delivery.
+
+
+### Current owner continuation and replacement writer review
+
+The transfer/access limits above describe historical attempts. Owner-authenticated
+Git transport recovered the retained canonical-identity commits and pushed
+`1aed30220e0dfa778f89ad979bafb5b3a8581566` to the same PR421, integrating main
+`17520f7d84d364f5bb40195785c2b7a9269663a0`. Independent integration review passed.
+The current [npm readiness record](evidence/release-checks/integration-20261023/npm-maintainer-readiness.json)
+confirms the actual npm organization owner and accessible interactive granular
+credential form. No timed token, bootstrap activation or publication was created.
+
+PR Feedback run `40010350884` passed on this head/base. Its public changed
+selection chose the fast-full `check:fast` route. It is not a successful literal
+C1/private full command. Current repository rules use complete final-head/base
+native CI as the merge qualification, without a duplicate sequential local
+`verify`. The separately prepared hosted diagnostic did not launch because its
+actual storage guard rejected capacity; no guard was bypassed or test weakened.
+
+Native run `40010522856`, attempt 1, remains unsuccessful evidence. Its package
+checks passed, but approved writer reproduction correctly rejected the earlier
+SRI. Independent [replacement archive review](evidence/release-checks/integration-20261023/ubuntu-writer-replacement-review.md)
+binds actual Ubuntu artifact `12527205945`, job `120610925843`, source merge
+`55b9d1ee2dab5f9dbd241c39dcc416e6b974ded7` and unchanged package tree
+`76a214bd459937b28786880b4deb08cb20916da7`. The only changed member is
+`package/package.json` key ordering, explained by explicit canonical packing-hook
+use. All other 39 payloads and parsed manifest semantics are identical. That
+review approves the replacement SRI recorded in the catalog on this same PR;
+it does not qualify final source or replace fresh approved-writer reproduction.
+
+The first Linux test pair also exposed an old exact module-count expectation:
+release-checks is the tenth admitted feature module, so its architecture test
+now expects exactly ten and retains every ownership/violation assertion.
+Separate CodeQL security findings require opened-handle file observation and
+diagnostic reads; current independent security review and fresh exact-head
+CodeQL/full native qualification must complete before merge. No old run or
+partial successful lane is represented as final qualification. Protected-main
+CI, timed bootstrap, credential cleanup, supported publication and all external
+consumer routes remain pending.

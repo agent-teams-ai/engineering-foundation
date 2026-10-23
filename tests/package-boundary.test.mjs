@@ -123,6 +123,7 @@ test("publishable package catalog and manifests preserve one-way layering", asyn
     PUBLISHABLE_PACKAGES.map((releasePackage) => releasePackage.name),
     [
       "@agent-teams/ci-input-proof",
+      "@agent-teams/release-checks",
       repositoryMutationName,
       documentAuthoringName,
       docsProtocolName,

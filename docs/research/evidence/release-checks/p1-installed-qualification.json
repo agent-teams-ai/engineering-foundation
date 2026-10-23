@@ -1,0 +1,20 @@
+{
+  "status": "passed",
+  "node": "v26.11.1",
+  "packageName": "@agent-teams/release-checks",
+  "packageVersion": "0.0.0",
+  "archiveSha256": "d5e6eb3a48ea65f900ec18060dc1bfdb46fa2c3b694d2db1b239c698329318fe",
+  "archiveIntegrity": "sha512-/rPqYywYkaoQUQFi5KMJVqOce/IkpqcpILQMJZDtKYSFkmCRc/oedvScDPP2+cbMPCf8R4qDp9+JdcnzN7cwww==",
+  "archivePath": "/tmp/release-checks-installed-PvKx5v/verified-release-checks-Pqqrac/agent-teams-release-checks-0.0.0.tgz",
+  "cleanBuilds": 2,
+  "byteIdenticalArchives": true,
+  "packedPublicTypesAndRuntime": true,
+  "registryPublicTypesAndRuntime": true,
+  "runtimeClosure": [
+    "@agent-teams/release-checks"
+  ],
+  "conformanceCases": 12,
+  "registryHasUplinks": false,
+  "publicRegistryPublication": false,
+  "temporaryRoot": "/tmp/release-checks-installed-PvKx5v"
+}

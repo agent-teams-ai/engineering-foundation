@@ -6,6 +6,7 @@ export function registryFoundationQualificationProfile({
   docsPackageName,
   foundationPackageName,
   mcpPackageName,
+  releaseChecksPackageName,
 }) {
   const packageNames = [
     foundationPackageName,
@@ -13,6 +14,7 @@ export function registryFoundationQualificationProfile({
     docsPackageName,
     adapterPackageName,
     mcpPackageName,
+    releaseChecksPackageName,
   ];
   if (packageNames.some((name) => typeof name !== "string" || name.length === 0)) {
     throw new Error("Foundation registry qualification requires every package name.");

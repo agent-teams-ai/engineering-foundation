@@ -227,3 +227,17 @@ packages:
     approvedBreakingChanges:
       - fingerprint: sha256:7543fdd6717ebff41d39fae71faaa2cb9ce2811d7deaad99243cfa351294df36
         decisionId: ADR-0065
+  - packageName: "@agent-teams/release-checks"
+    packageRoot: packages/release-checks
+    manifestPath: packages/release-checks/package.json
+    entrypoints:
+      - exportPath: "."
+        declarationEntryPoint: packages/release-checks/dist/index.d.ts
+      - exportPath: "./conformance"
+        declarationEntryPoint: packages/release-checks/dist/features/candidate-checking/conformance.d.ts
+    nonTypeExports:
+      - exportPath: "./package.json"
+        kind: data
+    tsconfigPath: packages/release-checks/tsconfig.json
+    releasedBaselinePath: architecture/public-api/release-checks.json
+    approvedBreakingChanges: []

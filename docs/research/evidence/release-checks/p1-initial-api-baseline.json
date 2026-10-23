@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "kind": "release-checks-initial-api-admission",
+  "outcome": "passed",
+  "sourceHead": "b72bb4945968461e365b72adbe25f1472e1cdadd",
+  "sourceWorkingChanges": true,
+  "productionPolicyDigest": "sha256:76c972320bd0f17aedd812051865246600524aa78e4ec47701cdcaef2dc3142c",
+  "configuredPackages": [
+    "@agent-teams/repository-mutation",
+    "@agent-teams/engineering-foundation",
+    "@agent-teams/document-authoring",
+    "@agent-teams/docs-protocol",
+    "@agent-teams/docs-protocol-mcp",
+    "@agent-teams/docs-protocol-agent-teams",
+    "@agent-teams/ci-input-proof",
+    "@agent-teams/feature-module-standard",
+    "@agent-teams/release-checks"
+  ],
+  "initialWrite": [
+    {
+      "destination": "architecture/public-api/release-checks.json",
+      "operation": "create",
+      "preimageDigest": null,
+      "proposedDigest": "sha256:9b02f3b4860b8f9f39eaf175d37c49c0e1678f492aea620d0e6053120b37e414"
+    }
+  ],
+  "initialBaselineDigest": "sha256:9b02f3b4860b8f9f39eaf175d37c49c0e1678f492aea620d0e6053120b37e414",
+  "unchangedHistoricalBaselineDigests": {
+    "architecture/public-api/ci-input-proof.json": "sha256:7a39171db83a48fd84131c4035fddf6aa17b1deb1422bf29df21e100c888bc6c",
+    "architecture/public-api/docs-protocol-agent-teams.artifacts.json": "sha256:f9dd2747cfdc79de527f73df1b2bf8f0775847bd004d30fc10e50999623da4f5",
+    "architecture/public-api/docs-protocol-agent-teams.json": "sha256:04313a7808682b8ef8e6dbac4a9aa1d2b99534469dcde3fec2ad64a30e664710",
+    "architecture/public-api/docs-protocol-mcp.json": "sha256:09611d4e6515046de3e11e14ce5dea439873624e6dc44c325b128ca6103ba13a",
+    "architecture/public-api/docs-protocol.artifacts.json": "sha256:7cfce4be014ec3fa8a3448ea0b1da2d31a3852bed59743c1cc381f0d0d554d83",
+    "architecture/public-api/docs-protocol.json": "sha256:b404dc381f8544f10ec9daa91bc9d00454bb508c779517ceddb803cf35ea853b",
+    "architecture/public-api/document-authoring.artifacts.json": "sha256:280f9c7ad624dbd37933bd704c759e55a48777f93395e71720dbabfb1ead27d6",
+    "architecture/public-api/document-authoring.json": "sha256:75413b415087c7d0358240c6c03542c9b33c50aa021dd14100e7707d28bddcc2",
+    "architecture/public-api/engineering-foundation.artifacts.json": "sha256:9176cd6cfe0d1b37311942a088ad5298451c0c3aa2726797018b68f014d9ba77",
+    "architecture/public-api/engineering-foundation.json": "sha256:cee1048098b64c28285b963c5633a643ebc6efd72dc3349f6c75a0023be495d5",
+    "architecture/public-api/feature-module-standard.json": "sha256:a190e165f24f8573ff8b97e50b9d83bdcda38275e9fdc6bc094d1a482d75a51b",
+    "architecture/public-api/repository-mutation.artifacts.json": "sha256:dc3daa019284f496a9370a3898ecdb4721d90b9346aab9b89f0e98847a395939",
+    "architecture/public-api/repository-mutation.json": "sha256:7a92ea9895fbc6fba282ccdc0c1eaea344d4c6833109131fe16dff7464a7f536"
+  },
+  "fullTypedDiagnostics": [],
+  "fullArtifactDiagnostics": []
+}

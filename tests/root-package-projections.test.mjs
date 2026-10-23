@@ -92,6 +92,7 @@ test("manifest projection rejects cycles, unknown workspace targets, and malform
 test("current projection preserves the admitted package DAG and independent tooling packages", () => {
   assert.deepEqual(PUBLISHABLE_PACKAGES.map(({ name }) => name), [
     "@agent-teams/ci-input-proof",
+    "@agent-teams/release-checks",
     "@agent-teams/repository-mutation",
     "@agent-teams/document-authoring",
     "@agent-teams/docs-protocol",
@@ -102,6 +103,7 @@ test("current projection preserves the admitted package DAG and independent tool
     "stack-toolchain",
   ]);
   assert.deepEqual(PUBLISHABLE_PACKAGE_DEPENDENCIES["@agent-teams/ci-input-proof"], []);
+  assert.deepEqual(PUBLISHABLE_PACKAGE_DEPENDENCIES["@agent-teams/release-checks"], []);
   assert.deepEqual(PUBLISHABLE_PACKAGE_DEPENDENCIES["stack-toolchain"], []);
   assert.deepEqual(PUBLISHABLE_PACKAGE_DEPENDENCIES["@agent-teams/feature-module-standard"], []);
   assert.deepEqual(

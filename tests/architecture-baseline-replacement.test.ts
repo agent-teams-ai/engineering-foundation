@@ -482,7 +482,7 @@ test("ADR permission refusal is exercised by a process subject to directory perm
         process.exitCode = 1;
       } catch (error) { process.stdout.write(JSON.stringify({ code: error.code, problem: error.problem })); }
     `], { cwd: runtime, encoding: "utf8", ...(process.getuid?.() === 0 ? { uid: 65534, gid: 65534 } : {}) });
-    assert.equal(child.status, 0, child.stderr);
+    assert.equal(child.status, 0, child.stderr ?? child.error?.message);
     assert.equal((JSON.parse(child.stdout) as { code: string }).code, "EACCES");
     assert.deepEqual(await readFile(current.path), before);
     assert.deepEqual(await temporaries(current.path), []);

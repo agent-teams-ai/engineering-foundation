@@ -18,6 +18,7 @@ import { inspectInstalledDependencies } from "../tools/dependencies-installed-ch
 import { resolveQualificationExecutables } from "../tools/executable-policy.mts";
 import { projectNodeAgentWorkflowPolicy } from "../tools/runtime-policy.mts";
 import { pnpmPortableName, resolvePnpmInvocation } from "../tools/pnpm-command.mts";
+import { repositorySourceRoot } from "./support/repository-source.ts";
 import { TOOL_COMMANDS } from "../tools/repository-tool-catalog.ts";
 
 const repositoryRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
@@ -164,6 +165,7 @@ test("pinned pnpm setup version probe accepts Bun only with its scoped preparati
     await writeFile(join(root, "package.json"), JSON.stringify({
       name: "TEST-pnpm-setup-probe", private: true, packageManager: "bun@1.4.3"
     }));
+    await writeFile(join(root, "pnpm-workspace.yaml"), "packages: []\n");
     const environment = { ...process.env, pnpm_config_pm_on_fail: "error" };
     const probe = (env: NodeJS.ProcessEnv) => spawnSync(pnpm.command, [...pnpm.args, "--version"], {
       cwd: root, env, encoding: "utf8", timeout: 10_000
@@ -262,7 +264,7 @@ test("portable native manager fixtures reject wrong versions before operations",
 });
 
 test("projected qualification binds Git source authority instead of repository ascent", async () => {
-  const authority = await assertExplicitSourceGitAuthority(repositoryRoot);
+  const authority = await assertExplicitSourceGitAuthority(await repositorySourceRoot());
   assert.match(authority.sourceCommit, /^[0-9a-f]{40}$/u);
   const parent = await ownedTemporaryRoot("source-authority-");
   const projection = join(parent, "projection");
@@ -321,6 +323,7 @@ test("Node compatibility and package qualification execute in the private pnpm p
 });
 
 async function minimalSource(root: string): Promise<void> {
+  const sourceRoot = await repositorySourceRoot();
   await mkdir(join(root, ".worker-tmp/profiles"), { recursive: true });
   await mkdir(join(root, "architecture/foundation"), { recursive: true });
   const manifest = {
@@ -337,12 +340,12 @@ async function minimalSource(root: string): Promise<void> {
   await writeFile(join(root, "pnpm-workspace.yaml"),
     "packages:\n  - \"packages/*\"\ncatalog: {}\ncatalogs: {}\noverrides: {}\n", "utf8");
   await copyFile(
-    join(repositoryRoot, "architecture/foundation/repository-agent-workflow.yaml"),
+    join(sourceRoot, "architecture/foundation/repository-agent-workflow.yaml"),
     join(root, "architecture/foundation/repository-agent-workflow.yaml")
   );
-  await copyFile(join(repositoryRoot, "architecture/foundation/dependency-declarations.yaml"), join(root, "architecture/foundation/dependency-declarations.yaml"));
+  await copyFile(join(sourceRoot, "architecture/foundation/dependency-declarations.yaml"), join(root, "architecture/foundation/dependency-declarations.yaml"));
   await copyFile(
-    join(repositoryRoot, "architecture/foundation/repository-runtime.json"),
+    join(sourceRoot, "architecture/foundation/repository-runtime.json"),
     join(root, "architecture/foundation/repository-runtime.json")
   );
 }

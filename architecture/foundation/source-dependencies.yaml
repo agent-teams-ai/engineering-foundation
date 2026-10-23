@@ -4504,6 +4504,7 @@ boundaries:
   - id: release-checks.conformance
     roots:
       - packages/release-checks/src/features/candidate-checking/conformance.ts
+      - packages/release-checks/src/features/candidate-checking/conformance-inputs.ts
     entrypoints:
       - packages/release-checks/src/features/candidate-checking/conformance.ts
     packageExports:

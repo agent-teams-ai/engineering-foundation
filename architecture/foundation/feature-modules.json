@@ -2179,7 +2179,8 @@
             {
               "role": "testing",
               "roots": [
-                "packages/release-checks/src/features/candidate-checking/conformance.ts"
+                "packages/release-checks/src/features/candidate-checking/conformance.ts",
+                "packages/release-checks/src/features/candidate-checking/conformance-inputs.ts"
               ]
             }
           ],

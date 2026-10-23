@@ -1,6 +1,6 @@
 {
   "name": "@agent-teams/ci-input-proof",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Pure, bounded CI input-inventory comparison without execution or merge authority.",
   "license": "Apache-2.0",
   "type": "module",

@@ -743,3 +743,33 @@ is unavailable. Preserve correct local owner commits and the ready source rather
 than publish an invalid identity. These are capability limits, not a request
 for renewed owner authorization. Keep admission unmerged until provider
 readiness, actual final remote CI and the canonical merge protocol can complete.
+
+### Completed retry record and transport checkpoint
+
+The [subsequent changed-check record](evidence/release-checks/integration-20261023/changed-retries.json)
+retains both later attempts against committed source
+`48c2a328616bcfbed0588d11c5b34e5d50ac1dad`, with the complete diagnostic logs and
+their hashes. The first retry installed all 645 dependencies and completed
+standards, lint, strict TypeScript, all Foundation capabilities and the other
+checks preceding the full 355-file test selection. C1 tests then rejected the
+operator's missing job-owned scratch environment. The operator cancelled this
+attempt with exit 130; it is incomplete feedback, not successful qualification.
+
+The next attempt supplied the explicit C1 scratch, TMPDIR/TMP/TEMP and qualified
+managed-tool roots without changing source or tests. pnpm reported all 645
+dependencies installed and the peer checker reported no issues, then a child
+process terminated by SIGKILL. The full check command graph did not appear in
+the retained output. A post-failure filesystem observation reported 39 MB free,
+but the signal and shared resource observations do not establish the failure
+cause. The required changed/full gate therefore remains outstanding.
+
+An independent read-only transport review confirmed that the exposed connector
+cannot upload the existing local commit objects or specify the required raw
+author and committer. Its available defaults do not satisfy canonical owner
+identity, and no existing workflow provides an alternative source transport.
+The existing npm bootstrap route separately requires accessible maintainer
+readiness before admission merge. Anonymous registry readback at
+2026-10-23T17:15:56Z still returned 404 for the package and exact 0.1.0 version.
+No branch ref, provider configuration, protected merge or publication was
+changed by these retries. The prepared commits require authenticated owner Git
+transport and a connected npm maintainer session to continue public delivery.

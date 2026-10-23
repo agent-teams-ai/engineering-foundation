@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 import { copyPinnedToolchain } from "../features/quality-coverage/copied-toolchain.mjs";
 
 /** Finite real-quality consumer fixture; copies pinned local tools without installs. */
-export async function writeRepositoryQualityFixture(root: string, repositoryRoot: string): Promise<void> {
+async function writeRepositoryQualityFixture(root: string, repositoryRoot: string): Promise<void> {
   const put = async (path: string, value: unknown) => {
     await mkdir(dirname(join(root, path)), { recursive: true });
     await writeFile(join(root, path), typeof value === "string" ? value : JSON.stringify(value));

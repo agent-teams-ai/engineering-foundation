@@ -715,7 +715,7 @@ test(
           ...(process.getuid?.() === 0 ? { uid: 65534, gid: 65534 } : {}),
         },
       );
-      assert.equal(child.status, 0, child.stderr);
+      assert.equal(child.status, 0, child.stderr ?? child.error?.message);
       assert.equal((JSON.parse(child.stdout) as { code: string }).code, "EACCES");
       assert.deepEqual(await readFile(current.path), before);
       assert.deepEqual(await temporaries(current.path), []);

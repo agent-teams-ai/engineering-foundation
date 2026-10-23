@@ -9,6 +9,8 @@ import { readStreamText } from "./check-release-pr-files.mjs";
 import { PUBLISHABLE_PACKAGES, publishablePackageByName } from "./publishable-packages.mjs";
 import { missingSummaryViolations, releaseSections } from "./release-pr-sections.mjs";
 
+import { checkReleaseCandidateRevisions } from "./release-candidate-host.ts";
+
 const execFileAsync = promisify(execFile);
 const EXACT_SHA_PATTERN = /^[0-9a-f]{40}$/u;
 const RELEASE_TYPES = new Set(["patch", "minor", "major"]);
@@ -287,20 +289,6 @@ function stableExitViolations(basePrerelease, baseVersion, headVersion) {
     : [];
 }
 
-async function changesetConsumptionViolations(cwd, headSha, changesets) {
-  const headPrereleaseChangesets = await prereleaseState(cwd, headSha);
-  const violations = [];
-  for (const changeset of changesets) {
-    if (
-      (await pathExistsAtRevision(cwd, headSha, changeset.path)) &&
-      !headPrereleaseChangesets?.changesets.has(changesetId(changeset.path))
-    ) {
-      violations.push(`release head did not consume ${changeset.path}`);
-    }
-  }
-  return violations;
-}
-
 async function packageReleaseSection(context, releasePackage) {
   const { basePrerelease, baseSha, changesets, cwd, headSha } = context;
   if (
@@ -362,7 +350,7 @@ async function packageReleaseSection(context, releasePackage) {
 }
 
 async function releaseSectionViolations(context) {
-  const { body, changesets } = context;
+  const { body } = context;
   let actualSections;
   try {
     actualSections = releaseSections(body);
@@ -380,15 +368,6 @@ async function releaseSectionViolations(context) {
       .map((result) => [result.name, result.section]),
   );
   const violations = results.flatMap((result) => result.violations);
-  for (const changeset of changesets) {
-    for (const release of changeset.releases) {
-      if (!expectedSections.has(release.packageName)) {
-        violations.push(
-          `release head did not version ${release.packageName} for ${changeset.path}`,
-        );
-      }
-    }
-  }
   if (
     actualSections.size !== expectedSections.size ||
     [...expectedSections].some(
@@ -444,12 +423,21 @@ export async function releasePullRequestFreshnessViolations(
   ]);
   violations.push(...prereleaseTransitionViolations(basePrerelease, headPrerelease));
 
+  if (violations.length !== 0) {
+    return violations;
+  }
+  // Each invocation is an independent qualification boundary, including the
+  // final head/base rechecks after hosted CI. Never depend on a previous files check.
+  try {
+    await checkReleaseCandidateRevisions(cwd, processedMainSha, headSha);
+  } catch (error) {
+    return [error instanceof Error ? error.message : String(error)];
+  }
   const changesets = await expectedChangesets(cwd, processedMainSha);
   if (!changesets.some((changeset) => changeset.releases.length > 0)) {
     violations.push("processed main must contain at least one package release changeset");
   }
   violations.push(
-    ...(await changesetConsumptionViolations(cwd, headSha, changesets)),
     ...(await releaseSectionViolations({
       basePrerelease,
       baseSha: processedMainSha,

@@ -22,6 +22,8 @@ import {
   MUTATION_PACKAGE,
   DOCS_ADAPTER_PACKAGE,
   CI_INPUT_PROOF_PACKAGE,
+  RELEASE_CHECKS_PACKAGE,
+  releaseChecks,
   ciInputProof,
   FEATURE_MODULE_STANDARD_PACKAGE,
   featureModuleStandard,
@@ -145,11 +147,12 @@ export function registerSignatureAndRetryCases(): void {
     );
   });
 
-  test("nine published npm versions reach reconciliation after preflight on a later main without npm writes", async () => {
+  test("ten published npm versions reach reconciliation after preflight on a later main without npm writes", async () => {
     const runtime = harness(
       publishedState(
         stackToolchain,
         ciInputProof,
+        releaseChecks,
         featureModuleStandard,
         mutation,
         authoring,
@@ -171,7 +174,7 @@ export function registerSignatureAndRetryCases(): void {
             name,
             async () => {
               historical.push(name);
-              return [];
+              return name === "verifyBootstrap" ? { pending: [], verified: [] } : [];
             },
           ],
         ),
@@ -192,7 +195,7 @@ export function registerSignatureAndRetryCases(): void {
     const released = await run(runtime, {
       source: laterSource,
     });
-    assert.equal(runtime.calls.filter((call) => call.startsWith("release:")).length, 9);
+    assert.equal(runtime.calls.filter((call) => call.startsWith("release:")).length, 10);
     assert.equal(changesetsReleaseOutput(released), "");
     assert.equal(
       runtime.calls.some((entry) => /^(?:publish|tag|untag):/u.test(entry)),
@@ -204,6 +207,7 @@ export function registerSignatureAndRetryCases(): void {
     const initial = publishedState(
       stackToolchain,
       ciInputProof,
+      releaseChecks,
       featureModuleStandard,
       mutation,
       authoring,
@@ -252,6 +256,7 @@ export function registerSignatureAndRetryCases(): void {
     await run(runtime);
     assert.deepEqual(writes, [
       CI_INPUT_PROOF_PACKAGE,
+      RELEASE_CHECKS_PACKAGE,
       MUTATION_PACKAGE,
       DOCUMENT_AUTHORING_PACKAGE,
       DOCS_PACKAGE,
@@ -261,7 +266,7 @@ export function registerSignatureAndRetryCases(): void {
       FEATURE_MODULE_STANDARD_PACKAGE,
       STACK_TOOLCHAIN_PACKAGE,
     ]);
-    assert.equal(runtime.calls.filter((entry) => entry.startsWith("publish:")).length, 9);
+    assert.equal(runtime.calls.filter((entry) => entry.startsWith("publish:")).length, 10);
   });
 }
 
@@ -433,6 +438,7 @@ export function registerRegistryBoundaryCases(): void {
     const initial = publishedState(
       stackToolchain,
       ciInputProof,
+      releaseChecks,
       featureModuleStandard,
       mutation,
       authoring,
@@ -469,6 +475,7 @@ export function registerRegistryBoundaryCases(): void {
         artifacts: [
           stackToolchain,
           ciInputProof,
+          releaseChecks,
           featureModuleStandard,
           mutation,
           authoring,
@@ -486,6 +493,7 @@ export function registerRegistryBoundaryCases(): void {
     const initial = publishedState(
       stackToolchain,
       ciInputProof,
+      releaseChecks,
       featureModuleStandard,
       mutation,
       authoring,

@@ -22,6 +22,7 @@ import {
 } from "../tools/runtime-policy.mts";
 import { assertExplicitSourceGitAuthority } from "../tools/profile-root.mts";
 import { qualifyActualChangesetsRelease } from "./support/release-changesets-fixture.ts";
+import { repositorySourceRoot } from "./support/repository-source.ts";
 
 import { resolveQualificationExecutables } from "../tools/executable-policy.mts";
 import { resolvePnpmInvocation } from "../tools/pnpm-command.mts";
@@ -204,6 +205,7 @@ void test("public canary keeps builder Node 26 separate from selected public coh
 });
 
 void test("Node profile qualification requires a real virtual store outside lock refresh", async () => {
+  const actualSourceRoot = await repositorySourceRoot();
   await mkdir(join(repositoryRoot, ".worker-tmp"), { recursive: true });
   const temporary = await mkdtemp(join(repositoryRoot, ".worker-tmp/profile-qualification-"));
   const sourceRoot = join(temporary, "source");
@@ -258,12 +260,12 @@ void test("Node profile qualification requires a real virtual store outside lock
     await writeFile(join(sourceRoot, "architecture/foundation/repository-runtime.json"), policy);
     await writeFile(join(profileRoot, "architecture/foundation/repository-runtime.json"), policy);
     const workflowPath = "architecture/foundation/repository-agent-workflow.yaml";
-    const workflow = await readFile(join(repositoryRoot, workflowPath), "utf8");
+    const workflow = await readFile(join(actualSourceRoot, workflowPath), "utf8");
     const projectedWorkflow = projectNodeAgentWorkflowPolicy(workflow);
     await writeFile(join(sourceRoot, workflowPath), workflow);
     await writeFile(join(profileRoot, workflowPath), projectedWorkflow);
     const dependencyPath = "architecture/foundation/dependency-declarations.yaml";
-    const dependencies = await readFile(join(repositoryRoot, dependencyPath), "utf8");
+    const dependencies = await readFile(join(actualSourceRoot, dependencyPath), "utf8");
     const projectedDependencies = projectNodeDependencyDeclarationsPolicy(dependencies);
     await writeFile(join(sourceRoot, dependencyPath), dependencies);
     await writeFile(join(profileRoot, dependencyPath), projectedDependencies);
@@ -443,7 +445,7 @@ void test(
 
 void test("Node dependency policy projection changes one manager line and rejects unsupported source shapes", async () => {
   const source = await readFile(
-    join(repositoryRoot, "architecture/foundation/dependency-declarations.yaml"),
+    join(await repositorySourceRoot(), "architecture/foundation/dependency-declarations.yaml"),
     "utf8",
   );
   for (const newline of ["\n", "\r\n"]) {

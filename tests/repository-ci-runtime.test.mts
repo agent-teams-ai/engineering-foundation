@@ -1,3 +1,4 @@
+import { repositorySourceRoot } from "./support/repository-source.ts";
 import { workflow, stepWith, ownedTemporaryRoot } from "./support/repository-ci-workflow-cases.ts";
 import { TOOL_COMMANDS } from "../tools/repository-tool-catalog.ts";
 import assert from "node:assert/strict";
@@ -29,13 +30,13 @@ import {
 import { inspectInstalledDependencies } from "../tools/dependencies-installed-check.mts";
 import { resolveQualificationExecutables } from "../tools/executable-policy.mts";
 import { projectNodeAgentWorkflowPolicy } from "../tools/runtime-policy.mts";
-import { resolvePnpmInvocation } from "../tools/pnpm-command.mts";
+import { pnpmPortableName, resolvePnpmInvocation } from "../tools/pnpm-command.mts";
 
 const repositoryRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const sourceSha = "a".repeat(40);
 
 void test("projected qualification binds Git source authority instead of repository ascent", async () => {
-  const authority = await assertExplicitSourceGitAuthority(repositoryRoot);
+  const authority = await assertExplicitSourceGitAuthority(await repositorySourceRoot());
   assert.match(authority.sourceCommit, /^[0-9a-f]{40}$/u);
   const parent = await ownedTemporaryRoot("source-authority-");
   const projection = join(parent, "projection");
@@ -58,6 +59,7 @@ void test("projected qualification binds Git source authority instead of reposit
 });
 
 async function minimalSource(root: string): Promise<void> {
+  const sourceRoot = await repositorySourceRoot();
   await mkdir(join(root, ".worker-tmp/profiles"), { recursive: true });
   await mkdir(join(root, "architecture/foundation"), { recursive: true });
   const manifest = {
@@ -77,15 +79,15 @@ async function minimalSource(root: string): Promise<void> {
     "utf8",
   );
   await copyFile(
-    join(repositoryRoot, "architecture/foundation/repository-agent-workflow.yaml"),
+    join(sourceRoot, "architecture/foundation/repository-agent-workflow.yaml"),
     join(root, "architecture/foundation/repository-agent-workflow.yaml"),
   );
   await copyFile(
-    join(repositoryRoot, "architecture/foundation/dependency-declarations.yaml"),
+    join(sourceRoot, "architecture/foundation/dependency-declarations.yaml"),
     join(root, "architecture/foundation/dependency-declarations.yaml"),
   );
   await copyFile(
-    join(repositoryRoot, "architecture/foundation/repository-runtime.json"),
+    join(sourceRoot, "architecture/foundation/repository-runtime.json"),
     join(root, "architecture/foundation/repository-runtime.json"),
   );
 }

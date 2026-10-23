@@ -18,8 +18,8 @@ const docsPackageName = "@agent-teams/docs-protocol";
 const require = createRequire(import.meta.url);
 const changesetBin = join(dirname(require.resolve("@changesets/cli/package.json")), "bin.js");
 
-function changeset(summary) {
-  return '---\n"' + packageName + '": minor\n---\n\n' + summary + "\n";
+function changeset(summary, releaseType = "minor") {
+  return '---\n"' + packageName + '": ' + releaseType + "\n---\n\n" + summary + "\n";
 }
 
 test("parses an unscoped-only generated package release", () => {
@@ -55,20 +55,46 @@ test("does not parse malformed package release headings", () => {
   }
 });
 
-async function createFixture(summary = "Alpha package change.") {
+async function createFixture(
+  summary = "Alpha package change.",
+  { version = "1.0.0", releaseType = "minor" } = {},
+) {
   const root = await mkdtemp(join(tmpdir(), "foundation-release-freshness-"));
   await mkdir(join(root, ".changeset"), { recursive: true });
+  await writeFile(
+    join(root, "package.json"),
+    JSON.stringify({
+      name: "foundation-freshness-TEST",
+      private: true,
+      version: "0.0.0",
+      workspaces: ["packages/*"],
+    }),
+  );
+  await writeFile(
+    join(root, ".changeset/config.json"),
+    JSON.stringify({
+      changelog: "@changesets/cli/changelog",
+      commit: false,
+      fixed: [],
+      access: "public",
+      baseBranch: "main",
+      updateInternalDependencies: "patch",
+      ignore: [],
+      privatePackages: { version: true, tag: false },
+    }),
+  );
   await mkdir(join(root, "packages", "engineering-foundation"), { recursive: true });
   await writeFile(
     join(root, "packages", "engineering-foundation", "package.json"),
-    JSON.stringify({ name: packageName, version: "1.0.0" }),
+    JSON.stringify({ name: packageName, version }),
   );
   await writeFile(
     join(root, "packages", "engineering-foundation", "CHANGELOG.md"),
     "# " + packageName + "\n\n## 1.0.0\n",
   );
-  await writeFile(join(root, ".changeset", "alpha.md"), changeset(summary));
+  await writeFile(join(root, ".changeset", "alpha.md"), changeset(summary, releaseType));
   await git(root, "init", "-b", "main");
+  await git(root, "config", "core.autocrlf", "false");
   await git(root, "config", "user.name", "Foundation Test");
   await git(root, "config", "user.email", "foundation-test@example.invalid");
   await git(root, "add", ".");
@@ -152,7 +178,10 @@ async function createRelease(
   if (prereleaseChangesets.length > 0) {
     await writeFile(
       join(root, ".changeset", "pre.json"),
-      JSON.stringify({ mode: "pre", tag: "rc", changesets: prereleaseChangesets }),
+      JSON.stringify({
+        ...JSON.parse(await readFile(join(root, ".changeset/pre.json"), "utf8")),
+        changesets: prereleaseChangesets,
+      }),
     );
   }
   await writeFile(
@@ -201,7 +230,12 @@ test("accepts Changesets prerelease consumption recorded in pre.json", async () 
     await git(fixture.root, "checkout", "--detach", fixture.mainA);
     await writeFile(
       join(fixture.root, ".changeset", "pre.json"),
-      JSON.stringify({ mode: "pre", tag: "rc", changesets: [] }),
+      JSON.stringify({
+        mode: "pre",
+        tag: "rc",
+        initialVersions: { [packageName]: "1.0.0" },
+        changesets: [],
+      }),
     );
     await git(fixture.root, "add", ".changeset/pre.json");
     await git(fixture.root, "commit", "-m", "enter prerelease mode");
@@ -266,7 +300,7 @@ test("accepts only an exact stable release when processed main exits prerelease"
       (await violations(fixture.root, exitMain, exitMain, wrongVersion, wrongVersion.head)).join(
         "\n",
       ),
-      /exact stable version/u,
+      /plan.version-mismatch|exact stable version/u,
     );
   } finally {
     await rm(fixture.root, { recursive: true, force: true });
@@ -484,7 +518,7 @@ test("release evidence follows the latest processed main across a two-push race"
       /processed main is stale/u,
     );
 
-    const incompleteReleaseB = await createRelease(fixture.root, mainB, "1.2.0", [
+    const incompleteReleaseB = await createRelease(fixture.root, mainB, "1.1.0", [
       "Alpha package change.",
     ]);
     assert.match(
@@ -494,7 +528,7 @@ test("release evidence follows the latest processed main across a two-push race"
       /missing the summary from \.changeset\/beta\.md/u,
     );
 
-    const releaseB = await createRelease(fixture.root, mainB, "1.2.0", [
+    const releaseB = await createRelease(fixture.root, mainB, "1.1.0", [
       "Alpha package change.",
       "Beta package change.",
     ]);
@@ -522,7 +556,7 @@ test("official empty Changeset is release-neutral but must be consumed", async (
     const release = await createRelease(fixture.root, main, "1.1.0", ["Alpha package change."]);
     assert.match(
       (await violations(fixture.root, main, main, release, release.head)).join("\n"),
-      /did not consume \.changeset\/bootstrap\.md/u,
+      /intent.consumption: \.changeset\/bootstrap\.md/u,
     );
     await git(fixture.root, "checkout", "--detach", release.head);
     await rm(join(fixture.root, ".changeset", "bootstrap.md"));
@@ -558,7 +592,7 @@ test("an empty Changeset cannot be the generated release PR's only release evide
     const head = await git(fixture.root, "rev-parse", "HEAD");
     assert.match(
       (await violations(fixture.root, main, main, { ...release, head }, head)).join("\n"),
-      /at least one package release changeset/u,
+      /plan.unexpected-version|at least one package release changeset/u,
     );
   } finally {
     await rm(fixture.root, { recursive: true, force: true });
@@ -576,7 +610,7 @@ test("existing release PR binding waits for the post-update revision tuple", asy
     await git(fixture.root, "add", ".");
     await git(fixture.root, "commit", "-m", "main B");
     const mainB = await git(fixture.root, "rev-parse", "HEAD");
-    const newRelease = await createRelease(fixture.root, mainB, "1.2.0", [
+    const newRelease = await createRelease(fixture.root, mainB, "1.1.0", [
       "Alpha package change.",
       "Beta package change.",
     ]);
@@ -708,7 +742,10 @@ for (const [label, transform, accepted] of [
   ],
 ]) {
   test(`legacy scaffold freshness: ${label}`, async () => {
-    const fixture = await createFixture(legacyScaffoldSummary);
+    const fixture = await createFixture(legacyScaffoldSummary, {
+      version: "1.1.0",
+      releaseType: "patch",
+    });
     try {
       const section = transform(legacyScaffoldSection);
       const generated = {

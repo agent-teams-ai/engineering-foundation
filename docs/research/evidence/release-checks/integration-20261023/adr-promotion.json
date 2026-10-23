@@ -1,0 +1,331 @@
+{
+  "promotion": {
+    "baseline": {
+      "algorithm": "sha256",
+      "decisions": [
+        {
+          "id": "ADR-0001",
+          "immutableDigest": "sha256:e4b388bfe08a1954580062a3267752840817fadd47e5a8224c22b49b58987379",
+          "path": "docs/decisions/0001-executable-capability-foundation.md"
+        },
+        {
+          "id": "ADR-0002",
+          "immutableDigest": "sha256:8e705a9c9583ffbeb0cb606f66e0eac81bf05da6bf90e078db89c0967d38a6e7",
+          "path": "docs/decisions/0002-oxc-source-dependency-adapter.md"
+        },
+        {
+          "id": "ADR-0003",
+          "immutableDigest": "sha256:c925d8b4020e23fd1a097d72cc7c1f2efa030974015ca580bfedcafb4de737c4",
+          "path": "docs/decisions/0003-governed-inline-suppressions.md"
+        },
+        {
+          "id": "ADR-0004",
+          "immutableDigest": "sha256:b0744d548ea8ee1db35975ff76f3e2f4027bd354a3c4a21d2f76c84a8e91f718",
+          "path": "docs/decisions/0004-released-public-api-baselines.md"
+        },
+        {
+          "id": "ADR-0005",
+          "immutableDigest": "sha256:9734cc8656c65dc39cfb247d159102ff31986a6c4decbcc5ab1d72250a5fce52",
+          "path": "docs/decisions/0005-repository-security-baseline.md"
+        },
+        {
+          "id": "ADR-0006",
+          "immutableDigest": "sha256:ce99688861bbf6147d72caf77827513992bb8499337abb387f1e8dce55d66e87",
+          "path": "docs/decisions/0006-closed-deterministic-scaffolding-compiler.md"
+        },
+        {
+          "id": "ADR-0007",
+          "immutableDigest": "sha256:5d0c7452f48dec0095a542c16c02034f21a6416868178a73368a0dd0d8c8c71f",
+          "path": "docs/decisions/0007-deterministic-documentation-governance.md"
+        },
+        {
+          "id": "ADR-0008",
+          "immutableDigest": "sha256:069017b7dc38678f8cdf8f50796e9625079e7f52b63dcc95c2e48ece001ff493",
+          "path": "docs/decisions/0008-contract-evolution-evidence.md"
+        },
+        {
+          "id": "ADR-0009",
+          "immutableDigest": "sha256:a98f31618e175a6c42099a98509b265b394b8a5edd71a0551fd47a68954c5122",
+          "path": "docs/decisions/0009-pinned-workflow-security-toolchain.md"
+        },
+        {
+          "id": "ADR-0010",
+          "immutableDigest": "sha256:d5a0a5882af4fc547cd08845f8fa6bb6d7db78d7f8372ab5daa76eb5501340e0",
+          "path": "docs/decisions/0010-observed-source-graph-v2.md"
+        },
+        {
+          "id": "ADR-0011",
+          "immutableDigest": "sha256:edd60151e0b277932d00322293ad3966f92314648a34a392d497dfa43a4ba011",
+          "path": "docs/decisions/0011-bounded-process-and-property-evidence-api.md"
+        },
+        {
+          "id": "ADR-0012",
+          "immutableDigest": "sha256:9fcce4933c6f5338cacfe75a73b34692afbd1c1b1fde1dc776725ea9c53f4d6a",
+          "path": "docs/decisions/0012-single-source-dependency-schema.md"
+        },
+        {
+          "id": "ADR-0013",
+          "immutableDigest": "sha256:228b077f1de9ac58860e2f2cca224743fcfa5b4f55922f395ac353d4bc9208bc",
+          "path": "docs/decisions/0013-source-bound-scaffolding-authority-evidence.md"
+        },
+        {
+          "id": "ADR-0014",
+          "immutableDigest": "sha256:48c4979d6e6884e83cda5ffd9544fe0026b4c034087d8b8f8194c6b8ee7f22fe",
+          "path": "docs/decisions/0014-scaffolding-review-hardening.md"
+        },
+        {
+          "id": "ADR-0015",
+          "immutableDigest": "sha256:b13b67fc9bcfb6b7464041cf275d5db418d900e2e5ef229dd1cfb85918fa27be",
+          "path": "docs/decisions/0015-qualified-buf-file-evidence.md"
+        },
+        {
+          "id": "ADR-0016",
+          "immutableDigest": "sha256:b77bdd35443e8510785c8ce546007528683e8fa45bd1d635790e83ab87a2070b",
+          "path": "docs/decisions/0016-hardened-buf-qualification-boundary.md"
+        },
+        {
+          "id": "ADR-0017",
+          "immutableDigest": "sha256:68745192b8c07fdda0c544b36e7855062bc970ccd3cccdb958a3bff8acbb2ad6",
+          "path": "docs/decisions/0017-staged-scaffolding-recipe-qualification.md"
+        },
+        {
+          "id": "ADR-0018",
+          "immutableDigest": "sha256:37ec60cd393faebe215a10d55ca680b34db42b945e0710c931ccda434c7538cd",
+          "path": "docs/decisions/0018-retire-conflicting-recipe-qualification-prerequisite.md"
+        },
+        {
+          "id": "ADR-0019",
+          "immutableDigest": "sha256:56d70b836a093aa4b7719dbb065c48160530b1460f397cc28744ffb7419c858b",
+          "path": "docs/decisions/0019-single-current-foundation-contract-version.md"
+        },
+        {
+          "id": "ADR-0020",
+          "immutableDigest": "sha256:559496da2e54429363227e708eec7a625c9b3ed94a95d3589470505bb5f8dcb3",
+          "path": "docs/decisions/0020-static-executable-specification-connectivity.md"
+        },
+        {
+          "id": "ADR-0021",
+          "immutableDigest": "sha256:f8beb0d167f778f330a68dba631e83937347111e98cc36612ee044f71799af53",
+          "path": "docs/decisions/0021-consumer-owned-state-model-axis-topology.md"
+        },
+        {
+          "id": "ADR-0022",
+          "immutableDigest": "sha256:442c15c919f3caa0b65117032da07828647991d6f82b699f497cf7529f25bd23",
+          "path": "docs/decisions/0022-document-authoring-protocol.md"
+        },
+        {
+          "id": "ADR-0023",
+          "immutableDigest": "sha256:a631c19f0ed7ca45e1b1104cbd6ac3a82dc3080244626788c35365b98bf8b154",
+          "path": "docs/decisions/0023-correct-document-authoring-v1-semantics.md"
+        },
+        {
+          "id": "ADR-0024",
+          "immutableDigest": "sha256:fd9c8900768834d90d89f3f506ecbdca777b2acb83cc0d35781be25dd518ad95",
+          "path": "docs/decisions/0024-versioned-document-transaction-recovery.md"
+        },
+        {
+          "id": "ADR-0025",
+          "immutableDigest": "sha256:6fa7f5a5715dcf657032f4d63f51c8e729527b0aaa01aaadc3e6c81e9f90478f",
+          "path": "docs/decisions/0025-unified-documentation-protocol-package.md"
+        },
+        {
+          "id": "ADR-0026",
+          "immutableDigest": "sha256:c77d3f078de99658c402ca48aa58c55f0f41fcf7d97836a88a91afb5dda680f4",
+          "path": "docs/decisions/0026-retain-only-document-directory-materialization.md"
+        },
+        {
+          "id": "ADR-0027",
+          "immutableDigest": "sha256:ba3e44fd327af90140d56c9ae6ffaa13cab8826e6048d881fd8ab0d87f8b17c0",
+          "path": "docs/decisions/0027-staged-docs-protocol-publication.md"
+        },
+        {
+          "id": "ADR-0028",
+          "immutableDigest": "sha256:322b656ed77f8a7050cc50cdfb27c39dbebf40a85ba28fddee9349ea4914d7f8",
+          "path": "docs/decisions/0028-fail-closed-docs-protocol-bootstrap.md"
+        },
+        {
+          "id": "ADR-0029",
+          "immutableDigest": "sha256:db8fe9f52e1ab6d09bdb0b2688f3ccb2097108cdf38ea85fc48715199bdc7a25",
+          "path": "docs/decisions/0029-immutable-docs-bootstrap-reconciliation.md"
+        },
+        {
+          "id": "ADR-0030",
+          "immutableDigest": "sha256:1308e4c0abb0ff9cc5cde9442307b474563941d43030bb26ec30307a72c823c9",
+          "path": "docs/decisions/0030-recoverable-known-file-transactions.md"
+        },
+        {
+          "id": "ADR-0031",
+          "immutableDigest": "sha256:cb2734171f4c8ff4e39661368f29219379c44600ff97b75090f7a721e8c1873e",
+          "path": "docs/decisions/0031-managed-docs-consumer-integration.md"
+        },
+        {
+          "id": "ADR-0032",
+          "immutableDigest": "sha256:ce5083d0ff3d206bfcfad0791c569c5fe90470c8a02c8aee98fbac0e6fee0a31",
+          "path": "docs/decisions/0032-qualified-runtime-and-source-owned-cohort-transitions.md"
+        },
+        {
+          "id": "ADR-0033",
+          "immutableDigest": "sha256:3d86d143d10bb38cef7007c3c53150420abbab8015552230c126d115d2850a0e",
+          "path": "docs/decisions/0033-freeze-legacy-foundation-docs-cli.md"
+        },
+        {
+          "id": "ADR-0034",
+          "immutableDigest": "sha256:3204d21acdb4c36747c3379d4a559e8749def9545c77f4cbb30679ece8e4624a",
+          "path": "docs/decisions/0034-fix-forward-stable-cohort-admission.md"
+        },
+        {
+          "id": "ADR-0035",
+          "immutableDigest": "sha256:58400e734b2f2fe3c34981d4f1ecd9722acf48ac317bd62596e7ae8ddef11c12",
+          "path": "docs/decisions/0035-evidence-gated-foundation-boundary-evolution.md"
+        },
+        {
+          "id": "ADR-0036",
+          "immutableDigest": "sha256:1691b5d2e2be0600c2b39d2acc53eac75e4193cbe359bdd311783fc3ae2bad79",
+          "path": "docs/decisions/0036-incubate-agent-architecture-standard.md"
+        },
+        {
+          "id": "ADR-0037",
+          "immutableDigest": "sha256:aab2ee44425e689c6d7b0f28ff0f94b241dad16084eb81ee52012cb017ddefe6",
+          "path": "docs/decisions/0037-one-command-qualified-cohort-upgrades.md"
+        },
+        {
+          "id": "ADR-0038",
+          "immutableDigest": "sha256:e80fb4d9b9eac36b5565267994bae0678bfbdbd79af8e6c8c113107f4b23ffe9",
+          "path": "docs/decisions/0038-approve-docs-consumer-upgrade-api.md"
+        },
+        {
+          "id": "ADR-0039",
+          "immutableDigest": "sha256:a9f722a6fe4ef46098e35ff4fe3331d05022be5ec039bac0de4bd3369587b9f0",
+          "path": "docs/decisions/0039-open-source-documentation-protocol.md"
+        },
+        {
+          "id": "ADR-0040",
+          "immutableDigest": "sha256:e4a2cef0c0604cc1b89406b32850dc683a221485f81e58d55c8afa38f598654b",
+          "path": "docs/decisions/0040-closed-catalog-npm-namespace-bootstrap.md"
+        },
+        {
+          "id": "ADR-0041",
+          "immutableDigest": "sha256:b16b08043d6abe8eb25e18f6c83803b52e722de25b2fbc417681c144395ff11c",
+          "path": "docs/decisions/0041-non-default-npm-bootstrap-quarantine.md"
+        },
+        {
+          "id": "ADR-0042",
+          "immutableDigest": "sha256:9e24c40d4b9422eec450868e885c597d66a624579f40dc4ef37094d43dce20d2",
+          "path": "docs/decisions/0042-first-publish-default-tag-quarantine.md"
+        },
+        {
+          "id": "ADR-0043",
+          "immutableDigest": "sha256:a4fe160b2fdf397ee9e398f1a0462332a178db595dbf8a3b176ed15791907e55",
+          "path": "docs/decisions/0043-new-only-portable-documentation-package-boundary.md"
+        },
+        {
+          "id": "ADR-0044",
+          "immutableDigest": "sha256:533d1427003e5e3b87b48f8ee1a1bafffb99dfebbe5a77e700e3bdd31873eac9",
+          "path": "docs/decisions/0044-registry-neutral-npm-bootstrap-tags.md"
+        },
+        {
+          "id": "ADR-0045",
+          "immutableDigest": "sha256:619268aa0c3e108ee32f7db35c8c5c7a9a84a973092dec5214cbe7c1c6d6e421",
+          "path": "docs/decisions/0045-five-coordinate-qualified-docs-cohort.md"
+        },
+        {
+          "id": "ADR-0046",
+          "immutableDigest": "sha256:9ff2e33790dd5bc4bf515bcc97a94f2c94a5cb5e117fd5684f176e61c2a7641d",
+          "path": "docs/decisions/0046-feature-module-standard-adoption.md"
+        },
+        {
+          "id": "ADR-0047",
+          "immutableDigest": "sha256:ef6db9f665f85e9a5c062357dbd1e8469cb2cb6dc1f9b910f27091de75bcb5df",
+          "path": "docs/decisions/0047-exact-ordering-version-and-identity-primitives.md"
+        },
+        {
+          "id": "ADR-0049",
+          "immutableDigest": "sha256:8a063851555711f4f54e83fe7d26f3005d5f977826c9eaa7f24769eb2316c137",
+          "path": "docs/decisions/0049-truthful-authoring-generic-returns.md"
+        },
+        {
+          "id": "ADR-0050",
+          "immutableDigest": "sha256:bc6ff5e2a85c2fb95ac156c294f0a09316531400ac5f373d2553eddb5f89953f",
+          "path": "docs/decisions/0050-exact-json-primitive-admission.md"
+        },
+        {
+          "id": "ADR-0051",
+          "immutableDigest": "sha256:caff2662e7fbd1aebb83dbf1d79e5b375ef7a02e7bd08a47d1aef52e2d03885a",
+          "path": "docs/decisions/0051-exact-file-observation-contract.md"
+        },
+        {
+          "id": "ADR-0053",
+          "immutableDigest": "sha256:a07b7a58a2f28b9b4cfbae5efbe412c4168e4eedd909cf053640be91ed586952",
+          "path": "docs/decisions/0053-restoration-strict-json-consumer-admission.md"
+        },
+        {
+          "id": "ADR-0054",
+          "immutableDigest": "sha256:f4bd83c225efffe0e0f849ae09f6999429a421d7d234a6e6db631f6820bc9b22",
+          "path": "docs/decisions/0054-hardening-public-api-dispositions.md"
+        },
+        {
+          "id": "ADR-0055",
+          "immutableDigest": "sha256:08392f3ed924975bd28be19fedb2dd83ce8b4cabf9920e46b1764722abfb72c9",
+          "path": "docs/decisions/0055-qualified-non-release-metadata-root.md"
+        },
+        {
+          "id": "ADR-0057",
+          "immutableDigest": "sha256:b05d5568ebfec29b51b9fb3b45b31d1ccd8b0b69f7d956927f90589ba9fd2613",
+          "path": "docs/decisions/0057-ci-input-proof-leaf-type-contract.md"
+        },
+        {
+          "id": "ADR-0058",
+          "immutableDigest": "sha256:9436c5bf13a999272b69922f9a158e81c2955bc1873057d13ab1437e3bbcb7a9",
+          "path": "docs/decisions/0058-node26-current-policy-public-api-evolution.md"
+        },
+        {
+          "id": "ADR-0059",
+          "immutableDigest": "sha256:a07726acf3b8e76c991190ddbcde895b36fdd79ad059987ad9568824d523fd8b",
+          "path": "docs/decisions/0059-node26-current-policy-coherent-behavior-unit.md"
+        },
+        {
+          "id": "ADR-0060",
+          "immutableDigest": "sha256:c07b8c29ff8362a866d4196e6abed41f10ca2d9b05a148aba17a6f7a3270d49c",
+          "path": "docs/decisions/0060-node26-cohort3-projector-public-api-evolution.md"
+        },
+        {
+          "id": "ADR-0061",
+          "immutableDigest": "sha256:6ae637669146a88e302e5a458f3bc6245af4811c18075a1f0128891ea148acbe",
+          "path": "docs/decisions/0061-library-first-foundation-boundary-evolution.md"
+        },
+        {
+          "id": "ADR-0062",
+          "immutableDigest": "sha256:d8e820f6f4209dadc5b35d6f859dfee4d8331f3a210b8047c20c7541fb41d4b0",
+          "path": "docs/decisions/0062-feature-module-standard-package-admission.md"
+        },
+        {
+          "id": "ADR-0063",
+          "immutableDigest": "sha256:9d0e5f6e6c936fd309ddc31948727215d7916d5729246af390f11b8b7176389f",
+          "path": "docs/decisions/0063-explicit-changed-check-coverage-policy-schema.md"
+        },
+        {
+          "id": "ADR-0064",
+          "immutableDigest": "sha256:a60d107c0fd78952869fce811e9211b09321c54db54356c629e1b35503b65625",
+          "path": "docs/decisions/0064-independent-stack-toolchain-package-boundary.md"
+        },
+        {
+          "id": "ADR-0065",
+          "immutableDigest": "sha256:246eb4452816b3357a8f83c24d6c784904f1ad1091253d1c4636364f0926d735",
+          "path": "docs/decisions/0065-explicit-toolchain-lint-scope-api.md"
+        },
+        {
+          "id": "ADR-0066",
+          "immutableDigest": "sha256:a292b640e0268b269c5cfe5f2745c71124240773fe9abba90afe830afafef0e8",
+          "path": "docs/decisions/0066-qualified-existing-npm-bootstrap-recovery.md"
+        },
+        {
+          "id": "ADR-0067",
+          "immutableDigest": "sha256:b9038161b1a0f5ea4289dceed2b39af32567844f22e4654046243c81f81f07fb",
+          "path": "docs/decisions/0067-release-checks-package-admission.md"
+        }
+      ],
+      "schemaVersion": 1
+    },
+    "writeResult": "updated"
+  }
+}

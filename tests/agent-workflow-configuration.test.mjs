@@ -20,6 +20,7 @@ import { parseAgentWorkflowPolicy } from "../packages/engineering-foundation/dis
 import { CapabilityInputError } from "../packages/engineering-foundation/dist/features/validation-reporting/api.js";
 import { assertSchema as assertFoundationSchema } from "../packages/engineering-foundation/dist/schema-catalog.js";
 import { BunPackageScriptRunner } from "../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/adapters/outbound/bun/bun-package-script-runner.js";
+import { repositorySourceRoot } from "./support/repository-source.ts";
 
 function configuration() {
   return {
@@ -223,6 +224,7 @@ async function ownedTemporaryRoot(prefix) {
 }
 
 async function minimalSource(root) {
+  const sourceRoot = await repositorySourceRoot();
   await mkdir(join(root, "architecture/foundation"), { recursive: true });
   await mkdir(join(root, ".worker-tmp/profiles"), { recursive: true });
   await writeFile(
@@ -246,7 +248,7 @@ async function minimalSource(root) {
     'packages:\n  - "packages/*"\ncatalog: {}\ncatalogs: {}\noverrides: {}\n',
   );
   await copyFile(
-    join(repositoryRoot, "architecture/foundation/dependency-declarations.yaml"),
+    join(sourceRoot, "architecture/foundation/dependency-declarations.yaml"),
     join(root, "architecture/foundation/dependency-declarations.yaml"),
   );
   await copyFile(
@@ -339,6 +341,19 @@ capabilities:
       ["bun", sourceRoot, tools.bun],
       ["node", targetRoot, tools.node],
     ]) {
+      const environment = Object.fromEntries(
+        Object.entries({
+          ...process.env,
+          ...authority.environment,
+          GIT_WORK_TREE: root,
+          AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE: profile,
+          AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: tools.node,
+          AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE: tools.bun,
+          AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT: pnpmEntrypoint,
+          AGENT_TEAMS_FOUNDATION_RUNTIME_OBSERVATION: observation,
+          npm_execpath: pnpmEntrypoint,
+        }).filter(([name]) => name.toLowerCase() !== "npm_config_user_agent"),
+      );
       const result = spawnSync(
         executable,
         [
@@ -352,21 +367,7 @@ capabilities:
           "--format",
           "json",
         ],
-        {
-          cwd: root,
-          encoding: "utf8",
-          env: {
-            ...process.env,
-            ...authority.environment,
-            GIT_WORK_TREE: root,
-            AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE: profile,
-            AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: tools.node,
-            AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE: tools.bun,
-            AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT: pnpmEntrypoint,
-            AGENT_TEAMS_FOUNDATION_RUNTIME_OBSERVATION: observation,
-            npm_execpath: pnpmEntrypoint,
-          },
-        },
+        { cwd: root, encoding: "utf8", env: environment },
       );
       assert.equal(result.status, 0, `${profile}: ${result.stdout}${result.stderr}`);
     }

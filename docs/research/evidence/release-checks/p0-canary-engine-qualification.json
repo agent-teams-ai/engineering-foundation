@@ -1,0 +1,88 @@
+{
+  "kind": "task-local-upstream-changesets-probe:1",
+  "recordedAt": "2026-10-20T15:32:28.594036+00:00",
+  "scope": "Read/setup qualification only; no consumer implementation or provider writes",
+  "sourceRepository": "agent-teams-ai/ci-runner-sandbox-20261005",
+  "sourceCommit": "d07cd5932b6c7df7ac62a941744309f867534020",
+  "sourceRoot": "/workspace/scratch/57dc7bcc28f6/ci-runner-sandbox-20261005",
+  "probeRoot": "/workspace/scratch/57dc7bcc28f6/task-toolchain/changesets-canary-git-probe/npm-publishing-canary",
+  "engine": {
+    "name": "@changesets/cli",
+    "version": "3.0.2",
+    "entrypoint": "/workspace/scratch/57dc7bcc28f6/get-modular/node_modules/.pnpm/@changesets+cli@3.0.2/node_modules/@changesets/cli/bin.js",
+    "manifestSha256": "f01c1e244a3a257b1cdbcf2ab30cd63068ad0bdfe2ea8dc88428f247b3fb8eea",
+    "entrypointSha256": "322da1d9fd0f95fa4e9d47badf66e2e6f78315645986f249ae1a15e048770c2d",
+    "registryIntegrity": "sha512-t/omGJj/I+Jv0kmJAkj5cstYEdUQiJnpip2F+2m3F4lQ3kAZ3o8Exep4/Fm1qq4rvw6ovlhJvZNrKdwLJ4lkuQ==",
+    "declaredEngines": {
+      "node": "^22.11 || ^24 || >=26",
+      "npm": ">=10.9.0",
+      "pnpm": ">=10.0.0",
+      "yarn": ">=4.5.2"
+    }
+  },
+  "toolchain": {
+    "node": "26.11.1",
+    "npm": "11.20.0"
+  },
+  "commands": [
+    "node <exact-installed-cli>/bin.js status --output <frozen-plan-path>",
+    "node <same-exact-installed-cli>/bin.js version",
+    "npm install --package-lock-only --ignore-scripts --no-audit --no-fund"
+  ],
+  "status": {
+    "exitCode": 0,
+    "path": "/workspace/scratch/57dc7bcc28f6/task-toolchain/changesets-canary-frozen-plan.json",
+    "sha256": "0fbf2869b3ccdc8c5f3b56b87b054cf5dc8a3a2c84a9bbbcc2fcfe1698902537",
+    "rawPlan": {
+      "changesets": [
+        {
+          "releases": [
+            {
+              "name": "@agent-teams/npm-publishing-canary",
+              "type": "patch"
+            }
+          ],
+          "summary": "Qualify isolated Changesets version and changelog generation.",
+          "id": "toolchain-probe"
+        }
+      ],
+      "releases": [
+        {
+          "name": "@agent-teams/npm-publishing-canary",
+          "type": "patch",
+          "oldVersion": "0.0.2",
+          "changesets": [
+            "toolchain-probe"
+          ],
+          "newVersion": "0.0.3"
+        }
+      ]
+    }
+  },
+  "afterEngineVersion": {
+    "exitCode": 0,
+    "packageVersion": "0.0.3",
+    "lockTopVersion": "0.0.2",
+    "lockRootPackageVersion": "0.0.2",
+    "consumedIntent": "toolchain-probe",
+    "remainingIntentMarkdownFiles": [],
+    "generatedChangelog": "# @agent-teams/npm-publishing-canary\n\n## 0.0.3\n\n### Patch Changes\n\n- Qualify isolated Changesets version and changelog generation.\n"
+  },
+  "afterNpmLockOnlySynchronization": {
+    "exitCode": 0,
+    "lockTopVersion": "0.0.3",
+    "lockRootPackageVersion": "0.0.3",
+    "parsedLockEqualsOriginalExceptTheseVersionFields": true,
+    "lockSha256": "bb771fc1286254a629f96bb4dae35119414f4408b92bec2d5b21b4500a01b9c3"
+  },
+  "sourcePreservation": {
+    "packageLockSha256": "1b09e25989416655b95698e92058b258d3fce308e70c222ba1d0caaa28d1968c",
+    "gitStatusPorcelain": ""
+  },
+  "limitations": [
+    "CLI resolved through the already pinned Get Modular installation; no new pin was added to canary source.",
+    "No release-checks implementation exists in this probe; shared contract, workflow, owner PR, CI, merge and registry phases remain pending.",
+    "Initial non-Git scratch probe could run version but status failed because main did not exist; this report covers the subsequent real-Git local clone only.",
+    "No cryptographic signature verification was performed on Changesets during this probe; official registry metadata and existing locked install were read."
+  ]
+}

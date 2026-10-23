@@ -2574,7 +2574,7 @@ test("release publishing requires real Buf and hermetic registry qualification",
   assert.match(ci.jobs.check.steps[0].uses, /^re-actors\/alls-green@[a-f0-9]{40}$/u);
 });
 
-test("release diff policy permits only version and generated changelog changes", () => {
+test("release content policy preserves version progression and generated changelog history", () => {
   const evidence = {
     baseManifest: { name: "@agent-teams/engineering-foundation", version: "0.4.1" },
     headManifest: { name: "@agent-teams/engineering-foundation", version: "0.5.0" },
@@ -2583,13 +2583,8 @@ test("release diff policy permits only version and generated changelog changes",
   };
 
   assert.deepEqual(releasePullRequestContentViolations(evidence), []);
-  assert.match(
-    releasePullRequestContentViolations({
-      ...evidence,
-      headManifest: { ...evidence.headManifest, scripts: { prepublishOnly: "steal-secrets" } },
-    })[0],
-    /only package\.json version/u,
-  );
+  // Full manifest tampering is exercised with the actual frozen plan and Git
+  // observation in release-candidate-host.test.ts. This helper owns content only.
   assert.match(
     releasePullRequestContentViolations({ ...evidence, headChangelog: "rewritten" })[0],
     /only insert/u,

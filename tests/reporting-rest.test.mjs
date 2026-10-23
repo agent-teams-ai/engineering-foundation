@@ -405,7 +405,7 @@ test("the seventeen remaining reporting adapters reach only their own applicatio
     "workspace-inventory/",
     "transaction-coordination/",
   ];
-  assert.equal(result.modules, 9);
+  assert.equal(result.modules, 10);
   assert.deepEqual(
     result.problems.filter(({ code }) =>
       ["input-error", "source-policy", "unowned-source", "unowned-edge"].includes(code),

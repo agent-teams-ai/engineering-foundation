@@ -10,6 +10,7 @@
     "repository-oxlint.ts",
     "repository-tool-catalog.ts",
     "producer-source-dependencies.ts",
-    "profile-projection.ts"
+    "profile-projection.ts",
+    "check-changed-repository.ts"
   ]
 }

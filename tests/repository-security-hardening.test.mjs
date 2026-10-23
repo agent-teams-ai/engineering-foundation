@@ -27,6 +27,7 @@ import test from "node:test";
 
 import { parse as parseYaml } from "yaml";
 import { sha256, digestWorkflows } from "./support/repository-security-digests.mjs";
+import { repositorySourceRoot } from "./support/repository-source.ts";
 
 registerSecurityObservationPortTests();
 
@@ -369,19 +370,27 @@ test("rejects a stale pull_request_target workflow declaration", async () => {
 });
 
 test("repository CI preserves admitted runtime security scans and Node qualification gates", async () => {
-  const [workflow, manifest, policy, runtimeBytes, dispatcher, profileDriver, securityToolchain] =
-    await Promise.all([
-      readFile(join(repositoryRoot, ".github", "workflows", "ci.yml"), "utf8"),
-      readFile(join(repositoryRoot, "package.json"), "utf8"),
-      readFile(
-        join(repositoryRoot, "architecture/foundation/repository-security-baseline.yaml"),
-        "utf8",
-      ),
-      readFile(join(repositoryRoot, "architecture/foundation/repository-runtime.json"), "utf8"),
-      readFile(join(repositoryRoot, "tools/repository-command.mts"), "utf8"),
-      readFile(join(repositoryRoot, "tools/dev.mts"), "utf8"),
-      readFile(join(repositoryRoot, "scripts/security-toolchain.mjs"), "utf8"),
-    ]);
+  const sourceRoot = await repositorySourceRoot();
+  const [
+    workflow,
+    manifest,
+    policy,
+    runtimeBytes,
+    { TOOL_COMMANDS },
+    profileDriver,
+    securityToolchain,
+  ] = await Promise.all([
+    readFile(join(repositoryRoot, ".github", "workflows", "ci.yml"), "utf8"),
+    readFile(join(sourceRoot, "package.json"), "utf8"),
+    readFile(
+      join(repositoryRoot, "architecture/foundation/repository-security-baseline.yaml"),
+      "utf8",
+    ),
+    readFile(join(repositoryRoot, "architecture/foundation/repository-runtime.json"), "utf8"),
+    import("../tools/repository-tool-catalog.ts"),
+    readFile(join(repositoryRoot, "tools/dev.mts"), "utf8"),
+    readFile(join(repositoryRoot, "scripts/security-toolchain.mjs"), "utf8"),
+  ]);
   const scripts = JSON.parse(manifest).scripts;
   const ci = parseYaml(workflow);
 

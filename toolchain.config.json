@@ -22,7 +22,8 @@
       "packages/engineering-foundation/src",
       "packages/ci-input-proof/src",
       "packages/feature-module-standard/src",
-      "packages/stack-toolchain/src"
+      "packages/stack-toolchain/src",
+      "packages/release-checks/src"
     ],
     "syntax": {
       "config": ".oxlintrc.json",

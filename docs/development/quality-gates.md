@@ -40,30 +40,34 @@ Ordinary child commands discard inherited repository, index, object-store and
 injected-config selectors while preserving Git transport, identity and normal
 global configuration. Explicit source authority is local to source Git reads.
 
-When changed checking selects the complete `check` script, its package phase
-uses the explicitly prepared Node/pnpm projection. Prepare it from the source
-checkout before running that route:
+The repository-wide selected check uses the private
+`check:changed:repository` script. It creates a dedicated owned Node profile and
+delegates installation and the unchanged full `check` to `tools/dev.mts`.
+Source Git selection and the outer Bun workflow remain in the source checkout;
+package qualification runs in the actual pnpm projection required by its owner.
+Inherited profile targets and source identities cannot select that temporary
+profile. A successful mutable invocation remains feedback-only, with unverified
+input binding and no qualified facets. Local full diagnostics still require the
+explicit generation2 Node and managed test tools described in
+[Node compatibility](node-26-compatibility.md) and
+[managed runtime qualification](../reference/node26-managed-runtime-observation.md).
 
-```bash
-node tools/dev.mts --profile node install
-bun tools/dev.mts check:changed
-```
+Outside that dedicated full-check route, direct Bun package qualification crosses
+only `package:check:built` into
+`node tools/dev.mts --profile node package:check:built`. Prepare that explicit
+projection with `node tools/dev.mts --profile node install` before invoking it.
+Other phases, workflow policy and Git observation stay in the Bun source checkout.
+The package phase verifies actual source Git identity, inherited source-root/SHA
+claims, owned projection location, complete projected source bytes and installed
+pnpm virtual store before compilation. Missing, stale, foreign or modified
+projections refuse; this direct phase never installs dependencies automatically.
+Reprepare it after source changes. An admitted Node projection retains its
+existing pnpm execution path.
 
-Only `package:check:built` crosses from the Bun script dispatcher into
-`node tools/dev.mts --profile node package:check:built`. Other phases, the
-workflow policy and Git observation stay in the Bun source checkout. The Node
-phase verifies the actual source Git identity, inherited source-root/SHA claims,
-owned projection location, complete projected source bytes and installed pnpm
-virtual store before its compiler runs. Missing, stale, foreign or modified
-projections refuse; the phase never installs dependencies automatically.
-Reprepare the projection after source changes. Direct package qualification
-inside an admitted Node projection retains its existing pnpm execution path.
-
-Local Node 26 test and package routes also require the explicit physical Node 24
-port `PACK_TEST_GENERATION2_NODE` for the retained
-[generation2 suites](node-26-compatibility.md#legacy-node-24-exceptions), matching
-native CI. Preserve host Git hooks and supply the author/committer identity
-required by the host when disposable fixtures create ordinary commits.
+Local Node 26 test and package routes require the explicit physical Node 24 port
+`PACK_TEST_GENERATION2_NODE` for the retained generation2 suites, matching native
+CI. Preserve host Git hooks and supply the required author/committer identity
+when disposable fixtures create ordinary commits.
 
 Node-profile lint first checks all non-generated source bytes and paths against
 the source checkout. Only the three declared manager/workflow/dependency-policy

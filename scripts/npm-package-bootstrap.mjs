@@ -460,6 +460,7 @@ export async function verifyLiveBootstrapBaselines({
 
 export async function verifyReleaseBootstrapBaselines(options = {}) {
   const { releaseState, releaseVersions, ...verificationOptions } = options;
+  assertBootstrapReleaseApprovals(verificationOptions.catalog ?? NPM_PACKAGE_BOOTSTRAP);
   if (releaseState !== undefined && releaseVersions !== undefined) {
     fail(
       "release baseline verification requires either generated state or a Changesets plan, not both.",

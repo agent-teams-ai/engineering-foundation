@@ -1,3 +1,4 @@
+import { repositorySourceRoot } from "./repository-source.ts";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import {
@@ -20,6 +21,7 @@ import { withoutGitRepositorySelectors } from "../../tools/git-environment.ts";
 const repositoryRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 
 async function realLinkedGitFixture(t: TestContext) {
+  const sourceRoot = await repositorySourceRoot();
   const parent = join(repositoryRoot, ".worker-tmp/profiles");
   await mkdir(parent, { recursive: true });
   const temporary = await mkdtemp(join(parent, "TEST-git-authority-"));
@@ -33,7 +35,7 @@ async function realLinkedGitFixture(t: TestContext) {
       "--no-checkout",
       "--depth=1",
       "--no-hardlinks",
-      pathToFileURL(repositoryRoot).href,
+      pathToFileURL(sourceRoot).href,
       root,
     ],
     {
@@ -264,17 +266,14 @@ void test("dispatcher tool and script children own their cwd instead of inherite
 });
 
 void test("Node dispatcher routes changed checks to source Bun policy and source dependencies", async (t) => {
+  const sourceRoot = await repositorySourceRoot();
   const fixture = await realLinkedGitFixture(t);
   const expectedRoot = await realpath(fixture.root);
   assert.notEqual(expectedRoot, await realpath(repositoryRoot));
   for (const file of ["package.json", "pnpm-workspace.yaml"]) {
-    await copyFile(join(repositoryRoot, file), join(fixture.root, file));
+    await copyFile(join(sourceRoot, file), join(fixture.root, file));
   }
-  await symlink(
-    join(repositoryRoot, "node_modules"),
-    join(fixture.root, "node_modules"),
-    "junction",
-  );
+  await symlink(join(sourceRoot, "node_modules"), join(fixture.root, "node_modules"), "junction");
   const entry = join(fixture.root, "packages/engineering-foundation/dist/cli.js");
   await mkdir(join(fixture.root, "packages/engineering-foundation/dist"), { recursive: true });
   await writeFile(

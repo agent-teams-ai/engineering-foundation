@@ -284,3 +284,25 @@ This navigation change does not adopt a backend stack or change consumer policy.
 The current CMS document at Get Modular `eadd9d391657ae6f508a874dd30e923bdc4054f0`
 is byte-identical to the retained doctor guidance; the reviewed `7131d0d7a6bb5dd4c3e8906ccac065c0be0e0333`
 pin and all doctor evidence remain unchanged.
+
+
+## Release-checks integration classification, 2026-10-23
+
+The independent `packages/release-checks` pure `candidate-checking` feature and
+its fixed repository release adapters (`scripts/release-candidate-host.ts` and
+`scripts/release-candidate-observation.ts`) retain their existing semantic owners.
+They introduce no independently constructed runtime capability, configurable
+relationship, subscription or lifecycle scope. The leaf is a fixed library
+dependency of development tooling; its public package and source boundaries
+remain governed by the source and Feature Module Standard profiles. The
+repository Host owns Git/engine observation, cleanup and release effects.
+This scope remains `not-adopted` for Assembly, with the existing review trigger
+for a future configurable or independently lived composition boundary.
+
+On 2026-10-23 the full CMS document was fetched from exact current upstream
+`eadd9d391657ae6f508a874dd30e923bdc4054f0`. Its SHA-256 is
+`a6dac5d303adf80be3151c6703c919b715fd880a941a4ad68e927c87a7ee5882`,
+identical to the retained reviewed `7131d0d7a6bb5dd4c3e8906ccac065c0be0e0333`
+pin; there is no upstream content delta to migrate. Integration preserves the
+existing blocking standards checker and its rejecting tests. No CMS mechanism
+or shared guidance changes in this merge.

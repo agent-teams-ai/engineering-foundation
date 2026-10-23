@@ -258,10 +258,10 @@ test("lost npm response logs sanitized failure and still verifies accepted artif
     });
   };
   await run(runtime, { reportPublishFailure: (message) => diagnostics.push(message) });
-  assert.equal(diagnostics.length, 9);
-  assert.equal(runtime.calls.filter((call) => call.startsWith("signature:")).length, 9);
-  assert.equal(runtime.calls.filter((call) => call.startsWith("release:")).length, 9);
-  assert.equal(runtime.calls.filter((call) => call.startsWith("publish:")).length, 9);
+  assert.equal(diagnostics.length, 10);
+  assert.equal(runtime.calls.filter((call) => call.startsWith("signature:")).length, 10);
+  assert.equal(runtime.calls.filter((call) => call.startsWith("release:")).length, 10);
+  assert.equal(runtime.calls.filter((call) => call.startsWith("publish:")).length, 10);
   assert.match(diagnostics.join("\n"), /ECONNRESET/u);
   assert.doesNotMatch(diagnostics.join("\n"), /secret|password|Bearer|example/u);
 });

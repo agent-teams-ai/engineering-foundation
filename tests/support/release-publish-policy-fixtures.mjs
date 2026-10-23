@@ -1,6 +1,23 @@
 import { chmod, mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
+export async function publicLeafFixture(root, manifest, registry, symbol) {
+  const packageRoot = join(root, "packages", manifest.name.slice("@agent-teams/".length));
+  await mkdir(packageRoot, { recursive: true });
+  await writeFile(
+    join(packageRoot, "package.json"),
+    `${JSON.stringify(
+      {
+        ...manifest,
+        publishConfig: { registry },
+      },
+      null,
+      2,
+    )}\n`,
+  );
+  await writeFile(join(packageRoot, "dist.js"), `export const ${symbol} = 1;\n`);
+}
+
 export async function commandShim(root, name, { posix, windows }, platform = process.platform) {
   const isWindows = platform === "win32";
   const path = join(root, "bin", `${name}${isWindows ? ".cmd" : ""}`);

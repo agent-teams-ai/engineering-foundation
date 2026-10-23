@@ -1,0 +1,1065 @@
+{
+  "schemaVersion": 1,
+  "reviewerRole": "independent release archive reviewer",
+  "observedAt": "2026-10-23T19:39:53.301991+00:00",
+  "verdict": "GO for reviewed replacement tree/SRI approval; current full CI is not passed",
+  "reviewedHead": "1aed30220e0dfa778f89ad979bafb5b3a8581566",
+  "reviewedBase": "17520f7d84d364f5bb40195785c2b7a9269663a0",
+  "currentRun": {
+    "id": 40010522856,
+    "run_attempt": 1,
+    "head_sha": "1aed30220e0dfa778f89ad979bafb5b3a8581566",
+    "event": "pull_request",
+    "status": "in_progress",
+    "conclusion": null,
+    "path": ".github/workflows/ci.yml"
+  },
+  "currentMergeCommit": {
+    "sha": "55b9d1ee2dab5f9dbd241c39dcc416e6b974ded7",
+    "tree": "5fb5f1e6416499e1bfb332bf01d3d01f54aa13ae",
+    "parents": [
+      "17520f7d84d364f5bb40195785c2b7a9269663a0",
+      "1aed30220e0dfa778f89ad979bafb5b3a8581566"
+    ]
+  },
+  "oldMergeCommit": {
+    "sha": "805d652c3b61dc69a02b2df2b852f1b26841be24",
+    "tree": "1a45f90ae651f6a1d51925c0e015ba5843507b5f",
+    "parents": [
+      "0e0de78d4c2089be8effc37da4cfd70eab22358c",
+      "e162299f0505b95af02adca4edf9a363c91a731a"
+    ]
+  },
+  "archives": {
+    "approved": {
+      "artifact": {
+        "id": 12376897004,
+        "name": "npm-package-bootstrap-candidate-evidence-805d652c3b61dc69a02b2df2b852f1b26841be24",
+        "size_in_bytes": 31947,
+        "digest": "sha256:1b6a645765e76fe85351b2dd25499df34cccaad9fca43414fdefa3b6df83a683",
+        "created_at": "2026-10-21T19:51:14Z",
+        "updated_at": "2026-10-21T19:51:14Z",
+        "expired": false,
+        "workflow_run": {
+          "id": 39664614732,
+          "repository_id": 1316243988,
+          "head_repository_id": 1316243988,
+          "head_branch": "feat/release-checks-20261020",
+          "head_sha": "e162299f0505b95af02adca4edf9a363c91a731a"
+        }
+      },
+      "job": {
+        "id": 119463834854,
+        "run_id": 39664614732,
+        "run_attempt": 2,
+        "head_sha": "e162299f0505b95af02adca4edf9a363c91a731a",
+        "name": "linux-bootstrap-evidence",
+        "status": "completed",
+        "conclusion": "success",
+        "runner_name": "GitHub Actions 1000109201",
+        "labels": [
+          "ubuntu-24.04"
+        ],
+        "started_at": "2026-10-21T19:47:21Z",
+        "completed_at": "2026-10-21T19:51:18Z"
+      },
+      "receipt": {
+        "schemaVersion": 1,
+        "kind": "npm-package-bootstrap-candidate-evidence",
+        "generatedAt": "2026-10-21T19:50:41.445Z",
+        "repository": "https://github.com/agent-teams-ai/engineering-foundation",
+        "sourceCommit": "805d652c3b61dc69a02b2df2b852f1b26841be24",
+        "packages": [
+          {
+            "archive": "release-checks/agent-teams-release-checks-0.0.0.tgz",
+            "archiveIntegrity": "sha512-/rPqYywYkaoQUQFi5KMJVqOce/IkpqcpILQMJZDtKYSFkmCRc/oedvScDPP2+cbMPCf8R4qDp9+JdcnzN7cwww==",
+            "archiveSha256": "sha256:d5e6eb3a48ea65f900ec18060dc1bfdb46fa2c3b694d2db1b239c698329318fe",
+            "id": "release-checks",
+            "listing": "release-checks/tar-listing.json",
+            "manifest": "release-checks/package.json",
+            "manifestDigest": "sha256:e2c10744b92c1501b41b12b9d51b3baa9e93eeb0703071c739764f3031b6fb1d",
+            "name": "@agent-teams/release-checks",
+            "packageTree": "76a214bd459937b28786880b4deb08cb20916da7",
+            "sourceCommit": "805d652c3b61dc69a02b2df2b852f1b26841be24",
+            "version": "0.0.0",
+            "verboseListing": "release-checks/tar-verbose-listing.txt"
+          }
+        ],
+        "receiptDigest": "sha256:73cb9daf845b44fe89346d7ea52947ae3a8ca3cbf1855bac6673c87f20678dca"
+      },
+      "receiptFileSha256": "sha256:bd1a1d207d931d92fa5d9f764fce14af7ad4f7423ef9edd78f72303f58482e75",
+      "manifestSidecarSha256": "sha256:e2c10744b92c1501b41b12b9d51b3baa9e93eeb0703071c739764f3031b6fb1d",
+      "archiveBytes": 28994,
+      "zipMembers": [
+        "candidate-evidence.receipt.json",
+        "release-checks/package.json",
+        "release-checks/agent-teams-release-checks-0.0.0.tgz",
+        "release-checks/tar-listing.json",
+        "release-checks/tar-verbose-listing.txt"
+      ],
+      "members": [
+        {
+          "name": "package/LICENSE",
+          "size": 11357,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/api.js",
+          "size": 113,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:d2e741938208ee4759263e401366694432908794d11d9c9859eabd17abd56f2f"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/check-release-candidate.js",
+          "size": 1989,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:a863494c745215750646ca36aa36b0aa25ce7ddea57599d2565d53b88b0c6f0a"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/conformance.js",
+          "size": 12437,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:cf84ea49ae181a42359305738bf427236c6fa8a9cc6dcc7f04341eafe6685ef7"
+        },
+        {
+          "name": "package/dist/index.js",
+          "size": 111,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:f96d58462e2d5ec802e01b4f52ae1c7914633377e29bd2ad23306e7b56891f65"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/intent-diff-relation.js",
+          "size": 8433,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:ff780832713f1d6337d7e0833a061d2a626f2e125d6925c1ff94ffcb2ea060da"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/manifest-relation.js",
+          "size": 4295,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:0aef63c8940e486a898ead17853a345b3a1dab1d2e2204c3f105336df5abcd63"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/model.js",
+          "size": 44,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:a3d85b861c2f631080eabc73b2123c963dfc1a11959f7daa9a1015c26ab275cf"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/parse-input.js",
+          "size": 11757,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:4dd54ffe89f0dde5950ad21ce9a2d246287fdea6b9ca8260c37e1b9fe4ba2c01"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/relations.js",
+          "size": 3928,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:ccc59e199daee0b0205adbc1aae47a00944519918c386848ed8bd3fa933c4d95"
+        },
+        {
+          "name": "package/package.json",
+          "size": 1133,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:e4bb51c86e8a68afb901f34a93a5d9c1e0f3c26cb477e7ac9a07b7e36a507159"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/api.d.ts.map",
+          "size": 471,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:79f86abd4274bffbdc3af831e608db50e27421ad6991299f4245daf9aad6cef5"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/api.js.map",
+          "size": 175,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:beb397de04988db0b2f34dcff0a8cf624b7a52d7fcde5a70403f120b152d254f"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/check-release-candidate.d.ts.map",
+          "size": 303,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:67ecd3dc21c998931670efd127eb96c6ff27eeaabd8c6ffd4d4fc18daef68b0d"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/check-release-candidate.js.map",
+          "size": 2312,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:b763400aa05ec89a5fb80b0099d2d71657ac2e466c09fefb4bd19c7edf0e4663"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/conformance.d.ts.map",
+          "size": 573,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:e92cfb58f50a7fb1969e9730dbb79f5c8c0a752873a0bcbd87be411bd6871bde"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/conformance.js.map",
+          "size": 12600,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:7ad08e08d0155818ad7996979331543cdf7f3612f4d14f651a553e744c147c20"
+        },
+        {
+          "name": "package/dist/index.d.ts.map",
+          "size": 441,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:1932fa2a339c332eee0bc551a73085066d4e71d56663b94b27c65b2a03246d5d"
+        },
+        {
+          "name": "package/dist/index.js.map",
+          "size": 145,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:f268120fc94e7c82c9d25c439e0a6cd75bf089fae3d9c5593ea8556d0d5f700f"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/intent-diff-relation.d.ts.map",
+          "size": 495,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:91fd519aaf3c915c0b53df2ad075267f8082352450f055c4b756413310b30fd5"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/intent-diff-relation.js.map",
+          "size": 8352,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:19b100e72c3e1dfe61019971fe48148da70455e87fc0c19693145a8cac0954cf"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/manifest-relation.d.ts.map",
+          "size": 368,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:52ab72c294fd7e48ae7a1c13a06d6d290ed371270459b1b85754f972b6b40c0b"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/manifest-relation.js.map",
+          "size": 4419,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:b173d806ddd08afef0563304a1da89a89f7b01ac8d6be80c64b6bd3f2369cf73"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/model.d.ts.map",
+          "size": 4602,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:b98b0d812e078d68f31a269453d28bd6bf682cc7a828f8ed7e9e4c531f70b53d"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/model.js.map",
+          "size": 151,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:1bd3df0419d5557f74fa86bf11280889ee5588785d222b85ec449d86f1e618c8"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/parse-input.d.ts.map",
+          "size": 359,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:f805ebeb75dedcd517879e666c9ab3aea5ac9f219b968d1c882faf4be5851b2a"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/parse-input.js.map",
+          "size": 14514,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:f1b30bab15f70c48823b5abc473074a8dafcd550977cc3cbee2b90ab648cb7f7"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/relations.d.ts.map",
+          "size": 1500,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:32cce6cb5099b67eecc55f8d67c325ef130779dc8000278ae87335b13d84f150"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/relations.js.map",
+          "size": 4773,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:e5a3b1e732387923757d4d3052abe2211305b87360da2797e9fe7cc797394d62"
+        },
+        {
+          "name": "package/CHANGELOG.md",
+          "size": 31,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:12e10746fa59a8b56b15cc6dcaead1b5031eae14a7fb6ecdcc469b23b70cfab9"
+        },
+        {
+          "name": "package/README.md",
+          "size": 9873,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:29078b4cf4cc92d09363b814349130a09330b61b42d5311b10ce2b25a98cc581"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/api.d.ts",
+          "size": 528,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:500c5dcec06195b22a4e0faf06563b863cb0f89d4b33ec8ad5defff11dce6d03"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/check-release-candidate.d.ts",
+          "size": 293,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:93a2b8cda1aafef7d61e105036dad4e29470312f2380e70788ee3f9fc6387eac"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/conformance.d.ts",
+          "size": 635,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:649da1014d91e0a7352161bebd85f446bc56cb97b825c72aea17d89c1a378351"
+        },
+        {
+          "name": "package/dist/index.d.ts",
+          "size": 540,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:7336e9af27610184d9f5f67bbd2c1a1eca99d0c081426ada0a79352bba86055f"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/intent-diff-relation.d.ts",
+          "size": 425,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:7ccfcdacd7fca1454d40a9569a74aac80f23b04ee68775289d9f4b47f5b258e7"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/manifest-relation.d.ts",
+          "size": 269,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:1e220fb2f3653603c13df4b0a381ddcc59ffac501cdfe7fc8fccae52073f20db"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/model.d.ts",
+          "size": 4423,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:cd037643d4cbc83c70739967e9aa02c51148759d65d275266624c2d4d9f3b672"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/parse-input.d.ts",
+          "size": 234,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:28603c2aea062d3cedba57eb5073208e0efe48617e5f4633f64034cb9ef49863"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/relations.d.ts",
+          "size": 1546,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:490da8beb509baa69ab9b80cbf68998b194e14c1f96a35170285ca0f077197e2"
+        }
+      ],
+      "listingVerified": true,
+      "verboseListingVerified": true,
+      "safeArchive": true,
+      "receiptCanonicalDigestVerified": true
+    },
+    "current": {
+      "artifact": {
+        "id": 12527205945,
+        "name": "npm-package-bootstrap-writer-evidence-55b9d1ee2dab5f9dbd241c39dcc416e6b974ded7",
+        "size_in_bytes": 31685,
+        "digest": "sha256:c502c05216bc3b3069525335f3e92cade98260a8d118ed5b93df7a43fbec2d69",
+        "created_at": "2026-10-23T19:30:46Z",
+        "updated_at": "2026-10-23T19:30:46Z",
+        "expired": false,
+        "workflow_run": {
+          "id": 40010522856,
+          "repository_id": 1316243988,
+          "head_repository_id": 1316243988,
+          "head_branch": "feat/release-checks-20261020",
+          "head_sha": "1aed30220e0dfa778f89ad979bafb5b3a8581566"
+        }
+      },
+      "job": {
+        "id": 120610925843,
+        "run_id": 40010522856,
+        "run_attempt": 1,
+        "head_sha": "1aed30220e0dfa778f89ad979bafb5b3a8581566",
+        "name": "linux-package",
+        "status": "completed",
+        "conclusion": "failure",
+        "runner_name": "GitHub Actions 1000115351",
+        "labels": [
+          "ubuntu-24.04"
+        ],
+        "started_at": "2026-10-23T19:23:00Z",
+        "completed_at": "2026-10-23T19:30:48Z"
+      },
+      "receipt": {
+        "schemaVersion": 1,
+        "kind": "npm-package-bootstrap-writer-evidence",
+        "generatedAt": "2026-10-23T19:30:45.247Z",
+        "repository": "https://github.com/agent-teams-ai/engineering-foundation",
+        "sourceCommit": "55b9d1ee2dab5f9dbd241c39dcc416e6b974ded7",
+        "packages": [
+          {
+            "archive": "release-checks/agent-teams-release-checks-0.0.0.tgz",
+            "archiveIntegrity": "sha512-Lvt9twVB0UhsmgYkoGrtbntxWCM9PxQ/NzvZB2ZE+xSj1jFyEFXvaLK94390rrABwjGoYPS8uO+1XzVXq4Lm8A==",
+            "archiveSha256": "sha256:c66535759e839c1233daccd2e9bb657cfc24231b16834af6bdadbc5cd78c6d45",
+            "id": "release-checks",
+            "name": "@agent-teams/release-checks",
+            "packageTree": "76a214bd459937b28786880b4deb08cb20916da7",
+            "version": "0.0.0"
+          }
+        ],
+        "receiptDigest": "sha256:a97b7093afbc8e76cccf7cc8ee0dd9981178b00dc138a8ac2fe9781bd9acc589"
+      },
+      "receiptFileSha256": "sha256:4a62a06b5577bb70fc76f411dde9052420c3f23421d9351e6ce3ab41cae32e57",
+      "manifestSidecarSha256": "sha256:91425d9af67a84eaacd23dfb662b56fad185adcbe51041c4c7cfd520fc26de2b",
+      "archiveBytes": 28993,
+      "zipMembers": [
+        "release-checks/package.json",
+        "release-checks/agent-teams-release-checks-0.0.0.tgz",
+        "release-checks/tar-listing.txt",
+        "release-checks/tar-verbose-listing.txt",
+        "writer-evidence.receipt.json"
+      ],
+      "members": [
+        {
+          "name": "package/LICENSE",
+          "size": 11357,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/api.js",
+          "size": 113,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:d2e741938208ee4759263e401366694432908794d11d9c9859eabd17abd56f2f"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/check-release-candidate.js",
+          "size": 1989,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:a863494c745215750646ca36aa36b0aa25ce7ddea57599d2565d53b88b0c6f0a"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/conformance.js",
+          "size": 12437,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:cf84ea49ae181a42359305738bf427236c6fa8a9cc6dcc7f04341eafe6685ef7"
+        },
+        {
+          "name": "package/dist/index.js",
+          "size": 111,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:f96d58462e2d5ec802e01b4f52ae1c7914633377e29bd2ad23306e7b56891f65"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/intent-diff-relation.js",
+          "size": 8433,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:ff780832713f1d6337d7e0833a061d2a626f2e125d6925c1ff94ffcb2ea060da"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/manifest-relation.js",
+          "size": 4295,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:0aef63c8940e486a898ead17853a345b3a1dab1d2e2204c3f105336df5abcd63"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/model.js",
+          "size": 44,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:a3d85b861c2f631080eabc73b2123c963dfc1a11959f7daa9a1015c26ab275cf"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/parse-input.js",
+          "size": 11757,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:4dd54ffe89f0dde5950ad21ce9a2d246287fdea6b9ca8260c37e1b9fe4ba2c01"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/relations.js",
+          "size": 3928,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:ccc59e199daee0b0205adbc1aae47a00944519918c386848ed8bd3fa933c4d95"
+        },
+        {
+          "name": "package/package.json",
+          "size": 1133,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:8fcbfd4387ea5c6ce9ddfe08fb1837f85d9a83f56e214ac9f14d0e3effe0971d"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/api.d.ts.map",
+          "size": 471,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:79f86abd4274bffbdc3af831e608db50e27421ad6991299f4245daf9aad6cef5"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/api.js.map",
+          "size": 175,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:beb397de04988db0b2f34dcff0a8cf624b7a52d7fcde5a70403f120b152d254f"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/check-release-candidate.d.ts.map",
+          "size": 303,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:67ecd3dc21c998931670efd127eb96c6ff27eeaabd8c6ffd4d4fc18daef68b0d"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/check-release-candidate.js.map",
+          "size": 2312,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:b763400aa05ec89a5fb80b0099d2d71657ac2e466c09fefb4bd19c7edf0e4663"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/conformance.d.ts.map",
+          "size": 573,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:e92cfb58f50a7fb1969e9730dbb79f5c8c0a752873a0bcbd87be411bd6871bde"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/conformance.js.map",
+          "size": 12600,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:7ad08e08d0155818ad7996979331543cdf7f3612f4d14f651a553e744c147c20"
+        },
+        {
+          "name": "package/dist/index.d.ts.map",
+          "size": 441,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:1932fa2a339c332eee0bc551a73085066d4e71d56663b94b27c65b2a03246d5d"
+        },
+        {
+          "name": "package/dist/index.js.map",
+          "size": 145,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:f268120fc94e7c82c9d25c439e0a6cd75bf089fae3d9c5593ea8556d0d5f700f"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/intent-diff-relation.d.ts.map",
+          "size": 495,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:91fd519aaf3c915c0b53df2ad075267f8082352450f055c4b756413310b30fd5"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/intent-diff-relation.js.map",
+          "size": 8352,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:19b100e72c3e1dfe61019971fe48148da70455e87fc0c19693145a8cac0954cf"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/manifest-relation.d.ts.map",
+          "size": 368,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:52ab72c294fd7e48ae7a1c13a06d6d290ed371270459b1b85754f972b6b40c0b"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/manifest-relation.js.map",
+          "size": 4419,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:b173d806ddd08afef0563304a1da89a89f7b01ac8d6be80c64b6bd3f2369cf73"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/model.d.ts.map",
+          "size": 4602,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:b98b0d812e078d68f31a269453d28bd6bf682cc7a828f8ed7e9e4c531f70b53d"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/model.js.map",
+          "size": 151,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:1bd3df0419d5557f74fa86bf11280889ee5588785d222b85ec449d86f1e618c8"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/parse-input.d.ts.map",
+          "size": 359,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:f805ebeb75dedcd517879e666c9ab3aea5ac9f219b968d1c882faf4be5851b2a"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/parse-input.js.map",
+          "size": 14514,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:f1b30bab15f70c48823b5abc473074a8dafcd550977cc3cbee2b90ab648cb7f7"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/relations.d.ts.map",
+          "size": 1500,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:32cce6cb5099b67eecc55f8d67c325ef130779dc8000278ae87335b13d84f150"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/relations.js.map",
+          "size": 4773,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:e5a3b1e732387923757d4d3052abe2211305b87360da2797e9fe7cc797394d62"
+        },
+        {
+          "name": "package/CHANGELOG.md",
+          "size": 31,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:12e10746fa59a8b56b15cc6dcaead1b5031eae14a7fb6ecdcc469b23b70cfab9"
+        },
+        {
+          "name": "package/README.md",
+          "size": 9873,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:29078b4cf4cc92d09363b814349130a09330b61b42d5311b10ce2b25a98cc581"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/api.d.ts",
+          "size": 528,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:500c5dcec06195b22a4e0faf06563b863cb0f89d4b33ec8ad5defff11dce6d03"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/check-release-candidate.d.ts",
+          "size": 293,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:93a2b8cda1aafef7d61e105036dad4e29470312f2380e70788ee3f9fc6387eac"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/conformance.d.ts",
+          "size": 635,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:649da1014d91e0a7352161bebd85f446bc56cb97b825c72aea17d89c1a378351"
+        },
+        {
+          "name": "package/dist/index.d.ts",
+          "size": 540,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:7336e9af27610184d9f5f67bbd2c1a1eca99d0c081426ada0a79352bba86055f"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/intent-diff-relation.d.ts",
+          "size": 425,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:7ccfcdacd7fca1454d40a9569a74aac80f23b04ee68775289d9f4b47f5b258e7"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/manifest-relation.d.ts",
+          "size": 269,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:1e220fb2f3653603c13df4b0a381ddcc59ffac501cdfe7fc8fccae52073f20db"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/model.d.ts",
+          "size": 4423,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:cd037643d4cbc83c70739967e9aa02c51148759d65d275266624c2d4d9f3b672"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/parse-input.d.ts",
+          "size": 234,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:28603c2aea062d3cedba57eb5073208e0efe48617e5f4633f64034cb9ef49863"
+        },
+        {
+          "name": "package/dist/features/candidate-checking/application/relations.d.ts",
+          "size": 1546,
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "mtime": 499162500,
+          "type": "file",
+          "sha256": "sha256:490da8beb509baa69ab9b80cbf68998b194e14c1f96a35170285ca0f077197e2"
+        }
+      ],
+      "listingVerified": true,
+      "verboseListingVerified": true,
+      "safeArchive": true,
+      "receiptCanonicalDigestVerified": true
+    }
+  },
+  "comparison": {
+    "members": 40,
+    "payloadsUnchanged": 39,
+    "changedPayloads": [
+      "package/package.json"
+    ],
+    "metadataUnchanged": true,
+    "rawTarBytesOutsideManifestUnchanged": true,
+    "parsedManifestsEqual": true,
+    "currentManifestMatchesSourceWithExactCatalogResolution": true,
+    "sourceReadmeChangelogLicenseExact": true,
+    "packageCompilerConfigUnchanged": true,
+    "compilerPin": "7.0.2",
+    "compiledPayloadsSameAsPriorReviewedArtifact": true,
+    "currentPackedConsumerProof": "same job successful pack-test: same SHA256/SRI and all 12 public conformance cases"
+  },
+  "cause": {
+    "sourceFile": "scripts/pack-artifact-e2e.mjs",
+    "currentLines": "262-271",
+    "oldState": "clean-stage pnpm pack set pnpm_config_ignore_pnpmfile=true",
+    "newState": "clean-stage pnpm pack explicitly copies and enables repository canonical beforePacking hook",
+    "manifestDifference": "scripts property moves from after version to code-point sorted position before sideEffects; no semantic change",
+    "compilerOrSourceChangeCausedThisDelta": false
+  },
+  "approval": {
+    "packageTree": "76a214bd459937b28786880b4deb08cb20916da7",
+    "archiveIntegrity": "sha512-Lvt9twVB0UhsmgYkoGrtbntxWCM9PxQ/NzvZB2ZE+xSj1jFyEFXvaLK94390rrABwjGoYPS8uO+1XzVXq4Lm8A==",
+    "archiveSha256": "sha256:c66535759e839c1233daccd2e9bb657cfc24231b16834af6bdadbc5cd78c6d45"
+  },
+  "limits": [
+    "No local build/install/heavy tests or artifact code executed.",
+    "Current linux-package failed correctly against prior approved SRI after successful package qualification; no full CI success is claimed.",
+    "Catalog/approval source files not modified by this reviewer.",
+    "After recording replacement approval on PR421, final-head/current-base complete CI including approved writer reproduction remains required.",
+    "Public bootstrap, publication and external adoption are unclaimed."
+  ],
+  "sourceInputs": {
+    "packages/release-checks/tsconfig.json": {
+      "gitBlob": "6f5f5e55526ec521f6d9fafa2ab68ec3ba88a1e8",
+      "sha256": "3b95b10148915aeb1be461150c8545b56b2cb1a13941b4c165cb5afcdbb58261"
+    },
+    ".pnpmfile.cjs": {
+      "gitBlob": "129f816d8b1063c82cd837c4f355975c401b0e39",
+      "sha256": "41a6681a4a1aa5345cc5b7f7b65d74315bdc6e9b1084eb641b8f9c4cf34659e8"
+    },
+    ".node-version": {
+      "gitBlob": "d8750199bbef3481a89eaf452088c384f4025508",
+      "sha256": "45507e6d96329a845faa642c0f485313bcb2ca1e08b043589cde4ddd15969cd6"
+    },
+    "pnpm-lock.yaml": {
+      "gitBlob": "b66bc76410b2600a2df4f4195483b9f5624685fd",
+      "sha256": "b2d0a55bf2b7a3fed06c61a4d9e98c6889ef3b44db7333313716b79e39015f79"
+    },
+    "scripts/pack-artifact-e2e.mjs": {
+      "gitBlob": "04ed39c8517eb75fde3836b141768bafc7c569e9",
+      "sha256": "a6fd3707273af29cb02ce86a33e79db367ea3cae92734972bce4718d931509aa"
+    },
+    "scripts/pack-artifact-stage-support.mjs": {
+      "gitBlob": "0c98debbfe5da7460f7f31be3fb9b806e1584da7",
+      "sha256": "e445991e86908858d1cf9e4f1d059b848017c69e0912359186145b66e51e9849"
+    },
+    "scripts/pack-staged-compiler.mts": {
+      "gitBlob": "f40ddfe6f929754df293e4bfa54cf0b6b70838c2",
+      "sha256": "678b6da79da0f7025f79e03a594055f425a168fb0960234a0271c29de5525060"
+    },
+    "scripts/npm-package-bootstrap-local-evidence.mjs": {
+      "gitBlob": "a767215be28f67050f4de9e94547b012c0fecf72",
+      "sha256": "ceacf3bf475116301cc99e04c714893f6ff3f9c5920bda3dd59a7cb9577edd30"
+    },
+    ".github/workflows/ci.yml": {
+      "gitBlob": "366fea56b9b7ea6c21b7f5a190874400300e810f",
+      "sha256": "7331bc53d1127ae038592a0d316d463c4b90dd65e3801144b730f299865f84c9"
+    }
+  },
+  "binariesEvidence": {
+    "bothJobs": {
+      "os": "Ubuntu 24.04.5 LTS",
+      "runnerImage": "ubuntu-24.04",
+      "runnerImageVersion": "20261012.334.1",
+      "buildNode": "v26.11.1 linux-x64",
+      "nodeAcquisition": "https://github.com/actions/node-versions/releases/download/26.11.1-37718106145/node-26.11.1-linux-x64.tar.gz",
+      "npm": "11.20.0",
+      "pnpm": "11.20.0",
+      "installedTypeScript": "7.0.2"
+    },
+    "currentAdditionalManagedConsumerNode": "v24.21.0; not the writer build runtime",
+    "proof": "Retained exact-job log excerpts show checkout, runner OS/image, Node acquisition/version, npm version, pnpm install/version, TypeScript install, two fresh leaf builds and current packed consumer result. Exact package-local compiler config is unchanged; stage compiler custody is enforced by source input code.",
+    "limit": "The retained receipts do not carry raw Node/compiler executable hashes; no independent re-download or workstation compilation is claimed."
+  }
+}

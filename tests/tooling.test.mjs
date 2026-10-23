@@ -516,6 +516,7 @@ test("clean removes incremental state and permits a full rebuild", async () => {
     const fixturePackages = [
       ["stack-toolchain", "stack-toolchain", {}],
       ["ci-input-proof", "@agent-teams/ci-input-proof", {}],
+      ["release-checks", "@agent-teams/release-checks", {}],
       ["feature-module-standard", "@agent-teams/feature-module-standard", {}],
       ["repository-mutation", "@agent-teams/repository-mutation", {}],
       [

@@ -15,6 +15,15 @@ import {
   repositoryRoot,
 } from "./runtime-policy.mts";
 import { withoutGitRepositorySelectors } from "./git-environment.ts";
+import {
+  assertReleaseExecutionCustody,
+  checkWorkingReleaseCandidate,
+  freezeReleaseCandidate,
+  hasReleaseVersionChanges,
+  readReleaseCandidateContext,
+  removeReleaseCandidateContext,
+  writeReleaseCandidateContext,
+} from "../scripts/release-candidate-host.ts";
 
 interface ReleaseCommand {
   readonly sourceRoot: string;
@@ -175,20 +184,68 @@ async function version(): Promise<number> {
   const policy = await readRepositoryRuntimePolicy(command.sourceRoot);
   const expectedManager = `bun@${policy.toolchain.bun.version}`;
   const authority = await assertExplicitSourceGitAuthority(command.sourceRoot);
-  const status = await run(command.bun, ["run", "release:version"], command.sourceRoot, {
+  if (
+    process.env["GITHUB_ACTIONS"] === "true" &&
+    process.env["GITHUB_SHA"] !== authority.sourceCommit
+  ) {
+    throw new Error("Release versioning must run after the action reset to processed main.");
+  }
+  const inherited = process.env["AGENT_TEAMS_FOUNDATION_RELEASE_INPUTS_PATH"] !== undefined;
+  const candidate = inherited
+    ? await readReleaseCandidateContext()
+    : await freezeReleaseCandidate(command.sourceRoot, { nodeExecutable: command.node });
+  if (
+    candidate.custody.sourceRoot !== authority.sourceRoot ||
+    candidate.custody.sourceCommit !== authority.sourceCommit ||
+    candidate.custody.installation.nodeExecutable !== (await realpath(command.node))
+  ) {
+    throw new Error("The frozen release plan belongs to another processed source.");
+  }
+  const contextEnvironment = inherited
+    ? {
+        AGENT_TEAMS_FOUNDATION_RELEASE_INPUTS_PATH:
+          process.env["AGENT_TEAMS_FOUNDATION_RELEASE_INPUTS_PATH"]!,
+        AGENT_TEAMS_FOUNDATION_RELEASE_INPUTS_DIGEST:
+          process.env["AGENT_TEAMS_FOUNDATION_RELEASE_INPUTS_DIGEST"]!,
+      }
+    : (await writeReleaseCandidateContext(candidate)).environment;
+  const environment = {
     ...process.env,
     ...authority.environment,
+    ...contextEnvironment,
     AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: command.node,
     AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE: command.bun,
     PATH: `${dirname(command.node)}${delimiter}${process.env["PATH"] ?? ""}`,
-  });
-  if (status !== 0) {
-    return status;
+  };
+  try {
+    await assertReleaseExecutionCustody(candidate);
+    if (!hasReleaseVersionChanges(candidate)) {
+      process.stdout.write("The official Changesets plan has no version changes.\n");
+      return 0;
+    }
+    // Invoke the observed entrypoint directly; PATH cannot select a different engine.
+    for (const args of [
+      [candidate.custody.installation.entrypoint, "version"],
+      [resolve(command.sourceRoot, "tools/repository-command.mts"), "script", "build"],
+      [
+        resolve(command.sourceRoot, "tools/repository-command.mts"),
+        "tool",
+        "release:version:apply",
+      ],
+    ]) {
+      const status = await run(command.node, args, command.sourceRoot, environment);
+      if (status !== 0) {
+        return status;
+      }
+    }
+    const evidence = await refreshVersionLocks(command);
+    const candidateReport = await checkWorkingReleaseCandidate(candidate, { locksRefreshed: true });
+    process.stdout.write(`${JSON.stringify({ ...evidence, candidate: candidateReport.report })}\n`);
+    await assertManagerCustody(command.sourceRoot, expectedManager);
+    return 0;
+  } finally {
+    await removeReleaseCandidateContext(contextEnvironment);
   }
-  const evidence = await refreshVersionLocks(command);
-  process.stdout.write(`${JSON.stringify(evidence)}\n`);
-  await assertManagerCustody(command.sourceRoot, expectedManager);
-  return 0;
 }
 
 async function publish(): Promise<number> {
@@ -248,8 +305,15 @@ async function publish(): Promise<number> {
 
 async function main(): Promise<number> {
   const [operation] = process.argv.slice(2);
-  if (process.argv.length !== 3 || (operation !== "version" && operation !== "publish")) {
-    throw new Error("Usage: release-profile.mts (version|publish)");
+  if (
+    process.argv.length !== 3 ||
+    (operation !== "version" && operation !== "publish" && operation !== "cleanup")
+  ) {
+    throw new Error("Usage: release-profile.mts (version|publish|cleanup)");
+  }
+  if (operation === "cleanup") {
+    await removeReleaseCandidateContext();
+    return 0;
   }
   return operation === "version" ? version() : publish();
 }

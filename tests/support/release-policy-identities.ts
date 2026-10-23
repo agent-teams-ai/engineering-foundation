@@ -3,6 +3,10 @@ import { publishablePackageByName } from "../../scripts/publishable-packages.mjs
 import { DOCS_MCP_PACKAGE } from "../../scripts/release-publish-ordered.mjs";
 export const foundation = { name: "@agent-teams/engineering-foundation", version: "0.16.0" };
 export const ciInputProof = { name: "@agent-teams/ci-input-proof", version: "0.0.0" };
+export const releaseChecks = {
+  name: publishablePackageByName("@agent-teams/release-checks").name,
+  version: "0.0.0",
+};
 export const featureModuleStandard = {
   name: "@agent-teams/feature-module-standard",
   version: "0.0.0",

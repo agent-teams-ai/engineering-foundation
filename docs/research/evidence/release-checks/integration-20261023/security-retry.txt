@@ -1,0 +1,24 @@
+[2mOct 23 20:26:32.226[0m [92mINF[0m download and unarchive the package [2mprogram=[0maqua [2mversion=[0m2.62.3 [2menv=[0mlinux/amd64 [2mexe_name=[0mactionlint [2mpackage_name=[0mrhysd/actionlint [2mpackage_version=[0mv1.7.12 [2mregistry=[0mstandard
+[2mOct 23 20:26:32.427[0m [92mINF[0m verify GitHub Artifact Attestations [2mprogram=[0maqua [2mversion=[0m2.62.3 [2menv=[0mlinux/amd64 [2mexe_name=[0mactionlint [2mpackage_name=[0mrhysd/actionlint [2mpackage_version=[0mv1.7.12 [2mregistry=[0mstandard
+[2mOct 23 20:26:32.427[0m [92mINF[0m download and unarchive the package [2mprogram=[0maqua [2mversion=[0m2.62.3 [2menv=[0mlinux/amd64 [2mexe_name=[0mactionlint [2mpackage_name=[0mrhysd/actionlint [2mpackage_version=[0mv1.7.12 [2mregistry=[0mstandard [2mpackage_name=[0mcli/cli [2mpackage_version=[0mv2.96.0 [2mregistry=[0m""
+[2mOct 23 20:26:38.026[0m [92mINF[0m download and unarchive the package [2mprogram=[0maqua [2mversion=[0m2.62.3 [2menv=[0mlinux/amd64 [2mexe_name=[0mzizmor [2mpackage_name=[0mzizmorcore/zizmor [2mpackage_version=[0mv1.29.0 [2mregistry=[0mstandard
+[2mOct 23 20:26:38.542[0m [92mINF[0m verify GitHub Artifact Attestations [2mprogram=[0maqua [2mversion=[0m2.62.3 [2menv=[0mlinux/amd64 [2mexe_name=[0mzizmor [2mpackage_name=[0mzizmorcore/zizmor [2mpackage_version=[0mv1.29.0 [2mregistry=[0mstandard
+ INFO zizmor: 🌈 zizmor v1.29.0
+ INFO audit: zizmor: 🌈 completed ./.github/dependabot.yml
+ INFO audit: zizmor: 🌈 completed ./.github/workflows/ci-feedback.yml
+ INFO audit: zizmor: 🌈 completed ./.github/workflows/ci-input-proof-rc.yml
+ INFO audit: zizmor: 🌈 completed ./.github/workflows/ci.yml
+ INFO audit: zizmor: 🌈 completed ./.github/workflows/codeql.yml
+ INFO audit: zizmor: 🌈 completed ./.github/workflows/commit-author-identity.yml
+ INFO audit: zizmor: 🌈 completed ./.github/workflows/m4-disposable-lifecycle.yml
+ INFO audit: zizmor: 🌈 completed ./.github/workflows/npm-package-bootstrap.yml
+ INFO audit: zizmor: 🌈 completed ./.github/workflows/performance.yml
+ INFO audit: zizmor: 🌈 completed ./.github/workflows/pr-feedback.yml
+ INFO audit: zizmor: 🌈 completed ./.github/workflows/public-managed-registry-canary.yml
+ INFO audit: zizmor: 🌈 completed ./.github/workflows/release.yml
+ INFO audit: zizmor: 🌈 completed ./.github/workflows/reviewrouter-codex.yml
+ INFO audit: zizmor: 🌈 completed ./.github/workflows/reviewrouter-interaction.yml
+ INFO audit: zizmor: 🌈 completed ./.github/workflows/reviewrouter-review.yml
+ INFO audit: zizmor: 🌈 completed ./.github/workflows/scorecard.yml
+ INFO audit: zizmor: 🌈 completed ./tests/fixtures/repository-security-baseline/valid/.github/workflows/ci.yml
+No findings to report. Good job! (34 ignored, 4 suppressed)

@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "scope": "Retained local changed-check retries and capability checkpoint; no successful full check, final-head CI or public release qualification",
+  "source": {
+    "commit": "48c2a328616bcfbed0588d11c5b34e5d50ac1dad",
+    "tree": "9886fe78b9d7f67ddf316f1311259d273e4e86f4",
+    "main": "97f7b16f25823149f8f884db761edb9ffb43a535",
+    "releaseChecksTree": "76a214bd459937b28786880b4deb08cb20916da7"
+  },
+  "command": "bun tools/dev.mts check:changed",
+  "attempts": [
+    {
+      "id": "check-changed-mKPNRQ",
+      "exitCode": 130,
+      "disposition": "Operator cancelled after C1 fixture setup errors; not completed qualification",
+      "observedProgress": [
+        "Isolated pnpm installation completed with 645 dependencies",
+        "Standards, peers, terminology, lint and strict TypeScript routes completed",
+        "Quality scope accepted 10 packages and 1170 files with no problems",
+        "Full Foundation capability report passed",
+        "Release-owned files, architecture patterns and Nx graph checks completed",
+        "Built test runner selected the entire 355-file inventory"
+      ],
+      "failure": "C1 tests rejected the missing job-owned C1_TEST_SCRATCH/TMPDIR/TEMP setup; the operator omitted the required environment on this attempt",
+      "correction": "The following attempt supplied explicit task-owned C1_TEST_SCRATCH, TMPDIR, TMP and TEMP; no source, assertion, scope or timeout changes",
+      "logs": [
+        "changed-retry-cancelled.txt",
+        "changed-retry-cancelled-diagnostic.txt"
+      ]
+    },
+    {
+      "id": "check-changed-D63TlS",
+      "exitCode": 1,
+      "disposition": "Child process terminated by SIGKILL; no completed full-check result",
+      "observedProgress": [
+        "pnpm reported 645 of 645 packages added and installation done",
+        "Peer checker printed No peer dependency issues found"
+      ],
+      "executionEnvironment": {
+        "C1_TEST_SCRATCH": "/tmp/release-checks-oct23-test-scratch/c1",
+        "TMPDIR": "/tmp/release-checks-oct23-test-scratch",
+        "TMP": "/tmp/release-checks-oct23-test-scratch",
+        "TEMP": "/tmp/release-checks-oct23-test-scratch",
+        "MANAGED_TEST_TOOLS_ROOT": "/tmp/release-checks-oct23-toolchain/managed-test-tools-oAmhAo",
+        "MANAGED_TEST_ROOT": "/tmp/release-checks-oct23-toolchain/managed-test-cases-QsnxQ5",
+        "C1_PNPM_PACKAGE_ROOT": "/tmp/release-checks-oct23-toolchain/managed-test-tools-oAmhAo/pnpm/node_modules/pnpm",
+        "PACK_TEST_GENERATION2_NODE": "/tmp/release-checks-oct23-toolchain/managed-test-tools-oAmhAo/node24/bin/node"
+      },
+      "terminalMessage": "check-changed: failed (step-failed); 1 executed steps; input binding unverified",
+      "fullCheckCommandGraphObserved": false,
+      "causalLimit": "SIGKILL alone does not establish its cause. A post-failure df observation reported 39M available; later shared cgroup counters cannot identify the killed process without a before/after attribution.",
+      "logs": [
+        "changed-owned-scratch.txt",
+        "changed-owned-scratch-diagnostic.txt"
+      ]
+    }
+  ],
+  "logs": {
+    "changed-retry-cancelled.txt": {
+      "sha256": "ba1349faf09301713e5a60596e5f1359f2367fa1976c179cdccc947363224136",
+      "bytes": 81
+    },
+    "changed-retry-cancelled-diagnostic.txt": {
+      "sha256": "b24958464f3d941b2c1201baa63289198493448edf47a33aa2b01256e74019e0",
+      "bytes": 25360
+    },
+    "changed-owned-scratch.txt": {
+      "sha256": "f7532ab1a686236895f1d09b1fc2c2cb19d17cf178d44e54d62fa2b1427adf4a",
+      "bytes": 80
+    },
+    "changed-owned-scratch-diagnostic.txt": {
+      "sha256": "937ec9cafa3c113e3fa392c0c573bd629d55f496f94d85e4bf011c4517014fcf",
+      "bytes": 4187
+    }
+  },
+  "publicRegistryReadback": {
+    "checkedAt": "2026-10-23T17:15:56.224655+00:00",
+    "anonymous": true,
+    "results": [
+      {
+        "url": "https://registry.npmjs.org/@agent-teams%2frelease-checks",
+        "status": 404
+      },
+      {
+        "url": "https://registry.npmjs.org/@agent-teams%2frelease-checks/0.1.0",
+        "status": 404
+      }
+    ]
+  },
+  "capabilityLimits": [
+    "Ordinary Git/CLI write authentication is unavailable; the connector commit interface has no raw author/committer overrides and cannot upload the existing local commit objects",
+    "Browser initialization reports unavailable originating browser context; no npm maintainer readiness is established",
+    "No suitable existing source-transport workflow was found by independent read-only review"
+  ],
+  "pending": [
+    "Successful changed/full qualification in a provisioned environment",
+    "Transport of canonical-identity local commits",
+    "Final-head/current-base full native CI and approved writer-byte reproduction",
+    "Pre-merge interactive npm maintainer readiness",
+    "Canonical owner merge and fresh protected-main bootstrap proofs",
+    "Protected namespace bootstrap, supported Changesets release and registry readback",
+    "Real consumer adoption and complete fresh TEST owner-PR/publication/latest/installed-consumer chain"
+  ],
+  "authorization": "User delivery authorization is already present; these are capability and qualification limits, not requests for renewed approval"
+}

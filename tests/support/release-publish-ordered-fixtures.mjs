@@ -19,6 +19,8 @@ const MUTATION_PACKAGE = "@agent-teams/repository-mutation";
 const DOCS_ADAPTER_PACKAGE = "@agent-teams/docs-protocol-agent-teams";
 const CI_INPUT_PROOF_PACKAGE = "@agent-teams/ci-input-proof";
 const ciInputProof = artifact(CI_INPUT_PROOF_PACKAGE, "0.1.0", {});
+const RELEASE_CHECKS_PACKAGE = "@agent-teams/release-checks";
+const releaseChecks = artifact(RELEASE_CHECKS_PACKAGE, "0.1.0", {});
 const FEATURE_MODULE_STANDARD_PACKAGE = "@agent-teams/feature-module-standard";
 const featureModuleStandard = artifact(FEATURE_MODULE_STANDARD_PACKAGE, "0.1.0", {});
 const STACK_TOOLCHAIN_PACKAGE = "stack-toolchain";
@@ -43,6 +45,7 @@ const docsMcp = artifact(DOCS_MCP_PACKAGE, "0.1.0", { [DOCS_PACKAGE]: docs.versi
 const RELEASE_TIMESTAMPS = new Map([
   [STACK_TOOLCHAIN_PACKAGE, "2026-01-01T00:00:06.000Z"],
   [CI_INPUT_PROOF_PACKAGE, "2025-12-31T23:59:58.000Z"],
+  [RELEASE_CHECKS_PACKAGE, "2025-12-31T23:59:58.500Z"],
   [FEATURE_MODULE_STANDARD_PACKAGE, "2025-12-31T23:59:59.000Z"],
   [MUTATION_PACKAGE, "2026-01-01T00:00:00.000Z"],
   [DOCUMENT_AUTHORING_PACKAGE, "2026-01-01T00:00:01.000Z"],
@@ -201,6 +204,7 @@ async function run(runtime, overrides = {}) {
       authoring,
       mutation,
       featureModuleStandard,
+      releaseChecks,
       ciInputProof,
     ],
     visibilityTimeoutMilliseconds: 2,
@@ -224,6 +228,8 @@ export {
   DOCS_ADAPTER_PACKAGE,
   CI_INPUT_PROOF_PACKAGE,
   ciInputProof,
+  RELEASE_CHECKS_PACKAGE,
+  releaseChecks,
   FEATURE_MODULE_STANDARD_PACKAGE,
   featureModuleStandard,
   mutation,

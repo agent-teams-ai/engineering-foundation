@@ -243,6 +243,7 @@ void test("pinned pnpm setup version probe accepts Bun only with its scoped prep
         packageManager: "bun@1.4.3",
       }),
     );
+    await writeFile(join(root, "pnpm-workspace.yaml"), "packages: []\n");
     const environment = { ...process.env, pnpm_config_pm_on_fail: "error" };
     const probe = (env: NodeJS.ProcessEnv) =>
       spawnSync(pnpm.command, [...pnpm.args, "--version"], {

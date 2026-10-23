@@ -91,7 +91,7 @@ test("registry qualification covers npm and pnpm with docs-only and MCP profiles
   );
 });
 
-test("Foundation registry qualification installs the managed Skill authority", () => {
+test("Foundation registry qualification installs managed Skill and release-checks authorities", () => {
   assert.deepEqual(
     registryFoundationQualificationProfile({
       adapterPackageName: "@example/docs-adapter",
@@ -99,6 +99,7 @@ test("Foundation registry qualification installs the managed Skill authority", (
       docsPackageName: "@example/docs",
       foundationPackageName: "@example/foundation",
       mcpPackageName: "@example/docs-mcp",
+      releaseChecksPackageName: "@example/release-checks",
     }),
     {
       id: "npm-foundation",
@@ -109,6 +110,7 @@ test("Foundation registry qualification installs the managed Skill authority", (
         "@example/docs",
         "@example/docs-adapter",
         "@example/docs-mcp",
+        "@example/release-checks",
       ],
       profile: "foundation-full",
     },
@@ -179,10 +181,32 @@ test("compatibility and release installs use admitted runtime profiles before qu
     helper.indexOf("async function version()"),
     helper.indexOf("async function publish()"),
   );
-  const versionRun = version.indexOf('await run(command.bun, ["run", "release:version"]');
+  const frozen = version.indexOf("await freezeReleaseCandidate(");
+  const engine = version.indexOf('[candidate.custody.installation.entrypoint, "version"]');
+  const buildVersion = version.indexOf(
+    '[resolve(command.sourceRoot, "tools/repository-command.mts"), "script", "build"]',
+  );
+  const apply = version.search(
+    /\[\s*resolve\(command\.sourceRoot,\s*"tools\/repository-command\.mts"\),\s*"tool",\s*"release:version:apply",?\s*\]/u,
+  );
+  const versionRun = version.indexOf(
+    "await run(command.node, args, command.sourceRoot, environment)",
+  );
   const versionFailure = version.indexOf("if (status !== 0)");
   const refresh = version.indexOf("await refreshVersionLocks(command)");
-  assert.ok(versionRun >= 0 && versionFailure > versionRun && refresh > versionFailure);
+  const qualify = version.indexOf(
+    "await checkWorkingReleaseCandidate(candidate, { locksRefreshed: true })",
+  );
+  assert.ok(
+    frozen >= 0 &&
+      engine > frozen &&
+      buildVersion > engine &&
+      apply > buildVersion &&
+      versionRun > apply &&
+      versionFailure > versionRun &&
+      refresh > versionFailure &&
+      qualify > refresh,
+  );
   assert.equal(version.includes("prepareProfileProjection("), false);
 
   const publish = helper.slice(

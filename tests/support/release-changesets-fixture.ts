@@ -8,6 +8,10 @@ import { fileURLToPath } from "node:url";
 import { parse as parseYaml } from "yaml";
 
 import { refreshVersionLocks } from "../../tools/release-profile.mts";
+import {
+  checkWorkingReleaseCandidate,
+  freezeReleaseCandidate,
+} from "../../scripts/release-candidate-host.ts";
 
 const repositoryRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const changesetsActionRevision = "a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d";
@@ -253,7 +257,7 @@ async function prepareReleaseFixture(
     assert.equal(result.status, 0, `${result.stdout}${result.stderr}`);
     return result.stdout;
   };
-  git(["init", "--quiet"]);
+  git(["init", "--quiet", "-b", "main"]);
   git(["config", "user.name", "iliya"]);
   git(["config", "user.email", "iliyazelenkog@gmail.com"]);
   await writeFile(
@@ -296,12 +300,21 @@ async function qualifyVersionedRelease(
     bunBefore,
     "the frozen source install must preserve the authentic old peer lock precondition",
   );
-  const version = spawnSync(process.execPath, ["node_modules/@changesets/cli/bin.js", "version"], {
-    cwd: root,
-    encoding: "utf8",
-    env: process.env,
+  const candidate = await freezeReleaseCandidate(root, {
+    nodeExecutable: process.execPath,
+    cliEntrypoint: join(root, "node_modules/@changesets/cli/bin.js"),
   });
+  const version = spawnSync(
+    candidate.custody.installation.nodeExecutable,
+    [candidate.custody.installation.entrypoint, "version"],
+    {
+      cwd: root,
+      encoding: "utf8",
+      env: process.env,
+    },
+  );
   assert.equal(version.status, 0, `${version.stdout}${version.stderr}`);
+  assert.equal((await checkWorkingReleaseCandidate(candidate)).report.outcome, "passed");
   const versionedStandard = JSON.parse(
     await readFile(join(root, standardRoot, "package.json"), "utf8"),
   ) as {
@@ -317,6 +330,10 @@ async function qualifyVersionedRelease(
   }).finally(() => {
     context.diagnostic(`TEST versioned Bun lock diff:\n${git(["diff", "--", "bun.lock"])}`);
   });
+  assert.equal(
+    (await checkWorkingReleaseCandidate(candidate, { locksRefreshed: true })).report.outcome,
+    "passed",
+  );
   const versioned = JSON.parse(await readFile(join(root, packageRoot, "package.json"), "utf8")) as {
     readonly version: string;
   };

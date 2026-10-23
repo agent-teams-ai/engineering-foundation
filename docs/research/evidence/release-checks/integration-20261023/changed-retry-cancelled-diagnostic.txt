@@ -1,0 +1,278 @@
+Source: 48c2a328616bcfbed0588d11c5b34e5d50ac1dad
+Profile: /workspace/scratch/57dc7bcc28f6/foundation-release-checks-oct23/.worker-tmp/profiles/check-changed-mKPNRQ
+Scope: all 12 workspace projects
+✓ Lockfile passes supply-chain policies (verified 33m ago)
+Lockfile is up to date, resolution step is skipped
+Progress: resolved 1, reused 0, downloaded 0, added 0
+Packages: +645
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Packages are hard linked from the content-addressable store to the virtual store.
+  Content-addressable store is at: /root/.local/share/pnpm/store/v11
+  Virtual store is at:             node_modules/.pnpm
+Progress: resolved 645, reused 643, downloaded 0, added 642
+Progress: resolved 645, reused 643, downloaded 0, added 643
+Progress: resolved 645, reused 643, downloaded 1, added 643
+Progress: resolved 645, reused 643, downloaded 1, added 644
+Progress: resolved 645, reused 643, downloaded 2, added 644
+Progress: resolved 645, reused 643, downloaded 2, added 645, done
+[WARN] Failed to create bin at /workspace/scratch/57dc7bcc28f6/foundation-release-checks-oct23/.worker-tmp/profiles/check-changed-mKPNRQ/packages/docs-protocol-agent-teams/node_modules/.bin/agent-teams-docs. ENOENT: no such file or directory, open '/workspace/scratch/57dc7bcc28f6/foundation-release-checks-oct23/.worker-tmp/profiles/check-changed-mKPNRQ/packages/docs-protocol/dist/cli.js'
+[WARN] Failed to create bin at /workspace/scratch/57dc7bcc28f6/foundation-release-checks-oct23/.worker-tmp/profiles/check-changed-mKPNRQ/packages/docs-protocol-agent-teams/node_modules/.bin/docs-protocol. ENOENT: no such file or directory, open '/workspace/scratch/57dc7bcc28f6/foundation-release-checks-oct23/.worker-tmp/profiles/check-changed-mKPNRQ/packages/docs-protocol/dist/cli.js'
+[WARN] Failed to create bin at /workspace/scratch/57dc7bcc28f6/foundation-release-checks-oct23/.worker-tmp/profiles/check-changed-mKPNRQ/packages/docs-protocol-mcp/node_modules/.bin/agent-teams-docs. ENOENT: no such file or directory, open '/workspace/scratch/57dc7bcc28f6/foundation-release-checks-oct23/.worker-tmp/profiles/check-changed-mKPNRQ/packages/docs-protocol/dist/cli.js'
+[WARN] Failed to create bin at /workspace/scratch/57dc7bcc28f6/foundation-release-checks-oct23/.worker-tmp/profiles/check-changed-mKPNRQ/packages/docs-protocol-mcp/node_modules/.bin/docs-protocol. ENOENT: no such file or directory, open '/workspace/scratch/57dc7bcc28f6/foundation-release-checks-oct23/.worker-tmp/profiles/check-changed-mKPNRQ/packages/docs-protocol/dist/cli.js'
+[WARN] Failed to create bin at /workspace/scratch/57dc7bcc28f6/foundation-release-checks-oct23/.worker-tmp/profiles/check-changed-mKPNRQ/packages/feature-module-standard/node_modules/.bin/agent-teams-node-test. ENOENT: no such file or directory, open '/workspace/scratch/57dc7bcc28f6/foundation-release-checks-oct23/.worker-tmp/profiles/check-changed-mKPNRQ/packages/engineering-foundation/dist/node-test-cli.js'
+[WARN] Failed to create bin at /workspace/scratch/57dc7bcc28f6/foundation-release-checks-oct23/.worker-tmp/profiles/check-changed-mKPNRQ/packages/feature-module-standard/node_modules/.bin/agent-teams-foundation. ENOENT: no such file or directory, open '/workspace/scratch/57dc7bcc28f6/foundation-release-checks-oct23/.worker-tmp/profiles/check-changed-mKPNRQ/packages/engineering-foundation/dist/cli.js'
+
+devDependencies:
++ @ast-grep/cli 0.45.0
++ @changesets/changelog-github 0.7.0
++ @changesets/cli 2.31.1
++ @modelcontextprotocol/server 2.0.0
++ @openai/codex 0.146.0
++ @types/node 24.13.3
++ ajv 8.20.0
++ c8 12.0.0
++ esbuild 0.28.2
++ fast-check 4.9.0
++ knip 6.31.0
++ node-or-bun 0.2.2
++ nx 23.3.0
++ oxc-parser 0.142.0
++ oxlint 1.83.0
++ oxlint-tsgolint 7.0.2001
++ pnpm 11.20.0
++ publint 0.3.22
++ semver 7.8.5
++ typescript 7.0.2
++ verdaccio 6.10.6
++ yaml 2.9.0
+
+Done in 8.4s using pnpm v11.20.0
+No peer dependency issues found
+$ node tools/repository-command.mts script standards:check && node tools/repository-command.mts script dependencies:peers:check && node tools/repository-command.mts script docs:terminology:check && node tools/repository-command.mts script lint && node tools/repository-command.mts script typecheck && node tools/repository-command.mts script quality:scope:check && node tools/repository-command.mts script foundation:check:built && node tools/repository-command.mts script release-owned-files:check && node tools/repository-command.mts script architecture:patterns && node tools/repository-command.mts script architecture:patterns:test && node tools/repository-command.mts script nx:graph:check && node tools/repository-command.mts script test:built && node tools/repository-command.mts script test:coverage:built && node tools/repository-command.mts script package:check:built && node tools/repository-command.mts script architecture:features:check
+$ node tools/repository-command.mts tool standards:check
+Retained EQS/CMS inputs and reviewed runtime seam guidance pins verified.
+$ node tools/repository-command.mts tool dependencies:peers:check
+No peer dependency issues found
+$ node tools/repository-command.mts tool docs:terminology:check
+Documentation terminology contract is valid.
+$ node tools/repository-command.mts script lint:fast && node tools/repository-command.mts script build && node tools/repository-command.mts script lint:typed
+$ node tools/repository-command.mts tool lint:fast
+$ node tools/repository-command.mts tool typecheck
+$ node tools/repository-command.mts tool lint:typed
+Foundation check: passed
+Foundation version: 2.1.2
+Coverage: selected
+Diagnostics: 0 error(s), 0 warning(s), 0 info
+
+quality.source-coverage: passed
+$ node tools/repository-command.mts tool typecheck && node tools/repository-command.mts script typecheck:ci-tooling && node tools/repository-command.mts script typecheck:restoration-lock-inputs && node tools/repository-command.mts script typecheck:restoration-lock && node tools/repository-command.mts script typecheck:managed-runtime-tests && node tools/repository-command.mts script typecheck:local-mode-oracles && node tools/repository-command.mts script typecheck:native-api-tests && node tools/repository-command.mts script typecheck:native-release-tooling && node tools/repository-command.mts script typecheck:agent-workflow && node tools/repository-command.mts tool parser-spike:typecheck
+$ node tools/repository-command.mts tool typecheck:ci-tooling
+$ node tools/repository-command.mts tool typecheck:restoration-lock-inputs
+$ node tools/repository-command.mts tool typecheck:restoration-lock
+$ node tools/repository-command.mts tool typecheck:managed-runtime-tests
+$ node tools/repository-command.mts tool typecheck:local-mode-oracles
+$ node tools/repository-command.mts tool typecheck:native-api-tests
+$ node tools/repository-command.mts tool typecheck:native-release-tooling
+$ node tools/repository-command.mts tool typecheck:agent-workflow
+$ node tools/repository-command.mts tool quality:scope:check
+{
+  "outcome": "passed",
+  "packages": 10,
+  "files": 1170,
+  "problems": []
+}
+$ node tools/repository-command.mts tool foundation:check:built
+{
+  "reportSchemaVersion": 1,
+  "foundationVersion": "2.1.2",
+  "coverage": "full",
+  "outcome": "passed",
+  "summary": {
+    "errors": 0,
+    "warnings": 0,
+    "infos": 0
+  },
+  "capabilities": [
+    {
+      "capabilityId": "architecture.source-dependencies",
+      "capabilityConfigSchemaVersion": 2,
+      "outcome": "passed",
+      "summary": {
+        "errors": 0,
+        "warnings": 0,
+        "infos": 0
+      },
+      "diagnostics": []
+    },
+    {
+      "capabilityId": "contract.json-schema-releases",
+      "capabilityConfigSchemaVersion": 1,
+      "outcome": "passed",
+      "summary": {
+        "errors": 0,
+        "warnings": 0,
+        "infos": 0
+      },
+      "diagnostics": []
+    },
+    {
+      "capabilityId": "documentation.local-references",
+      "capabilityConfigSchemaVersion": 1,
+      "outcome": "passed",
+      "summary": {
+        "errors": 0,
+        "warnings": 0,
+        "infos": 0
+      },
+      "diagnostics": []
+    },
+    {
+      "capabilityId": "governance.architecture-decisions",
+      "capabilityConfigSchemaVersion": 1,
+      "outcome": "passed",
+      "summary": {
+        "errors": 0,
+        "warnings": 0,
+        "infos": 0
+      },
+      "diagnostics": []
+    },
+    {
+      "capabilityId": "package.public-api-compatibility",
+      "capabilityConfigSchemaVersion": 1,
+      "outcome": "passed",
+      "summary": {
+        "errors": 0,
+        "warnings": 0,
+        "infos": 0
+      },
+      "diagnostics": []
+    },
+    {
+      "capabilityId": "quality.gate-runner",
+      "capabilityConfigSchemaVersion": 1,
+      "outcome": "passed",
+      "summary": {
+        "errors": 0,
+        "warnings": 0,
+        "infos": 0
+      },
+      "diagnostics": []
+    },
+    {
+      "capabilityId": "quality.source-coverage",
+      "capabilityConfigSchemaVersion": 1,
+      "outcome": "passed",
+      "summary": {
+        "errors": 0,
+        "warnings": 0,
+        "infos": 0
+      },
+      "diagnostics": []
+    },
+    {
+      "capabilityId": "quality.suppression-governance",
+      "capabilityConfigSchemaVersion": 1,
+      "outcome": "passed",
+      "summary": {
+        "errors": 0,
+        "warnings": 0,
+        "infos": 0
+      },
+      "diagnostics": []
+    },
+    {
+      "capabilityId": "repository.agent-workflow",
+      "capabilityConfigSchemaVersion": 2,
+      "outcome": "passed",
+      "summary": {
+        "errors": 0,
+        "warnings": 0,
+        "infos": 0
+      },
+      "diagnostics": []
+    },
+    {
+      "capabilityId": "repository.security-baseline",
+      "capabilityConfigSchemaVersion": 1,
+      "outcome": "passed",
+      "summary": {
+        "errors": 0,
+        "warnings": 0,
+        "infos": 0
+      },
+      "diagnostics": []
+    },
+    {
+      "capabilityId": "workspace.dependency-declarations",
+      "capabilityConfigSchemaVersion": 1,
+      "outcome": "passed",
+      "summary": {
+        "errors": 0,
+        "warnings": 0,
+        "infos": 0
+      },
+      "diagnostics": []
+    }
+  ]
+}
+$ node tools/repository-command.mts tool release-owned-files:check
+$ node tools/repository-command.mts tool architecture:patterns
+$ node tools/repository-command.mts tool architecture:patterns:test
+Running 4 tests
+
+----------- Case Details -----------
+PASS foundation-no-ambient-randomness  ..
+PASS foundation-no-ambient-timers  ....
+PASS foundation-no-ambient-environment  .....
+PASS foundation-no-ambient-clock  ....
+
+test result: ok. 4 passed; 0 failed;
+$ node tools/repository-command.mts tool nx:graph:check
+["@agent-teams/docs-protocol-agent-teams","@agent-teams/feature-module-standard","@agent-teams/engineering-foundation","@agent-teams/source-dependency-parser-spike","@agent-teams/repository-mutation","@agent-teams/document-authoring","@agent-teams/docs-protocol-mcp","stack-toolchain","@agent-teams/ci-input-proof","@agent-teams/release-checks","@agent-teams/docs-protocol","@agent-teams/engineering-foundation-repository"]
+$ node tools/repository-command.mts tool test:built
+Test platform linux/x64: inventory=355, requested=355, selected=355; Linux x64 qualification only=[]
+FAIL C1 candidate CLI preserves changed v1 and rejects v1 on successor without scripts
+{"name":"Error","code":"ERR_TEST_FAILURE","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","cause":{"name":"AssertionError","code":"ERR_ASSERTION","operator":"==","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","actual":false,"expected":true,"location":["[truncated 62 chars]...release-checks-oct23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-test-support.mts:139:10)","[truncated 89 chars]...cks-oct23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-agent-workflow-cli.test.mts:20:104)"]}}
+FAIL C1 candidate v2 CLI runs native compiler and retains mutable feedback limitations
+{"name":"Error","code":"ERR_TEST_FAILURE","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","cause":{"name":"AssertionError","code":"ERR_ASSERTION","operator":"==","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","actual":false,"expected":true,"location":["[truncated 62 chars]...release-checks-oct23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-test-support.mts:139:10)","[truncated 89 chars]...cks-oct23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-agent-workflow-cli.test.mts:42:104)"]}}
+FAIL C1 v2 conformance reads successor command and explicit prerequisite scripts
+{"name":"Error","code":"ERR_TEST_FAILURE","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","cause":{"name":"AssertionError","code":"ERR_ASSERTION","operator":"==","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","actual":false,"expected":true,"location":["[truncated 62 chars]...release-checks-oct23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-test-support.mts:139:10)","[truncated 98 chars].../.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-agent-workflow-configuration.test.mts:115:9)"]}}
+FAIL C1 complete repository facets require real compiler and executed tests
+{"name":"Error","code":"ERR_TEST_FAILURE","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","cause":{"name":"AssertionError","code":"ERR_ASSERTION","operator":"==","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","actual":false,"expected":true,"location":["[truncated 62 chars]...release-checks-oct23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-test-support.mts:139:10)","[truncated 93 chars]...oct23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-agent-workflow-coverage.test.mts:73:94)"]}}
+FAIL C1 missing facet and successful no-op cannot claim coverage
+{"name":"Error","code":"ERR_TEST_FAILURE","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","cause":{"name":"AssertionError","code":"ERR_ASSERTION","operator":"==","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","actual":false,"expected":true,"location":["[truncated 62 chars]...release-checks-oct23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-test-support.mts:139:10)","[truncated 93 chars]...oct23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-agent-workflow-coverage.test.mts:88:82)"]}}
+FAIL C1 real empty skipped and assertion failures never supply tests
+{"name":"Error","code":"ERR_TEST_FAILURE","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","cause":{"name":"AssertionError","code":"ERR_ASSERTION","operator":"==","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","actual":false,"expected":true,"location":["[truncated 62 chars]...release-checks-oct23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-test-support.mts:139:10)","[truncated 94 chars]...ct23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-agent-workflow-coverage.test.mts:104:86)"]}}
+FAIL C1 no changes and explicit exclusions are not checked
+{"name":"Error","code":"ERR_TEST_FAILURE","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","cause":{"name":"AssertionError","code":"ERR_ASSERTION","operator":"==","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","actual":false,"expected":true,"location":["[truncated 62 chars]...release-checks-oct23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-test-support.mts:139:10)","[truncated 94 chars]...ct23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-agent-workflow-coverage.test.mts:118:76)"]}}
+FAIL C1 mutable successful checks remain feedback only
+{"name":"Error","code":"ERR_TEST_FAILURE","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","cause":{"name":"AssertionError","code":"ERR_ASSERTION","operator":"==","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","actual":false,"expected":true,"location":["[truncated 62 chars]...release-checks-oct23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-test-support.mts:139:10)","[truncated 94 chars]...ct23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-agent-workflow-coverage.test.mts:132:72)"]}}
+FAIL C1 prerequisite and executable configuration substitutions reject
+{"name":"Error","code":"ERR_TEST_FAILURE","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","cause":{"name":"AssertionError","code":"ERR_ASSERTION","operator":"==","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","actual":false,"expected":true,"location":["[truncated 62 chars]...release-checks-oct23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-test-support.mts:139:10)","[truncated 94 chars]...ct23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-agent-workflow-coverage.test.mts:140:88)"]}}
+FAIL C1 cancellation and stale closure cannot pass
+{"name":"Error","code":"ERR_TEST_FAILURE","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","cause":{"name":"AssertionError","code":"ERR_ASSERTION","operator":"==","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","actual":false,"expected":true,"location":["[truncated 62 chars]...release-checks-oct23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-test-support.mts:139:10)","[truncated 94 chars]...ct23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-agent-workflow-coverage.test.mts:169:68)"]}}
+FAIL C1 frozen influencing closure rejects real ABA
+{"name":"Error","code":"ERR_TEST_FAILURE","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","cause":{"name":"AssertionError","code":"ERR_ASSERTION","operator":"==","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","actual":false,"expected":true,"location":["[truncated 62 chars]...release-checks-oct23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-test-support.mts:139:10)","[truncated 95 chars]...t23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-agent-workflow-coverage.test.mts:188:160)"]}}
+FAIL C1 mutable real ABA remains feedback only and unverified
+{"name":"Error","code":"ERR_TEST_FAILURE","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","cause":{"name":"AssertionError","code":"ERR_ASSERTION","operator":"==","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","actual":false,"expected":true,"location":["[truncated 62 chars]...release-checks-oct23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-test-support.mts:139:10)","[truncated 95 chars]...t23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-agent-workflow-coverage.test.mts:188:160)"]}}
+FAIL C1 mutable adapter runs real commands with no qualified facets
+{"name":"Error","code":"ERR_TEST_FAILURE","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","cause":{"name":"AssertionError","code":"ERR_ASSERTION","operator":"==","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","actual":false,"expected":true,"location":["[truncated 62 chars]...release-checks-oct23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-test-support.mts:139:10)","[truncated 94 chars]...ct23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-agent-workflow-coverage.test.mts:246:85)"]}}
+FAIL C1 actual run then revoke retains trace and rejects every revoked input
+{"name":"Error","code":"ERR_TEST_FAILURE","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","cause":{"name":"AssertionError","code":"ERR_ASSERTION","operator":"==","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","actual":false,"expected":true,"location":["[truncated 62 chars]...release-checks-oct23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-test-support.mts:139:10)","[truncated 94 chars]...ct23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-agent-workflow-rejection.test.mts:23:94)"]}}
+FAIL C1 mid command cancellation retains interrupted history without coverage
+{"name":"Error","code":"ERR_TEST_FAILURE","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","cause":{"name":"AssertionError","code":"ERR_ASSERTION","operator":"==","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","actual":false,"expected":true,"location":["[truncated 62 chars]...release-checks-oct23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-test-support.mts:139:10)","[truncated 95 chars]...t23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-agent-workflow-rejection.test.mts:50:112)"]}}
+FAIL C1 unknown paths require adequate real repository escalation
+{"name":"Error","code":"ERR_TEST_FAILURE","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","cause":{"name":"AssertionError","code":"ERR_ASSERTION","operator":"==","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","actual":false,"expected":true,"location":["[truncated 62 chars]...release-checks-oct23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-test-support.mts:139:10)","[truncated 94 chars]...ct23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-agent-workflow-rejection.test.mts:70:83)"]}}
+FAIL C1 overlap uses required facet union and exclusion stays path local
+{"name":"Error","code":"ERR_TEST_FAILURE","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","cause":{"name":"AssertionError","code":"ERR_ASSERTION","operator":"==","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","actual":false,"expected":true,"location":["[truncated 62 chars]...release-checks-oct23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-test-support.mts:139:10)","[truncated 94 chars]...ct23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-agent-workflow-rejection.test.mts:95:90)"]}}
+FAIL C1 real empty selection escalates once while forged observations reject
+{"name":"Error","code":"ERR_TEST_FAILURE","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","cause":{"name":"AssertionError","code":"ERR_ASSERTION","operator":"==","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","actual":false,"expected":true,"location":["[truncated 62 chars]...release-checks-oct23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-test-support.mts:139:10)","[truncated 95 chars]...t23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-agent-workflow-rejection.test.mts:115:94)"]}}
+FAIL C1 qualified runner rejects nested output roots before command execution
+{"name":"Error","code":"ERR_TEST_FAILURE","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","cause":{"name":"AssertionError","code":"ERR_ASSERTION","operator":"==","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","actual":false,"expected":true,"location":["[truncated 62 chars]...release-checks-oct23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-test-support.mts:139:10)","[truncated 95 chars]...t23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-agent-workflow-rejection.test.mts:138:95)"]}}
+FAIL C1 output cleanup failure retains completed command history
+{"name":"Error","code":"ERR_TEST_FAILURE","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","cause":{"name":"AssertionError","code":"ERR_ASSERTION","operator":"==","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","actual":false,"expected":true,"location":["[truncated 62 chars]...release-checks-oct23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-test-support.mts:139:10)","[truncated 94 chars]...ct23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-agent-workflow-rejection.test.mts:149:7)"]}}
+FAIL C1 qualified reads reject real leaf and ancestor substitutions and link or mode drift before exe...[truncated 6 chars]
+{"name":"Error","code":"ERR_TEST_FAILURE","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","cause":{"name":"AssertionError","code":"ERR_ASSERTION","operator":"==","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","actual":false,"expected":true,"location":["[truncated 62 chars]...release-checks-oct23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-test-support.mts:139:10)","[truncated 96 chars]...23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-agent-workflow-rejection.test.mts:199:125)"]}}
+FAIL C1 qualified reads retain enclosing roots and Node observation byte limits
+{"name":"Error","code":"ERR_TEST_FAILURE","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","cause":{"name":"AssertionError","code":"ERR_ASSERTION","operator":"==","message":"Provide job-owned C1_TEST_SCRATCH; no system scr...[truncated 14 chars]","actual":false,"expected":true,"location":["[truncated 62 chars]...release-checks-oct23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-test-support.mts:139:10)","[truncated 95 chars]...t23/.worker-tmp/profiles/check-changed-mKPNRQ/tests/c1-agent-workflow-rejection.test.mts:235:97)"]}}

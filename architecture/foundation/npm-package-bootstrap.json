@@ -408,6 +408,50 @@
         "runId": 39774275653,
         "runAttempt": 1
       }
+    },
+    {
+      "id": "release-checks",
+      "state": "approved",
+      "name": "@agent-teams/release-checks",
+      "root": "packages/release-checks",
+      "manifestPath": "packages/release-checks/package.json",
+      "bootstrapVersion": "0.0.0",
+      "dependencies": [],
+      "contentPolicy": {
+        "exact": [
+          "CHANGELOG.md",
+          "LICENSE",
+          "README.md",
+          "package.json"
+        ],
+        "prefixes": [
+          "dist/"
+        ],
+        "required": [
+          "CHANGELOG.md",
+          "LICENSE",
+          "README.md",
+          "package.json"
+        ]
+      },
+      "deprecationMessage": "Bootstrap-only artifact; do not adopt. Use a supported @agent-teams/release-checks release instead.",
+      "tags": {
+        "required": [
+          "bootstrap"
+        ],
+        "allowed": [
+          "bootstrap",
+          "latest"
+        ]
+      },
+      "provenance": {
+        "workflowPath": ".github/workflows/npm-package-bootstrap.yml",
+        "ref": "refs/heads/main"
+      },
+      "approval": {
+        "archiveIntegrity": "sha512-Lvt9twVB0UhsmgYkoGrtbntxWCM9PxQ/NzvZB2ZE+xSj1jFyEFXvaLK94390rrABwjGoYPS8uO+1XzVXq4Lm8A==",
+        "packageTree": "76a214bd459937b28786880b4deb08cb20916da7"
+      }
     }
   ]
 }

@@ -17,9 +17,10 @@ import {
   npmPackManifest,
 } from "../scripts/pack-artifact-stage-support.mjs";
 import { createPackFixture, qualifiedArchive } from "./pack-publishable-artifacts-support.mjs";
+import { repositorySourceRoot } from "./support/repository-source.ts";
 
 test("pending Foundation releases version FMS when its canonical packed manifest changes", async () => {
-  const root = fileURLToPath(new URL("..", import.meta.url));
+  const root = await repositorySourceRoot();
   const require = createRequire(import.meta.url);
   const changesets = createRequire(require.resolve("@changesets/cli/package.json"));
   const plan = await changesets("@changesets/get-release-plan").default(root);
@@ -35,9 +36,7 @@ test("pending Foundation releases version FMS when its canonical packed manifest
       "utf8",
     ),
   );
-  const rootManifest = JSON.parse(
-    await readFile(new URL("../package.json", import.meta.url), "utf8"),
-  );
+  const rootManifest = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
   const project = (version) =>
     canonicalPublishManifest(manifest, {
       catalogVersions: new Map(Object.entries(rootManifest.workspaces.catalog)),
@@ -68,7 +67,7 @@ test("official Changesets status and version keep the compatible Foundation 2 FM
   const root = await mkdtemp(join(tmpdir(), "fms-compatible-release-TEST-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   // Status consults Git's base; borrow only committed objects, with fixture-owned refs.
-  const sourceRoot = fileURLToPath(new URL("..", import.meta.url));
+  const sourceRoot = await repositorySourceRoot();
   const clone = spawnSync(
     "git",
     ["clone", "--shared", "--no-checkout", "--quiet", sourceRoot, root],

@@ -31,6 +31,7 @@ globalThis.readProbeFile = async (path, options) => {
   // unreleased changelog must remain unreleased outside the intercepted read.
   const stagedNotes = [
     "@agent-teams/ci-input-proof",
+    "@agent-teams/release-checks",
     "@agent-teams/feature-module-standard",
     "stack-toolchain",
   ].includes(info.name)
@@ -61,6 +62,7 @@ const packages = PUBLISHABLE_PACKAGES.map((entry) => ({
 const versions = new Map(packages.map((info) => [info.name, info.version]));
 const expectedPublications = [
   "@agent-teams/ci-input-proof",
+  "@agent-teams/release-checks",
   "@agent-teams/repository-mutation",
   "@agent-teams/document-authoring",
   "@agent-teams/docs-protocol",

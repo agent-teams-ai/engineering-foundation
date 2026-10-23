@@ -10,7 +10,7 @@ const policy =
 
 test("scaffolding registry and public boundaries have one owner and adapters do not select composition", async () => {
   const report = await validateFeatureModules();
-  assert.equal(report.modules, 9);
+  assert.equal(report.modules, 10);
   assert.deepEqual(
     report.problems.filter(({ code }) => ["input-error", "source-policy"].includes(code)),
     [],

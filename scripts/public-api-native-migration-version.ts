@@ -1,17 +1,14 @@
 import { createHash } from "node:crypto";
 import { constants, type BigIntStats } from "node:fs";
-import { lstat, open, readFile } from "node:fs/promises";
+import { lstat, open } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
-import {
-  releasePullRequestContentViolations,
-  releasePullRequestFileViolations,
-} from "./check-release-pr-files.mjs";
-import { PUBLISHABLE_PACKAGES } from "./publishable-packages.mjs";
+import { releasePullRequestFileViolations } from "./check-release-pr-files.mjs";
 import { runCommand as executeCommand } from "./pack-test-support.mjs";
 import { migrationBytes, migrationDigest } from "./public-api-native-migration.ts";
 import { migrationRepository } from "./public-api-native-migration-inputs.ts";
 import { nativeMigrationPackageNames } from "./public-api-native-migration-observation.ts";
+import { checkFrozenVersionCandidate } from "./release-candidate-host.ts";
 
 // Static views of the existing owned JavaScript helpers, not provider JSON.
 const runCommand = executeCommand as (
@@ -19,11 +16,6 @@ const runCommand = executeCommand as (
   args: readonly string[],
   cwd: string,
 ) => Promise<{ stdout: string; stderr: string }>;
-const publishablePackages = PUBLISHABLE_PACKAGES as readonly {
-  name: string;
-  manifestPath: string;
-  changelogPath: string;
-}[];
 
 function fail(message: string): never {
   throw new Error(`Native migration version workflow: ${message}`);
@@ -194,20 +186,6 @@ async function optionalBaseState(root: string, sha: string): Promise<unknown> {
   }
   return JSON.parse(await baseText(root, sha, ".changeset/pre.json")) as unknown;
 }
-async function optionalWorkingState(root: string, removed: boolean): Promise<unknown> {
-  if (removed) {
-    return undefined;
-  }
-  try {
-    return JSON.parse(await readFile(join(root, ".changeset/pre.json"), "utf8")) as unknown;
-  } catch (error) {
-    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
-      return undefined;
-    }
-    throw error;
-  }
-}
-
 function sameVersionFile(before: BigIntStats, after: BigIntStats): boolean {
   return (
     after.isFile() &&
@@ -301,6 +279,9 @@ export async function verifyVersionWorkflow(
     ).stdout,
   ) as unknown;
   assertVersionRunBinding(identity, run, main);
+  // The frozen plan came from the accepted source before versioning. Reobserve
+  // the complete candidate before either ordinary or migration baseline writes.
+  await checkFrozenVersionCandidate(root);
   if (
     resolve((await git(root, ["rev-parse", "--show-toplevel"])).trim()) !== resolve(root) ||
     (await git(root, ["rev-parse", "HEAD"])).trim() !== identity.sha ||
@@ -318,10 +299,6 @@ export async function verifyVersionWorkflow(
     await git(root, ["diff", "--name-status", "-z", "--no-renames", "HEAD", "--"]),
   );
   const basePrereleaseState = await optionalBaseState(root, identity.sha);
-  const headPrereleaseState = await optionalWorkingState(
-    root,
-    files.some((file) => file.filename === ".changeset/pre.json" && file.status === "removed"),
-  );
   assertVersionFiles(
     files,
     typeof basePrereleaseState === "object" &&
@@ -329,23 +306,6 @@ export async function verifyVersionWorkflow(
       "mode" in basePrereleaseState &&
       basePrereleaseState.mode === "exit",
   );
-  const changed = new Set(files.map((file) => file.filename));
-  for (const p of publishablePackages) {
-    if (!changed.has(p.manifestPath) && !changed.has(p.changelogPath)) {
-      continue;
-    }
-    const violations = releasePullRequestContentViolations({
-      baseManifest: JSON.parse(await baseText(root, identity.sha, p.manifestPath)) as unknown,
-      headManifest: JSON.parse(await readFile(join(root, p.manifestPath), "utf8")) as unknown,
-      baseChangelog: await baseText(root, identity.sha, p.changelogPath),
-      headChangelog: await readFile(join(root, p.changelogPath), "utf8"),
-      basePrereleaseState,
-      headPrereleaseState,
-    });
-    if (violations.length !== 0) {
-      fail(`${p.name}: ${violations.join("; ")}`);
-    }
-  }
   const content = await Promise.all(
     files.map(async (file) => {
       if (file.status === "removed") {

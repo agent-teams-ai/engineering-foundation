@@ -1,0 +1,26 @@
+Quality gate profile: bun-check-fast
+Outcome: failed
+Duration: 12032ms
+- check:fast: failed (12030ms) exit=1
+Retained EQS/CMS inputs and reviewed runtime seam guidance pins verified.
+{
+  "outcome": "passed",
+  "packageContexts": 1256,
+  "packageCoordinates": 655,
+  "peerAssignments": 23,
+  "inventory": null
+}
+Documentation terminology contract is valid.
+Validated 10 package graph projections.
+Validated 355 tests across 8 shards.
+tests/release-publish-ordered.test.mjs:854:4: error eslint(max-lines): File has too many lines (803). help: Maximum allowed is 800.
+tests/release-pr-freshness.test.mjs:855:4: error eslint(max-lines): File has too many lines (801). help: Maximum allowed is 800.
+$ node tools/repository-command.mts script standards:check && node tools/repository-command.mts script dependencies:peers:check && node tools/repository-command.mts script docs:terminology:check && node tools/repository-command.mts script release-graph:check && node tools/repository-command.mts script test:manifests:check && node tools/repository-command.mts script lint:fast && node tools/repository-command.mts script typecheck && node tools/repository-command.mts script quality:scope:check && node tools/repository-command.mts script architecture:features:check && node tools/repository-command.mts script quality:coverage:scope
+$ node tools/repository-command.mts tool standards:check
+$ node tools/repository-command.mts tool dependencies:peers:check
+$ node tools/repository-command.mts tool docs:terminology:check
+$ node tools/repository-command.mts tool release-graph:check
+$ node tools/repository-command.mts tool test:manifests:check
+$ node tools/repository-command.mts tool lint:fast
+error: script "lint:fast" exited with code 1
+error: script "check:fast" exited with code 1

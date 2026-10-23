@@ -1,0 +1,4 @@
+Quality gate profile: bun-check-fast
+Outcome: passed
+Duration: 169219ms
+- check:fast: passed (169214ms) exit=0

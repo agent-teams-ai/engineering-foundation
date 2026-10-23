@@ -1,0 +1,57 @@
+Source: 48c2a328616bcfbed0588d11c5b34e5d50ac1dad
+Profile: /workspace/scratch/57dc7bcc28f6/foundation-release-checks-oct23/.worker-tmp/profiles/check-changed-D63TlS
+Scope: all 12 workspace projects
+✓ Lockfile passes supply-chain policies (verified 42m ago)
+Lockfile is up to date, resolution step is skipped
+Progress: resolved 1, reused 0, downloaded 0, added 0
+Packages: +645
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Packages are hard linked from the content-addressable store to the virtual store.
+  Content-addressable store is at: /root/.local/share/pnpm/store/v11
+  Virtual store is at:             node_modules/.pnpm
+Progress: resolved 645, reused 645, downloaded 0, added 644
+Progress: resolved 645, reused 645, downloaded 0, added 645, done
+[WARN] Failed to create bin at /workspace/scratch/57dc7bcc28f6/foundation-release-checks-oct23/.worker-tmp/profiles/check-changed-D63TlS/packages/docs-protocol-agent-teams/node_modules/.bin/agent-teams-docs. ENOENT: no such file or directory, open '/workspace/scratch/57dc7bcc28f6/foundation-release-checks-oct23/.worker-tmp/profiles/check-changed-D63TlS/packages/docs-protocol/dist/cli.js'
+[WARN] Failed to create bin at /workspace/scratch/57dc7bcc28f6/foundation-release-checks-oct23/.worker-tmp/profiles/check-changed-D63TlS/packages/docs-protocol-agent-teams/node_modules/.bin/docs-protocol. ENOENT: no such file or directory, open '/workspace/scratch/57dc7bcc28f6/foundation-release-checks-oct23/.worker-tmp/profiles/check-changed-D63TlS/packages/docs-protocol/dist/cli.js'
+[WARN] Failed to create bin at /workspace/scratch/57dc7bcc28f6/foundation-release-checks-oct23/.worker-tmp/profiles/check-changed-D63TlS/packages/docs-protocol-mcp/node_modules/.bin/agent-teams-docs. ENOENT: no such file or directory, open '/workspace/scratch/57dc7bcc28f6/foundation-release-checks-oct23/.worker-tmp/profiles/check-changed-D63TlS/packages/docs-protocol/dist/cli.js'
+[WARN] Failed to create bin at /workspace/scratch/57dc7bcc28f6/foundation-release-checks-oct23/.worker-tmp/profiles/check-changed-D63TlS/packages/docs-protocol-mcp/node_modules/.bin/docs-protocol. ENOENT: no such file or directory, open '/workspace/scratch/57dc7bcc28f6/foundation-release-checks-oct23/.worker-tmp/profiles/check-changed-D63TlS/packages/docs-protocol/dist/cli.js'
+[WARN] Failed to create bin at /workspace/scratch/57dc7bcc28f6/foundation-release-checks-oct23/.worker-tmp/profiles/check-changed-D63TlS/packages/feature-module-standard/node_modules/.bin/agent-teams-foundation. ENOENT: no such file or directory, open '/workspace/scratch/57dc7bcc28f6/foundation-release-checks-oct23/.worker-tmp/profiles/check-changed-D63TlS/packages/engineering-foundation/dist/cli.js'
+[WARN] Failed to create bin at /workspace/scratch/57dc7bcc28f6/foundation-release-checks-oct23/.worker-tmp/profiles/check-changed-D63TlS/packages/feature-module-standard/node_modules/.bin/agent-teams-node-test. ENOENT: no such file or directory, open '/workspace/scratch/57dc7bcc28f6/foundation-release-checks-oct23/.worker-tmp/profiles/check-changed-D63TlS/packages/engineering-foundation/dist/node-test-cli.js'
+
+devDependencies:
++ @ast-grep/cli 0.45.0
++ @changesets/changelog-github 0.7.0
++ @changesets/cli 2.31.1
++ @modelcontextprotocol/server 2.0.0
++ @openai/codex 0.146.0
++ @types/node 24.13.3
++ ajv 8.20.0
++ c8 12.0.0
++ esbuild 0.28.2
++ fast-check 4.9.0
++ knip 6.31.0
++ node-or-bun 0.2.2
++ nx 23.3.0
++ oxc-parser 0.142.0
++ oxlint 1.83.0
++ oxlint-tsgolint 7.0.2001
++ pnpm 11.20.0
++ publint 0.3.22
++ semver 7.8.5
++ typescript 7.0.2
++ verdaccio 6.10.6
++ yaml 2.9.0
+
+Done in 2.5s using pnpm v11.20.0
+No peer dependency issues found
+file:///workspace/scratch/57dc7bcc28f6/foundation-release-checks-oct23/tools/dev.mts:57
+        reject(new Error(`Command terminated by ${signal}.`));
+               ^
+
+Error: Command terminated by SIGKILL.
+    at ChildProcess.<anonymous> (file:///workspace/scratch/57dc7bcc28f6/foundation-release-checks-oct23/tools/dev.mts:57:16)
+    at ChildProcess.wrapper (node:events:639:12)
+    at ChildProcess.emit (node:events:514:20)
+    at ChildProcess._handle.onexit (node:internal/child_process:323:12)
+
+Node.js v26.11.1

@@ -172,7 +172,7 @@ function compatibilityChecks(calls) {
     },
     verifyBootstrap: async () => {
       calls.push("bootstrap");
-      return ["bootstrap@0.0.0"];
+      return { pending: ["candidate@0.0.0"], verified: ["bootstrap@0.0.0"] };
     },
     verifyScaffolding: async ({ installPackage }) => {
       assert.equal(typeof installPackage, "function");
@@ -196,8 +196,13 @@ test("ordinary compatibility defers public completion and retains all historical
   assert.deepEqual(calls.slice(0, 4), ["bootstrap", "transactions", "authoring", "scaffolding"]);
   assert.equal(calls.length, 5);
   assert.match(calls[4], /deferred to required post-reconciliation public-docs-release:e2e/u);
+  assert.match(
+    calls[4],
+    /verified bootstrap baselines bootstrap@0\.0\.0; pending bootstrap baseline qualification \(publication unclaimed\) candidate@0\.0\.0;/u,
+  );
   assert.deepEqual(result, {
     bootstrapBaselines: ["bootstrap@0.0.0"],
+    pendingBootstrapBaselines: ["candidate@0.0.0"],
     publicDocs: { status: "deferred" },
   });
 });

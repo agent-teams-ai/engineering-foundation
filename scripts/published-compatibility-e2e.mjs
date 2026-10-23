@@ -1,9 +1,10 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 
 import { verifyOldFoundationTransactionBarrier } from "./old-foundation-transaction-e2e.mjs";
-import { verifyLiveBootstrapBaselines } from "./npm-package-bootstrap.mjs";
+import { NPM_PACKAGE_BOOTSTRAP, verifyLiveBootstrapBaselines } from "./npm-package-bootstrap.mjs";
+import { fail } from "./npm-package-bootstrap-catalog.mjs";
 import {
   requirePublicDocsDecision,
   verifyPublicExactDocsCoordinates,
@@ -12,11 +13,59 @@ import { createPublishedCompatibilityInstallPolicy } from "./published-compatibi
 import { verifyPublishedDocumentTransactionCompatibility } from "./published-document-transaction-compatibility-e2e.mjs";
 import { verifyPublishedScaffoldingCompatibility } from "./published-scaffolding-compatibility-e2e.mjs";
 
+// Admission and approval PRs precede the first protected bootstrap publication.
+// Historical compatibility reports those source baselines as pending; release
+// and publication retain the separate complete-catalog approval requirement.
+export async function verifyPublishedCompatibilityBootstrapBaselines({
+  auditPackage,
+  catalog = NPM_PACKAGE_BOOTSTRAP,
+  fetchImplementation,
+  observationOptions,
+  readManifest = async (path) => JSON.parse(await readFile(path, "utf8")),
+  temporaryRoot,
+} = {}) {
+  const profiles = [];
+  const manifests = new Map();
+  const pending = [];
+  for (const profile of catalog.packages) {
+    const manifest = await readManifest(resolve(profile.manifestPath));
+    if (manifest?.name !== profile.name || typeof manifest.version !== "string") {
+      fail(`${profile.manifestPath} does not match bootstrap catalog identity.`);
+    }
+    manifests.set(resolve(profile.manifestPath), manifest);
+    if (profile.state === "candidate") {
+      if (
+        profile.approval !== null ||
+        profile.bootstrapVersion !== "0.0.0" ||
+        manifest.version !== profile.bootstrapVersion
+      ) {
+        fail(
+          `${profile.name} compatibility candidate must retain its unapproved 0.0.0 bootstrap identity.`,
+        );
+      }
+    } else {
+      profiles.push(profile);
+    }
+    if (manifest.version === profile.bootstrapVersion) {
+      pending.push(`${profile.name}@${profile.bootstrapVersion}`);
+    }
+  }
+  const verified = await verifyLiveBootstrapBaselines({
+    auditPackage,
+    catalog: Object.freeze({ ...catalog, packages: Object.freeze(profiles) }),
+    fetchImplementation,
+    observationOptions,
+    readManifest: async (path) => manifests.get(path),
+    temporaryRoot,
+  });
+  return Object.freeze({ pending: Object.freeze(pending), verified });
+}
+
 export async function main({
   args = process.argv.slice(2),
   qualifyPublicDocs = verifyPublicExactDocsCoordinates,
   verifyAuthoring = verifyPublishedDocumentTransactionCompatibility,
-  verifyBootstrap = verifyLiveBootstrapBaselines,
+  verifyBootstrap = verifyPublishedCompatibilityBootstrapBaselines,
   verifyScaffolding = verifyPublishedScaffoldingCompatibility,
   verifyTransactions = verifyOldFoundationTransactionBarrier,
   removeTemporaryRoot = rm,
@@ -26,7 +75,8 @@ export async function main({
   const failures = [];
   let result;
   try {
-    const bootstrapBaselines = await verifyBootstrap({ temporaryRoot });
+    const { pending: pendingBootstrapBaselines, verified: bootstrapBaselines } =
+      await verifyBootstrap({ temporaryRoot });
     // Current public completion depends on the ordered publisher reconciling GitHub.
     // CI and release preflight still require every historical compatibility check.
     const publicDocs = args.includes("--require-public-docs")
@@ -50,9 +100,9 @@ export async function main({
       temporaryRoot,
     });
     write(
-      `Published compatibility PASS: verified bootstrap baselines ${bootstrapBaselines.join(", ") || "none required"}; public Docs Protocol exact-coordinate qualification ${publicDocs.status}${publicDocs.status === "deferred" ? " to required post-reconciliation public-docs-release:e2e" : ""}; published operation boundaries 0.11.0/0.12.0/0.14.0 preserved; current CLI matches the published 0.12.0 scaffolding operations outside release identity fields.\n`,
+      `Published compatibility PASS: verified bootstrap baselines ${bootstrapBaselines.join(", ") || "none required"}; pending bootstrap baseline qualification (publication unclaimed) ${pendingBootstrapBaselines.join(", ") || "none"}; public Docs Protocol exact-coordinate qualification ${publicDocs.status}${publicDocs.status === "deferred" ? " to required post-reconciliation public-docs-release:e2e" : ""}; published operation boundaries 0.11.0/0.12.0/0.14.0 preserved; current CLI matches the published 0.12.0 scaffolding operations outside release identity fields.\n`,
     );
-    result = { bootstrapBaselines, publicDocs };
+    result = { bootstrapBaselines, pendingBootstrapBaselines, publicDocs };
   } catch (error) {
     failures.push(error);
   } finally {

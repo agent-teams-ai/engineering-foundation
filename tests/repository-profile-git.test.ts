@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { copyFile, lstat, mkdir, mkdtemp, readFile, readdir, realpath, rm, symlink, utimes, writeFile } from "node:fs/promises";
+import { copyFile, lstat, mkdir, mkdtemp, open, readFile, readdir, realpath, rm, symlink, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import test, { type TestContext } from "node:test";
@@ -167,11 +167,14 @@ void test("changed repository composition bounds retained diagnostics without ch
   const logs = (await readdir(join(fixture.root, ".worker-tmp"))).filter((name) => name.endsWith(".log"));
   assert.equal(logs.length, 1);
   const path = join(fixture.root, ".worker-tmp", logs[0]!);
-  const metadata = await lstat(path);
-  assert.ok(metadata.isFile());
-  assert.ok(metadata.size <= 1024 * 1024);
-  assert.match(await readFile(path, "utf8"), /Diagnostic output truncated at 1 MiB/u);
-  if (process.platform !== "win32") { assert.equal(metadata.mode & 0o777, 0o600); }
+  const handle = await open(path, "r");
+  try {
+    const metadata = await handle.stat();
+    assert.ok(metadata.isFile());
+    assert.ok(metadata.size <= 1024 * 1024);
+    assert.match(await handle.readFile("utf8"), /Diagnostic output truncated at 1 MiB/u);
+    if (process.platform !== "win32") { assert.equal(metadata.mode & 0o777, 0o600); }
+  } finally { await handle.close(); }
   assert.deepEqual(await readdir(join(fixture.root, ".worker-tmp/profiles")), ["operator-profile"]);
 });
 

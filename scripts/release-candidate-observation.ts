@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { constants, type BigIntStats } from 'node:fs';
-import { lstat, open, readFile, readdir, readlink, realpath } from 'node:fs/promises';
+import { lstat, open, readFile, readdir, readlink, realpath, type FileHandle } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { promisify } from 'node:util';
@@ -89,6 +89,24 @@ function sameFile(before: BigIntStats, after: BigIntStats): boolean {
   return (['dev', 'ino', 'mode', 'size', 'mtimeNs', 'ctimeNs', 'nlink'] as const).every(key => before[key] === after[key]);
 }
 
+async function readReleaseLink(absolute: string, path: string, metadata: BigIntStats): Promise<ReleaseFileBytes> {
+  const bytes = Buffer.from(await readlink(absolute));
+  if (!sameFile(metadata, await lstat(absolute, { bigint: true }))) { throw new Error(`Release link changed during observation: ${path}.`); }
+  return { bytes, file: { type: 'symlink', mode: '120000', digest: releaseDigest(bytes) } };
+}
+
+async function readReleaseHandle(handle: FileHandle, size: bigint): Promise<Buffer> {
+  // Read at most the observed size plus one byte, even if the file grows.
+  const bytes = Buffer.alloc(Number(size) + 1);
+  let length = 0;
+  while (length < bytes.length) {
+    const result = await handle.read(bytes, length, bytes.length - length, null);
+    if (result.bytesRead === 0) { break; }
+    length += result.bytesRead;
+  }
+  return bytes.subarray(0, length);
+}
+
 export async function readReleaseWorkingFile(root: string, path: string): Promise<ReleaseFileBytes | null> {
   portablePath(path);
   const absolute = join(root, path);
@@ -102,24 +120,31 @@ export async function readReleaseWorkingFile(root: string, path: string): Promis
   if (relativeParent === '..' || relativeParent.startsWith(`..${sep}`) || resolve(parent, path.split('/').at(-1)!) !== absolute) {
     throw new Error(`Release path has substituted directory ancestry: ${path}.`);
   }
-  const metadata = await lstat(absolute, { bigint: true }).catch((error: unknown) => {
-    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') { return null; }
-    throw error;
-  });
-  if (metadata === null) { return null; }
-  if (metadata.isSymbolicLink()) {
-    const bytes = Buffer.from(await readlink(absolute));
-    if (!sameFile(metadata, await lstat(absolute, { bigint: true }))) { throw new Error(`Release link changed during observation: ${path}.`); }
-    return { bytes, file: { type: 'symlink', mode: '120000', digest: releaseDigest(bytes) } };
-  }
-  if (!metadata.isFile() || metadata.size >= 2n ** 31n) { throw new Error(`Release path is not an ordinary bounded file: ${path}.`); }
   const portableFlags: Partial<Pick<typeof constants, 'O_NOFOLLOW' | 'O_NONBLOCK'>> = constants;
-  const handle = await open(absolute, constants.O_RDONLY | (portableFlags.O_NOFOLLOW ?? 0) | (portableFlags.O_NONBLOCK ?? 0));
+  let handle: FileHandle;
   try {
-    if (!sameFile(metadata, await handle.stat({ bigint: true }))) { throw new Error(`Release file changed before its read: ${path}.`); }
-    const bytes = await handle.readFile();
+    handle = await open(absolute, constants.O_RDONLY | (portableFlags.O_NOFOLLOW ?? 0) | (portableFlags.O_NONBLOCK ?? 0));
+  } catch (error) {
+    // A no-follow open refuses links; observe their literal bytes, including
+    // dangling links, without opening or consuming the target.
+    const metadata = await lstat(absolute, { bigint: true }).catch((failure: unknown) => {
+      if (failure instanceof Error && 'code' in failure && failure.code === 'ENOENT') { return null; }
+      throw failure;
+    });
+    if (metadata?.isSymbolicLink() === true) { return readReleaseLink(absolute, path, metadata); }
+    if (metadata === null && error instanceof Error && 'code' in error && error.code === 'ENOENT') { return null; }
+    throw error;
+  }
+  try {
+    const metadata = await handle.stat({ bigint: true });
+    const pathMetadata = await lstat(absolute, { bigint: true });
+    // Platforms without O_NOFOLLOW can open the target, but never read it.
+    if (pathMetadata.isSymbolicLink()) { return await readReleaseLink(absolute, path, pathMetadata); }
+    if (!metadata.isFile() || metadata.size >= 2n ** 31n) { throw new Error(`Release path is not an ordinary bounded file: ${path}.`); }
+    if (!sameFile(metadata, pathMetadata) || await realpath(dirname(absolute)) !== parent) { throw new Error(`Release file changed before its read: ${path}.`); }
+    const bytes = await readReleaseHandle(handle, metadata.size);
     if (BigInt(bytes.length) !== metadata.size || !sameFile(metadata, await handle.stat({ bigint: true })) ||
-        !sameFile(metadata, await lstat(absolute, { bigint: true }))) { throw new Error(`Release file changed during observation: ${path}.`); }
+        !sameFile(metadata, await lstat(absolute, { bigint: true })) || await realpath(dirname(absolute)) !== parent) { throw new Error(`Release file changed during observation: ${path}.`); }
     return { bytes, file: { type: 'file', mode: (metadata.mode & 0o111n) === 0n ? '100644' : '100755', digest: releaseDigest(bytes) } };
   } finally { await handle.close(); }
 }

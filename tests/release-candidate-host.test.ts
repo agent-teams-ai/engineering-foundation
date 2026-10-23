@@ -13,7 +13,7 @@ import {
   readReleaseCandidateContext, removeReleaseCandidateContext, shouldRunChangesetsAction,
   writeReleaseCandidateContext, type FrozenReleaseCandidate,
 } from '../scripts/release-candidate-host.ts';
-import { observeChangesetsInstallation, releaseObject } from '../scripts/release-candidate-observation.ts';
+import { observeChangesetsInstallation, readReleaseWorkingFile, releaseDigest, releaseObject } from '../scripts/release-candidate-observation.ts';
 
 const execute = promisify(execFile);
 const packageName = '@agent-teams/engineering-foundation';
@@ -233,4 +233,33 @@ void test('execution custody rejects changed processed HEAD, config, context and
     if (context !== undefined) { await removeReleaseCandidateContext(context.environment); }
     await rm(toolRoot, { recursive: true, force: true }); await rm(root, { recursive: true, force: true });
   }
+});
+
+void test('working-file observation reads regular handles and retains literal link and ancestry boundaries', async () => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), 'foundation-release-observation-TEST-')));
+  try {
+    const bytes = Buffer.from([0, 255, 128, 13, 10]);
+    await writeFile(join(root, 'ordinary'), bytes);
+    const observed = await readReleaseWorkingFile(root, 'ordinary');
+    assert.deepEqual(observed?.bytes, bytes);
+    assert.deepEqual(observed?.file, { type: 'file', mode: '100644', digest: releaseDigest(bytes) });
+    await writeFile(join(root, 'empty'), '');
+    assert.equal((await readReleaseWorkingFile(root, 'empty'))?.bytes.length, 0);
+    assert.equal(await readReleaseWorkingFile(root, 'missing'), null);
+    await mkdir(join(root, 'directory'));
+    await assert.rejects(readReleaseWorkingFile(root, 'directory'));
+    if (process.platform !== 'win32') {
+      for (const target of ['ordinary', 'missing', 'directory']) {
+        await symlink(target, join(root, `link-${target}`));
+        const link = await readReleaseWorkingFile(root, `link-${target}`);
+        assert.equal(link?.file.type, 'symlink');
+        assert.equal(link?.file.digest, releaseDigest(target));
+        assert.equal(link?.bytes.toString(), target);
+      }
+      await symlink('directory', join(root, 'linked-parent'));
+      await assert.rejects(readReleaseWorkingFile(root, 'linked-parent/child'), /substituted directory ancestry/u);
+      await execute('mkfifo', [join(root, 'pipe')]);
+      await assert.rejects(readReleaseWorkingFile(root, 'pipe'), /not an ordinary bounded file/u);
+    }
+  } finally { await rm(root, { recursive: true, force: true }); }
 });

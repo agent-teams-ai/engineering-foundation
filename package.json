@@ -13,7 +13,7 @@
   },
   "scripts": {
     "standards:check": "node tools/repository-command.mts tool standards:check",
-    "build": "node tools/repository-command.mts tool typecheck",
+    "build": "node tools/repository-command.mts tool build",
     "buf-qualification:e2e": "node tools/repository-command.mts script build && node scripts/buf-qualification-e2e.mjs",
     "buf-qualification:e2e:built": "node tools/repository-command.mts tool buf-qualification:e2e:built",
     "check": "node tools/repository-command.mts script standards:check && node tools/repository-command.mts script dependencies:peers:check && node tools/repository-command.mts script docs:terminology:check && node tools/repository-command.mts script lint && node tools/repository-command.mts script typecheck && node tools/repository-command.mts script quality:scope:check && node tools/repository-command.mts script foundation:check:built && node tools/repository-command.mts script release-owned-files:check && node tools/repository-command.mts script architecture:patterns && node tools/repository-command.mts script architecture:patterns:test && node tools/repository-command.mts script nx:graph:check && node tools/repository-command.mts script test:built && node tools/repository-command.mts script test:coverage:built && node tools/repository-command.mts script package:check:built && node tools/repository-command.mts script architecture:features:check",
@@ -33,7 +33,8 @@
     "foundation:check": "node tools/repository-command.mts script foundation:dogfood",
     "foundation:check:built": "node tools/repository-command.mts tool foundation:check:built",
     "lint": "node tools/repository-command.mts script lint:fast && node tools/repository-command.mts script build && node tools/repository-command.mts script lint:typed",
-    "lint:fast": "node tools/repository-command.mts tool lint:fast",
+    "toolchain:doctor": "node tools/repository-command.mts tool toolchain:doctor",
+    "lint:fast": "node tools/repository-command.mts script toolchain:doctor && node tools/repository-command.mts tool lint:fast",
     "lint:fast:files": "node tools/repository-command.mts tool lint:fast:files --paths",
     "lint:typed": "node tools/repository-command.mts tool lint:typed",
     "lint:typed:files": "node tools/repository-command.mts tool lint:typed:files --paths",
@@ -71,7 +72,7 @@
     "test:performance:built": "node scripts/run-performance-benchmarks.mjs",
     "test:qgr:lifecycle:built": "node tools/repository-command.mts tool test:qgr:lifecycle:built",
     "test:shard:built": "node scripts/run-test-shard.mjs",
-    "typecheck": "node tools/repository-command.mts tool typecheck && node tools/repository-command.mts script typecheck:ci-tooling && node tools/repository-command.mts script typecheck:restoration-lock-inputs && node tools/repository-command.mts script typecheck:restoration-lock && node tools/repository-command.mts script typecheck:managed-runtime-tests && node tools/repository-command.mts script typecheck:local-mode-oracles && node tools/repository-command.mts script typecheck:native-api-tests && node tools/repository-command.mts script typecheck:native-release-tooling && node tools/repository-command.mts script typecheck:agent-workflow && node tools/repository-command.mts tool parser-spike:typecheck",
+    "typecheck": "node tools/repository-command.mts script build && node tools/repository-command.mts tool typecheck && node tools/repository-command.mts script typecheck:local-mode-oracles && node tools/repository-command.mts script typecheck:native-api-tests && node tools/repository-command.mts script typecheck:native-release-tooling && node tools/repository-command.mts tool parser-spike:typecheck",
     "typecheck:ci-tooling": "node tools/repository-command.mts tool typecheck:ci-tooling",
     "typecheck:restoration-lock-inputs": "node tools/repository-command.mts tool typecheck:restoration-lock-inputs",
     "typecheck:restoration-lock": "node tools/repository-command.mts tool typecheck:restoration-lock",
@@ -108,7 +109,8 @@
     "verdaccio": "catalog:",
     "yaml": "catalog:",
     "semver": "catalog:",
-    "pnpm": "catalog:"
+    "pnpm": "catalog:",
+    "stack-toolchain": "0.1.0"
   },
   "workspaces": {
     "packages": [

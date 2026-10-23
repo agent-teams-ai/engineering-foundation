@@ -28,6 +28,16 @@ const runtimePackageName = "@agent-teams/repository-mutation";
 const normalizedCompilerVersion = "0.0.0-compatibility";
 const runPnpm = createPnpmRunner();
 
+// A rejected peer must not let the owning temporary directory be removed while
+// another admitted pack, filesystem write or historical operation is still live.
+export async function settleScaffoldingOperations(operations) {
+  const results = await Promise.allSettled(operations);
+  const failures = results.filter(result => result.status === "rejected").map(result => result.reason);
+  if (failures.length === 1) { throw failures[0]; }
+  if (failures.length > 1) { throw new AggregateError(failures, "Scaffolding compatibility operations failed."); }
+  return results.map(result => result.value);
+}
+
 function canonicalize(value) {
   if (value === null || typeof value !== "object") {
     return JSON.stringify(value);
@@ -113,7 +123,7 @@ async function installPackedCurrentPackage({
   installPackage,
   temporaryRoot,
 }) {
-  const [candidate, authoring, runtime] = await Promise.all([
+  const [candidate, authoring, runtime] = await settleScaffoldingOperations([
     packCurrentPackage({
       expectedName: packageName,
       packageRoot: currentPackageRoot,
@@ -165,7 +175,7 @@ async function installPackedCurrentPackage({
     ],
     installRoot,
   );
-  const [installedCandidate, installedAuthoring, installedRuntime] = await Promise.all([
+  const [installedCandidate, installedAuthoring, installedRuntime] = await settleScaffoldingOperations([
     assertInstalledPackageIdentity(installRoot, {
       name: packageName,
       version: candidateVersion,
@@ -312,11 +322,11 @@ export async function verifyPublishedScaffoldingCompatibility({
   });
   const currentConsumer = join(temporaryRoot, "current-consumer");
   const publishedConsumer = join(temporaryRoot, "published-consumer");
-  await Promise.all([
+  await settleScaffoldingOperations([
     cp(fixtureRoot, currentConsumer, { recursive: true }),
     cp(fixtureRoot, publishedConsumer, { recursive: true }),
   ]);
-  const [currentPlanBytes, publishedPlanBytes] = await Promise.all([
+  const [currentPlanBytes, publishedPlanBytes] = await settleScaffoldingOperations([
     runScaffolding(current.cliPath, currentConsumer, [
       "scaffold-plan",
       "intents/create-fixture.yaml",
@@ -339,11 +349,11 @@ export async function verifyPublishedScaffoldingCompatibility({
     );
   }
 
-  await Promise.all([
+  await settleScaffoldingOperations([
     mkdir(join(currentConsumer, "plans"), { recursive: true }),
     mkdir(join(publishedConsumer, "plans"), { recursive: true }),
   ]);
-  await Promise.all([
+  await settleScaffoldingOperations([
     writeFile(
       join(currentConsumer, "plans", "compatibility.json"),
       currentPlanBytes,
@@ -353,7 +363,7 @@ export async function verifyPublishedScaffoldingCompatibility({
       publishedPlanBytes,
     ),
   ]);
-  const [currentReceipt, publishedReceipt] = await Promise.all([
+  const [currentReceipt, publishedReceipt] = await settleScaffoldingOperations([
     runScaffolding(current.cliPath, currentConsumer, [
       "scaffold-apply",
       "plans/compatibility.json",

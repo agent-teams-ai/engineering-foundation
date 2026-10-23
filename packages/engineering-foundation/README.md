@@ -141,12 +141,13 @@ The root file is `foundation.config.yaml`. Use
 `agent-teams-foundation schema foundation-config/v1` for its canonical schema
 and `agent-teams-foundation explain <rule-id>` for rule guidance.
 
+Technical presets are owned and distributed by `stack-toolchain`, installed
+as a direct development dependency. Foundation does not export preset facades.
 TypeScript consumers may extend
-`@agent-teams/engineering-foundation/presets/typescript/node.json`. Oxlint JSON
+`stack-toolchain/presets/typescript/node.json`. Oxlint JSON
 configuration extends the fast
-`./node_modules/@agent-teams/engineering-foundation/presets/oxlint/node.json`
-or type-aware `type-aware.json` preset. TypeScript remains the separate typecheck
-authority.
+`./node_modules/stack-toolchain/presets/oxlint/node.json`
+or type-aware `type-aware.json` preset. Semantic typechecking remains a separate Toolchain command.
 
 `agent-teams-foundation public-api-promote-release` is reserved for the
 Changesets version workflow. Normal feature checks never update released API

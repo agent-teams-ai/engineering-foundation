@@ -187,8 +187,8 @@
     },
     {
       "path": "packages/engineering-foundation/src/local-mode/application/package-metadata.ts",
-      "start": 10049,
-      "end": 10095,
+      "start": 9595,
+      "end": 9641,
       "sha256": "27b7982efda253efabc0251ee59ae60209dd426ff8bad2607c1606f14a3bbec3",
       "rationale": "Every self-check field is checked before narrowing the decoded package metadata.",
       "rejectingTest": "tests/local-mode.test.mjs"

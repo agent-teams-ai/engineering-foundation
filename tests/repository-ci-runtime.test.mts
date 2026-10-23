@@ -18,6 +18,7 @@ import { inspectInstalledDependencies } from "../tools/dependencies-installed-ch
 import { resolveQualificationExecutables } from "../tools/executable-policy.mts";
 import { projectNodeAgentWorkflowPolicy } from "../tools/runtime-policy.mts";
 import { pnpmPortableName, resolvePnpmInvocation } from "../tools/pnpm-command.mts";
+import { TOOL_COMMANDS } from "../tools/repository-tool-catalog.ts";
 
 const repositoryRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const sourceSha = "a".repeat(40);
@@ -559,10 +560,11 @@ test("Node workflow policy projection rejects drift and preserves all other byte
 });
 
 // The runtime port must preserve the current capability-owned production selection.
-test("typed lint retains the production quality capability route", async () => {
-  const dispatcher = await readFile(join(repositoryRoot, "tools/repository-command.mts"), "utf8");
-  assert.match(dispatcher, /"lint:typed": \{ entry: "packages\/engineering-foundation\/dist\/cli\.js", args: \["quality", "check", "--consumer", "\."\], role: "runtime" \}/u);
-  assert.doesNotMatch(dispatcher, /"lint:typed": \{ entry: "node_modules\/oxlint/u);
+test("typed lint retains the production quality capability route", () => {
+  assert.deepEqual(TOOL_COMMANDS["lint:typed"], {
+    entry: "packages/engineering-foundation/dist/cli.js",
+    args: ["quality", "check", "--consumer", "."], role: "runtime",
+  });
 });
 
 test("typecheck rejects errors in every strict project outside the production build", {
@@ -571,6 +573,9 @@ test("typecheck rejects errors in every strict project outside the production bu
   const runtime = await resolveQualificationExecutables("bun");
   const manifest = JSON.parse(await readFile(join(repositoryRoot, "package.json"), "utf8")) as {
     readonly scripts: Readonly<Record<string, string>>;
+  };
+  const toolchain = JSON.parse(await readFile(join(repositoryRoot, "toolchain.config.json"), "utf8")) as {
+    readonly typecheck: { readonly projects: readonly string[] };
   };
   const projects = [
     ["typecheck:ci-tooling", "tsconfig.ci-tooling.json", "ci-tooling.mts"],
@@ -614,6 +619,18 @@ test("typecheck rejects errors in every strict project outside the production bu
     }));
     await writeFile(join(root, "production.mts"), valid);
     await writeFile(join(root, "tsconfig.json"), JSON.stringify({
+      compilerOptions, files: ["production.mts"]
+    }));
+    assert.deepEqual(TOOL_COMMANDS["typecheck"], {
+      entry: "node_modules/stack-toolchain/dist/cli.js", args: ["typecheck"], role: "node-tool",
+    });
+    await writeFile(join(root, "lint.json"), "{}");
+    await writeFile(join(root, "toolchain.config.json"), JSON.stringify({
+      schemaVersion: 1, profile: "typescript-node",
+      typecheck: toolchain.typecheck,
+      lint: { config: "lint.json", paths: ["."] }, format: { paths: ["."] },
+    }));
+    await writeFile(join(root, "tsconfig.quality.json"), JSON.stringify({
       compilerOptions, files: ["production.mts"]
     }));
     for (const [, config, input] of projects) {

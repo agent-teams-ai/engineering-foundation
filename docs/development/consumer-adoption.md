@@ -192,7 +192,7 @@ Node TypeScript projects extend:
 
 ```json
 {
-  "extends": "@agent-teams/engineering-foundation/presets/typescript/node.json"
+  "extends": "stack-toolchain/presets/typescript/node.json"
 }
 ```
 
@@ -202,7 +202,7 @@ ignore patterns or project-specific additions in the consumer:
 ```json
 {
   "extends": [
-    "./node_modules/@agent-teams/engineering-foundation/presets/oxlint/node.json"
+    "./node_modules/stack-toolchain/presets/oxlint/node.json"
   ]
 }
 ```

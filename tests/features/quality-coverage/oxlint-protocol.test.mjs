@@ -37,6 +37,9 @@ async function compilerFixture(t) {
 
 test("real compiler evidence matches selected sources across consumer root aliases", async (t) => {
   const { root, alias, declarations } = await compilerFixture(t);
+  // Inventory must not run a second semantic checker: this deliberate TS2322
+  // belongs to the consumer's selected typecheck route, not typeContext().
+  await writeFile(join(root, source), 'export const value: number = "invalid";\n');
   const require = createRequire(import.meta.url);
   const compilerEntrypoint = join(dirname(require.resolve("typescript/package.json")), "bin/tsc");
   const oxlintEntrypoint = join(dirname(require.resolve("oxlint/package.json")), "bin/oxlint");
@@ -49,7 +52,7 @@ test("real compiler evidence matches selected sources across consumer root alias
       }));
       const executor = { run: async ({ command, args, cwd }) => {
         const output = await promisify(execFile)(command, args, { cwd, timeout: 30_000, maxBuffer: 1024 * 1024 });
-        if (args.includes("--listFiles")) {
+        if (args.includes("--listFilesOnly")) {
           assert.ok(output.stdout.replaceAll("\\", "/").includes(join(evidenceRoot, source).replaceAll("\\", "/")),
             "real compiler preserves the configured root spelling");
         }

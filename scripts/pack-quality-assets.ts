@@ -5,7 +5,10 @@ import { join } from "node:path";
 interface PackedQualityReport {
   readonly outcome: string;
   readonly capabilities: readonly {
-    readonly diagnostics: readonly { readonly ruleId: string; readonly location: { readonly path: string } }[];
+    readonly diagnostics: readonly {
+      readonly ruleId: string;
+      readonly location: { readonly path: string };
+    }[];
   }[];
 }
 
@@ -26,10 +29,11 @@ export async function qualifyPackedQualityAssets(input: {
   const migration = `${sourceRoot}/adapters/migrations/0001-asset.sql`;
   const undeclared = `${sourceRoot}/adapters/migrations/undeclared.sql`;
   const validators = ["scripts/asset-protobuf.ts", "scripts/asset-migration.ts"];
-  const scripts = { ...manifest.scripts,
+  const scripts = {
+    ...manifest.scripts,
     check: `${manifest.scripts.check} && pnpm asset:protobuf:check && pnpm asset:migration:check`,
     "asset:protobuf:check": `node ${validators[0]}`,
-    "asset:migration:check": `node ${validators[1]}`
+    "asset:migration:check": `node ${validators[1]}`,
   };
   try {
     await put(protobuf, 'syntax = "proto3"; message Asset {}\n');
@@ -38,22 +42,44 @@ export async function qualifyPackedQualityAssets(input: {
       await put(validator, "throw new Error('static wiring must never execute this checker');\n");
     }
     await put("package.json", { ...manifest, scripts });
-    await put("quality.yaml", { ...profile, schemaVersion: 3, assets: [
-      { path: protobuf, kind: "protobuf", boundaryId, script: "asset:protobuf:check" },
-      { path: migration, kind: "sql-migration", boundaryId, script: "asset:migration:check" }
-    ] });
-    for (const args of [["check", "quality.source-coverage"], ["quality", "check", "--scope-only"], ["quality", "check"]]) {
+    await put("quality.yaml", {
+      ...profile,
+      assets: [
+        { path: protobuf, kind: "protobuf", boundaryId, script: "asset:protobuf:check" },
+        { path: migration, kind: "sql-migration", boundaryId, script: "asset:migration:check" },
+      ],
+    });
+    for (const args of [
+      ["check", "quality.source-coverage"],
+      ["quality", "check", "--scope-only"],
+      ["quality", "check"],
+    ]) {
       assert.equal((await invoke(args)).outcome, "passed");
     }
-    await put("package.json", { ...manifest, scripts: { ...scripts, "asset:migration:check": "true" } });
+    await put("package.json", {
+      ...manifest,
+      scripts: { ...scripts, "asset:migration:check": "true" },
+    });
     const noOp = await invoke(["check", "quality.source-coverage"], 1);
-    assert.ok(noOp.capabilities.some(({ diagnostics }) => diagnostics.some(({ ruleId, location }) =>
-      ruleId === "quality.source-coverage.asset-route" && location.path === migration)));
+    assert.ok(
+      noOp.capabilities.some(({ diagnostics }) =>
+        diagnostics.some(
+          ({ ruleId, location }) =>
+            ruleId === "quality.source-coverage.asset-route" && location.path === migration,
+        ),
+      ),
+    );
     await put("package.json", { ...manifest, scripts });
     await put(undeclared, "export const executable = true;\n");
     const hidden = await invoke(["check", "quality.source-coverage"], 1);
-    assert.ok(hidden.capabilities.some(({ diagnostics }) => diagnostics.some(({ ruleId, location }) =>
-      ruleId === "quality.source-coverage.source-language" && location.path === undeclared)));
+    assert.ok(
+      hidden.capabilities.some(({ diagnostics }) =>
+        diagnostics.some(
+          ({ ruleId, location }) =>
+            ruleId === "quality.source-coverage.source-language" && location.path === undeclared,
+        ),
+      ),
+    );
   } finally {
     await put("quality.yaml", originalProfile);
     await put("package.json", originalManifest);

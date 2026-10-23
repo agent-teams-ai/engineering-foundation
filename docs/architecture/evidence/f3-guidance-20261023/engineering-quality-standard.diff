@@ -1,0 +1,10 @@
+--- reviewed-1b17053
++++ reviewed-1a692c1
+@@ -273,6 +273,7 @@
+ | --- | --- |
+ | Feature ownership, layers and dependency mechanisms | [Feature Module Standard index](architecture/feature-module-standard/README.md), [v1](architecture/feature-module-standard/v1.md) and [v1.1](architecture/feature-module-standard/v1.1.md); the consumer's local adoption profile owns its exact scope |
+ | Get Modular construction and consumer adoption, when applicable | [Consumer Module Standard](https://github.com/agent-teams-ai/get-modular/blob/main/docs/architecture/common-assembly.md#consumer-module-standard); use the consumer's reviewed pin |
++| Shared backend technology responsibilities | [Backend stack reference](backend-stack.md); apply the consumer's explicit adoption and product decisions, with frontend choices kept separate |
+ | Reusable development tooling, purpose and availability | [Development tools catalog](development-tools.md), then the owning package README; [Engineering Foundation](https://github.com/agent-teams-ai/engineering-foundation) owns shared implementation, and consumer profiles own applicability and actual commands |
+ | Commit and PR authorship | [Maintained owner policy](../GOVERNANCE.md#commit-and-pull-request-authorship) and [canonical identity/status rule](../governance/commit-author-identity.json); preserve external human authorship |
+ | Contributions and decisions | [Contribution rules](../CONTRIBUTING.md) and [governance boundaries](../GOVERNANCE.md) |

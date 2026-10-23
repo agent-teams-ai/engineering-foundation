@@ -1,0 +1,4 @@
+[install]
+# Registry pins must not silently resolve to same-named workspace sources.
+# Intentional sibling dependencies remain explicit workspace: declarations.
+linkWorkspacePackages = false

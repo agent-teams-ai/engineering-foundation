@@ -1,11 +1,47 @@
 import assert from "node:assert/strict";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 
 import {
   compatibilityDigest,
   projectScaffoldPlanCompatibility,
   projectScaffoldReceiptCompatibility,
+  settleScaffoldingOperations,
 } from "../scripts/published-scaffolding-compatibility-e2e.mjs";
+
+test("failed compatibility operations drain a peer's writes before temporary cleanup", async () => {
+  const root = await mkdtemp(join(tmpdir(), "published-scaffolding-drain-TEST-"));
+  const peer = Promise.withResolvers();
+  const failure = new Error("current operation failed");
+  let settled = false;
+  try {
+    const outcome = settleScaffoldingOperations([
+      Promise.reject(failure),
+      peer.promise.then(() => writeFile(join(root, "peer-result"), "complete")),
+    ]).catch(error => { settled = true; return error; });
+    await new Promise(resolve => { setImmediate(resolve); });
+    assert.equal(settled, false, "the failed operation cannot release its root while its peer writes");
+    peer.resolve();
+    assert.equal(await outcome, failure);
+    assert.equal(await readFile(join(root, "peer-result"), "utf8"), "complete");
+  } finally {
+    peer.resolve();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("compatibility preserves both concurrent failures after draining", async () => {
+  const failures = [new Error("current failed"), new Error("historical failed")];
+  const operations = [];
+  for (const failure of failures) { operations.push(Promise.reject(failure)); }
+  await assert.rejects(settleScaffoldingOperations(operations), error => {
+    assert.ok(error instanceof AggregateError);
+    assert.deepEqual(error.errors, failures);
+    return true;
+  });
+});
 
 test("published compatibility ignores only release identity fields", () => {
   const publishedPlanBody = {

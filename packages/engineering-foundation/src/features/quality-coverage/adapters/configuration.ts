@@ -2,14 +2,14 @@ import type { QualityConfigurationReader } from "./consumer-observations.js";
 
 export function createQualityConfigurationReader(
   read: QualityConfigurationReader["read"],
-  assertSchema: (id: "quality-source-coverage/v1" | "quality-source-coverage/v2" | "quality-source-coverage/v3", value: unknown, phase: string) => Promise<void>
+  assertSchema: (id: "quality-source-coverage/v1" | "quality-source-coverage/v2" | "quality-source-coverage/v3" | "quality-source-coverage/v4", value: unknown, phase: string) => Promise<void>
 ): QualityConfigurationReader {
   return {
     read,
     assertProfile: (value) => {
       const version = typeof value === "object" && value !== null && !Array.isArray(value)
         ? (value as Record<string, unknown>)["schemaVersion"] : undefined;
-      return assertSchema(version === 3 ? "quality-source-coverage/v3" : version === 2 ? "quality-source-coverage/v2" : "quality-source-coverage/v1", value, "quality-profile");
+      return assertSchema(version === 4 ? "quality-source-coverage/v4" : version === 3 ? "quality-source-coverage/v3" : version === 2 ? "quality-source-coverage/v2" : "quality-source-coverage/v1", value, "quality-profile");
     }
   };
 }

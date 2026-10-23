@@ -466,12 +466,12 @@ test("rejects a stale pull_request_target workflow declaration", async () => {
 });
 
 test("repository CI preserves admitted runtime security scans and Node qualification gates", async () => {
-  const [workflow, manifest, policy, runtimeBytes, dispatcher, profileDriver, securityToolchain] = await Promise.all([
+  const [workflow, manifest, policy, runtimeBytes, { TOOL_COMMANDS }, profileDriver, securityToolchain] = await Promise.all([
     readFile(join(repositoryRoot, ".github", "workflows", "ci.yml"), "utf8"),
     readFile(join(repositoryRoot, "package.json"), "utf8"),
     readFile(join(repositoryRoot, "architecture/foundation/repository-security-baseline.yaml"), "utf8"),
     readFile(join(repositoryRoot, "architecture/foundation/repository-runtime.json"), "utf8"),
-    readFile(join(repositoryRoot, "tools/repository-command.mts"), "utf8"),
+    import("../tools/repository-tool-catalog.ts"),
     readFile(join(repositoryRoot, "tools/dev.mts"), "utf8"),
     readFile(join(repositoryRoot, "scripts/security-toolchain.mjs"), "utf8"),
   ]);
@@ -518,9 +518,9 @@ test("repository CI preserves admitted runtime security scans and Node qualifica
   assert.equal(securityPolicy.dependencyReview.workflowPath, ".github/workflows/pr-feedback.yml");
   assert.equal(securityPolicy.sbomWorkflow, ".github/workflows/pr-feedback.yml");
   assert.equal(scripts["security:workflows"], "node tools/repository-command.mts tool security:workflows");
-  assert.match(dispatcher, /"security:workflows": \{ entry: "scripts\/security-toolchain\.mjs", args: \[\], role: "runtime" \}/u);
-  assert.match(dispatcher, /"test:qgr:lifecycle:built": \{[^\n]+role: "node-qualification" \}/u);
-  assert.match(dispatcher, /paths\.length > 0 && command\.acceptsPaths !== true/u);
+  assert.deepEqual(TOOL_COMMANDS["security:workflows"], { entry: "scripts/security-toolchain.mjs", args: [], role: "runtime" });
+  assert.deepEqual(TOOL_COMMANDS["test:qgr:lifecycle:built"], { entry: "scripts/run-selected-tests.mjs", args: ["tests/quality-gate-runner.test.mjs", "tests/quality-gate-runner-lifecycle.test.mjs", "tests/quality-gate-runner-real-pnpm-lifecycle.test.mjs", "tests/quality-gate-runner-remediation.test.mjs"], role: "node-qualification" });
+  assert.match(await readFile(join(repositoryRoot, "tools/repository-command.mts"), "utf8"), /paths\.length > 0 && command\.acceptsPaths !== true/u);
   assert.match(securityToolchain, /\["exec", "--", "actionlint"\]/u);
   assert.match(securityToolchain, /"zizmor",[\s\S]*?"--offline",[\s\S]*?"--strict-collection",[\s\S]*?"\."\s*\]/u);
   assert.equal(ci.jobs.check.if, "${{ always() && (github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:'))) }}");

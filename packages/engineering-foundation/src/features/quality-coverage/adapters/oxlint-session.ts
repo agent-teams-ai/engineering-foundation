@@ -96,7 +96,7 @@ export function createOxlintSession(input: OxlintSessionInput, executor: Managed
       for (const project of input.projects) {
         assertNotCancelled(signal);
         const result = await run([input.compilerEntrypoint, "--project", project,
-          "--noEmit", "--incremental", "false", "--composite", "false", "--listFiles", "--pretty", "false"], signal);
+          "--noEmit", "--incremental", "false", "--composite", "false", "--listFilesOnly", "--pretty", "false"], signal);
         assertNotCancelled(signal);
         assertToolSuccess(result);
         for (const line of result.stdout.trim().split(/\r?\n/u)) {

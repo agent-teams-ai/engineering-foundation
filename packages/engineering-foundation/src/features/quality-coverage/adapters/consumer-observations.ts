@@ -7,7 +7,7 @@ import {
   type QualityObservationPorts, type QualityFileReader
 } from "../api.js";
 import { inspectProtectedConfig } from "./protected-config.js";
-import { invalidQualityInput, mapQualityProfile, mapQualityTopology, qualityRecord, qualityScriptCommand } from "./profile-input.js";
+import { invalidQualityInput, mapQualityProfile, mapQualityTopology, qualityRecord, qualityScriptCommand, qualityString, qualityStrings } from "./profile-input.js";
 
 export interface QualityConfigurationReader {
   read(consumerRoot: string, path: string, phase: string, signal?: AbortSignal): Promise<unknown>;
@@ -53,7 +53,7 @@ export function createQualityCoverageReader(
       assertNotCancelled(signal);
       const value = await configuration.read(consumerRoot, configPath, "quality-profile", signal);
       await configuration.assertProfile(value);
-      const profile = mapQualityProfile(value);
+      const profile = await readConfiguredQualityProfile(value, consumerRoot, configuration, signal);
       for (const project of profile.compilerProjects) {
         try { await readFile({ root: consumerRoot, candidate: resolve(consumerRoot, project), maxBytes: 2 * 1024 * 1024 }); }
         catch { invalidQualityInput(`Compiler project is missing, unreadable or outside the consumer: ${project}.`); }
@@ -152,4 +152,16 @@ export function createQualityCoverageReader(
       };
     }
   };
+}
+
+/** Resolve v4's sole project authority as inert configuration, shared by observation and execution. */
+export async function readConfiguredQualityProfile(
+  value: unknown, consumerRoot: string, configuration: QualityConfigurationReader, signal?: AbortSignal
+) {
+  const raw = qualityRecord(value);
+  if (raw["schemaVersion"] !== 4) { return mapQualityProfile(raw); }
+  const toolchainConfigPath = qualityString(raw["toolchainConfigPath"]);
+  const config = qualityRecord(await configuration.read(consumerRoot, toolchainConfigPath, "quality-toolchain-config", signal));
+  const projects = qualityStrings(qualityRecord(config["typecheck"])["projects"]);
+  return mapQualityProfile({ ...raw, compilerProjects: projects });
 }

@@ -23,4 +23,5 @@ policies:
   # TypeScript is the exact native runtime SDK of the public API adapter.
   # The source-dependency profile restricts its production imports to that adapter
   # and its pinned SDK loader; other workspace declarations stay development-only.
-  exactRegistryDevelopmentOnlyPackages: []
+  exactRegistryDevelopmentOnlyPackages:
+    - stack-toolchain

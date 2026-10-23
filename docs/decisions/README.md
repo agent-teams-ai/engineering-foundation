@@ -11,6 +11,7 @@ editing the accepted decision.
 
 ## Accepted
 
+- [ADR-0067: Foundation 3 Preset Export Removal](0067-foundation-three-preset-export-removal.md)
 - [ADR-0066: Qualified Existing npm Bootstrap Recovery](0066-qualified-existing-npm-bootstrap-recovery.md)
 - [ADR-0065: Explicit Stack Toolchain Lint Scope API](0065-explicit-toolchain-lint-scope-api.md)
 - [ADR-0064: Independent Stack Toolchain Package Boundary](0064-independent-stack-toolchain-package-boundary.md)

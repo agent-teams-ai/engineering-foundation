@@ -34,8 +34,8 @@ test("pending Foundation releases version FMS when its canonical packed manifest
   });
   const before = project(foundation.oldVersion);
   const after = project(foundation.newVersion);
-  assert.equal(before.peerDependencies[foundationName], "^1.8.0 || ^2.0.0");
-  assert.equal(after.peerDependencies[foundationName], "^1.8.0 || ^2.0.0");
+  assert.equal(before.peerDependencies[foundationName], "^1.8.0 || ^2.0.0 || ^3.0.0");
+  assert.equal(after.peerDependencies[foundationName], "^1.8.0 || ^2.0.0 || ^3.0.0");
   assert.equal(before.devDependencies[foundationName], foundation.oldVersion);
   assert.equal(after.devDependencies[foundationName], foundation.newVersion);
   assert.notDeepEqual(before, after, "The exact dev dependency still alters published FMS bytes");
@@ -92,7 +92,7 @@ test("official Changesets status and version keep the compatible Foundation 2 FM
   // The official versioner may retain workspace:; the canonical pack must strip it.
   assert.equal(canonicalPublishManifest(versioned, {
     catalogVersions: new Map(), internalPackageVersions: new Map([[foundationName, "2.0.0"]]),
-  }).peerDependencies[foundationName], "^1.8.0 || ^2.0.0");
+  }).peerDependencies[foundationName], "^1.8.0 || ^2.0.0 || ^3.0.0");
   assert.equal(JSON.parse(await readFile(join(root, "packages/foundation/package.json"), "utf8")).version, "2.0.0");
   t.diagnostic(`Official Changesets release plan: ${JSON.stringify(versions)}`);
 });
@@ -200,7 +200,7 @@ test("publish manifest canonicalizes exact dependency authorities without reorde
   });
 });
 
-test("packed FMS peer union admits the minimum and Foundation 2 under strict peers only", async (t) => {
+test("packed FMS peer union admits the minimum and Foundation 2 and 3 under strict peers only", async (t) => {
   const root = await mkdtemp(join(tmpdir(), "fms-strict-peers-TEST-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const foundationName = "@agent-teams/engineering-foundation";
@@ -210,7 +210,7 @@ test("packed FMS peer union admits the minimum and Foundation 2 under strict pee
     catalogVersions: new Map(), internalPackageVersions: new Map([[foundationName, "2.0.0"]]),
   });
   await writeFile(join(root, "standard.tgz"), qualifiedArchive(packed));
-  for (const version of ["1.8.0", "2.0.0", "1.7.9", "3.0.0"]) {
+  for (const version of ["1.8.0", "2.0.0", "3.0.0", "1.7.9", "4.0.0", "3.0.0-rc.0"]) {
     const consumer = join(root, version);
     await mkdir(consumer);
     await writeFile(join(consumer, "foundation.tgz"), qualifiedArchive({ name: foundationName, version }));
@@ -219,7 +219,7 @@ test("packed FMS peer union admits the minimum and Foundation 2 under strict pee
     } }));
     const install = runNpmCommand(["install", "--offline", "--ignore-scripts", "--strict-peer-deps", "--no-audit", "--no-fund",
       "--cache", join(root, "cache")], consumer, { timeoutMs: 30_000 });
-    if (version === "1.8.0" || version === "2.0.0") { await install; }
+    if (version === "1.8.0" || version === "2.0.0" || version === "3.0.0") { await install; }
     else { await assert.rejects(install, error => /ERESOLVE/u.test(error.stderr)); }
   }
 });

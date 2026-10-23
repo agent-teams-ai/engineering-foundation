@@ -15,6 +15,7 @@ import {
 } from "../tools/executable-policy.mts";
 import { copySourceTree, sourceTreeDigest } from "../tools/dev.mts";
 import { resolveNodeToolInvocation } from "../tools/repository-command.mts";
+import { TOOL_COMMANDS } from "../tools/repository-tool-catalog.ts";
 import {
   NODE_EXECUTABLE_ENVIRONMENT_VARIABLE,
   requireAdmittedNodeExecutable,
@@ -777,10 +778,11 @@ test("managed public test tooling rejects wrong or missing runtime policy versio
 // the admitted Node available only on PATH rather than supplied by the caller.
 test("Bun quality dispatch binds its admitted PATH Node into the child environment", async (t) => {
   const runtime = await resolveQualificationExecutables("bun"); assert.ok(runtime.bun);
-  const { writeRepositoryQualityFixture } = await import("./support/repository-quality-fixture.mts");
+  const { writeInstalledRepositoryQualityFixture, writeRuntimeBindingObservationFixture } =
+    await import("./support/repository-quality-fixture.mts");
   const root = await mkdtemp(join(profilesTemporaryParent(), "TEST-bun-quality-binding-"));
   t.after(() => rm(root, { recursive: true, force: true }));
-  await writeRepositoryQualityFixture(root, repositoryRoot);
+  await writeInstalledRepositoryQualityFixture(root, repositoryRoot);
   const environment: NodeJS.ProcessEnv = { ...process.env,
     AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE: "bun", AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE: runtime.bun,
     PATH: [dirname(runtime.node), process.env["PATH"] ?? ""].join(delimiter) };
@@ -792,18 +794,7 @@ test("Bun quality dispatch binds its admitted PATH Node into the child environme
   assert.equal(result.status, 0, `${result.stdout}${result.stderr}`);
   assert.match(result.stdout, /passed/u);
   // The manager/script route must preserve the same verified bindings, too.
-  await writeFile(join(root, "observe.mts"), [
-    'import { writeFileSync } from "node:fs";',
-    'writeFileSync("runtime-binding.json", JSON.stringify({',
-    'node: process.env["AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE"],',
-    'bun: process.env["AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE"],',
-    'leafNodeVersion: process.versions.node }));'
-  ].join("\n"));
-  const manifest = JSON.parse(await readFile(join(root, "package.json"), "utf8")) as {
-    scripts: Record<string, string>;
-  };
-  manifest.scripts["check"] = "node observe.mts";
-  await writeFile(join(root, "package.json"), JSON.stringify(manifest));
+  await writeRuntimeBindingObservationFixture(root);
   const scriptResult = spawnSync(runtime.bun,
     [join(repositoryRoot, "tools/repository-command.mts"), "script", "check"],
     { cwd: root, env: environment, encoding: "utf8", timeout: 30_000 });
@@ -826,9 +817,12 @@ test("parser spike qualification dispatch uses pinned Node without a package man
     'execPath: process.execPath, node: process.versions.node, bun: process.versions["bun"] ?? null }));',
     '}'
   ].join("\n"));
-  const source = await readFile(join(repositoryRoot, "tools/repository-command.mts"), "utf8");
-  assert.match(source, /"parser-spike:check": \{ entry: "spikes\/source-dependency-parser\/run\.ts", args: \["--verify-only"\], role: "node-qualification" \}/u);
-  assert.match(source, /"spike:source-parser": \{ entry: "spikes\/source-dependency-parser\/run\.ts", args: \[\], role: "node-qualification" \}/u);
+  assert.deepEqual(TOOL_COMMANDS["parser-spike:check"], {
+    entry: "spikes/source-dependency-parser/run.ts", args: ["--verify-only"], role: "node-qualification"
+  });
+  assert.deepEqual(TOOL_COMMANDS["spike:source-parser"], {
+    entry: "spikes/source-dependency-parser/run.ts", args: [], role: "node-qualification"
+  });
   const manifest = JSON.parse(await readFile(join(repositoryRoot, "package.json"), "utf8")) as { scripts: Record<string, string> };
   assert.equal(manifest.scripts["parser-spike:check"], "node tools/repository-command.mts tool parser-spike:typecheck && node tools/repository-command.mts tool parser-spike:check");
   const compiler = spawnSync(runtime.node, [join(repositoryRoot, "tools/repository-command.mts"), "tool", "parser-spike:typecheck"],

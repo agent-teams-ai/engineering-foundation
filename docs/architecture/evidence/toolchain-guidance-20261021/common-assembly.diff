@@ -1,0 +1,18 @@
+diff --git a/docs/architecture/common-assembly.md b/docs/architecture/common-assembly.md
+index ae67925..dad8b62 100644
+--- a/docs/architecture/common-assembly.md
++++ b/docs/architecture/common-assembly.md
+@@ -333,6 +333,13 @@ managers and process or worker control.
+ 
+ ### Module communication
+ 
++Observation load cleanup keeps waiting for its own active loader after escalation.
++The owner receives `observation.load.still-running` with that run's revision;
++the report does not release its dependencies. A Host uses `abandon` to end a bounded
++wait and retains the original close promise, control and infrastructure until
++completion. Do not retry cleanup merely to observe that original flight.
++The successor decision is [ADR-0039](../decisions/0039-retain-observation-load-drain-until-its-run-settles.md).
++
+ [ADR-0034](../decisions/0034-admit-the-module-change-observation-package.md) admits the optional
+ `@get-modular/observation` package: state with one writer, read-only facets and subscriptions owned by the
+ subscriber's scope. Core and Assembly do not import it; a module that does not follow changes needs nothing from

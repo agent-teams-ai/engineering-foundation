@@ -5,6 +5,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { installedDependency } from "./installed-dependency.ts";
 import type { DoctorDetails } from "../src/features/toolchain-execution/adapters/doctor.js";
 
 const packageRoot = fileURLToPath(new URL("../", import.meta.url));
@@ -49,11 +50,7 @@ function fixture() {
     "oxlint-tsgolint",
     "oxfmt",
   ]) {
-    fs.symlinkSync(
-      fs.realpathSync(path.join(packageRoot, "node_modules", name)),
-      path.join(tool, "node_modules", name),
-      "junction",
-    );
+    fs.symlinkSync(installedDependency(name), path.join(tool, "node_modules", name), "junction");
   }
   const run = (command = "doctor") =>
     spawnSync(process.execPath, [path.join(tool, "dist/cli.js"), command, "--json"], {

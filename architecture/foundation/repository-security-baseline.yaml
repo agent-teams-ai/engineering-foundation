@@ -22,6 +22,8 @@ allowedUses:
     transitiveUses: []
   - uses: 777genius/review-router@75cbecab131d74021677fcd1fb21962994d306b8
     transitiveUses: []
+  - uses: 777genius/review-router/.github/workflows/reviewrouter-runtime.yml@47a732c78efc7948c0ea7a667ab7aca2f4b8c3af
+    transitiveUses: []
   - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
     transitiveUses: []
   - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
@@ -97,6 +99,12 @@ privilegedJobs:
     permissions:
       contents: read
       issues: read
+      pull-requests: read
+      id-token: write
+  - workflowPath: .github/workflows/reviewrouter-review.yml
+    jobId: review
+    permissions:
+      contents: read
       pull-requests: read
       id-token: write
   - workflowPath: .github/workflows/release.yml

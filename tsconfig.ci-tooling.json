@@ -179,6 +179,7 @@
     "scripts/release-changelog-notes.ts",
     "tests/support/release-probe-attestations.ts",
     "tests/support/release-freshness-git.ts",
-    "packages/engineering-foundation/tests/public-api-native-spelling-cases.ts"
+    "packages/engineering-foundation/tests/public-api-native-spelling-cases.ts",
+    "tests/support/release-section-cases.ts"
   ]
 }

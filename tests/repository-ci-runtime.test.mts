@@ -30,7 +30,7 @@ import {
 import { inspectInstalledDependencies } from "../tools/dependencies-installed-check.mts";
 import { resolveQualificationExecutables } from "../tools/executable-policy.mts";
 import { projectNodeAgentWorkflowPolicy } from "../tools/runtime-policy.mts";
-import { pnpmPortableName, resolvePnpmInvocation } from "../tools/pnpm-command.mts";
+import { resolvePnpmInvocation } from "../tools/pnpm-command.mts";
 
 const repositoryRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const sourceSha = "a".repeat(40);

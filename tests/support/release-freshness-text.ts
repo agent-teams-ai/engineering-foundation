@@ -16,3 +16,7 @@ export function generatedRelease(version: string, summaries: readonly string[]) 
       changelogSection.replace(heading, "## " + packageName + "@" + version),
   };
 }
+
+export function changeset(summary: string, releaseType = "minor"): string {
+  return '---\n"' + packageName + '": ' + releaseType + "\n---\n\n" + summary + "\n";
+}

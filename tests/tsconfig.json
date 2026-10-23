@@ -87,6 +87,7 @@
     "producer-source-dependencies.test.ts",
     "support/npm-bootstrap-successor-fixtures.ts",
     "support/release-probe-attestations.ts",
-    "support/release-freshness-git.ts"
+    "support/release-freshness-git.ts",
+    "support/release-section-cases.ts"
   ]
 }

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "kind": "npm-package-bootstrap-writer-evidence",
+  "generatedAt": "2026-10-23T21:59:27.507Z",
+  "repository": "https://github.com/agent-teams-ai/engineering-foundation",
+  "sourceCommit": "aa401f68fe23c412ba32d4bd057afc845a4a8cdf",
+  "packages": [
+    {
+      "archive": "release-checks/agent-teams-release-checks-0.0.0.tgz",
+      "archiveIntegrity": "sha512-N3Sfwq4C8TUdSHMJfzB1TjTOPo3I6/xlcPzSJJuHAKQKpFJ0z3XK4ywfwjV7duEjEkAKGKTaqKLgoCYRcEJ35g==",
+      "archiveSha256": "sha256:d26d094111315e41fb8175f6389689fcee9da21b0d7a1857d584731af7059d32",
+      "id": "release-checks",
+      "name": "@agent-teams/release-checks",
+      "packageTree": "d9d922a360ba81eebcbecb50fa4baeddf9faa9bf",
+      "version": "0.0.0"
+    }
+  ],
+  "receiptDigest": "sha256:ed7fb788bbb998ab586fd84293f9dccf7e9e60b53983263d342fe8e14df2af74"
+}

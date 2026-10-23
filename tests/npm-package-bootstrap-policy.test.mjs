@@ -172,8 +172,8 @@ test("bootstrap catalog is closed, data-only, and retains retired authorities", 
   assert.equal(releaseChecks.state, "approved");
   assert.deepEqual(releaseChecks.approval, {
     archiveIntegrity:
-      "sha512-Lvt9twVB0UhsmgYkoGrtbntxWCM9PxQ/NzvZB2ZE+xSj1jFyEFXvaLK94390rrABwjGoYPS8uO+1XzVXq4Lm8A==",
-    packageTree: "76a214bd459937b28786880b4deb08cb20916da7",
+      "sha512-N3Sfwq4C8TUdSHMJfzB1TjTOPo3I6/xlcPzSJJuHAKQKpFJ0z3XK4ywfwjV7duEjEkAKGKTaqKLgoCYRcEJ35g==",
+    packageTree: "d9d922a360ba81eebcbecb50fa4baeddf9faa9bf",
   });
   assert.deepEqual(releaseChecks.dependencies, []);
   const pendingCatalog = structuredClone(NPM_PACKAGE_BOOTSTRAP);

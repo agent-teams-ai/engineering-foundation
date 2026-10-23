@@ -12,7 +12,7 @@ export function registerNativeSpellingCases(
     after: PublicApiSnapshot,
   ) => { readonly classification: string },
 ): void {
-  test("property type parentheses preserve the retained GrowthCoverage indexed query without admitting binding changes", () => {
+  void test("property type parentheses preserve the retained GrowthCoverage indexed query without admitting binding changes", () => {
     const metadata = {
       kind: "PropertySignature",
       parentKind: "Interface",
@@ -34,7 +34,7 @@ export function registerNativeSpellingCases(
     }
   });
 
-  test("literal spelling proof preserves exact restoration excerpts and rejects changed values or declarations", () => {
+  void test("literal spelling proof preserves exact restoration excerpts and rejects changed values or declarations", () => {
     const metadata = {
       kind: "PropertySignature",
       parentKind: "Interface",
@@ -52,6 +52,12 @@ export function registerNativeSpellingCases(
     );
     assert.equal(compareAlias(aliasBefore, aliasAfter).classification, "none");
     assert.equal(compareAlias(aliasAfter, aliasBefore).classification, "none");
+    const multipleBefore = aliasSnapshot(
+      "export type Alias = 'input'; export type Extra = number;",
+    );
+    const multipleAfter = aliasSnapshot('export type Alias = "input"; export type Extra = number;');
+    assert.equal(compareAlias(multipleBefore, multipleAfter).classification, "breaking");
+    assert.equal(compareAlias(multipleAfter, multipleBefore).classification, "breaking");
     for (const signature of [
       'readonly code: "other" | "mismatch";',
       'code: "input" | "mismatch";',
@@ -64,7 +70,7 @@ export function registerNativeSpellingCases(
     }
   });
 
-  test("literal spelling proof preserves retained constant and function type excerpts", () => {
+  void test("literal spelling proof preserves retained constant and function type excerpts", () => {
     for (const [kind, beforeText, afterText] of [
       [
         "Variable",

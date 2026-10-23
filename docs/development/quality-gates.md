@@ -567,11 +567,18 @@ repository command catalog on the qualified Node runtime. Both `check` and
 `check:fast` require it before lint. It checks the full configured format scope
 and its exact frozen-artifact exclusions without rewriting files.
 
+Frozen exclusions name individual artifact files, including historical transaction
+envelopes, original portable v3 profiles and historical execution schemas used
+as byte-identity evidence. Preserve their recorded bytes and digest assertions;
+formatting their JSON or YAML changes the evidence. Active TypeScript remains
+in scope. Test fixture transformations must tolerate formatter-owned whitespace
+in mutable input profiles.
+
 Oxlint is the only JavaScript/TypeScript linter until a concrete missing rule
 proves that ESLint is required. The published presets enable correctness,
 suspicious, import, promise, Node, Unicorn, Oxc, and type-aware TypeScript rules.
 
-The repository also publishes opt-in production and test maintainability
+Stack Toolchain publishes opt-in production and test maintainability
 presets. Foundation dogfoods the production profile and applies the documented
 relaxed profile to tests, fixtures, the packed-consumer harness, and spikes.
 Generated and vendored paths are excluded from the five budgets without

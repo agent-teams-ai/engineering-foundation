@@ -199,7 +199,25 @@
       "!packages/document-authoring/tests/fixtures/schema-recovery/native-old-plan-v1.json",
       "!packages/document-authoring/tests/fixtures/schema-recovery/native-old-plan-v2.json",
       "!packages/document-authoring/tests/fixtures/schema-recovery/native-old-envelope-v1.json",
-      "!packages/document-authoring/tests/fixtures/schema-recovery/native-old-envelope-v2.json"
+      "!packages/document-authoring/tests/fixtures/schema-recovery/native-old-envelope-v2.json",
+      "!packages/docs-protocol-agent-teams/tests/fixtures/historical-execution-schemas/docs-consumer-integration-execution.json",
+      "!packages/docs-protocol-agent-teams/tests/fixtures/historical-execution-schemas/docs-consumer-integration-plan.json",
+      "!packages/docs-protocol-agent-teams/tests/fixtures/historical-execution-schemas/docs-consumer-upgrade-execution.json",
+      "!tests/fixtures/foundation-historical-transactions/current-document-envelope-v1.json",
+      "!tests/fixtures/foundation-historical-transactions/current-document-envelope-v2.json",
+      "!tests/fixtures/foundation-historical-transactions/fabricated-v5.json",
+      "!tests/fixtures/foundation-historical-transactions/mixed-document-envelope.json",
+      "!tests/fixtures/foundation-historical-transactions/native-impossible-partial.json",
+      "!tests/fixtures/foundation-historical-transactions/native-v5-after-journal-committed.json",
+      "!tests/fixtures/foundation-historical-transactions/native-v5-after-journal-created.json",
+      "!tests/fixtures/foundation-historical-transactions/native-v5-partially-applied.json",
+      "!tests/fixtures/foundation-historical-transactions/old-document-envelope-v1.json",
+      "!tests/fixtures/foundation-historical-transactions/old-document-envelope-v2.json",
+      "!tests/fixtures/foundation-historical-transactions/provenance.json",
+      "!packages/docs-protocol/tests/fixtures/profile-v3-frozen/parse-cases.json",
+      "!packages/docs-protocol/tests/fixtures/profile-v3-frozen/provenance.json",
+      "!packages/docs-protocol/tests/fixtures/profile-v3-frozen/v3.schema.json",
+      "!packages/docs-protocol/tests/fixtures/profile-v3-frozen/valid-profile.yaml"
     ]
   }
 }

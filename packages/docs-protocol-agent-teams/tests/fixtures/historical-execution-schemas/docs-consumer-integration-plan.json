@@ -3,15 +3,7 @@
   "$id": "https://agent-teams.ai/schemas/docs-consumer-integration-plan/v1",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "schemaVersion",
-    "cohortId",
-    "repository",
-    "planDigest",
-    "outcome",
-    "assets",
-    "issues"
-  ],
+  "required": ["schemaVersion", "cohortId", "repository", "planDigest", "outcome", "assets", "issues"],
   "properties": {
     "schemaVersion": { "const": 1 },
     "cohortId": { "type": "string", "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$" },
@@ -47,23 +39,10 @@
       "additionalProperties": false,
       "required": ["id", "path", "ownership", "state", "expectedDigest", "action"],
       "properties": {
-        "id": {
-          "enum": ["agents-route", "caller-workflow", "managed-state", "package-manifest", "skill"]
-        },
+        "id": { "enum": ["agents-route", "caller-workflow", "managed-state", "package-manifest", "skill"] },
         "path": { "type": "string", "minLength": 1, "maxLength": 1024 },
         "ownership": { "enum": ["full-bytes", "partial-fields", "managed-block"] },
-        "state": {
-          "enum": [
-            "absent",
-            "exact-current",
-            "known-prior",
-            "partial-adoption",
-            "outdated-cohort",
-            "unknown-modified",
-            "conflict",
-            "unsupported"
-          ]
-        },
+        "state": { "enum": ["absent", "exact-current", "known-prior", "partial-adoption", "outdated-cohort", "unknown-modified", "conflict", "unsupported"] },
         "currentDigest": { "$ref": "#/$defs/sha256" },
         "expectedDigest": { "$ref": "#/$defs/sha256" },
         "action": { "enum": ["create", "none", "replace", "blocked"] }

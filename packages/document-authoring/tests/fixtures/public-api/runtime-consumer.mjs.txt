@@ -44,7 +44,7 @@ async function prepareRequest() {
     await writeFile(path, profile.replace("schemaVersion: 1", "schemaVersion: 2")
       .replaceAll(/(    - type: [^\n]+\n)/gu,
         "$1      allowedOwnerIds: [architecture/tooling, example/create-widget]\n")
-      .replace("reachability: {kind: not-required}",
+      .replace(/reachability:\s*\{\s*kind:\s*not-required\s*\}/u,
         "reachability: {kind: not-required, reason: indexed by bounded-context hierarchy}"));
     await rm(join(consumerRoot, "packages/example/src/features/create-widget"), { recursive: true });
   }

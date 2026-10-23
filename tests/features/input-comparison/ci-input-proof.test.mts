@@ -650,6 +650,7 @@ void test("collector and comparator import failure still execute independent FUL
     "scripts/ci-input-proof-foundation-adapter.mts",
     "scripts/ci-input-proof-full.mts",
     "scripts/ci-input-proof-foundation-pilot.mts",
+    "scripts/ci-input-proof-foundation-scope.ts",
   ] as const;
   try {
     await Promise.all([

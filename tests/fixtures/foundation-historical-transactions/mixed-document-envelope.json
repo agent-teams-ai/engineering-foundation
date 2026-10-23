@@ -53,7 +53,9 @@
       },
       "intent": {
         "additionalMetadata": {
-          "blocked_by": ["OD-001"],
+          "blocked_by": [
+            "OD-001"
+          ],
           "code_anchors": [
             {
               "enforcement": "required",
@@ -64,7 +66,10 @@
         "destination": "packages/example/src/features/create-widget/README.md",
         "id": "feature.example.create-widget",
         "owner": "example/create-widget",
-        "related": ["ADR-0001", "OD-001"],
+        "related": [
+          "ADR-0001",
+          "OD-001"
+        ],
         "schemaVersion": 1,
         "summary": "Freezes the current feature document creation behavior.",
         "title": "Create Widget",
@@ -93,7 +98,9 @@
           "projectionDigest": "sha256:9942c5c5551054253976bc9374203c7d37e52eb24ea0d8c43abc67877645214f"
         }
       ],
-      "requiredAdapterCapabilities": ["create-file-no-replace/v1"],
+      "requiredAdapterCapabilities": [
+        "create-file-no-replace/v1"
+      ],
       "schemaVersion": 1,
       "selectedOwner": {
         "id": "example/create-widget",

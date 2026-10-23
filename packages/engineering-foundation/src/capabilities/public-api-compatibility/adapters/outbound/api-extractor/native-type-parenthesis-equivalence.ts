@@ -1,4 +1,4 @@
-import { dirname, join } from "node:path";
+import { dirname, posix } from "node:path";
 import { API } from "typescript/unstable/sync";
 import * as ast from "typescript/unstable/ast";
 import { createVirtualFileSystem } from "typescript/unstable/fs";
@@ -84,19 +84,22 @@ function declarationSyntax(source: ast.SourceFile): SyntaxProof | undefined {
 
 /** Canonicalize only native-decoded string literal spelling; preserve every other byte. */
 function literalQuoteSpelling(source: ast.SourceFile): string | undefined {
+  if (source.statements.length !== 1) {
+    return undefined;
+  }
   let nodes = 0;
   let cursor = 0;
   const parts: string[] = [];
-  let valid = true;
+  const state = { valid: true };
   const visit = (node: ast.Node, depth: number): void => {
     if (++nodes > MAX_NODES || depth > MAX_DEPTH) {
-      valid = false;
+      state.valid = false;
       return;
     }
     if (ast.isStringLiteral(node)) {
       const start = node.getStart();
       if (start < cursor || (source.text[start] !== "'" && source.text[start] !== '"')) {
-        valid = false;
+        state.valid = false;
         return;
       }
       parts.push(source.text.slice(cursor, start), JSON.stringify(node.text));
@@ -108,15 +111,19 @@ function literalQuoteSpelling(source: ast.SourceFile): string | undefined {
     });
   };
   visit(source, 0);
-  return valid ? parts.join("") + source.text.slice(cursor) : undefined;
+  return state.valid ? parts.join("") + source.text.slice(cursor) : undefined;
 }
 
 function prove(released: string, current: string, allowParentheses: boolean = true): boolean {
   assertPinnedAuditSdk();
-  const root = join(dirname(nativeCompilerPath), ".foundation-signature-comparison");
-  const configPath = join(root, "tsconfig.json");
-  const beforePath = join(root, "before.d.ts"),
-    afterPath = join(root, "after.d.ts");
+  // Native SDK filesystem callbacks use slash-normalized paths on Windows too.
+  const root = posix.join(
+    dirname(nativeCompilerPath).replaceAll("\\", "/"),
+    ".foundation-signature-comparison",
+  );
+  const configPath = posix.join(root, "tsconfig.json");
+  const beforePath = posix.join(root, "before.d.ts"),
+    afterPath = posix.join(root, "after.d.ts");
   const virtual = createVirtualFileSystem({
     [configPath]: JSON.stringify({
       compilerOptions: { noLib: true, noResolve: true, types: [], noEmit: true },

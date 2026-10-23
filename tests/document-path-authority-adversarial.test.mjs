@@ -245,7 +245,7 @@ async function featurePlanV2(root) {
         "$1      allowedOwnerIds: [architecture/tooling, example/create-widget]\n",
       )
       .replace(
-        "reachability: {kind: not-required}",
+        /reachability:\s*\{\s*kind:\s*not-required\s*\}/u,
         "reachability: {kind: not-required, reason: indexed by bounded-context hierarchy}",
       ),
   );

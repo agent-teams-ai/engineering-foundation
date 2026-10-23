@@ -1,6 +1,6 @@
 {
   "name": "stack-toolchain",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Versioned TypeScript tools, technical presets and sequential checker fallback for Node and Bun projects.",
   "license": "Apache-2.0",
   "repository": {

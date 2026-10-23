@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "stack-toolchain",
-  "packageVersion": "0.0.0",
+  "packageVersion": "0.1.0",
   "extractorVersion": "typescript-native/7.0.2",
   "entrypoints": [
     {
@@ -124,7 +124,7 @@
           "kind": "PropertySignature",
           "parentReference": "stack-toolchain!CommandInput:interface",
           "parentKind": "Interface",
-          "signature": "readonly command: 'typecheck' | 'lint' | 'format:check' | 'compile' | 'doctor';"
+          "signature": "readonly command: \"typecheck\" | \"lint\" | \"format:check\" | \"compile\" | \"doctor\";"
         },
         {
           "canonicalReference": "stack-toolchain!CommandInput#compileArgs:member",
@@ -166,7 +166,7 @@
           "kind": "PropertySignature",
           "parentReference": "stack-toolchain!CommandReport:interface",
           "parentKind": "Interface",
-          "signature": "readonly command: CommandInput['command'];"
+          "signature": "readonly command: CommandInput[\"command\"];"
         },
         {
           "canonicalReference": "stack-toolchain!CommandReport#details:member",
@@ -218,6 +218,27 @@
           "signature": "export type Engine = \"tsrs\" | \"bun\" | \"typescript\";"
         },
         {
+          "canonicalReference": "stack-toolchain!LintScope#config:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!LintScope:interface",
+          "parentKind": "Interface",
+          "signature": "readonly config: string;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!LintScope#paths:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!LintScope:interface",
+          "parentKind": "Interface",
+          "signature": "readonly paths: readonly string[];"
+        },
+        {
+          "canonicalReference": "stack-toolchain!LintScope:interface",
+          "kind": "Interface",
+          "parentReference": "stack-toolchain!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface LintScope"
+        },
+        {
           "canonicalReference": "stack-toolchain!ToolchainConfiguration#format:member",
           "kind": "PropertySignature",
           "parentReference": "stack-toolchain!ToolchainConfiguration:interface",
@@ -229,14 +250,14 @@
           "kind": "PropertySignature",
           "parentReference": "stack-toolchain!ToolchainConfiguration:interface",
           "parentKind": "Interface",
-          "signature": "readonly lint: {\n    readonly config: string;\n    readonly paths: readonly string[];\n};"
+          "signature": "readonly lint: LintScope & {\n    readonly syntax?: LintScope;\n};"
         },
         {
           "canonicalReference": "stack-toolchain!ToolchainConfiguration#profile:member",
           "kind": "PropertySignature",
           "parentReference": "stack-toolchain!ToolchainConfiguration:interface",
           "parentKind": "Interface",
-          "signature": "readonly profile: 'typescript-node' | 'typescript-bun';"
+          "signature": "readonly profile: \"typescript-node\" | \"typescript-bun\";"
         },
         {
           "canonicalReference": "stack-toolchain!ToolchainConfiguration#projects:member",

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.2
+
+### Patch Changes
+
+- [#432](https://github.com/agent-teams-ai/engineering-foundation/pull/432) [`bf7dbd3`](https://github.com/agent-teams-ai/engineering-foundation/commit/bf7dbd30b07ea5916d869c29549790275f141e04) Thanks [@777genius](https://github.com/777genius)! - Publish new patch versions for the canonical packed manifest serialization.
+  The repository-owned packing hook changes manifest key order, so these archives
+  need new versions to preserve exact integrity checks for immutable releases.
+
 ## 0.1.1
 
 ### Patch Changes

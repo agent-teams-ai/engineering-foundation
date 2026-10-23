@@ -31,14 +31,14 @@
     },
     "packages/ci-input-proof": {
       "name": "@agent-teams/ci-input-proof",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "devDependencies": {
         "typescript": "catalog:",
       },
     },
     "packages/docs-protocol": {
       "name": "@agent-teams/docs-protocol",
-      "version": "0.6.4",
+      "version": "0.6.5",
       "bin": {
         "agent-teams-docs": "./dist/cli.js",
         "docs-protocol": "./dist/cli.js",
@@ -58,7 +58,7 @@
     },
     "packages/docs-protocol-agent-teams": {
       "name": "@agent-teams/docs-protocol-agent-teams",
-      "version": "0.5.3",
+      "version": "0.5.4",
       "bin": {
         "agent-teams-docs-managed": "./dist/cli.js",
       },
@@ -76,7 +76,7 @@
     },
     "packages/docs-protocol-mcp": {
       "name": "@agent-teams/docs-protocol-mcp",
-      "version": "0.2.7",
+      "version": "0.2.8",
       "bin": {
         "docs-protocol-mcp": "./dist/cli.js",
       },
@@ -91,7 +91,7 @@
     },
     "packages/document-authoring": {
       "name": "@agent-teams/document-authoring",
-      "version": "0.3.4",
+      "version": "0.3.5",
       "dependencies": {
         "@agent-teams/repository-mutation": "workspace:*",
         "ajv": "catalog:",
@@ -112,7 +112,7 @@
     },
     "packages/engineering-foundation": {
       "name": "@agent-teams/engineering-foundation",
-      "version": "2.1.1",
+      "version": "2.1.2",
       "bin": {
         "agent-teams-foundation": "./dist/cli.js",
         "agent-teams-node-test": "./dist/node-test-cli.js",
@@ -138,7 +138,7 @@
     },
     "packages/feature-module-standard": {
       "name": "@agent-teams/feature-module-standard",
-      "version": "0.2.3",
+      "version": "0.2.4",
       "devDependencies": {
         "@agent-teams/engineering-foundation": "workspace:*",
         "typescript": "catalog:",
@@ -152,7 +152,7 @@
     },
     "packages/repository-mutation": {
       "name": "@agent-teams/repository-mutation",
-      "version": "0.4.0",
+      "version": "0.4.1",
       "devDependencies": {
         "@types/node": "catalog:",
         "typescript": "catalog:",
@@ -160,7 +160,7 @@
     },
     "packages/stack-toolchain": {
       "name": "stack-toolchain",
-      "version": "0.0.0",
+      "version": "0.1.0",
       "bin": {
         "stack-toolchain": "./dist/cli.js",
       },

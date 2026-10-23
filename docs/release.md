@@ -132,13 +132,22 @@ and does not authorize publication by itself.
 
 ### Candidate approval and Stack Toolchain state
 
-Stack Toolchain's catalog entry is approved and its exact `0.0.0` archive was
-accepted by npm in canonical run `39774275653`, attempt `1`, at source
-`67ccfb359fa2112e7a3554576391d4369477f937`. The post-publish install/audit failed;
-later unchanged read-only install, audit and source binding passed. The retained
-provider placeholder and absent deprecation still block whole-bootstrap success.
-Use only the existing-artifact recovery below after its implementation is
-qualified. Do not retry publication or call `0.0.0` a supported release.
+Stack Toolchain's exact `0.0.0` archive was accepted by npm in run
+`39774275653`, attempt `1`, at source
+`67ccfb359fa2112e7a3554576391d4369477f937`. That run's post-publish observation
+failed; later unchanged install, audit and source binding passed. Canonical
+existing-artifact recovery `39920935122`, attempt `1`, completed on operating
+main `495210654a4197befa73744607b6d465880df8d1`: it verified the original archive,
+qualified the provider placeholder history, set bootstrap deprecation and
+reconciled `stack-toolchain@0.0.0` to the original source commit on GitHub.
+No archive was repacked or republished. The temporary single-package token was
+revoked, its GitHub secret and local credentials removed, and bootstrap activation
+disabled. Do not rerun publication or call `0.0.0` a supported release.
+
+The Trusted Publisher relationship for `stack-toolchain` now identifies this
+repository's `release.yml` without a GitHub environment, with direct publishing
+allowed. Its initial validation still requires a successful ordinary OIDC
+publication; configuration alone is not release evidence.
 
 Future candidate profiles require retained Ubuntu `linux-bootstrap-evidence`
 from requested full PR CI, including exact package tree, archive SRI and source

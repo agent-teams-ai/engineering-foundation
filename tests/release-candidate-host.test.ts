@@ -1,9 +1,8 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { chmod, cp, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises';
+import fsPromises, { chmod, cp, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises';
 import { createRequire, syncBuiltinESMExports } from 'node:module';
-import fsPromises from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
@@ -268,9 +267,9 @@ void test('working-file observation reads regular handles and retains literal li
 void test('working link observations reject ancestry replaced before or during the read',
   { skip: process.platform === 'win32' ? 'POSIX symlink directory replacement fixture.' : false }, async () => {
   for (const phase of ['before', 'during']) {
-    const fixture = await realpath(await mkdtemp(join(tmpdir(), 'foundation-release-link-race-TEST-')));
-    const root = join(fixture, 'source'); const inside = join(root, 'inside');
-    const saved = join(root, 'inside-saved'); const outside = join(fixture, 'outside');
+    const temporary = await realpath(await mkdtemp(join(tmpdir(), 'foundation-release-link-race-TEST-')));
+    const root = join(temporary, 'source'); const inside = join(root, 'inside');
+    const saved = join(root, 'inside-saved'); const outside = join(temporary, 'outside');
     const leaf = join(inside, 'leaf');
     await mkdir(inside, { recursive: true });
     await symlink('original-target', leaf);
@@ -302,7 +301,7 @@ void test('working link observations reject ancestry replaced before or during t
       assert.equal(swapped, true);
     } finally {
       mutableFs.realpath = originalRealpath; mutableFs.readlink = originalReadlink;
-      syncBuiltinESMExports(); await rm(fixture, { recursive: true, force: true });
+      syncBuiltinESMExports(); await rm(temporary, { recursive: true, force: true });
     }
   }
 });

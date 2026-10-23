@@ -109,6 +109,19 @@ async function readReleaseHandle(handle: FileHandle, size: bigint): Promise<Buff
   return bytes.subarray(0, length);
 }
 
+async function readOpenedReleaseFile(handle: FileHandle, absolute: string, path: string, parent: string): Promise<ReleaseFileBytes> {
+  const metadata = await handle.stat({ bigint: true });
+  const pathMetadata = await lstat(absolute, { bigint: true });
+  // Platforms without O_NOFOLLOW can open the target, but never read it.
+  if (pathMetadata.isSymbolicLink()) { return await readReleaseLink(absolute, path, pathMetadata, parent); }
+  if (!metadata.isFile() || metadata.size >= 2n ** 31n) { throw new Error(`Release path is not an ordinary bounded file: ${path}.`); }
+  if (!sameFile(metadata, pathMetadata) || await realpath(dirname(absolute)) !== parent) { throw new Error(`Release file changed before its read: ${path}.`); }
+  const bytes = await readReleaseHandle(handle, metadata.size);
+  if (BigInt(bytes.length) !== metadata.size || !sameFile(metadata, await handle.stat({ bigint: true })) ||
+      !sameFile(metadata, await lstat(absolute, { bigint: true })) || await realpath(dirname(absolute)) !== parent) { throw new Error(`Release file changed during observation: ${path}.`); }
+  return { bytes, file: { type: 'file', mode: (metadata.mode & 0o111n) === 0n ? '100644' : '100755', digest: releaseDigest(bytes) } };
+}
+
 export async function readReleaseWorkingFile(root: string, path: string): Promise<ReleaseFileBytes | null> {
   portablePath(path);
   const absolute = join(root, path);
@@ -138,16 +151,7 @@ export async function readReleaseWorkingFile(root: string, path: string): Promis
     throw error;
   }
   try {
-    const metadata = await handle.stat({ bigint: true });
-    const pathMetadata = await lstat(absolute, { bigint: true });
-    // Platforms without O_NOFOLLOW can open the target, but never read it.
-    if (pathMetadata.isSymbolicLink()) { return await readReleaseLink(absolute, path, pathMetadata, parent); }
-    if (!metadata.isFile() || metadata.size >= 2n ** 31n) { throw new Error(`Release path is not an ordinary bounded file: ${path}.`); }
-    if (!sameFile(metadata, pathMetadata) || await realpath(dirname(absolute)) !== parent) { throw new Error(`Release file changed before its read: ${path}.`); }
-    const bytes = await readReleaseHandle(handle, metadata.size);
-    if (BigInt(bytes.length) !== metadata.size || !sameFile(metadata, await handle.stat({ bigint: true })) ||
-        !sameFile(metadata, await lstat(absolute, { bigint: true })) || await realpath(dirname(absolute)) !== parent) { throw new Error(`Release file changed during observation: ${path}.`); }
-    return { bytes, file: { type: 'file', mode: (metadata.mode & 0o111n) === 0n ? '100644' : '100755', digest: releaseDigest(bytes) } };
+    return await readOpenedReleaseFile(handle, absolute, path, parent);
   } finally { await handle.close(); }
 }
 

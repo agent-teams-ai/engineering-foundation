@@ -72,6 +72,8 @@ function registerExistingRouteCase() {
       );
       await writeFile(join(root, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
       execFileSync("git", ["init", "--quiet", root]);
+      // These byte-determinism fixtures must survive reset without host checkout conversion.
+      execFileSync("git", ["-C", root, "config", "core.autocrlf", "false"]);
       execFileSync("git", ["-C", root, "add", "packages"]);
       execFileSync("git", [
         "-C",
@@ -254,6 +256,8 @@ function registerScopeDriftCase() {
       await mkdir(join(root, "evidence"));
       await writeFile(join(root, "evidence/decisions.json"), "[]");
       execFileSync("git", ["init", "--quiet", root]);
+      // These byte-determinism fixtures must survive reset without host checkout conversion.
+      execFileSync("git", ["-C", root, "config", "core.autocrlf", "false"]);
       execFileSync("git", ["-C", root, "add", "packages", "pnpm-workspace.yaml"]);
       execFileSync("git", [
         "-C",

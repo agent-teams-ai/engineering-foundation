@@ -12,6 +12,28 @@ import { assertSchema } from "../dist/schema-catalog.js";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const packageName = "@agent-teams/docs-protocol-agent-teams";
+// Closed, reviewed formatter delta; released and migration evidence remain byte-exact.
+const formattedRestorationSignatures = [
+  {
+    reference:
+      "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Diagnostic#code:member",
+    before: "readonly code: 'input' | 'derivation' | 'mismatch' | 'preservation';",
+    after: 'readonly code: "input" | "derivation" | "mismatch" | "preservation";',
+  },
+  {
+    reference:
+      "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Provenance#originalPackageManager:member",
+    before: "readonly originalPackageManager: 'pnpm@11.20.0';",
+    after: 'readonly originalPackageManager: "pnpm@11.20.0";',
+  },
+  {
+    reference: "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Result:type",
+    before:
+      "export type ManagedRestorationLockV1Result = {\n    readonly schemaVersion: 1;\n} & ({\n    readonly conformance: 'conformant';\n    readonly expectedLockDigest: `sha256:${string}`;\n    readonly provenance: ManagedRestorationLockV1Provenance;\n    readonly diagnostics: readonly [\n    ];\n} | {\n    readonly conformance: 'nonconformant';\n    readonly expectedLockDigest?: `sha256:${string}`;\n    readonly provenance?: ManagedRestorationLockV1Provenance;\n    readonly diagnostics: readonly ManagedRestorationLockV1Diagnostic[];\n});",
+    after:
+      'export type ManagedRestorationLockV1Result = {\n    readonly schemaVersion: 1;\n} & ({\n    readonly conformance: "conformant";\n    readonly expectedLockDigest: `sha256:${string}`;\n    readonly provenance: ManagedRestorationLockV1Provenance;\n    readonly diagnostics: readonly [\n    ];\n} | {\n    readonly conformance: "nonconformant";\n    readonly expectedLockDigest?: `sha256:${string}`;\n    readonly provenance?: ManagedRestorationLockV1Provenance;\n    readonly diagnostics: readonly ManagedRestorationLockV1Diagnostic[];\n});',
+  },
+];
 
 test("managed composition preserves published function declarations and planner overloads", async () => {
   const config = await loadCapabilityConfig(
@@ -98,9 +120,17 @@ test("managed composition preserves published function declarations and planner 
                 "export type ConsumerIntegrationDesiredState = ConsumerIntegrationDesiredStateV1 | ConsumerIntegrationDesiredStateV3 | ManagedSuccessorProfile;",
             }
           : nativeItem;
+      const formatted = formattedRestorationSignatures.find(
+        (row) => row.reference === item.canonicalReference,
+      );
+      if (formatted) {
+        assert.equal(nativeItem.signature, formatted.before, "exact reviewed pre-format signature");
+      }
       assert.deepEqual(
         current.items.find((candidate) => candidate.canonicalReference === item.canonicalReference),
-        acceptedConsumerIntegrationDesiredState,
+        formatted
+          ? { ...acceptedConsumerIntegrationDesiredState, signature: formatted.after }
+          : acceptedConsumerIntegrationDesiredState,
         `${entrypoint.exportPath}: ${item.canonicalReference}`,
       );
     }

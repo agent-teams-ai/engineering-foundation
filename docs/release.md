@@ -29,6 +29,8 @@ The sole exception is the reviewed one-time namespace bootstrap in ADR-0044,
 with the bounded existing-artifact recovery in
 [ADR-0066](decisions/0066-qualified-existing-npm-bootstrap-recovery.md); neither
 can publish a supported release.
+The exact Release Checks original publication uses the bounded successor scope
+in [ADR-0069](decisions/0069-release-checks-existing-bootstrap-recovery.md).
 
 Changesets maintains versions and release notes. The release workflow publishes
 only from protected `main`. It keeps Changesets versioning in the tracked Bun
@@ -204,13 +206,21 @@ PR.
 ### Existing-artifact recovery after npm processing
 
 [ADR-0066](decisions/0066-qualified-existing-npm-bootstrap-recovery.md) adds a
-closed Stack recovery path; qualification and protected execution remain pending.
+closed Stack recovery path; its completed execution is recorded above.
+[ADR-0069](decisions/0069-release-checks-existing-bootstrap-recovery.md) admits
+only the original `@agent-teams/release-checks@0.0.0` publication from
+`dae3f6565698a0f9a1dff71c2aa8c3ff2e674a73`, run `40079845789`, attempt `1`.
+Its unchanged later signature audit passed after the original processing E404;
+recovery execution, deprecation and GitHub reconciliation remain pending.
+The catalog pins its original approved tree/SRI and the exact scoped provider
+placeholder SRI; the same existing-only flow below applies with its own original
+source/invocation and scoped package tag. No new operator mode is introduced.
 Its catalog `providerPlaceholder` pins version/SRI; `recovery` pins original
 `sourceCommit`, `runId` and `runAttempt`, alongside the existing approved artifact.
 Full record plus bounded two-file archive
 qualification precedes history classification in bootstrap and ordinary release;
 `stub: true` or the `0.0.0-stage` spelling alone grants no exception. Only this
-exact pinned placeholder may use the format adapter: authenticate original SRI,
+catalog-pinned placeholder may use the format adapter: authenticate original SRI,
 bound gunzip to 16 KiB and 512-byte alignment, then append two zero tar end blocks
 solely to an inspection copy for the unchanged strict codec. Every complete
 extent must fit the original 2,560 bytes and the maximum end must equal its

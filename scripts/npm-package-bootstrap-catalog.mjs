@@ -229,6 +229,18 @@ function packageKeys(value) {
   ];
 }
 
+function isReviewedReleaseChecksRecovery(value) {
+  return (
+    value.id === "release-checks" &&
+    value.name === "@agent-teams/release-checks" &&
+    value.recovery.sourceCommit === "dae3f6565698a0f9a1dff71c2aa8c3ff2e674a73" &&
+    value.recovery.runId === 40079845789 &&
+    value.recovery.runAttempt === 1 &&
+    value.providerPlaceholder.archiveIntegrity ===
+      "sha512-s3oGJ5nLk0UOUwAK72jDhUz83sdPdLwQUboUt+LrIcIOCQSsBCGM70sdI5CvOsiBy4KDtszFEvu7tw/f9Ioujg=="
+  );
+}
+
 function parseRegistryRecovery(value, label) {
   const result = {};
   if (Object.hasOwn(value, "providerPlaceholder")) {
@@ -248,8 +260,10 @@ function parseRegistryRecovery(value, label) {
   if (Object.hasOwn(value, "recovery")) {
     exactKeys(value.recovery, ["sourceCommit", "runId", "runAttempt"], `${label}.recovery`);
     if (
-      value.id !== "stack-toolchain" ||
-      value.name !== "stack-toolchain" ||
+      !(
+        (value.id === "stack-toolchain" && value.name === "stack-toolchain") ||
+        (result.providerPlaceholder && isReviewedReleaseChecksRecovery(value))
+      ) ||
       value.state === "candidate" ||
       !GIT_OBJECT.test(value.recovery.sourceCommit) ||
       !Number.isSafeInteger(value.recovery.runId) ||
@@ -257,7 +271,9 @@ function parseRegistryRecovery(value, label) {
       value.recovery.runAttempt !== 1 ||
       !result.providerPlaceholder
     ) {
-      fail(`${label}.recovery must identify the reviewed Stack bootstrap publication.`);
+      fail(
+        `${label}.recovery must identify a reviewed Stack or exact Release Checks bootstrap publication.`,
+      );
     }
     result.recovery = Object.freeze({ ...value.recovery });
   }

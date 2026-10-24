@@ -1,0 +1,31 @@
+{
+  "name": "@agent-teams/release-checks",
+  "version": "0.0.0-stage",
+  "_id": "@agent-teams/release-checks@0.0.0-stage",
+  "stub": true,
+  "maintainers": [
+    {
+      "name": "ilyazelenko",
+      "email": "iliyazelenkog@gmail.com"
+    }
+  ],
+  "dist": {
+    "shasum": "f8ee1d553934870acdbb1f63f1d05a0ec52d42a8",
+    "tarball": "https://registry.npmjs.org/@agent-teams/release-checks/-/release-checks-0.0.0-stage.tgz",
+    "fileCount": 2,
+    "integrity": "sha512-s3oGJ5nLk0UOUwAK72jDhUz83sdPdLwQUboUt+LrIcIOCQSsBCGM70sdI5CvOsiBy4KDtszFEvu7tw/f9Ioujg==",
+    "signatures": [
+      {
+        "sig": "MEUCIQDBe+uh/RdGORqRRcxQ0JOiTyr/UoP2qqfdjavcOiMVRAIgCBe2hzCqXRjwkXP0dlRmlMaix7hiKA0PDy3WQDa+gEE=",
+        "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+      }
+    ],
+    "unpackedSize": 349
+  },
+  "_npmUser": {
+    "name": "ilyazelenko",
+    "email": "iliyazelenkog@gmail.com"
+  },
+  "description": "Temporary package placeholder for staged publishing",
+  "directories": {}
+}

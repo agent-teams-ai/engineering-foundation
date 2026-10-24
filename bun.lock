@@ -145,7 +145,7 @@
         "typescript": "catalog:",
       },
       "peerDependencies": {
-        "@agent-teams/engineering-foundation": "workspace:^1.8.0 || ^2.0.0",
+        "@agent-teams/engineering-foundation": "workspace:^1.8.0 || ^2.0.0 || ^3.0.0",
       },
       "optionalPeers": [
         "@agent-teams/engineering-foundation",

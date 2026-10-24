@@ -2828,6 +2828,52 @@ test("Bun release lock admits only exact public version projection and legacy ab
   assert.match(releaseBunLockViolations(base, undefined, releaseBunVersions)[0], /preserve/u);
 });
 
+test("Bun release lock preserves a separately selected registry package during its source release", () => {
+  const base = readFileSync(join(repositoryRoot, "bun.lock"));
+  const stack = {
+    root: "packages/stack-toolchain",
+    name: "stack-toolchain",
+    baseVersion: "0.1.0",
+    headVersion: "0.1.1",
+  };
+  assert.deepEqual(releaseBunLockViolations(base, base, [stack]), []);
+  assert.deepEqual(
+    releaseBunLockViolations(base, base, [
+      { ...stack, baseVersion: "0.1.1", headVersion: "0.1.2" },
+    ]),
+    [],
+  );
+  for (const changed of [{ ...stack, name: "absent-package" }]) {
+    assert.match(releaseBunLockViolations(base, base, [changed])[0], /preimages/u);
+  }
+  const text = base.toString("utf8");
+  const changedArchive = Buffer.from(
+    text.replace('["stack-toolchain@0.1.0",', '["stack-toolchain@0.1.1",'),
+  );
+  assert.match(releaseBunLockViolations(base, changedArchive, [stack])[0], /only the exact/u);
+  const missingPin = Buffer.from(text.replace('        "stack-toolchain": "0.1.0",\n', ""));
+  assert.match(releaseBunLockViolations(missingPin, missingPin, [stack])[0], /preimages/u);
+  const registryLine = text.split("\n").find((line) => line.startsWith('    "stack-toolchain": ['));
+  assert.ok(registryLine);
+  for (const invalid of [
+    text.replace(registryLine, `${registryLine}\n${registryLine}`),
+    text.replace(
+      registryLine,
+      registryLine.replace('"stack-toolchain@0.1.0"', '"stack-toolchain@0.1.1"'),
+    ),
+    text.replace(registryLine, registryLine.replace(/sha512-[A-Za-z0-9+/=]+/u, "sha512-invalid")),
+    text.replace('    "packages/ci-input-proof": {', '    "packages/stack-toolchain": {'),
+    text.replace(
+      '      "name": "@agent-teams/ci-input-proof",',
+      '      "name": "stack-toolchain",',
+    ),
+  ]) {
+    assert.notEqual(invalid, text);
+    const bytes = Buffer.from(invalid);
+    assert.match(releaseBunLockViolations(bytes, bytes, [stack])[0], /preimages/u);
+  }
+});
+
 test("Bun release lock rejects graph, integrity and private workspace drift", () => {
   const base = releaseBunLockFixture();
   const head = releaseBunLockFixture("1.10.0", "0.5.1").toString("utf8");

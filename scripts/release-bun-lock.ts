@@ -38,6 +38,52 @@ function workspaceAnchor(value: ReleasePackageVersion, version: string): string 
   );
 }
 
+function retainedRegistrySelection(source: string, value: ReleasePackageVersion): boolean {
+  // A same-named package may deliberately be consumed from npm rather than
+  // linked as a workspace. Its immutable registry selection is not versioned.
+  const rootStart = `${canonicalPrefix}    "": {\n`;
+  if (!source.startsWith(rootStart)) {
+    return false;
+  }
+  const rootEnd = source.indexOf("\n    },\n", rootStart.length);
+  const root = source.slice(rootStart.length, rootEnd);
+  const dependencyStart = root.indexOf('      "devDependencies": {\n');
+  const dependencyEnd = root.indexOf("\n      },", dependencyStart);
+  if (rootEnd < 0 || dependencyStart < 0 || dependencyEnd < 0) {
+    return false;
+  }
+  const dependencies = root.slice(dependencyStart, dependencyEnd + 1);
+  const dependencyPrefix = `        ${JSON.stringify(value.name)}: `;
+  const pins = dependencies.split("\n").filter((line) => line.startsWith(dependencyPrefix));
+  const pin =
+    pins.length === 1 && pins[0]!.endsWith(",") ? pins[0]!.slice(dependencyPrefix.length, -1) : "";
+  if (!/^"[^"\\]+"$/u.test(pin) || !versionToken.test(pin.slice(1, -1))) {
+    return false;
+  }
+  const selectedVersion = pin.slice(1, -1);
+  const registryStart = source.indexOf('\n  "packages": {\n');
+  if (
+    registryStart < 0 ||
+    source.includes(`\n    ${JSON.stringify(value.root)}: {\n`) ||
+    source.slice(0, registryStart).includes(`\n      "name": ${JSON.stringify(value.name)},\n`)
+  ) {
+    return false;
+  }
+  const key = `    ${JSON.stringify(value.name)}: `;
+  const prefix = `${key}[${JSON.stringify(`${value.name}@${selectedVersion}`)}, "", {`;
+  const entries = source
+    .slice(registryStart)
+    .split("\n")
+    .filter((line) => line.startsWith(key));
+  if (entries.length !== 1 || !entries[0]!.startsWith(prefix)) {
+    return false;
+  }
+  const integrity = /\}, "sha512-([A-Za-z0-9+/]{86}==)"\],$/u.exec(entries[0]!);
+  return (
+    integrity !== null && Buffer.from(integrity[1]!, "base64").toString("base64") === integrity[1]
+  );
+}
+
 function projectWorkspaceVersions(
   source: string,
   versions: readonly ReleasePackageVersion[],
@@ -56,6 +102,9 @@ function projectWorkspaceVersions(
     names.add(value.name);
     const before = workspaceAnchor(value, value.baseVersion);
     const index = source.indexOf(before);
+    if (index < 0 && retainedRegistrySelection(source, value)) {
+      continue;
+    }
     if (index < 0 || source.lastIndexOf(before) !== index) {
       return undefined;
     }

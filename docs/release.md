@@ -210,8 +210,15 @@ closed Stack recovery path; its completed execution is recorded above.
 [ADR-0069](decisions/0069-release-checks-existing-bootstrap-recovery.md) admits
 only the original `@agent-teams/release-checks@0.0.0` publication from
 `dae3f6565698a0f9a1dff71c2aa8c3ff2e674a73`, run `40079845789`, attempt `1`.
-Its unchanged later signature audit passed after the original processing E404;
-recovery execution, deprecation and GitHub reconciliation remain pending.
+Its unchanged later signature audit passed after the original processing E404.
+Existing-artifact recovery `40086846587`, attempt `1`, completed on operating
+main `6577d27c72486e6ab9b20cce665078e3aa473092`: canonical provenance,
+deprecation and GitHub prerelease reconciliation passed without republishing.
+The temporary token was revoked, its environment secret removed and bootstrap
+activation disabled. The npm Trusted Publisher now identifies this repository's
+`release.yml` without an environment, with direct publishing allowed. Its first
+ordinary OIDC publication remains required to validate that connection; the
+deprecated `0.0.0` is not a supported release.
 The catalog pins its original approved tree/SRI and the exact scoped provider
 placeholder SRI; the same existing-only flow below applies with its own original
 source/invocation and scoped package tag. No new operator mode is introduced.

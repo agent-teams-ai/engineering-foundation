@@ -12,6 +12,10 @@ import type {
 import type { ChangesetsReleasePlan } from "./npm-package-bootstrap-release-plan.mts";
 import { PUBLISHABLE_PACKAGES } from "./publishable-packages.mjs";
 import {
+  publicApiArtifactBaselineAnchorPath,
+  publicApiBaselineAnchorPath,
+} from "../packages/engineering-foundation/src/capabilities/public-api-compatibility/application/model/public-api.ts";
+import {
   readReleaseGitFile,
   releaseJsonDigest,
   releaseObject,
@@ -246,6 +250,20 @@ export async function permittedChanges(
         visit(entry);
       }
     } else if (value !== null && typeof value === "object") {
+      const record = value as Record<string, unknown>;
+      const packageName = record["packageName"];
+      if (
+        typeof packageName === "string" &&
+        packages.some((pkg) => pkg.name === packageName && pkg.classification === "public") &&
+        record["releasedBaselinePath"] === publicApiBaselineAnchorPath(packageName)
+      ) {
+        const artifactPath = publicApiArtifactBaselineAnchorPath(packageName);
+        // Only retained source-owned sidecars qualify; generated output cannot
+        // authorize a new artifact baseline or another package's destination.
+        if (tree.has(artifactPath)) {
+          destinations.add(artifactPath);
+        }
+      }
       for (const [key, entry] of Object.entries(value)) {
         if (
           key === "releasedBaselinePath" &&

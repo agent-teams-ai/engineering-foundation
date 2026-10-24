@@ -120,6 +120,48 @@ async function version(candidate: FrozenReleaseCandidate): Promise<void> {
   );
 }
 
+void test("artifact sidecar permissions come only from retained owning package baseline anchors", async () => {
+  const { root } = await fixture();
+  try {
+    const anchor = "architecture/public-api/engineering-foundation";
+    const sidecar = `${anchor}.artifacts.json`;
+    await json(root, sidecar, { retained: true });
+    await json(root, "architecture/public-api/unowned.artifacts.json", { retained: true });
+    const policy = "architecture/foundation/public-api-compatibility.yaml";
+    await json(root, policy, {
+      packages: [{ packageName, releasedBaselinePath: `${anchor}.json` }],
+    });
+    await git(root, "add", ".");
+    await git(root, "commit", "-m", "test: retained artifact baseline owner");
+    const accepted = await freezeReleaseCandidate(root);
+    const permission = accepted.expected.permittedChanges.find((entry) => entry.path === sidecar);
+    assert.equal(permission?.classification, "baseline");
+    assert.equal(permission?.kind, "modified");
+    assert.equal(permission?.contentAuthority, "foundation:released-baseline");
+    assert.equal(
+      accepted.expected.permittedChanges.some((entry) =>
+        entry.path.endsWith("unowned.artifacts.json"),
+      ),
+      false,
+    );
+    for (const record of [
+      { packageName, releasedBaselinePath: "architecture/public-api/unowned.json" },
+      { packageName: "@qualification/unknown", releasedBaselinePath: `${anchor}.json` },
+    ]) {
+      await json(root, policy, { packages: [record] });
+      await git(root, "add", ".");
+      await git(root, "commit", "-m", "test: mismatched artifact baseline owner");
+      const rejected = await freezeReleaseCandidate(root);
+      assert.equal(
+        rejected.expected.permittedChanges.some((entry) => entry.path === sidecar),
+        false,
+      );
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 void test("real engine output is checked before baseline writes and independently at PR head/base", async () => {
   const { root, sourceSha } = await fixture();
   const environment = { ...process.env };

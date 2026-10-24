@@ -180,6 +180,8 @@ test("bootstrap catalog is closed, data-only, and retains retired authorities", 
   const pendingReleaseChecks = pendingCatalog.packages.find(({ id }) => id === "release-checks");
   pendingReleaseChecks.state = "candidate";
   pendingReleaseChecks.approval = null;
+  delete pendingReleaseChecks.providerPlaceholder;
+  delete pendingReleaseChecks.recovery;
   const candidateCatalog = parseBootstrapCatalog(pendingCatalog);
   assert.throws(
     () =>
@@ -1296,6 +1298,8 @@ function compatibilityCatalog(state = "candidate") {
   const pending = structuredClone(bootstrapPackageById("release-checks"));
   pending.state = state;
   pending.approval = state === "candidate" ? null : structuredClone(mcpProfile.approval);
+  delete pending.providerPlaceholder;
+  delete pending.recovery;
   value.packages = [structuredClone(authoringProfile), pending, ...value.packages];
   return parseBootstrapCatalog(value);
 }

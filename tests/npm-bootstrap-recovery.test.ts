@@ -243,55 +243,202 @@ void test("existing-only recovery downloads the approved archive; absence, drift
   assert.throws(() => publishedBootstrapCommit(profile, "foreign"));
 });
 
+void test("Release Checks admits only its exact publication and qualifies scoped history without absent fallback", async (context) => {
+  const recoveryCase = recoveryProfile(bootstrapPackageById("release-checks", { approved: true }));
+  assert.deepEqual(recoveryCase.recovery, {
+    sourceCommit: "dae3f6565698a0f9a1dff71c2aa8c3ff2e674a73",
+    runId: 40079845789,
+    runAttempt: 1,
+  });
+  for (const [key, replacement] of [
+    ["id", "foreign"],
+    ["name", "@agent-teams/foreign"],
+    ["sourceCommit", "a".repeat(40)],
+    ["runId", 40079845790],
+    ["runAttempt", 2],
+    ["archiveIntegrity", recoveryCase.approval.archiveIntegrity],
+  ] as const) {
+    const catalog = structuredClone(NPM_PACKAGE_BOOTSTRAP);
+    const selected = object(
+      catalog.packages.find((entry: unknown) => object(entry).id === recoveryCase.id),
+    );
+    const target = ["id", "name"].includes(key)
+      ? selected
+      : key === "archiveIntegrity"
+        ? object(selected.providerPlaceholder)
+        : object(selected.recovery);
+    target[key] = replacement;
+    assert.throws(() => parseBootstrapCatalog(catalog), /reviewed Stack or exact Release Checks/u);
+  }
+  const placeholder = await readFile(new URL("release-checks-provider-placeholder.tgz", fixture));
+  const releaseArchive = await readFile(new URL("release-checks-0.0.0.tgz", fixture));
+  const holdingVersion = stageRecord(
+    JSON.parse(
+      await readFile(new URL("release-checks-provider-placeholder.json", fixture), "utf8"),
+    ),
+  );
+  const metadata = () => ({
+    versions: {
+      "0.0.0-stage": structuredClone(holdingVersion),
+      "0.0.0": {
+        name: recoveryCase.name,
+        version: "0.0.0",
+        dist: { integrity: recoveryCase.approval.archiveIntegrity },
+      },
+    } as Record<string, unknown>,
+    "dist-tags": { bootstrap: "0.0.0", latest: "0.0.0" },
+  });
+  const fetchFor =
+    (p = metadata(), bytes = releaseArchive, holding = placeholder): typeof fetch =>
+    async (input) => {
+      const url = input instanceof URL ? input.href : typeof input === "string" ? input : input.url;
+      if (url === holdingVersion.dist.tarball) {
+        return new Response(holding);
+      }
+      if (url.endsWith("/release-checks-0.0.0.tgz")) {
+        return new Response(bytes);
+      }
+      return new Response(JSON.stringify(p));
+    };
+  const live = await livePackageEvidence(recoveryCase, fetchFor());
+  const ordinary = await registryPackageMetadata({ name: recoveryCase.name }, fetchFor());
+  assert.deepEqual(live?.metadata.versions, ["0.0.0"]);
+  assert.deepEqual(ordinary.providerPlaceholders, live?.metadata.providerPlaceholders);
+  const root = await mkdtemp(join(tmpdir(), "TEST-release-checks-existing-"));
+  context.after(() => rm(root, { recursive: true, force: true }));
+  const prepared = await prepareExistingBootstrap(
+    recoveryCase,
+    recoveryCase.approval.packageTree,
+    join(root, "good"),
+    fetchFor(),
+  );
+  assert.deepEqual(await readFile(prepared.archivePath), releaseArchive);
+  const stageOnly = metadata();
+  delete stageOnly.versions["0.0.0"];
+  await assert.rejects(
+    prepareExistingBootstrap(
+      recoveryCase,
+      recoveryCase.approval.packageTree,
+      join(root, "absent"),
+      fetchFor(stageOnly),
+    ),
+    /publication is forbidden/u,
+  );
+  await assert.rejects(
+    prepareExistingBootstrap(
+      recoveryCase,
+      recoveryCase.approval.packageTree,
+      join(root, "404"),
+      async () => new Response("", { status: 404 }),
+    ),
+    /publication is forbidden/u,
+  );
+  await assert.rejects(
+    prepareExistingBootstrap(
+      recoveryCase,
+      recoveryCase.approval.packageTree,
+      join(root, "drift"),
+      fetchFor(metadata(), Buffer.from("changed real archive")),
+    ),
+    /reviewed integrity/u,
+  );
+  const tagged = metadata();
+  tagged["dist-tags"].latest = "0.0.0-stage";
+  const foreign = metadata();
+  object(foreign.versions["0.0.0-stage"])["_id"] = "foreign@0.0.0-holdingVersion";
+  for (const p of [tagged, foreign]) {
+    await assert.rejects(livePackageEvidence(recoveryCase, fetchFor(p)), /unqualified/u);
+  }
+  await assert.rejects(
+    livePackageEvidence(
+      recoveryCase,
+      fetchFor(metadata(), releaseArchive, Buffer.from("changed holding archive")),
+    ),
+    /unqualified/u,
+  );
+  const extra = metadata();
+  extra.versions["0.1.0-foreign"] = {};
+  await assert.rejects(
+    prepareExistingBootstrap(
+      recoveryCase,
+      recoveryCase.approval.packageTree,
+      join(root, "extra"),
+      fetchFor(extra),
+    ),
+    /publication is forbidden/u,
+  );
+});
+
 void test("signed invocation is an optional added constraint with the old verified return shape unchanged", () => {
-  const artifact = {
-    ...stackToolchain,
-    version: "0.0.0",
-    integrity: profile.approval.archiveIntegrity,
-  };
-  const provenance = artifactProvenance(artifact);
-  provenance.commit = profile.recovery.sourceCommit;
-  provenance.workflow = profile.provenance.workflowPath;
-  const expectedSource = { ...source, workflow: profile.provenance.workflowPath };
-  const evidence = auditEvidence(artifact, provenance);
-  const verified = evidence.verified[0];
-  const bundle = verified.attestationBundles[1].bundle!;
-  const statement = object(
-    JSON.parse(Buffer.from(bundle.dsseEnvelope.payload, "base64").toString()),
-  );
-  const invocation =
-    "https://github.com/agent-teams-ai/engineering-foundation/actions/runs/39774275653/attempts/1";
-  object(statement.predicate).runDetails = { metadata: { invocationId: invocation } };
-  bundle.dsseEnvelope.payload = Buffer.from(JSON.stringify(statement)).toString("base64");
-  const original = verifiedProvenanceFromNpmAudit(evidence, artifact, expectedSource);
-  assert.equal(
-    assertProvenanceBinding({
-      auditEvidence: evidence,
-      expectedCommit: profile.recovery.sourceCommit,
-      profile,
-    }),
-    profile.recovery.sourceCommit,
-  );
-  assert.throws(
-    () =>
-      assertProvenanceBinding({ auditEvidence: evidence, expectedCommit: "b".repeat(40), profile }),
-    /closed publication authority/u,
-  );
-  assert.deepEqual(
-    verifiedProvenanceFromNpmAudit(evidence, artifact, {
-      ...expectedSource,
-      expectedInvocation: invocation,
-    }),
-    original,
-  );
-  assert.throws(
-    () =>
+  for (const recoveryCase of [
+    recoveryProfile(bootstrapPackageById("stack-toolchain")),
+    recoveryProfile(bootstrapPackageById("release-checks")),
+  ]) {
+    const artifact = {
+      ...stackToolchain,
+      name: recoveryCase.name,
+      version: "0.0.0",
+      integrity: recoveryCase.approval.archiveIntegrity,
+    };
+    const provenance = artifactProvenance(artifact);
+    provenance.commit = recoveryCase.recovery.sourceCommit;
+    provenance.workflow = recoveryCase.provenance.workflowPath;
+    const expectedSource = { ...source, workflow: recoveryCase.provenance.workflowPath };
+    const evidence = auditEvidence(artifact, provenance);
+    const verified = evidence.verified[0];
+    const bundle = verified.attestationBundles[1].bundle!;
+    const statement = object(
+      JSON.parse(Buffer.from(bundle.dsseEnvelope.payload, "base64").toString()),
+    );
+    const invocation = `https://github.com/agent-teams-ai/engineering-foundation/actions/runs/${recoveryCase.recovery.runId}/attempts/${recoveryCase.recovery.runAttempt}`;
+    object(statement.predicate).runDetails = { metadata: { invocationId: invocation } };
+    bundle.dsseEnvelope.payload = Buffer.from(JSON.stringify(statement)).toString("base64");
+    const original = verifiedProvenanceFromNpmAudit(evidence, artifact, expectedSource);
+    assert.equal(
+      assertProvenanceBinding({
+        auditEvidence: evidence,
+        expectedCommit: recoveryCase.recovery.sourceCommit,
+        profile: recoveryCase,
+      }),
+      recoveryCase.recovery.sourceCommit,
+    );
+    assert.throws(
+      () =>
+        assertProvenanceBinding({
+          auditEvidence: evidence,
+          expectedCommit: "b".repeat(40),
+          profile: recoveryCase,
+        }),
+      /closed publication authority/u,
+    );
+    assert.deepEqual(
       verifiedProvenanceFromNpmAudit(evidence, artifact, {
         ...expectedSource,
-        expectedInvocation: `${invocation}0`,
+        expectedInvocation: invocation,
       }),
-    /invocation/u,
-  );
+      original,
+    );
+    assert.throws(
+      () =>
+        verifiedProvenanceFromNpmAudit(evidence, artifact, {
+          ...expectedSource,
+          expectedInvocation: `${invocation}0`,
+        }),
+      /invocation/u,
+    );
+    const dependencies = object(object(statement.predicate).buildDefinition).resolvedDependencies;
+    assert.ok(Array.isArray(dependencies));
+    object(object(dependencies[0]).digest).gitCommit = "b".repeat(40);
+    bundle.dsseEnvelope.payload = Buffer.from(JSON.stringify(statement)).toString("base64");
+    assert.throws(
+      () => assertProvenanceBinding({ auditEvidence: evidence, profile: recoveryCase }),
+      /expected reviewed commit/u,
+    );
+    assert.equal(
+      publishedBootstrapCommit(recoveryCase, "b".repeat(40)),
+      recoveryCase.recovery.sourceCommit,
+    );
+  }
 });
 
 void test("availability waits past the former25s window and stops at an absolute deadline including a hung body", async () => {

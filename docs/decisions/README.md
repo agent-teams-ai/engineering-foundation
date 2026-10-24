@@ -11,6 +11,8 @@ editing the accepted decision.
 
 ## Accepted
 
+- [ADR-0069: Release Checks Existing Bootstrap Recovery](0069-release-checks-existing-bootstrap-recovery.md)
+
 - [ADR-0068: Release Checks Package Admission](0068-release-checks-package-admission.md)
 - [ADR-0067: Foundation 3 Preset Export Removal](0067-foundation-three-preset-export-removal.md)
 - [ADR-0066: Qualified Existing npm Bootstrap Recovery](0066-qualified-existing-npm-bootstrap-recovery.md)

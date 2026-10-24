@@ -326,6 +326,11 @@
       "id": "ADR-0068",
       "path": "docs/decisions/0068-release-checks-package-admission.md",
       "immutableDigest": "sha256:07027f445a8f61324e2999a892372c19696878b7d7732d653d56b73ec7217d66"
+    },
+    {
+      "id": "ADR-0069",
+      "path": "docs/decisions/0069-release-checks-existing-bootstrap-recovery.md",
+      "immutableDigest": "sha256:469b38de29e5b8e231a6b90e629ae7493d8ce6ba113a972b0d251c72bd039fd9"
     }
   ]
 }

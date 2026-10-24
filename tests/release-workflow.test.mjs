@@ -2829,7 +2829,9 @@ test("Bun release lock admits only exact public version projection and legacy ab
 });
 
 test("Bun release lock preserves a separately selected registry package during its source release", () => {
-  const base = readFileSync(join(repositoryRoot, "bun.lock"));
+  const source = spawnSync("git", ["show", "HEAD:bun.lock"], { cwd: repositoryRoot });
+  assert.equal(source.status, 0, source.stderr.toString());
+  const base = source.stdout;
   const stack = {
     root: "packages/stack-toolchain",
     name: "stack-toolchain",

@@ -11,6 +11,8 @@ editing the accepted decision.
 
 ## Accepted
 
+- [ADR-0070: Bounded Managed Generation3 Execution](0070-bounded-managed-generation3-execution.md)
+
 - [ADR-0069: Release Checks Existing Bootstrap Recovery](0069-release-checks-existing-bootstrap-recovery.md)
 
 - [ADR-0068: Release Checks Package Admission](0068-release-checks-package-admission.md)

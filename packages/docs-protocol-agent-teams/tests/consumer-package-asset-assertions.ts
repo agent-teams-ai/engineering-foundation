@@ -60,6 +60,7 @@ export async function assertCanonicalPackageAssets(
       "docs-2026-09-16-stable25",
       "docs-2026-09-15-stable24",
       "docs-2026-09-24-stable28",
+      "docs-2026-10-03-stable31",
     ],
   );
   const loadedTransitions = await loadPackageConsumerAssetCatalog();

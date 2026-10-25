@@ -441,6 +441,17 @@ export function describeCanonicalConsumerAssets(
   readonly callerWorkflowDigest: ConsumerIntegrationDigest;
   readonly assetCatalogDigest: ConsumerIntegrationDigest;
   readonly transitionCatalogDigest: ConsumerIntegrationDigest;
+};
+export function describeCanonicalConsumerAssets(
+  cohort:
+    | QualifiedDocsCohortBindingV1
+    | QualifiedDocsCohortBindingV2
+    | ManagedSuccessorProfile["cohort"],
+): {
+  readonly skillDigest: ConsumerIntegrationDigest;
+  readonly callerWorkflowDigest: ConsumerIntegrationDigest;
+  readonly assetCatalogDigest: ConsumerIntegrationDigest;
+  readonly transitionCatalogDigest: ConsumerIntegrationDigest;
 } {
   const skillDigest = digestBytes(Buffer.from(CANONICAL_DOCS_SKILL_V2, "utf8"));
   const callerWorkflow =

@@ -301,3 +301,14 @@ export interface ConsumerUpgradeAuthorityV2 {
   readonly revision: string;
   readonly cohort: QualifiedDocsCohortBindingV2;
 }
+
+/** Selected by the current protected authority reader, after lifecycle and enrollment checks. */
+export interface ConsumerUpgradeAuthorityV3 {
+  readonly repository: "agent-teams-ai/.github";
+  readonly path: "governance/docs-qualified-cohorts.json";
+  readonly revision: string;
+  readonly cohort: ManagedSuccessorProfile["cohort"] & {
+    readonly recordDigest: ConsumerIntegrationDigest;
+    readonly qualificationEventDigest: ConsumerIntegrationDigest;
+  };
+}

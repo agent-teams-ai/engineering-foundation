@@ -207,6 +207,22 @@
           "decision": "docs/decisions/0050-exact-json-primitive-admission.md",
           "consumers": [
             {
+              "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-committed-restoration.ts",
+              "owner": "docs-protocol-agent-teams/consumer-integration"
+            },
+            {
+              "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-current-selection.ts",
+              "owner": "docs-protocol-agent-teams/consumer-integration"
+            },
+            {
+              "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-restoration-preparation.ts",
+              "owner": "docs-protocol-agent-teams/consumer-integration"
+            },
+            {
+              "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-restoration.ts",
+              "owner": "docs-protocol-agent-teams/consumer-integration"
+            },
+            {
               "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/managed-attempt-support.ts",
               "owner": "docs-protocol-agent-teams/consumer-integration"
             },
@@ -349,6 +365,14 @@
           "role": "domain",
           "decision": "docs/decisions/0053-restoration-strict-json-consumer-admission.md",
           "consumers": [
+            {
+              "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-current-selection.ts",
+              "owner": "docs-protocol-agent-teams/consumer-integration"
+            },
+            {
+              "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-restoration-preparation.ts",
+              "owner": "docs-protocol-agent-teams/consumer-integration"
+            },
             {
               "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-runtime-install.ts",
               "owner": "docs-protocol-agent-teams/consumer-integration"
@@ -850,6 +874,9 @@
             }
           ],
           "testRoots": [
+            "packages/docs-protocol-agent-teams/tests/consumer-committed-restoration.test.ts",
+            "packages/docs-protocol-agent-teams/tests/consumer-managed-restoration.test.ts",
+            "packages/docs-protocol-agent-teams/tests/consumer-upgrade-generation3.test.ts",
             "packages/docs-protocol-agent-teams/tests/canonical-managed-state-v2.test.mjs",
             "packages/docs-protocol-agent-teams/tests/consumer-integration-authority-response-streaming.test.mjs",
             "packages/docs-protocol-agent-teams/tests/consumer-integration-characterization.test.mjs",

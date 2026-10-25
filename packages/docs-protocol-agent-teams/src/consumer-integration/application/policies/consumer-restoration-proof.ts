@@ -75,9 +75,22 @@ export function assertFullyReplacedReceipt(
 export function inverseRestorationPlan(
   plan: KnownFileTransactionPlanV1,
 ): KnownFileTransactionPlanV1 {
+  return inverseBoundedRestorationPlan(plan, 8);
+}
+
+export function inverseManagedGenerationPlan(
+  plan: KnownFileTransactionPlanV1,
+): KnownFileTransactionPlanV1 {
+  return inverseBoundedRestorationPlan(plan, 9);
+}
+
+function inverseBoundedRestorationPlan(
+  plan: KnownFileTransactionPlanV1,
+  maximum: number,
+): KnownFileTransactionPlanV1 {
   assertKnownFileTransactionPlan(plan);
   requireRestoration(
-    plan.operations.length > 0 && plan.operations.length <= 8,
+    plan.operations.length > 0 && plan.operations.length <= maximum,
     "the original replacement set must be nonempty and bounded.",
   );
   return compileKnownFileTransactionPlan({
@@ -109,7 +122,9 @@ export function inverseRestorationPlan(
   });
 }
 
-function assertRestorationArtifactShapes(proof: ConsumerRestorationIntent): void {
+function assertRestorationArtifactShapes(
+  proof: Pick<ConsumerRestorationIntent, "controller" | "kernel">,
+): void {
   for (const [artifact, name] of [
     [proof.controller, "@agent-teams/docs-protocol-agent-teams"],
     [proof.kernel, "@agent-teams/repository-mutation"],
@@ -126,7 +141,12 @@ function assertRestorationArtifactShapes(proof: ConsumerRestorationIntent): void
   }
 }
 
-function assertRestorationIdentities(proof: ConsumerRestorationIntent): void {
+export function assertRestorationIdentities(
+  proof: Pick<
+    ConsumerRestorationIntent,
+    "consumer" | "controller" | "kernel" | "sourceRevision" | "sourceTree" | "sourceInventoryDigest"
+  >,
+): void {
   exactRestorationKeys(proof.consumer, ["root", "device", "inode", "birthtimeNs", "repository"]);
   const repository = exactRestorationKeys(proof.consumer.repository, [
     "provider",

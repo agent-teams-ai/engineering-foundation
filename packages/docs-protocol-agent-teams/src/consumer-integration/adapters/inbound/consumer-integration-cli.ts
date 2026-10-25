@@ -10,66 +10,19 @@ import {
   assertConsumerUpgradeExecutionSchema,
 } from "../consumer-integration-schema-validator.js";
 
-class ConsumerCliInputError extends Error {
-  readonly code = "DOCS_CONSUMER_CLI_INVALID";
-}
-
-const COHORT_ID = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/u;
-const SHA256 = /^sha256:[0-9a-f]{64}$/u;
-const GIT_SHA = /^(?!0{40}$)[0-9a-f]{40}$/u;
-const MAXIMUM_ARGUMENT_LENGTH = 4096;
-const MAXIMUM_ARGUMENTS = 32;
-
-class Arguments {
-  readonly #values: string[];
-  readonly #used = new Set<number>();
-
-  public constructor(values: readonly string[]) {
-    this.#values = [...values];
-  }
-
-  public flag(name: string): boolean {
-    const indexes = this.#values.flatMap((value, index) => (value === name ? [index] : []));
-    if (indexes.length > 1) {
-      throw new ConsumerCliInputError(`${name} may be supplied only once.`);
-    }
-    if (indexes[0] !== undefined) {
-      this.#used.add(indexes[0]);
-    }
-    return indexes.length === 1;
-  }
-
-  public one(name: string, required = false): string | undefined {
-    const indexes = this.#values.flatMap((value, index) => (value === name ? [index] : []));
-    if (indexes.length > 1) {
-      throw new ConsumerCliInputError(`${name} may be supplied only once.`);
-    }
-    const index = indexes[0];
-    if (index === undefined) {
-      if (required) {
-        throw new ConsumerCliInputError(`${name} is required.`);
-      }
-      return undefined;
-    }
-    const value = this.#values[index + 1];
-    if (value === undefined || value.startsWith("--")) {
-      throw new ConsumerCliInputError(`${name} requires a value.`);
-    }
-    if (value.length > MAXIMUM_ARGUMENT_LENGTH || value.includes("\u0000")) {
-      throw new ConsumerCliInputError(`${name} contains an invalid or overlong value.`);
-    }
-    this.#used.add(index);
-    this.#used.add(index + 1);
-    return value;
-  }
-
-  public assertConsumed(): void {
-    const unknown = this.#values.filter((_value, index) => !this.#used.has(index));
-    if (unknown.length > 0) {
-      throw new ConsumerCliInputError(`Unknown consumer arguments: ${unknown.join(" ")}.`);
-    }
-  }
-}
+import {
+  Arguments,
+  ConsumerCliInputError,
+  COHORT_ID,
+  SHA256,
+  GIT_SHA,
+  MAXIMUM_ARGUMENT_LENGTH,
+  MAXIMUM_ARGUMENTS,
+} from "./consumer-cli-arguments.js";
+import {
+  executeFinalizationArguments,
+  executeRestorationArguments,
+} from "./consumer-restoration-cli.js";
 
 type ConsumerExecution =
   | ConsumerIntegrationExecutionV1
@@ -231,17 +184,23 @@ Commands:
   check                         Verify the selected Cohort without writing
   plan --to COHORT              Print a deterministic, write-free semantic plan
   apply --expect SHA256         Rebuild and apply the reviewed plan through Foundation
-  upgrade --to COHORT --target-generation 1|2  Project authority, pins, lockfile, and assets
+  upgrade --to COHORT --target-generation 1|2|3  Project authority, pins, lockfile, and assets
   restore --from V2 --to V1 --source-generation 2 --target-generation 1
           --proof PATH --expect SHA256 [--activation-only]  Restore recorded V1
   finalize --from V1 --to V2 --source-generation 1 --target-generation 2
            --preparation PATH --expect SHA256 --proof PATH  Apply/retry selected migration
+  restore --from V3 --to V2 --source-generation 3 --target-generation 2
+          --preparation PATH --expect SHA256  Restore the selected original generation2
+  finalize --from V2 --to V3 --source-generation 2 --target-generation 3
+           --preparation PATH --expect SHA256 --proof PATH  Resume retained controller
+  restore ... --current-revision SHA --current-tree SHA --selection PATH
+          [--selection-expect SHA256]  Admit/resume rollback from a clean committed target
   recover                       Recover the Foundation transaction (profile not read)
 
 Options:
   --consumer PATH               Git repository root (default: .)
   --authority-revision SHA      Optional exact protected .github revision
-  --source-generation 1 --restoration-proof PATH --prepare  Stage and select before mutation
+  --source-generation 1|2 --restoration-proof PATH --prepare  Stage and select before mutation
   --target-lockfile PATH --target-lockfile-sha256 sha256:HEX  Select exact external lock for 1->2 preparation
   --json                        Emit one bounded versioned JSON envelope
   --help                        Show this help
@@ -267,16 +226,16 @@ async function executeUpgradeArguments(
   }
   const authorityRevision = upgradeAuthorityRevision(args);
   const generation = args.one("--target-generation", true)!;
-  if (generation !== "1" && generation !== "2") {
-    throw new ConsumerCliInputError("--target-generation must be exactly 1 or 2.");
+  if (generation !== "1" && generation !== "2" && generation !== "3") {
+    throw new ConsumerCliInputError("--target-generation must be exactly 1, 2 or 3.");
   }
   const restorationProofPath = args.one("--restoration-proof");
   const prepare = args.flag("--prepare");
   const targetLockfilePath = args.one("--target-lockfile");
   const targetLockfileSha256 = args.one("--target-lockfile-sha256");
   const sourceGeneration = args.one("--source-generation");
-  if (sourceGeneration !== undefined && sourceGeneration !== "1") {
-    throw new ConsumerCliInputError("Restorable upgrade requires --source-generation 1.");
+  if (sourceGeneration !== undefined && !["1", "2"].includes(sourceGeneration)) {
+    throw new ConsumerCliInputError("Restorable upgrade requires --source-generation 1 or 2.");
   }
   if (targetLockfilePath !== undefined || targetLockfileSha256 !== undefined) {
     if (
@@ -302,9 +261,11 @@ async function executeUpgradeArguments(
         }),
     consumerRoot,
     to,
-    targetGeneration: Number(generation) as 1 | 2,
+    targetGeneration: Number(generation) as 1 | 2 | 3,
     prepare,
-    ...(sourceGeneration === undefined ? {} : { sourceGeneration: 1 }),
+    ...(sourceGeneration === undefined
+      ? {}
+      : { sourceGeneration: Number(sourceGeneration) as 1 | 2 }),
     ...(restorationProofPath === undefined ? {} : { restorationProofPath }),
     ...(authorityRevision === undefined ? {} : { authorityRevision }),
   });
@@ -370,65 +331,9 @@ export function createManagedConsumerCommand(operations: ManagedConsumerOperatio
       } else if (command === "upgrade") {
         execution = await executeUpgradeArguments(args, consumerRoot, operations);
       } else if (command === "finalize") {
-        const from = args.one("--from", true)!;
-        const to = args.one("--to", true)!;
-        const sourceGeneration = args.one("--source-generation", true);
-        const targetGeneration = args.one("--target-generation", true);
-        const preparationPath = args.one("--preparation", true)!;
-        const proofPath = args.one("--proof", true)!;
-        const expect = args.one("--expect", true)!;
-        if (
-          !COHORT_ID.test(from) ||
-          !COHORT_ID.test(to) ||
-          !SHA256.test(expect) ||
-          sourceGeneration !== "1" ||
-          targetGeneration !== "2"
-        ) {
-          throw new ConsumerCliInputError(
-            "Finalize requires exact Cohorts, selected preparation and explicit generations 1->2.",
-          );
-        }
-        args.assertConsumed();
-        execution = await operations.finalize({
-          consumerRoot,
-          from,
-          to,
-          preparationPath,
-          proofPath,
-          expect,
-          sourceGeneration: 1,
-          targetGeneration: 2,
-        });
+        execution = await executeFinalizationArguments(args, consumerRoot, operations);
       } else if (command === "restore") {
-        const from = args.one("--from", true)!;
-        const to = args.one("--to", true)!;
-        const sourceGeneration = args.one("--source-generation", true);
-        const targetGeneration = args.one("--target-generation", true);
-        const proofPath = args.one("--proof", true)!;
-        const expect = args.one("--expect", true)!;
-        const activationOnly = args.flag("--activation-only");
-        if (
-          !COHORT_ID.test(from) ||
-          !COHORT_ID.test(to) ||
-          !SHA256.test(expect) ||
-          sourceGeneration !== "2" ||
-          targetGeneration !== "1"
-        ) {
-          throw new ConsumerCliInputError(
-            "Restore requires exact Cohorts, proof digest and explicit generations 2->1.",
-          );
-        }
-        args.assertConsumed();
-        execution = await operations.restore({
-          consumerRoot,
-          from,
-          to,
-          proofPath,
-          expect,
-          sourceGeneration: 2,
-          targetGeneration: 1,
-          activationOnly,
-        });
+        execution = await executeRestorationArguments(args, consumerRoot, operations);
       } else if (command === "recover") {
         args.assertConsumed();
         execution = await operations.recover({ consumerRoot });

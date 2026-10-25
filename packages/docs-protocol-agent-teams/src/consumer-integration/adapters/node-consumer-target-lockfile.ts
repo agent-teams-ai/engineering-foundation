@@ -12,6 +12,7 @@ import { externalRestorationPath } from "./node-consumer-restoration-evidence.js
 import type {
   ConsumerIntegrationDesiredStateV1,
   ConsumerIntegrationDesiredStateV3,
+  ManagedSuccessorProfile,
 } from "../domain/model.js";
 import { assertQualifiedPnpmLockfileV2 } from "./pnpm-lockfile-validator-v2.js";
 import { assertRestorationLockScope } from "./node-consumer-restoration-lock.js";
@@ -109,7 +110,10 @@ interface ValidatedTargetLock {
 export async function validateConsumerTargetLockfile(
   bytes: Uint8Array | undefined,
   profile: Uint8Array,
-  source: ConsumerIntegrationDesiredStateV1 | ConsumerIntegrationDesiredStateV3,
+  source:
+    | ConsumerIntegrationDesiredStateV1
+    | ConsumerIntegrationDesiredStateV3
+    | ManagedSuccessorProfile,
   beforeRoot: string,
 ): Promise<ValidatedTargetLock | undefined> {
   if (bytes === undefined) {

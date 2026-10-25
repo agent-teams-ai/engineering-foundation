@@ -44,6 +44,15 @@ export function bindUnselectedCohortV3(
   candidate: UnselectedCohortV3,
   policy: PackedManagedRuntimePolicy,
 ): UnselectedCohortV3 {
+  validateCohortV3Binding(candidate, policy);
+  return candidate;
+}
+
+/** Immutable binding validation grants neither admission nor lifecycle selection. */
+export function validateCohortV3Binding(
+  candidate: Omit<UnselectedCohortV3, "lifecycleState" | "canaryRepositoryIds">,
+  policy: PackedManagedRuntimePolicy,
+): void {
   const runtime = candidate.runtime;
   const lane = policy.lanes[runtime.selectedLane];
   if (
@@ -79,5 +88,4 @@ export function bindUnselectedCohortV3(
   ) {
     throw new TypeError("Cohort v3 runtime differs from the packed managed policy lane.");
   }
-  return candidate;
 }

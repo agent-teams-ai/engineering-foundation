@@ -261,9 +261,7 @@ function cohortIssuesV3(
   desired: CurrentConsumerIntegrationDesiredState,
   historical: KnownPriorCohortCatalogEntryV2 | undefined,
 ): readonly ConsumerIntegrationIssue[] {
-  const canonical = describeCanonicalConsumerAssets(
-    desired.cohort as ConsumerIntegrationDesiredStateV3["cohort"],
-  );
+  const canonical = describeCanonicalConsumerAssets(desired.cohort);
   if (
     (canonical.skillDigest === desired.cohort.assets.skillDigest &&
       canonical.callerWorkflowDigest === desired.cohort.assets.callerWorkflowDigest &&
@@ -292,10 +290,7 @@ function planFullAssetsV3(input: {
   const skillBytes = input.historical?.skill ?? Buffer.from(CANONICAL_DOCS_SKILL_V2, "utf8");
   const callerBytes =
     input.historical?.callerWorkflow ??
-    Buffer.from(
-      canonicalCallerWorkflow(input.desired.cohort as ConsumerIntegrationDesiredStateV3["cohort"]),
-      "utf8",
-    );
+    Buffer.from(canonicalCallerWorkflow(input.desired.cohort), "utf8");
   const routeBytes = Buffer.from(canonicalManagedRoute(input.desired.skillPath), "utf8");
   const managedStateBytes =
     input.desired.schemaVersion === 3
@@ -372,7 +367,7 @@ export function compileConsumerIntegrationV3(
   const manifest = ports.packageManifest.plan({
     observation: input.snapshot.packageManifest,
     profilePath: desired.profilePath,
-    cohort: desired.cohort as ConsumerIntegrationDesiredStateV3["cohort"],
+    cohort: desired.cohort,
   });
   issues.push(...manifest.issues);
   const route = ports.agentsRoute.plan({

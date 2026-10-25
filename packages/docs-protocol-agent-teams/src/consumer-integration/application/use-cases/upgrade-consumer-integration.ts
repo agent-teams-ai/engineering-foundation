@@ -39,6 +39,23 @@ function currentUpgrade(): RestorableConsumerUpgradeExecution {
   });
 }
 
+function inspectCurrentUpgrade(
+  desired: ConsumerIntegrationDesiredState,
+  to: string,
+  targetGeneration: number,
+): RestorableConsumerUpgradeExecution {
+  if (desired.cohort.schemaVersion !== targetGeneration) {
+    return blocked(
+      issue(
+        "DOCS_CONSUMER_COHORT_GENERATION_MISMATCH",
+        to,
+        "The explicit target generation does not match the installed Cohort generation.",
+      ),
+    );
+  }
+  return currentUpgrade();
+}
+
 export function createConsumerUpgradeUseCase(ports: ConsumerUpgradePorts) {
   // oxlint-disable-next-line complexity
   return async function upgrade(
@@ -50,16 +67,7 @@ export function createConsumerUpgradeUseCase(ports: ConsumerUpgradePorts) {
     }
     const { input, source, targetGeneration } = inspected;
     if (input.desired.cohort.cohortId === options.to) {
-      if (input.desired.cohort.schemaVersion !== targetGeneration) {
-        return blocked(
-          issue(
-            "DOCS_CONSUMER_COHORT_GENERATION_MISMATCH",
-            options.to,
-            "The explicit target generation does not match the installed Cohort generation.",
-          ),
-        );
-      }
-      return currentUpgrade();
+      return inspectCurrentUpgrade(input.desired, options.to, targetGeneration);
     }
     if (input.repositoryHead === undefined) {
       return blocked(
@@ -74,6 +82,9 @@ export function createConsumerUpgradeUseCase(ports: ConsumerUpgradePorts) {
       cohortId: options.to,
       generation: targetGeneration,
       repository: input.desired.repository,
+      ...(input.desired.schemaVersion === 4 && input.desired.cohort.rollbackTo.includes(options.to)
+        ? { rollbackFrom: input.desired.cohort.cohortId }
+        : {}),
       ...(options.authorityRevision === undefined ? {} : { revision: options.authorityRevision }),
     });
     if (authority.cohort.schemaVersion !== targetGeneration) {
@@ -82,7 +93,9 @@ export function createConsumerUpgradeUseCase(ports: ConsumerUpgradePorts) {
     const supportedGeneration =
       (input.desired.schemaVersion === 1 && isAuthorityV1(authority)) ||
       (input.desired.schemaVersion === 1 && isAuthorityV2(authority)) ||
-      (input.desired.schemaVersion === 3 && isAuthorityV2(authority));
+      (input.desired.schemaVersion === 3 &&
+        (isAuthorityV2(authority) || authority.cohort.schemaVersion === 3)) ||
+      (input.desired.schemaVersion === 4 && authority.cohort.schemaVersion !== 1);
     if (!supportedGeneration) {
       return blocked(incompatibleGeneration(input.desired, authority), authority);
     }
@@ -127,6 +140,9 @@ export function createConsumerUpgradeUseCase(ports: ConsumerUpgradePorts) {
       generation: targetGeneration,
       repository: input.desired.repository,
       revision: authority.revision,
+      ...(input.desired.schemaVersion === 4 && input.desired.cohort.rollbackTo.includes(options.to)
+        ? { rollbackFrom: input.desired.cohort.cohortId }
+        : {}),
     });
     if (
       canonicalConsumerIntegrationJson(confirmedAuthority) !==
@@ -210,6 +226,26 @@ async function prepareTransition(input: {
     expectedSourceRevision: input.repositoryHead,
     expectedSourceSnapshot: input.snapshot,
   };
+  if (
+    input.current.schemaVersion !== 1 &&
+    !isAuthorityV1(input.authority) &&
+    (input.current.schemaVersion === 4 || input.authority.cohort.schemaVersion === 3)
+  ) {
+    const authority = input.authority;
+    const current = input.current;
+    return {
+      prepared: await input.sandbox.prepareManaged({
+        ...common,
+        authority,
+        current,
+        managedPreimages: managedPreimagesV2(current, input.snapshot, input.source),
+      }),
+      activateAndVerify: () =>
+        input.sandbox.activateAndVerifyManaged({ authority, consumerRoot: input.root }),
+      restoreAndVerify: () =>
+        input.sandbox.restoreAndVerifyManaged({ current, consumerRoot: input.root }),
+    };
+  }
   if (input.current.schemaVersion === 1 && isAuthorityV1(input.authority)) {
     return {
       prepared: await input.sandbox.prepareV1({

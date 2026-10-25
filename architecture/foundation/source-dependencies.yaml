@@ -475,6 +475,15 @@ boundaries:
       - packages/docs-protocol-agent-teams/src/consumer-integration/domain/model.ts
   - id: docs-protocol-agent-teams.adapters
     roots:
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/cohort-authority-lifecycle.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/cohort-rollback-authority.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/managed-generation-projectors.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-upgrade-runtime.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-committed-restoration.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-current-selection.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-restoration-preparation.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-restoration-scope.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-restoration.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/agents-route-adapter-v1.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/bounded-repository-topology.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/cohort-v2-authority-validator.ts
@@ -560,6 +569,9 @@ boundaries:
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-integration-repository.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-restoration.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-restoration-finalization.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-committed-restoration.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-restoration-preparation.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-restoration.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-upgrade-sandbox.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-upgrade-target.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/package-consumer-asset-catalog.ts
@@ -692,6 +704,12 @@ boundaries:
   - id: docs-protocol-agent-teams.tests
     dependencyMode: development
     roots:
+      - packages/docs-protocol-agent-teams/tests/consumer-committed-restoration.test.ts
+      - packages/docs-protocol-agent-teams/tests/consumer-managed-restoration.test.ts
+      - packages/docs-protocol-agent-teams/tests/consumer-upgrade-generation3-fixture.ts
+      - packages/docs-protocol-agent-teams/tests/public-managed-registry-canary-generation3-fixtures.ts
+      - packages/docs-protocol-agent-teams/tests/consumer-upgrade-generation3.test.ts
+      - packages/docs-protocol-agent-teams/tests/managed-restoration-fixture.ts
       - packages/docs-protocol-agent-teams/tests/canonical-managed-state-v2.test.mjs
       - packages/docs-protocol-agent-teams/tests/restoration-fixture-environment.ts
       - packages/docs-protocol-agent-teams/tests/managed-runtime-observation-assertions.ts

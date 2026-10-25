@@ -1,3 +1,9 @@
+import { restoreCommittedManagedConsumer } from "../adapters/node-managed-committed-restoration.js";
+import { managedRestorationRecorder } from "../adapters/node-managed-restoration-preparation.js";
+import {
+  finalizeManagedConsumerRestoration,
+  restoreManagedConsumerIntegration,
+} from "../adapters/node-managed-restoration.js";
 import { finalizeNodeConsumerRestoration } from "../adapters/node-consumer-restoration-finalization.js";
 import {
   consumerRestorationRecorder,
@@ -36,7 +42,10 @@ const upgrade = createConsumerUpgradeUseCase({
   targetLockfile: nodeConsumerTargetLockfileReader,
   assets: packageConsumerAssetCatalogReader,
   authority: githubCohortAuthorityReader,
-  restoration: consumerRestorationRecorder(githubCohortAuthorityReader),
+  restoration: {
+    ...consumerRestorationRecorder(githubCohortAuthorityReader),
+    prepareManaged: managedRestorationRecorder(githubCohortAuthorityReader),
+  },
   input: nodeConsumerIntegrationInputReader,
   planning: consumerIntegrationPlanningPorts,
   sandbox: nodeConsumerUpgradeSandbox,
@@ -73,6 +82,7 @@ export function recoverConsumerIntegration(options: {
 }
 
 export async function upgradeConsumerIntegration(options: {
+  readonly targetGeneration: 1 | 2 | 3;
   readonly consumerRoot: string;
   readonly authorityRevision?: string;
   readonly to: string;
@@ -87,8 +97,8 @@ export async function upgradeConsumerIntegration(options: {
 export function upgradeConsumerIntegrationToGeneration(options: {
   readonly consumerRoot: string;
   readonly authorityRevision?: string;
-  readonly targetGeneration: 1 | 2;
-  readonly sourceGeneration?: 1;
+  readonly targetGeneration: 1 | 2 | 3;
+  readonly sourceGeneration?: 1 | 2;
   readonly restorationProofPath?: string;
   readonly prepare?: boolean;
   readonly to: string;
@@ -97,6 +107,19 @@ export function upgradeConsumerIntegrationToGeneration(options: {
 }
 
 export function restoreConsumerIntegration(options: ConsumerRestorationOptions) {
+  if (options.sourceGeneration === 3 && "currentRevision" in options) {
+    return restoreCommittedManagedConsumer(options, {
+      authority: githubCohortAuthorityReader,
+      sandbox: nodeConsumerUpgradeSandbox,
+      planning: consumerIntegrationPlanningPorts,
+    });
+  }
+  if (options.sourceGeneration === 3) {
+    return restoreManagedConsumerIntegration(options, {
+      authority: githubCohortAuthorityReader,
+      sandbox: nodeConsumerUpgradeSandbox,
+    });
+  }
   return restoreNodeConsumerIntegration(options, {
     authority: githubCohortAuthorityReader,
     sandbox: nodeConsumerUpgradeSandbox,
@@ -104,6 +127,12 @@ export function restoreConsumerIntegration(options: ConsumerRestorationOptions) 
 }
 
 export function finalizeConsumerRestoration(options: ConsumerFinalizationOptions) {
+  if (options.sourceGeneration === 2) {
+    return finalizeManagedConsumerRestoration(options, {
+      authority: githubCohortAuthorityReader,
+      sandbox: nodeConsumerUpgradeSandbox,
+    });
+  }
   return finalizeNodeConsumerRestoration(options, {
     authority: githubCohortAuthorityReader,
     sandbox: nodeConsumerUpgradeSandbox,

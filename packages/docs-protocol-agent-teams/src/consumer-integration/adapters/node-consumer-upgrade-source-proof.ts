@@ -6,6 +6,7 @@ import type {
   ConsumerUpgradeManagedPreimagesV2,
   ConsumerIntegrationDesiredStateV1,
   ConsumerIntegrationDesiredStateV3,
+  ManagedSuccessorProfile,
   ConsumerIntegrationSnapshot,
 } from "../application-api.js";
 import { ConsumerIntegrationNodeError } from "./consumer-integration-node-error.js";
@@ -19,7 +20,10 @@ import {
   sameConsumerFileObservation,
 } from "./node-consumer-repository-files.js";
 
-type UpgradeDesiredState = ConsumerIntegrationDesiredStateV1 | ConsumerIntegrationDesiredStateV3;
+type UpgradeDesiredState =
+  | ConsumerIntegrationDesiredStateV1
+  | ConsumerIntegrationDesiredStateV3
+  | ManagedSuccessorProfile;
 const WORKSPACE_PATH = "pnpm-workspace.yaml";
 
 export async function assertCleanConsumerGitSource(
@@ -61,8 +65,12 @@ export async function assertCleanConsumerGitSource(
   return head;
 }
 
-export function allowedUpgradePaths(current: UpgradeDesiredState): ReadonlySet<string> {
+export function allowedUpgradePaths(
+  current: UpgradeDesiredState,
+  runtimeTransition = false,
+): ReadonlySet<string> {
   return new Set([
+    ...(runtimeTransition ? [".node-version"] : []),
     "AGENTS.md",
     INTEGRATION_PROFILE_PATH,
     "package.json",
@@ -116,7 +124,7 @@ function sha256(bytes: Uint8Array): `sha256:${string}` {
 }
 
 export async function resetProvedManagedAssetsV2(input: {
-  readonly current: ConsumerIntegrationDesiredStateV3;
+  readonly current: ConsumerIntegrationDesiredStateV3 | ManagedSuccessorProfile;
   readonly managedPreimages: ConsumerUpgradeManagedPreimagesV2;
   readonly stagedRoot: string;
 }): Promise<void> {

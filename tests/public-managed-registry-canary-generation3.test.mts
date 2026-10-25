@@ -34,7 +34,7 @@ import {
   successorQualificationFixture,
   type LegacyQualificationFixture,
   type SuccessorQualificationFixture,
-} from "./public-managed-registry-canary-generation3-fixtures.mts";
+} from "../packages/docs-protocol-agent-teams/tests/public-managed-registry-canary-generation3-fixtures.ts";
 
 function centralRegistrySchema() {
   return {

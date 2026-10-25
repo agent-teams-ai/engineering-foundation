@@ -8,14 +8,20 @@ import type {
   ConsumerIntegrationSnapshot,
   ConsumerUpgradeAuthorityV1,
   ConsumerUpgradeAuthorityV2,
+  ConsumerUpgradeAuthorityV3,
+  ManagedSuccessorProfile,
 } from "../../domain/model.js";
 
-export type ConsumerUpgradeAuthority = ConsumerUpgradeAuthorityV1 | ConsumerUpgradeAuthorityV2;
+export type ConsumerUpgradeAuthority =
+  | ConsumerUpgradeAuthorityV1
+  | ConsumerUpgradeAuthorityV2
+  | ConsumerUpgradeAuthorityV3;
 
 export interface ConsumerUpgradeAuthorityReader {
   read(options: {
     readonly cohortId: string;
-    readonly generation: 1 | 2;
+    readonly generation: 1 | 2 | 3;
+    readonly rollbackFrom?: string;
     readonly repository: ConsumerIntegrationDesiredState["repository"];
     readonly revision?: string;
   }): Promise<ConsumerUpgradeAuthority>;
@@ -47,6 +53,30 @@ export interface ConsumerUpgradeManagedPreimagesV2 {
 }
 
 export interface ConsumerUpgradeSandboxPort {
+  verifyManagedRuntime(options: {
+    readonly cohort: ConsumerUpgradeAuthorityV2["cohort"] | ConsumerUpgradeAuthorityV3["cohort"];
+    readonly packageManager: string;
+  }): Promise<void>;
+  restoreCommittedAndVerifyManaged(options: {
+    readonly current: ConsumerIntegrationDesiredStateV3;
+    readonly consumerRoot: string;
+  }): Promise<void>;
+  prepareManaged(options: {
+    readonly authority: ConsumerUpgradeAuthorityV2 | ConsumerUpgradeAuthorityV3;
+    readonly consumerRoot: string;
+    readonly current: ConsumerIntegrationDesiredStateV3 | ManagedSuccessorProfile;
+    readonly expectedSourceRevision: string;
+    readonly expectedSourceSnapshot: ConsumerIntegrationSnapshot;
+    readonly managedPreimages: ConsumerUpgradeManagedPreimagesV2;
+  }): Promise<PreparedConsumerUpgradeV1>;
+  activateAndVerifyManaged(options: {
+    readonly authority: ConsumerUpgradeAuthorityV2 | ConsumerUpgradeAuthorityV3;
+    readonly consumerRoot: string;
+  }): Promise<void>;
+  restoreAndVerifyManaged(options: {
+    readonly current: ConsumerIntegrationDesiredStateV3 | ManagedSuccessorProfile;
+    readonly consumerRoot: string;
+  }): Promise<void>;
   prepareV1(options: {
     readonly authority: ConsumerUpgradeAuthorityV1;
     readonly consumerRoot: string;

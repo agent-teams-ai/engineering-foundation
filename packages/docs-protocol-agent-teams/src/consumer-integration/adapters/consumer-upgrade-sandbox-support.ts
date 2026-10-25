@@ -8,6 +8,8 @@ import {
   type ConsumerIntegrationDesiredStateV3,
   type ConsumerUpgradeAuthorityV1,
   type ConsumerUpgradeAuthorityV2,
+  type ConsumerUpgradeAuthorityV3,
+  type ManagedSuccessorProfile,
 } from "../domain/model.js";
 import {
   MAXIMUM_INVENTORY_BYTES,
@@ -25,10 +27,14 @@ import {
   readStableConsumerFile,
 } from "./node-consumer-repository-files.js";
 import { assertCleanConsumerGitSource } from "./node-consumer-upgrade-source-proof.js";
-export type ConsumerUpgradeAuthority = ConsumerUpgradeAuthorityV1 | ConsumerUpgradeAuthorityV2;
+export type ConsumerUpgradeAuthority =
+  | ConsumerUpgradeAuthorityV1
+  | ConsumerUpgradeAuthorityV2
+  | ConsumerUpgradeAuthorityV3;
 export type UpgradeDesiredState =
   | ConsumerIntegrationDesiredStateV1
-  | ConsumerIntegrationDesiredStateV3;
+  | ConsumerIntegrationDesiredStateV3
+  | ManagedSuccessorProfile;
 
 export function isAuthorityV1(
   value: ConsumerUpgradeAuthority,
@@ -123,8 +129,9 @@ async function runPnpm(
   root: string,
   args: readonly string[],
   environment: () => NodeJS.ProcessEnv,
+  run: typeof execute,
 ): Promise<void> {
-  await execute(
+  await run(
     "corepack",
     ["pnpm", ...args],
     root,
@@ -259,6 +266,7 @@ export async function installCohort(
   offline: boolean,
   environment: () => NodeJS.ProcessEnv,
   frozen = offline,
+  run: typeof execute = execute,
 ): Promise<void> {
   // pnpm skips existing imports even in copy mode. Keep the prior installation
   // until a fresh import succeeds; --force also bypasses package installability.
@@ -289,6 +297,7 @@ export async function installCohort(
         "--verify-store-integrity",
       ],
       environment,
+      run,
     );
   } catch (error) {
     try {

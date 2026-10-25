@@ -32,7 +32,7 @@ export function projectQualificationAuthorityV2(input: {
 
 const observePackedManagedRuntimePolicy = createLazyPackedManagedRuntimePolicyObserver();
 
-/** Curated read-only qualification seam; ordinary upgrade readers remain generation1/2-only. */
+/** Curated read-only qualification seam; operational selection is owned separately by the current protected authority reader. */
 export function projectQualificationAuthorityV3(
   input: CohortV3AuthorityProjectorRequest,
 ): ConsumerQualificationAuthorityV3 {

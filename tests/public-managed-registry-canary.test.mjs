@@ -53,7 +53,7 @@ import {
   supportingMcpCoordinate,
 } from "../scripts/public-managed-registry-canary-policy.mjs";
 import { runDocsProtocolQualificationV3 } from "../packages/docs-protocol-agent-teams/dist/qualification/index.js";
-import { successorQualificationFixture } from "./public-managed-registry-canary-generation3-fixtures.mts";
+import { successorQualificationFixture } from "../packages/docs-protocol-agent-teams/tests/public-managed-registry-canary-generation3-fixtures.ts";
 
 const authority = createCanaryAuthority(projected, inputs);
 const supportingMcp = {

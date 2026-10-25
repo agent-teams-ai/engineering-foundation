@@ -236,9 +236,10 @@ function validateProjectionInput(input: CohortV3AuthorityProjectorRequest): void
   assertPattern(input.revision, GIT_SHA, "Central authority revision");
 }
 
-export function projectCohortV3Authority(
+/** Validates immutable binding bytes without granting lifecycle selection. */
+export function projectCohortV3Binding(
   input: CohortV3AuthorityProjectorRequest,
-): UnselectedCohortV3 {
+): Omit<UnselectedCohortV3, "lifecycleState" | "canaryRepositoryIds"> {
   validateProjectionInput(input);
   const cohorts = array(input.registry["cohorts"], "Qualified Cohorts").map((value) =>
     record(value, "Qualified Cohort"),
@@ -279,7 +280,13 @@ export function projectCohortV3Authority(
   const { policy, runtime, qualificationRuntime, closure, upgradeFrom, rollbackTo } = validated;
   const events = array(input.registry["events"], "Cohort lifecycle events");
   assertCohortEventChainV2(events, source);
-  const lifecycle = qualificationEvent(events, input.cohortId);
+  const qualified = events
+    .map((value) => record(value, "Cohort lifecycle event"))
+    .filter((event) => event["cohort_id"] === input.cohortId && event["state"] === "QUALIFIED");
+  if (qualified.length !== 1) {
+    invalid("Binding requires exactly one immutable QUALIFIED event.");
+  }
+  assertPattern(qualified[0]!["event_digest"], SHA256, "QUALIFIED event digest");
   const packageByName = new Map(
     array(source["packages"], "Cohort packages")
       .map((value) => record(value, "Cohort package"))
@@ -295,19 +302,13 @@ export function projectCohortV3Authority(
       integrity: coordinate["integrity"] as `sha512-${string}`,
     };
   };
-  const candidate: UnselectedCohortV3 = {
+  const candidate: Omit<UnselectedCohortV3, "lifecycleState" | "canaryRepositoryIds"> = {
     schemaVersion: 3,
     cohortId: input.cohortId,
     channel: source["channel"] as "rc" | "stable",
     candidateDigest: source["candidate_digest"] as string,
     recordDigest: source["record_digest"] as string,
-    qualificationEventDigest: lifecycle.digest,
-    lifecycleState: lifecycle.state,
-    canaryRepositoryIds: Object.freeze(
-      array(source["canary_repositories"], "Cohort canary repositories").map((value) =>
-        String(record(value, "Cohort canary repository")["repository_id"]),
-      ),
-    ),
+    qualificationEventDigest: qualified[0]!["event_digest"],
     eligibleAfter: source["eligible_after"] as string,
     upgradeFrom: Object.freeze(upgradeFrom),
     rollbackTo: Object.freeze(rollbackTo),
@@ -373,4 +374,25 @@ export function projectCohortV3Authority(
     },
   };
   return Object.freeze(candidate);
+}
+
+/** The qualification projection retains the original current-state/enrollment contract. */
+export function projectCohortV3Authority(
+  input: CohortV3AuthorityProjectorRequest,
+): UnselectedCohortV3 {
+  const binding = projectCohortV3Binding(input);
+  const events = array(input.registry["events"], "Cohort lifecycle events");
+  const lifecycle = qualificationEvent(events, input.cohortId);
+  const source = array(input.registry["cohorts"], "Qualified Cohorts")
+    .map((value) => record(value, "Qualified Cohort"))
+    .find((value) => value["cohort_id"] === input.cohortId)!;
+  return Object.freeze({
+    ...binding,
+    lifecycleState: lifecycle.state,
+    canaryRepositoryIds: Object.freeze(
+      array(source["canary_repositories"], "Cohort canary repositories").map((value) =>
+        String(record(value, "Cohort canary repository")["repository_id"]),
+      ),
+    ),
+  });
 }

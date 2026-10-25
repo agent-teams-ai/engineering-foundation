@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 
 import { stringify } from "yaml";
 
-import { describeCanonicalConsumerAssets } from "../packages/docs-protocol-agent-teams/dist/index.js";
+import { describeCanonicalConsumerAssets } from "../dist/index.js";
 import {
   observeDocsProtocolQualificationV3Lockfile,
   type ConsumerIntegrationDesiredStateV3,
@@ -13,7 +13,7 @@ import {
   type DocsProtocolQualificationCohortV3Request,
   type DocsProtocolQualificationEvidenceV3,
   type QualifiedDocsCohortBindingV2,
-} from "../packages/docs-protocol-agent-teams/dist/qualification/index.js";
+} from "../dist/qualification/index.js";
 
 type ManagedSuccessorProfile = DocsProtocolQualificationCohortV3Request["profile"];
 
@@ -188,13 +188,7 @@ function requireLiteral<T extends string>(value: unknown, expected: T, label: st
 
 function readRuntimePolicy(): RuntimePolicyFixture {
   const parsed: unknown = JSON.parse(
-    readFileSync(
-      new URL(
-        "../packages/docs-protocol-agent-teams/assets/runtime-policy.v1.json",
-        import.meta.url,
-      ),
-      "utf8",
-    ),
+    readFileSync(new URL("../assets/runtime-policy.v1.json", import.meta.url), "utf8"),
   );
   const root = requireRecord(parsed, "runtime policy");
   const managedRuntime = requireRecord(root["managedRuntime"], "runtime policy managedRuntime");

@@ -27,7 +27,7 @@ async function compile(
     {
       desired: input.desired,
       snapshot: input.snapshot,
-      assetCatalog: await ports.assets.read(),
+      ...(input.desired.schemaVersion === 4 ? {} : { assetCatalog: await ports.assets.read() }),
     },
     ports.planning,
   );

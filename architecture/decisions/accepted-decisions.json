@@ -331,6 +331,11 @@
       "id": "ADR-0069",
       "path": "docs/decisions/0069-release-checks-existing-bootstrap-recovery.md",
       "immutableDigest": "sha256:469b38de29e5b8e231a6b90e629ae7493d8ce6ba113a972b0d251c72bd039fd9"
+    },
+    {
+      "id": "ADR-0070",
+      "path": "docs/decisions/0070-bounded-managed-generation3-execution.md",
+      "immutableDigest": "sha256:9fbfd43fb0b11bdf74f40c9cb3d7fce45bdbefc55e3975fbf389c8db1363a973"
     }
   ]
 }

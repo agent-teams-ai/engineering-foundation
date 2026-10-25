@@ -2,6 +2,7 @@ import { isNode, parseDocument, visit } from "yaml";
 import type {
   ConsumerIntegrationDesiredStateV1,
   ConsumerIntegrationDesiredStateV3,
+  ManagedSuccessorProfile,
 } from "../domain/model.js";
 import { requireRestoration, restorationJson } from "../application-api.js";
 import { assertQualifiedPnpmLockfileV1 } from "./pnpm-lockfile-validator-v1.js";
@@ -120,6 +121,21 @@ export function assertRestorationLockScope(
   // Validate consumer coordinates, provenance and edges without equating its graph to isolated qualification.
   assertQualifiedPnpmLockfileV1(before, source);
   observeQualifiedPnpmLockfileV2(after, target);
+  assertLockForeignProjection(before, after);
+}
+
+export function assertManagedRestorationLockScope(
+  before: Uint8Array,
+  after: Uint8Array,
+  source: ConsumerIntegrationDesiredStateV3,
+  target: ManagedSuccessorProfile,
+): void {
+  observeQualifiedPnpmLockfileV2(before, source);
+  observeQualifiedPnpmLockfileV2(after, target);
+  assertLockForeignProjection(before, after);
+}
+
+function assertLockForeignProjection(before: Uint8Array, after: Uint8Array): void {
   const sourceLock = parse(before),
     targetLock = parse(after);
   requireRestoration(

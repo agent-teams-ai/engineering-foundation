@@ -224,7 +224,7 @@ export async function restorationInventory(
 
 export async function assertRestorationImages(
   root: string,
-  proof: ConsumerRestorationIntent,
+  proof: Pick<ConsumerRestorationIntent, "plan" | "sourceInventoryDigest">,
   historical: boolean,
 ): Promise<void> {
   const originalImages = new Map<string, KnownFileImageV1>();

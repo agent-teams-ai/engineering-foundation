@@ -35,6 +35,16 @@ const formattedRestorationSignatures = [
   },
 ];
 
+function reviewedReleasedItem(toolChange, formatted, releasedIsNative, promotedFormatting) {
+  const reviewedItem = releasedIsNative ? toolChange.after : toolChange.before;
+  if (formatted && releasedIsNative) {
+    assert.equal(reviewedItem.signature, formatted.before, "exact reviewed migration signature");
+  }
+  return formatted && promotedFormatting
+    ? { ...reviewedItem, signature: formatted.after }
+    : reviewedItem;
+}
+
 test("managed composition preserves published function declarations and planner overloads", async () => {
   const config = await loadCapabilityConfig(
     { readYaml: loadStrictYamlFile, assertSchema },
@@ -101,12 +111,16 @@ test("managed composition preserves published function declarations and planner 
     );
     assert.ok(reviewedEntrypoint);
     for (const item of entrypoint.items) {
+      const formatted = formattedRestorationSignatures.find(
+        (row) => row.reference === item.canonicalReference,
+      );
+      const promotedFormatting = releasedIsNative && released.packageVersion !== "0.5.4";
       const toolChange = reviewedEntrypoint.changed.find(
         (change) => change.id === item.canonicalReference,
       );
       if (toolChange) {
         assert.deepEqual(
-          releasedIsNative ? toolChange.after : toolChange.before,
+          reviewedReleasedItem(toolChange, formatted, releasedIsNative, promotedFormatting),
           item,
           "released item must match the exact reviewed side for its extractor identity",
         );
@@ -120,11 +134,14 @@ test("managed composition preserves published function declarations and planner 
                 "export type ConsumerIntegrationDesiredState = ConsumerIntegrationDesiredStateV1 | ConsumerIntegrationDesiredStateV3 | ManagedSuccessorProfile;",
             }
           : nativeItem;
-      const formatted = formattedRestorationSignatures.find(
-        (row) => row.reference === item.canonicalReference,
-      );
       if (formatted) {
-        assert.equal(nativeItem.signature, formatted.before, "exact reviewed pre-format signature");
+        // 0.5.4 is the retained pre-format baseline. Ordinary release promotion
+        // records the already-reviewed formatted spelling in its successor.
+        assert.equal(
+          nativeItem.signature,
+          promotedFormatting ? formatted.after : formatted.before,
+          "exact reviewed signature for the released baseline generation",
+        );
       }
       assert.deepEqual(
         current.items.find((candidate) => candidate.canonicalReference === item.canonicalReference),

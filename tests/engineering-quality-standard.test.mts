@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { checkEngineeringQualityStandard } from "../scripts/check-engineering-quality-standard.mts";
 
 // A missing standard, altered upstream bytes or forged provenance must block the gate.
-test("retained standard requires complete pinned bytes and provenance", async (t) => {
+void test("retained standard requires complete pinned bytes and provenance", async (t) => {
   const repository = fileURLToPath(new URL("../", import.meta.url));
   await checkEngineeringQualityStandard(repository);
   const root = await mkdtemp(join(tmpdir(), "eqs-pin-TEST-"));
@@ -26,7 +26,7 @@ test("retained standard requires complete pinned bytes and provenance", async (t
 });
 
 // A guidance identity retained only as history must never qualify a stale current pin.
-test("runtime seam requires authenticated CMS inputs and unique current guidance pins", async (t) => {
+void test("runtime seam requires authenticated CMS inputs and unique current guidance pins", async (t) => {
   const repository = fileURLToPath(new URL("../", import.meta.url));
   const root = await mkdtemp(join(tmpdir(), "runtime-guidance-TEST-"));
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -142,7 +142,7 @@ test("runtime seam requires authenticated CMS inputs and unique current guidance
     await assert.rejects(checkEngineeringQualityStandard(root), /current guidance/);
   }
   const current = seam.split("\n").find((line) => line.startsWith("CMS guidance commit:"));
-  assert.ok(current);
+  assert.ok(current !== undefined && current !== "");
   await writeFile(join(root, seamPath), `${seam}\n${current}\n`);
   await assert.rejects(checkEngineeringQualityStandard(root), /current guidance/);
   await writeFile(join(root, seamPath), seam);

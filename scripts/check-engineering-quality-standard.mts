@@ -13,8 +13,8 @@ const expected = Object.freeze({
   size: 19951,
 });
 
-const cmsPrefix = "docs/architecture/evidence/doctor-guidance-20261022/common-assembly";
-const cmsExpected = Object.freeze({
+const historicalCmsPrefix = "docs/architecture/evidence/doctor-guidance-20261022/common-assembly";
+const historicalCmsExpected = Object.freeze({
   repository: "agent-teams-ai/get-modular",
   path: "docs/architecture/common-assembly.md",
   anchor: "consumer-module-standard",
@@ -22,6 +22,18 @@ const cmsExpected = Object.freeze({
   blob: "dad8b6280cf999d9079d3106094e5626b63d83f4",
   sha256: "a6dac5d303adf80be3151c6703c919b715fd880a941a4ad68e927c87a7ee5882",
   size: 81946,
+});
+
+// Accepted upstream guidance; historical doctor and EQS inputs retain their identities.
+const cmsPrefix = "docs/architecture/evidence/descriptor-union-guidance-20261025/common-assembly";
+const cmsExpected = Object.freeze({
+  repository: "agent-teams-ai/get-modular",
+  path: "docs/architecture/common-assembly.md",
+  anchor: "consumer-module-standard",
+  commit: "8305ea6409757da8e60dca074dce163d95c85e88",
+  blob: "df4eff7235ac781ec574903c6b2aec13bcd7bfaa",
+  sha256: "3c5814ebf1ab1bd17688e49955aa0baa2ee91dd3a369adcea4d38aaccd53ba86",
+  size: 84505,
 });
 
 const runtimeSeam = Object.freeze({
@@ -39,6 +51,8 @@ const runtimeSeam = Object.freeze({
   }),
   tokens: Object.freeze([
     "Status: `not-adopted`; closed static selection only",
+    historicalCmsExpected.commit,
+    historicalCmsExpected.sha256,
     "3dd68a6b26f42159714a4640b613534a55c2c6aa",
     "e5cb510c5ea83e54a6833cc40b6ad31fc5cf8c70d9838e4e0c6923edc6f70919",
     "7d6535dd86533566620040233290869825000d2b",
@@ -90,6 +104,7 @@ async function checkRetainedPin(
 /** Retained upstream bytes are input evidence, never a consumer-owned policy. */
 export async function checkEngineeringQualityStandard(root: string): Promise<void> {
   await checkRetainedPin(resolve(root, "standards/engineering-quality-standard"), expected, "EQS");
+  await checkRetainedPin(resolve(root, historicalCmsPrefix), historicalCmsExpected, "CMS", ".txt");
   await checkRetainedPin(resolve(root, cmsPrefix), cmsExpected, "CMS", ".txt");
   const eqsDelta = await readFile(
     resolve(
@@ -115,10 +130,17 @@ export async function checkEngineeringQualityStandard(root: string): Promise<voi
   ) {
     throw new Error("EQS current retained delta does not match the reviewed input");
   }
+  const historicalDelta = await readFile(resolve(root, `${historicalCmsPrefix}.diff`));
+  if (
+    createHash("sha256").update(historicalDelta).digest("hex") !==
+    "1caa65055dcde91309e2317d70faf339cd82b2ba42f16a8902bc3025cf4f1bf3"
+  ) {
+    throw new Error("CMS historical retained delta does not match the reviewed input");
+  }
   const delta = await readFile(resolve(root, `${cmsPrefix}.diff`));
   if (
     createHash("sha256").update(delta).digest("hex") !==
-    "1caa65055dcde91309e2317d70faf339cd82b2ba42f16a8902bc3025cf4f1bf3"
+    "43f92d5f9a7c611b67796cf664b3a40b1b28efc21b8f668e4988349dd3b4b04a"
   ) {
     throw new Error("CMS retained delta does not match the reviewed input");
   }

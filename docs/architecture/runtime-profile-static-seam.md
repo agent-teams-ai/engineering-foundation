@@ -8,18 +8,28 @@ historical ADR bytes.
 
 ## Authority delta reviewed
 
-CMS guidance commit: `7131d0d7a6bb5dd4c3e8906ccac065c0be0e0333`
+The exact accepted Get Modular PR #206 squash below was independently retrieved
+and revalidated after merge. This guidance review preserves the static scope
+classification; it does not adopt Assembly or certify consumer qualification.
 
-CMS guidance SHA-256: `a6dac5d303adf80be3151c6703c919b715fd880a941a4ad68e927c87a7ee5882`
+CMS guidance commit: `8305ea6409757da8e60dca074dce163d95c85e88`
+
+CMS guidance SHA-256: `3c5814ebf1ab1bd17688e49955aa0baa2ee91dd3a369adcea4d38aaccd53ba86`
 
 The complete reviewed Consumer Module Standard input is Get Modular
-`docs/architecture/common-assembly.md#consumer-module-standard`, blob
-`dad8b6280cf999d9079d3106094e5626b63d83f4`. Its bytes match exact upstream
-`main` at `eadd9d391657ae6f508a874dd30e923bdc4054f0`, observed on 2026-10-22;
-the reviewed content pin remains `7131d0d7a6bb5dd4c3e8906ccac065c0be0e0333`.
-The complete current document, provenance and delta from the previous
-`300e7e1c459c08f5e271627e4ca7d2486bdf5e1f` input are retained as
-[review evidence](evidence/doctor-guidance-20261022/README.md).
+`docs/architecture/common-assembly.md#consumer-module-standard`, Git blob
+`df4eff7235ac781ec574903c6b2aec13bcd7bfaa`, 84505 bytes. Its complete retained
+snapshot, provenance and full delta from the preceding doctor input are
+[review evidence](evidence/descriptor-union-guidance-20261025/README.md).
+
+The previous doctor input remains commit
+`7131d0d7a6bb5dd4c3e8906ccac065c0be0e0333`, blob
+`dad8b6280cf999d9079d3106094e5626b63d83f4`, SHA-256
+`a6dac5d303adf80be3151c6703c919b715fd880a941a4ad68e927c87a7ee5882`.
+It matched exact upstream `main` at `eadd9d391657ae6f508a874dd30e923bdc4054f0`
+on 2026-10-22. Its complete bytes, provenance and earlier delta from
+`300e7e1c459c08f5e271627e4ca7d2486bdf5e1f` remain authenticated
+[historical evidence](evidence/doctor-guidance-20261022/README.md).
 The previous reviewed commit `3dd68a6b26f42159714a4640b613534a55c2c6aa`, blob
 `250f312d3cae733935d0ac48ddde8502665417df`, SHA-256
 `e5cb510c5ea83e54a6833cc40b6ad31fc5cf8c70d9838e4e0c6923edc6f70919` remains
@@ -82,6 +92,31 @@ paths. Both `check:fast` and `check` already run it. Its rejecting tests are
 `tests/engineering-quality-standard.test.mts`. This checks the recorded
 classification and guidance identities; it does not certify Assembly adoption.
 Accepted ADR bytes and the existing FMS adoption profile remain unchanged.
+
+### Descriptor-union successor applicability, 2026-10-25
+
+The complete reviewed delta follows ADR-0041: concrete descriptor-derived maps
+export complete own, transitive, unused and private-child contract unions and
+extend one separate `CapabilitiesOf` base per imported union plus own descriptors.
+Both lists name the same sources; generated code derives both from one dependency
+list and compiled checks retain exact keys, values and compatibility tokens.
+Separate bases preserve unused value/revision conflict rejection at the feature
+or team before Host selection. An upward reference names the ancestor descriptor;
+Hosts still compose complete public parent maps. Custom handwritten properties,
+call/construct/index signatures and map-level polymorphic `this` retain their
+complete interface until a separate equivalence proof. Selected-only maps are
+not the successor recipe. The other changes spell five GM verification commands
+with Bun; they do not select Foundation's repository manager.
+
+The existing TypeScript union and Assembly `CapabilitiesOf` own the shared
+mechanism; CMS owns this authoring rule. These fixed Foundation seams have no
+such Assembly map, new graph node or independent lifetime. All 13 checked
+runtime/workflow paths, the repository profile Host, Stack doctor, npm recovery,
+private command lexer and release-checks records below keep their existing owners
+and static `not-adopted` classification. No local type framework, runtime manager
+or production API is added. This review changes no FMS adoption, accepted ADR,
+package, lock or historical measurement. Consumer qualification and the required
+checks remain separate from upstream acceptance and retained-input consistency.
 
 ## Closed seam
 

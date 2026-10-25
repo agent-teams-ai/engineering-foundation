@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { checkEngineeringQualityStandard } from "../scripts/check-engineering-quality-standard.mts";
 
 // A missing standard, altered upstream bytes or forged provenance must block the gate.
-test("retained standard requires complete pinned bytes and provenance", async (t) => {
+void test("retained standard requires complete pinned bytes and provenance", async (t) => {
   const repository = fileURLToPath(new URL("../", import.meta.url));
   await checkEngineeringQualityStandard(repository);
   const root = await mkdtemp(join(tmpdir(), "eqs-pin-TEST-"));
@@ -26,11 +26,12 @@ test("retained standard requires complete pinned bytes and provenance", async (t
 });
 
 // A guidance identity retained only as history must never qualify a stale current pin.
-test("runtime seam requires authenticated CMS inputs and unique current guidance pins", async (t) => {
+void test("runtime seam requires authenticated CMS inputs and unique current guidance pins", async (t) => {
   const repository = fileURLToPath(new URL("../", import.meta.url));
   const root = await mkdtemp(join(tmpdir(), "runtime-guidance-TEST-"));
   t.after(() => rm(root, { recursive: true, force: true }));
-  const cms = "docs/architecture/evidence/doctor-guidance-20261022/common-assembly";
+  const cms = "docs/architecture/evidence/descriptor-union-guidance-20261025/common-assembly";
+  const historicalCms = "docs/architecture/evidence/doctor-guidance-20261022/common-assembly";
   const seamPath = "docs/architecture/runtime-profile-static-seam.md";
   const paths = [
     "standards/engineering-quality-standard.md",
@@ -38,6 +39,9 @@ test("runtime seam requires authenticated CMS inputs and unique current guidance
     `${cms}.txt`,
     `${cms}.provenance.json`,
     `${cms}.diff`,
+    `${historicalCms}.txt`,
+    `${historicalCms}.provenance.json`,
+    `${historicalCms}.diff`,
     seamPath,
     "docs/architecture/evidence/toolchain-guidance-20261021/engineering-quality-standard.diff",
     "docs/architecture/evidence/f3-guidance-20261023/engineering-quality-standard.diff",
@@ -67,6 +71,9 @@ test("runtime seam requires authenticated CMS inputs and unique current guidance
     [`${cms}.txt`, /CMS retained bytes/],
     [`${cms}.provenance.json`, /CMS provenance/],
     [`${cms}.diff`, /CMS retained delta/],
+    [`${historicalCms}.txt`, /CMS retained bytes/],
+    [`${historicalCms}.provenance.json`, /CMS provenance/],
+    [`${historicalCms}.diff`, /CMS historical retained delta/],
     [
       "docs/architecture/evidence/f3-guidance-20261023/engineering-quality-standard.diff",
       /EQS current retained delta/,
@@ -83,6 +90,11 @@ test("runtime seam requires authenticated CMS inputs and unique current guidance
     await writeFile(join(root, path), original);
   }
 
+  const currentBytes = await readFile(join(root, `${cms}.txt`));
+  await copyFile(join(root, `${historicalCms}.txt`), join(root, `${cms}.txt`));
+  await assert.rejects(checkEngineeringQualityStandard(root), /CMS retained bytes/);
+  await writeFile(join(root, `${cms}.txt`), currentBytes);
+
   const eqsDeltaPath = join(
     root,
     "docs/architecture/evidence/toolchain-guidance-20261021/engineering-quality-standard.diff",
@@ -96,6 +108,9 @@ test("runtime seam requires authenticated CMS inputs and unique current guidance
   await checkEngineeringQualityStandard(root);
   await writeFile(join(root, seamPath), seam);
   for (const [label, stale] of [
+    ["CMS guidance commit", "3da26169c6d33f660220de6108a0e559bea87f79"],
+    ["CMS guidance commit", "7131d0d7a6bb5dd4c3e8906ccac065c0be0e0333"],
+    ["CMS guidance SHA-256", "a6dac5d303adf80be3151c6703c919b715fd880a941a4ad68e927c87a7ee5882"],
     ["CMS guidance commit", "300e7e1c459c08f5e271627e4ca7d2486bdf5e1f"],
     ["CMS guidance SHA-256", "c2fe582a14ff6e79620b232ca7ffc914afb0474ec21fd43f208251dd7252f4a3"],
     ["CMS guidance commit", "3dd68a6b26f42159714a4640b613534a55c2c6aa"],
@@ -127,11 +142,11 @@ test("runtime seam requires authenticated CMS inputs and unique current guidance
     await assert.rejects(checkEngineeringQualityStandard(root), /current guidance/);
   }
   const current = seam.split("\n").find((line) => line.startsWith("CMS guidance commit:"));
-  assert.ok(current);
+  assert.ok(current !== undefined && current !== "");
   await writeFile(join(root, seamPath), `${seam}\n${current}\n`);
   await assert.rejects(checkEngineeringQualityStandard(root), /current guidance/);
   await writeFile(join(root, seamPath), seam);
-  for (const path of paths.slice(-6)) {
+  for (const path of paths.filter((candidatePath) => candidatePath.startsWith("packages/"))) {
     const original = await readFile(join(root, path));
     await rm(join(root, path));
     await assert.rejects(
@@ -140,7 +155,7 @@ test("runtime seam requires authenticated CMS inputs and unique current guidance
     );
     await writeFile(join(root, path), original);
     assert.ok(seam.includes(path));
-    await writeFile(join(root, seamPath), seam.replace(path, "removed-workflow-path"));
+    await writeFile(join(root, seamPath), seam.replaceAll(path, "removed-seam-path"));
     await assert.rejects(
       checkEngineeringQualityStandard(root),
       /Runtime profile seam path is missing or unclassified/,

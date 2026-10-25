@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/release-checks",
-  "packageVersion": "0.0.0",
+  "packageVersion": "0.1.0",
   "extractorVersion": "typescript-native/7.0.2",
   "entrypoints": [
     {
@@ -12,21 +12,21 @@
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/release-checks!",
           "parentKind": "EntryPoint",
-          "signature": "export type ChangeKind = 'added' | 'modified' | 'deleted';"
+          "signature": "export type ChangeKind = \"added\" | \"modified\" | \"deleted\";"
         },
         {
           "canonicalReference": "@agent-teams/release-checks!CheckReport:type",
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/release-checks!",
           "parentKind": "EntryPoint",
-          "signature": "export type CheckReport = Readonly<{\n    schemaVersion: 1;\n    outcome: 'passed';\n    diagnostics: readonly [\n    ];\n    packageChanges: readonly PackageChange[];\n}> | Readonly<{\n    schemaVersion: 1;\n    outcome: 'rejected';\n    diagnostics: readonly Diagnostic[];\n    packageChanges: readonly PackageChange[];\n}>;"
+          "signature": "export type CheckReport = Readonly<{\n    schemaVersion: 1;\n    outcome: \"passed\";\n    diagnostics: readonly [\n    ];\n    packageChanges: readonly PackageChange[];\n}> | Readonly<{\n    schemaVersion: 1;\n    outcome: \"rejected\";\n    diagnostics: readonly Diagnostic[];\n    packageChanges: readonly PackageChange[];\n}>;"
         },
         {
           "canonicalReference": "@agent-teams/release-checks!ConsumptionEffect:type",
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/release-checks!",
           "parentKind": "EntryPoint",
-          "signature": "export type ConsumptionEffect = Readonly<{\n    kind: 'remove';\n}> | Readonly<{\n    kind: 'record';\n    evidencePath: string;\n}>;"
+          "signature": "export type ConsumptionEffect = Readonly<{\n    kind: \"remove\";\n}> | Readonly<{\n    kind: \"record\";\n    evidencePath: string;\n}>;"
         },
         {
           "canonicalReference": "@agent-teams/release-checks!Diagnostic:type",
@@ -40,7 +40,7 @@
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/release-checks!",
           "parentKind": "EntryPoint",
-          "signature": "export type DiagnosticCode = 'input.invalid' | 'identity.duplicate' | 'inventory.ambiguous' | 'binding.mismatch' | 'package.unknown' | 'manifest.missing' | 'manifest.identity' | 'manifest.source-mismatch' | 'manifest.content-changed' | 'plan.version-mismatch' | 'plan.unexpected-version' | 'intent.unknown' | 'intent.coverage' | 'intent.consumption' | 'diff.unexpected' | 'diff.inconsistent';"
+          "signature": "export type DiagnosticCode = \"input.invalid\" | \"identity.duplicate\" | \"inventory.ambiguous\" | \"binding.mismatch\" | \"package.unknown\" | \"manifest.missing\" | \"manifest.identity\" | \"manifest.source-mismatch\" | \"manifest.content-changed\" | \"plan.version-mismatch\" | \"plan.unexpected-version\" | \"intent.unknown\" | \"intent.coverage\" | \"intent.consumption\" | \"diff.unexpected\" | \"diff.inconsistent\";"
         },
         {
           "canonicalReference": "@agent-teams/release-checks!ExpectedInputs:type",
@@ -89,7 +89,7 @@
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/release-checks!",
           "parentKind": "EntryPoint",
-          "signature": "export type LeafShape = Readonly<{\n    type: 'file';\n    mode: '100644' | '100755';\n}> | Readonly<{\n    type: 'symlink';\n    mode: '120000';\n}> | Readonly<{\n    type: 'gitlink';\n    mode: '160000';\n}>;"
+          "signature": "export type LeafShape = Readonly<{\n    type: \"file\";\n    mode: \"100644\" | \"100755\";\n}> | Readonly<{\n    type: \"symlink\";\n    mode: \"120000\";\n}> | Readonly<{\n    type: \"gitlink\";\n    mode: \"160000\";\n}>;"
         },
         {
           "canonicalReference": "@agent-teams/release-checks!ManifestSnapshot:type",
@@ -145,7 +145,7 @@
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/release-checks!",
           "parentKind": "EntryPoint",
-          "signature": "export type PlannedRelease = Readonly<{\n    packageName: string;\n    manifestPath: string;\n    type: ReleaseType | 'none';\n    oldVersion: string | null;\n    newVersion: string | null;\n    intentIds: readonly string[];\n}>;"
+          "signature": "export type PlannedRelease = Readonly<{\n    packageName: string;\n    manifestPath: string;\n    type: ReleaseType | \"none\";\n    oldVersion: string | null;\n    newVersion: string | null;\n    intentIds: readonly string[];\n}>;"
         },
         {
           "canonicalReference": "@agent-teams/release-checks!ReleaseCandidateInput:type",
@@ -159,21 +159,21 @@
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/release-checks!",
           "parentKind": "EntryPoint",
-          "signature": "export type ReleaseIntent = Readonly<{\n    id: string;\n    path: string;\n    digest: string;\n    participation: 'pending' | 'retained';\n    requests: readonly Readonly<{\n        packageName: string;\n        type: ReleaseType;\n    }>[];\n}>;"
+          "signature": "export type ReleaseIntent = Readonly<{\n    id: string;\n    path: string;\n    digest: string;\n    participation: \"pending\" | \"retained\";\n    requests: readonly Readonly<{\n        packageName: string;\n        type: ReleaseType;\n    }>[];\n}>;"
         },
         {
           "canonicalReference": "@agent-teams/release-checks!ReleaseType:type",
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/release-checks!",
           "parentKind": "EntryPoint",
-          "signature": "export type ReleaseType = 'major' | 'minor' | 'patch';"
+          "signature": "export type ReleaseType = \"major\" | \"minor\" | \"patch\";"
         },
         {
           "canonicalReference": "@agent-teams/release-checks!WorkspacePackage:type",
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/release-checks!",
           "parentKind": "EntryPoint",
-          "signature": "export type WorkspacePackage = Readonly<{\n    name: string;\n    root: string;\n    manifestPath: string;\n    classification: 'public' | 'private';\n    versioning: 'versioned' | 'unversioned' | 'ignored';\n    before: ManifestSnapshot;\n}>;"
+          "signature": "export type WorkspacePackage = Readonly<{\n    name: string;\n    root: string;\n    manifestPath: string;\n    classification: \"public\" | \"private\";\n    versioning: \"versioned\" | \"unversioned\" | \"ignored\";\n    before: ManifestSnapshot;\n}>;"
         },
         {
           "canonicalReference": "@agent-teams/release-checks!checkReleaseCandidate:function(1)",
@@ -192,14 +192,14 @@
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/release-checks!",
           "parentKind": "EntryPoint",
-          "signature": "export type ConformanceCase = Readonly<{\n    id: string;\n    input: unknown;\n    expected: Readonly<{\n        outcome: 'passed' | 'rejected';\n        diagnosticCodes: readonly DiagnosticCode[];\n        packageChanges: readonly PackageChange[];\n    }>;\n}>;"
+          "signature": "export type ConformanceCase = Readonly<{\n    id: string;\n    input: unknown;\n    expected: Readonly<{\n        outcome: \"passed\" | \"rejected\";\n        diagnosticCodes: readonly DiagnosticCode[];\n        packageChanges: readonly PackageChange[];\n    }>;\n}>;"
         },
         {
           "canonicalReference": "@agent-teams/release-checks!DiagnosticCode:type",
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/release-checks!",
           "parentKind": "EntryPoint",
-          "signature": "export type DiagnosticCode = 'input.invalid' | 'identity.duplicate' | 'inventory.ambiguous' | 'binding.mismatch' | 'package.unknown' | 'manifest.missing' | 'manifest.identity' | 'manifest.source-mismatch' | 'manifest.content-changed' | 'plan.version-mismatch' | 'plan.unexpected-version' | 'intent.unknown' | 'intent.coverage' | 'intent.consumption' | 'diff.unexpected' | 'diff.inconsistent';"
+          "signature": "export type DiagnosticCode = \"input.invalid\" | \"identity.duplicate\" | \"inventory.ambiguous\" | \"binding.mismatch\" | \"package.unknown\" | \"manifest.missing\" | \"manifest.identity\" | \"manifest.source-mismatch\" | \"manifest.content-changed\" | \"plan.version-mismatch\" | \"plan.unexpected-version\" | \"intent.unknown\" | \"intent.coverage\" | \"intent.consumption\" | \"diff.unexpected\" | \"diff.inconsistent\";"
         },
         {
           "canonicalReference": "@agent-teams/release-checks!PackageChange:type",

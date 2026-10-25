@@ -1,5 +1,19 @@
 # @agent-teams/engineering-foundation
 
+## 3.0.0
+
+### Major Changes
+
+- [#443](https://github.com/agent-teams-ai/engineering-foundation/pull/443) [`17520f7`](https://github.com/agent-teams-ai/engineering-foundation/commit/17520f7d84d364f5bb40195785c2b7a9269663a0) Thanks [@777genius](https://github.com/777genius)! - Move TypeScript and Oxlint presets to the universal Stack Toolchain package.
+  Adopt its pinned installed tools and single project authority through the v4
+  quality coverage profile; remove Foundation preset exports and package requirements.
+
+### Patch Changes
+
+- Updated dependencies [[`dae3f65`](https://github.com/agent-teams-ai/engineering-foundation/commit/dae3f6565698a0f9a1dff71c2aa8c3ff2e674a73)]:
+  - @agent-teams/repository-mutation@0.4.2
+  - @agent-teams/document-authoring@0.3.6
+
 ## 2.1.2
 
 ### Patch Changes

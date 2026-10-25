@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/docs-protocol-agent-teams",
-  "packageVersion": "0.5.4",
+  "packageVersion": "0.5.5",
   "extractorVersion": "typescript-native/7.0.2",
   "entrypoints": [
     {
@@ -2887,7 +2887,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Diagnostic:interface",
           "parentKind": "Interface",
-          "signature": "readonly code: 'input' | 'derivation' | 'mismatch' | 'preservation';"
+          "signature": "readonly code: \"input\" | \"derivation\" | \"mismatch\" | \"preservation\";"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Diagnostic#message:member",
@@ -2957,7 +2957,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Provenance:interface",
           "parentKind": "Interface",
-          "signature": "readonly originalPackageManager: 'pnpm@11.20.0';"
+          "signature": "readonly originalPackageManager: \"pnpm@11.20.0\";"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Provenance#originalSnapshotCount:member",
@@ -3055,7 +3055,7 @@
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/docs-protocol-agent-teams!",
           "parentKind": "EntryPoint",
-          "signature": "export type ManagedRestorationLockV1Result = {\n    readonly schemaVersion: 1;\n} & ({\n    readonly conformance: 'conformant';\n    readonly expectedLockDigest: `sha256:${string}`;\n    readonly provenance: ManagedRestorationLockV1Provenance;\n    readonly diagnostics: readonly [\n    ];\n} | {\n    readonly conformance: 'nonconformant';\n    readonly expectedLockDigest?: `sha256:${string}`;\n    readonly provenance?: ManagedRestorationLockV1Provenance;\n    readonly diagnostics: readonly ManagedRestorationLockV1Diagnostic[];\n});"
+          "signature": "export type ManagedRestorationLockV1Result = {\n    readonly schemaVersion: 1;\n} & ({\n    readonly conformance: \"conformant\";\n    readonly expectedLockDigest: `sha256:${string}`;\n    readonly provenance: ManagedRestorationLockV1Provenance;\n    readonly diagnostics: readonly [\n    ];\n} | {\n    readonly conformance: \"nonconformant\";\n    readonly expectedLockDigest?: `sha256:${string}`;\n    readonly provenance?: ManagedRestorationLockV1Provenance;\n    readonly diagnostics: readonly ManagedRestorationLockV1Diagnostic[];\n});"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationSelectionV1#archives:member",

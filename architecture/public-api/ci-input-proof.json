@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/ci-input-proof",
-  "packageVersion": "0.1.2",
+  "packageVersion": "0.1.3",
   "extractorVersion": "typescript-native/7.0.2",
   "entrypoints": [
     {
@@ -12,21 +12,21 @@
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/ci-input-proof!",
           "parentKind": "EntryPoint",
-          "signature": "export type ComparisonResult = Readonly<{\n    status: 'compatible-inputs';\n    changedContentPaths: readonly string[];\n}> | Readonly<{\n    status: 'rejected';\n    reason: RejectionReason;\n}>;"
+          "signature": "export type ComparisonResult = Readonly<{\n    status: \"compatible-inputs\";\n    changedContentPaths: readonly string[];\n}> | Readonly<{\n    status: \"rejected\";\n    reason: RejectionReason;\n}>;"
         },
         {
           "canonicalReference": "@agent-teams/ci-input-proof!DigestScheme:type",
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/ci-input-proof!",
           "parentKind": "EntryPoint",
-          "signature": "export type DigestScheme = 'git-object-sha1' | 'sha256';"
+          "signature": "export type DigestScheme = \"git-object-sha1\" | \"sha256\";"
         },
         {
           "canonicalReference": "@agent-teams/ci-input-proof!InputLeaf:type",
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/ci-input-proof!",
           "parentKind": "EntryPoint",
-          "signature": "export type InputLeaf = Readonly<{\n    path: string;\n    membership: 'closed' | 'structural';\n    content: string;\n} & ({\n    type: 'file';\n    mode: '100644' | '100755';\n} | {\n    type: 'symlink';\n    mode: '120000';\n} | {\n    type: 'gitlink';\n    mode: '160000';\n})>;"
+          "signature": "export type InputLeaf = Readonly<{\n    path: string;\n    membership: \"closed\" | \"structural\";\n    content: string;\n} & ({\n    type: \"file\";\n    mode: \"100644\" | \"100755\";\n} | {\n    type: \"symlink\";\n    mode: \"120000\";\n} | {\n    type: \"gitlink\";\n    mode: \"160000\";\n})>;"
         },
         {
           "canonicalReference": "@agent-teams/ci-input-proof!LeafInventory:type",
@@ -40,7 +40,7 @@
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/ci-input-proof!",
           "parentKind": "EntryPoint",
-          "signature": "export type RejectionReason = 'malformed-inventory' | 'unsupported-version' | 'unsupported-scheme' | 'scheme-mismatch' | 'duplicate-input' | 'incomplete-inputs' | 'invalid-content-permission' | 'input-structure-changed' | 'closed-input-changed' | 'exceeded-limit';"
+          "signature": "export type RejectionReason = \"malformed-inventory\" | \"unsupported-version\" | \"unsupported-scheme\" | \"scheme-mismatch\" | \"duplicate-input\" | \"incomplete-inputs\" | \"invalid-content-permission\" | \"input-structure-changed\" | \"closed-input-changed\" | \"exceeded-limit\";"
         },
         {
           "canonicalReference": "@agent-teams/ci-input-proof!compareLeafInventories:function(1)",

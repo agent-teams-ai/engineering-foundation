@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/feature-module-standard",
-  "packageVersion": "0.2.4",
+  "packageVersion": "0.3.0",
   "extractorVersion": "typescript-native/7.0.2",
   "entrypoints": [
     {
@@ -33,7 +33,7 @@
           "kind": "Variable",
           "parentReference": "@agent-teams/feature-module-standard!",
           "parentKind": "EntryPoint",
-          "signature": "export declare const ERROR_CODES: readonly [\n    'assembly-misplaced',\n    'assembly-missing',\n    'composition-contract-layer',\n    'composition-contract-misplaced',\n    'container-empty',\n    'container-file',\n    'deep-import',\n    'entry-unmapped',\n    'feature-cycle',\n    'feature-duplicate',\n    'feature-root-placement',\n    'feature-undeclared',\n    'invalid-path',\n    'layer-direction',\n    'load-cycle',\n    'not-visible',\n    'republication-invalid',\n    'republication-mismatch',\n    'republication-not-sub-feature',\n    'republication-skips-level',\n    'republication-undeclared',\n    'surface-unowned',\n    'use-edge-invalid',\n    'use-undeclared'\n];"
+          "signature": "export declare const ERROR_CODES: readonly [\n    \"assembly-misplaced\",\n    \"assembly-missing\",\n    \"composition-contract-layer\",\n    \"composition-contract-misplaced\",\n    \"container-empty\",\n    \"container-file\",\n    \"deep-import\",\n    \"entry-unmapped\",\n    \"feature-cycle\",\n    \"feature-duplicate\",\n    \"feature-root-placement\",\n    \"feature-undeclared\",\n    \"invalid-path\",\n    \"layer-direction\",\n    \"load-cycle\",\n    \"not-visible\",\n    \"republication-invalid\",\n    \"republication-mismatch\",\n    \"republication-not-sub-feature\",\n    \"republication-skips-level\",\n    \"republication-undeclared\",\n    \"surface-unowned\",\n    \"use-edge-invalid\",\n    \"use-undeclared\"\n];"
         },
         {
           "canonicalReference": "@agent-teams/feature-module-standard!Edge:type",
@@ -89,7 +89,7 @@
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/feature-module-standard!",
           "parentKind": "EntryPoint",
-          "signature": "export type ImportMode = 'runtime' | 'type-only';"
+          "signature": "export type ImportMode = \"runtime\" | \"type-only\";"
         },
         {
           "canonicalReference": "@agent-teams/feature-module-standard!ImportRecord:type",
@@ -103,14 +103,14 @@
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/feature-module-standard!",
           "parentKind": "EntryPoint",
-          "signature": "export type LayerRole = 'domain' | 'application' | 'contracts' | 'adapters' | 'composition' | 'testing';"
+          "signature": "export type LayerRole = \"domain\" | \"application\" | \"contracts\" | \"adapters\" | \"composition\" | \"testing\";"
         },
         {
           "canonicalReference": "@agent-teams/feature-module-standard!LayerScope:type",
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/feature-module-standard!",
           "parentKind": "EntryPoint",
-          "signature": "export type LayerScope = 'same-feature' | 'other-feature';"
+          "signature": "export type LayerScope = \"same-feature\" | \"other-feature\";"
         },
         {
           "canonicalReference": "@agent-teams/feature-module-standard!Republication:type",
@@ -124,7 +124,7 @@
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/feature-module-standard!",
           "parentKind": "EntryPoint",
-          "signature": "export type RepublishedSurface = 'public' | 'composition-contract';"
+          "signature": "export type RepublishedSurface = \"public\" | \"composition-contract\";"
         },
         {
           "canonicalReference": "@agent-teams/feature-module-standard!RoleRoot:type",
@@ -138,21 +138,21 @@
           "kind": "Variable",
           "parentReference": "@agent-teams/feature-module-standard!",
           "parentKind": "EntryPoint",
-          "signature": "export declare const STANDARD: {\n    readonly id: 'agent-teams.feature-module-standard';\n    readonly version: 'v1.1';\n    readonly digest: 'sha256:cfa088ef7396139554fe5e3bcc839271b23299c6b60c569a3a7f1cd7c9f0bc6c';\n};"
+          "signature": "export declare const STANDARD: {\n    readonly id: \"agent-teams.feature-module-standard\";\n    readonly version: \"v1.1\";\n    readonly digest: \"sha256:cfa088ef7396139554fe5e3bcc839271b23299c6b60c569a3a7f1cd7c9f0bc6c\";\n};"
         },
         {
           "canonicalReference": "@agent-teams/feature-module-standard!Severity:type",
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/feature-module-standard!",
           "parentKind": "EntryPoint",
-          "signature": "export type Severity = 'error' | 'warning';"
+          "signature": "export type Severity = \"error\" | \"warning\";"
         },
         {
           "canonicalReference": "@agent-teams/feature-module-standard!SurfaceKind:type",
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/feature-module-standard!",
           "parentKind": "EntryPoint",
-          "signature": "export type SurfaceKind = 'public' | 'internal-api' | 'composition-contract' | 'composition-surface' | 'testing';"
+          "signature": "export type SurfaceKind = \"public\" | \"internal-api\" | \"composition-contract\" | \"composition-surface\" | \"testing\";"
         },
         {
           "canonicalReference": "@agent-teams/feature-module-standard!SurfaceMap:type",
@@ -173,7 +173,7 @@
           "kind": "Variable",
           "parentReference": "@agent-teams/feature-module-standard!",
           "parentKind": "EntryPoint",
-          "signature": "export declare const WARNING_CODES: readonly [\n    'depth-warning',\n    'test-misplaced',\n    'test-unowned'\n];"
+          "signature": "export declare const WARNING_CODES: readonly [\n    \"depth-warning\",\n    \"test-misplaced\",\n    \"test-unowned\"\n];"
         },
         {
           "canonicalReference": "@agent-teams/feature-module-standard!analyzeFeatureTree:function(1)",
@@ -208,7 +208,7 @@
           "kind": "Function",
           "parentReference": "@agent-teams/feature-module-standard!",
           "parentKind": "EntryPoint",
-          "signature": "export declare function inferDirectoryLayout(layout: DirectoryLayout): Pick<FeatureModuleInput, 'featureRoots' | 'featuresRoots' | 'roleRoots'>;"
+          "signature": "export declare function inferDirectoryLayout(layout: DirectoryLayout): Pick<FeatureModuleInput, \"featureRoots\" | \"featuresRoots\" | \"roleRoots\">;"
         },
         {
           "canonicalReference": "@agent-teams/feature-module-standard!isWithin:function(1)",
@@ -248,7 +248,7 @@
           "kind": "Variable",
           "parentReference": "@agent-teams/feature-module-standard!",
           "parentKind": "EntryPoint",
-          "signature": "export declare const ERROR_CODES: readonly [\n    'assembly-misplaced',\n    'assembly-missing',\n    'composition-contract-layer',\n    'composition-contract-misplaced',\n    'container-empty',\n    'container-file',\n    'deep-import',\n    'entry-unmapped',\n    'feature-cycle',\n    'feature-duplicate',\n    'feature-root-placement',\n    'feature-undeclared',\n    'invalid-path',\n    'layer-direction',\n    'load-cycle',\n    'not-visible',\n    'republication-invalid',\n    'republication-mismatch',\n    'republication-not-sub-feature',\n    'republication-skips-level',\n    'republication-undeclared',\n    'surface-unowned',\n    'use-edge-invalid',\n    'use-undeclared'\n];"
+          "signature": "export declare const ERROR_CODES: readonly [\n    \"assembly-misplaced\",\n    \"assembly-missing\",\n    \"composition-contract-layer\",\n    \"composition-contract-misplaced\",\n    \"container-empty\",\n    \"container-file\",\n    \"deep-import\",\n    \"entry-unmapped\",\n    \"feature-cycle\",\n    \"feature-duplicate\",\n    \"feature-root-placement\",\n    \"feature-undeclared\",\n    \"invalid-path\",\n    \"layer-direction\",\n    \"load-cycle\",\n    \"not-visible\",\n    \"republication-invalid\",\n    \"republication-mismatch\",\n    \"republication-not-sub-feature\",\n    \"republication-skips-level\",\n    \"republication-undeclared\",\n    \"surface-unowned\",\n    \"use-edge-invalid\",\n    \"use-undeclared\"\n];"
         },
         {
           "canonicalReference": "@agent-teams/feature-module-standard!FeatureModuleInput:type",
@@ -262,7 +262,7 @@
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/feature-module-standard!",
           "parentKind": "EntryPoint",
-          "signature": "export type ImportMode = 'runtime' | 'type-only';"
+          "signature": "export type ImportMode = \"runtime\" | \"type-only\";"
         },
         {
           "canonicalReference": "@agent-teams/feature-module-standard!ImportRecord:type",
@@ -276,7 +276,7 @@
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/feature-module-standard!",
           "parentKind": "EntryPoint",
-          "signature": "export type LayerRole = 'domain' | 'application' | 'contracts' | 'adapters' | 'composition' | 'testing';"
+          "signature": "export type LayerRole = \"domain\" | \"application\" | \"contracts\" | \"adapters\" | \"composition\" | \"testing\";"
         },
         {
           "canonicalReference": "@agent-teams/feature-module-standard!Republication:type",
@@ -290,7 +290,7 @@
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/feature-module-standard!",
           "parentKind": "EntryPoint",
-          "signature": "export type RepublishedSurface = 'public' | 'composition-contract';"
+          "signature": "export type RepublishedSurface = \"public\" | \"composition-contract\";"
         },
         {
           "canonicalReference": "@agent-teams/feature-module-standard!RoleRoot:type",
@@ -318,7 +318,7 @@
           "kind": "Variable",
           "parentReference": "@agent-teams/feature-module-standard!",
           "parentKind": "EntryPoint",
-          "signature": "export declare const WARNING_CODES: readonly [\n    'depth-warning',\n    'test-misplaced',\n    'test-unowned'\n];"
+          "signature": "export declare const WARNING_CODES: readonly [\n    \"depth-warning\",\n    \"test-misplaced\",\n    \"test-unowned\"\n];"
         },
         {
           "canonicalReference": "@agent-teams/feature-module-standard!conformanceCases:var",
@@ -400,7 +400,7 @@
           "kind": "Variable",
           "parentReference": "@agent-teams/feature-module-standard!",
           "parentKind": "EntryPoint",
-          "signature": "export declare const ERROR_CODES: readonly [\n    'assembly-misplaced',\n    'assembly-missing',\n    'composition-contract-layer',\n    'composition-contract-misplaced',\n    'container-empty',\n    'container-file',\n    'deep-import',\n    'entry-unmapped',\n    'feature-cycle',\n    'feature-duplicate',\n    'feature-root-placement',\n    'feature-undeclared',\n    'invalid-path',\n    'layer-direction',\n    'load-cycle',\n    'not-visible',\n    'republication-invalid',\n    'republication-mismatch',\n    'republication-not-sub-feature',\n    'republication-skips-level',\n    'republication-undeclared',\n    'surface-unowned',\n    'use-edge-invalid',\n    'use-undeclared'\n];"
+          "signature": "export declare const ERROR_CODES: readonly [\n    \"assembly-misplaced\",\n    \"assembly-missing\",\n    \"composition-contract-layer\",\n    \"composition-contract-misplaced\",\n    \"container-empty\",\n    \"container-file\",\n    \"deep-import\",\n    \"entry-unmapped\",\n    \"feature-cycle\",\n    \"feature-duplicate\",\n    \"feature-root-placement\",\n    \"feature-undeclared\",\n    \"invalid-path\",\n    \"layer-direction\",\n    \"load-cycle\",\n    \"not-visible\",\n    \"republication-invalid\",\n    \"republication-mismatch\",\n    \"republication-not-sub-feature\",\n    \"republication-skips-level\",\n    \"republication-undeclared\",\n    \"surface-unowned\",\n    \"use-edge-invalid\",\n    \"use-undeclared\"\n];"
         },
         {
           "canonicalReference": "@agent-teams/feature-module-standard!FeatureMetric:type",
@@ -421,7 +421,7 @@
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/feature-module-standard!",
           "parentKind": "EntryPoint",
-          "signature": "export type GraphEdge = Readonly<{\n    from: string;\n    to: string;\n    mode: 'runtime' | 'type-only';\n    line: number;\n    reexport?: true;\n}>;"
+          "signature": "export type GraphEdge = Readonly<{\n    from: string;\n    to: string;\n    mode: \"runtime\" | \"type-only\";\n    line: number;\n    reexport?: true;\n}>;"
         },
         {
           "canonicalReference": "@agent-teams/feature-module-standard!GraphRuntimeReference:type",
@@ -435,14 +435,14 @@
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/feature-module-standard!",
           "parentKind": "EntryPoint",
-          "signature": "export type GraphUnresolved = Readonly<{\n    from: string;\n    specifier: string;\n    kind: string;\n    mode: 'runtime' | 'type-only';\n    line: number;\n}>;"
+          "signature": "export type GraphUnresolved = Readonly<{\n    from: string;\n    specifier: string;\n    kind: string;\n    mode: \"runtime\" | \"type-only\";\n    line: number;\n}>;"
         },
         {
           "canonicalReference": "@agent-teams/feature-module-standard!LayerRole:type",
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/feature-module-standard!",
           "parentKind": "EntryPoint",
-          "signature": "export type LayerRole = 'domain' | 'application' | 'contracts' | 'adapters' | 'composition' | 'testing';"
+          "signature": "export type LayerRole = \"domain\" | \"application\" | \"contracts\" | \"adapters\" | \"composition\" | \"testing\";"
         },
         {
           "canonicalReference": "@agent-teams/feature-module-standard!NodeCheckConfig:type",
@@ -477,7 +477,7 @@
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/feature-module-standard!",
           "parentKind": "EntryPoint",
-          "signature": "export type RepublishedSurface = 'public' | 'composition-contract';"
+          "signature": "export type RepublishedSurface = \"public\" | \"composition-contract\";"
         },
         {
           "canonicalReference": "@agent-teams/feature-module-standard!RoleRoot:type",
@@ -491,7 +491,7 @@
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/feature-module-standard!",
           "parentKind": "EntryPoint",
-          "signature": "export type Severity = 'error' | 'warning';"
+          "signature": "export type Severity = \"error\" | \"warning\";"
         },
         {
           "canonicalReference": "@agent-teams/feature-module-standard!SurfaceMap:type",
@@ -512,7 +512,7 @@
           "kind": "Variable",
           "parentReference": "@agent-teams/feature-module-standard!",
           "parentKind": "EntryPoint",
-          "signature": "export declare const WARNING_CODES: readonly [\n    'depth-warning',\n    'test-misplaced',\n    'test-unowned'\n];"
+          "signature": "export declare const WARNING_CODES: readonly [\n    \"depth-warning\",\n    \"test-misplaced\",\n    \"test-unowned\"\n];"
         },
         {
           "canonicalReference": "@agent-teams/feature-module-standard!checkFeatureModuleOnDisk:function(1)",

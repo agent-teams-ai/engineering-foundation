@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.9
+
+### Patch Changes
+
+- [#444](https://github.com/agent-teams-ai/engineering-foundation/pull/444) [`dae3f65`](https://github.com/agent-teams-ai/engineering-foundation/commit/dae3f6565698a0f9a1dff71c2aa8c3ff2e674a73) Thanks [@777genius](https://github.com/777genius)! - Publish new companion patch versions for the reviewed source formatting and
+  private-helper changes delivered with Foundation 3. Rebuild and qualify fresh
+  archives for these versions; do not reuse the earlier release train's artifacts.
+- Updated dependencies [[`dae3f65`](https://github.com/agent-teams-ai/engineering-foundation/commit/dae3f6565698a0f9a1dff71c2aa8c3ff2e674a73)]:
+  - @agent-teams/docs-protocol@0.6.6
+
 ## 0.2.8
 
 ### Patch Changes

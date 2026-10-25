@@ -1,6 +1,6 @@
 {
   "name": "@agent-teams/release-checks",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Pure release candidate comparison against accepted inputs and an exact engine plan.",
   "license": "Apache-2.0",
   "repository": {

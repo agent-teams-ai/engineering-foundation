@@ -1,5 +1,13 @@
 # Stack Toolchain
 
+## 0.1.1
+
+### Patch Changes
+
+- [#444](https://github.com/agent-teams-ai/engineering-foundation/pull/444) [`dae3f65`](https://github.com/agent-teams-ai/engineering-foundation/commit/dae3f6565698a0f9a1dff71c2aa8c3ff2e674a73) Thanks [@777genius](https://github.com/777genius)! - Publish fresh declaration and source-map artifacts after applying the required
+  full-scope source formatting. Preserve the checker, diagnostic, fallback and
+  installed-tool contracts; never replace the existing 0.1.0 registry archive.
+
 ## 0.1.0
 
 ### Minor Changes

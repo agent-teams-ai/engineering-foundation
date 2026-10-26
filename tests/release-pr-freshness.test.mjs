@@ -1,4 +1,4 @@
-import { git, commitRelease, amendFixtureIdentity } from "./support/release-freshness-git.ts";
+import * as fixtureGit from "./support/release-freshness-git.ts";
 import { changeset, generatedRelease } from "./support/release-freshness-text.ts";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
@@ -13,6 +13,7 @@ import { releasePullRequestFreshnessViolations } from "../scripts/check-release-
 import { registerReleaseSectionCases } from "./support/release-section-cases.ts";
 
 const execFileAsync = promisify(execFile);
+const { git, commitRelease, amendFixtureIdentity } = fixtureGit;
 const packageName = "@agent-teams/engineering-foundation";
 const docsPackageName = "@agent-teams/docs-protocol";
 const require = createRequire(import.meta.url);
@@ -401,7 +402,8 @@ async function violations(root, processedMainSha, currentMainSha, release, expec
   );
 }
 
-test("release identity rejects staging bots and binds both raw Git identities", async () => {
+test("release identity rejects staging bots and binds both raw Git identities", async (t) => {
+  t.after(fixtureGit.poisonInheritedFixtureGitEnvironment());
   const { root, mainA } = await createFixture();
   try {
     const release = await createRelease(root, mainA, "1.1.0", ["Alpha package change."]);

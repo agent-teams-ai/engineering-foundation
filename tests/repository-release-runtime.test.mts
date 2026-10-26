@@ -489,6 +489,7 @@ void test("Node dependency policy projection changes one manager line and reject
 });
 
 async function packagePhaseSource(root: string): Promise<void> {
+  const sourceRoot = await repositorySourceRoot();
   await mkdir(join(root, "architecture/foundation"), { recursive: true });
   await mkdir(join(root, ".worker-tmp/profiles"), { recursive: true });
   await writeFile(
@@ -518,7 +519,7 @@ async function packagePhaseSource(root: string): Promise<void> {
     "repository-runtime.json",
   ]) {
     await copyFile(
-      join(repositoryRoot, "architecture/foundation", path),
+      join(sourceRoot, "architecture/foundation", path),
       join(root, "architecture/foundation", path),
     );
   }

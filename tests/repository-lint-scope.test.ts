@@ -17,6 +17,7 @@ import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 import { qualitySourceTargets } from "../packages/engineering-foundation/dist/features/quality-coverage/application/source-coverage.js";
 import { mapQualityTopology } from "../packages/engineering-foundation/dist/features/quality-coverage/adapters/profile-input.js";
+import { repositorySourceRoot } from "./support/repository-source.ts";
 
 interface Configuration {
   readonly extends: readonly string[];
@@ -131,7 +132,7 @@ void test("split lint preserves the original syntax scope and production typed p
   assert.deepEqual(selected.syntax, { config: ".oxlintrc.json", paths: roots });
 });
 
-void test("actual typed selection equals authoritative quality production targets", () => {
+void test("actual typed selection equals authoritative quality production targets", async () => {
   const topology: unknown = JSON.parse(
     readFileSync(join(root, "architecture/foundation/feature-modules.json"), "utf8"),
   );
@@ -142,18 +143,46 @@ void test("actual typed selection equals authoritative quality production target
   );
   assert.ok(expected.length > 0);
   const selected = lintScopes();
-  const actual = lint([
+  const args = [
     "--config",
     selected.typed.config,
     "--disable-nested-config",
     "--debug",
     "files",
-    ...selected.typed.paths,
-  ])
+    "--",
+  ];
+  // Directory discovery uses the source; explicit names retain the same scope
+  // inside a profile below an ancestor's ignored .worker-tmp directory.
+  const actual = lint([...args, ...selected.typed.paths], await repositorySourceRoot())
     .trim()
     .split(/\r?\n/u)
     .toSorted();
   assert.deepEqual(actual, expected);
+  const projected: string[] = [];
+  let batch: string[] = [];
+  let bytes = 0;
+  const verifyBatch = (): void => {
+    if (batch.length > 0) {
+      projected.push(
+        ...lint([...args, ...batch])
+          .trim()
+          .split(/\r?\n/u),
+      );
+    }
+    batch = [];
+    bytes = 0;
+  };
+  for (const path of actual) {
+    const size = Buffer.byteLength(path, "utf8") + 1;
+    assert.ok(size <= 8_000);
+    if (bytes + size > 8_000) {
+      verifyBatch();
+    }
+    batch.push(path);
+    bytes += size;
+  }
+  verifyBatch();
+  assert.deepEqual(projected.toSorted(), expected);
   assert.ok(actual.every((path) => !path.startsWith("tests/") && !path.startsWith("tools/")));
   assert.ok(actual.every((path) => !path.startsWith("scripts/")));
   assert.ok(

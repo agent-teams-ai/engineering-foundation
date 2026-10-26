@@ -30,7 +30,7 @@ import {
 import { inspectInstalledDependencies } from "../tools/dependencies-installed-check.mts";
 import { resolveQualificationExecutables } from "../tools/executable-policy.mts";
 import { projectNodeAgentWorkflowPolicy } from "../tools/runtime-policy.mts";
-import { resolvePnpmInvocation } from "../tools/pnpm-command.mts";
+import { resolvePackagingPnpm } from "../scripts/packaging-pnpm.ts";
 
 const repositoryRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const sourceSha = "a".repeat(40);
@@ -216,8 +216,8 @@ void test("selected Node command execution works without any Bun executable", as
       )}\n`,
       "utf8",
     );
-    const manager = await resolvePnpmInvocation(process.execPath, "11.20.0");
-    const managerEntrypoint = manager.kind === "javascript" ? manager.args[0] : manager.command;
+    // A generated shell shim also needs utilities absent from this node-only PATH.
+    const { entrypoint: managerEntrypoint } = await resolvePackagingPnpm();
     assert.ok(managerEntrypoint);
     const commonEnvironment: NodeJS.ProcessEnv = {
       ...process.env,

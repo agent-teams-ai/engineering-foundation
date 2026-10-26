@@ -293,10 +293,15 @@ test("packaging package-manager runners ignore executable environment overrides"
       'process.stdout.write(JSON.stringify({ nodePath: process.env.NODE_PATH, marker: "PACKAGING-PNPM-EXEC" }))',
     ],
     root,
-    { environment },
+    {
+      environment: {
+        ...environment,
+        NODE_PATH: join(repositoryRoot, "attacker-modules"),
+        NODE_OPTIONS: `--require=${join(repositoryRoot, "attacker-loader.cjs")}`,
+      },
+    },
   );
   assert.deepEqual(JSON.parse(executed.stdout), {
-    ...(process.env.NODE_PATH === undefined ? {} : { nodePath: process.env.NODE_PATH }),
     marker: "PACKAGING-PNPM-EXEC",
   });
   assert.match(pnpm.stdout, /^11\.20\.0\s*$/u);

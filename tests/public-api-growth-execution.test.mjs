@@ -576,7 +576,7 @@ test("initial-release checking validates package, exact version and Changeset ev
         },
       },
     ];
-    const result = evaluateGrowthReleaseCompatibility(
+    const result = await evaluateGrowthReleaseCompatibility(
       {
         current,
         released,
@@ -613,15 +613,17 @@ test("initial-release checking validates package, exact version and Changeset ev
       },
     ];
     assert.equal(
-      evaluateGrowthReleaseCompatibility(
-        {
-          current: candidate,
-          released,
-          extractorVersion: "7.58.12",
-          acceptedDecisions: { acceptedDecisionIds: [], acceptedDecisionPaths: [] },
-          authorityReceiptDigest: authorityDigest,
-        },
-        fingerprint,
+      (
+        await evaluateGrowthReleaseCompatibility(
+          {
+            current: candidate,
+            released,
+            extractorVersion: "7.58.12",
+            acceptedDecisions: { acceptedDecisionIds: [], acceptedDecisionPaths: [] },
+            authorityReceiptDigest: authorityDigest,
+          },
+          fingerprint,
+        )
       ).status,
       "complete",
     );

@@ -93,7 +93,8 @@ test("unchanged schema passes; a new schema is additive; $id, const and constrai
   assert.equal(baseline.status, "release-candidate");
   assert.deepEqual(baseline.jsonSchemas[0].discriminators, { schemaVersion: { const: 1 } });
   assert.equal(
-    comparePackageArtifactInventory(baseline, await inspect(root), fingerprint).classification,
+    (await comparePackageArtifactInventory(baseline, await inspect(root), fingerprint))
+      .classification,
     "none",
   );
   await json(root, "package/schemas/v2.schema.json", {
@@ -101,7 +102,8 @@ test("unchanged schema passes; a new schema is additive; $id, const and constrai
     $id: "https://fixture.test/record/v2",
   });
   assert.equal(
-    comparePackageArtifactInventory(baseline, await inspect(root), fingerprint).classification,
+    (await comparePackageArtifactInventory(baseline, await inspect(root), fingerprint))
+      .classification,
     "additive",
   );
   await rm(join(root, "package/schemas/v2.schema.json"));
@@ -113,7 +115,11 @@ test("unchanged schema passes; a new schema is additive; $id, const and constrai
   const fingerprints = [];
   for (const value of changes) {
     await json(root, "package/schemas/v1.schema.json", value);
-    const change = comparePackageArtifactInventory(baseline, await inspect(root), fingerprint);
+    const change = await comparePackageArtifactInventory(
+      baseline,
+      await inspect(root),
+      fingerprint,
+    );
     assert.equal(change.classification, "breaking");
     fingerprints.push(change.fingerprint);
   }
@@ -300,7 +306,7 @@ test("removed last wildcard stays governed and unapproved schema drift cannot pr
   const after = await inspect(root, [changedPolicy]);
   const input = { consumerRoot: root, policy: { ...policy, packages: [changedPolicy] } };
   assert.equal(
-    comparePackageArtifactInventory(before, after, fingerprint).classification,
+    (await comparePackageArtifactInventory(before, after, fingerprint)).classification,
     "breaking",
   );
   await assert.rejects(

@@ -6,5 +6,5 @@ export interface PublicApiSignatureEquivalence {
     released: PublicApiItem,
     current: PublicApiItem,
     extractorVersions: { readonly released: string; readonly current: string },
-  ) => boolean;
+  ) => Promise<boolean>;
 }

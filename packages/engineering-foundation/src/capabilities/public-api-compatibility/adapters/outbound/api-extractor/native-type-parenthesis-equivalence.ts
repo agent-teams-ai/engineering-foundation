@@ -1,5 +1,5 @@
 import { dirname, posix } from "node:path";
-import { API } from "typescript/unstable/sync";
+import { API, type APIOptions, type Program } from "typescript/unstable/async";
 import * as ast from "typescript/unstable/ast";
 import { createVirtualFileSystem } from "typescript/unstable/fs";
 import type { PublicApiSignatureEquivalence } from "../../../application/ports/public-api-signature-equivalence.js";
@@ -13,6 +13,25 @@ import {
 const MAX_SIGNATURE_CHARACTERS = 10_000;
 const MAX_NODES = 20_000;
 const MAX_DEPTH = 128;
+export interface NativeSignatureSnapshot {
+  readonly getProject: (configPath: string) =>
+    | {
+        readonly program: Pick<
+          Program,
+          "getConfigFileParsingDiagnostics" | "getSyntacticDiagnostics" | "getSourceFile"
+        >;
+      }
+    | undefined;
+  readonly dispose: () => Promise<void>;
+}
+export interface NativeSignatureSession {
+  readonly updateSnapshot: (input: {
+    readonly openProjects: string[];
+  }) => Promise<NativeSignatureSnapshot>;
+  readonly close: () => Promise<void>;
+}
+export type NativeSignatureSessionFactory = (options: APIOptions) => NativeSignatureSession;
+
 interface SyntaxProof {
   readonly shape: string;
   readonly tokens: readonly (readonly [ast.SyntaxKind, string])[];
@@ -114,7 +133,12 @@ function literalQuoteSpelling(source: ast.SourceFile): string | undefined {
   return state.valid ? parts.join("") + source.text.slice(cursor) : undefined;
 }
 
-function prove(released: string, current: string, allowParentheses: boolean = true): boolean {
+async function prove(
+  released: string,
+  current: string,
+  allowParentheses: boolean,
+  createSession: NativeSignatureSessionFactory,
+): Promise<boolean> {
   assertPinnedAuditSdk();
   // Native SDK filesystem callbacks use slash-normalized paths on Windows too.
   const root = posix.join(
@@ -140,20 +164,20 @@ function prove(released: string, current: string, allowParentheses: boolean = tr
   // Missing virtual input must not fall back to the host filesystem.
   virtual.readFile = (path) => read(path) ?? null;
   virtual.getAccessibleEntries = (path) => entries(path) ?? { files: [], directories: [] };
-  const api = new API({ cwd: root, tsserverPath: nativeCompilerPath, fs: virtual });
+  const api = createSession({ cwd: root, tsserverPath: nativeCompilerPath, fs: virtual });
   try {
-    const snapshot = api.updateSnapshot({ openProjects: [configPath] });
+    const snapshot = await api.updateSnapshot({ openProjects: [configPath] });
     try {
       const program = snapshot.getProject(configPath)?.program;
       if (
         program === undefined ||
-        program.getConfigFileParsingDiagnostics().length !== 0 ||
-        program.getSyntacticDiagnostics().length !== 0
+        (await program.getConfigFileParsingDiagnostics()).length !== 0 ||
+        (await program.getSyntacticDiagnostics()).length !== 0
       ) {
         return false;
       }
-      const before = program.getSourceFile(beforePath),
-        after = program.getSourceFile(afterPath);
+      const before = await program.getSourceFile(beforePath),
+        after = await program.getSourceFile(afterPath);
       if (before === undefined || after === undefined) {
         return false;
       }
@@ -175,18 +199,24 @@ function prove(released: string, current: string, allowParentheses: boolean = tr
         JSON.stringify(left.tokens) === JSON.stringify(right.tokens)
       );
     } finally {
-      snapshot.dispose();
+      await snapshot.dispose();
     }
   } finally {
-    api.close();
+    await api.close();
   }
 }
 
 /** One bounded native session per differing alias pair, owned and closed by
  * this call. Raw excerpts and their evidence/fingerprint bytes are never edited. */
-export function createNativeTypeParenthesisEquivalence(): PublicApiSignatureEquivalence {
+export function createNativeTypeParenthesisEquivalence(
+  createSession: NativeSignatureSessionFactory = (options) => new API(options),
+): PublicApiSignatureEquivalence {
   return {
-    equivalent: (released: PublicApiItem, current: PublicApiItem, extractorVersions): boolean => {
+    equivalent: async (
+      released: PublicApiItem,
+      current: PublicApiItem,
+      extractorVersions,
+    ): Promise<boolean> => {
       if (
         extractorVersions.released !== NATIVE_EXTRACTOR_VERSION ||
         extractorVersions.current !== NATIVE_EXTRACTOR_VERSION ||
@@ -204,12 +234,20 @@ export function createNativeTypeParenthesisEquivalence(): PublicApiSignatureEqui
         return false;
       }
       try {
-        return released.kind === "PropertySignature"
-          ? prove(
-              `interface SignatureProof { ${released.signature} }`,
-              `interface SignatureProof { ${current.signature} }`,
-            )
-          : prove(released.signature, current.signature, released.kind === "TypeAlias");
+        if (released.kind === "PropertySignature") {
+          return await prove(
+            `interface SignatureProof { ${released.signature} }`,
+            `interface SignatureProof { ${current.signature} }`,
+            true,
+            createSession,
+          );
+        }
+        return await prove(
+          released.signature,
+          current.signature,
+          released.kind === "TypeAlias",
+          createSession,
+        );
       } catch {
         // Invalid/unsupported syntax, SDK or cleanup failures provide no proof.
         return false;

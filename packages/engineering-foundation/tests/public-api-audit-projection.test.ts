@@ -123,7 +123,7 @@ test("hidden mutation changes public graph signature with identical public excer
   assert.equal(a.items.find((i) => i.public)?.excerpt, c.items.find((i) => i.public)?.excerpt);
   const left = projectPublicApiObservation([a], "audit-fixture");
   const right = projectPublicApiObservation([c], "audit-fixture");
-  const diff = classifyPublicApiChange(left.snapshot, right.snapshot, fingerprint);
+  const diff = await classifyPublicApiChange(left.snapshot, right.snapshot, fingerprint);
   assert.equal(diff.classification, "breaking");
   assert.deepEqual(diff.changed, [
     { exportPath: ".", canonicalReference: "audit-fixture!f:function(1)" },
@@ -133,10 +133,12 @@ test("hidden mutation changes public graph signature with identical public excer
     "C",
   );
   assert.equal(
-    classifyPublicApiChange(
-      left.snapshot,
-      projectPublicApiObservation([same], "audit-fixture").snapshot,
-      fingerprint,
+    (
+      await classifyPublicApiChange(
+        left.snapshot,
+        projectPublicApiObservation([same], "audit-fixture").snapshot,
+        fingerprint,
+      )
     ).classification,
     "none",
   );
@@ -159,7 +161,7 @@ test("ambient counterexample and explicit export preserve canonical identity tra
     exported.items.find((i) => i.kind === "TypeAlias")?.identity.canonicalReference,
     "audit-fixture!Hidden:type",
   );
-  const diff = classifyPublicApiChange(
+  const diff = await classifyPublicApiChange(
     projectPublicApiObservation([hidden], "audit-fixture").snapshot,
     projectPublicApiObservation([exported], "audit-fixture").snapshot,
     fingerprint,
@@ -190,7 +192,8 @@ test("real member collection permutations preserve sorted graphs, snapshots and 
     fingerprint.sha256(JSON.stringify(original.snapshot)),
   );
   assert.equal(
-    classifyPublicApiChange(original.snapshot, permuted.snapshot, fingerprint).classification,
+    (await classifyPublicApiChange(original.snapshot, permuted.snapshot, fingerprint))
+      .classification,
     "none",
   );
 });

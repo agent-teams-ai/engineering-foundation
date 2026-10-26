@@ -64,7 +64,7 @@ function snapshot(packageName, items) {
   };
 }
 
-function defaultArgumentChange(releasedAlias, currentAlias, options = {}) {
+async function defaultArgumentChange(releasedAlias, currentAlias, options = {}) {
   const releasedTarget = options.releasedTarget ?? genericTarget();
   const currentTarget = options.currentTarget ?? releasedTarget;
   const releasedExtras = options.releasedExtras ?? [namedType()];
@@ -87,26 +87,28 @@ function defaultArgumentChange(releasedAlias, currentAlias, options = {}) {
       },
     ],
   };
-  return classifyPublicApiChange(released, current, { sha256 }, options.stableTypeBindings);
+  return await classifyPublicApiChange(released, current, { sha256 }, options.stableTypeBindings);
 }
 
-test("treats only exact trailing declared default type arguments as unchanged", () => {
+test("treats only exact trailing declared default type arguments as unchanged", async () => {
   const explicit =
     "export type AnyFactoryHandle<C> = FactoryHandle<C, ModuleDeclaration, unknown>;";
   const omitted = "export type AnyFactoryHandle<C> = FactoryHandle<C>;";
 
-  assert.equal(defaultArgumentChange(explicit, omitted).classification, "none");
-  assert.equal(defaultArgumentChange(omitted, explicit).classification, "none");
+  assert.equal((await defaultArgumentChange(explicit, omitted)).classification, "none");
+  assert.equal((await defaultArgumentChange(omitted, explicit)).classification, "none");
   assert.equal(
-    defaultArgumentChange(
-      explicit,
-      "export type AnyFactoryHandle<C> = FactoryHandle<C, ModuleDeclaration>;",
+    (
+      await defaultArgumentChange(
+        explicit,
+        "export type AnyFactoryHandle<C> = FactoryHandle<C, ModuleDeclaration>;",
+      )
     ).classification,
     "none",
   );
 });
 
-test("rejects unproved default-type-argument equivalence", () => {
+test("rejects unproved default-type-argument equivalence", async () => {
   const explicit =
     "export type AnyFactoryHandle<C> = FactoryHandle<C, ModuleDeclaration, unknown>;";
   const rejectingChanges = [
@@ -134,14 +136,14 @@ test("rejects unproved default-type-argument equivalence", () => {
 
   for (const [current, options] of rejectingChanges) {
     assert.equal(
-      defaultArgumentChange(explicit, current, options).classification,
+      (await defaultArgumentChange(explicit, current, options)).classification,
       "breaking",
       current,
     );
   }
 });
 
-test("rejects defaults whose meaning can depend on target parameter bindings", () => {
+test("rejects defaults whose meaning can depend on target parameter bindings", async () => {
   const target = {
     ...genericTarget("export type F<T, U = T> = readonly [T, U]", "@fixture/public-api!F:type"),
     kind: "TypeAlias",
@@ -150,25 +152,25 @@ test("rejects defaults whose meaning can depend on target parameter bindings", (
   const omitted = "export type AnyFactoryHandle<T> = F<string>;";
 
   assert.equal(
-    defaultArgumentChange(explicit, omitted, { releasedTarget: target }).classification,
+    (await defaultArgumentChange(explicit, omitted, { releasedTarget: target })).classification,
     "breaking",
   );
   assert.equal(
-    defaultArgumentChange(omitted, explicit, { releasedTarget: target }).classification,
+    (await defaultArgumentChange(omitted, explicit, { releasedTarget: target })).classification,
     "breaking",
   );
 });
 
-test("rejects defaults shadowed by alias type parameters", () => {
+test("rejects defaults shadowed by alias type parameters", async () => {
   const explicit =
     "export type AnyFactoryHandle<C, ModuleDeclaration> = FactoryHandle<C, ModuleDeclaration>;";
   const omitted = "export type AnyFactoryHandle<C, ModuleDeclaration> = FactoryHandle<C>;";
 
-  assert.equal(defaultArgumentChange(explicit, omitted).classification, "breaking");
-  assert.equal(defaultArgumentChange(omitted, explicit).classification, "breaking");
+  assert.equal((await defaultArgumentChange(explicit, omitted)).classification, "breaking");
+  assert.equal((await defaultArgumentChange(omitted, explicit)).classification, "breaking");
 });
 
-test("rejects malformed and unsupported alias type-parameter headers", () => {
+test("rejects malformed and unsupported alias type-parameter headers", async () => {
   const cases = [
     [
       "export type AnyFactoryHandle<C = > = FactoryHandle<C, ModuleDeclaration, unknown>;",
@@ -185,12 +187,12 @@ test("rejects malformed and unsupported alias type-parameter headers", () => {
   ];
 
   for (const [explicit, omitted] of cases) {
-    assert.equal(defaultArgumentChange(explicit, omitted).classification, "breaking");
-    assert.equal(defaultArgumentChange(omitted, explicit).classification, "breaking");
+    assert.equal((await defaultArgumentChange(explicit, omitted)).classification, "breaking");
+    assert.equal((await defaultArgumentChange(omitted, explicit)).classification, "breaking");
   }
 });
 
-test("rejects operator and reserved words in alias type parameters", () => {
+test("rejects operator and reserved words in alias type parameters", async () => {
   const target = {
     ...genericTarget("export type F<T = string> = T", "@fixture/public-api!F:type"),
     kind: "TypeAlias",
@@ -203,17 +205,17 @@ test("rejects operator and reserved words in alias type parameters", () => {
 
   for (const [explicit, omitted] of cases) {
     assert.equal(
-      defaultArgumentChange(explicit, omitted, { releasedTarget: target }).classification,
+      (await defaultArgumentChange(explicit, omitted, { releasedTarget: target })).classification,
       "breaking",
     );
     assert.equal(
-      defaultArgumentChange(omitted, explicit, { releasedTarget: target }).classification,
+      (await defaultArgumentChange(omitted, explicit, { releasedTarget: target })).classification,
       "breaking",
     );
   }
 });
 
-test("rejects target names shadowed by alias type parameters", () => {
+test("rejects target names shadowed by alias type parameters", async () => {
   const target = {
     ...genericTarget("export type F<T = string> = T", "@fixture/public-api!F:type"),
     kind: "TypeAlias",
@@ -222,16 +224,16 @@ test("rejects target names shadowed by alias type parameters", () => {
   const omitted = "export type A<F> = F;";
 
   assert.equal(
-    defaultArgumentChange(explicit, omitted, { releasedTarget: target }).classification,
+    (await defaultArgumentChange(explicit, omitted, { releasedTarget: target })).classification,
     "breaking",
   );
   assert.equal(
-    defaultArgumentChange(omitted, explicit, { releasedTarget: target }).classification,
+    (await defaultArgumentChange(omitted, explicit, { releasedTarget: target })).classification,
     "breaking",
   );
 });
 
-test("rejects default atoms without an unchanged public binding", () => {
+test("rejects default atoms without an unchanged public binding", async () => {
   const explicit =
     "export type AnyFactoryHandle<C> = FactoryHandle<C, ModuleDeclaration, unknown>;";
   const omitted = "export type AnyFactoryHandle<C> = FactoryHandle<C>;";
@@ -241,20 +243,22 @@ test("rejects default atoms without an unchanged public binding", () => {
   );
 
   assert.equal(
-    defaultArgumentChange(explicit, omitted, { currentExtras: [changedBinding] }).classification,
+    (await defaultArgumentChange(explicit, omitted, { currentExtras: [changedBinding] }))
+      .classification,
     "breaking",
   );
   assert.equal(
-    defaultArgumentChange(omitted, explicit, { currentExtras: [changedBinding] }).classification,
+    (await defaultArgumentChange(omitted, explicit, { currentExtras: [changedBinding] }))
+      .classification,
     "breaking",
   );
   assert.equal(
-    defaultArgumentChange(explicit, omitted, { currentExtras: [] }).classification,
+    (await defaultArgumentChange(explicit, omitted, { currentExtras: [] })).classification,
     "breaking",
   );
 });
 
-test("accepts a unique unchanged binding supplied by the governed package set", () => {
+test("accepts a unique unchanged binding supplied by the governed package set", async () => {
   const explicit =
     "export type AnyFactoryHandle<C> = FactoryHandle<C, ModuleDeclaration, unknown>;";
   const omitted = "export type AnyFactoryHandle<C> = FactoryHandle<C>;";
@@ -272,8 +276,8 @@ test("accepts a unique unchanged binding supplied by the governed package set", 
   };
 
   assert.deepEqual([...stableTypeBindings], ["ModuleDeclaration"]);
-  assert.equal(defaultArgumentChange(explicit, omitted, options).classification, "none");
-  assert.equal(defaultArgumentChange(omitted, explicit, options).classification, "none");
+  assert.equal((await defaultArgumentChange(explicit, omitted, options)).classification, "none");
+  assert.equal((await defaultArgumentChange(omitted, explicit, options)).classification, "none");
   assert.equal(
     collectUnchangedPublicTypeBindings([
       {
@@ -299,7 +303,7 @@ test("accepts a unique unchanged binding supplied by the governed package set", 
   );
 });
 
-test("accepts defaults on unchanged declared abstract classes", () => {
+test("accepts defaults on unchanged declared abstract classes", async () => {
   const target = {
     ...genericTarget(
       "export declare abstract class FactoryHandle<C, D extends ModuleDeclaration = ModuleDeclaration, I = unknown>",
@@ -311,16 +315,16 @@ test("accepts defaults on unchanged declared abstract classes", () => {
   const omitted = "export type AnyFactoryHandle<C> = FactoryHandle<C>;";
 
   assert.equal(
-    defaultArgumentChange(explicit, omitted, { releasedTarget: target }).classification,
+    (await defaultArgumentChange(explicit, omitted, { releasedTarget: target })).classification,
     "none",
   );
   assert.equal(
-    defaultArgumentChange(omitted, explicit, { releasedTarget: target }).classification,
+    (await defaultArgumentChange(omitted, explicit, { releasedTarget: target })).classification,
     "none",
   );
 });
 
-test("accepts an unchanged exported enum as a default binding", () => {
+test("accepts an unchanged exported enum as a default binding", async () => {
   const target = genericTarget(
     "export interface FactoryHandle<C, D extends ModuleKind = ModuleKind, I = unknown>",
   );
@@ -333,23 +337,23 @@ test("accepts an unchanged exported enum as a default binding", () => {
     currentExtras: [binding],
   };
 
-  assert.equal(defaultArgumentChange(explicit, omitted, options).classification, "none");
-  assert.equal(defaultArgumentChange(omitted, explicit, options).classification, "none");
+  assert.equal((await defaultArgumentChange(explicit, omitted, options)).classification, "none");
+  assert.equal((await defaultArgumentChange(omitted, explicit, options)).classification, "none");
 });
 
-test("rejects unsupported atoms in direct alias arguments", () => {
+test("rejects unsupported atoms in direct alias arguments", async () => {
   const explicit =
     "export type AnyFactoryHandle<C> = FactoryHandle<keyof, ModuleDeclaration, unknown>;";
   const omitted = "export type AnyFactoryHandle<C> = FactoryHandle<keyof>;";
 
-  assert.equal(defaultArgumentChange(explicit, omitted).classification, "breaking");
-  assert.equal(defaultArgumentChange(omitted, explicit).classification, "breaking");
+  assert.equal((await defaultArgumentChange(explicit, omitted)).classification, "breaking");
+  assert.equal((await defaultArgumentChange(omitted, explicit)).classification, "breaking");
 });
 
-test("requires exact alias headers in both directions", () => {
+test("requires exact alias headers in both directions", async () => {
   const left = "export type AnyFactoryHandle<C> = FactoryHandle<C, ModuleDeclaration, unknown>;";
   const right = "export type AnyFactoryHandle<D> = FactoryHandle<C>;";
 
-  assert.equal(defaultArgumentChange(left, right).classification, "breaking");
-  assert.equal(defaultArgumentChange(right, left).classification, "breaking");
+  assert.equal((await defaultArgumentChange(left, right)).classification, "breaking");
+  assert.equal((await defaultArgumentChange(right, left)).classification, "breaking");
 });

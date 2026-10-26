@@ -128,14 +128,15 @@ function fixture() {
   return { policy, observation, review };
 }
 
-function ordinaryReport(f: ReturnType<typeof fixture>): FoundationCheckReport {
-  const diagnostics = f.policy.packages
-    .map((p, index) =>
-      evaluatePublicApiCompatibility({
+async function ordinaryReport(f: ReturnType<typeof fixture>): Promise<FoundationCheckReport> {
+  const diagnostics: ReturnType<typeof evaluatePublicApiCompatibility>[number][] = [];
+  for (const [index, p] of f.policy.packages.entries()) {
+    diagnostics.push(
+      ...evaluatePublicApiCompatibility({
         policy: p,
         released: f.observation.packages[index]!.baseline,
         current: f.observation.packages[index]!.nativeCandidate,
-        change: classifyPublicApiChange(
+        change: await classifyPublicApiChange(
           f.observation.packages[index]!.baseline,
           f.observation.packages[index]!.nativeCandidate,
           fingerprint,
@@ -143,8 +144,8 @@ function ordinaryReport(f: ReturnType<typeof fixture>): FoundationCheckReport {
         releaseEvidence: { packageName: p.packageName, packageVersion: "1.0.0" },
         acceptedDecision: undefined,
       }),
-    )
-    .flat();
+    );
+  }
   return foundationReport({
     foundationVersion: "1.8.0",
     coverage: "full",
@@ -367,7 +368,7 @@ test("historical tool migration cannot discard exports, identities or parents", 
 
 test("ordinary mismatch remains an exact retained negative alongside native comparison", async () => {
   const f = fixture();
-  const report = ordinaryReport(f);
+  const report = await ordinaryReport(f);
   const args = { ...f, report, exitCode: 1, expectedCapabilities };
   await assertNativeMigrationOrdinaryReport(args);
   assert.equal(report.outcome, "violations");

@@ -99,7 +99,7 @@ function retainComparison(
   budget.characters += size;
   comparisons.push(comparison);
 }
-function historicalComparison(
+async function historicalComparison(
   input: {
     readonly pair: "A-B" | "B-C";
     readonly packageName: string;
@@ -109,7 +109,7 @@ function historicalComparison(
   },
   fingerprint: ChangeFingerprint,
   signatures?: PublicApiSignatureEquivalence,
-): AuditComparison {
+): Promise<AuditComparison> {
   const { pair, packageName, observed, baseline } = input;
   const reasons = input.inputsRevalidated ? [] : ["input-evidence-failure"];
   if (observed === undefined || baseline === undefined) {
@@ -125,7 +125,7 @@ function historicalComparison(
   const findings =
     reasons.length > 0 || observed === undefined || baseline === undefined
       ? undefined
-      : classifyPublicApiChange(
+      : await classifyPublicApiChange(
           pair === "A-B" ? observed : baseline,
           pair === "A-B" ? baseline : observed,
           fingerprint,
@@ -141,7 +141,7 @@ function historicalComparison(
     ...(findings === undefined ? {} : { findings }),
   };
 }
-function richComparison(
+async function richComparison(
   input: {
     readonly a: readonly AuditObservation[];
     readonly c: readonly AuditObservation[];
@@ -151,7 +151,7 @@ function richComparison(
     readonly inputsRevalidated: boolean;
   },
   fingerprint: ChangeFingerprint,
-): AuditComparison {
+): Promise<AuditComparison> {
   const aScope = packageScope(input.a, input.packageName);
   const cScope = packageScope(input.c, input.packageName);
   const reasons = [...publicApiAuditPairEligibility(aScope, cScope).reasons];
@@ -176,7 +176,7 @@ function richComparison(
       projections = {
         beforeProjection,
         afterProjection,
-        findings: classifyPublicApiChange(
+        findings: await classifyPublicApiChange(
           beforeProjection.snapshot,
           afterProjection.snapshot,
           auditFingerprint,
@@ -264,52 +264,46 @@ export async function auditPublicApi(
         errors.push(`B/${packageName}: ${String(error)}`);
       }
     }
-    retainComparison(
-      comparisons,
-      historicalComparison(
-        {
-          pair: "A-B",
-          packageName,
-          observed: aPackage === undefined ? undefined : stored(a, aPackage),
-          baseline,
-          inputsRevalidated,
-        },
-        dependencies.fingerprint,
-        dependencies.signatures,
-      ),
-      comparisonBudget,
+    const historicalAB = await historicalComparison(
+      {
+        pair: "A-B",
+        packageName,
+        observed: aPackage === undefined ? undefined : stored(a, aPackage),
+        baseline,
+        inputsRevalidated,
+      },
+      dependencies.fingerprint,
+      dependencies.signatures,
     );
-    retainComparison(
-      comparisons,
-      historicalComparison(
-        {
-          pair: "B-C",
-          packageName,
-          observed: cPackage === undefined ? undefined : stored(c, cPackage),
-          baseline,
-          inputsRevalidated,
-        },
-        dependencies.fingerprint,
-        dependencies.signatures,
-      ),
-      comparisonBudget,
+    assertNotCancelled(input.signal);
+    retainComparison(comparisons, historicalAB, comparisonBudget);
+    const historicalBC = await historicalComparison(
+      {
+        pair: "B-C",
+        packageName,
+        observed: cPackage === undefined ? undefined : stored(c, cPackage),
+        baseline,
+        inputsRevalidated,
+      },
+      dependencies.fingerprint,
+      dependencies.signatures,
     );
-    retainComparison(
-      comparisons,
-      richComparison(
-        {
-          a,
-          c,
-          packageName,
-          packagesPresent: aPackage !== undefined && cPackage !== undefined,
-          coverageComplete:
-            completeExportCoverage(a, aPackage) && completeExportCoverage(c, cPackage),
-          inputsRevalidated,
-        },
-        dependencies.fingerprint,
-      ),
-      comparisonBudget,
+    assertNotCancelled(input.signal);
+    retainComparison(comparisons, historicalBC, comparisonBudget);
+    const richAC = await richComparison(
+      {
+        a,
+        c,
+        packageName,
+        packagesPresent: aPackage !== undefined && cPackage !== undefined,
+        coverageComplete:
+          completeExportCoverage(a, aPackage) && completeExportCoverage(c, cPackage),
+        inputsRevalidated,
+      },
+      dependencies.fingerprint,
     );
+    assertNotCancelled(input.signal);
+    retainComparison(comparisons, richAC, comparisonBudget);
   }
   assertNotCancelled(input.signal);
   const evidenceComplete =

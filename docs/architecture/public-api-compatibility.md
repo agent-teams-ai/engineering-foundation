@@ -312,15 +312,21 @@ inventory keep their own exact comparison. A direct pure classifier call without
 the port remains conservative. No signature, snapshot, baseline or breaking
 fingerprint bytes are normalized or rewritten by either proof.
 
-One synchronous native session owns each differing signature pair, using only a
+One asynchronous native session owns each differing signature pair, using only a
 closed in-memory project with no standard libraries or host-filesystem fallback.
+The private signature port returns a promise. Comparisons await eligible pairs
+sequentially, and signal-owning use cases check cancellation after comparison
+before approval reads, baseline writes or admission effects.
 Each signature is limited to 10,000 characters; AST work is limited to 20,000
 nodes and depth 128. The parenthesis proof refuses interpolated template forms.
 The quote spelling proof permits them only when every non-string-literal byte,
 including all template text spans, remains identical. Multiple declarations,
 malformed or unsupported syntax, a budget failure or a failed SDK/cleanup
-operation provide no proof. Snapshot disposal and session close run in nested
-`finally` blocks.
+operation provide no proof. Snapshot disposal and session close are awaited in
+nested `finally` blocks, and rejected cleanup cannot authorize equivalence. The
+public asynchronous SDK ends compiler input for EOF shutdown. This establishes
+logical SDK ownership; the pinned API does not expose a physical child-exit
+receipt.
 These input/work bounds do not promise preemption inside a native SDK query.
 The actual Get Modular `IsUnion` and `ValidDeclaration` formatter regressions and
 precedence/metadata counterexamples are retained in native projection tests.

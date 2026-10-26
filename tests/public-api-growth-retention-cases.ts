@@ -230,20 +230,20 @@ import test from "node:test";
     };
     const [row] = await retainGrowthCompatibility(input(), ports());
     assert.deepEqual(
-      classifyPublicApiChange(
+      await classifyPublicApiChange(
         beforeTyped,
         available(row.compatibility.typed.snapshot),
         fingerprint,
       ),
-      classifyPublicApiChange(beforeTyped, typed, fingerprint),
+      await classifyPublicApiChange(beforeTyped, typed, fingerprint),
     );
     assert.deepEqual(
-      classifyPublicApiChange(
+      await classifyPublicApiChange(
         artifactApiProjection(beforeArtifact),
         available(row.compatibility.artifact.snapshot),
         fingerprint,
       ),
-      classifyPublicApiChange(
+      await classifyPublicApiChange(
         artifactApiProjection(beforeArtifact),
         artifactApiProjection(artifact),
         fingerprint,

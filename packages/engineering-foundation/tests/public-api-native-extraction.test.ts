@@ -277,7 +277,7 @@ test("native observations cannot qualify a legacy baseline even when every decla
     const fingerprint = {
       sha256: (value: string) => createHash("sha256").update(value).digest("hex"),
     };
-    const change = classifyPublicApiChange(released, current, fingerprint);
+    const change = await classifyPublicApiChange(released, current, fingerprint);
     assert.equal(change.classification, "none");
     const input = {
       policy,
@@ -332,7 +332,7 @@ test("paired accessors retain setter changes in the actual compatibility decisio
         await writeFile(join(root, "dist/index.d.ts"), `export declare class C { ${members} }\n`);
         const changed = await extractor.extract(root, policy, "1.0.0");
         assert.equal(
-          classifyPublicApiChange(original, changed, fingerprint).classification,
+          (await classifyPublicApiChange(original, changed, fingerprint)).classification,
           "breaking",
         );
         assert.notEqual(

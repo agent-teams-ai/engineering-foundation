@@ -72,7 +72,7 @@ test("artifact breaks use exact fingerprint plus accepted decision and sufficien
     exports: { "./schemas/*": "./schemas/*" },
   });
   const current = await inspect(root);
-  const change = comparePackageArtifactInventory(baseline, current, fingerprint);
+  const change = await comparePackageArtifactInventory(baseline, current, fingerprint);
   const approvedPolicy: typeof policy = {
     ...policy,
     governanceConfigPath: "architecture/foundation/governance.yaml",
@@ -108,7 +108,7 @@ test("artifact breaks use exact fingerprint plus accepted decision and sufficien
     properties: { ...schema.properties, value: { type: "string", minLength: 4 } },
   });
   assert.notEqual(
-    comparePackageArtifactInventory(baseline, await inspect(root), fingerprint).fingerprint,
+    (await comparePackageArtifactInventory(baseline, await inspect(root), fingerprint)).fingerprint,
     change.fingerprint,
   );
 });
@@ -142,7 +142,7 @@ test("inventory object ordering does not change compatibility but schema byte or
   const released = (await readArtifactBaseline(root, packagePolicy, evidence))!;
   assert.deepEqual(released.jsonSchemas, current.jsonSchemas);
   assert.equal(
-    comparePackageArtifactInventory(released, current, fingerprint).classification,
+    (await comparePackageArtifactInventory(released, current, fingerprint)).classification,
     "none",
   );
   assert.deepEqual(
@@ -154,7 +154,8 @@ test("inventory object ordering does not change compatibility but schema byte or
     properties: { ...definition.properties, kind: { const: { version: 1, name: "record" } } },
   });
   assert.equal(
-    comparePackageArtifactInventory(released, await inspect(root), fingerprint).classification,
+    (await comparePackageArtifactInventory(released, await inspect(root), fingerprint))
+      .classification,
     "breaking",
   );
 });

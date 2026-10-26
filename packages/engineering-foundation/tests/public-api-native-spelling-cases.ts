@@ -10,9 +10,9 @@ export function registerNativeSpellingCases(
   compareAlias: (
     before: PublicApiSnapshot,
     after: PublicApiSnapshot,
-  ) => { readonly classification: string },
+  ) => Promise<{ readonly classification: string }>,
 ): void {
-  void test("property type parentheses preserve the retained GrowthCoverage indexed query without admitting binding changes", () => {
+  void test("property type parentheses preserve the retained GrowthCoverage indexed query without admitting binding changes", async () => {
     const metadata = {
       kind: "PropertySignature",
       parentKind: "Interface",
@@ -20,8 +20,8 @@ export function registerNativeSpellingCases(
     };
     const before = aliasSnapshot("readonly dimension: typeof growthDimensions[number];", metadata);
     const after = aliasSnapshot("readonly dimension: (typeof growthDimensions)[number];", metadata);
-    assert.equal(compareAlias(before, after).classification, "none");
-    assert.equal(compareAlias(after, before).classification, "none");
+    assert.equal((await compareAlias(before, after)).classification, "none");
+    assert.equal((await compareAlias(after, before)).classification, "none");
     for (const signature of [
       "readonly dimension: (typeof otherDimensions)[number];",
       "dimension: (typeof growthDimensions)[number];",
@@ -29,12 +29,12 @@ export function registerNativeSpellingCases(
       "readonly dimension: (string | number)[];",
     ]) {
       const changed = aliasSnapshot(signature, metadata);
-      assert.equal(compareAlias(before, changed).classification, "breaking");
-      assert.equal(compareAlias(changed, before).classification, "breaking");
+      assert.equal((await compareAlias(before, changed)).classification, "breaking");
+      assert.equal((await compareAlias(changed, before)).classification, "breaking");
     }
   });
 
-  void test("literal spelling proof preserves exact restoration excerpts and rejects changed values or declarations", () => {
+  void test("literal spelling proof preserves exact restoration excerpts and rejects changed values or declarations", async () => {
     const metadata = {
       kind: "PropertySignature",
       parentKind: "Interface",
@@ -42,22 +42,22 @@ export function registerNativeSpellingCases(
     };
     const before = aliasSnapshot("readonly code: 'input' | 'mismatch';", metadata);
     const after = aliasSnapshot('readonly code: "input" | "mismatch";', metadata);
-    assert.equal(compareAlias(before, after).classification, "none");
-    assert.equal(compareAlias(after, before).classification, "none");
+    assert.equal((await compareAlias(before, after)).classification, "none");
+    assert.equal((await compareAlias(after, before)).classification, "none");
     const aliasBefore = aliasSnapshot(
       "export type Alias = { code: 'conformant'; digest: `sha256:${string}`; };",
     );
     const aliasAfter = aliasSnapshot(
       'export type Alias = { code: "conformant"; digest: `sha256:${string}`; };',
     );
-    assert.equal(compareAlias(aliasBefore, aliasAfter).classification, "none");
-    assert.equal(compareAlias(aliasAfter, aliasBefore).classification, "none");
+    assert.equal((await compareAlias(aliasBefore, aliasAfter)).classification, "none");
+    assert.equal((await compareAlias(aliasAfter, aliasBefore)).classification, "none");
     const multipleBefore = aliasSnapshot(
       "export type Alias = 'input'; export type Extra = number;",
     );
     const multipleAfter = aliasSnapshot('export type Alias = "input"; export type Extra = number;');
-    assert.equal(compareAlias(multipleBefore, multipleAfter).classification, "breaking");
-    assert.equal(compareAlias(multipleAfter, multipleBefore).classification, "breaking");
+    assert.equal((await compareAlias(multipleBefore, multipleAfter)).classification, "breaking");
+    assert.equal((await compareAlias(multipleAfter, multipleBefore)).classification, "breaking");
     for (const signature of [
       'readonly code: "other" | "mismatch";',
       'code: "input" | "mismatch";',
@@ -65,12 +65,12 @@ export function registerNativeSpellingCases(
       'readonly code: "input" | "mismatch"; extra: string;',
     ]) {
       const changed = aliasSnapshot(signature, metadata);
-      assert.equal(compareAlias(before, changed).classification, "breaking");
-      assert.equal(compareAlias(changed, before).classification, "breaking");
+      assert.equal((await compareAlias(before, changed)).classification, "breaking");
+      assert.equal((await compareAlias(changed, before)).classification, "breaking");
     }
   });
 
-  void test("literal spelling proof preserves retained constant and function type excerpts", () => {
+  void test("literal spelling proof preserves retained constant and function type excerpts", async () => {
     for (const [kind, beforeText, afterText] of [
       [
         "Variable",
@@ -85,14 +85,14 @@ export function registerNativeSpellingCases(
     ] as const) {
       const before = aliasSnapshot(beforeText, { kind });
       const after = aliasSnapshot(afterText, { kind });
-      assert.equal(compareAlias(before, after).classification, "none");
-      assert.equal(compareAlias(after, before).classification, "none");
+      assert.equal((await compareAlias(before, after)).classification, "none");
+      assert.equal((await compareAlias(after, before)).classification, "none");
       const changed = aliasSnapshot(
         afterText.replace(kind === "Variable" ? "v1.1" : "roleRoots", "changed"),
         { kind },
       );
-      assert.equal(compareAlias(before, changed).classification, "breaking");
-      assert.equal(compareAlias(changed, before).classification, "breaking");
+      assert.equal((await compareAlias(before, changed)).classification, "breaking");
+      assert.equal((await compareAlias(changed, before)).classification, "breaking");
     }
   });
 }

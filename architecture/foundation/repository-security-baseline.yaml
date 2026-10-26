@@ -14,7 +14,7 @@ allowedPullRequestTargetWorkflows:
 allowedUses:
   - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
     transitiveUses: []
-  - uses: agent-teams-ai/.github/.github/workflows/commit-author-identity-check.yml@6d843f3a2c3f616aa2f4b902a866b1ff1a18f9c6
+  - uses: agent-teams-ai/.github/.github/workflows/commit-author-identity-check.yml@c8f3e7ba220241f79292c84c72712653019aa1df
     transitiveUses:
       - uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         transitiveUses: []

@@ -63,7 +63,7 @@ jobs:
           {
             printf '# External documentation links\n\n'
             printf 'Optional weekly/manual report. It does not qualify or block a pull request.\n\n'
-            printf 'Result code: `%s`. Extracted URL entries: %s.\n\n' "$status" "$(wc -l < "$links")"
+            printf 'Result code: %s. Extracted URL entries: %s.\n\n' "$status" "$(wc -l < "$links")"
             if [[ "$incomplete" == true ]]; then
               printf '**Incomplete:** no usable external-link scope was extracted.\n\n'
             fi

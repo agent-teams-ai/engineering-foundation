@@ -220,7 +220,7 @@ void test("native test typed lint uses its owning ES2024 context and rejects a d
     writeFileSync(
       join(directory, "tsconfig.json"),
       JSON.stringify({
-        compilerOptions: { strict: true, target: "ES5" },
+        compilerOptions: { strict: true, target: "ES2020" },
         include: ["**/*.ts"],
       }),
     );
@@ -242,10 +242,15 @@ void test("native test typed lint uses its owning ES2024 context and rejects a d
       nearest,
       JSON.stringify({
         ...derived,
-        compilerOptions: { ...options, target: "ES5", lib: ["ES5"], types: [] },
+        compilerOptions: { ...options, target: "ES2020", lib: ["ES2020"], types: [] },
       }),
     );
     const actualNegativeDiagnostics = diagnostics(config, [selected], directory);
+    assert.equal(
+      actualNegativeDiagnostics.some((finding) => finding.code.includes("tsconfig-error")),
+      false,
+      JSON.stringify(actualNegativeDiagnostics),
+    );
     assert.ok(
       actualNegativeDiagnostics.some((finding) => finding.code.includes("no-unsafe-call")),
       `The probe must reject unavailable ES2024 APIs when the owning context is downgraded: ${JSON.stringify(actualNegativeDiagnostics)}`,

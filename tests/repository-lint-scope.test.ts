@@ -242,14 +242,13 @@ void test("native test typed lint uses its owning ES2024 context and rejects a d
       nearest,
       JSON.stringify({
         ...derived,
-        compilerOptions: { ...options, target: "ES5" },
+        compilerOptions: { ...options, target: "ES5", lib: ["ES5"], types: [] },
       }),
     );
+    const actualNegativeDiagnostics = diagnostics(config, [selected], directory);
     assert.ok(
-      diagnostics(config, [selected], directory).some((finding) =>
-        finding.code.includes("no-unsafe-call"),
-      ),
-      "The probe must reject unavailable ES2024 APIs when the owning context is downgraded.",
+      actualNegativeDiagnostics.some((finding) => finding.code.includes("no-unsafe-call")),
+      `The probe must reject unavailable ES2024 APIs when the owning context is downgraded: ${JSON.stringify(actualNegativeDiagnostics)}`,
     );
   } finally {
     rmSync(directory, { recursive: true, force: true });

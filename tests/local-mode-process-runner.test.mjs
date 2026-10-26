@@ -324,7 +324,8 @@ test(
     const script = [
       "$child = Start-Process -FilePath $env:ComSpec -ArgumentList @('/d','/s','/c','ping -n 60 127.0.0.1 > nul') -PassThru",
       "$json = @{ parent = $PID; child = $child.Id } | ConvertTo-Json -Compress",
-      `$encoding = New-Object System.Text.UTF8Encoding($false); [IO.File]::WriteAllText('${escapedPidPath}', $json, $encoding)`,
+      `$encoding = New-Object System.Text.UTF8Encoding($false); [IO.File]::WriteAllText('${escapedPidPath}.tmp', $json, $encoding)`,
+      `[IO.File]::Move('${escapedPidPath}.tmp', '${escapedPidPath}')`,
     ].join("; ");
     let processes = [];
     try {

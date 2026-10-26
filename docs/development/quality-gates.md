@@ -550,12 +550,54 @@ module-system boundary is introduced.
 
 `pnpm quality:scope:check` retains EF-specific inventory, language, ambient-rule coverage and exact ambient exception validation. The [shared quality capability](../reference/quality-source-coverage.md) owns independent source/suppression coverage and actual Oxlint selection: `quality:coverage:scope` runs in the fast gate, and `lint:typed` runs the full CLI once in the full gate. `pnpm architecture:features:check` executes the [local adoption](../architecture/feature-module-standard.md) guard, including actual source edges. Both run in `check` and `check:fast`; unresolved ownership migrations fail closed. Typed lint covers every production `src`, including packaged qualification code, with unchanged rules and thresholds.
 
+## Optional external documentation links
+
+The **External documentation links** workflow runs Lychee 0.24.2 once a week
+(Monday, 05:43 UTC) and on manual `workflow_dispatch`. It has no pull-request or
+push trigger and is not a required check. Broken links and scanner errors produce
+an advisory job summary and warning; they do not fail a pull request or a release.
+A download or checksum failure stops the optional job before running the scanner
+and is reported as incomplete.
+
+The scope is the root and documentation READMEs, direct Markdown children of
+`docs/development`, `docs/reference`, and `docs/architecture`, and package READMEs.
+Research archives, decisions, fixtures, code blocks, email addresses, private
+addresses, and reserved example domains are outside this network scan. Existing
+deterministic documentation gates continue to check local paths and anchors.
+
+The workflow downloads one SHA-256-verified native binary, without installing
+Foundation dependencies or adding a tool to the normal Aqua bootstrap. The scan
+has four concurrent requests, two per host, a five-second request timeout, no
+retries, and a two-minute overall budget. The entire job has a five-minute limit.
+An empty scope or interrupted scan is visible as incomplete, never a clean pass.
+HTTP errors and timeouts remain findings; there is no blanket success exception
+for rate limits or unavailable sites.
+
+To reproduce with the pinned Lychee binary:
+
+```bash
+lychee --config .github/lychee.toml --format markdown -- \
+  README.md docs/README.md 'docs/development/*.md' 'docs/reference/*.md' \
+  'docs/architecture/*.md' 'packages/*/README.md'
+```
+
+Review the summary in Actions before changing a link: a transient network or
+authentication failure does not prove the destination has moved. Disabling this
+workflow does not weaken the required local-link or package gates.
+
 ## Dependency updates
 
-Dependabot checks npm dependencies and pinned GitHub Actions every weekday. It
-opens ordinary pull requests; no dependency update is automerged. Every update
-must pass the same Linux, Windows, package, dependency-review, and independent
-review gates as a handwritten change.
+Dependabot follows the repository's security-only update policy. The npm and
+GitHub Actions entries intentionally set `open-pull-requests-limit: 0`, which
+disables routine version-update pull requests. This does not disable Dependabot
+alerts or security-update pull requests; those are controlled by repository
+settings. The seven-day cooldown remains recorded in the configuration, but it
+does not make routine update pull requests active.
+
+No dependency update is automerged. Every proposed update must pass the same
+Linux, Windows, macOS, package, dependency-review, and independent review gates as a
+handwritten change. Changing the security-only policy is a separate repository
+decision, not an incidental consequence of adding a quality tool.
 
 Major `@types/node` updates remain on the accepted Node runtime line until a
 reviewed toolchain decision changes it. Major TypeScript updates are also manual
@@ -836,7 +878,7 @@ tree and run no build or dependency bootstrap there.
 The operation also checks all 34 mandatory current native jobs, not just the
 four aggregate names; the shadow classifier remains advisory. It then invokes
 the organization owner guard pinned at
-`05b30bcc00cdf07cfde9ba60a1136bb9df7f7571`, preserving owner identity and the
+`c8f3e7ba220241f79292c84c72712653019aa1df`, preserving owner identity and the
 expected-head merge comparison. Body bytes are frozen before external IO.
 GitHub required checks still apply. This is an admitted operator path, not a
 GitHub-wide prohibition on another merge client. GitHub Free cannot require our

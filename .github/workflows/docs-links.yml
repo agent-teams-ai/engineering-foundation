@@ -1,0 +1,89 @@
+name: External documentation links
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "43 5 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-links-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  external-links:
+    name: advisory-docs-links
+    if: github.repository == 'agent-teams-ai/engineering-foundation'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install verified Lychee 0.24.2
+        id: install
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          install_dir="${RUNNER_TEMP}/lychee"
+          archive="${RUNNER_TEMP}/lychee.tar.gz"
+          mkdir -p "$install_dir"
+          curl --fail --location --proto '=https' --tlsv1.2 \
+            --connect-timeout 10 --max-time 60 \
+            --output "$archive" \
+            https://github.com/lycheeverse/lychee/releases/download/lychee-v0.24.2/lychee-x86_64-unknown-linux-gnu.tar.gz
+          printf '1f4e0ef7f6554a6ed33dd7ac144fb2e1bbed98598e7af973042fc5cd43951c9a  %s\n' "$archive" | sha256sum --check --status
+          tar --no-same-owner --strip-components=1 -xzf "$archive" \
+            -C "$install_dir" lychee-x86_64-unknown-linux-gnu/lychee
+          "$install_dir/lychee" --version
+
+      - name: Check active documentation (advisory)
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          lychee="${RUNNER_TEMP}/lychee/lychee"
+          report="${RUNNER_TEMP}/lychee-report.md"
+          links="${RUNNER_TEMP}/lychee-links.txt"
+          inputs=(README.md docs/README.md 'docs/development/*.md' 'docs/reference/*.md' 'docs/architecture/*.md' 'packages/*/README.md')
+          status=0
+          incomplete=false
+          if ! "$lychee" --config .github/lychee.toml --dump -- "${inputs[@]}" > "$links"; then
+            status=2
+            incomplete=true
+          elif [[ ! -s "$links" ]]; then
+            status=3
+            incomplete=true
+          else
+            timeout --kill-after=5s 120s "$lychee" --config .github/lychee.toml \
+              --format markdown --output "$report" -- "${inputs[@]}" || status=$?
+          fi
+          {
+            printf '# External documentation links\n\n'
+            printf 'Optional weekly/manual report. It does not qualify or block a pull request.\n\n'
+            printf 'Result code: %s. Extracted URL entries: %s.\n\n' "$status" "$(wc -l < "$links")"
+            if [[ "$incomplete" == true ]]; then
+              printf '**Incomplete:** no usable external-link scope was extracted.\n\n'
+            fi
+            case "$status" in
+              0) printf 'The scan completed without reported broken links.\n\n' ;;
+              124|137) printf '**Incomplete:** the scan exceeded its two-minute budget.\n\n' ;;
+              *) printf '**Attention:** link findings, empty scope, or a scanner error. Inspect the report and logs.\n\n' ;;
+            esac
+            if [[ -s "$report" ]]; then
+              cat "$report"
+            else
+              printf 'No complete scanner report was produced.\n'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$status" -ne 0 ]]; then
+            printf '::warning::Advisory documentation check returned %s; see the job summary and logs.\n' "$status"
+          fi
+
+      - name: Report installation failure
+        if: failure() && steps.install.outcome == 'failure'
+        shell: bash
+        run: |
+          printf '# External documentation links\n\n**Incomplete:** the pinned scanner could not be downloaded or verified; no link scan ran.\n' >> "$GITHUB_STEP_SUMMARY"

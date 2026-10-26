@@ -47,10 +47,7 @@ function rejectingSession(stage: FailureStage, events: string[]): NativeSignatur
             },
             async getSourceFile() {
               events.push("source");
-              if (stage === "source") {
-                throw failure;
-              }
-              return undefined;
+              throw failure;
             },
           },
         }),

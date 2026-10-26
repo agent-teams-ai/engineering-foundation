@@ -93,7 +93,7 @@ function items(snapshot: PublicApiSnapshot) {
   return entrypoint.items;
 }
 
-test("native declaration projects use one canonical virtual config path without physical writes", async () => {
+void test("native declaration projects use one canonical virtual config path without physical writes", async () => {
   const source = "export declare const stable: string;\n";
   await fixture(source, async (root) => {
     const configPath = join(root, "tsconfig.json");
@@ -126,7 +126,7 @@ test("native declaration projects use one canonical virtual config path without 
   });
 });
 
-test("native extraction retains literal public identities across ordinary declaration kinds", async () => {
+void test("native extraction retains literal public identities across ordinary declaration kinds", async () => {
   const source =
     'declare const brand: unique symbol; export type Box<T = string> = { readonly [brand]: T }; export declare const make: <T>(x: T) => Box<T>; export declare function f(x: string): string; export declare function f(x: number): number; export interface Callable { (x: number): string; new(x: string): Box; readonly [x: number]: string; } export declare class C { constructor(); static n: number; protected x: string; m<T>(x:T): T; get value(): number; set value(x: number); } export enum E { A, B = 2 } export * as tools from "./tools.js";\n';
   await fixture(
@@ -175,7 +175,7 @@ test("native extraction retains literal public identities across ordinary declar
 
 for (const inherited of [false, true]) {
   for (const option of ["noCheck", "skipLibCheck", "skipDefaultLibCheck"]) {
-    test(`native extraction independently checks declarations despite ${inherited ? "inherited" : "direct"} ${option}`, async () => {
+    void test(`native extraction independently checks declarations despite ${inherited ? "inherited" : "direct"} ${option}`, async () => {
       await fixture(
         "export declare function f(): Missing;\n",
         async (root, policy) => {
@@ -199,7 +199,7 @@ for (const inherited of [false, true]) {
   }
 }
 
-test("plain hidden symbols remain forgotten exports; the unique-symbol brand control remains valid", async () => {
+void test("plain hidden symbols remain forgotten exports; the unique-symbol brand control remains valid", async () => {
   await fixture(
     "declare const hidden: symbol; declare function f(v: typeof hidden): void; export { f };\n",
     async (root, policy) => {
@@ -220,7 +220,7 @@ test("plain hidden symbols remain forgotten exports; the unique-symbol brand con
   );
 });
 
-test("static and instance overloads keep independent stable identities", async () => {
+void test("static and instance overloads keep independent stable identities", async () => {
   await fixture(
     "export declare class C { static m(x: string): number; m(x: number): string; }\n",
     async (root, policy) => {
@@ -242,7 +242,7 @@ test("static and instance overloads keep independent stable identities", async (
   );
 });
 
-test("a type exported through a public namespace is consumable without a duplicate top-level export", async () => {
+void test("a type exported through a public namespace is consumable without a duplicate top-level export", async () => {
   const use =
     'import type { Visible } from "./types.js"; export declare function f(x: Visible): Visible;\n';
   await fixture(
@@ -269,7 +269,7 @@ test("a type exported through a public namespace is consumable without a duplica
   );
 });
 
-test("native observations cannot qualify a legacy baseline even when every declaration is identical", async () => {
+void test("native observations cannot qualify a legacy baseline even when every declaration is identical", async () => {
   await fixture("export declare function stable(): string;\n", async (root, policy) => {
     const current = await extractor.extract(root, policy, "1.0.0");
     const released: PublicApiSnapshot = { ...current, extractorVersion: "7.58.12" };
@@ -301,7 +301,7 @@ for (const members of [
   "static get value(): string; set value(x: number);",
   "get value(): string; static set value(x: number);",
 ]) {
-  test(`native accessor pairing preserves both scopes: ${members}`, async () => {
+  void test(`native accessor pairing preserves both scopes: ${members}`, async () => {
     await fixture(`export declare class C { ${members} }\n`, async (root, policy) => {
       assert.deepEqual(
         items(await extractor.extract(root, policy, "1.0.0"))
@@ -313,7 +313,7 @@ for (const members of [
   });
 }
 
-test("paired accessors retain setter changes in the actual compatibility decision", async () => {
+void test("paired accessors retain setter changes in the actual compatibility decision", async () => {
   await fixture(
     "export declare class C { get value(): string; set value(x: string | number); }\n",
     async (root, policy) => {
@@ -367,7 +367,7 @@ for (const declaration of [
   "declare class C { value: string; } export = C;",
   "declare function f(): string; export = f;",
 ]) {
-  test(`CommonJS export assignment cannot silently qualify an empty surface: ${declaration}`, async () => {
+  void test(`CommonJS export assignment cannot silently qualify an empty surface: ${declaration}`, async () => {
     await fixture(
       `${declaration}\n`,
       async (root, policy) => {
@@ -391,7 +391,7 @@ for (const declaration of [
   });
 }
 
-test("whole-module import types cannot silently qualify a surface without dependency edges", async () => {
+void test("whole-module import types cannot silently qualify a surface without dependency edges", async () => {
   await fixture(
     'export type Module = typeof import("./tools.js");\n',
     async (root, policy) => {
@@ -405,7 +405,7 @@ test("whole-module import types cannot silently qualify a surface without depend
   );
 });
 
-test("curated SDK authority entrypoint has no forgotten public type exports", async () => {
+void test("curated SDK authority entrypoint has no forgotten public type exports", async () => {
   const root = resolve(".");
   const manifest = JSON.parse(
     await readFile(join(root, "packages/engineering-foundation/package.json"), "utf8"),

@@ -58,7 +58,7 @@ function dependencies(current: Snapshot, accepted?: AcceptedDecisionEvidence) {
   };
 }
 
-test("artifact breaks use exact fingerprint plus accepted decision and sufficient version", async (t) => {
+void test("artifact breaks use exact fingerprint plus accepted decision and sufficient version", async (t) => {
   const root = await fixture(t);
   const baseline = await inspect(root);
   await fixate(root, baseline);
@@ -113,7 +113,7 @@ test("artifact breaks use exact fingerprint plus accepted decision and sufficien
   );
 });
 
-test("wildcard JSON data and instance $schema hints are not schema definitions", async (t) => {
+void test("wildcard JSON data and instance $schema hints are not schema definitions", async (t) => {
   const root = await fixture(t);
   await json(root, "package/schemas/data.json", [1, 2]);
   await json(root, "package/schemas/config.json", {
@@ -125,7 +125,7 @@ test("wildcard JSON data and instance $schema hints are not schema definitions",
   assert.equal(current.jsonSchemas.length, 1);
 });
 
-test("inventory object ordering does not change compatibility but schema byte ordering does", async (t) => {
+void test("inventory object ordering does not change compatibility but schema byte ordering does", async (t) => {
   const root = await fixture(t);
   const definition = {
     ...schema,
@@ -160,7 +160,7 @@ test("inventory object ordering does not change compatibility but schema byte or
   );
 });
 
-test("inventory rejects a new wildcard member or changed manifest after schema inspection", async (t) => {
+void test("inventory rejects a new wildcard member or changed manifest after schema inspection", async (t) => {
   const { FilesystemPackageArtifactInventory } =
     await import("../dist/capabilities/public-api-compatibility/adapters/outbound/filesystem/filesystem-package-artifact-inventory.js");
   const { AjvJsonSchemaReleaseInspector } =
@@ -193,7 +193,7 @@ test("inventory rejects a new wildcard member or changed manifest after schema i
   }
 });
 
-test("historical namespace artifacts cannot authorize supported compatibility or release promotion", async (t) => {
+void test("historical namespace artifacts cannot authorize supported compatibility or release promotion", async (t) => {
   const root = await fixture(t, "0.0.0");
   const current = await inspect(root);
   await json(root, "architecture/public-api/library.artifacts.json", {
@@ -210,7 +210,7 @@ test("historical namespace artifacts cannot authorize supported compatibility or
   );
 });
 
-test("artifact promotion preserves a baseline swapped after its release comparison", async (t) => {
+void test("artifact promotion preserves a baseline swapped after its release comparison", async (t) => {
   const root = await fixture(t);
   await fixate(root, await inspect(root));
   await json(root, "package/package.json", {
@@ -237,7 +237,7 @@ test("artifact promotion preserves a baseline swapped after its release comparis
   assert.deepEqual((await readArtifactBaseline(root, packagePolicy, evidence))!, swapped);
 });
 
-test("wildcard inventory rejects portable path aliases and device names", async (t) => {
+void test("wildcard inventory rejects portable path aliases and device names", async (t) => {
   const root = await fixture(t);
   // Compatibility-distinct bytes coexist even on case-insensitive filesystems.
   await json(root, "package/schemas/V１.schema.json", {
@@ -250,7 +250,7 @@ test("wildcard inventory rejects portable path aliases and device names", async 
   await assert.rejects(inspect(root), /portable/iu);
 });
 
-test("inventory bounds bytes and cancellation before returning artifact evidence", async (t) => {
+void test("inventory bounds bytes and cancellation before returning artifact evidence", async (t) => {
   const root = await fixture(t);
   await writeFile(join(root, "package/schemas/oversized.bin"), Buffer.alloc(32 * 1024 * 1024 + 1));
   await assert.rejects(inspect(root));
@@ -258,7 +258,7 @@ test("inventory bounds bytes and cancellation before returning artifact evidence
   await assert.rejects(inventory.inspect(root, [packagePolicy], AbortSignal.abort()));
 });
 
-test("independent surface versions finish an interrupted two-surface promotion", async (t) => {
+void test("independent surface versions finish an interrupted two-surface promotion", async (t) => {
   const firstRoot = await fixture(t);
   const secondRoot = await fixture(t);
   for (const root of [firstRoot, secondRoot]) {
@@ -348,7 +348,7 @@ test("independent surface versions finish an interrupted two-surface promotion",
   );
 });
 
-test("oversized artifact record fails before replacing readable evidence", async (t) => {
+void test("oversized artifact record fails before replacing readable evidence", async (t) => {
   const root = await fixture(t);
   await fixate(root, await inspect(root));
   const path = join(root, "architecture/public-api/library.artifacts.json");
@@ -375,7 +375,7 @@ test("oversized artifact record fails before replacing readable evidence", async
   assert.deepEqual(await readFile(path), before);
 });
 
-test("supported same-version schema mutation cannot promote even with a Changeset", async (t) => {
+void test("supported same-version schema mutation cannot promote even with a Changeset", async (t) => {
   const root = await fixture(t);
   await fixate(root, await inspect(root));
   const path = join(root, "architecture/public-api/library.artifacts.json");

@@ -32,6 +32,7 @@
     "tests/support/release-changesets-fixture.ts",
     "tests/support/repository-ci-runtime-fixture.ts",
     "tests/support/repository-release-runtime-fixture.ts",
+    "tests/support/public-api-native-migration-fixture.ts",
     "tests/support/process-runtime-windows-protocol.ts",
     "tests/support/repository-source.ts",
     "tests/release-candidate-host.test.ts",

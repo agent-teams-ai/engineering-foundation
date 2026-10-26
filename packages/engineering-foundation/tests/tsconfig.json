@@ -4,15 +4,5 @@
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true
   },
-  "include": [
-    "workspace-dependency-alias-normalization-cases.ts",
-    "public-api-artifact-release-cases.ts",
-    "public-api-artifact-captured-byte-cases.ts",
-    "public-api-audit-binding-cases.ts",
-    "public-api-audit-environment-cases.ts",
-    "public-api-audit-history-cases.ts",
-    "public-api-audit-baseline-bound-cases.ts",
-    "public-api-audit-command-fixture.ts",
-    "public-api-native-spelling-cases.ts"
-  ]
+  "include": ["**/*.ts"]
 }

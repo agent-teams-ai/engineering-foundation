@@ -77,7 +77,7 @@ const fingerprint = {
   sha256: (value: string) => createHash("sha256").update(`audit-test:${value}`).digest("hex"),
 };
 
-test("real hidden recursive model has exact nodes, ordered edges and terminating cycle", async () => {
+void test("real hidden recursive model has exact nodes, ordered edges and terminating cycle", async () => {
   const observation = await observe(
     "type Leaf = { value: string }; type Middle = Leaf; type Hidden = { next?: Hidden; item: Middle }; declare function f(x: Hidden): Hidden; export { f };\n",
   );
@@ -112,7 +112,7 @@ test("real hidden recursive model has exact nodes, ordered edges and terminating
   assert.deepEqual(projectPublicApiObservation([observation], "audit-fixture"), projection);
 });
 
-test("hidden mutation changes public graph signature with identical public excerpt", async () => {
+void test("hidden mutation changes public graph signature with identical public excerpt", async () => {
   const a = await observe(
     "type Hidden = string; declare function f(x: Hidden): Hidden; export { f };\n",
   );
@@ -144,7 +144,7 @@ test("hidden mutation changes public graph signature with identical public excer
   );
 });
 
-test("ambient counterexample and explicit export preserve canonical identity transition", async () => {
+void test("ambient counterexample and explicit export preserve canonical identity transition", async () => {
   const hidden = await observe(
     "type Hidden = string; declare function f(x: Hidden): Hidden; export { f };\n",
   );
@@ -172,7 +172,7 @@ test("ambient counterexample and explicit export preserve canonical identity tra
   ]);
 });
 
-test("real member collection permutations preserve sorted graphs, snapshots and fingerprints", async () => {
+void test("real member collection permutations preserve sorted graphs, snapshots and fingerprints", async () => {
   const observation = await observe("export interface I { z: string; a: number; }\n");
   assert.equal(observation.invocation.succeeded, true);
   const original = projectPublicApiObservation([observation], "audit-fixture");

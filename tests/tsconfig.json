@@ -8,6 +8,8 @@
     "release-candidate-host.test.ts",
     "features/release-checks/*.test.ts",
     "public-api-native-migration-cli.test.ts",
+    "public-api-native-migration.test.ts",
+    "support/public-api-native-migration-fixture.ts",
     "source-inline-types.test.ts",
     "package-export-matcher.test.ts",
     "public-docs-documented.test.ts",

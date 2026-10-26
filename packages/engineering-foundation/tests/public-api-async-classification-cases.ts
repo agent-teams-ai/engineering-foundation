@@ -144,7 +144,7 @@ function registerCancelledPromotionCase(): void {
     const before = snapshot("string", ["first"]);
     const after = { ...snapshot("number", ["first"]), packageVersion: "2.0.0" };
     const unproved = await classifyPublicApiChange(before, after, fingerprint);
-    assert.ok(unproved.fingerprint);
+    assert.ok(unproved.fingerprint !== undefined && unproved.fingerprint.length > 0);
     const controller = new AbortController();
     const entered = Promise.withResolvers<void>();
     const gate = Promise.withResolvers<boolean>();

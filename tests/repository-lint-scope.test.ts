@@ -7,10 +7,11 @@ import {
   readdirSync,
   realpathSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, join, relative } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -208,6 +209,53 @@ function diagnostics(config: string, paths: readonly string[], cwd: string): rea
     ) as { diagnostics: Diagnostic[] }
   ).diagnostics;
 }
+
+void test("native test typed lint uses its owning ES2024 context and rejects a downgraded context", () => {
+  const directory = realpathSync(mkdtempSync(join(tmpdir(), "TEST-native-lint-context-")));
+  try {
+    const config = probeConfiguration(directory, ".oxlintrc.type-aware.json");
+    const testDirectory = join(directory, "packages", "probe", "tests");
+    mkdirSync(testDirectory, { recursive: true });
+    symlinkSync(join(root, "node_modules"), join(directory, "node_modules"), "junction");
+    writeFileSync(
+      join(directory, "tsconfig.json"),
+      JSON.stringify({
+        compilerOptions: { strict: true, target: "ES5" },
+        include: ["**/*.ts"],
+      }),
+    );
+    const selected = "packages/probe/tests/context.ts";
+    writeFileSync(join(directory, selected), "void Promise.withResolvers<boolean>();\n");
+    const actualWrapperPath = "packages/engineering-foundation/tests/tsconfig.json";
+    const wrapper: unknown = JSON.parse(readFileSync(join(root, actualWrapperPath), "utf8"));
+    assert.ok(record(wrapper) && typeof wrapper.extends === "string");
+    const derived = {
+      ...wrapper,
+      extends: resolve(dirname(join(root, actualWrapperPath)), wrapper.extends),
+    };
+    const nearest = join(testDirectory, "tsconfig.json");
+    writeFileSync(nearest, JSON.stringify(derived));
+    assert.deepEqual(diagnostics(config, [selected], directory), []);
+
+    const options = record(wrapper.compilerOptions) ? wrapper.compilerOptions : {};
+    writeFileSync(
+      nearest,
+      JSON.stringify({
+        ...derived,
+        compilerOptions: { ...options, target: "ES5" },
+      }),
+    );
+    assert.ok(
+      diagnostics(config, [selected], directory).some((finding) =>
+        finding.code.includes("no-unsafe-call"),
+      ),
+      "The probe must reject unavailable ES2024 APIs when the owning context is downgraded.",
+    );
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 void test("syntax still rejects test syntax while typed production retains promise rules and strict budgets", () => {
   const directory = realpathSync(mkdtempSync(join(tmpdir(), "TEST-repository-lint-scopes-")));
   try {

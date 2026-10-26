@@ -333,6 +333,7 @@ export async function discoverSourceWorkspacePaths(
   options: {
     readonly repositoryRoots: readonly string[];
     readonly recursivePackages?: boolean;
+    readonly generatedDirectories?: "observe";
     readonly rootSourceRoots?: readonly string[];
     readonly budget?: DiscoveryBudget;
     readonly observeManifest?: (manifestPath: string) => Promise<boolean>;
@@ -353,6 +354,7 @@ export async function discoverSourceWorkspacePaths(
   const manifestPaths = new Set<string>();
   const sourcePaths = new Set<string>();
   const symbolicLinkPaths = new Set<string>();
+  const observedFilePaths = new Set<string>();
   const directorySnapshots: StableRepositoryPath[] = [];
   const selectedPackageRootIdentities = new Set(
     (options.selectedPackageRoots ?? []).map(portableRepositoryPathIdentity),
@@ -416,7 +418,10 @@ export async function discoverSourceWorkspacePaths(
       assertNotCancelled(options.signal);
       const repositoryPath = childRepositoryPath(cursor.repositoryPath, entry.name);
       if (
-        isExcludedDirectory(entry.name, cursorIsPackageRoot) &&
+        isExcludedDirectory(
+          entry.name,
+          cursorIsPackageRoot && options.generatedDirectories !== "observe",
+        ) &&
         !isRootOrAncestor(repositoryPath, selectedPackageRootIdentities) &&
         !(
           PACKAGE_GENERATED_DIRECTORY_NAMES.has(entry.name) &&
@@ -435,6 +440,7 @@ export async function discoverSourceWorkspacePaths(
       } else if (entry.isDirectory()) {
         childDirectories.push({ absolutePath, repositoryPath });
       } else if (entry.isFile()) {
+        if (options.generatedDirectories === "observe") observedFilePaths.add(repositoryPath);
         recordDiscoveredFile(repositoryPath, {
           manifestPaths,
           sourcePaths,
@@ -443,6 +449,8 @@ export async function discoverSourceWorkspacePaths(
           observeFile: options.observeFile,
           observesManifests: options.observeManifest !== undefined,
         });
+      } else if (options.generatedDirectories === "observe") {
+        inputError("SOURCE_FILE_INVALID", "Full input census requires regular files.");
       }
     }
     directories.push(...childDirectories.toReversed());
@@ -452,6 +460,9 @@ export async function discoverSourceWorkspacePaths(
   const symbolicLinks = [...symbolicLinkPaths].toSorted(compareBinaryStrings);
   const directoryPaths = directorySnapshots.map(({ repositoryPath }) => repositoryPath);
   assertPortablePaths(directoryPaths, "source directory");
+  if (options.generatedDirectories === "observe") {
+    assertPortablePaths([...observedFilePaths], "source census file");
+  }
   assertPortablePaths(manifests, "Workspace package manifest");
   assertPortablePaths(sources, "source");
   assertPortablePaths(symbolicLinks, "source");

@@ -1,5 +1,8 @@
+import { tmpdir } from "node:os";
+import { registerFormatAdmissionCases } from "./format-coverage-admission.ts";
+import { registerFormatCoverageSeams } from "./format-coverage-seams.ts";
 import assert from "node:assert/strict";
-import { readFile, rm, symlink } from "node:fs/promises";
+import { mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import test from "node:test";
 import { execFile } from "node:child_process";
@@ -24,6 +27,8 @@ import { registerCensusCases } from "./source-census-cases.ts";
 import { registerDiscoveryCases, registerTopologyCases } from "./source-discovery-cases.ts";
 
 registerCensusCases();
+registerFormatCoverageSeams();
+registerFormatAdmissionCases();
 registerDiscoveryCases();
 
 async function assertCanonicalRootAlias(t, root, reader) {
@@ -617,6 +622,35 @@ async function assertPublicQualityChecks({ root, put, profile, scripts, lintByte
         )),
       };
     } catch (error) {
+      if (error?.code === null) {
+        try {
+          const capture = await mkdtemp(join(tmpdir(), "quality-source-cli-failure-"));
+          await writeFile(
+            join(capture, "invocation.json"),
+            JSON.stringify(
+              {
+                code: error.code,
+                signal: error.signal ?? null,
+                killed: error.killed === true,
+                timeoutMs: 30_000,
+                argv: [
+                  process.execPath,
+                  cli,
+                  ...args,
+                  "--consumer",
+                  consumerRoot,
+                  "--format",
+                  "json",
+                ],
+              },
+              null,
+              2,
+            ) + "\n",
+          );
+        } catch {
+          // Preserve the original child failure if optional diagnostics cannot be retained.
+        }
+      }
       return error;
     }
   };
@@ -703,7 +737,13 @@ async function assertPublicQualityChecks({ root, put, profile, scripts, lintByte
     }),
   );
   const scoped = await invoke(["quality", "check", "--scope-only"]);
-  assert.equal(scoped.code, 0, scoped.stdout || scoped.stderr);
+  assert.equal(
+    scoped.code,
+    0,
+    scoped.stdout ||
+      scoped.stderr ||
+      `signal=${scoped.signal};killed=${scoped.killed};code=${scoped.code};budget=30000`,
+  );
   for (const args of [
     ["quality", "check", "--scope-only"],
     ["quality", "check"],

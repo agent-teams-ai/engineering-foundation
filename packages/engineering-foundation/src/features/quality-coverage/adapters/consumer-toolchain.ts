@@ -1,3 +1,4 @@
+import { parseStrictJson } from "@agent-teams/repository-mutation/serialization";
 import { createRequire } from "node:module";
 import { realpath } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, sep } from "node:path";
@@ -196,4 +197,51 @@ function qualifiedVersions(
     versions[name] = version;
   }
   return versions;
+}
+
+/** Narrow independent Stack identity admission; it does not require compiler/lint lanes. */
+export async function inspectConsumerStackPackage(
+  root: string,
+  read: QualityFileReader,
+): Promise<string> {
+  const value: unknown = parseStrictJson(
+    new TextDecoder("utf-8", { fatal: true }).decode(
+      await read({ root, candidate: join(root, "package.json"), maxBytes: 1024 * 1024 }),
+    ),
+  );
+  if (!record(value)) reject("stack-toolchain", "invalid root manifest.");
+  let pin: unknown;
+  let declarations = 0;
+  for (const section of [
+    "dependencies",
+    "devDependencies",
+    "optionalDependencies",
+    "peerDependencies",
+  ]) {
+    const entries = value[section];
+    if (!record(entries)) continue;
+    for (const [name, version] of Object.entries(entries)) {
+      if (
+        name === "stack-toolchain" ||
+        (typeof version === "string" && /^npm:stack-toolchain(?:@|$)/u.test(version))
+      ) {
+        declarations += 1;
+        if (name !== "stack-toolchain" || section !== "devDependencies")
+          reject("stack-toolchain", "requires a single canonical development pin.");
+        pin = version;
+      }
+    }
+  }
+  if (
+    declarations !== 1 ||
+    typeof pin !== "string" ||
+    !/^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/u.test(pin)
+  )
+    reject("stack-toolchain", "requires an exact stable root development pin.");
+  for (const key of ["bundledDependencies", "bundleDependencies"]) {
+    const bundled = value[key];
+    if (Array.isArray(bundled) && bundled.some((name: unknown) => name === "stack-toolchain"))
+      reject("stack-toolchain", "cannot be bundled.");
+  }
+  return observeInstalledPackage(root, "stack-toolchain", pin, read);
 }

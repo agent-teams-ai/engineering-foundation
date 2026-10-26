@@ -45,6 +45,16 @@ export async function assertInstalledQualityArtifact({ consumerRoot, artifact })
 
 export async function testPackedQualityCoverage({ consumerRoot, artifact }) {
   await assertInstalledQualityArtifact({ consumerRoot, artifact });
+  const installed = join(consumerRoot, "node_modules/@agent-teams/engineering-foundation");
+  for (const id of ["foundation-config/v3", "quality-format-coverage/v1"]) {
+    const expected = await readFile(join(installed, `schemas/${id}.schema.json`), "utf8");
+    const actual = await runCommand(
+      process.execPath,
+      [join(installed, "dist/cli.js"), "schema", id],
+      consumerRoot,
+    );
+    assert.equal(actual.stdout, expected, `Installed public schema load differs: ${id}`);
+  }
   const flat = await qualifyLayout({ consumerRoot, nested: false, artifact });
   const nested = await qualifyLayout({ consumerRoot, nested: true, artifact });
   return { outcome: "passed", consumers: [flat, nested] };

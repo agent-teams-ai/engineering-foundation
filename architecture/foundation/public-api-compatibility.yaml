@@ -165,6 +165,10 @@ packages:
         decisionId: ADR-0058
       - fingerprint: sha256:e53b9871f0c72f61a0619db37826b879297e9aaf2c3c2105150768b731fba54a
         decisionId: ADR-0060
+      # ADR-0070 requires explicit targetGeneration (1 | 2 | 3) on
+      # upgradeConsumerIntegration; this approval covers that public signature.
+      - fingerprint: sha256:b0f0471b217fc07ea3a927aebf6d4df542928227c8d5b56d1445e4f1295ceede
+        decisionId: ADR-0070
   - packageName: "@agent-teams/ci-input-proof"
     packageRoot: packages/ci-input-proof
     manifestPath: packages/ci-input-proof/package.json

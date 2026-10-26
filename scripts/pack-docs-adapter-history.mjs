@@ -23,6 +23,7 @@ function assertCompleteOrderedHistory(transitionCatalog) {
     "docs-2026-09-16-stable25",
     "docs-2026-09-15-stable24",
     "docs-2026-09-24-stable28",
+    "docs-2026-10-03-stable31",
   ];
   const actualIds = transitionCatalog.directTargetBundles.map(({ cohort }) => cohort.cohortId);
   if (
@@ -143,8 +144,9 @@ export function assertPackedDocsAdapterHistory(transitionCatalog) {
   if (historicalDigest !== "526c85314900cc53fd27bebf6a2b802506dab3d0f4f18ea9201d7fa72d571cf8") {
     throw new Error("Packed adapter historical projection differs from released bytes.");
   }
-  // Complete projections independently derived from Central .github at 5a66a8,
-  // using its immutable records and QUALIFIED events plus digest-bound asset templates.
+  // Stable24/28 projections were independently derived from Central .github at 5a66a8.
+  // Stable31 is the separately reviewed owner-generated projection in this delivery.
+  // All retain immutable records/QUALIFIED events and digest-bound asset templates.
   for (const [cohortId, expectedDigest] of [
     [
       "docs-2026-09-15-stable24",
@@ -153,6 +155,10 @@ export function assertPackedDocsAdapterHistory(transitionCatalog) {
     [
       "docs-2026-09-24-stable28",
       "c47effc4dfec49ce2c4c1c6ce32f920d3a744ac8e1797094983361d77a8fd75d",
+    ],
+    [
+      "docs-2026-10-03-stable31",
+      "30c7aeb99d1cc52396925f8fbf8164ab2523dff23efb2a222b5b266c03d3442d",
     ],
   ]) {
     const bundle = bundles.find(({ cohort }) => cohort.cohortId === cohortId);

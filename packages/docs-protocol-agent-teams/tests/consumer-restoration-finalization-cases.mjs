@@ -312,7 +312,11 @@ function registerRestorationFinalizationTestsCase4(helpers) {
             label: `forged-restore-${activation.length}`,
           });
           assert.equal(rejected.code, 2);
-          assert.match(rejected.execution.issues[0].message, /Unknown consumer arguments/u);
+          assert.equal(rejected.execution.issues[0].code, "DOCS_CONSUMER_CLI_INVALID");
+          assert.equal(
+            rejected.execution.issues[0].message,
+            "Restore requires exact Cohorts, proof digest and explicit generations 2->1 (proof) or 3->2 (preparation).",
+          );
           await assert.rejects(
             fixture.restore({
               proofPath: path,

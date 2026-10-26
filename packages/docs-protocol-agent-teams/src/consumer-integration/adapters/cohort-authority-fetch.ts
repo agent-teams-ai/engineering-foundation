@@ -176,3 +176,26 @@ export async function readAuthorityRegistry(
     );
   }
 }
+
+/** Generation3 effects require an independently observed current protected branch. */
+export async function assertProtectedAuthorityRevision(
+  fetcher: AuthorityFetch,
+  revision: string,
+): Promise<void> {
+  const bytes = await responseBytes(
+    await fetcher(`${AUTHORITY_API}/branches/main`, {
+      headers: { Accept: "application/vnd.github+json", "User-Agent": "agent-teams-docs" },
+      redirect: "error",
+      signal: timeoutSignal(),
+    }),
+    "Protected central authority",
+  );
+  const branch = parseJsonRecord(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+  const commit = record(branch["commit"], "Protected authority commit");
+  if (branch["protected"] !== true || commit["sha"] !== revision) {
+    throw new ConsumerIntegrationNodeError(
+      "DOCS_CONSUMER_AUTHORITY_REVISION_STALE",
+      "Generation3 authority is not the current protected main revision.",
+    );
+  }
+}

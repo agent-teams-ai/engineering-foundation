@@ -35,6 +35,55 @@ const formattedRestorationSignatures = [
   },
 ];
 
+const reviewedGeneration3Signatures = [
+  {
+    reference: "@agent-teams/docs-protocol-agent-teams!planPnpmManifestV2:function(1)",
+    before:
+      "export declare function planPnpmManifestV2(input: {\n    readonly observation: ConsumerIntegrationFileObservation;\n    readonly profilePath: string;\n    readonly cohort: QualifiedDocsCohortBindingV2;\n    readonly knownPriorScriptsDigest?: ConsumerIntegrationDigest;\n}): PnpmManifestPlanV1;",
+    after:
+      'export declare function planPnpmManifestV2(input: {\n    readonly observation: ConsumerIntegrationFileObservation;\n    readonly profilePath: string;\n    readonly cohort: Pick<QualifiedDocsCohortBindingV2, "packages">;\n    readonly knownPriorScriptsDigest?: ConsumerIntegrationDigest;\n}): PnpmManifestPlanV1;',
+  },
+  {
+    reference: "@agent-teams/docs-protocol-agent-teams!upgradeConsumerIntegration:function(1)",
+    before:
+      "export declare function upgradeConsumerIntegration(options: {\n    readonly consumerRoot: string;\n    readonly authorityRevision?: string;\n    readonly to: string;\n}): Promise<ConsumerUpgradeExecutionV1>;",
+    after:
+      "export declare function upgradeConsumerIntegration(options: {\n    readonly targetGeneration: 1 | 2 | 3;\n    readonly consumerRoot: string;\n    readonly authorityRevision?: string;\n    readonly to: string;\n}): Promise<ConsumerUpgradeExecutionV1>;",
+  },
+];
+
+function reviewedGeneration3Item(item) {
+  const row = reviewedGeneration3Signatures.find(
+    ({ reference }) => reference === item.canonicalReference,
+  );
+  if (row === undefined) {
+    return item;
+  }
+  assert.ok(
+    item.signature === row.before || item.signature === row.after,
+    "Generation 3 signature must match the exact reviewed released or promoted form.",
+  );
+  return { ...item, signature: row.after };
+}
+
+test("Generation 3 signature review admits exact promotion rows and rejects unknown text", () => {
+  for (const row of reviewedGeneration3Signatures) {
+    const expected = {
+      canonicalReference: row.reference,
+      kind: "Function",
+      parentReference: `${packageName}!`,
+      parentKind: "EntryPoint",
+      signature: row.after,
+    };
+    assert.deepEqual(reviewedGeneration3Item({ ...expected, signature: row.before }), expected);
+    assert.deepEqual(reviewedGeneration3Item(expected), expected);
+    assert.throws(
+      () => reviewedGeneration3Item({ ...expected, signature: `${row.after}\n` }),
+      /exact reviewed released or promoted form/u,
+    );
+  }
+});
+
 function reviewedReleasedItem(toolChange, formatted, releasedIsNative, promotedFormatting) {
   const reviewedItem = releasedIsNative ? toolChange.after : toolChange.before;
   if (formatted && releasedIsNative) {
@@ -125,7 +174,9 @@ test("managed composition preserves published function declarations and planner 
           "released item must match the exact reviewed side for its extractor identity",
         );
       }
-      const nativeItem = releasedIsNative ? item : (toolChange?.after ?? item);
+      const nativeItem = reviewedGeneration3Item(
+        releasedIsNative ? item : (toolChange?.after ?? item),
+      );
       const acceptedConsumerIntegrationDesiredState =
         item.canonicalReference === `${packageName}!ConsumerIntegrationDesiredState:type`
           ? {

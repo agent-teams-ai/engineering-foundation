@@ -10,7 +10,7 @@ import {
   releaseMutationLease,
 } from "@agent-teams/repository-mutation/node";
 import {
-  type ConsumerFinalizationOptions,
+  type HistoricalConsumerFinalizationOptions,
   type ConsumerRestorationPreparation,
   type ConsumerRestorationProof,
   type RestorableConsumerUpgradeExecution,
@@ -101,7 +101,7 @@ function assertFinalizationTargetGeneration(value: unknown): void {
 }
 
 export async function finalizeNodeConsumerRestoration(
-  options: ConsumerFinalizationOptions,
+  options: HistoricalConsumerFinalizationOptions,
   ports: {
     readonly authority: ConsumerRestorationAuthorityReader & ConsumerUpgradeAuthorityReader;
     readonly sandbox: ConsumerUpgradeSandboxPort;

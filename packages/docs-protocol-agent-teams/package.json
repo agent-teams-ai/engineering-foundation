@@ -47,7 +47,7 @@
     "assets:generate": "node scripts/generate-consumer-assets.mjs --write && node scripts/generate-runtime-policy.mjs --write",
     "assets:check": "node scripts/generate-consumer-assets.mjs && node scripts/generate-runtime-policy.mjs",
     "build": "pnpm assets:check && tsc --build tsconfig.json --pretty false",
-    "test": "pnpm build && node --test tests/*.test.mjs tests/qualification-cohort-v3.test.mts",
+    "test": "pnpm build && node --test tests/*.test.mjs tests/*.test.ts tests/qualification-cohort-v3.test.mts",
     "test:restoration-lock": "pnpm build && pnpm --dir ../.. typecheck:restoration-lock && node --test tests/restoration-lock.test.mts"
   },
   "dependencies": {

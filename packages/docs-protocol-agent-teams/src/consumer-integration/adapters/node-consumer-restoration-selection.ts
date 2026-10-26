@@ -2,7 +2,7 @@ import { basename, dirname } from "node:path";
 import { inspectKnownFileTransactionBarrier, sha256Bytes } from "@agent-teams/repository-mutation";
 import {
   type ConsumerRestorationIntent,
-  type ConsumerRestorationOptions,
+  type HistoricalConsumerRestorationOptions,
   type ConsumerRestorationPreparation,
   MAXIMUM_RESTORATION_PROOF_BYTES,
   parseConsumerRestorationPreparation,
@@ -43,7 +43,7 @@ export async function readRestorationPreparation(
 
 export async function readSelectedRestorationProof(
   root: string,
-  options: Pick<ConsumerRestorationOptions, "proofPath" | "expect">,
+  options: Pick<HistoricalConsumerRestorationOptions, "proofPath" | "expect">,
 ) {
   const file = await readRestorationEvidence(root, options.proofPath);
   requireRestoration(file.state === "file", "proof is missing.");

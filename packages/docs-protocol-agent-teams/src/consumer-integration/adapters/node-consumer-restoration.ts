@@ -13,7 +13,7 @@ import {
 } from "@agent-teams/repository-mutation/node";
 import {
   type ConsumerRestorationExecution,
-  type ConsumerRestorationOptions,
+  type HistoricalConsumerRestorationOptions,
   type ConsumerRestorationProof,
   type ConsumerRestorationAuthorityReader,
   type ConsumerRestorationRecorder,
@@ -163,7 +163,7 @@ export async function assertRestorationAuthority(
 }
 
 export async function restoreNodeConsumerIntegration(
-  options: ConsumerRestorationOptions,
+  options: HistoricalConsumerRestorationOptions,
   ports: {
     readonly authority: ConsumerRestorationAuthorityReader;
     readonly sandbox: ConsumerUpgradeSandboxPort;

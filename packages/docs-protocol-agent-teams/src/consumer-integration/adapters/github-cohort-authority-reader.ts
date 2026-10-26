@@ -1,5 +1,11 @@
+import { selectedLifecycleState, assertSelectable } from "./cohort-authority-lifecycle.js";
+import { projectCohortV3Authority } from "./cohort-v3-authority-projector.js";
+import { createLazyPackedManagedRuntimePolicyObserver } from "./unselected-cohort-v3-loader.js";
+import { assertManagedRollbackSource } from "./cohort-rollback-authority.js";
+
 import { consumerTimeMilliseconds } from "./node-consumer-clock.js";
 import {
+  bindUnselectedCohortV3,
   assertQualifiedDocsCohortBindingV1,
   assertQualifiedDocsCohortBindingV2,
   QUALIFIED_DOCS_COHORT_V2_PACKAGES,
@@ -8,6 +14,7 @@ import {
   type ConsumerIntegrationDesiredStateV1,
   type ConsumerUpgradeAuthorityV1,
   type ConsumerUpgradeAuthorityV2,
+  type ConsumerUpgradeAuthorityV3,
   type QualifiedDocsCohortBindingV1,
   type QualifiedDocsCohortBindingV2,
 } from "../application-api.js";
@@ -26,76 +33,10 @@ import {
   array,
   string,
   resolveAuthorityRevision,
+  assertProtectedAuthorityRevision,
   readAuthorityRegistry,
 } from "./cohort-authority-fetch.js";
-function selectedLifecycleState(
-  events: readonly unknown[],
-  cohortId: string,
-): {
-  readonly qualificationEventDigest: string;
-  readonly state: string;
-  readonly supportUntil: unknown;
-} {
-  const selected = events
-    .map((value) => record(value, "Cohort lifecycle event"))
-    .filter((event) => event["cohort_id"] === cohortId)
-    .map((event) => {
-      const sequence = event["sequence"];
-      if (!Number.isSafeInteger(sequence) || Number(sequence) < 1) {
-        throw new ConsumerIntegrationNodeError(
-          "DOCS_CONSUMER_AUTHORITY_INVALID",
-          `${cohortId} has an invalid lifecycle sequence.`,
-        );
-      }
-      return { event, sequence: Number(sequence) };
-    })
-    .toSorted((left, right) => left.sequence - right.sequence);
-  if (new Set(selected.map(({ sequence }) => sequence)).size !== selected.length) {
-    throw new ConsumerIntegrationNodeError(
-      "DOCS_CONSUMER_AUTHORITY_INVALID",
-      `${cohortId} has duplicate lifecycle sequences.`,
-    );
-  }
-  const qualification = selected.filter(({ event }) => event["state"] === "QUALIFIED");
-  const last = selected.at(-1);
-  if (qualification.length !== 1 || last === undefined) {
-    throw new ConsumerIntegrationNodeError(
-      "DOCS_CONSUMER_AUTHORITY_INVALID",
-      `${cohortId} does not have one immutable QUALIFIED lifecycle event.`,
-    );
-  }
-  return {
-    qualificationEventDigest: string(
-      qualification[0]!.event["event_digest"],
-      "QUALIFIED event digest",
-    ),
-    state: string(last.event["state"], "Current Cohort lifecycle state"),
-    supportUntil: last.event["support_until"],
-  };
-}
-
-function assertSelectable(
-  source: Record<string, unknown>,
-  state: string,
-  repository: ConsumerIntegrationDesiredStateV1["repository"],
-): void {
-  if (state === "RECOMMENDED") {
-    return;
-  }
-  const canaries = array(source["canary_repositories"], "Cohort canary repositories").map((entry) =>
-    record(entry, "Cohort canary repository"),
-  );
-  if (
-    ["QUALIFIED", "CANARY"].includes(state) &&
-    canaries.some((entry) => String(entry["repository_id"]) === repository.id)
-  ) {
-    return;
-  }
-  throw new ConsumerIntegrationNodeError(
-    "DOCS_CONSUMER_COHORT_NOT_SELECTABLE",
-    `${String(source["cohort_id"])} is ${state} and is not selectable for repository ${repository.id}.`,
-  );
-}
+const observePackedPolicy = createLazyPackedManagedRuntimePolicyObserver();
 
 function packageRecords(source: Record<string, unknown>): Map<unknown, Record<string, unknown>> {
   const entries = array(source["packages"], "Cohort packages").map((value) =>
@@ -161,7 +102,17 @@ function packageProjectionV2(source: Record<string, unknown>) {
   ) as QualifiedDocsCohortBindingV2["packages"];
 }
 
-type AuthorityProjection = ConsumerUpgradeAuthorityV1 | ConsumerUpgradeAuthorityV2;
+function checkedDigest(value: string): `sha256:${string}` {
+  if (!/^sha256:[0-9a-f]{64}$/u.test(value)) {
+    throw new TypeError("Invalid authority digest.");
+  }
+  return `sha256:${value.slice(7)}`;
+}
+
+type AuthorityProjection =
+  | ConsumerUpgradeAuthorityV1
+  | ConsumerUpgradeAuthorityV2
+  | ConsumerUpgradeAuthorityV3;
 type CohortProjection = QualifiedDocsCohortBindingV1 | QualifiedDocsCohortBindingV2;
 
 function hasExactKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
@@ -304,17 +255,27 @@ function cohortProjection(
   return Object.freeze(projection);
 }
 
+interface AuthorityProjectorInput {
+  readonly cohortId: string;
+  readonly generation: 1 | 2 | 3;
+  readonly rollbackFrom?: string;
+  readonly registry: Record<string, unknown>;
+  readonly repository: ConsumerIntegrationDesiredState["repository"];
+  readonly revision: string;
+  readonly restorationBinding?: "origin" | "source";
+}
 export function projectQualifiedCohortAuthority(
-  input: {
-    readonly cohortId: string;
-    readonly generation: 1 | 2;
-    readonly registry: Record<string, unknown>;
-    readonly repository: ConsumerIntegrationDesiredState["repository"];
-    readonly revision: string;
-    readonly restorationBinding?: "origin" | "source";
-  },
+  input: Omit<AuthorityProjectorInput, "generation"> & { readonly generation: 1 | 2 },
+  nowMilliseconds?: number,
+): ConsumerUpgradeAuthorityV1 | ConsumerUpgradeAuthorityV2;
+export function projectQualifiedCohortAuthority(
+  input: AuthorityProjectorInput,
+  nowMilliseconds?: number,
+): AuthorityProjection;
+export function projectQualifiedCohortAuthority(
+  input: AuthorityProjectorInput,
   nowMilliseconds = consumerTimeMilliseconds(),
-): ConsumerUpgradeAuthorityV1 | ConsumerUpgradeAuthorityV2 {
+): AuthorityProjection {
   if (input.registry["schema_version"] !== 1) {
     throw new ConsumerIntegrationNodeError(
       "DOCS_CONSUMER_AUTHORITY_INVALID",
@@ -331,7 +292,7 @@ export function projectQualifiedCohortAuthority(
     );
   }
   const source = matches[0]!;
-  if (input.generation === 2) {
+  if (input.generation === 2 || input.generation === 3) {
     assertCohortEventChainV2(array(input.registry["events"], "Cohort lifecycle events"), source);
   }
   const lifecycle = selectedLifecycleState(
@@ -349,6 +310,24 @@ export function projectQualifiedCohortAuthority(
     }
   } else if (!(input.restorationBinding === "source" && lifecycle.state === "SUSPENDED")) {
     assertSelectable(source, lifecycle.state, input.repository);
+  }
+  if (input.generation === 3) {
+    const projected = bindUnselectedCohortV3(
+      projectCohortV3Authority(input),
+      observePackedPolicy(),
+    );
+    const { lifecycleState: _state, canaryRepositoryIds: _canaries, ...binding } = projected;
+    const cohort = {
+      ...binding,
+      recordDigest: checkedDigest(binding.recordDigest),
+      qualificationEventDigest: checkedDigest(binding.qualificationEventDigest),
+    };
+    return Object.freeze({
+      repository: AUTHORITY_REPOSITORY,
+      path: AUTHORITY_PATH,
+      revision: input.revision,
+      cohort,
+    });
   }
   const cohort = cohortProjection(source, lifecycle.qualificationEventDigest, input.generation);
   return Object.freeze({
@@ -375,7 +354,10 @@ export class GitHubCohortAuthorityReader implements ConsumerUpgradeAuthorityRead
     readonly source: QualifiedDocsCohortBindingV2;
     readonly origin: QualifiedDocsCohortBindingV1;
     readonly repository: ConsumerIntegrationDesiredStateV1["repository"];
-  }): Promise<{ readonly source: AuthorityProjection; readonly target: AuthorityProjection }> {
+  }): Promise<{
+    readonly source: ConsumerUpgradeAuthorityV1 | ConsumerUpgradeAuthorityV2;
+    readonly target: ConsumerUpgradeAuthorityV1 | ConsumerUpgradeAuthorityV2;
+  }> {
     const revision = await resolveAuthorityRevision(this.#fetcher);
     const registry = await readAuthorityRegistry(this.#fetcher, revision);
     const common = { registry, revision, repository: options.repository };
@@ -391,9 +373,44 @@ export class GitHubCohortAuthorityReader implements ConsumerUpgradeAuthorityRead
     return { source, target };
   }
 
+  public async readManagedRestoration(options: {
+    readonly source: ConsumerUpgradeAuthorityV3["cohort"];
+    readonly origin: QualifiedDocsCohortBindingV2;
+    readonly repository: ConsumerIntegrationDesiredStateV1["repository"];
+  }): Promise<{ readonly revision: string; readonly target: ConsumerUpgradeAuthorityV2 }> {
+    const revision = await resolveAuthorityRevision(this.#fetcher);
+    await assertProtectedAuthorityRevision(this.#fetcher, revision);
+    const registry = await readAuthorityRegistry(this.#fetcher, revision);
+    assertManagedRollbackSource({
+      registry,
+      revision,
+      cohortId: options.origin.cohortId,
+      rollbackFrom: options.source.cohortId,
+      repository: options.repository,
+      expected: options.source,
+      now: this.#now(),
+    });
+    const target = projectQualifiedCohortAuthority(
+      {
+        registry,
+        revision,
+        repository: options.repository,
+        cohortId: options.origin.cohortId,
+        generation: 2,
+        restorationBinding: "origin",
+      },
+      this.#now(),
+    );
+    if (target.cohort.schemaVersion !== 2) {
+      throw new TypeError("Explicit generation2 restoration authority required.");
+    }
+    return { revision, target: { ...target, cohort: target.cohort } };
+  }
+
   public async read(options: {
     readonly cohortId: string;
-    readonly generation: 1 | 2;
+    readonly generation: 1 | 2 | 3;
+    readonly rollbackFrom?: string;
     readonly repository: ConsumerIntegrationDesiredStateV1["repository"];
     readonly revision?: string;
   }): Promise<AuthorityProjection> {
@@ -410,7 +427,23 @@ export class GitHubCohortAuthorityReader implements ConsumerUpgradeAuthorityRead
         "Requested authority revision is not the current protected main revision.",
       );
     }
+    if (options.generation === 3 || options.rollbackFrom !== undefined) {
+      await assertProtectedAuthorityRevision(this.#fetcher, revision);
+    }
     const registry = await readAuthorityRegistry(this.#fetcher, revision);
+    if (options.rollbackFrom !== undefined) {
+      assertManagedRollbackSource({
+        ...options,
+        rollbackFrom: options.rollbackFrom,
+        registry,
+        revision,
+        now: this.#now(),
+      });
+      return projectQualifiedCohortAuthority(
+        { ...options, registry, revision, restorationBinding: "origin" },
+        this.#now(),
+      );
+    }
     return projectQualifiedCohortAuthority({ ...options, registry, revision }, this.#now());
   }
 }

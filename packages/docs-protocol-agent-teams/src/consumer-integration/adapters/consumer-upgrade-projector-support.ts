@@ -136,7 +136,7 @@ function exactExclusions(cohort: QualifiedDocsCohortBindingV1) {
   ]);
 }
 
-function exactExclusionsV2(cohort: QualifiedDocsCohortBindingV2) {
+function exactExclusionsV2(cohort: Pick<QualifiedDocsCohortBindingV2, "packages">) {
   return new Map(
     qualifiedDocsCohortV2PackageEntries(cohort).map(
       ({ name, version }) => [name, `${name}@${version}`] as const,
@@ -311,7 +311,7 @@ function projectPnpmWorkspaceExclusions(input: {
 
 export function projectPnpmWorkspaceCohortExclusionsV2(input: {
   readonly bytes: Uint8Array;
-  readonly cohort: QualifiedDocsCohortBindingV2;
+  readonly cohort: Pick<QualifiedDocsCohortBindingV2, "packages">;
 }): Uint8Array {
   return projectPnpmWorkspaceExclusions({
     bytes: input.bytes,
@@ -321,8 +321,8 @@ export function projectPnpmWorkspaceCohortExclusionsV2(input: {
 
 export function projectPnpmWorkspaceMigrationExclusionsV2(input: {
   readonly bytes: Uint8Array;
-  readonly source: QualifiedDocsCohortBindingV2;
-  readonly target: QualifiedDocsCohortBindingV2;
+  readonly source: Pick<QualifiedDocsCohortBindingV2, "packages">;
+  readonly target: Pick<QualifiedDocsCohortBindingV2, "packages">;
 }): Uint8Array {
   const targetBytes = projectPnpmWorkspaceCohortExclusionsV2({
     bytes: input.bytes,
@@ -356,7 +356,7 @@ export function projectPnpmWorkspaceMigrationExclusionsV2(input: {
 export function projectPnpmWorkspaceMigrationExclusionsV1ToV2(input: {
   readonly bytes: Uint8Array;
   readonly source: QualifiedDocsCohortBindingV1;
-  readonly target: QualifiedDocsCohortBindingV2;
+  readonly target: Pick<QualifiedDocsCohortBindingV2, "packages">;
 }): Uint8Array {
   const targetBytes = projectPnpmWorkspaceCohortExclusionsV2({
     bytes: input.bytes,

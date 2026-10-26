@@ -15,6 +15,7 @@ export const pnpmManifestPlanner: PnpmManifestPlanner = Object.freeze({
       case 1:
         return planPnpmManifestV1({ ...common, cohort: input.cohort });
       case 2:
+      case 3:
         return planPnpmManifestV2({ ...common, cohort: input.cohort });
       default:
         throw new TypeError("Unsupported Qualified Docs Cohort schema version.");

@@ -12,10 +12,7 @@
   ],
   "overrides": [
     {
-      "files": [
-        "**/generated/**",
-        "**/vendor/**"
-      ],
+      "files": ["**/generated/**", "**/vendor/**"],
       "rules": {
         "complexity": "off",
         "max-depth": "off",
@@ -29,6 +26,7 @@
         "scripts/pack-test.mjs",
         "spikes/**",
         "tests/**",
+        "packages/docs-protocol-agent-teams/tests/public-managed-registry-canary-generation3-fixtures.ts",
         "packages/source-dependency-parser-spike/**"
       ],
       "rules": {

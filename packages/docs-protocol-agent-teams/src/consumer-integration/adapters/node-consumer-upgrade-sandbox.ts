@@ -1,4 +1,8 @@
 import {
+  managedUpgradeRuntime,
+  verifyManagedRuntimeSelection,
+} from "./node-consumer-upgrade-runtime.js";
+import {
   assertCapturedConsumerTargetLockfile,
   validateConsumerTargetLockfile,
   verifyConsumerTargetLockfile,
@@ -18,6 +22,8 @@ import {
   type ConsumerIntegrationSnapshot,
   type ConsumerUpgradeAuthorityV1,
   type ConsumerUpgradeAuthorityV2,
+  type ConsumerUpgradeAuthorityV3,
+  type ManagedSuccessorProfile,
 } from "../domain/model.js";
 import { projectConsumerUpgradeFiles } from "./consumer-upgrade-file-projectors.js";
 import { extractHead } from "./node-consumer-upgrade-archive.js";
@@ -76,6 +82,34 @@ async function readUpgradeFiles(stagedRoot: string) {
   return fileInput;
 }
 
+async function projectUpgradeGeneration(
+  current: UpgradeDesiredState,
+  authority: ConsumerUpgradeAuthority,
+  fileInput: Awaited<ReturnType<typeof readUpgradeFiles>>,
+) {
+  if (current.schemaVersion === 1 && isAuthorityV1(authority)) {
+    return await projectConsumerUpgradeFiles({
+      ...fileInput,
+      authority: authority,
+      current: current,
+    });
+  } else if (current.schemaVersion !== 1 && !isAuthorityV1(authority)) {
+    return await projectConsumerUpgradeFiles({
+      ...fileInput,
+      authority: authority,
+      current: current,
+    });
+  } else if (current.schemaVersion === 1 && authority.cohort.schemaVersion === 2) {
+    return await projectConsumerUpgradeFiles({
+      ...fileInput,
+      authority: { ...authority, cohort: authority.cohort },
+      current: current,
+    });
+  } else {
+    throw new Error("unreachable");
+  }
+}
+
 export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
   readonly #environment: () => NodeJS.ProcessEnv;
 
@@ -91,6 +125,7 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
     readonly expectedSourceRevision: string;
     readonly expectedSourceSnapshot: ConsumerIntegrationSnapshot;
     readonly managedPreimages?: ConsumerUpgradeManagedPreimagesV2;
+    readonly runtimeTransition?: true;
   }): Promise<PreparedConsumerUpgradeV1> {
     const { selectedLock } = options;
     const head = await assertCleanGitRoot(options.consumerRoot);
@@ -115,29 +150,11 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
       });
       await execute("git", ["init", "-q"], stagedRoot);
       const fileInput = await readUpgradeFiles(stagedRoot);
-      let projected;
-      if (options.current.schemaVersion === 1 && isAuthorityV1(options.authority)) {
-        projected = await projectConsumerUpgradeFiles({
-          ...fileInput,
-          authority: options.authority,
-          current: options.current,
-        });
-      } else if (!isAuthorityV1(options.authority)) {
-        projected =
-          options.current.schemaVersion === 1
-            ? await projectConsumerUpgradeFiles({
-                ...fileInput,
-                authority: options.authority,
-                current: options.current,
-              })
-            : await projectConsumerUpgradeFiles({
-                ...fileInput,
-                authority: options.authority,
-                current: options.current,
-              });
-      } else {
-        throw new Error("unreachable");
-      }
+      const projected = await projectUpgradeGeneration(
+        options.current,
+        options.authority,
+        fileInput,
+      );
       const validatedLock = await validateConsumerTargetLockfile(
         selectedLock,
         projected.profile,
@@ -154,12 +171,23 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
       if (selectedLock !== undefined) {
         await writeProjectedFile(stagedRoot, "pnpm-lock.yaml", selectedLock);
       }
-      await installCohort(stagedRoot, false, this.#environment, selectedLock !== undefined);
+      if (projected.nodeVersion !== undefined) {
+        await writeProjectedFile(stagedRoot, ".node-version", projected.nodeVersion);
+      }
+      let run = execute;
+      if (options.runtimeTransition === true) {
+        if (options.current.schemaVersion === 1 || options.authority.cohort.schemaVersion === 1) {
+          throw new Error("unreachable");
+        }
+        await managedUpgradeRuntime(options.current.cohort, beforeRoot, this.#environment);
+        run = await managedUpgradeRuntime(options.authority.cohort, stagedRoot, this.#environment);
+      }
+      await installCohort(stagedRoot, false, this.#environment, selectedLock !== undefined, run);
       await verifyConsumerTargetLockfile(validatedLock, stagedRoot);
       if (projected.targetWorkspace !== undefined) {
         await writeProjectedFile(stagedRoot, WORKSPACE_PATH, projected.targetWorkspace);
       }
-      if (options.current.schemaVersion === 3) {
+      if (options.current.schemaVersion === 3 || options.current.schemaVersion === 4) {
         if (options.managedPreimages === undefined) {
           throw new Error("unreachable");
         }
@@ -177,7 +205,7 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
           ].map((path) => rm(contained(stagedRoot, path))),
         );
       }
-      await applyTargetIntegration(stagedRoot, options.authority.cohort.cohortId, execute);
+      await applyTargetIntegration(stagedRoot, options.authority.cohort.cohortId, run);
       if (!isAuthorityV1(options.authority)) {
         await assertManagedAssetsCreatedV2(stagedRoot, options.current);
       }
@@ -186,7 +214,7 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
         await repositoryInventory(beforeRoot),
         await repositoryInventory(stagedRoot),
       );
-      const allowed = allowedUpgradePaths(options.current);
+      const allowed = allowedUpgradePaths(options.current, options.runtimeTransition === true);
       const unexpected = changed.filter((path) => !allowed.has(path));
       if (unexpected.length > 0) {
         throw new ConsumerIntegrationNodeError(
@@ -267,6 +295,67 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
       ...options,
       ...(selectedLock === undefined ? {} : { selectedLock }),
     });
+  }
+
+  public prepareManaged(options: {
+    readonly authority: ConsumerUpgradeAuthorityV2 | ConsumerUpgradeAuthorityV3;
+    readonly consumerRoot: string;
+    readonly current: ConsumerIntegrationDesiredStateV3 | ManagedSuccessorProfile;
+    readonly expectedSourceRevision: string;
+    readonly expectedSourceSnapshot: ConsumerIntegrationSnapshot;
+    readonly managedPreimages: ConsumerUpgradeManagedPreimagesV2;
+  }): Promise<PreparedConsumerUpgradeV1> {
+    return this.prepareGeneration({ ...options, runtimeTransition: true });
+  }
+
+  public verifyManagedRuntime(
+    options: Parameters<ConsumerUpgradeSandboxPort["verifyManagedRuntime"]>[0],
+  ): Promise<void> {
+    return verifyManagedRuntimeSelection(options.cohort, options.packageManager, this.#environment);
+  }
+
+  public async activateAndVerifyManaged(options: {
+    readonly authority: ConsumerUpgradeAuthorityV2 | ConsumerUpgradeAuthorityV3;
+    readonly consumerRoot: string;
+  }): Promise<void> {
+    const run = await managedUpgradeRuntime(
+      options.authority.cohort,
+      options.consumerRoot,
+      this.#environment,
+      true,
+    );
+    await installCohort(options.consumerRoot, true, this.#environment, true, run);
+    await assertInstalledIntegrationCurrent(options.consumerRoot, run);
+  }
+
+  private async restoreManagedInstallation(options: {
+    readonly current: ConsumerIntegrationDesiredStateV3 | ManagedSuccessorProfile;
+    readonly consumerRoot: string;
+  }): Promise<void> {
+    const run = await managedUpgradeRuntime(
+      options.current.cohort,
+      options.consumerRoot,
+      this.#environment,
+      true,
+    );
+    await installCohort(options.consumerRoot, true, this.#environment, true, run);
+    await assertInstalledIntegrationCurrent(options.consumerRoot, run);
+  }
+
+  public async restoreAndVerifyManaged(options: {
+    readonly current: ConsumerIntegrationDesiredStateV3 | ManagedSuccessorProfile;
+    readonly consumerRoot: string;
+  }): Promise<void> {
+    await this.restoreManagedInstallation(options);
+    await assertCleanGitRoot(options.consumerRoot);
+  }
+
+  public restoreCommittedAndVerifyManaged(options: {
+    readonly current: ConsumerIntegrationDesiredStateV3;
+    readonly consumerRoot: string;
+  }): Promise<void> {
+    // The current-target owner separately proves its selected HEAD and exact inverse images.
+    return this.restoreManagedInstallation(options);
   }
 
   private async activateAndVerifyGeneration(options: {

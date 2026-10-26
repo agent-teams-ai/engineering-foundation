@@ -53,14 +53,18 @@ function changedValue(value) {
 }
 
 export function registerPackedDocsAdapterHistoryTests() {
-  test("packed adapter history accepts stable24 and stable28 appended after stable25", () => {
+  test("packed adapter history accepts exact stable24, stable28 and stable31 additions", () => {
     const stable23 = assertPackedDocsAdapterHistory(catalog);
     assert.equal(stable23.cohort.cohortId, "docs-2026-09-15-stable23");
     const cohortIds = catalog.directTargetBundles.map(({ cohort }) => cohort.cohortId);
     assert(cohortIds.includes("docs-2026-09-12-stable21"));
     assert(cohortIds.includes("docs-2026-09-16-stable25"));
-    assert.equal(cohortIds.length, 21);
-    assert.deepEqual(cohortIds.slice(-2), ["docs-2026-09-15-stable24", "docs-2026-09-24-stable28"]);
+    assert.equal(cohortIds.length, 22);
+    assert.deepEqual(cohortIds.slice(-3), [
+      "docs-2026-09-15-stable24",
+      "docs-2026-09-24-stable28",
+      "docs-2026-10-03-stable31",
+    ]);
   });
 
   test("packed adapter history rejects missing, reordered, duplicate, and unknown cohorts", () => {
@@ -140,7 +144,11 @@ export function registerPackedDocsAdapterHistoryTests() {
     assert.throws(() => assertPackedDocsAdapterHistory(changed), /stable26 projection differs/);
   });
 
-  for (const cohortId of ["docs-2026-09-15-stable24", "docs-2026-09-24-stable28"]) {
+  for (const cohortId of [
+    "docs-2026-09-15-stable24",
+    "docs-2026-09-24-stable28",
+    "docs-2026-10-03-stable31",
+  ]) {
     test(`packed adapter history rejects every changed or missing ${cohortId} projection field`, () => {
       assertPackedDocsAdapterHistory(catalog);
       const original = catalog.directTargetBundles.find(

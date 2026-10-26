@@ -13,6 +13,7 @@ export type {
   ConsumerQualificationAuthorityV3,
   ConsumerUpgradeAuthorityV1,
   ConsumerUpgradeAuthorityV2,
+  ConsumerUpgradeAuthorityV3,
   QualifiedDocsCohortBindingV1,
   QualifiedDocsCohortBindingV2,
   QualifiedDocsCohortV1,
@@ -87,13 +88,16 @@ export type {
 } from "./application/model/consumer-restoration.js";
 export type {
   ConsumerRestorationAuthorityReader,
+  ManagedRestorationAuthorityReader,
   ConsumerRestorationRecorder,
 } from "./application/ports/consumer-restoration.js";
 export {
   assertFullyReplacedReceipt,
+  assertRestorationIdentities,
   assertObservedRestorationReceipt,
   exactRestorationKeys,
   inverseRestorationPlan,
+  inverseManagedGenerationPlan,
   MAXIMUM_RESTORATION_PROOF_BYTES,
   parseConsumerRestorationPreparation,
   parseConsumerRestorationProof,
@@ -102,8 +106,24 @@ export {
 } from "./application/policies/consumer-restoration-proof.js";
 export { assertConsumerIntegrationDesiredStateV1 } from "./application/policies/consumer-integration-desired-state.js";
 
-export { bindUnselectedCohortV3 } from "./application/policies/qualified-docs-cohort-v3.js";
+export {
+  bindUnselectedCohortV3,
+  validateCohortV3Binding,
+} from "./application/policies/qualified-docs-cohort-v3.js";
 export type { UnselectedCohortV3 } from "./domain/model.js";
 export type { PackedManagedRuntimePolicy } from "./application/policies/qualified-docs-cohort-v3.js";
 export { projectManagedSuccessorState } from "./application/policies/managed-successor-state.js";
 export type { ManagedSuccessorAssetDigests } from "./application/policies/managed-successor-state.js";
+
+export type {
+  HistoricalConsumerRestorationOptions,
+  HistoricalConsumerFinalizationOptions,
+} from "./application/model/consumer-restoration.js";
+
+export type {
+  ManagedCommittedRestorationOptions,
+  ManagedCurrentRestorationSelection,
+  ManagedGenerationFinalizationOptions,
+  ManagedGenerationPreparation,
+  ManagedGenerationRestorationOptions,
+} from "./application/model/consumer-managed-restoration.js";

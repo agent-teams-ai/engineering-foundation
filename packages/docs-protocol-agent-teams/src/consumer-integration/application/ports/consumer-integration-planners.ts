@@ -4,6 +4,7 @@ import type {
   ConsumerIntegrationIssue,
   QualifiedDocsCohortBindingV1,
   QualifiedDocsCohortBindingV2,
+  ManagedSuccessorProfile,
 } from "../../domain/model.js";
 
 export interface AgentsRoutePlanV1 {
@@ -34,7 +35,10 @@ export interface PnpmManifestPlanner {
   plan(input: {
     readonly observation: ConsumerIntegrationFileObservation;
     readonly profilePath: string;
-    readonly cohort: QualifiedDocsCohortBindingV1 | QualifiedDocsCohortBindingV2;
+    readonly cohort:
+      | QualifiedDocsCohortBindingV1
+      | QualifiedDocsCohortBindingV2
+      | ManagedSuccessorProfile["cohort"];
     readonly knownPriorScriptsDigest?: ConsumerIntegrationDigest;
   }): PnpmManifestPlanV1;
 }

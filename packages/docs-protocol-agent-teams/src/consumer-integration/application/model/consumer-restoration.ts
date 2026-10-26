@@ -52,7 +52,7 @@ export interface RetainedConsumerRestoration {
   readonly digest: `sha256:${string}`;
 }
 
-export interface ConsumerRestorationOptions {
+export interface HistoricalConsumerRestorationOptions {
   readonly consumerRoot: string;
   readonly sourceGeneration: 2;
   readonly targetGeneration: 1;
@@ -84,7 +84,7 @@ export interface RestorableConsumerUpgradeExecution extends Omit<
   readonly restoration?: RetainedConsumerRestoration;
 }
 
-export interface ConsumerFinalizationOptions {
+export interface HistoricalConsumerFinalizationOptions {
   readonly consumerRoot: string;
   readonly sourceGeneration: 1;
   readonly targetGeneration: 2;
@@ -94,3 +94,11 @@ export interface ConsumerFinalizationOptions {
   readonly expect: string;
   readonly proofPath: string;
 }
+
+export type ConsumerRestorationOptions =
+  | HistoricalConsumerRestorationOptions
+  | import("./consumer-managed-restoration.js").ManagedGenerationRestorationOptions
+  | import("./consumer-managed-restoration.js").ManagedCommittedRestorationOptions;
+export type ConsumerFinalizationOptions =
+  | HistoricalConsumerFinalizationOptions
+  | import("./consumer-managed-restoration.js").ManagedGenerationFinalizationOptions;

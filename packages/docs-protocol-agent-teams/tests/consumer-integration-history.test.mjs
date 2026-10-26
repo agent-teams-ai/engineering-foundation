@@ -77,6 +77,11 @@ const STABLE23_COHORT = {
 test("stable18 through stable26 history bind exact generation2 authority and immutable assets", async () => {
   const catalog = JSON.parse(CANONICAL_TRANSITION_CATALOG);
   assert.equal(
+    digest(Buffer.from(JSON.stringify(catalog.directTargetBundles.slice(0, 21)))),
+    "sha256:054dae69bd9620c71f7fa1fe8196eafe6684edf388f67c8d927cad75f11d798d",
+    "All 21 previously published bundles must remain byte-for-byte unchanged",
+  );
+  assert.equal(
     digest(Buffer.from(JSON.stringify(catalog.directTargetBundles.slice(0, 17)))),
     PRIOR_DIRECT_TARGET_BUNDLES_DIGEST,
     "The 17 previously published direct-target bundles must remain byte-for-byte unchanged",
@@ -208,6 +213,7 @@ test("stable18 through stable26 history bind exact generation2 authority and imm
       "docs-2026-09-16-stable25",
       "docs-2026-09-15-stable24",
       "docs-2026-09-24-stable28",
+      "docs-2026-10-03-stable31",
     ],
   );
 });
@@ -298,6 +304,16 @@ test("package loader rejects malformed or corrupted generation2 history before l
     await cp(
       join(packageRoot, stable23.callerWorkflowPath),
       join(sandbox, stable23.callerWorkflowPath),
+    );
+    const stable31 = original.directTargetBundles.find(
+      ({ cohort }) => cohort.cohortId === "docs-2026-10-03-stable31",
+    );
+    assert.ok(stable31);
+    await writeFile(join(sandbox, stable31.callerWorkflowPath), "tampered");
+    assert.throws(load, /digest mismatch/u);
+    await cp(
+      join(packageRoot, stable31.callerWorkflowPath),
+      join(sandbox, stable31.callerWorkflowPath),
     );
     await writeFile(join(sandbox, stable23.skillPath), "tampered");
     assert.throws(load, /digest mismatch/u);

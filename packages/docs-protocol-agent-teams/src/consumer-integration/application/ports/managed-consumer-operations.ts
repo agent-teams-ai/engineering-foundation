@@ -10,7 +10,7 @@ import type {
 export type ManagedConsumerOperations = ReturnType<typeof createConsumerIntegrationUseCases> & {
   readonly upgrade: (
     options: Parameters<ReturnType<typeof createConsumerUpgradeUseCase>>[0] & {
-      readonly targetGeneration: 1 | 2;
+      readonly targetGeneration: 1 | 2 | 3;
     },
   ) => Promise<RestorableConsumerUpgradeExecution>;
   readonly restore: (options: ConsumerRestorationOptions) => Promise<ConsumerRestorationExecution>;

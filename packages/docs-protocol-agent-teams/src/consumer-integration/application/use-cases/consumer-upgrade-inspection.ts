@@ -67,7 +67,7 @@ export function incompatibleGeneration(
     authority.cohort.cohortId,
     `Profile schema ${current.schemaVersion} cannot upgrade to Cohort schema ${
       authority.cohort.schemaVersion
-    }; only 1->1, explicit 1->2 migration, and 3->2 are supported.`,
+    }; the target requires an explicitly supported retained transition.`,
   );
 }
 
@@ -133,7 +133,7 @@ function reverseFullyOwnedOperations(
 }
 
 export function managedPreimagesV2(
-  current: Extract<ConsumerIntegrationDesiredState, { readonly schemaVersion: 3 }>,
+  current: Extract<ConsumerIntegrationDesiredState, { readonly schemaVersion: 3 | 4 }>,
   snapshot: ConsumerIntegrationSnapshot,
   plan: ConsumerIntegrationPlanV1,
 ): ConsumerUpgradeManagedPreimagesV2 {
@@ -177,17 +177,8 @@ export async function rollbackReceiptOwnedReplacements(
   }
 }
 
-function restorationOptionIssue(
-  options: {
-    readonly targetLockfile?: ConsumerTargetLockfileInput;
-    readonly prepare?: boolean;
-    readonly restorationProofPath?: string;
-    readonly sourceGeneration?: 1;
-    readonly targetGeneration?: 1 | 2;
-    readonly to: string;
-  },
-  desired: ConsumerIntegrationDesiredState,
-  recorder: ConsumerRestorationRecorder | undefined,
+function targetLockOptionIssue(
+  options: ConsumerUpgradeOptions,
 ): RestorableConsumerUpgradeExecution | undefined {
   if (
     options.targetLockfile !== undefined &&
@@ -205,19 +196,64 @@ function restorationOptionIssue(
       ),
     );
   }
+  return undefined;
+}
+
+function isManagedPreparation(
+  options: ConsumerUpgradeOptions,
+  desired: ConsumerIntegrationDesiredState,
+  recorder: ConsumerRestorationRecorder | undefined,
+): boolean {
+  return (
+    options.sourceGeneration === 2 &&
+    options.targetGeneration === 3 &&
+    desired.schemaVersion === 3 &&
+    recorder?.prepareManaged !== undefined
+  );
+}
+
+function restorationOptionIssue(
+  options: ConsumerUpgradeOptions,
+  desired: ConsumerIntegrationDesiredState,
+  recorder: ConsumerRestorationRecorder | undefined,
+): RestorableConsumerUpgradeExecution | undefined {
+  const lockIssue = targetLockOptionIssue(options);
+  if (lockIssue !== undefined) {
+    return lockIssue;
+  }
+  const historical =
+    options.sourceGeneration === 1 &&
+    options.targetGeneration === 2 &&
+    desired.schemaVersion === 1 &&
+    recorder !== undefined;
+  const managed = isManagedPreparation(options, desired, recorder);
   if (
     options.restorationProofPath !== undefined &&
-    (options.prepare !== true ||
-      options.sourceGeneration !== 1 ||
-      options.targetGeneration !== 2 ||
-      desired.schemaVersion !== 1 ||
-      recorder === undefined)
+    (options.prepare !== true || (!historical && !managed))
   ) {
     return blocked(
       issue(
         "DOCS_CONSUMER_RESTORATION_GENERATION_INVALID",
         options.to,
-        "Retained restoration requires --prepare, explicit 1->2 migration and an external proof path.",
+        "Retained preparation requires an explicit supported 1->2 or 2->3 controller and external proof path.",
+      ),
+    );
+  }
+  if (desired.schemaVersion === 3 && options.targetGeneration === 3 && !managed) {
+    return blocked(
+      issue(
+        "DOCS_CONSUMER_RESTORATION_PROOF_REQUIRED",
+        options.to,
+        "Generation2->3 requires retained external controller preparation before publication.",
+      ),
+    );
+  }
+  if (desired.schemaVersion === 4 && options.to !== desired.cohort.cohortId) {
+    return blocked(
+      issue(
+        "DOCS_CONSUMER_RESTORATION_PROOF_REQUIRED",
+        options.to,
+        "Cohort3 rollback uses the selected original preparation; another Cohort3 transition is not admitted by this finite controller.",
       ),
     );
   }
@@ -247,6 +283,21 @@ export async function prepareRestoration(
   authority: ConsumerUpgradeAuthority,
   plan: ReturnType<typeof compileKnownFileTransactionPlan>,
 ) {
+  if (
+    proofPath !== undefined &&
+    input.desired.schemaVersion === 3 &&
+    authority.cohort.schemaVersion === 3 &&
+    recorder?.prepareManaged !== undefined
+  ) {
+    return recorder.prepareManaged({
+      consumerRoot: input.root,
+      sourceRevision: input.repositoryHead!,
+      current: input.desired,
+      target: authority.cohort,
+      plan,
+      proofPath,
+    });
+  }
   return proofPath !== undefined && input.desired.schemaVersion === 1 && isAuthorityV2(authority)
     ? recorder!.prepare({
         consumerRoot: input.root,
@@ -263,9 +314,9 @@ export interface ConsumerUpgradeOptions {
   readonly targetLockfile?: ConsumerTargetLockfileInput;
   readonly consumerRoot: string;
   readonly authorityRevision?: string;
-  readonly targetGeneration?: 1 | 2;
+  readonly targetGeneration?: 1 | 2 | 3;
   readonly to: string;
-  readonly sourceGeneration?: 1;
+  readonly sourceGeneration?: 1 | 2;
   readonly restorationProofPath?: string;
   readonly prepare?: boolean;
 }
@@ -278,15 +329,19 @@ export async function inspectUpgrade(
   | {
       input: Awaited<ReturnType<ConsumerUpgradePorts["input"]["read"]>>;
       source: ConsumerIntegrationPlanV1;
-      targetGeneration: 1 | 2;
+      targetGeneration: 1 | 2 | 3;
     }
 > {
-  if (options.targetGeneration !== 1 && options.targetGeneration !== 2) {
+  if (
+    options.targetGeneration !== 1 &&
+    options.targetGeneration !== 2 &&
+    options.targetGeneration !== 3
+  ) {
     return blocked(
       issue(
         "DOCS_CONSUMER_TARGET_GENERATION_REQUIRED",
         options.to,
-        "Upgrade requires one explicit target Cohort generation (1 or 2).",
+        "Upgrade requires one explicit target Cohort generation (1, 2 or 3).",
       ),
     );
   }
@@ -303,7 +358,7 @@ export async function inspectUpgrade(
     {
       desired: input.desired,
       snapshot: input.snapshot,
-      assetCatalog: await ports.assets.read(),
+      ...(input.desired.schemaVersion === 4 ? {} : { assetCatalog: await ports.assets.read() }),
     },
     ports.planning,
   ).plan;

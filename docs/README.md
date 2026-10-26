@@ -49,6 +49,7 @@ not repeat their rules.
 | Production quality coverage | [Coverage contract](reference/quality-source-coverage.md) | Implementation in progress; CLI and packed qualification pending |
 | Maintainability budgets | [Budget evaluation](research/maintainability-budget-evaluation.md) | Implemented and dogfooded; consumer adoption remains opt-in |
 | DeepSeek Harness tooling comparison | [Strict comparison](research/deepseek-harness-tooling-comparison.md) | Revalidated; selected adaptations adopted |
+| Selective quality tools | [Execution spikes](research/quality-gate-tool-spikes.md) | Optional Lychee adopted; agnix, Squawk and publint strict deferred after execution and independent criticism |
 | Agent architecture standard | [Design study](research/agent-architecture-standard-design.md) | Incubation direction accepted by ADR-0036; normative authority moves to the dedicated repository |
 | Agent architecture standard delivery | [Implementation plan](research/agent-architecture-standard-implementation-plan.md) | Accepted overlay-first vertical plan; irreversible contracts remain gated by neutral ADRs and conformance |
 | Agent architecture standard decisions | [Product decision brief](research/agent-architecture-standard-product-decisions.md) | D0-D11 accepted; D5 resolved overlay-first and D9 selects public non-latest RCs |

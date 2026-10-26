@@ -1,0 +1,25 @@
+# Advisory external-link checks only. Local paths and anchors belong to the
+# existing deterministic documentation checks.
+scheme = ["https", "http"]
+exclude_all_private = true
+include_mail = false
+include_verbatim = false
+include_fragments = "none"
+
+# Keep the weekly/manual lane small and kind to external services.
+threads = 2
+max_concurrency = 4
+host_concurrency = 2
+host_request_interval = "250ms"
+timeout = 5
+max_retries = 0
+max_redirects = 5
+cache = false
+no_progress = true
+
+# Reserved example domains are documentation placeholders, not live targets.
+# Do not mask real 404s, rate limits, server failures, or timeouts as success.
+exclude = [
+  '^https?://([^/]+\.)?example\.(com|org|net)([:/]|$)',
+  '^https?://([^/]+\.)?(test|invalid|localhost)([:/]|$)',
+]

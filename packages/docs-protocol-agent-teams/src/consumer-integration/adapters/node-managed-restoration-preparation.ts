@@ -114,7 +114,7 @@ export async function readManagedPreparation(root: string, path: string, expect:
   return parseManagedPreparation(file.bytes, expect);
 }
 
-export async function historicalManagedProfile(root: string, revision: string) {
+async function historicalManagedProfile(root: string, revision: string) {
   const source = parseStrictJson(
     (await restorationGit(root, ["show", `${revision}:${INTEGRATION_PROFILE_PATH}`])).toString(
       "utf8",

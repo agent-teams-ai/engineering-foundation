@@ -46,7 +46,6 @@ export type {
   ConsumerIntegrationSnapshot,
   ConsumerUpgradeAuthorityV1,
   ConsumerUpgradeAuthorityV2,
-  ConsumerUpgradeAuthorityV3,
   QualifiedDocsCohortBindingV1,
   QualifiedDocsCohortBindingV2,
   QualifiedDocsCohortV1,

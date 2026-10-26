@@ -206,7 +206,7 @@ export async function assertCurrentRestorationBinding(
 }
 
 /** Observe the current physical files without running a Cohort3 check in the Node24 controller. */
-export async function assertCurrentTargetCurrent(
+async function assertCurrentTargetCurrent(
   root: string,
   revision: string,
   preparation: ManagedGenerationPreparation,

@@ -1,3 +1,4 @@
+import { planPnpmManifestV2 } from "../dist/index.js";
 import {
   successorCentralRegistryFixture,
   authorityDigest,
@@ -408,3 +409,31 @@ void test(
   "CLI committed-target restore requires complete exact current selection inputs",
   assertCurrentCliSelections,
 );
+
+void test("public manifest V2 preserves qualified inputs and accepts exact package projections", () => {
+  const source = desired();
+  const input = {
+    observation: file(JSON.stringify(manifest(source))),
+    profilePath: source.profilePath,
+  };
+  const qualified = planPnpmManifestV2({ ...input, cohort: source.cohort });
+  const packagesOnly = planPnpmManifestV2({
+    ...input,
+    cohort: { packages: source.cohort.packages },
+  });
+  assert.equal(qualified.issues.length, 0);
+  assert.deepEqual(packagesOnly, qualified);
+  const successor = target();
+  const generation3 = planPnpmManifestV2({
+    observation: file(JSON.stringify(manifest(successor))),
+    profilePath: successor.profilePath,
+    cohort: { packages: successor.cohort.packages },
+  });
+  assert.equal(generation3.issues.length, 0);
+  const missingPackagesRejected: Record<PropertyKey, never> extends Parameters<
+    typeof planPnpmManifestV2
+  >[0]["cohort"]
+    ? false
+    : true = true;
+  assert.equal(missingPackagesRejected, true);
+});

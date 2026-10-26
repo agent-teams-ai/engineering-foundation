@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { appendFileSync } from "node:fs";
 import { cp, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -89,11 +90,35 @@ export function utcDateAfter(days) {
   return date.toISOString().slice(0, 10);
 }
 
+let diagnosticCheckSequence = 0;
+
 export function check(consumerRoot, ...args) {
   const result = spawnSync(
     process.execPath,
     [cliPath, "check", ...args, "--consumer", consumerRoot, "--format", "json"],
     { encoding: "utf8" },
+  );
+  appendFileSync(
+    join(
+      process.env.RUNNER_TEMP,
+      "native-context-postfix-661",
+      process.env.EF_NATIVE_CONTEXT_DIAGNOSTIC_ITERATION === "focused-suite"
+        ? "focused-cli-results.jsonl"
+        : "cli-results.jsonl",
+    ),
+    JSON.stringify({
+      iteration: process.env.EF_NATIVE_CONTEXT_DIAGNOSTIC_ITERATION,
+      sequence: ++diagnosticCheckSequence,
+      capturedAt: new Date().toISOString(),
+      testProcessId: process.pid,
+      result: {
+        ...result,
+        error: result.error === undefined ? null : {
+          name: result.error.name,
+          code: result.error.code ?? null,
+        },
+      },
+    }) + "\n",
   );
   assert.equal(result.stderr, "");
   return { result, report: JSON.parse(result.stdout) };

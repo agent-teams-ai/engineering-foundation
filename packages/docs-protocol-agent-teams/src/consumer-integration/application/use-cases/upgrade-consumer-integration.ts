@@ -8,6 +8,7 @@ import {
 } from "../ports/consumer-upgrade.js";
 import {
   type ConsumerIntegrationDesiredState,
+  type ConsumerIntegrationIssue,
   type ConsumerIntegrationPlanV1,
   type ConsumerIntegrationSnapshot,
   type ConsumerUpgradeAuthorityV1,
@@ -56,8 +57,39 @@ function inspectCurrentUpgrade(
   return currentUpgrade();
 }
 
+function inspectTransitionIssue(
+  input: Awaited<ReturnType<ConsumerUpgradePorts["input"]["read"]>>,
+  authority: ConsumerUpgradeAuthority,
+  targetGeneration: 1 | 2 | 3,
+  options: ConsumerUpgradeOptions,
+): ConsumerIntegrationIssue | undefined {
+  if (authority.cohort.schemaVersion !== targetGeneration) {
+    return incompatibleGeneration(input.desired, authority);
+  }
+  const supportedGeneration =
+    (input.desired.schemaVersion === 1 && isAuthorityV1(authority)) ||
+    (input.desired.schemaVersion === 1 && isAuthorityV2(authority)) ||
+    (input.desired.schemaVersion === 3 &&
+      (isAuthorityV2(authority) || authority.cohort.schemaVersion === 3)) ||
+    (input.desired.schemaVersion === 4 && authority.cohort.schemaVersion !== 1);
+  if (!supportedGeneration) {
+    return incompatibleGeneration(input.desired, authority);
+  }
+  const crossGeneration = input.desired.schemaVersion === 1 && isAuthorityV2(authority);
+  const transitionAllowed =
+    authority.cohort.upgradeFrom.includes(input.desired.cohort.cohortId) ||
+    (!crossGeneration && input.desired.cohort.rollbackTo.includes(authority.cohort.cohortId));
+  if (!transitionAllowed) {
+    return issue(
+      "DOCS_CONSUMER_COHORT_TRANSITION_FORBIDDEN",
+      options.to,
+      `Central authority does not permit a transition from ${input.desired.cohort.cohortId}.`,
+    );
+  }
+  return undefined;
+}
+
 export function createConsumerUpgradeUseCase(ports: ConsumerUpgradePorts) {
-  // oxlint-disable-next-line complexity
   return async function upgrade(
     options: ConsumerUpgradeOptions,
   ): Promise<RestorableConsumerUpgradeExecution> {
@@ -87,31 +119,9 @@ export function createConsumerUpgradeUseCase(ports: ConsumerUpgradePorts) {
         : {}),
       ...(options.authorityRevision === undefined ? {} : { revision: options.authorityRevision }),
     });
-    if (authority.cohort.schemaVersion !== targetGeneration) {
-      return blocked(incompatibleGeneration(input.desired, authority), authority);
-    }
-    const supportedGeneration =
-      (input.desired.schemaVersion === 1 && isAuthorityV1(authority)) ||
-      (input.desired.schemaVersion === 1 && isAuthorityV2(authority)) ||
-      (input.desired.schemaVersion === 3 &&
-        (isAuthorityV2(authority) || authority.cohort.schemaVersion === 3)) ||
-      (input.desired.schemaVersion === 4 && authority.cohort.schemaVersion !== 1);
-    if (!supportedGeneration) {
-      return blocked(incompatibleGeneration(input.desired, authority), authority);
-    }
-    const crossGeneration = input.desired.schemaVersion === 1 && isAuthorityV2(authority);
-    const transitionAllowed =
-      authority.cohort.upgradeFrom.includes(input.desired.cohort.cohortId) ||
-      (!crossGeneration && input.desired.cohort.rollbackTo.includes(authority.cohort.cohortId));
-    if (!transitionAllowed) {
-      return blocked(
-        issue(
-          "DOCS_CONSUMER_COHORT_TRANSITION_FORBIDDEN",
-          options.to,
-          `Central authority does not permit a transition from ${input.desired.cohort.cohortId}.`,
-        ),
-        authority,
-      );
+    const transitionIssue = inspectTransitionIssue(input, authority, targetGeneration, options);
+    if (transitionIssue !== undefined) {
+      return blocked(transitionIssue, authority);
     }
     const targetLockfile = await readTargetLockfile(
       options.targetLockfile,

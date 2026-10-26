@@ -271,8 +271,46 @@ async function executeUpgradeArguments(
   });
 }
 
+function executeConsumerCommand(
+  command: string,
+  args: Arguments,
+  operations: ManagedConsumerOperations,
+): Promise<ConsumerExecution> {
+  const consumerRoot = args.one("--consumer") ?? ".";
+  if (command === "check") {
+    args.assertConsumed();
+    return operations.check({ consumerRoot });
+  } else if (command === "plan") {
+    const to = args.one("--to", true)!;
+    if (!COHORT_ID.test(to)) {
+      throw new ConsumerCliInputError("--to must be one exact Cohort ID.");
+    }
+    args.assertConsumed();
+    return operations.plan({ consumerRoot, to });
+  } else if (command === "apply") {
+    const expect = args.one("--expect", true)!;
+    if (!SHA256.test(expect)) {
+      throw new ConsumerCliInputError("--expect must be one sha256 Plan digest.");
+    }
+    args.assertConsumed();
+    return operations.apply({ consumerRoot, expect });
+  } else if (command === "upgrade") {
+    return executeUpgradeArguments(args, consumerRoot, operations);
+  } else if (command === "finalize") {
+    return executeFinalizationArguments(args, consumerRoot, operations);
+  } else if (command === "restore") {
+    return executeRestorationArguments(args, consumerRoot, operations);
+  } else if (command === "recover") {
+    args.assertConsumed();
+    return operations.recover({ consumerRoot });
+  } else {
+    throw new ConsumerCliInputError(
+      "Expected consumer command: check, plan, apply, upgrade, finalize, restore, or recover.",
+    );
+  }
+}
+
 export function createManagedConsumerCommand(operations: ManagedConsumerOperations) {
-  // oxlint-disable-next-line complexity
   return async function runManagedConsumerCommand(argv: readonly string[]): Promise<number> {
     let command = "";
     const jsonRequested = requestsJsonOutput(argv);
@@ -310,38 +348,7 @@ export function createManagedConsumerCommand(operations: ManagedConsumerOperatio
       }
       const args = new Arguments(argv.slice(1));
       args.flag("--json");
-      const consumerRoot = args.one("--consumer") ?? ".";
-      if (command === "check") {
-        args.assertConsumed();
-        execution = await operations.check({ consumerRoot });
-      } else if (command === "plan") {
-        const to = args.one("--to", true)!;
-        if (!COHORT_ID.test(to)) {
-          throw new ConsumerCliInputError("--to must be one exact Cohort ID.");
-        }
-        args.assertConsumed();
-        execution = await operations.plan({ consumerRoot, to });
-      } else if (command === "apply") {
-        const expect = args.one("--expect", true)!;
-        if (!SHA256.test(expect)) {
-          throw new ConsumerCliInputError("--expect must be one sha256 Plan digest.");
-        }
-        args.assertConsumed();
-        execution = await operations.apply({ consumerRoot, expect });
-      } else if (command === "upgrade") {
-        execution = await executeUpgradeArguments(args, consumerRoot, operations);
-      } else if (command === "finalize") {
-        execution = await executeFinalizationArguments(args, consumerRoot, operations);
-      } else if (command === "restore") {
-        execution = await executeRestorationArguments(args, consumerRoot, operations);
-      } else if (command === "recover") {
-        args.assertConsumed();
-        execution = await operations.recover({ consumerRoot });
-      } else {
-        throw new ConsumerCliInputError(
-          "Expected consumer command: check, plan, apply, upgrade, finalize, restore, or recover.",
-        );
-      }
+      execution = await executeConsumerCommand(command, args, operations);
     } catch (error) {
       execution = failure(command || "check", error);
     }

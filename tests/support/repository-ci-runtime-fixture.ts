@@ -144,16 +144,8 @@ const strictProjects = [
     "tsconfig.restoration-lock-inputs-tests.json",
     "restoration-inputs.mts",
   ],
-  [
-    "typecheck:restoration-lock",
-    "tsconfig.restoration-lock-tests.json",
-    "restoration-lock.mts",
-  ],
-  [
-    "typecheck:managed-runtime-tests",
-    "tsconfig.managed-runtime-tests.json",
-    "managed-runtime.mts",
-  ],
+  ["typecheck:restoration-lock", "tsconfig.restoration-lock-tests.json", "restoration-lock.mts"],
+  ["typecheck:managed-runtime-tests", "tsconfig.managed-runtime-tests.json", "managed-runtime.mts"],
   ["typecheck:local-mode-oracles", "tsconfig.local-mode-oracles.json", "local-mode-oracles.ts"],
   ["typecheck:native-api-tests", "tsconfig.native-api-tests.json", "native-api-tests.ts"],
   [
@@ -188,22 +180,18 @@ export async function assertStrictProjectAdmission(repositoryRoot: string): Prom
     .map((path) => `'${path.replaceAll("'", "'\\''")}'`)
     .join(" ");
   const run = (id: string) =>
-    spawnSync(
-      runtime.node,
-      [join(repositoryRoot, "tools/repository-command.mts"), "script", id],
-      {
-        cwd: root,
-        encoding: "utf8",
-        timeout: 30_000,
-        env: {
-          ...process.env,
-          AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: runtime.node,
-          AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE: runtime.bun,
-          AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE: "bun",
-          PATH: `${dirname(runtime.node)}${delimiter}${process.env["PATH"] ?? ""}`,
-        },
+    spawnSync(runtime.node, [join(repositoryRoot, "tools/repository-command.mts"), "script", id], {
+      cwd: root,
+      encoding: "utf8",
+      timeout: 30_000,
+      env: {
+        ...process.env,
+        AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: runtime.node,
+        AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE: runtime.bun,
+        AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE: "bun",
+        PATH: `${dirname(runtime.node)}${delimiter}${process.env["PATH"] ?? ""}`,
       },
-    );
+    });
   try {
     const ids = [
       "build",

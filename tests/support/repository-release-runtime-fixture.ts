@@ -69,10 +69,7 @@ export async function prepareProfileQualificationFixture(
     join(sourceRoot, "pnpm-workspace.yaml"),
     'packages:\n  - "packages/*"\ncatalogMode: strict\ncatalog: {}\ncatalogs: {}\noverrides:\n',
   );
-  await copyFile(
-    join(sourceRoot, "pnpm-workspace.yaml"),
-    join(profileRoot, "pnpm-workspace.yaml"),
-  );
+  await copyFile(join(sourceRoot, "pnpm-workspace.yaml"), join(profileRoot, "pnpm-workspace.yaml"));
   await writeFile(join(sourceRoot, "architecture/foundation/repository-runtime.json"), policy);
   await writeFile(join(profileRoot, "architecture/foundation/repository-runtime.json"), policy);
   const workflowPath = "architecture/foundation/repository-agent-workflow.yaml";

@@ -666,7 +666,7 @@ test("canonical adapter fetches both pinned files outside candidate and uses onl
         const content = Buffer.from(bytes.get(file)!);
         assert.equal(
           argv[5],
-          `repos/agent-teams-ai/.github/contents/${file}?ref=05b30bcc00cdf07cfde9ba60a1136bb9df7f7571`,
+          `repos/agent-teams-ai/.github/contents/${file}?ref=c8f3e7ba220241f79292c84c72712653019aa1df`,
         );
         if (fault === "retarget") {
           state.pr.base.ref = "release";

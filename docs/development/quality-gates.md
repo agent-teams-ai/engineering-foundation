@@ -878,7 +878,7 @@ tree and run no build or dependency bootstrap there.
 The operation also checks all 34 mandatory current native jobs, not just the
 four aggregate names; the shadow classifier remains advisory. It then invokes
 the organization owner guard pinned at
-`05b30bcc00cdf07cfde9ba60a1136bb9df7f7571`, preserving owner identity and the
+`c8f3e7ba220241f79292c84c72712653019aa1df`, preserving owner identity and the
 expected-head merge comparison. Body bytes are frozen before external IO.
 GitHub required checks still apply. This is an admitted operator path, not a
 GitHub-wide prohibition on another merge client. GitHub Free cannot require our

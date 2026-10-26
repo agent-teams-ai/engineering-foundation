@@ -34,7 +34,7 @@ import { join, resolve as resolvePath } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const workflowPath = ".github/workflows/ci.yml";
-const organizationSource = "05b30bcc00cdf07cfde9ba60a1136bb9df7f7571";
+const organizationSource = "c8f3e7ba220241f79292c84c72712653019aa1df";
 const registry = "/srv/worker-state/jobs/engineering-foundation/hardening-20261001/registry";
 const jobRoots = "/srv/worker-state/jobs/engineering-foundation/hardening-20261001/jobs";
 const reviewHost = "workers-fsn1-01";

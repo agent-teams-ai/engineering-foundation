@@ -55,7 +55,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           test "$(node -p 'require("./node_modules/typescript/package.json").version')" = "7.0.2"
-          node node_modules/typescript/bin/tsc --strict --noEmit --module NodeNext --moduleResolution NodeNext --target ES2024 --skipLibCheck --types node scripts/diagnose-native-context.ts 2>&1 | tee "${RUNNER_TEMP}/native-context-canceled-linux/runner-typecheck.log"
+          node node_modules/typescript/bin/tsc --ignoreConfig --strict --noEmit --module NodeNext --moduleResolution NodeNext --target ES2024 --skipLibCheck --types node scripts/diagnose-native-context.ts 2>&1 | tee "${RUNNER_TEMP}/native-context-canceled-linux/runner-typecheck.log"
       - name: Capture ten fixed exact-case iterations (diagnostic only)
         shell: bash
         run: |

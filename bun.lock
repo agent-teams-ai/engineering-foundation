@@ -59,7 +59,7 @@
     },
     "packages/docs-protocol-agent-teams": {
       "name": "@agent-teams/docs-protocol-agent-teams",
-      "version": "0.5.5",
+      "version": "0.6.0",
       "bin": {
         "agent-teams-docs-managed": "./dist/cli.js",
       },
@@ -113,7 +113,7 @@
     },
     "packages/engineering-foundation": {
       "name": "@agent-teams/engineering-foundation",
-      "version": "3.0.0",
+      "version": "3.0.1",
       "bin": {
         "agent-teams-foundation": "./dist/cli.js",
         "agent-teams-node-test": "./dist/node-test-cli.js",
@@ -139,7 +139,7 @@
     },
     "packages/feature-module-standard": {
       "name": "@agent-teams/feature-module-standard",
-      "version": "0.3.0",
+      "version": "0.3.1",
       "devDependencies": {
         "@agent-teams/engineering-foundation": "workspace:*",
         "typescript": "catalog:",

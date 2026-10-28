@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/docs-protocol-agent-teams",
-  "packageVersion": "0.5.5",
+  "packageVersion": "0.6.0",
   "extractorVersion": "typescript-native/7.0.2",
   "entrypoints": [
     {
@@ -1870,6 +1870,13 @@
           "signature": "export declare function describeCanonicalConsumerAssets(cohort: ManagedSuccessorProfile[\"cohort\"]): {\n    readonly skillDigest: ConsumerIntegrationDigest;\n    readonly callerWorkflowDigest: ConsumerIntegrationDigest;\n    readonly assetCatalogDigest: ConsumerIntegrationDigest;\n    readonly transitionCatalogDigest: ConsumerIntegrationDigest;\n};"
         },
         {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!describeCanonicalConsumerAssets:function(4)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function describeCanonicalConsumerAssets(cohort: QualifiedDocsCohortBindingV1 | QualifiedDocsCohortBindingV2 | ManagedSuccessorProfile[\"cohort\"]): {\n    readonly skillDigest: ConsumerIntegrationDigest;\n    readonly callerWorkflowDigest: ConsumerIntegrationDigest;\n    readonly assetCatalogDigest: ConsumerIntegrationDigest;\n    readonly transitionCatalogDigest: ConsumerIntegrationDigest;\n};"
+        },
+        {
           "canonicalReference": "@agent-teams/docs-protocol-agent-teams!planAgentsRouteV1:function(1)",
           "kind": "Function",
           "parentReference": "@agent-teams/docs-protocol-agent-teams!",
@@ -1909,7 +1916,7 @@
           "kind": "Function",
           "parentReference": "@agent-teams/docs-protocol-agent-teams!",
           "parentKind": "EntryPoint",
-          "signature": "export declare function planPnpmManifestV2(input: {\n    readonly observation: ConsumerIntegrationFileObservation;\n    readonly profilePath: string;\n    readonly cohort: QualifiedDocsCohortBindingV2;\n    readonly knownPriorScriptsDigest?: ConsumerIntegrationDigest;\n}): PnpmManifestPlanV1;"
+          "signature": "export declare function planPnpmManifestV2(input: {\n    readonly observation: ConsumerIntegrationFileObservation;\n    readonly profilePath: string;\n    readonly cohort: Pick<QualifiedDocsCohortBindingV2, \"packages\">;\n    readonly knownPriorScriptsDigest?: ConsumerIntegrationDigest;\n}): PnpmManifestPlanV1;"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol-agent-teams!projectManagedPortableProfileV4:function(1)",
@@ -1965,7 +1972,7 @@
           "kind": "Function",
           "parentReference": "@agent-teams/docs-protocol-agent-teams!",
           "parentKind": "EntryPoint",
-          "signature": "export declare function upgradeConsumerIntegration(options: {\n    readonly consumerRoot: string;\n    readonly authorityRevision?: string;\n    readonly to: string;\n}): Promise<ConsumerUpgradeExecutionV1>;"
+          "signature": "export declare function upgradeConsumerIntegration(options: {\n    readonly targetGeneration: 1 | 2 | 3;\n    readonly consumerRoot: string;\n    readonly authorityRevision?: string;\n    readonly to: string;\n}): Promise<ConsumerUpgradeExecutionV1>;"
         }
       ]
     },

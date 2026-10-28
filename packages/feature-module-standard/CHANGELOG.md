@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.1
+
+### Patch Changes
+
+- [#455](https://github.com/agent-teams-ai/engineering-foundation/pull/455) [`3bee016`](https://github.com/agent-teams-ai/engineering-foundation/commit/3bee0168797580b931dd7e355d0fb8e0ed5691de) Thanks [@777genius](https://github.com/777genius)! - Use the public asynchronous native compiler SDK for signature proofs, preserving the existing syntax oracle while awaiting sequential comparisons and cleanup. Recheck cancellation before approval reads, baseline promotion and admission effects.
+
+  Release FMS with its updated exact Foundation development dependency so each published version retains immutable packed bytes.
+
 ## 0.3.0
 
 ### Minor Changes

@@ -1,6 +1,6 @@
 {
   "name": "@agent-teams/docs-protocol-agent-teams",
-  "version": "0.5.5",
+  "version": "0.6.0",
   "description": "Agent Teams managed integration adapter for the portable Docs Protocol.",
   "homepage": "https://github.com/agent-teams-ai/engineering-foundation#readme",
   "bugs": {

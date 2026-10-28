@@ -7,16 +7,18 @@ import {
   readdirSync,
   realpathSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, join, relative } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 import { qualitySourceTargets } from "../packages/engineering-foundation/dist/features/quality-coverage/application/source-coverage.js";
 import { mapQualityTopology } from "../packages/engineering-foundation/dist/features/quality-coverage/adapters/profile-input.js";
+import { repositorySourceRoot } from "./support/repository-source.ts";
 
 interface Configuration {
   readonly extends: readonly string[];
@@ -131,7 +133,7 @@ void test("split lint preserves the original syntax scope and production typed p
   assert.deepEqual(selected.syntax, { config: ".oxlintrc.json", paths: roots });
 });
 
-void test("actual typed selection equals authoritative quality production targets", () => {
+void test("actual typed selection equals authoritative quality production targets", async () => {
   const topology: unknown = JSON.parse(
     readFileSync(join(root, "architecture/foundation/feature-modules.json"), "utf8"),
   );
@@ -142,18 +144,46 @@ void test("actual typed selection equals authoritative quality production target
   );
   assert.ok(expected.length > 0);
   const selected = lintScopes();
-  const actual = lint([
+  const args = [
     "--config",
     selected.typed.config,
     "--disable-nested-config",
     "--debug",
     "files",
-    ...selected.typed.paths,
-  ])
+    "--",
+  ];
+  // Directory discovery uses the source; explicit names retain the same scope
+  // inside a profile below an ancestor's ignored .worker-tmp directory.
+  const actual = lint([...args, ...selected.typed.paths], await repositorySourceRoot())
     .trim()
     .split(/\r?\n/u)
     .toSorted();
   assert.deepEqual(actual, expected);
+  const projected: string[] = [];
+  let batch: string[] = [];
+  let bytes = 0;
+  const verifyBatch = (): void => {
+    if (batch.length > 0) {
+      projected.push(
+        ...lint([...args, ...batch])
+          .trim()
+          .split(/\r?\n/u),
+      );
+    }
+    batch = [];
+    bytes = 0;
+  };
+  for (const path of actual) {
+    const size = Buffer.byteLength(path, "utf8") + 1;
+    assert.ok(size <= 8_000);
+    if (bytes + size > 8_000) {
+      verifyBatch();
+    }
+    batch.push(path);
+    bytes += size;
+  }
+  verifyBatch();
+  assert.deepEqual(projected.toSorted(), expected);
   assert.ok(actual.every((path) => !path.startsWith("tests/") && !path.startsWith("tools/")));
   assert.ok(actual.every((path) => !path.startsWith("scripts/")));
   assert.ok(
@@ -179,6 +209,57 @@ function diagnostics(config: string, paths: readonly string[], cwd: string): rea
     ) as { diagnostics: Diagnostic[] }
   ).diagnostics;
 }
+
+void test("native test typed lint uses its owning ES2024 context and rejects a downgraded context", () => {
+  const directory = realpathSync(mkdtempSync(join(tmpdir(), "TEST-native-lint-context-")));
+  try {
+    const config = probeConfiguration(directory, ".oxlintrc.type-aware.json");
+    const testDirectory = join(directory, "packages", "probe", "tests");
+    mkdirSync(testDirectory, { recursive: true });
+    symlinkSync(join(root, "node_modules"), join(directory, "node_modules"), "junction");
+    writeFileSync(
+      join(directory, "tsconfig.json"),
+      JSON.stringify({
+        compilerOptions: { strict: true, target: "ES2020" },
+        include: ["**/*.ts"],
+      }),
+    );
+    const selected = "packages/probe/tests/context.ts";
+    writeFileSync(join(directory, selected), "void Promise.withResolvers<boolean>();\n");
+    const actualWrapperPath = "packages/engineering-foundation/tests/tsconfig.json";
+    const wrapper: unknown = JSON.parse(readFileSync(join(root, actualWrapperPath), "utf8"));
+    assert.ok(record(wrapper) && typeof wrapper.extends === "string");
+    const derived = {
+      ...wrapper,
+      extends: resolve(dirname(join(root, actualWrapperPath)), wrapper.extends),
+    };
+    const nearest = join(testDirectory, "tsconfig.json");
+    writeFileSync(nearest, JSON.stringify(derived));
+    assert.deepEqual(diagnostics(config, [selected], directory), []);
+
+    const options = record(wrapper.compilerOptions) ? wrapper.compilerOptions : {};
+    writeFileSync(
+      nearest,
+      JSON.stringify({
+        ...derived,
+        compilerOptions: { ...options, target: "ES2020", lib: ["ES2020"], types: [] },
+      }),
+    );
+    const actualNegativeDiagnostics = diagnostics(config, [selected], directory);
+    assert.equal(
+      actualNegativeDiagnostics.some((finding) => finding.code.includes("tsconfig-error")),
+      false,
+      JSON.stringify(actualNegativeDiagnostics),
+    );
+    assert.ok(
+      actualNegativeDiagnostics.some((finding) => finding.code.includes("no-unsafe-call")),
+      `The probe must reject unavailable ES2024 APIs when the owning context is downgraded: ${JSON.stringify(actualNegativeDiagnostics)}`,
+    );
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 void test("syntax still rejects test syntax while typed production retains promise rules and strict budgets", () => {
   const directory = realpathSync(mkdtempSync(join(tmpdir(), "TEST-repository-lint-scopes-")));
   try {

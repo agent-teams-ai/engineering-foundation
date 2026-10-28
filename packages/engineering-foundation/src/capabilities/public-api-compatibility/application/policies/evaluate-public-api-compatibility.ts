@@ -56,13 +56,13 @@ interface PublicApiComparisonContext {
   readonly extractorVersions: { readonly released: string; readonly current: string };
 }
 
-function itemChanged(
+async function itemChanged(
   released: PublicApiItem,
   current: PublicApiItem,
   releasedItems: readonly PublicApiItem[],
   currentItems: readonly PublicApiItem[],
   comparison: PublicApiComparisonContext,
-): boolean {
+): Promise<boolean> {
   return (
     released.kind !== current.kind ||
     released.parentKind !== current.parentKind ||
@@ -75,7 +75,8 @@ function itemChanged(
         currentItems,
         stableTypeBindings: comparison.stableTypeBindings,
       }) &&
-      comparison.signatures?.equivalent(released, current, comparison.extractorVersions) !== true)
+      (await comparison.signatures?.equivalent(released, current, comparison.extractorVersions)) !==
+        true)
   );
 }
 
@@ -114,26 +115,27 @@ interface EntrypointItemChange {
   readonly removed: readonly string[];
 }
 
-function classifyEntrypointItems(
+async function classifyEntrypointItems(
   releasedItems: readonly PublicApiItem[],
   currentItems: readonly PublicApiItem[],
   comparison: PublicApiComparisonContext,
-): EntrypointItemChange {
+): Promise<EntrypointItemChange> {
   const released = new Map(releasedItems.map((item) => [item.canonicalReference, item]));
   const current = new Map(currentItems.map((item) => [item.canonicalReference, item]));
   const removed = [...released.keys()]
     .filter((key) => !current.has(key))
     .toSorted(compareCanonicalReferences);
-  const changed = [...released.entries()]
-    .filter(([key, item]) => {
-      const currentItem = current.get(key);
-      return (
-        currentItem !== undefined &&
-        itemChanged(item, currentItem, releasedItems, currentItems, comparison)
-      );
-    })
-    .map(([key]) => key)
-    .toSorted(compareCanonicalReferences);
+  const changedKeys: string[] = [];
+  for (const [key, item] of released) {
+    const currentItem = current.get(key);
+    if (
+      currentItem !== undefined &&
+      (await itemChanged(item, currentItem, releasedItems, currentItems, comparison))
+    ) {
+      changedKeys.push(key);
+    }
+  }
+  const changed = changedKeys.toSorted(compareCanonicalReferences);
   const added = [...current.values()]
     .filter((item) => !released.has(item.canonicalReference))
     .toSorted((left, right) =>
@@ -222,12 +224,12 @@ interface EntrypointChanges {
   readonly removed: readonly PublicApiEntrypointItemReference[];
 }
 
-function collectEntrypointChanges(
+async function collectEntrypointChanges(
   released: ReadonlyMap<string, PublicApiEntrypointSnapshot>,
   current: ReadonlyMap<string, PublicApiEntrypointSnapshot>,
   exportPaths: readonly string[],
   context: PublicApiComparisonContext,
-): EntrypointChanges {
+): Promise<EntrypointChanges> {
   const added: PublicApiEntrypointItemReference[] = [];
   const changed: PublicApiEntrypointItemReference[] = [];
   const removed: PublicApiEntrypointItemReference[] = [];
@@ -236,7 +238,7 @@ function collectEntrypointChanges(
   for (const exportPath of exportPaths) {
     const releasedEntrypoint = released.get(exportPath);
     const currentEntrypoint = current.get(exportPath);
-    const comparison = classifyEntrypointItems(
+    const comparison = await classifyEntrypointItems(
       releasedEntrypoint?.items ?? [],
       currentEntrypoint?.items ?? [],
       context,
@@ -275,12 +277,12 @@ function collectEntrypointChanges(
   });
 }
 
-function classifyEntrypointPublicApiChange(
+async function classifyEntrypointPublicApiChange(
   releasedSnapshot: PublicApiSnapshot,
   currentSnapshot: PublicApiSnapshot,
   fingerprint: ChangeFingerprint,
   comparison: PublicApiComparisonContext,
-): PublicApiChangeSet {
+): Promise<PublicApiChangeSet> {
   const released = entrypointIndex(releasedSnapshot);
   const current = entrypointIndex(currentSnapshot);
   const exportPaths = [...new Set([...released.keys(), ...current.keys()])].toSorted(
@@ -288,7 +290,7 @@ function classifyEntrypointPublicApiChange(
   );
   const addedEntrypoints = exportPaths.filter((exportPath) => !released.has(exportPath));
   const removedEntrypoints = exportPaths.filter((exportPath) => !current.has(exportPath));
-  const changes = collectEntrypointChanges(released, current, exportPaths, comparison);
+  const changes = await collectEntrypointChanges(released, current, exportPaths, comparison);
   const breaking =
     removedEntrypoints.length > 0 ||
     changes.removed.length > 0 ||
@@ -318,13 +320,13 @@ function classifyEntrypointPublicApiChange(
   });
 }
 
-export function classifyPublicApiChange(
+export async function classifyPublicApiChange(
   releasedSnapshot: PublicApiSnapshot,
   currentSnapshot: PublicApiSnapshot,
   fingerprint: ChangeFingerprint,
   stableTypeBindings: ReadonlySet<string> = new Set(),
   signatures?: PublicApiSignatureEquivalence,
-): PublicApiChangeSet {
+): Promise<PublicApiChangeSet> {
   return classifyEntrypointPublicApiChange(releasedSnapshot, currentSnapshot, fingerprint, {
     stableTypeBindings,
     ...(signatures === undefined ? {} : { signatures }),

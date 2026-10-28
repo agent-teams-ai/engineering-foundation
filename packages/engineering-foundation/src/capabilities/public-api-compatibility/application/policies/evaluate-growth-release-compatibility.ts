@@ -21,7 +21,7 @@ export interface GrowthReleaseCompatibilityResult {
   readonly diagnostics: readonly FoundationDiagnostic[];
   readonly reasons: readonly string[];
 }
-function compareBranch(
+async function compareBranch(
   row: GrowthReleasedPackage,
   released: PublicApiSnapshot,
   current: PublicApiSnapshot,
@@ -31,11 +31,11 @@ function compareBranch(
     readonly stableTypeBindings: ReadonlySet<string>;
     readonly signatures?: PublicApiSignatureEquivalence;
   },
-): readonly FoundationDiagnostic[] {
+): Promise<readonly FoundationDiagnostic[]> {
   if (row.releaseEvidence.status !== "available") {
     throw new GrowthObservationInvariantError("growth-release-evidence-unavailable");
   }
-  const change = classifyPublicApiChange(
+  const change = await classifyPublicApiChange(
     released,
     current,
     dependencies.fingerprint,
@@ -157,7 +157,7 @@ function qualified(
  * An initial history value needs the trusted S3 adapter's receipt qualification.
  * It proves absence of published compatibility obligations; it does
  * not synthesize a v1 baseline or waive first-surface admission. */
-export function evaluateGrowthReleaseCompatibility(
+export async function evaluateGrowthReleaseCompatibility(
   input: {
     readonly current: readonly GrowthCompatibilityPackage[];
     readonly released: readonly GrowthReleasedPackage[];
@@ -167,7 +167,7 @@ export function evaluateGrowthReleaseCompatibility(
   },
   fingerprint: ChangeFingerprint,
   signatures?: PublicApiSignatureEquivalence,
-): GrowthReleaseCompatibilityResult {
+): Promise<GrowthReleaseCompatibilityResult> {
   const current = growthUniqueSorted(input.current, (entry) => entry.packageName);
   const released = growthUniqueSorted(input.released, (entry) => entry.packageName);
   const diagnostics: FoundationDiagnostic[] = [],
@@ -223,12 +223,12 @@ export function evaluateGrowthReleaseCompatibility(
         throw new GrowthObservationInvariantError("growth-release-version-mismatch");
       }
       diagnostics.push(
-        ...compareBranch(row, previous.value, next.value, {
+        ...(await compareBranch(row, previous.value, next.value, {
           accepted: input.acceptedDecisions,
           fingerprint,
           stableTypeBindings,
           ...(signatures === undefined ? {} : { signatures }),
-        }),
+        })),
       );
     }
   }

@@ -154,7 +154,8 @@ test("missing actual tar member fails even when the export pattern is unchanged"
     /missing wildcard export member.*v2.schema.json/u,
   );
   assert.equal(
-    comparePackageArtifactInventory(released, await inspect(root), fingerprint).classification,
+    (await comparePackageArtifactInventory(released, await inspect(root), fingerprint))
+      .classification,
     "breaking",
   );
 });
@@ -489,7 +490,8 @@ test("wildcard availability uses actual Node resolution for null, conditions, ar
     }
     if (entry.accepted) {
       assert.equal(
-        comparePackageArtifactInventory(baseline, await inspect(root), fingerprint).classification,
+        (await comparePackageArtifactInventory(baseline, await inspect(root), fingerprint))
+          .classification,
         "none",
         label,
       );

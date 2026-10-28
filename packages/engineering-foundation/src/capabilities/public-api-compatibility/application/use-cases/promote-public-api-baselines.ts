@@ -168,13 +168,14 @@ export async function promotePublicApiBaselines(
       continue;
     }
     assertExtractorVersionMatch(released, current);
-    const change = classifyPublicApiChange(
+    const change = await classifyPublicApiChange(
       released,
       current,
       dependencies.fingerprint,
       stableTypeBindings,
       dependencies.signatures,
     );
+    assertNotCancelled(input.signal);
     if (released.packageVersion === releaseEvidence.packageVersion) {
       if (change.classification !== "none") {
         promotionError(

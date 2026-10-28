@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { mkdtemp, mkdir, readdir, readFile, realpath, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -46,10 +47,34 @@ test("direct portable and managed install graphs resolve without duplicate imple
     await realpath(portableRequire.resolve("@agent-teams/docs-protocol/package.json")),
     await realpath(join(coreRoot, "package.json")),
   );
-  assert.throws(
-    () => portableRequire.resolve("@agent-teams/docs-protocol-agent-teams/package.json"),
-    { code: "MODULE_NOT_FOUND" },
+  // Loader search paths are initialized at process startup. A pnpm test process
+  // can otherwise resolve the absent adapter through its inherited NODE_PATH.
+  const isolated = spawnSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "--eval",
+      `import assert from "node:assert/strict";
+import { createRequire } from "node:module";
+const require = createRequire(process.argv[1]);
+assert.throws(
+  () => require.resolve("@agent-teams/docs-protocol-agent-teams/package.json"),
+  { code: "MODULE_NOT_FOUND" },
+);`,
+      join(portable, "entry.cjs"),
+    ],
+    {
+      cwd: portable,
+      env: Object.fromEntries(
+        Object.entries(process.env).filter(([key]) => !/^NODE_(?:PATH|OPTIONS)$/iu.test(key)),
+      ),
+      encoding: "utf8",
+      timeout: 10_000,
+    },
   );
+  assert.ifError(isolated.error);
+  assert.equal(isolated.signal, null);
+  assert.equal(isolated.status, 0, `${isolated.stdout}${isolated.stderr}`);
 
   const managed = await disposableInstall([
     ["docs-protocol", coreRoot],

@@ -198,7 +198,7 @@ export async function admitSdkGrowth(
     const nonRelease = new Set(
       (context.nonReleaseMetadataRoots ?? []).map((root) => root.packageName),
     );
-    const compatibility = evaluateGrowthReleaseCompatibility(
+    const compatibility = await evaluateGrowthReleaseCompatibility(
       {
         current: execution.compatibilitySnapshots.filter((row) => !nonRelease.has(row.packageName)),
         released: context.released,
@@ -211,6 +211,7 @@ export async function admitSdkGrowth(
       dependencies.fingerprint,
       dependencies.signatures,
     );
+    cancellation.throwIfCancelled();
     const ownerEvidence = context.acceptedBreakingDecisions.growthDecisionAuthority;
     const authority =
       context.authority.status === "verified" && ownerEvidence?.status === "available"

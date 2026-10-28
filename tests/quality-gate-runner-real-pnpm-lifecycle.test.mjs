@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { resolvePnpmInvocation } from "../tools/pnpm-command.mts";
 import { readRepositoryRuntimePolicy } from "../tools/runtime-policy.mts";
+import { resolvePackagingPnpm } from "../scripts/packaging-pnpm.ts";
 import test from "node:test";
 
 import { PnpmQualityGateScriptExecutor } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/adapters/outbound/pnpm/pnpm-package-script-executor.js";
@@ -58,13 +59,22 @@ function installOneUseFixtureAuthority(environment, authority) {
 async function resolveInstalledPnpm() {
   const policy = await readRepositoryRuntimePolicy();
   const version = policy.toolchain.pnpm.version;
+  const installed = await resolvePackagingPnpm();
+  const restore = overrideEnvironment({
+    AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT: installed.entrypoint,
+  });
   // Admission executes the selected physical pnpm's version probe. Parent npm
   // metadata is neither required nor synthesized; the actual child must emit it.
-  const invocation = await resolvePnpmInvocation(process.execPath, version);
-  const nodeEntrypoint = invocation.kind === "javascript";
-  const entrypoint = nodeEntrypoint ? invocation.args[0] : invocation.command;
-  assert.equal(typeof entrypoint, "string");
-  return { entrypoint, nodeEntrypoint, version };
+  try {
+    const invocation = await resolvePnpmInvocation(installed.node, version);
+    const nodeEntrypoint = invocation.kind === "javascript";
+    const entrypoint = nodeEntrypoint ? invocation.args[0] : invocation.command;
+    assert.equal(typeof entrypoint, "string");
+    assert.equal(entrypoint, installed.entrypoint);
+    return { entrypoint, nodeEntrypoint, version };
+  } finally {
+    restore();
+  }
 }
 
 async function writeConsumer(root, version) {
@@ -271,6 +281,7 @@ test("controlled QGR cancellation drains the real installed-pnpm process tree", 
   let installedPnpmEntrypoint;
   let marker;
   let setupExecution;
+  const primaryFailures = [];
   try {
     let fixtureStore;
     ({ fixtureStore, installedPnpmEntrypoint, marker, setupExecution } = await prepareCase(root));
@@ -356,12 +367,16 @@ test("controlled QGR cancellation drains the real installed-pnpm process tree", 
       report.tasks.map(({ id, outcome }) => [id, outcome]),
       [["slow", "cancelled"]],
     );
+  } catch (error) {
+    primaryFailures.push(error);
+    throw error;
   } finally {
     try {
       await cleanupSyntheticFixture({
         boundaries: [boundary],
         executions: [setupExecution, execution],
         roots: [root],
+        primaryFailures,
       });
     } finally {
       restoreFixtureAuthority();

@@ -4150,6 +4150,8 @@ boundaries:
       - packages/engineering-foundation/tests/public-api-audit-projection.test.ts
       - packages/engineering-foundation/tests/public-api-native-extraction.test.ts
       - packages/engineering-foundation/tests/public-api-native-projection.test.ts
+      - packages/engineering-foundation/tests/public-api-async-classification-cases.ts
+      - packages/engineering-foundation/tests/public-api-native-async-cases.ts
       - packages/engineering-foundation/tests/public-api-native-spelling-cases.ts
       - packages/engineering-foundation/tests/public-api-native-transition.test.ts
       - packages/engineering-foundation/tests/public-api-audit-binding-cases.ts
@@ -4159,6 +4161,7 @@ boundaries:
       - packages/engineering-foundation/tests/public-api-audit-command-fixture.ts
     allow:
       boundaries:
+        - foundation.validation-reporting.application
         - capability.public-api-compatibility.application
         - capability.public-api-compatibility.adapters
         - capability.public-api-compatibility.composition

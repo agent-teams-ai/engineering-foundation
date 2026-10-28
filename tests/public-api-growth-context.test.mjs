@@ -450,7 +450,7 @@ test("unqualified filesystem release evidence retains breaking compatibility dia
       ...typed.entrypoints[0].items[0],
       signature: "export declare function stable(value: number): string;",
     };
-    const result = evaluateGrowthReleaseCompatibility(
+    const result = await evaluateGrowthReleaseCompatibility(
       {
         current: [
           {
@@ -516,11 +516,11 @@ test("growth release comparison uses the same explicit parenthesis proof without
       acceptedDecisions: context.acceptedBreakingDecisions,
     };
     const raw = JSON.stringify(input);
-    const conservative = evaluateGrowthReleaseCompatibility(input, dependencies.fingerprint);
+    const conservative = await evaluateGrowthReleaseCompatibility(input, dependencies.fingerprint);
     assert.ok(
       conservative.diagnostics.some((row) => row.ruleId.endsWith("breaking-change-not-approved")),
     );
-    const proved = evaluateGrowthReleaseCompatibility(
+    const proved = await evaluateGrowthReleaseCompatibility(
       input,
       dependencies.fingerprint,
       createNativeTypeParenthesisEquivalence(),
@@ -531,7 +531,7 @@ test("growth release comparison uses the same explicit parenthesis proof without
     assert.equal(JSON.stringify(input), raw);
     after.entrypoints[0].items[0].signature =
       "export type Alias<T> = T extends string ? false : true;";
-    const changed = evaluateGrowthReleaseCompatibility(
+    const changed = await evaluateGrowthReleaseCompatibility(
       input,
       dependencies.fingerprint,
       createNativeTypeParenthesisEquivalence(),

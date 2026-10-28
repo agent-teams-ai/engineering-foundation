@@ -3,11 +3,11 @@ import type { ChangeFingerprint } from "../ports/change-fingerprint.js";
 import { artifactApiProjection } from "./artifact-api-projection.js";
 import { classifyPublicApiChange } from "./evaluate-public-api-compatibility.js";
 
-export function comparePackageArtifactInventory(
+export async function comparePackageArtifactInventory(
   released: PublicApiArtifactSnapshot,
   current: PublicApiArtifactSnapshot,
   fingerprint: ChangeFingerprint,
-): PublicApiChangeSet {
+): Promise<PublicApiChangeSet> {
   return classifyPublicApiChange(
     artifactApiProjection(released),
     artifactApiProjection(current),

@@ -56,7 +56,7 @@ test("frozen-namespace path checks reject escapes, symlinks and oversized regula
   }
 });
 
-test("empty surfaces retain added/removed export paths and scoped identities cannot cross subjects", () => {
+test("empty surfaces retain added/removed export paths and scoped identities cannot cross subjects", async () => {
   const observation = {
     subject: "A",
     packageName: "audit-fixture",
@@ -73,10 +73,10 @@ test("empty surfaces retain added/removed export paths and scoped identities can
     ],
     "audit-fixture",
   );
-  const added = classifyPublicApiChange(left.snapshot, right.snapshot, fingerprint);
+  const added = await classifyPublicApiChange(left.snapshot, right.snapshot, fingerprint);
   assert.equal(added.classification, "additive");
   assert.deepEqual(added.addedEntrypoints, ["./extra"]);
-  const removed = classifyPublicApiChange(right.snapshot, left.snapshot, fingerprint);
+  const removed = await classifyPublicApiChange(right.snapshot, left.snapshot, fingerprint);
   assert.equal(removed.classification, "breaking");
   assert.deepEqual(removed.removedEntrypoints, ["./extra"]);
   assert.throws(

@@ -3,9 +3,13 @@
   "include": [
     "**/*.mts",
     "support/release-changesets-fixture.ts",
+    "support/repository-ci-runtime-fixture.ts",
+    "support/repository-release-runtime-fixture.ts",
     "release-candidate-host.test.ts",
     "features/release-checks/*.test.ts",
     "public-api-native-migration-cli.test.ts",
+    "public-api-native-migration.test.ts",
+    "support/public-api-native-migration-fixture.ts",
     "source-inline-types.test.ts",
     "package-export-matcher.test.ts",
     "public-docs-documented.test.ts",

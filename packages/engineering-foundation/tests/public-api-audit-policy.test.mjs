@@ -64,7 +64,7 @@ function observation(subject, packageName, signature = "export declare function 
     },
   };
 }
-async function audit(observations, badBaseline) {
+async function audit(observations, badBaseline, fingerprint = { sha256: () => "0".repeat(64) }) {
   const packages = [...new Set(observations.map((item) => item.packageName))].map(
     (packageName) => ({
       packageName,
@@ -112,10 +112,35 @@ async function audit(observations, badBaseline) {
       observer: {
         observe: async (input) => observations.filter((item) => item.subject === input.subject),
       },
-      fingerprint: { sha256: () => "0".repeat(64) },
+      fingerprint,
     },
   );
 }
+
+test("a rejected asynchronous rich comparison remains ineligible without findings", async () => {
+  const report = await audit(
+    [observation("A", "valid"), observation("C", "valid", "export declare function f(): number;")],
+    undefined,
+    {
+      sha256: (value) => {
+        if (value.startsWith(`${profile}\n`)) {
+          throw new Error("rich classification rejected");
+        }
+        return "0".repeat(64);
+      },
+    },
+  );
+  const comparison = report.comparisons.find((item) => item.pair === "A-C");
+  assert.ok(comparison);
+  assert.equal(comparison.eligibility.eligible, false);
+  assert.equal(comparison.findings, undefined);
+  assert.ok(
+    comparison.eligibility.reasons.some((reason) =>
+      reason.includes("rich classification rejected"),
+    ),
+  );
+  assert.equal(report.releaseEligible, false);
+});
 
 test("unrelated failed model and baseline do not erase valid package comparisons", async () => {
   const observations = [

@@ -77,7 +77,7 @@ const fingerprint = {
   sha256: (value: string) => createHash("sha256").update(`audit-test:${value}`).digest("hex"),
 };
 
-test("real hidden recursive model has exact nodes, ordered edges and terminating cycle", async () => {
+void test("real hidden recursive model has exact nodes, ordered edges and terminating cycle", async () => {
   const observation = await observe(
     "type Leaf = { value: string }; type Middle = Leaf; type Hidden = { next?: Hidden; item: Middle }; declare function f(x: Hidden): Hidden; export { f };\n",
   );
@@ -112,7 +112,7 @@ test("real hidden recursive model has exact nodes, ordered edges and terminating
   assert.deepEqual(projectPublicApiObservation([observation], "audit-fixture"), projection);
 });
 
-test("hidden mutation changes public graph signature with identical public excerpt", async () => {
+void test("hidden mutation changes public graph signature with identical public excerpt", async () => {
   const a = await observe(
     "type Hidden = string; declare function f(x: Hidden): Hidden; export { f };\n",
   );
@@ -123,7 +123,7 @@ test("hidden mutation changes public graph signature with identical public excer
   assert.equal(a.items.find((i) => i.public)?.excerpt, c.items.find((i) => i.public)?.excerpt);
   const left = projectPublicApiObservation([a], "audit-fixture");
   const right = projectPublicApiObservation([c], "audit-fixture");
-  const diff = classifyPublicApiChange(left.snapshot, right.snapshot, fingerprint);
+  const diff = await classifyPublicApiChange(left.snapshot, right.snapshot, fingerprint);
   assert.equal(diff.classification, "breaking");
   assert.deepEqual(diff.changed, [
     { exportPath: ".", canonicalReference: "audit-fixture!f:function(1)" },
@@ -133,16 +133,18 @@ test("hidden mutation changes public graph signature with identical public excer
     "C",
   );
   assert.equal(
-    classifyPublicApiChange(
-      left.snapshot,
-      projectPublicApiObservation([same], "audit-fixture").snapshot,
-      fingerprint,
+    (
+      await classifyPublicApiChange(
+        left.snapshot,
+        projectPublicApiObservation([same], "audit-fixture").snapshot,
+        fingerprint,
+      )
     ).classification,
     "none",
   );
 });
 
-test("ambient counterexample and explicit export preserve canonical identity transition", async () => {
+void test("ambient counterexample and explicit export preserve canonical identity transition", async () => {
   const hidden = await observe(
     "type Hidden = string; declare function f(x: Hidden): Hidden; export { f };\n",
   );
@@ -159,7 +161,7 @@ test("ambient counterexample and explicit export preserve canonical identity tra
     exported.items.find((i) => i.kind === "TypeAlias")?.identity.canonicalReference,
     "audit-fixture!Hidden:type",
   );
-  const diff = classifyPublicApiChange(
+  const diff = await classifyPublicApiChange(
     projectPublicApiObservation([hidden], "audit-fixture").snapshot,
     projectPublicApiObservation([exported], "audit-fixture").snapshot,
     fingerprint,
@@ -170,7 +172,7 @@ test("ambient counterexample and explicit export preserve canonical identity tra
   ]);
 });
 
-test("real member collection permutations preserve sorted graphs, snapshots and fingerprints", async () => {
+void test("real member collection permutations preserve sorted graphs, snapshots and fingerprints", async () => {
   const observation = await observe("export interface I { z: string; a: number; }\n");
   assert.equal(observation.invocation.succeeded, true);
   const original = projectPublicApiObservation([observation], "audit-fixture");
@@ -190,7 +192,8 @@ test("real member collection permutations preserve sorted graphs, snapshots and 
     fingerprint.sha256(JSON.stringify(original.snapshot)),
   );
   assert.equal(
-    classifyPublicApiChange(original.snapshot, permuted.snapshot, fingerprint).classification,
+    (await classifyPublicApiChange(original.snapshot, permuted.snapshot, fingerprint))
+      .classification,
     "none",
   );
 });

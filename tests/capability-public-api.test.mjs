@@ -70,7 +70,7 @@ test("retains exact legacy fixture bytes as an active native tool mismatch refus
   });
 });
 
-test("keeps the single v1 entrypoint fingerprint deterministic", () => {
+test("keeps the single v1 entrypoint fingerprint deterministic", async () => {
   const released = currentBaseline();
   const currentItem = {
     ...ROOT_STABLE_ITEM,
@@ -96,7 +96,7 @@ test("keeps the single v1 entrypoint fingerprint deterministic", () => {
     ],
   };
 
-  const change = classifyPublicApiChange(released, current, { sha256 });
+  const change = await classifyPublicApiChange(released, current, { sha256 });
 
   assert.equal(change.schemaVersion, 1);
   assert.equal(change.classification, "breaking");
@@ -141,7 +141,7 @@ test("checks a root localMode namespace and its independently importable subpath
   });
 });
 
-test("scopes entrypoint collisions by export path and keeps comparisons order-independent", () => {
+test("scopes entrypoint collisions by export path and keeps comparisons order-independent", async () => {
   const released = currentBaseline();
   const current = {
     ...released,
@@ -159,8 +159,8 @@ test("scopes entrypoint collisions by export path and keeps comparisons order-in
     ],
   };
 
-  const change = classifyPublicApiChange(released, current, { sha256 });
-  const reordered = classifyPublicApiChange(
+  const change = await classifyPublicApiChange(released, current, { sha256 });
+  const reordered = await classifyPublicApiChange(
     { ...released, entrypoints: released.entrypoints.toReversed() },
     { ...current, entrypoints: current.entrypoints.toReversed() },
     { sha256 },
@@ -175,9 +175,9 @@ test("scopes entrypoint collisions by export path and keeps comparisons order-in
     },
   ]);
   assert.equal(change.fingerprint, reordered.fingerprint);
-  assert.throws(
-    () =>
-      classifyPublicApiChange(
+  await assert.rejects(
+    async () =>
+      await classifyPublicApiChange(
         {
           ...released,
           entrypoints: [released.entrypoints[0], released.entrypoints[0]],
@@ -574,7 +574,7 @@ test("requires immutable decision evidence before promoting a breaking public AP
       },
     ],
   };
-  const fingerprint = classifyPublicApiChange(released, current, { sha256 }).fingerprint;
+  const fingerprint = (await classifyPublicApiChange(released, current, { sha256 })).fingerprint;
   packagePolicy.approvedBreakingChanges.push({
     fingerprint,
     decisionId: "ADR-0001",

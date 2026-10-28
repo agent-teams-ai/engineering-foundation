@@ -3,23 +3,9 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
-import { NodeChangeFingerprint } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/adapters/outbound/crypto/node-change-fingerprint.js";
 import { promotePublicApiBaselines } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/application/use-cases/promote-public-api-baselines.js";
-import {
-  evaluatePublicApiCompatibility,
-  classifyPublicApiChange,
-} from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/application/policies/evaluate-public-api-compatibility.js";
 import { PUBLIC_API_COMPATIBILITY_RULES } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/application/rules.js";
-import {
-  foundationReport,
-  capabilityReport,
-} from "../packages/engineering-foundation/dist/features/validation-reporting/api.js";
-import type {
-  PublicApiCompatibilityPolicy,
-  PublicApiSnapshot,
-} from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/application/model/public-api.js";
 import type { PublicApiRepository } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/application/ports/public-api-repository.js";
-import type { FoundationCheckReport } from "../packages/engineering-foundation/dist/features/validation-reporting/api.js";
 import {
   assertNativeMigrationReview,
   assertNativeMigrationOrdinaryReport,
@@ -27,275 +13,51 @@ import {
   migrationBytes,
   migrationDigest,
   type NativeMigrationReview,
-  type NativeMigrationObservation,
 } from "../scripts/public-api-native-migration.ts";
 import {
-  nativeMigrationPackageNames,
   nativeMigrationToolDifference,
   observeNativeMigration,
 } from "../scripts/public-api-native-migration-observation.ts";
 
-type Dependencies = Parameters<typeof promotePublicApiBaselines>[1];
-const fingerprint = new NodeChangeFingerprint();
-function fixture() {
-  const policy: PublicApiCompatibilityPolicy = {
-    schemaVersion: 1,
-    acceptedDecisionBaselinePath: "architecture/decisions/accepted-decisions.json",
-    changesetDirectory: ".changeset",
-    packages: nativeMigrationPackageNames.map((packageName) => {
-      const local = packageName.split("/").at(-1)!;
-      return {
-        packageName,
-        packageRoot: `packages/${local}`,
-        manifestPath: `packages/${local}/package.json`,
-        tsconfigPath: `packages/${local}/tsconfig.json`,
-        releasedBaselinePath: `architecture/public-api/${local}.json`,
-        approvedBreakingChanges: [],
-        entrypoints: [
-          { exportPath: ".", declarationEntryPoint: `packages/${local}/dist/index.d.ts` },
-        ],
-        nonTypeExports: [],
-      };
-    }),
-  };
-  const packages = policy.packages.map((p) => {
-    const baseline: PublicApiSnapshot = {
-      schemaVersion: 1,
-      packageName: p.packageName,
-      packageVersion: "1.0.0",
-      extractorVersion: "7.58.12",
-      entrypoints: [
-        {
-          exportPath: ".",
-          items: [
-            {
-              canonicalReference: `${p.packageName}!Value:type`,
-              kind: "TypeAlias",
-              parentReference: `${p.packageName}!`,
-              parentKind: "EntryPoint",
-              signature: "export type Value = string;",
-            },
-          ],
-        },
-      ],
-    };
-    const nativeReleased: PublicApiSnapshot = {
-      ...baseline,
-      extractorVersion: "typescript-native/7.0.2",
-    };
-    return {
-      packageName: p.packageName,
-      baselineDigest: migrationDigest(migrationBytes(baseline)),
-      archiveDigest: migrationDigest(Buffer.from(p.packageName)),
-      archiveIntegrity: fingerprint.sha512Integrity(p.packageName),
-      configDigest: migrationDigest(Buffer.from("{}")),
-      releasedInputsDigest: migrationDigest(Buffer.from(`inputs:${p.packageName}`)),
-      nativeReleasedDigest: migrationDigest(migrationBytes(nativeReleased)),
-      baseline,
-      nativeReleased,
-      nativeCandidate: structuredClone(nativeReleased),
-    };
-  });
-  const toolDiff = nativeMigrationToolDifference(packages);
-  const observation: NativeMigrationObservation = {
-    kind: "foundation:public-api-native-migration:observation:1",
-    policyDigest: migrationDigest(migrationBytes(policy)),
-    toolchainIdentity: "fixture-native7",
-    packages,
-    toolDiff,
-    toolDiffDigest: migrationDigest(migrationBytes(toolDiff)),
-    typedDiagnostics: [],
-    artifactDiagnostics: [],
-  };
-  const review: NativeMigrationReview = {
-    kind: "foundation:public-api-native-migration:review:1",
-    from: "7.58.12",
-    to: "typescript-native/7.0.2",
-    baselineSourceCommit: "a".repeat(40),
-    policyDigest: observation.policyDigest,
-    toolDiffDigest: observation.toolDiffDigest,
-    packages: packages.map((p, index) => ({
-      packageName: p.packageName,
-      baselinePath: policy.packages[index]!.releasedBaselinePath,
-      baselineDigest: p.baselineDigest,
-      archiveDigest: p.archiveDigest,
-      archiveIntegrity: p.archiveIntegrity,
-      configDigest: p.configDigest,
-      releasedInputsDigest: p.releasedInputsDigest,
-      nativeReleasedDigest: p.nativeReleasedDigest,
-    })),
-  };
-  return { policy, observation, review };
-}
+import {
+  fixture,
+  ordinaryReport,
+  expectedCapabilities,
+  withPromotionFixture,
+  type Dependencies,
+} from "./support/public-api-native-migration-fixture.ts";
 
-function ordinaryReport(f: ReturnType<typeof fixture>): FoundationCheckReport {
-  const diagnostics = f.policy.packages
-    .map((p, index) =>
-      evaluatePublicApiCompatibility({
-        policy: p,
-        released: f.observation.packages[index]!.baseline,
-        current: f.observation.packages[index]!.nativeCandidate,
-        change: classifyPublicApiChange(
-          f.observation.packages[index]!.baseline,
-          f.observation.packages[index]!.nativeCandidate,
-          fingerprint,
-        ),
-        releaseEvidence: { packageName: p.packageName, packageVersion: "1.0.0" },
-        acceptedDecision: undefined,
-      }),
-    )
-    .flat();
-  return foundationReport({
-    foundationVersion: "1.8.0",
-    coverage: "full",
-    capabilities: [
-      capabilityReport({
-        capabilityId: "architecture.source-dependencies",
-        capabilityConfigSchemaVersion: 2,
-      }),
-      capabilityReport({
-        capabilityId: "package.public-api-compatibility",
-        capabilityConfigSchemaVersion: 1,
-        diagnostics,
-      }),
-    ],
-  });
-}
-const expectedCapabilities = [
-  { capabilityId: "architecture.source-dependencies", capabilityConfigSchemaVersion: 2 },
-  { capabilityId: "package.public-api-compatibility", capabilityConfigSchemaVersion: 1 },
-];
-
-async function withPromotionFixture(
-  action: (
-    f: ReturnType<typeof fixture> & {
-      root: string;
-      typed: Dependencies;
-      artifacts: Dependencies;
-      writes: string[];
-      failNext: { packageName?: string };
-    },
-  ) => Promise<void>,
-) {
+void test("named content review binds the complete eight-package B/A packet", () => {
   const f = fixture();
-  const root = await mkdtemp(join(tmpdir(), "native-api-migration-"));
-  const cached = new Map<string, Buffer>();
-  const writes: string[] = [];
-  const failNext: { packageName?: string } = {};
-  for (const p of f.policy.packages) {
-    await mkdir(dirname(join(root, p.releasedBaselinePath)), { recursive: true });
-    await writeFile(
-      join(root, p.releasedBaselinePath),
-      migrationBytes(f.observation.packages.find((x) => x.packageName === p.packageName)!.baseline),
+  assert.doesNotThrow(() => {
+    assertNativeMigrationReview(f.observation, f.review, f.policy);
+  });
+  assert.throws(() => {
+    assertNativeMigrationReview(
+      f.observation,
+      { ...f.review, packages: f.review.packages.slice(1) },
+      f.policy,
     );
-  }
-  const repository: PublicApiRepository = {
-    readReleasedBaseline: async (_root, p) => {
-      const b = await readFile(join(root, p.releasedBaselinePath));
-      cached.set(p.packageName, b);
-      return JSON.parse(b.toString("utf8")) as PublicApiSnapshot;
-    },
-    readReleaseEvidence: async (_root, _changesets, p) => ({
-      packageName: p.packageName,
-      packageVersion: f.observation.packages.find((x) => x.packageName === p.packageName)!
-        .nativeCandidate.packageVersion,
-      declaredBump: "major",
-    }),
-    describeReleasedBaselineWrite: async (_root, p, snapshot) => ({
-      destination: p.releasedBaselinePath,
-      operation: "replace",
-      preimageDigest: migrationDigest(cached.get(p.packageName)!),
-      proposedDigest: migrationDigest(migrationBytes(snapshot)),
-    }),
-    writeReleasedBaseline: async (_root, p, snapshot) => {
-      if (failNext.packageName === p.packageName) {
-        delete failNext.packageName;
-        throw new Error("simulated process interruption");
-      }
-      assert.deepEqual(
-        await readFile(join(root, p.releasedBaselinePath)),
-        cached.get(p.packageName),
-        "writer retains actual cached physical preimage",
-      );
-      await writeFile(join(root, p.releasedBaselinePath), migrationBytes(snapshot));
-      writes.push(p.packageName);
-    },
-  };
-  const typed: Dependencies = {
-    repository,
-    fingerprint,
-    acceptedDecisionEvidence: {
-      readAcceptedDecisionEvidence: async () => ({
-        acceptedDecisionIds: [],
-        acceptedDecisionPaths: [],
-      }),
-    },
-    extractor: {
-      extract: async (_root, p) =>
-        f.observation.packages.find((x) => x.packageName === p.packageName)!.nativeCandidate,
-    },
-  };
-  const artifact = (name: string): PublicApiSnapshot => ({
-    schemaVersion: 1,
-    packageName: name,
-    packageVersion: f.observation.packages.find((x) => x.packageName === name)!.nativeCandidate
-      .packageVersion,
-    extractorVersion: "package-artifact-inventory/1",
-    entrypoints: [{ exportPath: ".", items: [] }],
-  });
-  const artifacts: Dependencies = {
-    ...typed,
-    repository: {
-      ...repository,
-      readReleasedBaseline: async (_root, p) => artifact(p.packageName),
-      writeReleasedBaseline: async () => {
-        throw new Error("unchanged artifact surface must not write");
+  }, /eight-package/u);
+  assert.throws(() => {
+    assertNativeMigrationReview(
+      f.observation,
+      { ...f.review, toolDiffDigest: migrationDigest(Buffer.from("other")) },
+      f.policy,
+    );
+  }, /entire tool difference/u);
+  assert.throws(() => {
+    assertNativeMigrationReview(
+      f.observation,
+      {
+        ...f.review,
+        packages: f.review.packages.map((p, i) =>
+          i === 0 ? { ...p, baselinePath: "architecture/public-api/other.json" } : p,
+        ),
       },
-    },
-    extractor: { extract: async (_root, p) => artifact(p.packageName) },
-  };
-  try {
-    await action({ ...f, root, typed, artifacts, writes, failNext });
-  } finally {
-    await rm(root, { recursive: true, force: true });
-  }
-}
-
-test("named content review binds the complete eight-package B/A packet", () => {
-  const f = fixture();
-  assert.doesNotThrow(() => assertNativeMigrationReview(f.observation, f.review, f.policy));
-  assert.throws(
-    () =>
-      assertNativeMigrationReview(
-        f.observation,
-        { ...f.review, packages: f.review.packages.slice(1) },
-        f.policy,
-      ),
-    /eight-package/u,
-  );
-  assert.throws(
-    () =>
-      assertNativeMigrationReview(
-        f.observation,
-        { ...f.review, toolDiffDigest: migrationDigest(Buffer.from("other")) },
-        f.policy,
-      ),
-    /entire tool difference/u,
-  );
-  assert.throws(
-    () =>
-      assertNativeMigrationReview(
-        f.observation,
-        {
-          ...f.review,
-          packages: f.review.packages.map((p, i) =>
-            i === 0 ? { ...p, baselinePath: "architecture/public-api/other.json" } : p,
-          ),
-        },
-        f.policy,
-      ),
-    /anchor/u,
-  );
+      f.policy,
+    );
+  }, /anchor/u);
   for (const key of [
     "baselineDigest",
     "archiveDigest",
@@ -303,33 +65,29 @@ test("named content review binds the complete eight-package B/A packet", () => {
     "releasedInputsDigest",
     "nativeReleasedDigest",
   ] as const) {
-    assert.throws(
-      () =>
-        assertNativeMigrationReview(
-          f.observation,
-          {
-            ...f.review,
-            packages: f.review.packages.map((p, i) =>
-              i === 0 ? { ...p, [key]: migrationDigest(Buffer.from("other")) } : p,
-            ),
-          },
-          f.policy,
-        ),
-      /reviewed|identity/u,
-    );
-  }
-  assert.throws(
-    () =>
+    assert.throws(() => {
       assertNativeMigrationReview(
         f.observation,
-        { ...f.review, verified: true } as NativeMigrationReview,
+        {
+          ...f.review,
+          packages: f.review.packages.map((p, i) =>
+            i === 0 ? { ...p, [key]: migrationDigest(Buffer.from("other")) } : p,
+          ),
+        },
         f.policy,
-      ),
-    /unknown/u,
-  );
+      );
+    }, /reviewed|identity/u);
+  }
+  assert.throws(() => {
+    assertNativeMigrationReview(
+      f.observation,
+      { ...f.review, verified: true } as NativeMigrationReview,
+      f.policy,
+    );
+  }, /unknown/u);
 });
 
-test("historical tool migration cannot discard exports, identities or parents", () => {
+void test("historical tool migration cannot discard exports, identities or parents", () => {
   const f = fixture();
   const row = f.observation.packages[0]!;
   assert.throws(
@@ -365,9 +123,9 @@ test("historical tool migration cannot discard exports, identities or parents", 
   );
 });
 
-test("ordinary mismatch remains an exact retained negative alongside native comparison", async () => {
+void test("ordinary mismatch remains an exact retained negative alongside native comparison", async () => {
   const f = fixture();
-  const report = ordinaryReport(f);
+  const report = await ordinaryReport(f);
   const args = { ...f, report, exitCode: 1, expectedCapabilities };
   await assertNativeMigrationOrdinaryReport(args);
   assert.equal(report.outcome, "violations");
@@ -421,7 +179,7 @@ test("ordinary mismatch remains an exact retained negative alongside native comp
   );
 });
 
-test("ordinary promotion still rejects tool mismatch even for identical signatures", async () =>
+void test("ordinary promotion still rejects tool mismatch even for identical signatures", async () =>
   withPromotionFixture(async (f) => {
     await assert.rejects(
       promotePublicApiBaselines({ consumerRoot: f.root, policy: f.policy }, f.typed),
@@ -430,7 +188,7 @@ test("ordinary promotion still rejects tool mismatch even for identical signatur
     assert.equal(f.writes.length, 0);
   }));
 
-test("version plan migrates every same-version unchanged typed B using actual B preimages", async () =>
+void test("version plan migrates every same-version unchanged typed B using actual B preimages", async () =>
   withPromotionFixture(async (f) => {
     const plan = await prepareNativeMigrationPromotion(
       { consumerRoot: f.root, ...f },
@@ -450,7 +208,7 @@ test("version plan migrates every same-version unchanged typed B using actual B 
     assert.equal(f.writes.length, 8);
   }));
 
-test("partial version application replays exact postimages and finishes remaining B files", async () =>
+void test("partial version application replays exact postimages and finishes remaining B files", async () =>
   withPromotionFixture(async (f) => {
     const plan = await prepareNativeMigrationPromotion(
       { consumerRoot: f.root, ...f },
@@ -469,7 +227,7 @@ test("partial version application replays exact postimages and finishes remainin
     assert.equal(new Set(f.writes).size, 8);
   }));
 
-test("all physical destinations preflight before the first application write", async () =>
+void test("all physical destinations preflight before the first application write", async () =>
   withPromotionFixture(async (f) => {
     const plan = await prepareNativeMigrationPromotion(
       { consumerRoot: f.root, ...f },
@@ -480,7 +238,7 @@ test("all physical destinations preflight before the first application write", a
     assert.equal(f.writes.length, 0);
   }));
 
-test("application preflight keeps the originally captured consumer root", async () =>
+void test("application preflight keeps the originally captured consumer root", async () =>
   withPromotionFixture(async (f) => {
     const options = { consumerRoot: f.root, ...f };
     const plan = await prepareNativeMigrationPromotion(options, {
@@ -507,7 +265,7 @@ test("application preflight keeps the originally captured consumer root", async 
     }
   }));
 
-test("reviewed observations cannot change during an awaited physical baseline read", async () =>
+void test("reviewed observations cannot change during an awaited physical baseline read", async () =>
   withPromotionFixture(async (f) => {
     const reached = Promise.withResolvers<void>();
     const resume = Promise.withResolvers<void>();
@@ -549,7 +307,7 @@ test("reviewed observations cannot change during an awaited physical baseline re
     assert.equal(f.writes.length, 0);
   }));
 
-test("an initially complete postimage cannot revert while remaining baselines apply", async () =>
+void test("an initially complete postimage cannot revert while remaining baselines apply", async () =>
   withPromotionFixture(async (f) => {
     const p = f.policy.packages[0]!;
     const row = f.observation.packages[0]!;
@@ -564,7 +322,7 @@ test("an initially complete postimage cannot revert while remaining baselines ap
     assert.equal(f.writes.length, 0);
   }));
 
-test("same-version candidate drift and an unapproved real break remain rejected", async () =>
+void test("same-version candidate drift and an unapproved real break remain rejected", async () =>
   withPromotionFixture(async (f) => {
     const row = f.observation.packages.at(-1)!;
     const changed = {
@@ -633,7 +391,7 @@ test("same-version candidate drift and an unapproved real break remain rejected"
     assert.equal(f.writes.length, 0);
   }));
 
-test("last-package artifact refusal leaves all typed baselines unchanged", async () =>
+void test("last-package artifact refusal leaves all typed baselines unchanged", async () =>
   withPromotionFixture(async (f) => {
     const artifacts = {
       ...f.artifacts,
@@ -656,7 +414,7 @@ test("last-package artifact refusal leaves all typed baselines unchanged", async
     assert.equal(f.writes.length, 0);
   }));
 
-test("a reviewed plan keeps its captured postimages when caller objects subsequently change", async () =>
+void test("a reviewed plan keeps its captured postimages when caller objects subsequently change", async () =>
   withPromotionFixture(async (f) => {
     const expected = migrationBytes(f.observation.packages[0]!.nativeCandidate);
     const plan = await prepareNativeMigrationPromotion(
@@ -671,7 +429,7 @@ test("a reviewed plan keeps its captured postimages when caller objects subseque
     );
   }));
 
-test("candidate root cannot masquerade as historical archive data", async () => {
+void test("candidate root cannot masquerade as historical archive data", async () => {
   const f = fixture();
   await assert.rejects(
     observeNativeMigration({

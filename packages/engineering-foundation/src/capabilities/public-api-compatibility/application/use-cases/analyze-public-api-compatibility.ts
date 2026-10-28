@@ -61,13 +61,14 @@ export async function analyzePublicApiCompatibility(
   );
   for (const { packagePolicy, released, releaseEvidence, current } of packages) {
     assertNotCancelled(input.signal);
-    const change = classifyPublicApiChange(
+    const change = await classifyPublicApiChange(
       released,
       current,
       dependencies.fingerprint,
       stableTypeBindings,
       dependencies.signatures,
     );
+    assertNotCancelled(input.signal);
     const approval =
       change.classification === "breaking"
         ? packagePolicy.approvedBreakingChanges.find(

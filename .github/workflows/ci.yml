@@ -59,7 +59,7 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          "${AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE}" node_modules/@changesets/cli/bin.js status --output "${RUNNER_TEMP}/fms-release-plan-focused/release-plan.json" 2>&1 | tee "${RUNNER_TEMP}/fms-release-plan-focused/release-plan.log"
+          "${AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE}" node_modules/@changesets/cli/bin.js status --since=eac8a0a87d73d7b0ff867a0312af3036d839d5c5 --output "${RUNNER_TEMP}/fms-release-plan-focused/release-plan.json" 2>&1 | tee "${RUNNER_TEMP}/fms-release-plan-focused/release-plan.log"
       - name: Run the complete packed-manifest invariant test file once
         shell: bash
         run: |

@@ -620,3 +620,33 @@ test("source v3 schema is required by package and archive inventories", async ()
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("format coverage schemas cannot be omitted from the package or archive boundary", async () => {
+  const manifest = JSON.parse(
+    await readFile(new URL("package.json", repositoryPackageRoot), "utf8"),
+  );
+  const entries = [
+    "package/package.json",
+    "package/LICENSE",
+    "package/README.md",
+    ...FOUNDATION_REQUIRED_ARTIFACT_PATHS.map((path) => `package/${path}`),
+  ];
+  for (const schema of [
+    "schemas/foundation-config/v3.schema.json",
+    "schemas/quality-format-coverage/v1.schema.json",
+  ]) {
+    assert.ok(manifest.files.includes(schema), `Required manifest schema missing: ${schema}`);
+    assert.ok(FOUNDATION_REQUIRED_ARTIFACT_PATHS.includes(schema));
+    assertArchiveListing(entries.join("\n"), FOUNDATION_REQUIRED_ARTIFACT_PATHS);
+    assert.throws(
+      () =>
+        assertArchiveListing(
+          entries.filter((path) => path !== `package/${schema}`).join("\n"),
+          FOUNDATION_REQUIRED_ARTIFACT_PATHS,
+        ),
+      (error) =>
+        error instanceof Error &&
+        error.message.includes(`Required package entry missing: package/${schema}`),
+    );
+  }
+});

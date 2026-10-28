@@ -63,7 +63,9 @@ const PACKAGE_MAX_ARCHIVE_ENTRIES = Object.freeze({
   // 2,871 (+88 = 22 ordinary production TS modules x four compiler outputs).
   // Full tuples are retained in tests/fixtures/package-archive-budget/f3-production-modules.json.
   // No tests/cache members were added; default and decompression bounds stay fixed.
-  "@agent-teams/engineering-foundation": 2_871,
+  // Literal-format coverage: +34 = eight production TS compiler tuples + two schemas.
+  // Exact current census is 2,905; the full inventory digest and +1 rejection stay enforced.
+  "@agent-teams/engineering-foundation": 2_905,
 });
 
 export function maximumArchiveEntries(packageName) {

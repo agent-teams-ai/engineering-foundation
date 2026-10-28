@@ -1,5 +1,6 @@
-import {
+import fs, {
   cpSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -14,6 +15,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { installedDependency } from "./installed-dependency.ts";
+import { runCommand as runLiteralCommand } from "../dist/index.js";
 const entry = fileURLToPath(new URL("../dist/cli.js", import.meta.url));
 function run(args: readonly string[]) {
   return spawnSync(process.execPath, [entry, ...args], { encoding: "utf8", timeout: 10_000 });
@@ -270,4 +272,120 @@ void test("real lint checks typed production while outside-scope TypeScript reta
   } finally {
     rmSync(fixture.directory, { recursive: true, force: true });
   }
+});
+
+void test("literal API rejects competing scope and commands before configuration", async () => {
+  for (const command of ["doctor", "typecheck", "format:check"] as const) {
+    const result = await runLiteralCommand({
+      command,
+      cwd: "/nonexistent",
+      signal: new AbortController().signal,
+      formatFiles: ["input.json"],
+      ...(command === "format:check" ? { configPath: "never-read.json" } : {}),
+    });
+    assert.equal(result.exitCode, 2);
+    assert.match(JSON.stringify(result.details), /TOOLCHAIN_FORMAT_MODE/u);
+  }
+});
+
+void test(
+  "literal refuses a POSIX FIFO before opening it",
+  { skip: process.platform === "win32" },
+  () => {
+    const directory = mkdtempSync(join(tmpdir(), "TEST-stack-literal-fifo-"));
+    try {
+      const consumer = join(directory, "consumer");
+      const controls = join(directory, "controls");
+      mkdirSync(consumer);
+      mkdirSync(controls);
+      const fifo = join(consumer, "input.json");
+      const created = spawnSync("mkfifo", [fifo], { encoding: "utf8", timeout: 10_000 });
+      assert.equal(created.status, 0, created.stderr);
+      const before = lstatSync(fifo);
+      const adapter = new URL(
+        "../dist/features/toolchain-execution/adapters/format-files.js",
+        import.meta.url,
+      );
+      const source = `
+      import { checkFormatFiles } from ${JSON.stringify(adapter.href)};
+      const result = await checkFormatFiles({
+        cwd: process.cwd(), files: ["input.json"], fixedArgs: [],
+        signal: new AbortController().signal, deadline: performance.now() + 1_000,
+      }, async () => { throw new Error("must not invoke formatter"); });
+      process.stdout.write(JSON.stringify(result));
+    `;
+      // A kernel-enforced child bound keeps the old blocking open from hanging this test.
+      const result = spawnSync(process.execPath, ["--input-type=module", "--eval", source], {
+        cwd: consumer,
+        encoding: "utf8",
+        timeout: 10_000,
+        killSignal: "SIGKILL",
+        env: {
+          ...process.env,
+          TMPDIR: controls,
+          TEMP: controls,
+          TMP: controls,
+          NODE_DISABLE_COMPILE_CACHE: "1",
+        },
+      });
+      assert.equal(result.error, undefined);
+      assert.equal(result.status, 0, result.stderr);
+      const report: unknown = JSON.parse(result.stdout);
+      assert.partialDeepStrictEqual(report, {
+        exitCode: 2,
+        details: { failure: "TOOLCHAIN_FORMAT_FILE", attempted: [], completed: false },
+      });
+      const after = lstatSync(fifo);
+      assert.ok(after.isFIFO());
+      assert.equal(after.ino, before.ino);
+      assert.equal(after.size, before.size);
+      assert.deepEqual(fs.readdirSync(consumer), ["input.json"]);
+      assert.deepEqual(fs.readdirSync(controls), []);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  },
+);
+
+void test("literal native arguments preserve special names, override ambient ignores and preserve protected bytes", async (t) => {
+  const directory = mkdtempSync(join(tmpdir(), "TEST-stack-literal-names-"));
+  const f = { consumer: join(directory, "consumer") };
+  mkdirSync(f.consumer);
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const names = ["[abc].json", "{a,b}.json", "space ü.json", "!leading.json", "-dash.json"];
+  if (process.platform !== "win32") {
+    names.push("*.json", "?.json");
+  }
+  fs.mkdirSync(join(f.consumer, "src"));
+  fs.writeFileSync(join(f.consumer, ".gitignore"), "src/**\n");
+  fs.writeFileSync(join(f.consumer, ".prettierignore"), "src/**\n");
+  fs.writeFileSync(join(f.consumer, "src/.gitignore"), "*.json\n");
+  const witness = '{"captured":[1,2]}';
+  fs.writeFileSync(join(f.consumer, "protected.json"), witness);
+  for (const name of names) {
+    fs.writeFileSync(join(f.consumer, "src", name), "{}\n");
+  }
+  for (const name of names) {
+    const file = `src/${name}`;
+    for (const [source, expected] of [
+      ['{"value":1}', 1],
+      ["{}\n", 0],
+    ] as const) {
+      fs.writeFileSync(join(f.consumer, file), source);
+      const result = await runLiteralCommand({
+        command: "format:check",
+        cwd: f.consumer,
+        signal: new AbortController().signal,
+        formatFiles: [file],
+      });
+      assert.equal(result.exitCode, expected, `${file}: ${JSON.stringify(result.details)}`);
+      assert.partialDeepStrictEqual(result.details, {
+        attempted: [file],
+        completed: true,
+        sourceBytesUnchanged: true,
+      });
+      assert.equal(fs.readFileSync(join(f.consumer, file), "utf8"), source);
+    }
+  }
+  assert.equal(fs.readFileSync(join(f.consumer, "protected.json"), "utf8"), witness);
 });

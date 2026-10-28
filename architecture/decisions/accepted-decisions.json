@@ -336,6 +336,16 @@
       "id": "ADR-0070",
       "path": "docs/decisions/0070-bounded-managed-generation3-execution.md",
       "immutableDigest": "sha256:9fbfd43fb0b11bdf74f40c9cb3d7fce45bdbefc55e3975fbf389c8db1363a973"
+    },
+    {
+      "id": "ADR-0071",
+      "path": "docs/decisions/0071-quality-coverage-strict-json-consumer-admission.md",
+      "immutableDigest": "sha256:c1a80a2600bae0c1a11ef79ea1a8a8f53e378b08d2bae42d4361ca6b86451194"
+    },
+    {
+      "id": "ADR-0072",
+      "path": "docs/decisions/0072-explicit-toolchain-literal-format-api.md",
+      "immutableDigest": "sha256:be8d3a51016d96c1bede7e071340ca5d8d637eb951d5c0178db160456312ac97"
     }
   ]
 }

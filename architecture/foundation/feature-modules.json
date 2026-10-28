@@ -363,8 +363,20 @@
         {
           "path": "packages/repository-mutation/src/strict-json.ts",
           "role": "domain",
-          "decision": "docs/decisions/0053-restoration-strict-json-consumer-admission.md",
+          "decision": "docs/decisions/0071-quality-coverage-strict-json-consumer-admission.md",
           "consumers": [
+            {
+              "path": "packages/engineering-foundation/src/features/quality-coverage/adapters/consumer-toolchain.ts",
+              "owner": "engineering-foundation/quality-coverage"
+            },
+            {
+              "path": "packages/engineering-foundation/src/features/quality-coverage/adapters/format-observations.ts",
+              "owner": "engineering-foundation/quality-coverage"
+            },
+            {
+              "path": "packages/engineering-foundation/src/features/quality-coverage/adapters/format-toolchain.ts",
+              "owner": "engineering-foundation/quality-coverage"
+            },
             {
               "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-current-selection.ts",
               "owner": "docs-protocol-agent-teams/consumer-integration"
@@ -2149,6 +2161,7 @@
                 "packages/stack-toolchain/src/features/toolchain-execution/adapters/configuration.ts",
                 "packages/stack-toolchain/src/features/toolchain-execution/adapters/doctor.ts",
                 "packages/stack-toolchain/src/features/toolchain-execution/adapters/executables.ts",
+                "packages/stack-toolchain/src/features/toolchain-execution/adapters/format-files.ts",
                 "packages/stack-toolchain/src/features/toolchain-execution/adapters/process.ts",
                 "packages/stack-toolchain/src/features/toolchain-execution/adapters/run-cli.ts"
               ]
@@ -2186,9 +2199,7 @@
         "packages/release-checks/src/index.ts",
         "packages/release-checks/src/features/candidate-checking/conformance.ts"
       ],
-      "moduleAssembly": [
-        "packages/release-checks/src/index.ts"
-      ],
+      "moduleAssembly": ["packages/release-checks/src/index.ts"],
       "generatedRoots": [],
       "exceptions": [],
       "features": [

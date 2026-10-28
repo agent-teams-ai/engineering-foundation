@@ -1,6 +1,6 @@
 {
   "name": "@agent-teams/engineering-foundation",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Versioned engineering policy, tooling, and conformance for Agent Teams repositories.",
   "homepage": "https://github.com/agent-teams-ai/engineering-foundation#readme",
   "bugs": {

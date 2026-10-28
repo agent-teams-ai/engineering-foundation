@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.0
+
+### Minor Changes
+
+- [#452](https://github.com/agent-teams-ai/engineering-foundation/pull/452) [`9dd052a`](https://github.com/agent-teams-ai/engineering-foundation/commit/9dd052aa697095a57718cfd863b2efdee469d5d7) Thanks [@777genius](https://github.com/777genius)! - Add explicit managed Cohort2-to3 preparation with a retained external Node24 controller, exact runtime selection, cold finalization and proof-selected rollback. Include stable31 origin assets, the Cohort3 check/plan/apply route and rejecting transition tests. The public upgrade API now requires an explicit target generation. Activation still requires accepted governance, a verified published controller and real enrolled-consumer qualification.
+
 ## 0.5.5
 
 ### Patch Changes

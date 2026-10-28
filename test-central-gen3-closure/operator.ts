@@ -73,7 +73,10 @@ try {
  await symlink(join(tooling,'node_modules'),join(projection,'node_modules'),'dir');
  await save('resolver-source-manifest.json',manifest);
  const pnpm=join(tooling,'node_modules','.bin','pnpm'); assert.equal(execFileSync(pnpm,['--version'],{encoding:'utf8'}).trim(),'11.20.0');
+ const previousCwd=process.cwd();
+ process.chdir(central); // Exact imported community validator reads immutable Central data relative to cwd.
  const resolver=await import(pathToFileURL(join(projection,manifest.entry)).href) as Resolver;
+ assert.equal(process.cwd(),central);
  assert.equal(typeof resolver.resolvePublishedRuntimeClosure,'function');
  const closure=await resolver.resolvePublishedRuntimeClosure(input.expectedFive,{cohortGeneration:3,pnpmBinary:pnpm});
  assert.equal(closure.authority.schema_version,2); assert.equal(closure.authority.domain,'agent-teams.docs-runtime-closure/v2');
@@ -82,6 +85,7 @@ try {
  assert.match(closure.authority.digest,/^sha256:[0-9a-f]{64}$/);
  await writeFile(join(evidence,'runtime-closure-source.json'),closure.source,{flag:'wx',mode:0o600});
  await save('runtime-closure-authority.json',closure.authority);
+ process.chdir(previousCwd);
  assert.equal(process.env.HOME,originalHome);
  await save('result.json',{status:'EXISTING_RESOLVER_ACTUAL_GEN3_CLOSURE_PASS',use:'EF3.0.1_BASELINE_PREPARATION_NOT_FINAL_DATA',engineeringFoundation:'3.0.1',central:input.centralBase,foundation:'046976291864b9f0281213018232272a1ac4ed8c',node:process.versions.node,platform:process.platform,arch:process.arch,pnpm:'11.20.0',closureSourceSHA256:sha(closure.source),closureAuthority:closure.authority,originalHomeUnchanged:true,auditReused:true,fullConsumerInstall:false,cohortAuthority:false});
 } catch (error) {

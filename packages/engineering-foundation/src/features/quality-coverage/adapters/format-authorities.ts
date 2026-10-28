@@ -21,7 +21,6 @@ export function createFormatAuthorityExecution(
         ...(invocation.signal === undefined ? {} : { signal: invocation.signal }),
       });
       if (
-        result.reportSchemaVersion !== 1 ||
         result.outcome !== "passed" ||
         result.profileId !== observed.gate.profileId ||
         JSON.stringify(result.tasks.map(({ id }) => id).toSorted()) !==

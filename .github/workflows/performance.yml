@@ -1,42 +1,61 @@
-name: Performance signals
-
+# TEST-only replacement of existing registered manual performance.yml on an owned branch.
+name: TEST public release three-root consumer smoke
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "17 3 * * *"
-  push:
-    branches:
-      - main
-
+    inputs:
+      publication_tuple:
+        description: Reviewed exact completed publication tuple JSON
+        required: true
+        type: string
 permissions:
   contents: read
-
-concurrency:
-  group: foundation-performance-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  advisory-performance:
-    name: advisory-performance
+  public_consumer:
+    if: ${{ startsWith(github.ref, 'refs/heads/test/public-release046-') }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with: { persist-credentials: false, path: overlay }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
+          ref: 046976291864b9f0281213018232272a1ac4ed8c
           persist-credentials: false
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
-        with: { bun-version: "1.4.3" }
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+          path: trusted
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with: { node-version: '24.21.0' }
+      - name: Retain Node24 executable
+        run: echo "SMOKE_NODE24=$(command -v node)" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with: { node-version: '26.11.1' }
+      - name: Prepare isolated exact tooling prefix
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/TEST-public-release046"
+          test ! -e "$root"
+          mkdir -m 700 "$root"
+          mkdir -m 700 "$root/tooling" "$root/cache" "$root/tmp"
+          touch "$root/empty.npmrc" "$root/empty-global.npmrc"
+          echo "SMOKE_ROOT=$root" >> "$GITHUB_ENV"
+          env -i PATH="$PATH" HOME="$HOME" TMPDIR="$root/tmp" \
+            NPM_CONFIG_USERCONFIG="$root/empty.npmrc" NPM_CONFIG_GLOBALCONFIG="$root/empty-global.npmrc" \
+            NPM_CONFIG_CACHE="$root/cache" NPM_CONFIG_ENGINE_STRICT=true \
+            npm install --prefix "$root/tooling" --ignore-scripts --no-audit --fund=false --save-exact \
+              --registry=https://registry.npmjs.org/ npm@11.19.0 typescript@7.0.2 @types/node@24.13.3
+          node "$root/tooling/node_modules/typescript/bin/tsc" --noEmit --strict --skipLibCheck \
+            --target ES2023 --module NodeNext --moduleResolution NodeNext --types node \
+            --typeRoots "$root/tooling/node_modules/@types" "$GITHUB_WORKSPACE/overlay/test-public-smoke/operator.ts"
+      - name: One fresh public three-root consumer
+        env:
+          PUBLICATION_TUPLE: ${{ inputs.publication_tuple }}
+        run: |
+          node "$GITHUB_WORKSPACE/overlay/test-public-smoke/operator.ts" \
+            "$SMOKE_ROOT/attempt" "$GITHUB_WORKSPACE/trusted" \
+            "$SMOKE_ROOT/tooling/node_modules/npm/bin/npm-cli.js" "$SMOKE_ROOT/tooling" "$SMOKE_NODE24"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: ${{ always() }}
         with:
-          node-version-file: .node-version
-      - run: bun tools/dev.mts install
-      - run: bun tools/dev.mts build
-      - name: Collect advisory benchmark signals
-        run: node scripts/run-performance-benchmarks.mjs --output "${RUNNER_TEMP}/foundation-performance.json"
-      - name: Upload immutable benchmark evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: foundation-performance-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/foundation-performance.json
-          if-no-files-found: error
-          retention-days: 30
+          name: TEST-public-release046-consumer
+          path: ${{ env.SMOKE_ROOT }}/attempt/evidence
+          if-no-files-found: warn
+          retention-days: 14

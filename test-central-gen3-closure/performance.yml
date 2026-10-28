@@ -1,0 +1,65 @@
+# TEST-only overlay of registered manual workflow334372435; never production authority.
+name: TEST Central generation3 published runtime closure
+on:
+  workflow_dispatch: {}
+permissions:
+  contents: read
+jobs:
+  closure:
+    if: ${{ startsWith(github.ref, 'refs/heads/test/central-gen3-closure-20261028') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with: { persist-credentials: false, path: overlay }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: agent-teams-ai/.github
+          ref: c8f3e7ba220241f79292c84c72712653019aa1df
+          persist-credentials: false
+          path: central
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: 046976291864b9f0281213018232272a1ac4ed8c
+          persist-credentials: false
+          path: foundation
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with: { node-version: '26.11.1' }
+      - name: Exact isolated resolver tooling and strict operator typecheck
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/TEST-central-gen3-closure"
+          test ! -e "$root"
+          mkdir -m 700 "$root"
+          mkdir -m 700 "$root/tooling" "$root/cache" "$root/tmp" "$root/xdg-cache" "$root/xdg-data" "$root/xdg-state" "$root/pnpm-home"
+          touch "$root/empty-user.npmrc" "$root/empty-global.npmrc"
+          echo "CLOSURE_ROOT=$root" >> "$GITHUB_ENV"
+          env -i PATH="$PATH" HOME="$HOME" TMPDIR="$root/tmp" \
+            NPM_CONFIG_USERCONFIG="$root/empty-user.npmrc" NPM_CONFIG_GLOBALCONFIG="$root/empty-global.npmrc" \
+            NPM_CONFIG_CACHE="$root/cache" NPM_CONFIG_ENGINE_STRICT=true \
+            XDG_CACHE_HOME="$root/xdg-cache" XDG_DATA_HOME="$root/xdg-data" XDG_STATE_HOME="$root/xdg-state" PNPM_HOME="$root/pnpm-home" \
+            npm install --prefix "$root/tooling" --ignore-scripts --no-audit --fund=false --save-exact \
+              --registry=https://registry.npmjs.org/ pnpm@11.20.0 yaml@2.9.0 ajv@8.20.0 typescript@7.0.2 @types/node@24.13.3
+          node "$root/tooling/node_modules/typescript/bin/tsc" --noEmit --strict --skipLibCheck \
+            --target ES2023 --module NodeNext --moduleResolution NodeNext --types node \
+            --typeRoots "$root/tooling/node_modules/@types" "$GITHUB_WORKSPACE/overlay/test-central-gen3-closure/operator.ts"
+      - name: Invoke unchanged exact Central public-registry closure resolver once
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$CLOSURE_ROOT"
+          env -i PATH="$PATH" HOME="$HOME" CLOSURE_ORIGINAL_HOME="$HOME" TMPDIR="$root/tmp" \
+            NPM_CONFIG_USERCONFIG="$root/empty-user.npmrc" NPM_CONFIG_GLOBALCONFIG="$root/empty-global.npmrc" \
+            NPM_CONFIG_CACHE="$root/cache" NPM_CONFIG_ENGINE_STRICT=true \
+            XDG_CACHE_HOME="$root/xdg-cache" XDG_DATA_HOME="$root/xdg-data" XDG_STATE_HOME="$root/xdg-state" PNPM_HOME="$root/pnpm-home" \
+            node "$GITHUB_WORKSPACE/overlay/test-central-gen3-closure/operator.ts" \
+              "$GITHUB_WORKSPACE/overlay/test-central-gen3-closure" \
+              "$GITHUB_WORKSPACE/central" "$GITHUB_WORKSPACE/foundation" "$root/tooling" "$root/attempt"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: ${{ always() }}
+        with:
+          name: TEST-central-gen3-runtime-closure
+          path: ${{ env.CLOSURE_ROOT }}/attempt/evidence
+          if-no-files-found: warn
+          retention-days: 14

@@ -1,0 +1,35 @@
+{
+  "repository": "agent-teams-ai/.github",
+  "revision": "c8f3e7ba220241f79292c84c72712653019aa1df",
+  "entry": "scripts/verify-docs-cohort-evidence.mjs",
+  "files": {
+    "scripts/verify-docs-cohort-evidence.mjs": {
+      "sha256": "1573c7cde1db985bfe1f4da7f1d86297bb40d18180a9277d01528bf378b59a71",
+      "bytes": 75000
+    },
+    "scripts/check-community-files.mjs": {
+      "sha256": "cbab2ca8c07ae67a56880eb1ef71743657a29dcc252e6ec6837e1cf4465d16c1",
+      "bytes": 25755
+    },
+    "scripts/docs-cohort-policy.mjs": {
+      "sha256": "2b97617b5c8e056dffb03d9285e394a5c7f67c72ffe26cf5781b962929e9b560",
+      "bytes": 56284
+    },
+    "scripts/governance-policy.mjs": {
+      "sha256": "43d70253602a12ffc313e0f7c4bffe9b89bc0da15329ee6811686e4e2d6b5dfa",
+      "bytes": 48818
+    },
+    "scripts/docs-legacy-admission-recovery.mjs": {
+      "sha256": "3b91c8a8eba16db0508d34f0da1523cdaa10fa1966b685772d237cf786477b39",
+      "bytes": 35532
+    },
+    "scripts/docs-platform-admission-recovery.mjs": {
+      "sha256": "f748a7278211cb5425134282964471e51a442d53ec91bb679fe632d938d51476",
+      "bytes": 38537
+    },
+    "scripts/verify-docs-platform-recovery-installation-r317.mjs": {
+      "sha256": "af8c42e2bc48274b92220356bd4ecb6a84dd4f7f253cfff940057f4670db77c1",
+      "bytes": 51790
+    }
+  }
+}

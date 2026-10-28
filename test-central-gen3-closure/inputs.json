@@ -1,0 +1,72 @@
+{
+  "status": "PREPARATION_NOT_COHORT_AUTHORITY",
+  "centralBase": "c8f3e7ba220241f79292c84c72712653019aa1df",
+  "proposedCohortId": "docs-2026-10-28-stable32",
+  "canaryRepositories": [
+    {
+      "repository_id": 1314129620,
+      "repository": "agent-teams-ai/agent-runtime"
+    },
+    {
+      "repository_id": 1310245598,
+      "repository": "agent-teams-ai/agent-teams-orchestrator"
+    },
+    {
+      "repository_id": 1333298097,
+      "repository": "agent-teams-ai/extension-foundation"
+    },
+    {
+      "repository_id": 1319378484,
+      "repository": "agent-teams-ai/agent-teams-platform"
+    }
+  ],
+  "upgradeFrom": [
+    "docs-2026-10-03-stable31"
+  ],
+  "rollbackTo": [
+    "docs-2026-10-03-stable31"
+  ],
+  "expectedFive": [
+    {
+      "name": "@agent-teams/repository-mutation",
+      "version": "0.4.2",
+      "role": "transitive",
+      "integrity": "sha512-gPjDKKIJU+7eNyPFRsnVpRJqQyhjg2F0XTsiGKSGYDI6w/oRfbdvRs2l7EBHFo3AGRWDk+dQVTGJ6gDr6a/BkQ==",
+      "registry": "https://registry.npmjs.org/"
+    },
+    {
+      "name": "@agent-teams/document-authoring",
+      "version": "0.3.6",
+      "role": "transitive",
+      "integrity": "sha512-9oy6ojzGSq2KWcot3QBBkNItzXQ3S8kZjcCTZ163dtJ966vGWKRbfpSuwTasnXz/3jpQjbStILMhorvaLX4xsA==",
+      "registry": "https://registry.npmjs.org/"
+    },
+    {
+      "name": "@agent-teams/docs-protocol",
+      "version": "0.6.6",
+      "role": "direct",
+      "integrity": "sha512-sjwPWdH+T2yqzeWtrdXX0FozNDAl9r7H+SJPWCppM3IUhrFNfAnLngCEchUDXO96ov7TqJ4hkzx4GMlz7x5uJg==",
+      "registry": "https://registry.npmjs.org/"
+    },
+    {
+      "name": "@agent-teams/docs-protocol-agent-teams",
+      "version": "0.6.0",
+      "role": "direct",
+      "integrity": "sha512-r8ff6L19qHhXkhRuKz8VTnfXTz/fHPxCR3/SyWbmx/nZh8QVpHrhn9kJHbfyS5Tey1sDZrjt/jY3oHOKyUt8qw==",
+      "registry": "https://registry.npmjs.org/"
+    },
+    {
+      "name": "@agent-teams/engineering-foundation",
+      "version": "3.0.1",
+      "role": "direct",
+      "integrity": "sha512-Os5Tn259EhpUIvb7sgImVI7xsB3Koqy6v68ZWIHwKMyMonu14XoSxmADrc5+ewXlChEwgnwTEVLAs4DrnGUOxQ==",
+      "registry": "https://registry.npmjs.org/"
+    }
+  ],
+  "missingBeforeRecord": [
+    "Actual publication/signature/provenance evidence for historical unchanged3coordinates",
+    "Actual pnpm11.20 runtime closure source+authority from existing resolver",
+    "Published adapter asset hashes/rendered workflow and packed policy identity",
+    "Retained reviewed candidate bytes+actual candidate digest"
+  ]
+}

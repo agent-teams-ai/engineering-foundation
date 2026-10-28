@@ -103,14 +103,15 @@ function validateLintConfiguration(
   seen = new Set<string>(),
   active = new Set<string>(),
 ): void {
+  const lexical = path.resolve(filename);
   const canonical = fs.realpathSync(filename);
   if (active.has(canonical) || seen.size >= 32 || !/\.jsonc?$/u.test(canonical)) {
     throw new Error("TOOLCHAIN_LINT_CONFIG_EXECUTABLE_OR_CYCLE");
   }
-  if (seen.has(canonical)) {
+  if (seen.has(lexical)) {
     return;
   }
-  seen.add(canonical);
+  seen.add(lexical);
   active.add(canonical);
   const source = fs.readFileSync(canonical, "utf8");
   if (source.length > 1_000_000) {
@@ -164,7 +165,7 @@ function validateLintConfiguration(
         }
         for (const entry of child as string[]) {
           validateLintConfiguration(
-            path.resolve(path.dirname(canonical), entry),
+            path.resolve(path.dirname(lexical), entry),
             syntaxOnly,
             experimentalBun,
             seen,

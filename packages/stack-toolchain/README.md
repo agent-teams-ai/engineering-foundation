@@ -141,6 +141,13 @@ repairs the alias. The npm archive's wrapper and native manifests include
 `+11c3671` build metadata in their version. The child command uses `--no-script`,
 so a consumer's `lint` script cannot replace the linter.
 
+The command supplies a private empty TOML file through Bun's global `--config`
+before `lint`. Project and ancestor bunfig files cannot add plugins, change rules,
+ignore source or allow unsupported rules. The temporary file is private to this
+invocation and is removed after execution settles. JSON inheritance follows each
+config's lexical path, including file symlinks; validation caches separate lexical
+contexts and retains canonical cycle and target-extension checks.
+
 Both lanes retain the configured paths, config inheritance, deadline, cancellation
 and raw output. Details identify the experimental backend and revision. Ordinary
 diagnostics exit 1; unsupported configuration or execution exits 2, with the

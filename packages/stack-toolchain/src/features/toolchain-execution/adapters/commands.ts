@@ -1,4 +1,6 @@
 import fs from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createProcessExecutor } from "node-or-bun";
 import { createNodeProcessAdapter } from "node-or-bun/node";
@@ -113,11 +115,12 @@ function assertRuntime(): void {
 function lintExit(code: number | null): number {
   return code === 0 ? 0 : code === 1 ? 1 : 2;
 }
-async function lint(input: CommandInput, config: Awaited<ReturnType<typeof loadConfiguration>>) {
-  const bun = config.lint.backend === "bun-experimental";
-  const executable = bun
-    ? resolveExperimentalBunLintExecutable(config.root)
-    : resolveToolExecutable("oxlint");
+async function lintWithExecutable(
+  input: CommandInput,
+  config: Awaited<ReturnType<typeof loadConfiguration>>,
+  executable: CheckerExecutable,
+  bun: boolean,
+) {
   if (bun) {
     const revision = await execute(executable, ["--revision"], config.root, input.signal);
     if (revision.exitCode !== 0 || revision.stdout.trim() !== experimentalBunLint.revision) {
@@ -173,6 +176,25 @@ async function lint(input: CommandInput, config: Awaited<ReturnType<typeof loadC
       result: { message: error instanceof Error ? error.message : String(error) },
     });
     throw Object.assign(new Error("TOOLCHAIN_LINT_LANE_FAILED", { cause: error }), { lanes });
+  }
+}
+async function lint(input: CommandInput, config: Awaited<ReturnType<typeof loadConfiguration>>) {
+  if (config.lint.backend !== "bun-experimental") {
+    return lintWithExecutable(input, config, resolveToolExecutable("oxlint"), false);
+  }
+  const executable = resolveExperimentalBunLintExecutable(config.root);
+  const directory = fs.mkdtempSync(join(tmpdir(), "stack-bun-lint-"));
+  try {
+    const emptyToml = join(directory, "empty.toml");
+    fs.writeFileSync(emptyToml, "", { flag: "wx", mode: 0o600 });
+    return await lintWithExecutable(
+      input,
+      config,
+      { ...executable, prefix: [...executable.prefix, `--config=${emptyToml}`] },
+      true,
+    );
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
   }
 }
 function failureDetails(error: unknown): { readonly message: string; readonly lanes?: unknown } {

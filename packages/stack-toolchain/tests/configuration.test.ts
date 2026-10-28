@@ -267,3 +267,42 @@ void test("experimental Bun lint is explicit and rejects incompatible inherited 
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+void test("lint inheritance validates each lexical file-symlink context", async () => {
+  const root = fixture();
+  try {
+    const configFile = path.join(root, "toolchain.config.json");
+    const config = JSON.parse(fs.readFileSync(configFile, "utf8")) as {
+      lint: Record<string, unknown>;
+    };
+    config.lint["backend"] = "bun-experimental";
+    fs.writeFileSync(configFile, JSON.stringify(config));
+    const shared = path.join(root, "shared");
+    fs.mkdirSync(shared);
+    fs.writeFileSync(path.join(shared, "main.json"), '{"extends":["./base.json"]}');
+    fs.writeFileSync(path.join(shared, "base.json"), "{}");
+    fs.writeFileSync(path.join(root, "base.json"), '{"jsPlugins":[]}');
+    fs.rmSync(path.join(root, ".oxlintrc.json"));
+    fs.symlinkSync(path.join(shared, "main.json"), path.join(root, ".oxlintrc.json"));
+    await assert.rejects(loadConfiguration({ cwd: root }), /TOOLCHAIN_LINT_CONFIG_EXECUTABLE/u);
+    fs.rmSync(path.join(root, ".oxlintrc.json"));
+    for (const name of ["left", "right"]) {
+      fs.mkdirSync(path.join(root, name));
+      fs.symlinkSync(path.join(shared, "main.json"), path.join(root, name, "main.json"));
+      fs.writeFileSync(
+        path.join(root, name, "base.json"),
+        name === "left" ? "{}" : '{"jsPlugins":[]}',
+      );
+    }
+    fs.writeFileSync(
+      path.join(root, ".oxlintrc.json"),
+      '{"extends":["./left/main.json","./right/main.json"]}',
+    );
+    await assert.rejects(loadConfiguration({ cwd: root }), /TOOLCHAIN_LINT_CONFIG_EXECUTABLE/u);
+    fs.symlinkSync(shared, path.join(root, "linked"), "junction");
+    fs.writeFileSync(path.join(root, ".oxlintrc.json"), '{"extends":["./linked/main.json"]}');
+    assert.equal((await loadConfiguration({ cwd: root })).lint.backend, "bun-experimental");
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});

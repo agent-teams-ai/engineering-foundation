@@ -35,6 +35,10 @@ import { installedFoundationVersion } from "../../../transaction-coordination/ad
 import { runScaffoldingCliCommand } from "../../../scaffolding/composition/node-scaffolding.js";
 
 export interface CommandHostDependencies<SchemaId extends string> {
+  readonly createFormatCommand: (
+    executor: ReturnType<typeof createManagedProcessExecutor>,
+    environment: Readonly<NodeJS.ProcessEnv>,
+  ) => FoundationCommandServices["qualityFormat"];
   readonly createQualityCommand: (
     executor: ReturnType<typeof createManagedProcessExecutor>,
     nodeExecutable: string,
@@ -103,6 +107,7 @@ function createCommandServices<SchemaId extends string>(
       now: systemNow,
     }),
     qualityGate: (input) => qualityGate(input, environment),
+    qualityFormat: dependencies.createFormatCommand(processExecutor, environment),
     qualityCoverage: dependencies.createQualityCommand(
       processExecutor,
       nodeExecutable,

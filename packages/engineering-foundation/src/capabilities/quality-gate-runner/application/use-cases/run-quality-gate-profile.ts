@@ -49,23 +49,38 @@ async function executeTask(
     readonly consumerRoot: string;
     readonly task: QualityGateTask;
     readonly signal?: AbortSignal;
+    readonly deadlineMs?: number;
   },
   executor: PackageScriptExecutor,
   clock: MonotonicClock,
 ): Promise<QualityGateTaskReport> {
   const startedAt = clock.nowMs();
   try {
+    const remaining =
+      input.deadlineMs === undefined ? undefined : Math.floor(input.deadlineMs - clock.nowMs());
+    if (remaining !== undefined && remaining <= 0) {
+      return terminalReport(input.task.id, "timed-out");
+    }
+    const timeoutMs =
+      remaining === undefined
+        ? input.task.timeoutMs
+        : Math.min(input.task.timeoutMs ?? remaining, remaining);
     const result = await executor.run({
       packageManager: input.packageManager,
       consumerRoot: input.consumerRoot,
       scriptId: input.task.id,
-      ...(input.task.timeoutMs === undefined ? {} : { timeoutMs: input.task.timeoutMs }),
+      ...(timeoutMs === undefined ? {} : { timeoutMs }),
       ...(input.signal === undefined ? {} : { signal: input.signal }),
     });
     const durationMs = elapsed(clock, startedAt);
     return Object.freeze({
       id: input.task.id,
-      outcome: result.exitCode === 0 ? "passed" : "failed",
+      outcome:
+        input.deadlineMs !== undefined && clock.nowMs() >= input.deadlineMs
+          ? "timed-out"
+          : result.exitCode === 0
+            ? "passed"
+            : "failed",
       durationMs,
       exitCode: result.exitCode,
       signal: result.signal,
@@ -89,7 +104,10 @@ async function executeTask(
   }
 }
 
-function terminalReport(id: string, outcome: "blocked" | "cancelled"): QualityGateTaskReport {
+function terminalReport(
+  id: string,
+  outcome: "blocked" | "cancelled" | "timed-out",
+): QualityGateTaskReport {
   return Object.freeze({
     id,
     outcome,
@@ -118,10 +136,14 @@ export async function runQualityGateProfile(
     readonly consumerRoot: string;
     readonly profile: NormalizedQualityGateProfile;
     readonly signal?: AbortSignal;
+    readonly deadlineMs?: number;
   },
   executor: PackageScriptExecutor,
   clock: MonotonicClock,
 ): Promise<QualityGateRunReport> {
+  if (input.deadlineMs !== undefined && !Number.isFinite(input.deadlineMs)) {
+    throw new TypeError("Aggregate gate deadline must be finite.");
+  }
   const startedAt = clock.nowMs();
   const reports = new Map<string, QualityGateTaskReport>();
   const active = new Map<string, Promise<QualityGateTaskReport>>();
@@ -144,10 +166,14 @@ export async function runQualityGateProfile(
     input.profile.tasks.map((task) => reports.get(task.id) as QualityGateTaskReport),
   );
   const durationMs = elapsed(clock, startedAt);
+  const outcome = profileOutcome(tasks, input.signal);
   return Object.freeze({
     reportSchemaVersion: 1,
     profileId: input.profile.id,
-    outcome: profileOutcome(tasks, input.signal),
+    outcome:
+      outcome === "passed" && input.deadlineMs !== undefined && clock.nowMs() >= input.deadlineMs
+        ? "failed"
+        : outcome,
     durationMs,
     tasks,
   });
@@ -158,6 +184,7 @@ function scheduleReadyTasks(
     readonly consumerRoot: string;
     readonly profile: NormalizedQualityGateProfile;
     readonly signal?: AbortSignal;
+    readonly deadlineMs?: number;
   },
   reports: Map<string, QualityGateTaskReport>,
   active: Map<string, Promise<QualityGateTaskReport>>,
@@ -171,6 +198,11 @@ function scheduleReadyTasks(
     }
     if (input.signal?.aborted === true) {
       reports.set(task.id, terminalReport(task.id, "cancelled"));
+      madeProgress = true;
+      continue;
+    }
+    if (input.deadlineMs !== undefined && clock.nowMs() >= input.deadlineMs) {
+      reports.set(task.id, terminalReport(task.id, "timed-out"));
       madeProgress = true;
       continue;
     }
@@ -193,6 +225,7 @@ function scheduleReadyTasks(
           packageManager: input.profile.packageManager,
           consumerRoot: input.consumerRoot,
           task,
+          ...(input.deadlineMs === undefined ? {} : { deadlineMs: input.deadlineMs }),
           ...(input.signal === undefined ? {} : { signal: input.signal }),
         },
         executor,

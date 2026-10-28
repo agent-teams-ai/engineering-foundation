@@ -21,6 +21,7 @@ interface QualityGateCommandInput {
   readonly consumerRoot: string;
   readonly configPath: string;
   readonly profileId: string;
+  readonly budgetMs?: number;
   readonly signal?: AbortSignal;
 }
 
@@ -67,10 +68,32 @@ export function createQualityGateCommand(
       );
     }
     assertNotCancelled(input.signal);
+    if (
+      input.budgetMs !== undefined &&
+      (!Number.isSafeInteger(input.budgetMs) ||
+        input.budgetMs < 1 ||
+        input.budgetMs > 2_147_483_647)
+    ) {
+      inputError(
+        "QUALITY_GATE_BUDGET_INVALID",
+        "Aggregate gate budget must be a positive bounded integer.",
+      );
+    }
+    const deadlineMs =
+      input.budgetMs === undefined ? undefined : dependencies.clock.nowMs() + input.budgetMs;
+    const assertBudget = () => {
+      if (deadlineMs !== undefined && dependencies.clock.nowMs() >= deadlineMs) {
+        inputError(
+          "QUALITY_GATE_BUDGET_EXCEEDED",
+          "Aggregate gate budget was exhausted before execution.",
+        );
+      }
+    };
     const policy = normalizePolicy(
       await dependencies.policyLoader(input.consumerRoot, input.configPath, input.signal),
     );
     assertNotCancelled(input.signal);
+    assertBudget();
     const profile = policy.profiles.find(({ id }) => id === input.profileId);
     if (profile === undefined) {
       inputError(
@@ -80,6 +103,7 @@ export function createQualityGateCommand(
     }
     const catalog = await dependencies.catalogReader.read(input.consumerRoot, input.signal);
     assertNotCancelled(input.signal);
+    assertBudget();
     const diagnostics = evaluateQualityGateScripts(policy, catalog);
     if (diagnostics.length > 0) {
       inputError(
@@ -91,6 +115,7 @@ export function createQualityGateCommand(
       {
         consumerRoot: input.consumerRoot,
         profile,
+        ...(deadlineMs === undefined ? {} : { deadlineMs }),
         ...(input.signal === undefined ? {} : { signal: input.signal }),
       },
       dependencies.executor,

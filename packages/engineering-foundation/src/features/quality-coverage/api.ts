@@ -36,3 +36,23 @@ export type {
 export type { QualityCoverageProfile, QualityTopology } from "./application/profile.js";
 export type { ProtectedSetting, RequiredProtectedSetting } from "./application/model.js";
 export type { QualityObservationPorts } from "./application/observation-input.js";
+
+export {
+  checkFormatCoverage,
+  createFormatCoverageCapability,
+  FORMAT_COVERAGE_ID,
+  FORMAT_COVERAGE_RULES_BY_ID,
+  rejectFormatCoverage,
+} from "./application/check-format-coverage.js";
+export {
+  assertRepositoryRelativePath,
+  formatAuthorityEntrypoint,
+  classifyFormatCoverage,
+  formatPublicEntryTarget,
+} from "./application/format-coverage.js";
+export type {
+  FormatCoveragePorts,
+  FormatCoverageObservation,
+  FormatAuthorityPolicy,
+  FormatAuthorityCommand,
+} from "./application/format-coverage-ports.js";

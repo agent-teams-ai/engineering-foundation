@@ -77,6 +77,7 @@ export function printHelp(): void {
   agent-teams-foundation agent-workflow instructions <repository-file> [--consumer <path>] [--format text|json]
   agent-teams-foundation gate run <profile> [--consumer <path>] [--format text|json]
   agent-teams-foundation quality check [--scope-only] [--consumer <path>] [--format text|json]
+  agent-teams-foundation quality format [--scope-only] [--consumer <path>] [--format text|json]
   agent-teams-foundation baseline check|init|prune --config <findings-baseline.yaml> [--consumer <path>] [--format text|json]
   agent-teams-foundation explain <rule-id> [--format text|json]
   agent-teams-foundation architecture-decisions-promote-baseline [--consumer <path>] [--json]

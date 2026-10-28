@@ -4197,6 +4197,7 @@ boundaries:
         - foundation.source-inventory.application
         - foundation.workspace-inventory.application
         - capability.source-dependencies.application
+        - capability.quality-gate-runner.application
       packages: []
       builtins: []
       runtimeReferences: []
@@ -4204,7 +4205,17 @@ boundaries:
       - packages/engineering-foundation/src/features/quality-coverage/api.ts
   - id: foundation.quality-coverage.adapters
     roots:
-      - packages/engineering-foundation/src/features/quality-coverage/adapters
+      - packages/engineering-foundation/src/features/quality-coverage/adapters/configuration.ts
+      - packages/engineering-foundation/src/features/quality-coverage/adapters/consumer-execution.ts
+      - packages/engineering-foundation/src/features/quality-coverage/adapters/consumer-gate-mappings.ts
+      - packages/engineering-foundation/src/features/quality-coverage/adapters/consumer-observations.ts
+      - packages/engineering-foundation/src/features/quality-coverage/adapters/consumer-toolchain.ts
+      - packages/engineering-foundation/src/features/quality-coverage/adapters/format-authorities.ts
+      - packages/engineering-foundation/src/features/quality-coverage/adapters/format-observations.ts
+      - packages/engineering-foundation/src/features/quality-coverage/adapters/oxlint-output.ts
+      - packages/engineering-foundation/src/features/quality-coverage/adapters/oxlint-session.ts
+      - packages/engineering-foundation/src/features/quality-coverage/adapters/profile-input.ts
+      - packages/engineering-foundation/src/features/quality-coverage/adapters/protected-config.ts
       - packages/engineering-foundation/src/features/quality-coverage/node.ts
     allow:
       boundaries:
@@ -4222,6 +4233,23 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/features/quality-coverage/node.ts
+      - packages/engineering-foundation/src/features/quality-coverage/adapters/consumer-toolchain.ts
+      - packages/engineering-foundation/src/features/quality-coverage/adapters/profile-input.ts
+  # Only this existing-feature adapter imports the selected physical Stack public ESM root.
+  # It negotiates literal contract1 before invoking format:check; no registry or private import.
+  - id: foundation.quality-coverage.literal-adapter
+    roots:
+      - packages/engineering-foundation/src/features/quality-coverage/adapters/format-toolchain.ts
+    allow:
+      boundaries:
+        - foundation.quality-coverage.application
+        - foundation.quality-coverage.adapters
+      packages:
+        - "@agent-teams/repository-mutation"
+      builtins: [node:crypto, node:fs/promises, node:module, node:path, node:url]
+      runtimeReferences: [dynamic]
+    entrypoints:
+      - packages/engineering-foundation/src/features/quality-coverage/adapters/format-toolchain.ts
   - id: foundation.schema-contribution.quality-coverage
     roots:
       - packages/engineering-foundation/src/features/quality-coverage/schemas.ts
@@ -4235,11 +4263,14 @@ boundaries:
   - id: foundation.quality-coverage.composition
     roots:
       - packages/engineering-foundation/src/composition/quality-coverage.ts
+      - packages/engineering-foundation/src/composition/format-coverage.ts
     entrypoints:
       - packages/engineering-foundation/src/composition/quality-coverage.ts
+      - packages/engineering-foundation/src/composition/format-coverage.ts
     allow:
       boundaries:
         - capability.source-dependencies.composition
+        - capability.quality-gate-runner.composition
         - capability.suppression-governance.composition
         - foundation.configuration-input.composition
         - foundation.source-inventory.composition
@@ -4247,7 +4278,9 @@ boundaries:
         - foundation.schema-validation
         - foundation.quality-coverage.application
         - foundation.quality-coverage.adapters
+        - foundation.quality-coverage.literal-adapter
         - foundation.process-execution.application
+        - foundation.validation-reporting.application
       packages: []
       builtins: []
       runtimeReferences: []

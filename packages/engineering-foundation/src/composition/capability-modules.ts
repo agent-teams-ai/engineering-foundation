@@ -1,9 +1,13 @@
+import { formatCoverageCapability } from "./format-coverage.js";
 import { readContainedRegularFile } from "../source-inventory/node.js";
 import { assertSchema, readFoundationSchema } from "../schema-catalog.js";
 import { createSourceTreeReader } from "../source-inventory/module.js";
 import { createWorkspaceInventoryReader } from "../workspace-inventory/module.js";
 import { qualityCoverageCapability } from "./quality-coverage.js";
-import { QUALITY_COVERAGE_RULES_BY_ID } from "../features/quality-coverage/api.js";
+import {
+  QUALITY_COVERAGE_RULES_BY_ID,
+  FORMAT_COVERAGE_RULES_BY_ID,
+} from "../features/quality-coverage/api.js";
 import {
   createCapabilityModule,
   createCapabilityModules,
@@ -73,6 +77,7 @@ const readAcceptedArchitectureDecisionEvidence = (
 
 export const CAPABILITY_MODULES: readonly CapabilityModuleDescriptor[] = createCapabilityModules([
   createCapabilityModule(qualityCoverageCapability, QUALITY_COVERAGE_RULES_BY_ID),
+  createCapabilityModule(formatCoverageCapability, FORMAT_COVERAGE_RULES_BY_ID),
   createCapabilityModule(
     createJsonSchemaReleaseCapability({ assertSchema }),
     JSON_SCHEMA_RELEASE_RULES_BY_ID,

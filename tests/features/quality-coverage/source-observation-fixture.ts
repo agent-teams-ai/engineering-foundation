@@ -1,4 +1,6 @@
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import assert from "node:assert/strict";
+import { checkStaticQualityCoverage } from "../../../packages/engineering-foundation/dist/features/quality-coverage/api.js";
+import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import type { TestContext } from "node:test";
@@ -45,4 +47,23 @@ export async function fixture(t: TestContext): Promise<SourceObservationFixture>
     put,
     census: () => censusReader.read({ consumerRoot: root, roots: ["packages"] }),
   };
+}
+
+export async function assertCanonicalRootAlias(
+  t: TestContext,
+  root: string,
+  reader: Parameters<typeof checkStaticQualityCoverage>[1],
+): Promise<void> {
+  const aliasRoot = `${root}-alias`;
+  await symlink(root, aliasRoot, process.platform === "win32" ? "junction" : "dir");
+  t.after(() => rm(aliasRoot, { force: true }));
+  const report = await checkStaticQualityCoverage(
+    { consumerRoot: aliasRoot, configPath: "quality.yaml" },
+    reader,
+  );
+  assert.equal(
+    report.outcome,
+    "passed",
+    "canonical consumer aliases retain contained Oxlint config",
+  );
 }

@@ -121,6 +121,52 @@ checker fallback. Consumers declare and enforce their production census and
 checked paths; the toolchain does not infer product ownership from directories.
 Type checking and formatting keep their independently configured scopes.
 
+### Experimental Bun lint
+
+Oxlint 1.90.0 with oxlint-tsgolint 7.0.2005 remains the default linter.
+Bun stable 1.4.4 does not provide `bun lint`; the current Bun lint documentation
+describes a canary capability. This opt-in backend requires a separate consumer
+development alias, without changing the toolchain's Bun typecheck pin:
+
+```sh
+npm install --ignore-scripts --save-dev --save-exact bun-lint@npm:bun@1.4.4-canary.20261028.1
+```
+
+Set `lint.backend` to `"bun-experimental"` in `toolchain.config.json`.
+Omitting it, or selecting `"oxlint"`, uses Oxlint. The alias must be in the
+consumer root's `devDependencies` only. Stack checks its exact declared coordinate,
+the wrapper and native package versions, installation containment and the actual
+`1.4.4-canary.1+11c367163` binary revision before linting. It never installs or
+repairs the alias. The npm archive's wrapper and native manifests include
+`+11c3671` build metadata in their version. The child command uses `--no-script`,
+so a consumer's `lint` script cannot replace the linter.
+
+Both lanes retain the configured paths, config inheritance, deadline, cancellation
+and raw output. Details identify the experimental backend and revision. Ordinary
+diagnostics exit 1; unsupported configuration or execution exits 2, with the
+original child result retained. No failure starts another linter.
+
+This is an experimental profile, not general Oxlint equivalence. The upstream
+[migration guide](https://bun.sh/guides/lint/migrate-from-oxlint) documents
+control-flow and parser differences; the qualified corpus does not establish
+complete equivalence. Keep independent TypeScript checking. Vue and JSDoc
+plugins/rules, override extglobs and rule-option fields
+named for patterns or regular expressions reject before execution. Rule options
+containing strings other than severity names also reject, including positional
+regular expressions; prefer the default backend for those configurations. JavaScript
+plugins remain prohibited. Other unsupported rules fail through Bun; Stack never
+passes `--allow-unsupported`. Bun uses JavaScript rather than Rust regular
+expressions, so option shapes outside those rejecting guards require explicit
+consumer qualification. This profile does not qualify arbitrary custom configs,
+Vue files, editor language-server support, or all diagnostic wording.
+
+Backend dispatch stays inside the existing toolchain-execution adapter, using
+the same node-or-bun process owner. It adds no module graph or lifecycle owner.
+An independent consumer's census, protected-rule and production-negative gates
+remain required. Foundation's existing quality coverage producer still observes
+Oxlint; selecting this experimental backend does not qualify Bun for that
+capability or migrate its consumer profile.
+
 Release qualification must cover positive and negative diagnostics, all
 fallback routes, cancellation and cleanup, unchanged files during checks,
 native platform support and clean installations with lifecycle scripts disabled.

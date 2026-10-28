@@ -8,7 +8,91 @@ import {
   resolveToolExecutable,
   resolveExecutables,
   resolveDoctorExecutable,
+  resolveExperimentalBunLintExecutable,
 } from "../dist/features/toolchain-execution/adapters/executables.js";
+
+void test("experimental lint refuses an unpinned or production Bun alias before executable lookup", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "TEST-bun-lint-declaration-"));
+  try {
+    for (const manifest of [
+      {},
+      { devDependencies: { "bun-lint": "npm:bun@canary" } },
+      { dependencies: { "bun-lint": "npm:bun@1.4.4-canary.20261028.1" } },
+      {
+        devDependencies: { "bun-lint": "npm:bun@1.4.4-canary.20261028.1" },
+        optionalDependencies: { "bun-lint": "npm:bun@1.4.4-canary.20261028.1" },
+      },
+      {
+        devDependencies: { "bun-lint": "npm:bun@1.4.4-canary.20261028.1" },
+        peerDependencies: { "bun-lint": "npm:bun@1.4.4-canary.20261028.1" },
+      },
+      {
+        devDependencies: { "bun-lint": "npm:bun@1.4.4-canary.20261028.1" },
+        bundledDependencies: ["bun-lint"],
+      },
+    ]) {
+      fs.writeFileSync(path.join(root, "package.json"), JSON.stringify(manifest));
+      assert.throws(
+        () => resolveExperimentalBunLintExecutable(root),
+        /TOOLCHAIN_BUN_LINT_DECLARATION/u,
+      );
+    }
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+void test("experimental lint binds both archive manifests and refuses an escaped native binary", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "TEST-bun-lint-installation-"));
+  try {
+    const platform = process.platform === "win32" ? "windows" : process.platform;
+    const arch = process.arch === "arm64" ? "aarch64" : process.arch;
+    const musl =
+      process.platform === "linux" &&
+      !(process.report.getReport() as { header: { glibcVersionRuntime?: string } }).header
+        .glibcVersionRuntime;
+    const name = `@oven/bun-${platform}-${arch}${musl ? "-musl" : ""}`;
+    const wrapper = path.join(root, "node_modules/bun-lint");
+    const native = path.join(root, "node_modules", name);
+    const version = "1.4.4-canary.20261028.1+11c3671";
+    fs.mkdirSync(wrapper, { recursive: true });
+    fs.mkdirSync(path.join(native, "bin"), { recursive: true });
+    fs.writeFileSync(
+      path.join(root, "package.json"),
+      JSON.stringify({
+        devDependencies: { "bun-lint": "npm:bun@1.4.4-canary.20261028.1" },
+      }),
+    );
+    fs.writeFileSync(
+      path.join(wrapper, "package.json"),
+      JSON.stringify({
+        name: "bun",
+        version,
+        optionalDependencies: { [name]: version },
+      }),
+    );
+    fs.writeFileSync(path.join(native, "package.json"), JSON.stringify({ name, version }));
+    const binary = path.join(native, "bin", process.platform === "win32" ? "bun.exe" : "bun");
+    fs.writeFileSync(binary, "not executed", { mode: 0o755 });
+    assert.equal(resolveExperimentalBunLintExecutable(root).command, fs.realpathSync(binary));
+    fs.writeFileSync(path.join(native, "package.json"), JSON.stringify({ name, version: "1.4.4" }));
+    assert.throws(
+      () => resolveExperimentalBunLintExecutable(root),
+      /TOOLCHAIN_BUN_LINT_NATIVE_PIN_MISMATCH/u,
+    );
+    fs.writeFileSync(path.join(native, "package.json"), JSON.stringify({ name, version }));
+    fs.rmSync(binary);
+    const outside = path.join(root, "outside");
+    fs.writeFileSync(outside, "not executed", { mode: 0o755 });
+    fs.symlinkSync(outside, binary);
+    assert.throws(
+      () => resolveExperimentalBunLintExecutable(root),
+      /TOOLCHAIN_DEPENDENCY_OUTSIDE_INSTALLATION/u,
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
 
 void test("compiler resolves qualified native tsc directly", () => {
   const executable = resolveCompilerExecutable();

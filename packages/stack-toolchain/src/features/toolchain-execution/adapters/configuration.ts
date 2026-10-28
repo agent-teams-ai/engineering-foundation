@@ -13,7 +13,10 @@ export interface ToolchainConfiguration {
   readonly root: string;
   readonly profile: "typescript-node" | "typescript-bun";
   readonly projects: readonly string[];
-  readonly lint: LintScope & { readonly syntax?: LintScope };
+  readonly lint: LintScope & {
+    readonly backend?: "oxlint" | "bun-experimental";
+    readonly syntax?: LintScope;
+  };
   readonly format: { readonly paths: readonly string[] };
 }
 function object(
@@ -56,9 +59,47 @@ function paths(value: unknown): readonly string[] {
   }
   return result;
 }
+function assertBunLintEntry(key: string, value: unknown, ruleOptions: boolean): void {
+  if (
+    /^(?:vue|jsdoc)\//u.test(key) ||
+    (key === "plugins" &&
+      Array.isArray(value) &&
+      value.some((plugin) => plugin === "vue" || plugin === "jsdoc"))
+  ) {
+    throw new Error("TOOLCHAIN_BUN_LINT_PLUGIN_UNSUPPORTED");
+  }
+  if (ruleOptions && /pattern|regex/iu.test(key)) {
+    throw new Error("TOOLCHAIN_BUN_LINT_PATTERN_OPTIONS_UNSUPPORTED");
+  }
+  if (
+    (key === "files" || key === "excludeFiles") &&
+    Array.isArray(value) &&
+    value.some((pattern) => typeof pattern === "string" && /[?*+@!]\(/u.test(pattern))
+  ) {
+    throw new Error("TOOLCHAIN_BUN_LINT_EXTGLOB_UNSUPPORTED");
+  }
+}
+function lintBackend(value: unknown): ToolchainConfiguration["lint"]["backend"] {
+  if (value !== undefined && value !== "oxlint" && value !== "bun-experimental") {
+    throw new Error("TOOLCHAIN_LINT_BACKEND_UNSUPPORTED");
+  }
+  return value;
+}
+function assertBunLintOption(value: unknown, ruleOptions: boolean): void {
+  if (ruleOptions && typeof value === "string" && !["off", "warn", "error"].includes(value)) {
+    throw new Error("TOOLCHAIN_BUN_LINT_RULE_OPTIONS_UNSUPPORTED");
+  }
+}
+function lintRuleMap(value: unknown): Record<string, unknown> {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("TOOLCHAIN_LINT_CONFIG_RULES");
+  }
+  return value as Record<string, unknown>;
+}
 function validateLintConfiguration(
   filename: string,
   syntaxOnly: boolean,
+  experimentalBun = false,
   seen = new Set<string>(),
   active = new Set<string>(),
 ): void {
@@ -80,17 +121,31 @@ function validateLintConfiguration(
   if (errors.length) {
     throw new Error("TOOLCHAIN_LINT_CONFIG_JSON");
   }
-  const inspect = (item: unknown): void => {
+  const inspectRules = (rules: Record<string, unknown>): void => {
+    for (const [rule, options] of Object.entries(rules)) {
+      if (experimentalBun) {
+        assertBunLintEntry(rule, options, false);
+      }
+      inspect(options, true);
+    }
+  };
+  const inspect = (item: unknown, ruleOptions = false): void => {
+    if (experimentalBun) {
+      assertBunLintOption(item, ruleOptions);
+    }
     if (Array.isArray(item)) {
       for (const child of item) {
-        inspect(child);
+        inspect(child, ruleOptions);
       }
       return;
     }
     if (item === null || typeof item !== "object") {
       return;
     }
-    for (const [key, child] of Object.entries(item)) {
+    for (const [key, child] of Object.entries(item as Record<string, unknown>)) {
+      if (experimentalBun) {
+        assertBunLintEntry(key, child, ruleOptions);
+      }
       if (key === "typeCheck" && child === true) {
         throw new Error("TOOLCHAIN_LINT_SEMANTIC_CHECK_UNSUPPORTED");
       }
@@ -111,25 +166,35 @@ function validateLintConfiguration(
           validateLintConfiguration(
             path.resolve(path.dirname(canonical), entry),
             syntaxOnly,
+            experimentalBun,
             seen,
             active,
           );
         }
       } else {
-        inspect(child);
+        if (key === "rules") {
+          inspectRules(lintRuleMap(child));
+        } else {
+          inspect(child, ruleOptions);
+        }
       }
     }
   };
   inspect(value);
   active.delete(canonical);
 }
-function lintScope(root: string, value: unknown, syntaxOnly: boolean): LintScope {
+function lintScope(
+  root: string,
+  value: unknown,
+  syntaxOnly: boolean,
+  experimentalBun: boolean,
+): LintScope {
   const scope = object(value, ["config", "paths"]);
   const config = path.resolve(root, relative(scope["config"]));
   if (!fs.statSync(config).isFile()) {
     throw new Error("TOOLCHAIN_LINT_CONFIG_MISSING");
   }
-  validateLintConfiguration(config, syntaxOnly);
+  validateLintConfiguration(config, syntaxOnly, experimentalBun);
   return { config, paths: paths(scope["paths"]) };
 }
 export async function loadConfiguration(input: {
@@ -153,7 +218,8 @@ export async function loadConfiguration(input: {
     throw new Error("TOOLCHAIN_CONFIG_PROFILE");
   }
   const typecheck = object(config["typecheck"], ["projects"]);
-  const lint = object(config["lint"], ["config", "paths"], ["syntax"]);
+  const lint = object(config["lint"], ["config", "paths"], ["syntax", "backend"]);
+  const backend = lintBackend(lint["backend"]);
   const format = object(config["format"], ["paths"]);
   const projects = paths(typecheck["projects"]).map((item) => path.resolve(root, item));
   for (const project of projects) {
@@ -186,13 +252,25 @@ export async function loadConfiguration(input: {
       throw new Error("TOOLCHAIN_CONFIG_EMPTY_INPUTS");
     }
   }
-  const typed = lintScope(root, { config: lint["config"], paths: lint["paths"] }, false);
-  const syntax = Object.hasOwn(lint, "syntax") ? lintScope(root, lint["syntax"], true) : undefined;
+  const experimentalBun = backend === "bun-experimental";
+  const typed = lintScope(
+    root,
+    { config: lint["config"], paths: lint["paths"] },
+    false,
+    experimentalBun,
+  );
+  const syntax = Object.hasOwn(lint, "syntax")
+    ? lintScope(root, lint["syntax"], true, experimentalBun)
+    : undefined;
   return {
     root,
     profile: config["profile"] as ToolchainConfiguration["profile"],
     projects,
-    lint: { ...typed, ...(syntax === undefined ? {} : { syntax }) },
+    lint: {
+      ...typed,
+      ...(backend === undefined ? {} : { backend }),
+      ...(syntax === undefined ? {} : { syntax }),
+    },
     format: { paths: paths(format["paths"]) },
   };
 }

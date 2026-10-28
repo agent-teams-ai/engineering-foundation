@@ -239,3 +239,31 @@ void test("syntax preflight rejects inherited typed options, plugins and config 
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+void test("experimental Bun lint is explicit and rejects incompatible inherited configuration", async () => {
+  const root = fixture();
+  try {
+    const file = path.join(root, "toolchain.config.json");
+    const config = JSON.parse(fs.readFileSync(file, "utf8")) as { lint: Record<string, unknown> };
+    config.lint["backend"] = "bun";
+    fs.writeFileSync(file, JSON.stringify(config));
+    await assert.rejects(loadConfiguration({ cwd: root }), /TOOLCHAIN_LINT_BACKEND_UNSUPPORTED/u);
+    config.lint["backend"] = "bun-experimental";
+    fs.writeFileSync(file, JSON.stringify(config));
+    fs.writeFileSync(path.join(root, ".oxlintrc.json"), '{"extends":["./parent.json"]}');
+    for (const value of [
+      { plugins: ["vue"] },
+      { rules: { "jsdoc/require-param": "error" } },
+      { overrides: [{ files: ["**/*.?([cm])ts"], rules: {} }] },
+      { rules: { "no-restricted-syntax": ["error", { pattern: "(?i)x" }] } },
+      { rules: { "id-match": ["error", "(?i)x"] } },
+    ]) {
+      fs.writeFileSync(path.join(root, "parent.json"), JSON.stringify(value));
+      await assert.rejects(loadConfiguration({ cwd: root }), /TOOLCHAIN_BUN_LINT_.*UNSUPPORTED/u);
+    }
+    fs.writeFileSync(path.join(root, "parent.json"), '{"ignorePatterns":["generated/"]}');
+    assert.equal((await loadConfiguration({ cwd: root })).lint.backend, "bun-experimental");
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});

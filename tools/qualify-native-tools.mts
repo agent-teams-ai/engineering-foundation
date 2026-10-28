@@ -20,7 +20,7 @@ const expected = [
     name: "oxlint",
     entry: resolve(root, "node_modules/oxlint/bin/oxlint"),
     args: ["--version"],
-    contains: "1.83.0",
+    contains: "1.90.0",
   },
   {
     name: "typescript",

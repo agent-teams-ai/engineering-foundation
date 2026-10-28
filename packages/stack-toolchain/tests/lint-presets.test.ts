@@ -24,6 +24,7 @@ interface Preset {
 interface Diagnostic {
   readonly filename: string;
   readonly code: string;
+  readonly severity: string;
 }
 
 const require = createRequire(import.meta.url);
@@ -49,7 +50,7 @@ void test("JS exception covers exactly the pinned typed rule universe", () => {
     .filter((rule) => rule.type_aware)
     .map((rule) => `${rule.scope}/${rule.value}`)
     .toSorted();
-  assert.equal(typed.length, 59, "Review the exception when upgrading Oxlint");
+  assert.equal(typed.length, 61, "Review the exception when upgrading Oxlint");
   assert.equal(preset.overrides.length, 1);
   const exception = preset.overrides[0];
   assert.ok(exception);
@@ -77,6 +78,7 @@ void test("typed preset retains its existing global rule levels", () => {
     "no-unsafe-assignment",
     "no-unsafe-call",
     "no-unsafe-declaration-merging",
+    "no-unsafe-enum-assignment",
     "no-unsafe-enum-comparison",
     "no-unsafe-function-type",
     "no-unsafe-member-access",
@@ -119,9 +121,14 @@ void test("all eight extensions retain syntax checks and only TS enables typed c
     );
     const extensions = ["js", "jsx", "mjs", "cjs", "ts", "tsx", "mts", "cts"];
     for (const extension of extensions) {
+      const semanticProbe = ["ts", "tsx", "mts", "cts"].includes(extension)
+        ? "enum Fruit { Apple, Banana }\nexport const fruit: Fruit = 0;\n" +
+          "type Data = { name: string; value: number };\n" +
+          'export type Empty = Omit<Data, "name" | "value">;\n'
+        : "";
       writeFileSync(
         join(directory, `probe-${extension}.${extension}`),
-        'Promise.resolve(1);\nif (Number.NaN === 1) { throw new Error("bad"); }\n',
+        'Promise.resolve(1);\nif (Number.NaN === 1) { throw new Error("bad"); }\n' + semanticProbe,
       );
     }
     const result = oxlint(["-c", config, "--type-aware", "--format=json", directory]);
@@ -141,6 +148,15 @@ void test("all eight extensions retain syntax checks and only TS enables typed c
         ["ts", "tsx", "mts", "cts"].includes(extension),
         extension,
       );
+      for (const rule of ["no-generated-empty-object-type", "no-unsafe-enum-assignment"]) {
+        assert.equal(
+          messages.some(
+            (diagnostic) => diagnostic.code.includes(rule) && diagnostic.severity === "error",
+          ),
+          ["ts", "tsx", "mts", "cts"].includes(extension),
+          `${extension}: ${rule}`,
+        );
+      }
     }
   } finally {
     rmSync(directory, { recursive: true, force: true });

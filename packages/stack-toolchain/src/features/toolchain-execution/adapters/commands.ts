@@ -8,6 +8,8 @@ import {
   resolveToolExecutable,
   resolveCompilerExecutable,
   resolveTsgolintExecutable,
+  resolveExperimentalBunLintExecutable,
+  experimentalBunLint,
 } from "./executables.js";
 import { createCheckerRunner, type CheckerExecutable } from "./process.js";
 import { typecheck } from "../application/typecheck.js";
@@ -108,12 +110,29 @@ function assertRuntime(): void {
     throw new Error("TOOLCHAIN_UNSUPPORTED_NODE_RUNTIME");
   }
 }
+function lintExit(code: number | null): number {
+  return code === 0 ? 0 : code === 1 ? 1 : 2;
+}
 async function lint(input: CommandInput, config: Awaited<ReturnType<typeof loadConfiguration>>) {
-  const executable = resolveToolExecutable("oxlint");
-  const invoke = (scope: typeof config.lint, typed: boolean) =>
-    execute(
+  const bun = config.lint.backend === "bun-experimental";
+  const executable = bun
+    ? resolveExperimentalBunLintExecutable(config.root)
+    : resolveToolExecutable("oxlint");
+  if (bun) {
+    const revision = await execute(executable, ["--revision"], config.root, input.signal);
+    if (revision.exitCode !== 0 || revision.stdout.trim() !== experimentalBunLint.revision) {
+      throw new Error("TOOLCHAIN_BUN_LINT_REVISION_MISMATCH");
+    }
+  }
+  const describe = <T extends object>(details: T) =>
+    bun
+      ? { ...details, backend: "bun-experimental", revision: experimentalBunLint.revision }
+      : details;
+  const invoke = async (scope: typeof config.lint, typed: boolean) => {
+    const result = await execute(
       executable,
       [
+        ...(bun ? ["lint", "--no-script"] : []),
         ...(typed ? ["--type-aware"] : []),
         "--disable-nested-config",
         "--config",
@@ -123,11 +142,14 @@ async function lint(input: CommandInput, config: Awaited<ReturnType<typeof loadC
       ],
       config.root,
       input.signal,
-      typed ? { OXLINT_TSGOLINT_PATH: resolveTsgolintExecutable() } : undefined,
+      typed && !bun ? { OXLINT_TSGOLINT_PATH: resolveTsgolintExecutable() } : undefined,
     );
+    input.signal.throwIfAborted();
+    return result;
+  };
   if (config.lint.syntax === undefined) {
     const result = await invoke(config.lint, true);
-    return { exitCode: result.exitCode === 0 ? 0 : 1, details: result };
+    return { exitCode: lintExit(result.exitCode), details: describe(result) };
   }
   const lanes: { readonly name: "syntax" | "typed"; readonly result: unknown }[] = [];
   let lane: "syntax" | "typed" = "syntax";
@@ -141,10 +163,10 @@ async function lint(input: CommandInput, config: Awaited<ReturnType<typeof loadC
       );
       lanes.push({ name, result });
       if (result.exitCode !== 0) {
-        return { exitCode: 1, details: { lanes } };
+        return { exitCode: lintExit(result.exitCode), details: describe({ lanes }) };
       }
     }
-    return { exitCode: 0, details: { lanes } };
+    return { exitCode: 0, details: describe({ lanes }) };
   } catch (error) {
     lanes.push({
       name: lane,

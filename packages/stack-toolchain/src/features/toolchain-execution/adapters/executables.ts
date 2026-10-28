@@ -278,6 +278,83 @@ export function resolveTsgolintExecutable(packageRoot: string = defaultRoot): st
   return executable;
 }
 
+export const experimentalBunLint = Object.freeze({
+  packageVersion: "1.4.4-canary.20261028.1",
+  nativeVersion: "1.4.4-canary.20261028.1+11c3671",
+  revision: "1.4.4-canary.1+11c367163",
+});
+
+export function resolveExperimentalBunLintExecutable(consumerRoot: string): CheckerExecutable {
+  const owner = JSON.parse(fs.readFileSync(path.join(consumerRoot, "package.json"), "utf8")) as {
+    devDependencies?: Record<string, string>;
+    dependencies?: Record<string, string>;
+    optionalDependencies?: Record<string, string>;
+    peerDependencies?: Record<string, string>;
+    bundledDependencies?: readonly string[] | boolean;
+    bundleDependencies?: readonly string[] | boolean;
+  };
+  const production = [owner.dependencies, owner.optionalDependencies, owner.peerDependencies].some(
+    (section) => section?.["bun-lint"] !== undefined,
+  );
+  const bundled = [owner.bundledDependencies, owner.bundleDependencies].some(
+    (value) => value === true || (Array.isArray(value) && value.includes("bun-lint")),
+  );
+  if (
+    owner.devDependencies?.["bun-lint"] !== `npm:bun@${experimentalBunLint.packageVersion}` ||
+    production ||
+    bundled
+  ) {
+    throw new Error("TOOLCHAIN_BUN_LINT_DECLARATION");
+  }
+  const boundary = path.join(fs.realpathSync(consumerRoot), "node_modules");
+  const contained = (filename: string): string => {
+    const resolved = fs.realpathSync(filename);
+    const relative = path.relative(boundary, resolved);
+    if (relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+      throw new Error("TOOLCHAIN_DEPENDENCY_OUTSIDE_INSTALLATION");
+    }
+    return resolved;
+  };
+  const directory = packageDirectory("bun-lint", consumerRoot);
+  if (directory === null) {
+    throw new Error("TOOLCHAIN_BUN_LINT_MISSING");
+  }
+  contained(directory);
+  const manifest = JSON.parse(fs.readFileSync(path.join(directory, "package.json"), "utf8")) as {
+    name?: string;
+    version?: string;
+    optionalDependencies?: Record<string, string>;
+  };
+  const { name } = nativePlatform("bun");
+  if (
+    manifest.name !== "bun" ||
+    manifest.version !== experimentalBunLint.nativeVersion ||
+    manifest.optionalDependencies?.[name] !== experimentalBunLint.nativeVersion
+  ) {
+    throw new Error("TOOLCHAIN_BUN_LINT_PIN_MISMATCH");
+  }
+  const nativeRoot = packageDirectory(name, directory);
+  if (nativeRoot === null) {
+    throw new Error("TOOLCHAIN_BUN_LINT_NATIVE_MISSING");
+  }
+  contained(nativeRoot);
+  const installed = JSON.parse(fs.readFileSync(path.join(nativeRoot, "package.json"), "utf8")) as {
+    name?: string;
+    version?: string;
+  };
+  if (installed.name !== name || installed.version !== experimentalBunLint.nativeVersion) {
+    throw new Error("TOOLCHAIN_BUN_LINT_NATIVE_PIN_MISMATCH");
+  }
+  const executable = contained(
+    path.join(nativeRoot, "bin", process.platform === "win32" ? "bun.exe" : "bun"),
+  );
+  if (!fs.statSync(executable).isFile()) {
+    throw new Error("TOOLCHAIN_BUN_LINT_BINARY_INVALID");
+  }
+  fs.accessSync(executable, fs.constants.X_OK);
+  return { command: executable, prefix: [] };
+}
+
 export function installedToolVersion(
   tool: ToolName,
   packageRoot: string = defaultRoot,

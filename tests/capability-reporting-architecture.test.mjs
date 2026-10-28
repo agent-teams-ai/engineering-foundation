@@ -91,6 +91,7 @@ test("selected modules retain construction order and registry projection identit
   );
   const selections = [
     ["features/quality-coverage/api", "QUALITY_COVERAGE_RULES_BY_ID"],
+    ["features/quality-coverage/api", "FORMAT_COVERAGE_RULES_BY_ID"],
     ["capabilities/contract-json-schema-releases/module", "JSON_SCHEMA_RELEASE_RULES_BY_ID"],
     ["capabilities/contract-protobuf-evolution/module", "PROTOBUF_EVOLUTION_RULES_BY_ID"],
     [
@@ -115,6 +116,7 @@ test("selected modules retain construction order and registry projection identit
     CAPABILITY_MODULES.map(({ definition }) => definition.id),
     [
       "quality.source-coverage",
+      "quality.format-coverage",
       "contract.json-schema-releases",
       "contract.protobuf-evolution",
       "documentation.local-references",

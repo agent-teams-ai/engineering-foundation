@@ -1,0 +1,203 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-teams.ai/engineering-foundation/quality-format-coverage/v1",
+  "title": "Opt-in complete formatting input coverage profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "owner",
+    "budgetMs",
+    "maintainedRoots",
+    "rootFiles",
+    "scripts",
+    "authorities",
+    "routes"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "owner": {
+      "$ref": "#/$defs/id"
+    },
+    "budgetMs": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2147483647
+    },
+    "maintainedRoots": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 10000,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/path"
+      }
+    },
+    "rootFiles": {
+      "const": "format-or-reject"
+    },
+    "scripts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "required"],
+      "properties": {
+        "format": {
+          "$ref": "#/$defs/id"
+        },
+        "required": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10000,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/id"
+          }
+        }
+      }
+    },
+    "alternates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["configPath", "profileId"],
+      "properties": {
+        "configPath": {
+          "$ref": "#/$defs/path"
+        },
+        "profileId": {
+          "$ref": "#/$defs/id"
+        }
+      }
+    },
+    "authorities": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 10000,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "owner", "script", "execution"],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "owner": {
+            "$ref": "#/$defs/id"
+          },
+          "script": {
+            "$ref": "#/$defs/id"
+          },
+          "execution": {
+            "const": "read-only-source-validation"
+          }
+        }
+      }
+    },
+    "routes": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 10000,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["authority", "kind", "files", "trees"],
+        "properties": {
+          "authority": {
+            "$ref": "#/$defs/id"
+          },
+          "kind": {
+            "enum": ["retained", "managed", "generated", "validated-data"]
+          },
+          "files": {
+            "type": "array",
+            "minItems": 0,
+            "maxItems": 10000,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/$defs/path"
+            }
+          },
+          "trees": {
+            "type": "array",
+            "minItems": 0,
+            "maxItems": 10000,
+            "uniqueItems": true,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["path", "suffixes"],
+              "properties": {
+                "path": {
+                  "$ref": "#/$defs/path"
+                },
+                "suffixes": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 10000,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "pattern": "^\\.[A-Za-z0-9][A-Za-z0-9.-]*$"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "anyOf": [
+          {
+            "properties": {
+              "files": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          },
+          {
+            "properties": {
+              "trees": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "authorities": {
+            "minItems": 1,
+            "type": "array"
+          }
+        }
+      },
+      "then": {
+        "properties": { "alternates": { "$ref": "#/properties/alternates" } },
+        "required": ["alternates"]
+      }
+    }
+  ],
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "pattern": "^(?!/)(?!.*[\\\\:\\u0000-\\u001f\\u007f])(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*//)(?!.*(?:^|/)(?:\\.git|node_modules)(?:/|$))(?!.*[. /]$).+$"
+    }
+  }
+}

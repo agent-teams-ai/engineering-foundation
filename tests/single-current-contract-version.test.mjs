@@ -26,6 +26,7 @@ const enumeratedNonV1SchemaPathsByRoot = new Map([
       sourceDependenciesV2Path,
       sourceDependenciesV3Path,
       "schemas/foundation-config/v2.schema.json",
+      "schemas/foundation-config/v3.schema.json",
       transactionEnvelopeV2Path,
       "schemas/package-public-api-compatibility/v2.schema.json",
       "schemas/quality-gate-runner/v2.schema.json",

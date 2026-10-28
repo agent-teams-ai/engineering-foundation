@@ -1,3 +1,4 @@
+import { createFormatCommand } from "./format-coverage.js";
 import { readContainedRegularFile } from "../source-inventory/node.js";
 import { AjvJsonSchemaReleaseInspector } from "../capabilities/contract-json-schema-releases/module.js";
 import { createFoundationCommandHost } from "../features/command-host/node.js";
@@ -23,6 +24,7 @@ const host = createFoundationCommandHost({
   runFoundationCheck,
   RULE_REGISTRY,
   createQualityCommand,
+  createFormatCommand,
   createFindingsBaselineCommands: createFindingsBaselineCommandsFactory(assertSchema),
 });
 

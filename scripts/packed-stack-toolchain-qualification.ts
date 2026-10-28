@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { createRequire } from "node:module";
@@ -76,6 +77,202 @@ export function validateInstalledDoctorReport(
   }
 }
 
+const literalDigest = (files: readonly string[]) =>
+  createHash("sha256").update(JSON.stringify(files)).digest("hex");
+
+function assertLiteralReport(
+  report: Record<string, unknown>,
+  file: string,
+  exitCode: number,
+): void {
+  assert.equal(report["command"], "format:check");
+  assert.equal(report["exitCode"], exitCode);
+  assert.equal(report["status"], exitCode === 0 ? "passed" : "failed");
+  const details = doctorRecord(report["details"]);
+  const digest = literalDigest([file]);
+  assert.deepEqual(Object.keys(details).toSorted(), [
+    "attempted",
+    "batches",
+    "completed",
+    "digests",
+    "requested",
+    "schemaVersion",
+    "sourceBytesUnchanged",
+    "validated",
+  ]);
+  assert.partialDeepStrictEqual(details, {
+    schemaVersion: 1,
+    requested: [file],
+    validated: [file],
+    attempted: [file],
+    digests: { requested: digest, validated: digest, attempted: digest },
+    completed: true,
+    sourceBytesUnchanged: true,
+  });
+  assert.ok(Array.isArray(details["batches"]));
+  assert.equal(details["batches"].length, 1);
+  assert.partialDeepStrictEqual(details["batches"][0], {
+    files: [file],
+    completed: true,
+    result: {
+      exitCode,
+      facts: { outputBounded: true, incompleteCustody: false, lateFailureCodes: [] },
+    },
+  });
+}
+
+async function qualifyLiteralTypes(root: string, cli: string): Promise<void> {
+  const positive = `import { runCommand, formatFilesContractVersion,
+    type CommandInput, type FormatFilesDetails } from "stack-toolchain";
+    const marker: 1 = formatFilesContractVersion;
+    const request: CommandInput = { command: "format:check", cwd: ".",
+      signal: AbortSignal.abort(), formatFiles: ["input.json"] };
+    void runCommand(request);
+    const checked: FormatFilesDetails = { schemaVersion: marker,
+      requested: [], validated: [], attempted: [],
+      digests: { requested: "", validated: "", attempted: "" }, batches: [],
+      completed: true, sourceBytesUnchanged: true };`;
+  const types = join(root, "literal-types.ts");
+  await writeFile(types, positive);
+  await writeFile(
+    join(root, "literal-types.json"),
+    JSON.stringify({
+      files: ["literal-types.ts"],
+      compilerOptions: {
+        strict: true,
+        skipLibCheck: false,
+        noEmit: true,
+        module: "NodeNext",
+        moduleResolution: "NodeNext",
+        target: "ES2024",
+        types: [],
+      },
+    }),
+  );
+  const compile = () =>
+    runCommand(
+      process.execPath,
+      [cli, "compile", "--json", "--project", "literal-types.json"],
+      root,
+    );
+  await compile();
+  await writeFile(
+    types,
+    `${positive}
+    request.formatFiles = [];
+    checked.requested.push("mutated");
+    const wrong: 2 = formatFilesContractVersion;
+    void runCommand({ ...request, formatFiles: [123] });`,
+  );
+  let rejection: unknown;
+  try {
+    await compile();
+  } catch (error) {
+    rejection = error;
+  }
+  const failure = doctorRecord(rejection);
+  assert.equal(failure["code"], 1);
+  assert.equal(failure["terminationConfirmed"], true);
+  const diagnostic = doctorRecord(JSON.parse(String(failure["stdout"])));
+  assert.equal(diagnostic["exitCode"], 1);
+  const output = String(doctorRecord(diagnostic["details"])["stdout"]);
+  assert.deepEqual(output.match(/error TS\d+/gu)?.toSorted(), [
+    "error TS2322",
+    "error TS2322",
+    "error TS2339",
+    "error TS2540",
+  ]);
+  await writeFile(types, positive);
+}
+
+async function qualifyInstalledLiteralFormat(root: string, cli: string): Promise<void> {
+  const negotiation = `const api = await import("stack-toolchain");
+    if (api.formatFilesContractVersion !== 1) throw new Error("STACK_LITERAL_API_UNAVAILABLE");`;
+  await runCommand(process.execPath, ["--input-type=module", "--eval", negotiation], root);
+  const invoke = async (input: unknown) => {
+    const program = `${negotiation}
+      const report = await api.runCommand({ ...JSON.parse(process.argv[1]),
+        cwd: process.cwd(), signal: new AbortController().signal });
+      process.stdout.write(JSON.stringify(report));`;
+    const result = await runCommand(
+      process.execPath,
+      ["--input-type=module", "--eval", program, JSON.stringify(input)],
+      root,
+    );
+    return doctorRecord(JSON.parse(result.stdout));
+  };
+  await qualifyLiteralTypes(root, cli);
+  const config = await readFile(join(root, "toolchain.config.json"));
+  await writeFile(join(root, "toolchain.config.json"), "invalid configuration");
+  await mkdir(join(root, "literal"));
+  await writeFile(join(root, ".gitignore"), "literal/**\n");
+  await writeFile(join(root, ".prettierignore"), "literal/**\n");
+  await writeFile(join(root, "literal/.gitignore"), "*.json\n");
+  const protectedBytes = '{"protected":[1,2]}';
+  await writeFile(join(root, "protected.json"), protectedBytes);
+  const cases: [string, string, string][] = [
+    ...["ts", "tsx", "mts", "cts", "js", "jsx", "mjs", "cjs"].map(
+      (ext): [string, string, string] => [
+        `input.${ext}`,
+        "const value={answer:1};",
+        "const value = { answer: 1 };\n",
+      ],
+    ),
+    ["input.json", '{"answer":[1,2]}', "{}\n"],
+    ["input.jsonc", '{"answer":[1,2]}', "{}\n"],
+    ["input.yaml", "answer: [1,2]", "answer: [1, 2]\n"],
+    ["input.yml", "answer: [1,2]", "answer: [1, 2]\n"],
+    ["input.md", "# Title\n\n-   item\n", "# Title\n\n- item\n"],
+  ];
+  const names = ["[abc].json", "{a,b}.json", "space ü.json", "!leading.json", "-dash.json"];
+  if (process.platform !== "win32") {
+    names.push("*.json", "?.json");
+  }
+  for (const name of names) {
+    cases.push([name, '{"value":1}', "{}\n"]);
+  }
+  for (const [name, , good] of cases) {
+    await writeFile(join(root, "literal", name), good);
+  }
+  for (const [name, bad, good] of cases) {
+    const file = `literal/${name}`;
+    for (const [source, expected] of [
+      [bad, 1],
+      [good, 0],
+    ] as const) {
+      await writeFile(join(root, file), source);
+      const report = await invoke({ command: "format:check", formatFiles: [file] });
+      assertLiteralReport(report, file, expected);
+      assert.equal(await readFile(join(root, file), "utf8"), source);
+    }
+  }
+  await writeFile(join(root, "unsupported.rs"), "unowned input");
+  const mixed = await invoke({
+    command: "format:check",
+    formatFiles: ["literal/input.json", "unsupported.rs"],
+  });
+  assert.equal(mixed["exitCode"], 2);
+  assert.equal(mixed["status"], "failed");
+  assert.partialDeepStrictEqual(mixed["details"], {
+    schemaVersion: 1,
+    requested: ["literal/input.json", "unsupported.rs"],
+    validated: ["literal/input.json"],
+    attempted: [],
+    digests: {
+      requested: literalDigest(["literal/input.json", "unsupported.rs"]),
+      validated: literalDigest(["literal/input.json"]),
+      attempted: literalDigest([]),
+    },
+    batches: [],
+    completed: false,
+    sourceBytesUnchanged: null,
+    failure: "TOOLCHAIN_FORMAT_UNSUPPORTED",
+  });
+  await writeFile(join(root, "toolchain.config.json"), config);
+  assert.equal((await invoke({ command: "format:check" }))["exitCode"], 0);
+  assert.equal(await readFile(join(root, "protected.json"), "utf8"), protectedBytes);
+}
+
 /** Runs only against an installed candidate in a disposable package consumer. */
 export async function qualifyInstalledStackToolchain(consumerRoot: string): Promise<void> {
   const root = join(consumerRoot, "TEST-stack-toolchain");
@@ -148,4 +345,5 @@ export async function qualifyInstalledStackToolchain(consumerRoot: string): Prom
   assert.equal(formattingFailed, true);
   assert.equal(await readFile(join(root, "index.ts"), "utf8"), 'export const value:string="ready"');
   await writeFile(join(root, "index.ts"), original);
+  await qualifyInstalledLiteralFormat(root, cli);
 }

@@ -117,6 +117,8 @@
     "packages/docs-protocol-mcp/tests/diagnostic-tools-cases.ts",
     "tests/features/quality-coverage/source-observation-fixture.ts",
     "tests/features/quality-coverage/source-census-cases.ts",
+    "tests/features/quality-coverage/format-coverage-seams.ts",
+    "tests/features/quality-coverage/format-coverage-admission.ts",
     "tests/features/quality-coverage/source-discovery-cases.ts",
     "packages/engineering-foundation/tests/workspace-dependency-alias-normalization-cases.ts",
     "packages/engineering-foundation/tests/public-api-artifact-release-cases.ts",

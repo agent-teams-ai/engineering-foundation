@@ -484,6 +484,15 @@ async function observeHistoricalFixture(installedManifest, root, config, report)
   return observation;
 }
 
+const select = async (observation, archive) => {
+  const observed = await observeClosedFixture(observation, archive);
+  return {
+    ...observed,
+    entries: observed.entries.filter((row) => row.coordinate.packageName === packageName),
+    coverage: observed.coverage.filter((row) => row.packageName === packageName),
+  };
+};
+
 async function fixtureArchiveTransitions(
   installedManifest,
   base,
@@ -497,14 +506,6 @@ async function fixtureArchiveTransitions(
       pathToFileURL(installedManifest),
     )
   );
-  const select = async (observation, archive) => {
-    const observed = await observeClosedFixture(observation, archive);
-    return {
-      ...observed,
-      entries: observed.entries.filter((row) => row.coordinate.packageName === packageName),
-      coverage: observed.coverage.filter((row) => row.packageName === packageName),
-    };
-  };
   assert.deepEqual(
     base.entries.filter((row) => row.coordinate.packageName !== packageName),
     candidate.entries.filter((row) => row.coordinate.packageName !== packageName),

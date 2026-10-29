@@ -138,12 +138,13 @@ test("a hand-edited baseline that is not canonical is rejected", async (t) => {
   assert.equal((await diagnostics()).outcome, "invalid-input");
 });
 
+const run = (...args) =>
+  promisify(execFile)(process.execPath, [cli, ...args]).then(
+    (r) => ({ code: 0, ...r }),
+    (e) => ({ code: e.code, stdout: e.stdout, stderr: e.stderr }),
+  );
+
 test("baseline requires --config and its rules are explained", async () => {
-  const run = (...args) =>
-    promisify(execFile)(process.execPath, [cli, ...args]).then(
-      (r) => ({ code: 0, ...r }),
-      (e) => ({ code: e.code, stdout: e.stdout, stderr: e.stderr }),
-    );
   assert.equal((await run("baseline", "check")).code, 2);
   assert.match((await run("baseline", "check")).stderr, /--config/u);
   assert.match(

@@ -194,33 +194,35 @@ export function registerDiscoveryCases(): void {
   });
 }
 
+const nested = (version: string, extra = {}) => ({
+  schemaVersion: 1,
+  authority: fmsStandard(version),
+  scope: {
+    workspaceContainers: ["packages"],
+    productionRoots: [sourceRoot],
+    productionModules: [{ moduleRoot, sourceRoot }],
+  },
+  adoption: {
+    applicationRoots: [],
+    excludedRoots: ["spikes"],
+    abstractLayout: { modules: [{ moduleRoot, sourceRoot, testRoot: `${moduleRoot}/tests` }] },
+  },
+  ...extra,
+});
+
+const flat = (version: string, extra = {}) => ({
+  schemaVersion: 1,
+  standard: fmsStandard(version),
+  topology: { sourcePolicy: "source.yaml" },
+  productionRoots: ["packages"],
+  applicationRoots: [],
+  excludedRoots: ["spikes"],
+  modules: [{ root: moduleRoot, sourceRoot, testRoots: [`${moduleRoot}/tests`] }],
+  ...extra,
+});
+
 export function registerTopologyCases(): void {
   void test("a v1.1 production mapping with a sub-feature and a composition contract reads the same topology as its v1 twin", () => {
-    const nested = (version: string, extra = {}) => ({
-      schemaVersion: 1,
-      authority: fmsStandard(version),
-      scope: {
-        workspaceContainers: ["packages"],
-        productionRoots: [sourceRoot],
-        productionModules: [{ moduleRoot, sourceRoot }],
-      },
-      adoption: {
-        applicationRoots: [],
-        excludedRoots: ["spikes"],
-        abstractLayout: { modules: [{ moduleRoot, sourceRoot, testRoot: `${moduleRoot}/tests` }] },
-      },
-      ...extra,
-    });
-    const flat = (version: string, extra = {}) => ({
-      schemaVersion: 1,
-      standard: fmsStandard(version),
-      topology: { sourcePolicy: "source.yaml" },
-      productionRoots: ["packages"],
-      applicationRoots: [],
-      excludedRoots: ["spikes"],
-      modules: [{ root: moduleRoot, sourceRoot, testRoots: [`${moduleRoot}/tests`] }],
-      ...extra,
-    });
     const subFeature = {
       features: [
         {

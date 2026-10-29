@@ -69,12 +69,13 @@ async function addPackageSourceFiles(consumerRoot, paths) {
   }
 }
 
+const run = (paths) =>
+  withCopiedFixture("v2-valid", async (consumerRoot) => {
+    await addPackageSourceFiles(consumerRoot, paths);
+    return runSourceCapability(consumerRoot);
+  });
+
 test("v2 closes sibling-source escapes deterministically while v1 stays unchanged", async () => {
-  const run = (paths) =>
-    withCopiedFixture("v2-valid", async (consumerRoot) => {
-      await addPackageSourceFiles(consumerRoot, paths);
-      return runSourceCapability(consumerRoot);
-    });
   const first = await run(["zeta.ts", "alpha.js"]);
   const second = await run(["alpha.js", "zeta.ts"]);
   assert.deepEqual(first.diagnostics, second.diagnostics);

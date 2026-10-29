@@ -442,12 +442,13 @@ function sidecarMetadata(id, overrides = {}) {
   });
 }
 
+const evidence = (path) => ({ digest, path, size: 1 });
+
 function fakeBuilder(documents, overrides = {}, Builder = BuildDocumentationCatalog) {
   let ownerReads = 0;
   let repositoryReads = 0;
   let sidecarReads = 0;
   const hasSidecar = overrides.sidecarChanges === true || overrides.sidecarDocuments !== undefined;
-  const evidence = (path) => ({ digest, path, size: 1 });
   return new Builder({
     metadata: {
       async load() {

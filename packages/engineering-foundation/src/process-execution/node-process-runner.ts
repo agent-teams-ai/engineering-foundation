@@ -283,6 +283,8 @@ async function cleanupManagedChild(child: ChildProcess, cause: CompletionCause):
   await terminateNodeManagedProcess(child);
 }
 
+const cleanup: NodeCleanupHook = (child, cause) => cleanupManagedChild(child, cause);
+
 function createManagedNodeAdapter(
   context: NodeManagedProcessRuntimeContext,
   diagnostics: WrapperStderrDiagnostics,
@@ -295,7 +297,6 @@ function createManagedNodeAdapter(
   const acquire: NodeAcquireHook = (request, retain) => {
     acquiredChild = spawnNodeManagedProcess(windowsRequest(request, context), retain);
   };
-  const cleanup: NodeCleanupHook = (child, cause) => cleanupManagedChild(child, cause);
   const nativeAdapter = createNodeProcessAdapter({ acquire, cleanup });
   return {
     launch: async (request) => {

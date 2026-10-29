@@ -630,6 +630,9 @@ test("v3 refuses a missing root source directory", async () => {
 });
 
 for (const typeOnly of [false, true]) {
+  const statement = (name) =>
+    typeOnly ? `export type { Value } from "${name}";\n` : `import "${name}";\n`;
+
   test(`v3 marker-owned root and child retain ${typeOnly ? "type-only" : "runtime"} package cycles`, async () => {
     await withV3Fixture(async (root, policy) => {
       await writeV3File(root, "package.json", {
@@ -650,8 +653,6 @@ for (const typeOnly of [false, true]) {
       await writeV3File(root, "packages/domain/src/package.json", { type: "module" });
       await saveV3Policy(root, policy);
       checkV3(root);
-      const statement = (name) =>
-        typeOnly ? `export type { Value } from "${name}";\n` : `import "${name}";\n`;
       await writeV3File(root, "tooling/task/src/index.ts", statement("@fixture/domain"));
       checkV3(root);
       await writeV3File(root, "packages/domain/src/index.ts", statement("@fixture/root"));

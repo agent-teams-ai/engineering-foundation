@@ -42,23 +42,25 @@ function registryFlags(manager: string): readonly string[] {
   return [prefix + "registry=" + REGISTRY, prefix + "@agent-teams:registry=" + REGISTRY];
 }
 
+const view = (manager: string, value: string) => [
+  manager,
+  "view",
+  value,
+  "version",
+  "--json",
+  ...registryFlags(manager),
+];
+
+const install = (manager: string, values: readonly string[]) => [
+  manager,
+  manager === "npm" ? "install" : "add",
+  "--save-dev",
+  "--save-exact",
+  ...registryFlags(manager),
+  ...values,
+];
+
 function expectedCommands(cli: string, mcp: string): readonly (readonly string[])[] {
-  const view = (manager: string, value: string) => [
-    manager,
-    "view",
-    value,
-    "version",
-    "--json",
-    ...registryFlags(manager),
-  ];
-  const install = (manager: string, values: readonly string[]) => [
-    manager,
-    manager === "npm" ? "install" : "add",
-    "--save-dev",
-    "--save-exact",
-    ...registryFlags(manager),
-    ...values,
-  ];
   const init = [
     "docs-protocol",
     "init",

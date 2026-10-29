@@ -168,6 +168,12 @@ async function assertRegistryLinks(fixture, source, destination, entries, diagno
   diagnostic(`store registry links: ${count}; inventory limited to first 16`);
 }
 
+const rows = (db) =>
+  db
+    .prepare("SELECT key, data FROM package_index ORDER BY key")
+    .all()
+    .map((row) => ({ key: row.key, hash: hash(row.data) }));
+
 // Caller has awaited the complete V1 -> V2 -> V1 lifecycle: no store writer remains.
 // Copy every file, including committed WAL and metadata, before opening ONLY the copy.
 export async function retrievalStoreCopy(fixture, name, diagnostic = () => {}) {
@@ -212,11 +218,6 @@ export async function retrievalStoreCopy(fixture, name, diagnostic = () => {}) {
   const database = join(destination, databases[0]);
   const adapter = fixture.target.packages.docsProtocolAgentTeams;
   const key = `${adapter.integrity}\t@agent-teams/docs-protocol-agent-teams@${adapter.version}`;
-  const rows = (db) =>
-    db
-      .prepare("SELECT key, data FROM package_index ORDER BY key")
-      .all()
-      .map((row) => ({ key: row.key, hash: hash(row.data) }));
   let deleted;
   let original;
   function mutate(restore) {
@@ -247,16 +248,17 @@ export async function retrievalStoreCopy(fixture, name, diagnostic = () => {}) {
       db.close();
     }
   }
+  const outsideDatabase = (tree) =>
+    Object.fromEntries(
+      Object.entries(tree.entries).filter(([path]) => !path.startsWith(databases[0])),
+    );
+
   async function remove() {
     const beforeRemoval = await retrievalTree(destination);
     mutate(false);
     const afterRemoval = await retrievalTree(destination);
     // SQLite may checkpoint/create sidecars; every other cache file (including metadata)
     // must retain its exact bytes and mode. Other package_index blobs are checked above.
-    const outsideDatabase = (tree) =>
-      Object.fromEntries(
-        Object.entries(tree.entries).filter(([path]) => !path.startsWith(databases[0])),
-      );
     assert.deepEqual(outsideDatabase(afterRemoval), outsideDatabase(beforeRemoval));
   }
   return {

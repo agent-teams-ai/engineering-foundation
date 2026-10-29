@@ -1,0 +1,69 @@
+{
+  "kind": "single-linux-kill-control-proposal/v1",
+  "status": "SOURCE_ONLY_AWAITING_ROOT_REVIEW_NO_EFFECTS",
+  "priorPassingRun": 40811411158,
+  "workflowId": 334372435,
+  "branch": "test/gen3-linux-kill-control-20261029",
+  "files": {
+    "README.md": {
+      "sha256": "292d7c8da37760133901cf41937171f1e0e71a4474d669938a73f2e31bce1c4d",
+      "bytes": 2177
+    },
+    "control-change.patch": {
+      "sha256": "bcfa42d7f0cac8feacdff59964785d9924ba5c91a97bb29a453096f5f60255ea",
+      "bytes": 21051
+    },
+    "inputs.ts": {
+      "sha256": "36c77a758d97a291849ce4d98a58a45d3ea9bf2f9937c6e8e9225c2157fb02f7",
+      "bytes": 1615
+    },
+    "kill-inputs.json": {
+      "sha256": "991c6dedd817d75264daf8444e91a2b1a854560587b276cf1959190cf3a697c6",
+      "bytes": 1285
+    },
+    "linux-kill-control.ts": {
+      "sha256": "13725b13947c604a80ce418d4f91ed99ac297485f556a240428c2dd7314db6bc",
+      "bytes": 14499
+    },
+    "node-or-bun-0.2.5.tgz": {
+      "sha256": "1ce3f9bf3e9ff9028207c52edde4039a5687e85fc6e5713a827dd59eb5e53ecb",
+      "bytes": 35491
+    },
+    "package.json": {
+      "sha256": "a90fc33418afa2b9cbf4768524b021135b965ecdf993457505bfae3ac44a8428",
+      "bytes": 33
+    },
+    "parent-v2-independent-review.json": {
+      "sha256": "655dd8df5e23f9d4c253bb09018cf6abcf093b13e7cd468acc4793f17a924141",
+      "bytes": 8709
+    },
+    "parent-v2-manifest.json": {
+      "sha256": "ae9d1be39ef579ff19431fa5688792ffa6844132cd0549214061178cd464b7da",
+      "bytes": 4539
+    },
+    "parser-control.json": {
+      "sha256": "ed237ad4a69b1592320733f4df0d763e58e3cbef64fb207410929ba0b60a179d",
+      "bytes": 235
+    },
+    "performance.yml": {
+      "sha256": "0a0ae3d0c06af0ac30f36431b3a2642fe820d02f63e4adaa2601ef3c3da73ac1",
+      "bytes": 1443
+    },
+    "process-owner.ts": {
+      "sha256": "6db85c6b8d266854801e7c27249f56b21aae179d54550ee2297b203632280ac4",
+      "bytes": 4454
+    },
+    "tool-bootstrap.ts": {
+      "sha256": "1c475329ce94ff03ca1ff99efad3d77787e1df9a216fed7b4bbf188eb229043c",
+      "bytes": 4288
+    },
+    "tsconfig.json": {
+      "sha256": "7942b27608057ea3141e229b00f9188b090317c9d3d1a51067a09fba3ac9046c",
+      "bytes": 624
+    },
+    "validation.json": {
+      "sha256": "4d19a58537d91ed5b333010e8b6694a2a51bba047e2ccb355502cedd1b255064",
+      "bytes": 363
+    }
+  }
+}

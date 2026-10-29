@@ -1,0 +1,11 @@
+{
+  "status": "SOURCE_ONLY",
+  "strictTypeScript": "7.0.2 PASS",
+  "nodeSyntax": "4 TS sources PASS",
+  "fixedActorSyntax": "leader+descendant commonjs parse PASS",
+  "workflow": "Ruby Psych YAML PASS",
+  "shell": "bash -n PASS",
+  "unchangedPublicMechanism": "all four exact original hashes PASS",
+  "actualLinuxSIGKILLControl": "NOT_RUN",
+  "effects": "NONE"
+}

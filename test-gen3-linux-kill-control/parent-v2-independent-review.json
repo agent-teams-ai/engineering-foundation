@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 1,
+  "reviewRole": "Independent repaired private lifecycle source reviewer",
+  "verdict": "CODE_GO_SOURCE_REPAIR_ONLY_HOLD_ACTUAL_TUPLE_AND_LINUX_QUALIFICATION",
+  "timeUtc": "2026-10-29T02:42:07.297160+00:00",
+  "sourceManifest": {
+    "path": "/Volumes/Transcend/TEST-runtime-current-source-20261028/gen3-lifecycle-execution-preparation-20261029/runner-proposal-v2/manifest.json",
+    "bytes": 4539,
+    "sha256": "ae9d1be39ef579ff19431fa5688792ffa6844132cd0549214061178cd464b7da"
+  },
+  "coordinator": {
+    "path": "/Volumes/Transcend/TEST-runtime-current-source-20261028/gen3-lifecycle-execution-preparation-20261029/runner-proposal-v2/coordinator.ts",
+    "bytes": 21401,
+    "sha256": "9b4f40d24142f443ded22d4491eef63ebf8a840217200d00ca71b4f302e028e7"
+  },
+  "patch": {
+    "path": "/Volumes/Transcend/TEST-runtime-current-source-20261028/gen3-lifecycle-execution-preparation-20261029/runner-proposal-v2/change.patch",
+    "bytes": 107039,
+    "sha256": "7fc4c5c7d8eaa1bc80decdb6a85875d8b40699ce21dc4c5dd89db8dc778635b3"
+  },
+  "reviewedFrozenFileCount": 25,
+  "findings": [],
+  "priorReview": {
+    "manifestSHA256": "9443621921319b6d72eed5d8f3aa46a6feb0461165029b2e1f55d91ba48425d2",
+    "reviewSHA256": "c68666564cd0261e1835864397b48d7928f834ea8a0d2b33db663b73d8bd860c",
+    "originalBytesPreserved": true
+  },
+  "repairAssessment": [
+    {
+      "id": "R1",
+      "status": "RESOLVED_IN_SOURCE",
+      "evidence": "The used managedCliArguments function accepts only upgrade/finalize/restore and emits [cli,...args,--consumer,root,--json] without the unsupported consumer prefix. Coordinator calls that helper. Retained original and corrected command templates differ only by removing the same unsupported prefix, including recovery and committed-restore examples."
+    },
+    {
+      "id": "R2",
+      "status": "RESOLVED_IN_SOURCE",
+      "evidence": "Selection/controller manifest/native lock/publisher input are captured from bounded canonical regular single-link descriptors with selected hashes and before/after/named identity checks. Controller install files are wx/mode0600 writes from captured Buffers, and the helper checks buffer digest before writing. No original controller input path is reopened for installation. The rejecting drift control covers replacing source paths, overwrite refusal and mutated capture refusal."
+    },
+    {
+      "id": "R3",
+      "status": "RESOLVED_SOURCE_CONFIGURATION_LINUX_BEHAVIOR_PENDING",
+      "evidence": "Actual lifecycle transport now uses qualified NOB0.2.5 completion/capture with the public paired acquire/cleanup hooks. The private Linux Host starts its own detached ordinary inherited POSIX group, retains actual child identity, requests TERM then KILL within the library cleanup budget and treats only ESRCH as absence. Observation/signal/unproven-settlement debt prevents another launch; complete NOB and group facts flow into carrier evidence. No sync direct-child timeout remains on the lifecycle route. Actual two Linux group controls are source/typechecked but not run; the proposed HOLD workflow requires them before controller/source installation."
+    }
+  ],
+  "scopeClarificationAddon": "node-or-bun0.2.5 default Node adapter owns direct-child cleanup only; it is not an owned-tree guarantee. NOB remains the universal completion/capture/cleanup-facts mechanism. The finite TEST Host owns ordinary inherited Linux group acquisition/cleanup through public paired hooks, using the reviewed private Foundation algorithm as reference without a private import or new public SPI. The default adapter appears only in the explicitly ordinary nonzero/capture probe. The outer Host does not adopt or signal source-owned detached managed-probe groups. Any failed/uncertain controller call requires source-owner reconciliation, preserves selection/proofs/outer-group facts and stops; successful application terminal facts remain the actual public CLI completion/restore contract.",
+  "otherConfirmedBoundaries": [
+    "Builtin NULL/HOLD/tuple/path checks precede tool prefix materialization/import. Workflow literal HOLD still refuses before checkout/setup. Root-selected bootstrap ordering uses only the exact pinned public NOB archive before live read-only admission; controller/source installs remain after all four fresh public repository checks and actual protected QUALIFIED/desired3-observed2 admission checks.",
+    "Public NOB ESM import exports are selected from declared public exports and contained canonical paths, not CJS require of an ESM-only root. Installed RM identity script likewise selects its declared public import export. No private consumer implementation import or new public lifecycle seam was added.",
+    "The original controller identity/archive, exact preparation-byte selection, normal finalize -> separate same-argv cold process -> source image/mode/installed-lock restoration -> distinct fresh forward selection order remains. Root receives tracked plus nonignored new-file delivery patch; no uncertain operation is automatically replayed or re-prepared.",
+    "No synthetic consumer provider identity is introduced: only the two foreign carrier repository identity variables are removed for controller children. Trusted real-consumer receipt, product/native/default-branch gates and Central adoption remain separate."
+  ],
+  "publicControlAsset": {
+    "archive": {
+      "path": "/Volumes/Transcend/TEST-runtime-current-source-20261028/gen3-lifecycle-execution-preparation-20261029/runner-proposal-v2/node-or-bun-0.2.5.tgz",
+      "bytes": 35491,
+      "sha256": "1ce3f9bf3e9ff9028207c52edde4039a5687e85fc6e5713a827dd59eb5e53ecb"
+    },
+    "sri": "sha512-oPk7oyOqj+5TUPVsmq9cpCBNobD/DEFiKHdhXyt9n0Ncr0cFcrQEO56dro8yK+DREog7mk4FULojIi8joTWp7w==",
+    "packedRegularUniqueFiles": 52,
+    "derivedFileCount": 52,
+    "allDerivedBytesExact": true,
+    "deployedAsset": "Only qualified tgz plus reviewed private bootstrap; derived local prefix is not deployment source."
+  },
+  "retainedVerification": {
+    "receipt": {
+      "path": "/Volumes/Transcend/TEST-runtime-current-source-20261028/gen3-lifecycle-execution-preparation-20261029/runner-proposal-v2/verification.json",
+      "bytes": 390,
+      "sha256": "731205251275e7532f87ef4304da41c86f55d8c8b9db3bcaa1907ee17a3f763f"
+    },
+    "localControls": {
+      "path": "/Volumes/Transcend/TEST-runtime-current-source-20261028/gen3-lifecycle-execution-preparation-20261029/runner-proposal-v2/local-controls.tap",
+      "bytes": 544,
+      "sha256": "0904999ffcfcfea1061d70b7bd33dfed0567a092b97a001b3d1fa5acc8f939d8"
+    },
+    "HOLDControls": {
+      "path": "/Volumes/Transcend/TEST-runtime-current-source-20261028/gen3-lifecycle-execution-preparation-20261029/runner-proposal-v2/hold-control.json",
+      "bytes": 1263,
+      "sha256": "a466121764c2e7ba28a1f48dd2be3b59565af798c3d03993914f3be763b5b7b2"
+    },
+    "ownerSourceFacts": {
+      "path": "/Volumes/Transcend/TEST-runtime-current-source-20261028/gen3-lifecycle-execution-preparation-20261029/runner-proposal-v2/owner-source-facts.json",
+      "bytes": 1303,
+      "sha256": "f58fdc5f826e1330204683ba530a1eb3181dae5c0e0e4055549e08bc3e208ae7"
+    },
+    "reviewerReranTests": false
+  },
+  "limits": [
+    "GO covers repaired source preparation only. Checked-in selection/workflow remain HOLD; no actual public/controller/Central tuple is admitted by this verdict.",
+    "Actual Linux child+descendant timeout settlement and observation-denial/debt/next-launch controls remain NOT RUN and must pass on the intended Linux control runtime before controller/source installation. They are not relabeled as local or cross-platform qualification.",
+    "Actual public controller/RM installation, source lifecycle, finalizer cold path, restoration, new forward, public package/runtime tuple and real consumer PR/native gates remain unexecuted. Future actual input and changed activation/workflow bytes need exact binding/review.",
+    "No claim of adversarial setsid containment, independent detached-probe cleanup, process-death recovery or universal tree supervision is made. Uncertain source-owned operations stay with their existing recovery owner.",
+    "Reviewer only read source, retained public declarations, manifests/archive bytes, diff and receipts. No candidate code, tests, compiler, install, audit, lifecycle, dispatch, commit or push was run."
+  ],
+  "effects": {
+    "sourceEdits": false,
+    "tests": false,
+    "install": false,
+    "lifecycle": false,
+    "push": false,
+    "dispatch": false,
+    "onlyWrite": "/Volumes/Transcend/TEST-runtime-current-source-20261028/gen3-lifecycle-execution-preparation-20261029/runner-proposal-v2/independent-review.json"
+  }
+}

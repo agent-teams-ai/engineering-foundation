@@ -1,42 +1,332 @@
-name: Performance signals
+name: TEST normal whole managed pnpm checkpoint HOLD
+run-name: TEST managed pnpm checkpoint ${{ github.sha }}
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "17 3 * * *"
-  push:
-    branches:
-      - main
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
-  group: foundation-performance-${{ github.ref }}
-  cancel-in-progress: true
+  group: test-format-coverage-${{ github.ref }}-${{ github.sha }}
+  cancel-in-progress: false
 
 jobs:
-  advisory-performance:
-    name: advisory-performance
+  test-format-coverage-linux:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/test/managed-pnpm-normal-20261029-2d7ffa7b'
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 180
+    env:
+      QUALIFICATION_HOLD: REVIEWED_FOR_ONE_NORMAL_WHOLE_ATTEMPT
+      SUBJECT_SHA: 2d7ffa7bd0633489b7ea574cd5fcb41ad6ce6970
+      SUBJECT_TREE: d54605765799c516124742d41e17f5923e333d71
+      SOURCE_PARENT_SHA: ae9a475407353bd7e4beea500085ee5005bf00d5
+      SOURCE_GRANDPARENT_SHA: 14753dc266247620c95abd96d78c0c9069431130
+      SOURCE_GREATGRANDPARENT_SHA: 303903aadbee376290898d4e119fc35b5104ecf6
+      SOURCE_GREATGREATGRANDPARENT_SHA: 85ff51124eed88c12c4a7ad8b601b168f0453638
+      BASE_SHA: 046976291864b9f0281213018232272a1ac4ed8c
+      WORKFLOW_SHA: ${{ github.workflow_sha }}
+      WORKFLOW_REF: ${{ github.workflow_ref }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
           persist-credentials: false
+      - name: Admit only the frozen TEST source and workflow child
+        id: source
+        shell: bash
+        run: |
+          unset GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_AUTHOR_DATE GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL GIT_COMMITTER_DATE NODE_COMPILE_CACHE NODE_OPTIONS NODE_PATH AGENT_TEAMS_FOUNDATION_PROFILE_ROOT AGENT_TEAMS_FOUNDATION_SOURCE_ROOT AGENT_TEAMS_FOUNDATION_SOURCE_SHA AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE
+          set -Eeuo pipefail
+          evidence="${RUNNER_TEMP}/test-format-coverage"
+          mkdir -p "$evidence" "${RUNNER_TEMP}/f" "${RUNNER_TEMP}/test-format-cache"
+          printf 'EVIDENCE=%s\nTMPDIR=%s\nBUN_INSTALL_CACHE_DIR=%s\nnpm_config_cache=%s\nNX_CACHE_DIRECTORY=%s\n' "$evidence" "${RUNNER_TEMP}/f" "${RUNNER_TEMP}/test-format-cache/bun" "${RUNNER_TEMP}/test-format-cache/npm" "${RUNNER_TEMP}/test-format-cache/nx" >> "$GITHUB_ENV"
+          cat > "$evidence/source.sha256" <<'SOURCE77'
+          43d942eb1461bab635edc351f09f3a784be15f27870bef0e304f355a10163154  .changeset/coherent-managed-pnpm-engine.md
+          8a80f4e24b5d7d0b3fc82e1a3048f152fb73652a4d781c786b3a852d19e9d5d6  .changeset/complete-format-input-coverage.md
+          9a01083247fee4671fc3d36225aa23de3479a2ee0217e462d13ebe35a5a113a2  .changeset/literal-format-files.md
+          26b780496a1fac8435a7aa709d4f5dba81218e4dee49d38ffb7b1a3941eaab6b  architecture/decisions/accepted-decisions.json
+          6a402a00e61d61ff0a2f15de51198e3f3ab72010bae7bc722853df4a31ee57cd  architecture/foundation/feature-modules.json
+          811409e58e24573f560a4ae5d5064a2f70fb651d96745f19328c579e766d3b7c  architecture/foundation/public-api-compatibility.yaml
+          d6f697be275bf831b99592b0b05db873e8bfbc64f5563c043372fcc0e3ab49b0  architecture/foundation/source-dependencies.yaml
+          ca4c0d397196573ba453c89ecd7cc343438862879ea0ad8bad8d6254152c4ce4  bun.lock
+          56840ee0b5cbe12b56ef2bddbdd2e57ab932da612b7d6d7c9f731bdb3f69bd6e  docs/decisions/0071-quality-coverage-strict-json-consumer-admission.md
+          a054144e1c16f7b5d962bf5ad9a5e6d7408dab3f7750a3a72818facf4aeee526  docs/decisions/0072-explicit-toolchain-literal-format-api.md
+          67991643e9ee838b8bf0c7bab319d1c3919a1aa68b0ab27930dbb710679782c9  docs/decisions/0073-coherent-managed-pnpm-engine-projection.md
+          64c3fb9ec098b12c7bdd4cd1035542a29beded4b32a9e2186a4026e01cad84e1  docs/decisions/README.md
+          1e48453d540bf176179c3252b2d6dfa7a0f4f9f79448d8bf19e7aa00c46188d1  docs/reference/quality-format-coverage.md
+          c60ed57281efbc2f4896b83d72bdb7e8efeb402a5a9349bbd74a7dd077027b3c  package.json
+          3c29ce37538bd6991f9cb566d25f18f0140e3e445ca587c6a079b02426362b42  packages/docs-protocol-agent-teams/src/consumer-integration/adapters/managed-generation-projectors.ts
+          9d16e54bcbf37eb96c1511d65c4321a3ee5ba20d0b4eac92aa8f303932da5888  packages/docs-protocol-agent-teams/tests/consumer-upgrade-generation3.test.ts
+          d27aa3737e18e86f13224e378d89569dd0c7d3dec5fb496462e6cf83b701537b  packages/engineering-foundation/package.json
+          acb8dcb2bdf2ca5673f77e1f5b7c8e6e6f3e19a8dc060f0223c0e6bbe0a5d7e8  packages/engineering-foundation/schemas/foundation-config/v3.schema.json
+          7d0e18c49ba09ac7df685f6b5bda486b6eb65aa70ca4cb39476f0bc9778797d8  packages/engineering-foundation/schemas/quality-format-coverage/v1.schema.json
+          2791107956a7818e41228e1396c4f67c3f608b3788b5a2c4a927e36d97504290  packages/engineering-foundation/src/capabilities/quality-gate-runner/api.ts
+          d586ea5148b90097bc2caa8f4da6a115e0039029ef3134bf2b77889188281364  packages/engineering-foundation/src/capabilities/quality-gate-runner/application/use-cases/create-quality-gate-command.ts
+          ef164dde62e6a5f34f38e02c9184e9d869cc8c3d4acf7c3f7ac680e117d83650  packages/engineering-foundation/src/capabilities/quality-gate-runner/application/use-cases/run-quality-gate-profile.ts
+          afeb4591501fa857c97670dceb098186e44bd93b68c33fbb320843c63f47b203  packages/engineering-foundation/src/capabilities/quality-gate-runner/composition/node-quality-gate-command.ts
+          4c684e76d29a09d472102113d9aa7cc61b3f1c647382cc70dd178749eaba67b7  packages/engineering-foundation/src/capabilities/quality-gate-runner/module.ts
+          61b4175a78a25869ab36a3db9f17167a07d1c2130aac11bb8f16d08c7cb56638  packages/engineering-foundation/src/capabilities/source-dependencies/adapters/outbound/node/selected-package-source-discovery.ts
+          89cec2c44c87a88d07f7f15319db04ba68fc4af38882ed0b0bcb5411a9a51a30  packages/engineering-foundation/src/capabilities/source-dependencies/adapters/outbound/node/source-census-reader.ts
+          8cb2e53c40b0f0a83f7247412e0126700cc05838b8304b439a3892f0882d1a7c  packages/engineering-foundation/src/capabilities/source-dependencies/application/ports/source-census-reader.ts
+          674ddb762c164aa6fdb58ea3b3afd2b49a523a6c5ac2a14805d3bd6efde3c5de  packages/engineering-foundation/src/composition/capability-modules.ts
+          f41d79fdad8963f97e724d9fcded6fe9902dbe99480409bc03befdd712d6fc3e  packages/engineering-foundation/src/composition/command-host.ts
+          5b923cad1bf6e1cccfc8803d98107b10c244c25b975a28e978a3d99026cb1f27  packages/engineering-foundation/src/composition/format-coverage.ts
+          c3ca3f466508dde98ada1d797583545e9d9923ac31e2fa17f590a4cb8fd175ef  packages/engineering-foundation/src/features/command-host/adapters/inbound/cli/cli-arguments.ts
+          968785ec41730c00a2ce215d978654a4dc939a92a1054ac366612f586619401a  packages/engineering-foundation/src/features/command-host/adapters/inbound/cli/cli-output.ts
+          9c57a57062c0bb90e77a12fd9ccc91fb4531fbfec9cb1b715cbff2f7fb682323  packages/engineering-foundation/src/features/command-host/adapters/inbound/cli/foundation-cli.ts
+          e597def3fb9204668de6737ca663026b44a519c96a4a07e304e213b5b0dcaa12  packages/engineering-foundation/src/features/command-host/application/command-services.ts
+          ef14546bbed70039958134152f5759a387c2f434ab0b54bc7a6741223a188354  packages/engineering-foundation/src/features/command-host/composition/node-command-host.ts
+          9d81e71ea23575a433fded55de46a018ad3c1a2464eb53196f2cb5454b48ec98  packages/engineering-foundation/src/features/foundation-check/adapters/inbound/config/foundation-config-reader.ts
+          a6568f7c6545a6fd16c3ee80c3d453592f5f30c666b59ebe27d5a00f2127c92c  packages/engineering-foundation/src/features/foundation-check/application/ports/foundation-config-input.ts
+          fdd6473ffc3f0228d3e1b612c38a2fc51cf878d9e7c8daff4c60fea62a5f1861  packages/engineering-foundation/src/features/foundation-check/schemas.ts
+          a9862f2c2f583b4d5de77a611b244523a8edd741f4b9941039d2ee1495286e5b  packages/engineering-foundation/src/features/quality-coverage/adapters/consumer-toolchain.ts
+          1c339cba6ae1e922e5e84a95e0e3821ca434fbf7fc1342ca1236bb1b836fee19  packages/engineering-foundation/src/features/quality-coverage/adapters/format-authorities.ts
+          ebd61cbb4b15542f7a8b027c2ee4c68c9eff4e518b933388369e7cf31c3d6fc8  packages/engineering-foundation/src/features/quality-coverage/adapters/format-command.ts
+          8b1474f0fc40e0e48b1161365ce7e8227ac4caba855f225f00905994762e8da9  packages/engineering-foundation/src/features/quality-coverage/adapters/format-observations.ts
+          3d66347dc1b751f4075beb81194b350f387f14effc8ba78b9e885f31307810f3  packages/engineering-foundation/src/features/quality-coverage/adapters/format-toolchain.ts
+          b03e1f0673dd96de0c64dac89f64b019864f95295a87140ecc1eea648cd4f13c  packages/engineering-foundation/src/features/quality-coverage/api.ts
+          1a54a8cd2e281358f94ee2c205e976b90fd42429c0ba9ec7ed2848f24eb181bc  packages/engineering-foundation/src/features/quality-coverage/application/check-format-coverage.ts
+          5a7c1a9323e7467c76b93e2a7f9b507cd38f2be88745ae46847860738e2d16ac  packages/engineering-foundation/src/features/quality-coverage/application/format-coverage-ports.ts
+          46a469b5b7114aecce6c19656b7bc1538ea8dcd43506ab16efaf82f3a91c33ce  packages/engineering-foundation/src/features/quality-coverage/application/format-coverage.ts
+          3d1baf24ee39853c956f5a09fff152e80bc75db15704d0c58e1ec86275857bc3  packages/engineering-foundation/src/features/quality-coverage/application/script-route.ts
+          fff7285755563520bc3ad407798509f398ea897676289fd29b4afb802a509ee5  packages/engineering-foundation/src/features/quality-coverage/node.ts
+          fb2aa487cd4403d67b945893500d0822fabc75816d9451e56909ef074ad4ea99  packages/engineering-foundation/src/features/quality-coverage/schemas.ts
+          e4db04a1c58670bb933080e885d2a5fd73e03f7eecd908529408852660a1fdee  packages/engineering-foundation/src/process-execution/node-process-runner.ts
+          1854d0c766cd0da1bc48598bcf760a3c9ff3fceaf72692ad69160115bc59f694  packages/stack-toolchain/README.md
+          70d05ac4a9d8992b997fe33acf73fb1b493f16ac5305b67f50878c73d8e6d200  packages/stack-toolchain/src/features/toolchain-execution/adapters/commands.ts
+          40ce1b09bae08cd1df77577b4c7eb1365c0db3b03f4381c7e76802d9a7308c95  packages/stack-toolchain/src/features/toolchain-execution/adapters/format-files.ts
+          82cf7447ffcdb4429792dee11b20a4987121c00722aef0b6f067a546e468f5d7  packages/stack-toolchain/src/features/toolchain-execution/adapters/process.ts
+          d7726d04c2ba6a0643b98719d4bfec31a56c7988f16164c19afeb2e0a9594228  packages/stack-toolchain/src/index.ts
+          9703387cfcc29449fd5360e3961cea7b41fc105327d7615161c7c34e7e1aa929  packages/stack-toolchain/tests/cli.test.ts
+          7929102e68dca8e6dc13de75b84917273ad730db9c9645f6f1f2a1907ae06746  packages/stack-toolchain/tests/lint-presets.test.ts
+          041e54d792deb953a9b510c291c628e3af10d35fe0c903f212040a1049f6f74f  packages/stack-toolchain/tests/process.test.ts
+          1704511cafd0f318baff03f398f2a294d3b4ac2ae3021cd570b825858b862f7b  pnpm-lock.yaml
+          3cb0b81e802ad4fc3b6dc36bda8805784f4f5986625d63223d19fcadd92764e2  pnpm-workspace.yaml
+          f895dfe12c8000c331b6b34429fcbf3d262527c54def0090a45b2a3faa257bf0  scripts/pack-artifact-archive.mjs
+          7b409ce1e25941520fd370ef0354d3f24a391447ac6988b78a9363299c202b02  scripts/pack-quality-coverage-test.mjs
+          7cd0423fca41938b20faba3c2704cd81807da34ae4f48648d94304992306ccc4  scripts/packed-stack-toolchain-qualification.ts
+          f98b2f1c2a184799768379dc09db928e3907a9b4ef4638cdb35104e485a1e418  tests/capability-policy-schema-cases.ts
+          990a73788e43d645dc311e4f8955e4744fa03038e061218fcb5e27b72d626179  tests/capability-reporting-architecture.test.mjs
+          8d6d5bf781edb444a0ac6ba3fbdc4f1ecea5feb7e258cb49d6b489858d7445cc  tests/capability.test.mjs
+          e4851d0ab3819c53d0de920f980e787a59d53c0795e6bab1139d84b5965fd38f  tests/features/quality-coverage/format-coverage-admission.ts
+          f773806ada2220aa5ee09f9d8836c2dde942a91867e846c1bd347d9c2b49e322  tests/features/quality-coverage/format-coverage-seams.ts
+          44c7fdc8ac4376f37ce3aae92fedee29141186714902b56714c62b372748ddd6  tests/features/quality-coverage/source-observation-fixture.ts
+          066979f4df81dcc57406c82142616d951f3454c6c8ab311715e5b4180e6a564c  tests/features/quality-coverage/source-observations.test.mjs
+          741bc7eb2930bf5609b26fcc8eb9177e72fee0d72c43b5dcc100a6f4afc7cab8  tests/package-archive-entry-budget.test.mjs
+          13914f292f66bbfb0f57b1a2da94624b6aaf71779bcb4ade3d0cfae6abf87112  tests/package-release-inventory.test.mjs
+          5cce465c00fe733f7df025a358e209b61c7b591bbe9e25decdcc3d789e31086a  tests/public-docs-documented.test.ts
+          3655c84c264c36b29d5600e0940b4ce08eb547f9ad9f1ee10cd57cb54edf368c  tests/scaffolding-frozen-baseline.test.mjs
+          f373599f91e4aa2bbaae87e885cac2482a71db750164080375ff0c9b506e9c21  tests/single-current-contract-version.test.mjs
+          a08869aa93f075cc98f9154feecd8346150f3c02e004e23b493de83494263620  tsconfig.ci-tooling.json
+          SOURCE77
+          test "$QUALIFICATION_HOLD" = REVIEWED_FOR_ONE_NORMAL_WHOLE_ATTEMPT
+          test "$GITHUB_EVENT_NAME" = workflow_dispatch
+          test "$GITHUB_REPOSITORY" = agent-teams-ai/engineering-foundation
+          test "$GITHUB_REF" = refs/heads/test/managed-pnpm-normal-20261029-2d7ffa7b
+          test "$WORKFLOW_REF" = agent-teams-ai/engineering-foundation/.github/workflows/performance.yml@refs/heads/test/managed-pnpm-normal-20261029-2d7ffa7b
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$WORKFLOW_SHA" = "$GITHUB_SHA"
+          test "$(git merge-base HEAD refs/remotes/origin/main)" = "$BASE_SHA"
+          git rev-parse refs/remotes/origin/main > "$evidence/observed-main.txt"
+          { uname -a; cat /etc/os-release; printf 'runner=%s os=%s arch=%s\n' "$RUNNER_NAME" "$RUNNER_OS" "$RUNNER_ARCH"; nproc; free -b; df -B1 "$RUNNER_TEMP"; } > "$evidence/resources-before.txt"
+          test "$(git show -s --format=%P HEAD)" = "$SUBJECT_SHA"
+          test "$(git rev-parse "$SUBJECT_SHA^{tree}")" = "$SUBJECT_TREE"
+          test "$(git show -s --format=%P "$SUBJECT_SHA")" = "$SOURCE_PARENT_SHA"
+          test "$(git show -s --format=%P "$SOURCE_PARENT_SHA")" = "$SOURCE_GRANDPARENT_SHA"
+          test "$(git show -s --format=%P "$SOURCE_GRANDPARENT_SHA")" = "$SOURCE_GREATGRANDPARENT_SHA"
+          test "$(git show -s --format=%P "$SOURCE_GREATGRANDPARENT_SHA")" = "$SOURCE_GREATGREATGRANDPARENT_SHA"
+          test "$(git show -s --format=%P "$SOURCE_GREATGREATGRANDPARENT_SHA")" = "$BASE_SHA"
+          test "$(git diff --name-only "$SUBJECT_SHA" HEAD)" = .github/workflows/performance.yml
+          test -z "$(git status --porcelain --untracked-files=all)"
+          test ! -e node_modules
+          test ! -e .git/objects/info/alternates
+          cut -c67- "$evidence/source.sha256" | LC_ALL=C sort > "$evidence/expected-paths.txt"
+          git diff --name-only "$BASE_SHA" "$SUBJECT_SHA" | LC_ALL=C sort > "$evidence/actual-paths.txt"
+          test "$(wc -l < "$evidence/expected-paths.txt")" -eq 77
+          cmp "$evidence/expected-paths.txt" "$evidence/actual-paths.txt"
+          sha256sum -c "$evidence/source.sha256" > "$evidence/source-before.txt"
+          git diff --exit-code "$SUBJECT_SHA" HEAD -- bun.lock pnpm-lock.yaml package.json .node-version architecture/foundation/repository-runtime.json toolchain.config.json
+          git show -s --format='%H %T %P' HEAD "$SUBJECT_SHA" "$SOURCE_PARENT_SHA" "$SOURCE_GRANDPARENT_SHA" "$SOURCE_GREATGRANDPARENT_SHA" "$SOURCE_GREATGREATGRANDPARENT_SHA" "$BASE_SHA" > "$evidence/git-binding.txt"
+          git rev-parse HEAD:.github/workflows/performance.yml >> "$evidence/git-binding.txt"
+          sha256sum bun.lock pnpm-lock.yaml .node-version architecture/foundation/repository-runtime.json toolchain.config.json > "$evidence/pins-before.txt"
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        id: setup-pnpm
+        env: { pnpm_config_pm_on_fail: ignore }
+        with: { version: "11.20.0", install: false }
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with: { bun-version: "1.4.3" }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version-file: .node-version
-      - run: bun tools/dev.mts install
-      - run: bun tools/dev.mts build
-      - name: Collect advisory benchmark signals
-        run: node scripts/run-performance-benchmarks.mjs --output "${RUNNER_TEMP}/foundation-performance.json"
-      - name: Upload immutable benchmark evidence
+        with: { node-version: "24.21.0" }
+      - name: Retain pinned generation2 and managed Node 24
+        shell: bash
+        run: |
+          unset GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_AUTHOR_DATE GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL GIT_COMMITTER_DATE NODE_COMPILE_CACHE NODE_OPTIONS NODE_PATH AGENT_TEAMS_FOUNDATION_PROFILE_ROOT AGENT_TEAMS_FOUNDATION_SOURCE_ROOT AGENT_TEAMS_FOUNDATION_SOURCE_SHA AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE
+          set -Eeuo pipefail
+          test "$(node --version)" = v24.21.0
+          printf 'PACK_TEST_GENERATION2_NODE=%s\nMANAGED_TEST_NODE24_SOURCE=%s\n' "$(node -p 'process.execPath')" "$(node -p 'process.execPath')" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: "26.10.0" }
+      - name: Retain pinned managed Node 26 source
+        shell: bash
+        run: |
+          unset GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_AUTHOR_DATE GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL GIT_COMMITTER_DATE NODE_COMPILE_CACHE NODE_OPTIONS NODE_PATH AGENT_TEAMS_FOUNDATION_PROFILE_ROOT AGENT_TEAMS_FOUNDATION_SOURCE_ROOT AGENT_TEAMS_FOUNDATION_SOURCE_SHA AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE
+          set -Eeuo pipefail
+          test "$(node --version)" = v26.10.0
+          printf 'MANAGED_TEST_NODE26_SOURCE=%s\n' "$(node -p 'process.execPath')" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version-file: .node-version }
+      - name: Bind exact physical tools and ephemeral fixture identity
+        env:
+          PNPM_ENTRY: ${{ steps.setup-pnpm.outputs.bin-dest }}/pnpm
+        shell: bash
+        run: |
+          unset GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_AUTHOR_DATE GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL GIT_COMMITTER_DATE NODE_COMPILE_CACHE NODE_OPTIONS NODE_PATH AGENT_TEAMS_FOUNDATION_PROFILE_ROOT AGENT_TEAMS_FOUNDATION_SOURCE_ROOT AGENT_TEAMS_FOUNDATION_SOURCE_SHA AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE
+          set -Eeuo pipefail
+          test "$(node --version)" = v26.11.1
+          test "$(bun --version)" = 1.4.3
+          test "$(pnpm --pm-on-fail=ignore --version)" = 11.20.0
+          printf 'AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE=%s\nAGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE=%s\nAGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT=%s\n' "$(node -p 'process.execPath')" "$(realpath "$(command -v bun)")" "$PNPM_ENTRY" >> "$GITHUB_ENV"
+          printf 'Node=%s\nBun=%s\npnpm=%s\n' "$(node --version)" "$(bun --version)" "$(pnpm --pm-on-fail=ignore --version)" > "$EVIDENCE/tools.txt"
+          printf 'NODE_DISABLE_COMPILE_CACHE=1\n' >> "$GITHUB_ENV"
+          git config --global user.name iliya
+          git config --global user.email iliyazelenkog@gmail.com
+      - name: Normal frozen Bun installation
+        id: install
+        shell: bash
+        run: |
+          unset GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_AUTHOR_DATE GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL GIT_COMMITTER_DATE NODE_COMPILE_CACHE NODE_OPTIONS NODE_PATH AGENT_TEAMS_FOUNDATION_PROFILE_ROOT AGENT_TEAMS_FOUNDATION_SOURCE_ROOT AGENT_TEAMS_FOUNDATION_SOURCE_SHA AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE
+          printf '%s\n' bun tools/dev.mts install > "$EVIDENCE/install.argv.txt"
+          if bun tools/dev.mts install > "$EVIDENCE/install.merged.log" 2>&1; then code=0; else code=$?; fi
+          cat "$EVIDENCE/install.merged.log"
+          printf '%s\n' "$code" > "$EVIDENCE/install.exit.txt"
+          exit "$code"
+      - name: Normal repository build
+        id: build
+        shell: bash
+        run: |
+          unset GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_AUTHOR_DATE GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL GIT_COMMITTER_DATE NODE_COMPILE_CACHE NODE_OPTIONS NODE_PATH AGENT_TEAMS_FOUNDATION_PROFILE_ROOT AGENT_TEAMS_FOUNDATION_SOURCE_ROOT AGENT_TEAMS_FOUNDATION_SOURCE_SHA AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE
+          printf '%s\n' bun tools/dev.mts build > "$EVIDENCE/build.argv.txt"
+          if bun tools/dev.mts build > "$EVIDENCE/build.merged.log" 2>&1; then code=0; else code=$?; fi
+          cat "$EVIDENCE/build.merged.log"
+          printf '%s\n' "$code" > "$EVIDENCE/build.exit.txt"
+          exit "$code"
+      - name: Existing workflow security route
+        id: security
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        shell: bash
+        run: |
+          unset GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_AUTHOR_DATE GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL GIT_COMMITTER_DATE NODE_COMPILE_CACHE NODE_OPTIONS NODE_PATH AGENT_TEAMS_FOUNDATION_PROFILE_ROOT AGENT_TEAMS_FOUNDATION_SOURCE_ROOT AGENT_TEAMS_FOUNDATION_SOURCE_SHA AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE
+          printf '%s\n' bun tools/dev.mts security:workflows > "$EVIDENCE/security.argv.txt"
+          if bun tools/dev.mts security:workflows > "$EVIDENCE/security.merged.log" 2>&1; then code=0; else code=$?; fi
+          cat "$EVIDENCE/security.merged.log"
+          printf '%s\n' "$code" > "$EVIDENCE/security.exit.txt"
+          exit "$code"
+      - name: Existing canonical fast and strict route
+        id: fast
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        shell: bash
+        run: |
+          unset GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_AUTHOR_DATE GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL GIT_COMMITTER_DATE NODE_COMPILE_CACHE NODE_OPTIONS NODE_PATH AGENT_TEAMS_FOUNDATION_PROFILE_ROOT AGENT_TEAMS_FOUNDATION_SOURCE_ROOT AGENT_TEAMS_FOUNDATION_SOURCE_SHA AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE
+          printf '%s\n' bun tools/dev.mts check:fast > "$EVIDENCE/fast.argv.txt"
+          if bun tools/dev.mts check:fast > "$EVIDENCE/fast.merged.log" 2>&1; then code=0; else code=$?; fi
+          cat "$EVIDENCE/fast.merged.log"
+          printf '%s\n' "$code" > "$EVIDENCE/fast.exit.txt"
+          exit "$code"
+      - name: Provision existing pinned managed test copies
+        id: managed
+        if: ${{ !cancelled() && steps.security.outcome == 'success' && steps.fast.outcome == 'success' }}
+        env:
+          RUNNER_TEMP: ${{ runner.temp }}/test-format-managed
+          TMPDIR: ${{ runner.temp }}/test-format-managed
+        shell: bash
+        run: |
+          unset GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_AUTHOR_DATE GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL GIT_COMMITTER_DATE NODE_COMPILE_CACHE NODE_OPTIONS NODE_PATH AGENT_TEAMS_FOUNDATION_PROFILE_ROOT AGENT_TEAMS_FOUNDATION_SOURCE_ROOT AGENT_TEAMS_FOUNDATION_SOURCE_SHA AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE
+          set -uo pipefail
+          mkdir -p "$RUNNER_TEMP"
+          printf '%s\n' node scripts/provision-managed-test-tools.mjs > "$EVIDENCE/managed.argv.txt"
+          if node scripts/provision-managed-test-tools.mjs > "$EVIDENCE/managed.merged.log" 2>&1; then code=0; else code=$?; fi
+          cat "$EVIDENCE/managed.merged.log"
+          printf '%s\n' "$code" > "$EVIDENCE/managed.exit.txt"
+          exit "$code"
+      - name: Provision existing qualified npm migration verifier
+        id: npmverifier
+        if: ${{ !cancelled() && steps.managed.outcome == 'success' }}
+        shell: bash
+        run: |
+          unset GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_AUTHOR_DATE GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL GIT_COMMITTER_DATE NODE_COMPILE_CACHE NODE_OPTIONS NODE_PATH AGENT_TEAMS_FOUNDATION_PROFILE_ROOT AGENT_TEAMS_FOUNDATION_SOURCE_ROOT AGENT_TEAMS_FOUNDATION_SOURCE_SHA AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE
+          set -uo pipefail
+          prefix="${RUNNER_TEMP}/test-format-npm-verifier"
+          mkdir -p "$prefix"
+          printf '%s\n' npm install --prefix "$prefix" --no-save --package-lock=false --ignore-scripts npm@11.19.0 > "$EVIDENCE/npm-verifier.argv.txt"
+          if npm install --prefix "$prefix" --no-save --package-lock=false --ignore-scripts npm@11.19.0 > "$EVIDENCE/npm-verifier.merged.log" 2>&1; then code=0; else code=$?; fi
+          cat "$EVIDENCE/npm-verifier.merged.log"
+          if [[ "$code" -eq 0 ]]; then
+            export PATH="$prefix/node_modules/.bin:$PATH"
+            { command -v npm; npm --version; } > "$EVIDENCE/npm-verifier.selection.txt"
+            test "$(npm --version)" = 11.19.0 || code=$?
+            if [[ "$code" -eq 0 ]]; then printf '%s\n' "$prefix/node_modules/.bin" >> "$GITHUB_PATH"; fi
+          fi
+          printf '%s\n' "$code" > "$EVIDENCE/npm-verifier.exit.txt"
+          exit "$code"
+      - name: Normal changed closure with whole repository and package controls
+        id: changed
+        if: ${{ !cancelled() && steps.npmverifier.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUNNER_TEMP: ${{ runner.temp }}/f
+          TMPDIR: ${{ runner.temp }}/f
+        shell: bash
+        run: |
+          unset GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_AUTHOR_DATE GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL GIT_COMMITTER_DATE NODE_COMPILE_CACHE NODE_OPTIONS NODE_PATH AGENT_TEAMS_FOUNDATION_PROFILE_ROOT AGENT_TEAMS_FOUNDATION_SOURCE_ROOT AGENT_TEAMS_FOUNDATION_SOURCE_SHA AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE
+          set -uo pipefail
+          { command -v npm; npm --version; } > "$EVIDENCE/changed.npm-selection.txt"
+          test "$(npm --version)" = 11.19.0 || exit 1
+          printf 'RUNNER_TEMP=%s\nTMPDIR=%s\n' "$RUNNER_TEMP" "$TMPDIR" > "$EVIDENCE/changed.temporary-selection.txt"
+          printf '%s\n' bun tools/dev.mts check:changed > "$EVIDENCE/changed.argv.txt"
+          if bun tools/dev.mts check:changed > "$EVIDENCE/changed.merged.log" 2>&1; then code=0; else code=$?; fi
+          cat "$EVIDENCE/changed.merged.log"
+          printf '%s\n' "$code" > "$EVIDENCE/changed.exit.txt"
+          exit "$code"
+      - name: Always retain honest outcomes and terminal source custody
+        if: ${{ always() }}
+        env:
+          INSTALL_RESULT: ${{ steps.install.outcome }}
+          BUILD_RESULT: ${{ steps.build.outcome }}
+          MANAGED_RESULT: ${{ steps.managed.outcome }}
+          NPM_VERIFIER_RESULT: ${{ steps.npmverifier.outcome }}
+          SECURITY_RESULT: ${{ steps.security.outcome }}
+          FAST_RESULT: ${{ steps.fast.outcome }}
+          CHANGED_RESULT: ${{ steps.changed.outcome }}
+        shell: bash
+        run: |
+          unset GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_AUTHOR_DATE GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL GIT_COMMITTER_DATE NODE_COMPILE_CACHE NODE_OPTIONS NODE_PATH AGENT_TEAMS_FOUNDATION_PROFILE_ROOT AGENT_TEAMS_FOUNDATION_SOURCE_ROOT AGENT_TEAMS_FOUNDATION_SOURCE_SHA AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE
+          set -uo pipefail
+          evidence="${RUNNER_TEMP}/test-format-coverage"
+          mkdir -p "$evidence"
+          printf 'install=%s\nbuild=%s\nsecurity=%s\nfast=%s\nmanaged=%s\nnpm_verifier=%s\nchanged=%s\nqualification=normal-pre-PR-source-qualification-only-not-full-ci-matrix\n' "$INSTALL_RESULT" "$BUILD_RESULT" "$SECURITY_RESULT" "$FAST_RESULT" "$MANAGED_RESULT" "$NPM_VERIFIER_RESULT" "$CHANGED_RESULT" > "$evidence/phase-outcomes.txt"
+          printf 'repository=%s\nref=%s\nevent=%s\nrun_id=%s\nattempt=%s\nprovider_T=%s\nworkflow_sha=%s\nsource_S=%s\nbase=%s\n' "$GITHUB_REPOSITORY" "$GITHUB_REF" "$GITHUB_EVENT_NAME" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" "$GITHUB_SHA" "$WORKFLOW_SHA" "$SUBJECT_SHA" "$BASE_SHA" > "$evidence/provider-binding.txt"
+          code=0
+          if [[ -f "$evidence/source.sha256" ]]; then sha256sum -c "$evidence/source.sha256" > "$evidence/source-after.txt" 2>&1 || code=1; else code=1; fi
+          git diff --exit-code HEAD > "$evidence/tracked-after.txt" 2>&1 || code=1
+          git ls-files --others --exclude-standard > "$evidence/untracked-after.txt" || code=1
+          test ! -s "$evidence/untracked-after.txt" || code=1
+          sha256sum bun.lock pnpm-lock.yaml .node-version architecture/foundation/repository-runtime.json toolchain.config.json > "$evidence/pins-after.txt" 2>&1 || code=1
+          shopt -s nullglob
+          for file in .worker-tmp/check-changed-*.log; do cp "$file" "$evidence/$(basename "$file")"; done
+          df -B1 "$RUNNER_TEMP" > "$evidence/resources-after.txt"
+          for file in "${RUNNER_TEMP}"/f/quality-source-cli-failure-*/invocation.json; do cp "$file" "$evidence/$(basename "$(dirname "$file")").json"; done
+          printf '%s\n' "$code" > "$evidence/terminal-custody.exit.txt"
+          find "$evidence" -maxdepth 1 -type f ! -name artifacts.sha256 ! -name artifact-sizes.txt -printf '%f %s\n' | LC_ALL=C sort > "$evidence/artifact-sizes.txt"
+          (cd "$evidence" && find . -maxdepth 1 -type f ! -name artifacts.sha256 -print0 | LC_ALL=C sort -z | xargs -0 sha256sum) > "$evidence/artifacts.sha256"
+          exit "$code"
+      - name: Upload only explicit TEST evidence
+        if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: foundation-performance-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/foundation-performance.json
+          name: TEST-format-coverage-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/test-format-coverage/
           if-no-files-found: error
           retention-days: 30

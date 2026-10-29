@@ -1,5 +1,15 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import {
+  cp,
+  lstat,
+  mkdir,
+  mkdtemp,
+  readFile,
+  realpath,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { delimiter, dirname, join } from "node:path";
 import test from "node:test";
@@ -258,12 +268,32 @@ test("nested pnpm scripts keep packaged consumers isolated from the owner worksp
     }
     environment.PATH = [dirname(node), process.env.PATH].filter(Boolean).join(delimiter);
     environment.npm_config_cache = join(root, "npm-cache");
+    const bundledManifest = "dist/node_modules/@reflink/reflink/package.json";
+    const managerCopy = join(root, "manager-pack-source");
+    // npm cannot pack this manager from the isolated profile's dependency-store path.
+    // Keep its complete bundled tree in the owned fixture before packing it.
+    await cp(managerRoot, managerCopy, {
+      recursive: true,
+      dereference: false,
+      preserveTimestamps: true,
+      verbatimSymlinks: true,
+    });
+    for (const path of ["package.json", manager.bin.pnpm, bundledManifest]) {
+      assert.deepEqual(
+        await readFile(join(managerCopy, path)),
+        await readFile(join(managerRoot, path)),
+      );
+      assert.equal(
+        (await lstat(join(managerCopy, path))).mode,
+        (await lstat(join(managerRoot, path))).mode,
+      );
+    }
     // A file: directory install strips every nested node_modules directory,
     // including pnpm's real bundled native dependencies on Windows and Darwin.
     const packed = await runPackagingFixtureCommand("manager-pack", () =>
       runNpmCommand(
         ["pack", "--ignore-scripts", "--json", "--pack-destination", root],
-        managerRoot,
+        managerCopy,
         { environment },
       ),
     );
@@ -353,7 +383,6 @@ assert.deepEqual({ ...process.env }, before);
         { environment },
       ),
     );
-    const bundledManifest = "dist/node_modules/@reflink/reflink/package.json";
     assert.equal(
       await readFile(join(owner, "node_modules", "pnpm", bundledManifest), "utf8"),
       await readFile(join(managerRoot, bundledManifest), "utf8"),

@@ -42,22 +42,29 @@ function oxlint(args: readonly string[]): ReturnType<typeof spawnSync> {
 }
 
 void test("JS exception covers exactly the pinned typed rule universe", () => {
-  const result = oxlint(["--rules", "--format=json"]);
-  assert.equal(result.status, 0);
-  const rules = JSON.parse(String(result.stdout)) as RuleMetadata[];
-  const typed = rules
-    .filter((rule) => rule.type_aware)
-    .map((rule) => `${rule.scope}/${rule.value}`)
-    .toSorted();
-  assert.equal(typed.length, 59, "Review the exception when upgrading Oxlint");
-  assert.equal(preset.overrides.length, 1);
-  const exception = preset.overrides[0];
-  assert.ok(exception);
-  assert.deepEqual(exception.files, ["**/*.{js,jsx,mjs,cjs}"]);
-  assert.deepEqual(Object.keys(exception.rules).toSorted(), typed);
-  assert.ok(Object.values(exception.rules).every((level) => level === "off"));
-  assert.deepEqual(preset.extends, ["./node.json"]);
-  assert.deepEqual(preset.options, { typeAware: true, typeCheck: false });
+  const directory = mkdtempSync(join(tmpdir(), "TEST-toolchain-rule-metadata-"));
+  try {
+    const probe = join(directory, "probe.ts");
+    writeFileSync(probe, "export const probe = 1;\n");
+    const result = oxlint(["--rules", "--format=json", probe]);
+    assert.equal(result.status, 0);
+    const rules = JSON.parse(String(result.stdout)) as RuleMetadata[];
+    const typed = rules
+      .filter((rule) => rule.type_aware)
+      .map((rule) => `${rule.scope}/${rule.value}`)
+      .toSorted();
+    assert.equal(typed.length, 59, "Review the exception when upgrading Oxlint");
+    assert.equal(preset.overrides.length, 1);
+    const exception = preset.overrides[0];
+    assert.ok(exception);
+    assert.deepEqual(exception.files, ["**/*.{js,jsx,mjs,cjs}"]);
+    assert.deepEqual(Object.keys(exception.rules).toSorted(), typed);
+    assert.ok(Object.values(exception.rules).every((level) => level === "off"));
+    assert.deepEqual(preset.extends, ["./node.json"]);
+    assert.deepEqual(preset.options, { typeAware: true, typeCheck: false });
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 void test("typed preset retains its existing global rule levels", () => {

@@ -1,0 +1,38 @@
+{
+  "kind": "finite-linux-controls-inputs/v1",
+  "parentV2ManifestSHA256": "ae9d1be39ef579ff19431fa5688792ffa6844132cd0549214061178cd464b7da",
+  "files": {
+    "inputs.ts": {
+      "sha256": "36c77a758d97a291849ce4d98a58a45d3ea9bf2f9937c6e8e9225c2157fb02f7",
+      "bytes": 1615
+    },
+    "linux-controls.ts": {
+      "sha256": "ea25a7d5a169c08bfb6f5d660502bf8d6a279c5857b37a9172254718ef8f29f0",
+      "bytes": 17811
+    },
+    "node-or-bun-0.2.5.tgz": {
+      "sha256": "1ce3f9bf3e9ff9028207c52edde4039a5687e85fc6e5713a827dd59eb5e53ecb",
+      "bytes": 35491
+    },
+    "package.json": {
+      "sha256": "a90fc33418afa2b9cbf4768524b021135b965ecdf993457505bfae3ac44a8428",
+      "bytes": 33
+    },
+    "parent-v2-independent-review.json": {
+      "sha256": "655dd8df5e23f9d4c253bb09018cf6abcf093b13e7cd468acc4793f17a924141",
+      "bytes": 8709
+    },
+    "parent-v2-manifest.json": {
+      "sha256": "ae9d1be39ef579ff19431fa5688792ffa6844132cd0549214061178cd464b7da",
+      "bytes": 4539
+    },
+    "process-owner.ts": {
+      "sha256": "6db85c6b8d266854801e7c27249f56b21aae179d54550ee2297b203632280ac4",
+      "bytes": 4454
+    },
+    "tool-bootstrap.ts": {
+      "sha256": "1c475329ce94ff03ca1ff99efad3d77787e1df9a216fed7b4bbf188eb229043c",
+      "bytes": 4288
+    }
+  }
+}

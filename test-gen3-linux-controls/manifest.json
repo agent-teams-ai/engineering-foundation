@@ -1,0 +1,65 @@
+{
+  "kind": "finite-linux-controls-proposal/v1",
+  "status": "SOURCE_ONLY_AWAITING_ROOT_REVIEW_NO_DISPATCH",
+  "branch": "test/gen3-linux-process-controls-20261029",
+  "workflowId": 334372435,
+  "deploymentPath": "test-gen3-linux-controls",
+  "files": {
+    "README.md": {
+      "sha256": "000078d01f85dcca0debb5042a0a2e2d14a5836310d6267b2c552e4483deb6dc",
+      "bytes": 1887
+    },
+    "controls-inputs.json": {
+      "sha256": "87ece0ea158325ee7197431be396444364c1eb463f42df0316b298908a3e1faa",
+      "bytes": 1277
+    },
+    "inputs.ts": {
+      "sha256": "36c77a758d97a291849ce4d98a58a45d3ea9bf2f9937c6e8e9225c2157fb02f7",
+      "bytes": 1615
+    },
+    "linux-controls.ts": {
+      "sha256": "ea25a7d5a169c08bfb6f5d660502bf8d6a279c5857b37a9172254718ef8f29f0",
+      "bytes": 17811
+    },
+    "node-or-bun-0.2.5.tgz": {
+      "sha256": "1ce3f9bf3e9ff9028207c52edde4039a5687e85fc6e5713a827dd59eb5e53ecb",
+      "bytes": 35491
+    },
+    "package.json": {
+      "sha256": "a90fc33418afa2b9cbf4768524b021135b965ecdf993457505bfae3ac44a8428",
+      "bytes": 33
+    },
+    "parent-v2-independent-review.json": {
+      "sha256": "655dd8df5e23f9d4c253bb09018cf6abcf093b13e7cd468acc4793f17a924141",
+      "bytes": 8709
+    },
+    "parent-v2-manifest.json": {
+      "sha256": "ae9d1be39ef579ff19431fa5688792ffa6844132cd0549214061178cd464b7da",
+      "bytes": 4539
+    },
+    "parser-control.json": {
+      "sha256": "ed237ad4a69b1592320733f4df0d763e58e3cbef64fb207410929ba0b60a179d",
+      "bytes": 235
+    },
+    "performance.yml": {
+      "sha256": "02bcf9f1dd473857912e30da442bda6c9d346cbb718de1f974c35fca0de00d12",
+      "bytes": 1438
+    },
+    "process-owner.ts": {
+      "sha256": "6db85c6b8d266854801e7c27249f56b21aae179d54550ee2297b203632280ac4",
+      "bytes": 4454
+    },
+    "tool-bootstrap.ts": {
+      "sha256": "1c475329ce94ff03ca1ff99efad3d77787e1df9a216fed7b4bbf188eb229043c",
+      "bytes": 4288
+    },
+    "tsconfig.json": {
+      "sha256": "630b58528f357150c61ec08723a85681c7db0d60b7cd917d0bc891e8a9d72b4e",
+      "bytes": 620
+    },
+    "validation.json": {
+      "sha256": "67a62403b42ef68370b2908ff6beb845381e94b1420e7b71c12e8197d8314b62",
+      "bytes": 342
+    }
+  }
+}

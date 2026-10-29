@@ -1,42 +1,35 @@
-name: Performance signals
-
+name: TEST finite Linux process controls
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "17 3 * * *"
-  push:
-    branches:
-      - main
-
 permissions:
   contents: read
-
-concurrency:
-  group: foundation-performance-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  advisory-performance:
-    name: advisory-performance
+  linux-process-controls:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 10
+    env:
+      GEN3_LINUX_CONTROLS_ONLY: two_owned_groups_no_controller
+      EXPECTED_TEST_REF: refs/heads/test/gen3-linux-process-controls-20261029
+      CONTROLS_INPUTS_SHA256: 87ece0ea158325ee7197431be396444364c1eb463f42df0316b298908a3e1faa
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
-        with: { bun-version: "1.4.3" }
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+          path: packet
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
-          node-version-file: .node-version
-      - run: bun tools/dev.mts install
-      - run: bun tools/dev.mts build
-      - name: Collect advisory benchmark signals
-        run: node scripts/run-performance-benchmarks.mjs --output "${RUNNER_TEMP}/foundation-performance.json"
-      - name: Upload immutable benchmark evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+          node-version: 26.11.1
+      - name: Exact finite Linux controls only
+        id: controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          node "$GITHUB_WORKSPACE/packet/test-gen3-linux-controls/linux-controls.ts"
+      - name: Retain finite safe control facts
+        if: ${{ always() && (steps.controls.outcome == 'success' || steps.controls.outcome == 'failure') }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: foundation-performance-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/foundation-performance.json
-          if-no-files-found: error
-          retention-days: 30
+          name: finite-linux-process-controls-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/TEST-gen3-process-controls-${{ github.run_id }}-${{ github.run_attempt }}/retained
+          if-no-files-found: warn
+          retention-days: 14

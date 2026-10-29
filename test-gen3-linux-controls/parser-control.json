@@ -1,0 +1,12 @@
+{
+  "scope": "synthetic proc-stat parser only; no actualLinux process execution",
+  "outcome": "PASS",
+  "value": {
+    "pid": 4242,
+    "ppid": 111,
+    "pgid": 4242,
+    "sid": 4242,
+    "startTicks": "98765",
+    "state": "S"
+  }
+}

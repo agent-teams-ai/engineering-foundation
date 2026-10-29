@@ -1,0 +1,9 @@
+# Finite Linux controls proposal
+
+SOURCE ONLY. No push or dispatch authorized. Proposed NEW branch: test/gen3-linux-process-controls-20261029 on engineering-foundation. Replace only existing manual performance.yml (workflow 334372435) on that TEST branch; deploy the eight controls-inputs.json files plus controls-inputs.json under test-gen3-linux-controls/. No source consumer clones, controller installation, lifecycle phase, Central DATA read, credentials or OIDC.
+
+Node26.11.1 Linux/x64 only. Two fixed inherited POSIX fixture groups each contain a leader and ordinary descendant. The first proves bounded timeout cleanup and EOF. The second injects an EPERM-shaped process.kill(signal=0) observation exception and proves retained custody debt blocks another launch. This is NOT real OS EPERM. Two ordinary direct-child probes separately check nonzero exit and bounded output; they carry no group/tree claim. Kernel PID/PPID/PGID/session/start ticks are retained. Explicit fixture cleanup validates selected identities, signals only that known group, proves ESRCH plus PID disappearance before NodeFS removal. Unproven cleanup retains artifacts/debt and fails; no retry.
+
+Exact v2 process-owner, tool-bootstrap, input reader and 35,491-byte public node-or-bun 0.2.5 archive are unchanged. Bootstrap uses declared public exports, no package installation. No import or alteration of the HOLD lifecycle coordinator. Existing parent manifest and independent review are retained. The outer group makes no all-tree or source-owned detached process guarantee; no source-owned controllers are launched.
+
+Local strict TypeScript7.0.2 and syntax/parser controls qualify source only. ACTUAL LINUX CONTROLS NOT RUN. Their exact facts and positive fixture/NodeFS cleanup must be reviewed after one separately authorized dispatch. No real managed lifecycle or trusted consumer receipt is claimed.

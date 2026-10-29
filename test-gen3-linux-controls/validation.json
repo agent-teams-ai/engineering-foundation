@@ -1,0 +1,12 @@
+{
+  "status": "SOURCE_CONTROLS_ONLY",
+  "checks": [
+    "four Node TS syntax PASS",
+    "workflow Ruby Psych YAML parse PASS",
+    "run shell bash -n PASS",
+    "strict TypeScript7.0.2 PASS",
+    "pure synthetic proc-stat parser PASS (parser-control.json)"
+  ],
+  "actualLinuxControls": "NOT_RUN",
+  "controllerOrInstallOrDispatch": "NONE"
+}

@@ -228,8 +228,10 @@ The existing inventory sampled zero React/React DOM/Vite/Vitest/Jest/Playwright 
 | Native manager | Exact pinned pnpm, literal and named/default catalog selection, frozen install and SRI lock | Bad selector/YAML, manager mismatch, unsupported lifecycle change, stale lock |
 | Safe candidate plan | Exact preimages, finite diff, real manager-generated lock, unchanged unselected fields, discard failed stage | Concurrent edits to whole file/head, uncontrolled override/patch/peer side effects, pin mismatch, untrusted artifact, bot credential ambiguity |
 | Packed app/library | Real compile/install/run on original role, packed peer manifest inspected | Changed public optional peer without owner decision, positive/negative peer qualification failures |
-| Central delivery | One approved catalog change → two complete reviewable proposed PR artifacts; third repo deferred; existing updater installation proven | Only catalog pointer bumped, unavailable updater, privilege escalation, competing bots, PR storm, unknown/incomplete review shown as green |
+| Central delivery | One approved central version choice → two complete reviewable proposed PR artifacts; third repo deferred; normal updater installation proven | Only catalog pointer bumped, unavailable updater, privilege escalation, competing bots, PR storm, unknown/incomplete review shown as green |
 | Recovery | Staging disposable, prior accepted revision installs offline and remains buildable when another repo is blocked | Broad fleet rollback, silently mutable old catalog, retry that overwrites a concurrent PR |
+
+**P0 acceptance traces, not extra infrastructure:** (a) directly pinned YAML/development library and pnpm-catalog library each receive correct manifest/native catalog + lock changes from one central choice; (b) an unrelated-family catalog revision produces no PR; (c) a deliberately held repo remains buildable and does not acquire a pending writer; (d) an invalid or downgraded target is stopped instead of silently repaired; (e) independent lock-only security patch is not blocked; (f) a changed packed optional peer is rejected; (g) a stale source HEAD invalidates prior PR qualification. These are the smallest scenarios that can refute a proposed automation path. A reproducible local proposal artifact in a disposable repository counts as **spike evidence**, not public rollout or a passing production CI.
 
 Reuse existing Foundation/Stack release gates and each consumer's real tests; add isolated tests for high-risk parser/path/peer/preimage policy, not a giant mock matrix. No real customer projects, live payment charges or secrets in tests. Node's native test runner remains; fast-check supplements it. A docs-only design PR proves none of the live E2E acceptance until those tests actually run.
 
@@ -237,9 +239,11 @@ Do not use unrelated architecture/composition changes to make CI green. Independ
 
 ## 10. Bounded delivery, starting with proof before invention
 
-**D0 — design decision:** settle data authority and independently versioned delivery form (immutable Git snapshot versus inert data artifact), initial strict selection/role boundary and qualified first family. Record options rejected and required source/provenance check. PR #458 remains design-only and draft pending independent review; no catalog name, new package, public CLI or release is authorized.
+**D0 — design criteria, not premature platform selection:** establish selected-field/kind invariants, real consumer candidates, owner boundaries and the precise P0 go/no-go tests. Keep **zero-new-feature** and independent catalog options open until the actual updater evidence exists. PR #458 remains design-only and draft pending independent review; no catalog name, new package, public CLI or release is authorized.
 
-**P0 — disposable real updater spike:** test the **zero-new-feature baseline** first, then inspect actual Renovate/Dependabot installation and exact permissions (security updates do not establish routine version updates), pinned native pnpm behavior, peer coupling and any artifact update path. Prove one central change → two complete native candidate PR artifacts + third deferred; reject shell postUpgradeTasks/default permissions if unsafe. Preserve migration PRs. This is a decision prerequisite, not a hidden production rollout.
+**P0 — disposable real updater spike:** first test shared Renovate policy, native pnpm catalogs and existing Dependabot security paths, then inspect actual updater installation/permissions (security-only updates do not establish scheduled version updates), pinned pnpm behavior, selected field ownership and peer coupling. Prove one central approved change → two complete native candidate PR artifacts, a third held repo, an unrelated-family no-op and explicit downgrade refusal; reject unsafe shell postUpgradeTasks. Preserve migration PRs. This is a decision prerequisite, not production rollout.
+
+**D1 — choose the minimal proved architecture:** if native shared preset plus package manager solves P0, adopt that workflow and stop with **no new Stack feature or independent catalog artifact**. If not, document the exact missing case and select *one* immutable data owner/distribution plus the smallest permitted checker/projection contract; require any package graph/public release amendment through its owning decision process. Do not select both a mutable central preset and an independently maintained version table as competing authorities.
 
 **I1 — conditional portable checker:** only after P0 demonstrates a *specific missing correctness property*, implement the smallest strict selection/identity and read-only selected-field comparison in Stack's existing architecture-neutral package. **Skip I1** if native updater, frozen installs and existing Foundation gates suffice. One data authority remains independent of the checker release. Minimal meaningful rejection fixtures, no new CLI without approval.
 
@@ -253,7 +257,7 @@ Original 350–600 handwritten mechanism LOC / 200–350 test LOC are **hypothes
 
 ## 11. Adversarial critique and actual review evidence
 
-[Detailed critique and decision log](dependency-profiles-critique-2026-11-01.md) records the separate attack surfaces, evidence and remaining blockers. These were **self-review lenses**; no independent GPT subagents were available/executed. An actual automated ReviewRouter comment on PR #458 says *incomplete*: 0 of 2 files reviewed, provider exhausted retries. This is **not** an approval.
+[Detailed critique and decision log](dependency-profiles-critique-2026-11-01.md) records 16 original findings, six adversarial viewpoints, 26 explicitly **unexecuted** future failure scenarios and the smallest incident/rollout procedures. These were **self-review lenses**; no independent GPT subagents were available/executed. An actual automated ReviewRouter comment on PR #458 says *incomplete*: 0 of 2 files reviewed, provider exhausted retries. This is **not** an approval.
 
 Six viewpoints were deliberately challenged:
 
@@ -270,13 +274,14 @@ Six viewpoints were deliberately challenged:
 
 | Decision | Bounded recommendation | Evidence gate before code |
 | --- | --- | --- |
-| Version data ownership | One independent catalog authority; Stack owns portable mechanism, Foundation only optional policy | Owner selects distribution and immutable identity, with no second desired-version table |
-| Distribution B vs C | Immutable central Git + retained snapshot, or independent inert data artifact; **no name chosen** | Two-repo updater E2E and offline integrity/provenance/readback |
+| Desired-version authority | Prefer existing shared Renovate preset if a two-repo exact-target spike works; otherwise one independently owned immutable data catalog | One selected source with explicit provenance, no second desired-version table or unreviewed moving ref |
+| Distribution only if needed | Immutable central Git + retained snapshot versus separate inert data artifact; **no name or package selected** | P0 must first reject no-new-artifact workflow and prove actual complete PR fan-out |
 | Catalog schema | Strict JSON, one exact install family and versioned schema; no YAML authoring sugar | Duplicate-key/path/field conflict tests and actual consumer read |
 | Selected kind | Consumer explicitly owns direct/development/peer role and projection, catalog does not force role | Gateway app + Payments library role/published peer tests |
 | Controlled rollout | Selected revision per repo; newer offered revision is an informational upgrade, not failing CI | Old-but-consistent repo and exact exception tests |
 | Proposal channel | Reuse existing updater (Renovate/Dependabot) and pnpm if proven; no arbitrary postUpgradeTasks | Actual installation/permission and complete PR artifact proof |
 | Extra projection code | Only measured missing pnpm/manifest delta; exact preimages and minimal edits | Native manager before/after fixtures and stale write rejection |
+| No-op and security safety | Unchanged selected family cannot create empty PR; security lock-only repair remains independent | Unrelated-family no-op, transitive advisory fix and manual downgrade cases |
 | Additional families | Frontend/React, other managers and general full-stack profiles deferred | Separately authorized real consumers and compatibility evidence |
 
 Open items are genuine design decisions, **not accidental omitted implementation details**. One central catalog PR does not confer privilege to install software or merge consumer changes. Accepted ADRs remain untouched; a later implementation touching public contract/package graph needs its own accepted successor and release qualification.

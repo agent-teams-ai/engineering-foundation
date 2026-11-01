@@ -1,4 +1,4 @@
-name: TEST PR457 Windows descriptor diagnosis
+name: TEST PR457 Windows canonical literal diagnosis
 on:
   workflow_dispatch:
 permissions:
@@ -52,7 +52,7 @@ jobs:
         run: |
           Copy-Item overlay/test-windows-fd/format-files.test.ts source/packages/stack-toolchain/tests/format-files.test.ts
           $hash = (Get-FileHash source/packages/stack-toolchain/tests/format-files.test.ts -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($hash -ne "b70ea390657e1b9b4b01a9b45894350ffbf3458f9862ea6618d2a3cc876ef641") { throw "DIAGNOSTIC_TEST_COPY_DRIFT" }
+          if ($hash -ne "cdc1d32fd808d95a94644382ee49a1e4050ea9b00f083eea4a01ac178e0a3909") { throw "DIAGNOSTIC_TEST_COPY_DRIFT" }
       - name: Strict-check diagnostic TypeScript
         shell: pwsh
         run: |
@@ -61,16 +61,35 @@ jobs:
           if ((node source/node_modules/typescript/bin/tsc --version) -ne "Version 7.0.2") { throw "COMPILER_PIN" }
           node source/node_modules/typescript/bin/tsc -p overlay/test-windows-fd/tsconfig.windows.json --typeRoots "$env:GITHUB_WORKSPACE/source/node_modules/@types"
           if ($LASTEXITCODE -ne 0) { throw "DIAGNOSTIC_TYPECHECK_FAILED" }
-      - name: Native identity and targeted failing assertions
+      - name: Native rename controls and all eight baseline literal tests
         shell: pwsh
         run: |
-          node overlay/test-windows-fd/identity-probe.ts 2>&1 | Tee-Object -FilePath "$env:FD_EVIDENCE/identity.jsonl"
-          if ($LASTEXITCODE -ne 0) { throw "IDENTITY_PROBE_FAILED" }
-          git -C source diff -- packages/stack-toolchain/tests/format-files.test.ts | Out-File "$env:FD_EVIDENCE/diagnostic-test-diff.patch"
-          node --import "./overlay/test-windows-fd/fs-errors.ts" --test --test-name-pattern "literal batches account|literal source mutation|literal binds opened" source/packages/stack-toolchain/tests/format-files.test.ts 2>&1 | Tee-Object -FilePath "$env:FD_EVIDENCE/targeted-tests.log"
+          node overlay/test-windows-fd/rename-controls.ts 2>&1 | Tee-Object -FilePath "$env:FD_EVIDENCE/rename-controls.json"
+          if ($LASTEXITCODE -ne 0) { throw "RENAME_CONTROL_FAILED" }
+          git -C source diff -- packages/stack-toolchain/tests/format-files.test.ts | Out-File "$env:FD_EVIDENCE/baseline-test-diff.patch"
+          node overlay/test-windows-fd/canonical-run.ts source "$env:FD_EVIDENCE" baseline 2>&1 | Tee-Object -FilePath "$env:FD_EVIDENCE/baseline-canonical.log"
+          $baselineExit = $LASTEXITCODE
+          $baseline = Get-Content "$env:FD_EVIDENCE/baseline-canonical.json" -Raw | ConvertFrom-Json
+          if ($baseline.literalCompleted.Count -ne 8) { throw "BASELINE_EIGHT_NOT_COMPLETED" }
+          @{ phase = "baseline"; exit = $baselineExit; historicalBatchStatus = "prior-direct-run-passed-cause-unproven-see-current-literalCompleted"; noFullQualification = $true } | ConvertTo-Json | Out-File "$env:FD_EVIDENCE/baseline-result.json"
+      - name: Reviewed aside candidate only after actual native capability
+        shell: pwsh
+        run: |
+          $controls = Get-Content "$env:FD_EVIDENCE/rename-controls.json" -Raw | ConvertFrom-Json
+          if (-not $controls.asideSupported) {
+            @{ status = "UNSUPPORTED_NATIVE_ASIDE_FIXTURE_CAPABILITY"; qualification = $false } | ConvertTo-Json | Out-File "$env:FD_EVIDENCE/candidate-capability-refusal.json"
+            throw "ASIDE_FIXTURE_CAPABILITY_UNSUPPORTED"
+          }
+          Copy-Item overlay/test-windows-fd/format-files.candidate.test.ts source/packages/stack-toolchain/tests/format-files.test.ts
+          $hash = (Get-FileHash source/packages/stack-toolchain/tests/format-files.test.ts -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($hash -ne "d715c4de5cbb977fc5821ddd534112f942eeba2ea980fec31565462a2c957a9e") { throw "CANDIDATE_TEST_COPY_DRIFT" }
+          node source/node_modules/typescript/bin/tsc -p overlay/test-windows-fd/tsconfig.windows.json --typeRoots "$env:GITHUB_WORKSPACE/source/node_modules/@types"
+          if ($LASTEXITCODE -ne 0) { throw "CANDIDATE_TYPECHECK_FAILED" }
+          git -C source diff -- packages/stack-toolchain/tests/format-files.test.ts | Out-File "$env:FD_EVIDENCE/candidate-test-diff.patch"
+          node overlay/test-windows-fd/canonical-run.ts source "$env:FD_EVIDENCE" candidate 2>&1 | Tee-Object -FilePath "$env:FD_EVIDENCE/candidate-canonical.log"
           $result = $LASTEXITCODE
-          @{ source = "def877a5fa2c9402c7bd5f7bb96f7d85dd9ea09a"; platform = "win32"; node = (node --version); exit = $result; scope = "diagnostic-only-three-existing-tests"; productionSourceCustody = "pending-postcheck" } | ConvertTo-Json | Out-File "$env:FD_EVIDENCE/result.json"
-          if ($result -ne 0) { throw "TARGETED_FAILURE_RETAINED" }
+          @{ phase = "candidate"; exit = $result; source = "def877a5fa2c9402c7bd5f7bb96f7d85dd9ea09a"; productionSourceCustody = "pending-postcheck"; noFullQualification = $true } | ConvertTo-Json | Out-File "$env:FD_EVIDENCE/candidate-result.json"
+          if ($result -ne 0) { throw "CANDIDATE_FAILURE_RETAINED" }
       - name: Verify tracked source custody after diagnostic attempt
         if: ${{ always() }}
         shell: pwsh
@@ -79,7 +98,7 @@ jobs:
           git -C source diff --no-ext-diff --exit-code def877a5fa2c9402c7bd5f7bb96f7d85dd9ea09a -- . ":(exclude)packages/stack-toolchain/tests/format-files.test.ts" | Out-File "$env:FD_EVIDENCE/tracked-after-excluding-diagnostic.diff"
           if ($LASTEXITCODE -ne 0) { throw "NON_DIAGNOSTIC_TRACKED_SOURCE_CHANGED" }
           $hash = (Get-FileHash source/packages/stack-toolchain/tests/format-files.test.ts -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($hash -ne "b70ea390657e1b9b4b01a9b45894350ffbf3458f9862ea6618d2a3cc876ef641") {
+          if ($hash -ne "cdc1d32fd808d95a94644382ee49a1e4050ea9b00f083eea4a01ac178e0a3909" -and $hash -ne "d715c4de5cbb977fc5821ddd534112f942eeba2ea980fec31565462a2c957a9e") {
             git -C source diff --no-ext-diff --exit-code def877a5fa2c9402c7bd5f7bb96f7d85dd9ea09a -- packages/stack-toolchain/tests/format-files.test.ts | Out-File "$env:FD_EVIDENCE/test-original-state.diff"
             if ($LASTEXITCODE -ne 0) { throw "DIAGNOSTIC_TEST_POST_DRIFT" }
           }

@@ -1,0 +1,11 @@
+{
+  "at": "2026-11-01T11:32:26.222796+00:00",
+  "node": "26.11.1",
+  "compiler": "7.0.2",
+  "exit": 0,
+  "project": "tsconfig.json",
+  "scope": "strict diagnostic helpers only; actual copied test checked later against native installed declarations",
+  "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "nativeWindowsExecution": false
+}

@@ -13,6 +13,8 @@
   },
   "files": [
     "fs-errors.ts",
-    "identity-probe.ts"
+    "identity-probe.ts",
+    "canonical-run.ts",
+    "rename-controls.ts"
   ]
 }

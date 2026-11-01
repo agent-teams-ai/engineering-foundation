@@ -1,0 +1,10 @@
+--- baseline/format-files.test.ts
++++ candidate/format-files.test.ts
+@@ -394,6 +394,7 @@
+       const changed = join(f.consumer, "changed.json");
+       try {
+         fs.writeFileSync(changed, "[]\n");
++        fs.renameSync(selected, join(f.consumer, "original-held.json"));
+         fs.renameSync(changed, selected);
+       } catch (error) {
+         fs.closeSync(fd); // The mock has not returned custody to observe().

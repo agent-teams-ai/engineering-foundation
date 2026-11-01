@@ -1,6 +1,6 @@
 # Dependency profiles: implementation specification and bounded pilot
 
-**Status:** PROPOSED DESIGN ONLY, revised 2026-11-01 — not accepted, implemented, published or qualified. [Deep adversarial critique and decision log](dependency-profiles-critique-2026-11-01.md). PR #458 ReviewRouter reported incomplete coverage (0/2 files); this is not independent review or approval.
+**Status:** PROPOSED DESIGN ONLY, revised 2026-11-01 — not accepted, implemented, published or qualified. [Deep adversarial critique and decision log](dependency-profiles-critique-2026-11-01.md); [independent ready-made tool comparison](dependency-update-tool-comparison-2026-11-01.md). PR #458 ReviewRouter reported incomplete coverage on earlier heads; this is not independent review or approval.
 **Snapshot date:** 2026-11-01.
 **Owner candidate:** the existing independent Stack Toolchain package in Engineering Foundation.
 **Change boundary:** specification only. This document authorizes no new package name, public command, profile capability, release, automatic dependency update, or migration of consumer repositories. Token is excluded. Existing Toolchain migration and delivery/E2E PRs are independent and must not be edited by this work.

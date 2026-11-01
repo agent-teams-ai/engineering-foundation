@@ -346,6 +346,11 @@
       "id": "ADR-0072",
       "path": "docs/decisions/0072-explicit-toolchain-literal-format-api.md",
       "immutableDigest": "sha256:be8d3a51016d96c1bede7e071340ca5d8d637eb951d5c0178db160456312ac97"
+    },
+    {
+      "id": "ADR-0073",
+      "path": "docs/decisions/0073-coherent-managed-pnpm-engine-projection.md",
+      "immutableDigest": "sha256:73343325b3005327bfa1b54969c31d842cd9a294b5171775d96ce141d112248e"
     }
   ]
 }

@@ -1,3 +1,4 @@
+import { projectManagedGenerationRuntime } from "../dist/consumer-integration/adapters/managed-generation-projectors.js";
 import { planPnpmManifestV2 } from "../dist/index.js";
 import {
   successorCentralRegistryFixture,
@@ -150,6 +151,34 @@ void test("authority drift after staging refuses publication and omitted explici
   assert.equal(
     (await f.upgrade({ consumerRoot: f.root, to: f.successor.cohort.cohortId })).outcome,
     "blocked",
+  );
+});
+
+void test("managed generation projects a coherent exact pnpm engine while preserving unrelated manifest bytes", () => {
+  const before =
+    '{\n  "name": "consumer",\n  "packageManager": "pnpm@11.18.0",\n' +
+    '  "engines": { "node": "24.21.0", "pnpm": "11.18.0", "npm": ">=11" },\n' +
+    '  "scripts": { "check": "node check.js" },\n  "custom": { "spacing":  true }\n}\n';
+  const projected = Buffer.from(
+    projectManagedGenerationRuntime(Buffer.from(before), "26.11.1"),
+  ).toString("utf8");
+  const expected = before
+    .replace("pnpm@11.18.0", "pnpm@11.20.0")
+    .replace('"pnpm": "11.18.0"', '"pnpm": "11.20.0"')
+    .replace('"node": "24.21.0"', '"node": "26.11.1"');
+  assert.equal(projected, expected);
+  const absent = before.replace(', "pnpm": "11.18.0"', "");
+  assert.equal(
+    Buffer.from(projectManagedGenerationRuntime(Buffer.from(absent), "26.11.1")).toString("utf8"),
+    absent
+      .replace("pnpm@11.18.0", "pnpm@11.20.0")
+      .replace('"node": "24.21.0"', '"node": "26.11.1"'),
+  );
+  assert.equal(
+    Buffer.from(projectManagedGenerationRuntime(Buffer.from(projected), "24.21.0")).toString(
+      "utf8",
+    ),
+    expected.replace('"node": "26.11.1"', '"node": "24.21.0"'),
   );
 });
 

@@ -152,11 +152,11 @@ Add `maintainability.json` for production budgets or
 `maintainability-tests.json` for test budgets. These are portable technical
 presets; product policy and organization conformance remain in their consumers.
 
-## Literal input source candidate
+## Literal file input availability
 
-The source candidate adds `runCommand({ command: "format:check", cwd, signal,
-formatFiles })` for callers that already own an explicit file census. It is not
-available in the current published version. This mode does not load
+An installed package whose public root exports `formatFilesContractVersion === 1`
+supports `runCommand({ command: "format:check", cwd, signal, formatFiles })` for
+callers that already own an explicit file census. This mode does not load
 `toolchain.config.json`, TypeScript projects, or native `format.paths`.
 
 Inputs are nonempty relative literal regular files, without aliases or symbolic
@@ -176,7 +176,8 @@ remain outside Stack.
 Before invoking this optional contract, callers check the public root export
 `formatFilesContractVersion === 1`. Older releases can ignore an unknown input
 field, so package presence or an ordinary successful format report is not feature
-negotiation. This checkpoint exposes the API; it adds no literal-input CLI flag.
+negotiation. Callers must refuse literal input when the marker is absent. This
+optional API adds no literal-input CLI flag.
 
 The initial literal applicability contract admits `.ts`, `.tsx`, `.mts`, `.cts`,
 `.js`, `.jsx`, `.mjs`, `.cjs`, `.json`, `.jsonc`, `.yaml`, `.yml`, and `.md`.

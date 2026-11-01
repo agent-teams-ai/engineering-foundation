@@ -72,6 +72,7 @@ jobs:
           $baseline = Get-Content "$env:FD_EVIDENCE/baseline-canonical.json" -Raw | ConvertFrom-Json
           if ($baseline.literalCompleted.Count -ne 8) { throw "BASELINE_EIGHT_NOT_COMPLETED" }
           @{ phase = "baseline"; exit = $baselineExit; historicalBatchStatus = "prior-direct-run-passed-cause-unproven-see-current-literalCompleted"; noFullQualification = $true } | ConvertTo-Json | Out-File "$env:FD_EVIDENCE/baseline-result.json"
+          exit 0
       - name: Reviewed aside candidate only after actual native capability
         shell: pwsh
         run: |

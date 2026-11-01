@@ -1,17 +1,31 @@
 # Dependency profiles: implementation specification and bounded pilot
 
-**Status:** PROPOSED DESIGN ONLY — not accepted, implemented, published, or qualified.
+**Status:** PROPOSED DESIGN ONLY, revised 2026-11-01 — not accepted, implemented, published or qualified. [Deep adversarial critique and decision log](dependency-profiles-critique-2026-11-01.md). PR #458 ReviewRouter reported incomplete coverage (0/2 files); this is not independent review or approval.
 **Snapshot date:** 2026-11-01.
 **Owner candidate:** the existing independent Stack Toolchain package in Engineering Foundation.
 **Change boundary:** specification only. This document authorizes no new package name, public command, profile capability, release, automatic dependency update, or migration of consumer repositories. Token is excluded. Existing Toolchain migration and delivery/E2E PRs are independent and must not be edited by this work.
 
-## 1. Problem and intended outcome
+## 1. Problem, concrete user journey and success criteria
 
-Many independent projects select the same external libraries but repeat version decisions. A workspace catalog already removes repetition inside one repository; it does not resolve selection drift between repositories. Stack Toolchain already centralizes compiler/linter/formatter versions and technical presets. The proposed extension centralizes **opt-in selections for ordinary application and development libraries** without importing them through Stack, changing their owner, or replacing the package manager.
+The problem is version-selection duplication across independent repositories. A native workspace catalog solves repetition *within* one pnpm workspace; it does not distribute one reviewed version choice across Gateway, Payments and other independently released projects. Consumers must keep ordinary vendor imports and their own runtime/peer/CI guarantees, with no umbrella runtime dependency.
 
-The intended user workflow is: explicitly enroll a real package path and a small family; review one published catalog identity; see precise read-only drift; explicitly stage a limited version update; regenerate the ordinary lock with the repository's exact manager; review and qualify a separate PR in each affected repository. No background changes or invisible changes to runtime behavior.
+**Desired maintainer experience (design target, NOT implemented):** explicitly enroll a literal project/manifest and one small dependency family once; review one central choice of an exact vendor version; receive a separate complete proposal PR per eligible enrolled repository; let each repo independently qualify and merge that proposed change. One central choice is not a global force-upgrade or multi-repo transaction.
 
-**Success is narrow:** the same chosen catalog revision can be checked against Gateway's direct runtime declaration and Payments' library peer + development declarations, with appropriate differences preserved. Success is **not** proof of a common PostgreSQL abstraction or compatibility for an unrelated framework.
+The central change must update the actual selected package.json or manager-native default/named catalog **and manager-owned lockfile**, not only an abstract catalog pointer. Successful end-to-end delivery requires two complete consumer PR artifacts from one central approved revision, with unchanged out-of-scope fields, exact source identity, normal frozen-install and critical consumer gates. A single generated JSON report or unverified Renovate config is insufficient.
+
+**Small user-facing status vocabulary:**
+
+| Status | Meaning | Action |
+| --- | --- | --- |
+| Current | Selected manifest/native catalog and lock agree with the **consumer's adopted** immutable revision | None |
+| New revision available | A newer centrally approved catalog revision exists, but the currently adopted version still matches itself | Offer a PR; do not fail normal offline CI |
+| Proposed | A bounded consumer PR is available and awaits product-owner checks/review | Review and qualify |
+| Blocked | Manager, peer contract, security, provenance or consumer CI rejected the candidate | State the exact reason; never repair/fallback silently |
+| Deferred | Older revision intentionally retained, with owner and review trigger | Keep normal builds working; surface upgrade debt |
+| Drift | Selected field differs from the consumer's **adopted** revision without an exact exception | Read-only consistency check fails |
+| Unknown | Missing catalog/target/manager or incomplete evidence | Do not report success |
+
+A future repo, including an example such as Dogman, becomes a consumer only after identifying its real package paths, supported manager and explicit owner enrollment; name resemblance or shared libraries never activate a profile. No auto-discovery or forced full-stack choice.
 
 ## 2. Evidence, scope and public-main reconciliation
 
@@ -34,88 +48,78 @@ At the review snapshot, Engineering Foundation PR #457 is open and modifies Stac
 
 Source links: [Stack package](https://github.com/agent-teams-ai/engineering-foundation/blob/main/packages/stack-toolchain/package.json), [ADR-0064](https://github.com/agent-teams-ai/engineering-foundation/blob/main/docs/decisions/0064-independent-stack-toolchain-package-boundary.md), [Gateway server](https://github.com/agent-teams-ai/account-gateway/blob/main/services/account-gateway/package.json), [Gateway workspace](https://github.com/agent-teams-ai/account-gateway/blob/main/pnpm-workspace.yaml), [Payments adapter](https://github.com/agent-teams-ai/payments-sdk/blob/main/packages/payments-postgres/package.json), [Payments workspace](https://github.com/agent-teams-ai/payments-sdk/blob/main/pnpm-workspace.yaml), [existing Foundation workspace rules](https://github.com/agent-teams-ai/engineering-foundation/blob/main/docs/reference/workspace-dependency-declarations.md).
 
-## 3. Explicit invariants and non-goals
+## 3. Explicit invariants and excluded scope
 
-1. **One version-selection owner:** only Stack's data catalog selects governed external package versions. A consumer-local literal manifest or native manager catalog is a required projection for the package manager, not another independent policy catalog. Catalog/profile identity must be reviewable and immutable for a release.
-2. **Opt-in and finite:** no ambient discovery, automatic scans of arbitrary sibling repos, broad globs, implicit organization enrollment, or full-stack profile for every app. Each maintained target is a literal repository-relative package.json path selected by the consumer.
-3. **Direct vendor ownership:** applications directly declare their runtime packages; libraries retain genuine peer constraints, their own development qualification pins, and public direct vendor import paths. No umbrella package, re-export, forced shared adapter, runtime injection, React transitives, hidden override, or dependency-kind relocation.
-4. **Existing owners remain:** Stack owns the portable catalog, comparison and proposed projection/planning algorithm; Foundation may read drift findings as opt-in repository policy, never duplicate the catalog. node-or-bun remains only the bounded process mechanism. Product financial/security policy, architecture topology, source-import rules, release governance, and manager lock resolution stay with their current owners.
-5. **No generated truth substitution:** manager-owned lockfile is the transitive graph and integrity/SRI record, not Stack's catalog. A selected version string does not establish peer compatibility or runtime qualification. Catalog does not resolve peers, install dependencies, choose a test runner, or change scripts.
-6. **Preserve external policy:** overrides, patchedDependencies, local native parser/TS6 islands, packageManager, engines, package lifecycle permissions, types, nonselected catalog entries, JavaScript config, and tests remain consumer-owned. Node's existing test runner remains; fast-check is a supporting test library, not a replacement.
-7. **Only staged writes:** check/status is genuinely read-only. An explicitly authorized update prepares a finite, exact-preimage diff in a disposable candidate checkout. Never silently repair, commit, publish, open/merge another repository PR or claim atomic multi-repository behavior.
+1. **One desired-version authority; different technical authorities.** The catalog's owner selects exact recommended *install* versions. The consumer owns its adopted catalog revision, package kinds, real peer compatibility and exceptions. Its package.json or native catalog entries are tool-required projections, and pnpm owns the resolved graph/SRI in the lock.
+2. **Separate data and mechanism lifecycles.** The existing neutral Stack Toolchain owns the portable comparison/projection *mechanism*, not organization-specific pg/Zod/YAML version policy. A catalog change should not require shipping an unrelated TypeScript/linters release by default. No second Foundation catalog or duplicated consumer-local desired-version authority.
+3. **Opt-in literal targets.** One small named family and exact maintained package.json paths; reject ambient discovery, arbitrary globs, cross-repo scans and universal full-stack profiles. The consumer declares its selected dependency section(s) and literal/catalog provenance; no policy inferred from path.
+4. **Direct vendor ownership.** Apps keep direct runtime dependencies. A library controls its own peerDependencies, optional peer metadata and qualification dev pins. No umbrella dependency, runtime re-export, forced shared adapter, hidden React transitive or automated movement between dependency kinds.
+5. **Existing boundaries.** Foundation's workspace-declaration policy is independent and may consume a read-only drift result without changing its contract. node-or-bun remains the process execution mechanism; no new executor, job scheduler, queue or actor. Product financial/security policy and strict tests remain local.
+6. **Read-only truth, staged changes.** No network, install, file modifications or code execution during consistency checks. Candidate proposals must use approved data, exact preimages, bounded diffs, the consumer-pinned manager and repository-owned PR gates; no silent repair, auto-merge or promise of atomic multi-repo cutover.
+7. **Preserve unselected policy.** Never rewrite overrides, patchedDependencies, local parser/compiler islands, engines, packageManager, scripts, lifecycle permissions, peer ranges, @types differences or unrelated pnpm catalog entries. Node test runners remain; fast-check is only a supplementary test library.
 
-Outside v1: React/Vite/Vitest/Jest/Playwright/Testing Library (no qualified direct frontend consumers in the supplied sample), Bun/npm/Yarn projection adapters, automatic stack detection, global policy overrides, generic workspace migration, transitive optimizer, a new hosted registry, a new framework, and a new public CLI decision.
+Out of first implementation: token, React/Vite/Vitest/Playwright or frontend claims without actual consumers, Bun/npm/Yarn adapters, full repo migration, peer SAT solving, automatic stack inference, transitive manager, hosted dependency registry, fleet state database, dashboard, background scheduler, generic dependency/architecture framework, new public CLI without an owner decision.
 
-## 4. Ownership and Clean Architecture slice
+## 4. Clean Architecture, ownership and delivery boundaries
 
-Use **one cohesive Stack feature**, separate from existing toolchain-execution, with minimal ports:
+Revision-1's assumption that Stack owns *the chosen catalog values* is rejected as a default. Stack must remain organization-neutral and reusable while organization/project maintainers select *their* versions. Tool code and catalog selections need separate upgrade lifecycles.
 
-| Layer | Responsibility | Explicitly excluded |
+| Boundary | Owns | Does NOT own |
 | --- | --- | --- |
-| Pure selection model | Strict schema, catalog identity, package/role/kind mapping, exact selection, deterministic normalized drift records, conflict and exception checks | File IO, pnpm execution, peer solving, product rules |
-| Application cases | Compare declared targets against immutable selections; calculate an explicit bounded update plan; validate baseline and approval | Ambient discovery, unattended mutation, multi-repository coordinator |
-| Input/output adapters | Read strict JSON and exact literal manifest paths; inspect pnpm native catalog **without executing JS**; write a candidate finite patch; delegate lock generation to selected exact pnpm and capture result | Business imports, unrelated source rewrites, Foundation-specific policies |
-| Composition | Wire filesystem and process ports using Stack's existing conventions and node-or-bun where subprocess control is needed | Second process manager, dependency-injection framework, event bus, workflow engine |
+| Existing Stack Toolchain | Stable portable strict input model, schema/loader, deterministic comparison and finite projection planning; narrow native adapters only when actually needed | Chosen organization versions, app/library policy, fleet orchestrator, compatibility verdict, runtime vendor imports |
+| One independent inert catalog data authority | Named, opt-in families of exact recommended vendor installation selections; immutable revision/digest/provenance | Product topology, dependency-kind policy, peer compatibility ranges, package manager resolution |
+| Consumer and package manager | Exact enrolled package paths, dependency sections, adopted catalog version, local peer/exception policy, native pnpm input files, lockfile and critical CI | A second hand-maintained desired-version catalog |
+| Foundation, if adopted | Existing local declaration/architecture policy and optional read-only drift gate | Duplicated catalog, new runtime dependency, rewriting consumer versions |
+| Existing Renovate/Dependabot or approved future proposal adapter | Native manager-aware **proposals** for opted-in consumers | Central desired-version authority, unreviewed merges or arbitrary privileged scripts |
 
-Keep interfaces at real IO boundaries. No service locator, package-per-class structure, DDD aggregates for a data-selection checker, or per-repo copy of core comparison logic. One small feature directory and direct pure functions are adequate. Use TypeScript .ts and existing strict tooling. If YAML parsing needs a runtime library, qualify the minimal deterministic parser dependency in Stack itself; do not borrow undeclared consumer transitive dependencies.
+**Distribution is an owner decision, not an accepted package name:**
 
-Existing Foundation workspace.dependency-declarations is a **different** capability: it verifies workspace rules and package placement in a repository. It is not an alternative cross-repository catalog, and a new drift result must not weaken its independent contract or accepted exception policy.
+| Option | Pros | Main cost / decision |
+| --- | --- | --- |
+| Embedded catalog in each Stack release | Simple tiny disposable spike | Reject as long-term default: pg changes force unrelated toolchain releases and mix data policy with mechanisms |
+| Immutable central Git JSON + consumer retained snapshot | No extra npm package; exact commit and bytes possible | Needs verified revision adoption, offline snapshot freshness and safe complete-PR route |
+| Independently released data-only artifact | Independent revisions; manager can pin exact archive/cache/SRI; release candidates discoverable | Requires one bounded new distribution identity and actual release proof; artifact bump alone does not project native versions |
 
-## 5. Candidate data contracts — illustrations, NOT public APIs
+Prefer the smallest **separate** data distribution that a two-repo updater spike can really deliver; an independent inert data artifact is the leading candidate if native updater support is demonstrated, otherwise an existing immutable Git + cached snapshot can be evaluated. Neither public name nor publication is decided here; only one data authority may exist after decision. Merely introducing a new package without a complete propagation path would be wasted complexity.
 
-**Catalog**: a strict JSON document owned and released with Stack, with a versioned schema. Recommend embedding the first bounded catalog in the existing Stack release; defer an independent data artifact until an actual release/use case requires it. No new package identity or public subpath is accepted by this document.
+One cohesive Stack feature suffices if missing capabilities are proven. Pure selection policies receive normalized immutable observations; application comparison/plan operations depend on ports; filesystem/pnpm adapters own external shapes and the existing NOB subprocess boundary; GitHub PR delivery remains an *outer workflow concern*, never a Stack kernel service. No DI container, DDD aggregates for JSON, actor system, plugin host, new workflow engine or package-per-class structure.
 
-Candidate conceptual JSON (illustrative names and shape only):
+## 5. Candidate data contracts — conceptual, NOT public APIs
+
+Only small, evidenced families of exact **install selections** live in the central catalog. No global application/library dependency-kind whitelist: package roles and peer policy belong to the consumer. A second named compatibility track needs a real incompatible consumer and proof; no combinatorial full-stack preset explosion.
+
+Conceptual strict JSON example:
 
 ~~~json
 {
   "schemaVersion": 1,
   "families": {
     "postgres-client": {
-      "selections": { "pg": "8.23.1" },
-      "allowed": {
-        "application": ["dependencies"],
-        "library": ["peerDependencies", "devDependencies"]
-      }
+      "packages": { "pg": "8.23.1" }
     }
   }
 }
 ~~~
 
-A real schema must specify exact field grammar, unknown-field rejection, duplicate-key rejection, unique family/package identifiers, exact selected-version syntax, and deterministic serialization. No executable configuration, conditionals, local callbacks, new installer scripts or semver guessing. An optional public preset reference is **data**, not an instruction to import another package at runtime.
+This is an illustration, not a promised schema, path, published package or available command. The actual admission schema must reject unknown/duplicate JSON fields, mixed version syntax, conflicting selections, invalid npm names and unreviewed aliases, ranges, tags or URLs. JSON.parse by itself silently accepts duplicate keys; use a strict existing parser or explicit duplicate-key validation. Source bytes and limits must be bounded, with one normalized deterministic rendering where canonicalization is required.
 
-**Identity**: keep three distinct concepts:
-- catalog schemaVersion: shape/compatibility of the data;
-- exact Stack package release version: distribution and packaging provenance;
-- catalog content identity: SHA-256 over the **exact packaged UTF-8 catalog bytes** (the digest is recorded outside the hashed document to avoid self-reference).
+**Identity:** separate schema version, immutable *catalog* data revision, SHA-256 of exact retained/package artifact bytes outside the hashed document, exact vendor version, installed Stack checker version, consumer's adopted revision and newer offered revision. A moving branch/tag and a "latest" lookup are never a CI authority. Changing the catalog makes a new immutable revision, *not necessarily a new Stack Toolchain release*. Verify release provenance/physical artifact against the selected reference before reporting that data is available.
 
-Do not conflate these with selected vendor package versions, manager lock integrity, or compatibility evidence. Any catalog byte change yields a new digest and a reviewed Stack release. The same stable digest can be checked by a consumer installed from an already qualified artifact. A standalone data artifact is a deferred alternative, not a second simultaneous authority.
+**Consumer selection:** explicit inert input maps exact repo-relative package.json paths to named catalog families/packages, actual dependency kinds and the literal/default/named-catalog read surface. It pins an exact catalog revision plus content digest and may select only part of the catalog. It cannot execute code, load JavaScript config, follow symlink escapes, traverse parents, select duplicate path identities or expand globs. The consumer, not catalog, decides whether a field is dependencies, devDependencies, peerDependencies or optionalDependencies.
 
-**Consumer selection**: consumer-owned, strict-JSON, explicitly enabled mapping from exact maintained package.json paths to the selected Stack catalog identity and named family. This is a candidate contract, not an agreed filename or published feature. A consumer can select only a subset of the catalog. Paths cannot be absolute, traverse above root, escape through symlinks, or resolve outside the approved workspace; targets must be unique and materialized. Do not expand glob patterns or depend on package-name guesses. Each target declares its actual role and selected dependency kinds. Mismatched role/kind or duplicate conflicting selections reject.
+**Peer contract separation (critical):** Gateway uses a direct runtime pg 8.23.1 pin. Payments currently uses one default pnpm catalog entry for both optional pg peer and pg development. Its real **published peer requirement** and dev qualification version may have different appropriate semantics; do not force both to use one exact recommended app install pin. The first writer manages app/dev *install fields* only and must refuse any catalog change that would indirectly mutate a packed peer. The Payments owner may separately qualify a change to split the peer and dev representation or approve a changed peer contract. Its current @types/pg 8.20.0 (versus Gateway 8.23.1) is outside the first selection, not a policy waiver.
 
-For illustration, Gateway selects its server package as application/dependencies/pg; Payments selects packages/payments-postgres/package.json as library/peerDependencies+devDependencies/pg, preserving its existing default catalog:. The root may remain unselected. This does not instruct either team to change its manifest.
+**Exception and hold:** older self-consistent adopted catalog revisions are explicitly deferred adoption, *not* a kind/value mismatch waiver. For an actual selected-field mismatch require exact package path, name, kind, expected value, observed value, owner, reason and review trigger. No wildcard, broad overrides, silent expiry or catch-all suppression. Report approved exception separately from exact match.
 
-**Per-repository exception**: only for a selected literal field, identify exact target path, package, dependency kind, expected selected value, retained observed value, responsible owner, reason, and a mandatory review trigger (for example next selected catalog revision). Reject wildcard packages, unbounded waivers, silently expired/triggered exceptions and a changed observed value. Report an active approved exception as such, never as matching selection. An unselected field needs no exception.
+## 6. Read-only comparison and controlled diagnostics
 
-Do not introduce an exception merely because Payments uses @types/pg 8.20.0 while Gateway uses 8.23.1; @types/pg is outside the first pg-only selection. Keep the deliberate type and native islands in their existing authority. If later included, its difference requires separate qualification and an explicitly reviewed selection or exception.
+An offline check receives the explicit consumer root, local selection, exactly adopted **data catalog revision** and named target manifests/native pnpm catalog. It must not install, fetch, mutate, execute subprocesses, evaluate JavaScript configuration, repair or infer undeclared scopes. The selected catalog can come from a previously verified installed artifact or committed retained snapshot; no dependence on the current *latest* external revision.
 
-## 6. Read-only comparison semantics
+Validate: (1) strict bounded schema and duplicate keys; (2) immutable catalog locator/content digest and compatibility with the checker; (3) literal target path containment, normalized path identity, symlink and workspace ownership; (4) selected direct pin or precise default/named catalog selector; (5) actual section and effective selected exact version; (6) exact active/stale exception; (7) sorted stable findings and concise human guidance. Distinguish unknown/invalid input from a genuine known drift. Preserve literal pin versus catalog: provenance in diagnostics. Do not claim a string match establishes peer or runtime compatibility.
 
-A compare receives explicit consumer root, its selection document, the **physically installed exact Stack package**, the corresponding catalog bytes, and only named target manifests/native pnpm workspace data. It performs no install, network access, file write, script execution, source JavaScript evaluation, repair or remote checkout.
+A changed nonselected field is **not selected-field drift**. A candidate writer nevertheless uses exact whole-file SHA-256 preimages to avoid clobbering concurrent edits. A self-consistent older revision is Current *for its adopted revision*, with an optional separate upgrade-available message supplied by a non-CI updater; it must not cause failing offline checks. No false passing state from incomplete independent review, absent catalog data or a missing target.
 
-It validates in this order:
-
-1. Input readability, bounded size, strict syntactic parsing and schema version; unknown or duplicate governed fields reject, not partial-pass.
-2. Installed Stack identity and packaged catalog digest against the consumer selection; a missing artifact or incompatible/new revision is **unavailable/mismatch**, not a transparent fallback to a different global install.
-3. Named target path containment, package role, packageManager identity and actual finite workspace membership (where a workspace is involved).
-4. Each selected package field in dependencies/devDependencies/peerDependencies/optionalDependencies; resolve only explicit default/named pnpm catalog selectors supported by the selected manager. A missing/ambiguous selector is a finding.
-5. Exact selected version/range string and declared dependency kind; peer + development duplicates are permitted only as an explicitly selected library pairing that follows existing owner policy. Do not move kinds automatically.
-6. The optional exact exception record; report its state and any expired/review-triggered case separately.
-7. Emit stable ordered findings with target path, package, kind, expected, observed, catalog release/digest, and reason. Never include tokens or broad source/file dumps.
-
-Report **selected-field drift** separately from **whole-file freshness**: unrelated manifest fields must not become selected-field drift merely because the file hash changed. For an update, however, whole-file SHA-256 preimages are mandatory to prevent overwriting concurrent edits.
-
-Suggested findings (provisional names, not stable public identifiers): invalid-input, missing-target, unknown-revision, selector-drift, selected-value-drift, dependency-kind-drift, conflicting-profile, active-exception, stale-exception, and preimage-changed. Machine-readable error taxonomy and command surface require owner acceptance and conformance before being called public.
+No new public CLI, exit taxonomy or schema export is accepted by this document. Future minimal user operations are *compare selected state* and *propose an explicit reviewed update*; avoid featureful CLI scaffolding, auto-install, generic init wizards or global package discovery until the real consumer UX needs them.
 
 ## 7. Native package-manager projection and safe reviewed update
 

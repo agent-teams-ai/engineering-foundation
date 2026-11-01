@@ -39,14 +39,14 @@ async function assertReleasedSchemaInventory(): Promise<void> {
   const releasedIds = schemas.map((schema) =>
     schema.path.replace(/^schemas\//u, "").replace(/\.schema\.json$/u, ""),
   );
-  assert.equal(new Set(releasedIds).size, releasedIds.length);
-  assert.equal(releasedIds.filter((id) => id !== "quality-source-coverage/v4").length, 44);
-  const expectedIds = new Set([
-    ...releasedIds,
-    "quality-source-coverage/v4",
-    "quality-format-coverage/v1",
+  const additionalSchemaIds = [
     "foundation-config/v3",
-  ]);
+    "quality-format-coverage/v1",
+    "quality-source-coverage/v4",
+  ];
+  assert.equal(new Set(releasedIds).size, releasedIds.length);
+  assert.equal(releasedIds.filter((id) => !additionalSchemaIds.includes(id)).length, 44);
+  const expectedIds = new Set([...releasedIds, ...additionalSchemaIds]);
   assert.equal(expectedIds.size, 47);
   assert.deepEqual(FOUNDATION_SCHEMA_IDS.toSorted(), [...expectedIds].toSorted());
   for (const schema of schemas) {

@@ -13,11 +13,11 @@ The problem is version-selection duplication across independent repositories. A 
 
 The central change must update the actual selected package.json or manager-native default/named catalog **and manager-owned lockfile**, not only an abstract catalog pointer. Successful end-to-end delivery requires two complete consumer PR artifacts from one central approved revision, with unchanged out-of-scope fields, exact source identity, normal frozen-install and critical consumer gates. A single generated JSON report or unverified Renovate config is insufficient.
 
-**Small user-facing status vocabulary:**
+**Small user-facing status vocabulary:** A selection check that reports Current is **not** a statement that the lockfile, security posture or application runtime passed qualification.
 
 | Status | Meaning | Action |
 | --- | --- | --- |
-| Current | Selected manifest/native catalog and lock agree with the **consumer's adopted** immutable revision | None |
+| Current | Selected manifest/native catalog match the **consumer's adopted** immutable revision | Lock freshness and runtime compatibility are separately proven by frozen install and actual consumer gates |
 | New revision available | A newer centrally approved catalog revision exists, but the currently adopted version still matches itself | Offer a PR; do not fail normal offline CI |
 | Proposed | A bounded consumer PR is available and awaits product-owner checks/review | Review and qualify |
 | Blocked | Manager, peer contract, security, provenance or consumer CI rejected the candidate | State the exact reason; never repair/fallback silently |
@@ -103,9 +103,32 @@ Conceptual strict JSON example:
 
 This is an illustration, not a promised schema, path, published package or available command. The actual admission schema must reject unknown/duplicate JSON fields, mixed version syntax, conflicting selections, invalid npm names and unreviewed aliases, ranges, tags or URLs. JSON.parse by itself silently accepts duplicate keys; use a strict existing parser or explicit duplicate-key validation. Source bytes and limits must be bounded, with one normalized deterministic rendering where canonicalization is required.
 
-**Identity:** separate schema version, immutable *catalog* data revision, SHA-256 of exact retained/package artifact bytes outside the hashed document, exact vendor version, installed Stack checker version, consumer's adopted revision and newer offered revision. A moving branch/tag and a "latest" lookup are never a CI authority. Changing the catalog makes a new immutable revision, *not necessarily a new Stack Toolchain release*. Verify release provenance/physical artifact against the selected reference before reporting that data is available.
+**Identity:** separate schema version, immutable *catalog* data revision, SHA-256 of the **exact catalog JSON bytes** outside its hashed document, separately verified distribution archive integrity/provenance where an archive exists, exact vendor version, installed Stack checker version, consumer's adopted revision and newer offered revision. A moving branch/tag and a "latest" lookup are never a CI authority. Changing the catalog makes a new immutable revision, *not necessarily a new Stack Toolchain release*. Verify release provenance/physical artifact against the selected reference before reporting that data is available.
 
 **Consumer selection:** explicit inert input maps exact repo-relative package.json paths to named catalog families/packages, actual dependency kinds and the literal/default/named-catalog read surface. It pins an exact catalog revision plus content digest and may select only part of the catalog. It cannot execute code, load JavaScript config, follow symlink escapes, traverse parents, select duplicate path identities or expand globs. The consumer, not catalog, decides whether a field is dependencies, devDependencies, peerDependencies or optionalDependencies.
+
+An illustrative selection record (field names and placeholder revision identity are **not** agreed public schema):
+
+~~~json
+{
+  "schemaVersion": 1,
+  "catalog": {
+    "revision": "<immutable-approved-revision>",
+    "sha256": "<verified-catalog-file-sha256>"
+  },
+  "targets": [
+    {
+      "manifest": "services/account-gateway/package.json",
+      "family": "postgres-client",
+      "package": "pg",
+      "kind": "dependencies",
+      "source": "literal"
+    }
+  ]
+}
+~~~
+
+A Payments read-only selection would use its real adapter package path, actual development/peer observations and default pnpm catalog provenance rather than pretending its runtime peer is a direct application pin. This is an **input illustration** only; exact names/path and CLI remain subject to the owning design decision.
 
 **Peer contract separation (critical):** Gateway uses a direct runtime pg 8.23.1 pin. Payments currently uses one default pnpm catalog entry for both optional pg peer and pg development. Its real **published peer requirement** and dev qualification version may have different appropriate semantics; do not force both to use one exact recommended app install pin. The first writer manages app/dev *install fields* only and must refuse any catalog change that would indirectly mutate a packed peer. The Payments owner may separately qualify a change to split the peer and dev representation or approve a changed peer contract. Its current @types/pg 8.20.0 (versus Gateway 8.23.1) is outside the first selection, not a policy waiver.
 
@@ -133,7 +156,7 @@ pnpm default and named catalogs support references in normal dependency sections
 2. Resolve the candidate revision independently of the consumer installation, in a disposable trusted tool context, verify its retained/published artifact. Compute a finite proposed change before any file writes. Refuse unknown release, conflicting profile, ambiguous selector or unsupported manager.
 3. Stage only the local *adopted data revision*, selected direct package.json or native catalog entry, and manager-generated lock. Preserve unselected comments/quotes/order, scripts, @types, peer metadata, overrides, local patches, TS/parser islands, engine and lifecycle settings. Never silently migrate a repo's literal pins to catalog: or vice versa.
 4. Prefer the native existing updater's support for package.json and pnpm-workspace.yaml, if proved with real PR artifacts. Build a minimal YAML/JSON editor only for a demonstrated missing projection: structure-preserving selected-field edits, bounded sources, duplicate/alias rejection and no generic rewrite DSL.
-5. Let the repository's **pinned real pnpm**, using its strict peer/engine/build/registry behavior, generate the native lock under existing bounded process custody. Reject force, legacy-peer exceptions, homemade SAT resolution, guessed peer ranges, silently added build permissions or unchecked postinstall scripts.
+5. Let the repository's **pinned real pnpm**, preserving its **own existing** peer/engine/build/registry policy (which differs among Gateway, Payments and Foundation), generate the native lock under existing bounded process custody. Reject force, legacy-peer exceptions, homemade SAT resolution, guessed peer ranges, silently added build permissions or unchecked postinstall scripts.
 6. Verify generated diff against a literal allowlist. Reject preimage/head change and unrelated manifest/lock side effects. A failed plan is discarded as disposable work; never blindly rebase/mutate a user's checkout or retry a write that might already have happened.
 7. Open only one independent reviewable PR per repository, respecting its existing migration gates, required CI and human/owner approval. A partial rollout and old still-adopted revisions are normal; no fleet-wide commit, rollback, publish or auto-merge is implied.
 

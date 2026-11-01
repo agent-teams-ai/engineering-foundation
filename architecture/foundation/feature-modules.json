@@ -2172,6 +2172,7 @@
             "packages/stack-toolchain/tests/configuration.test.ts",
             "packages/stack-toolchain/tests/doctor.test.ts",
             "packages/stack-toolchain/tests/executables.test.ts",
+            "packages/stack-toolchain/tests/format-files.test.ts",
             "packages/stack-toolchain/tests/lint-presets.test.ts",
             "packages/stack-toolchain/tests/process.test.ts",
             "packages/stack-toolchain/tests/typecheck.test.ts"
@@ -2183,6 +2184,7 @@
         "packages/stack-toolchain/tests/configuration.test.ts",
         "packages/stack-toolchain/tests/doctor.test.ts",
         "packages/stack-toolchain/tests/executables.test.ts",
+        "packages/stack-toolchain/tests/format-files.test.ts",
         "packages/stack-toolchain/tests/lint-presets.test.ts",
         "packages/stack-toolchain/tests/process.test.ts",
         "packages/stack-toolchain/tests/typecheck.test.ts"

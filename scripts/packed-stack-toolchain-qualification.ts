@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readFile, writeFile, mkdir } from "node:fs/promises";
-import { join } from "node:path";
+import { readFile, writeFile, mkdir, mkdtemp, symlink } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
 import { createRequire } from "node:module";
 import { runCommand } from "./pack-test-support.mjs";
 
@@ -273,10 +273,21 @@ async function qualifyInstalledLiteralFormat(root: string, cli: string): Promise
   assert.equal(await readFile(join(root, "protected.json"), "utf8"), protectedBytes);
 }
 
+/** Keep platform-literal test inputs outside the consumer's portable source census. */
+export async function createInstalledStackToolchainFixture(consumerRoot: string): Promise<string> {
+  const installedModules = resolve(consumerRoot, "node_modules");
+  const root = await mkdtemp(join(dirname(resolve(consumerRoot)), "TEST-stack-toolchain-"));
+  await symlink(
+    installedModules,
+    join(root, "node_modules"),
+    process.platform === "win32" ? "junction" : "dir",
+  );
+  return root;
+}
+
 /** Runs only against an installed candidate in a disposable package consumer. */
 export async function qualifyInstalledStackToolchain(consumerRoot: string): Promise<void> {
-  const root = join(consumerRoot, "TEST-stack-toolchain");
-  await mkdir(root, { recursive: true });
+  const root = await createInstalledStackToolchainFixture(consumerRoot);
   await writeFile(
     join(root, "package.json"),
     JSON.stringify({ private: true, type: "module", scripts: { check: "exit 99" } }),

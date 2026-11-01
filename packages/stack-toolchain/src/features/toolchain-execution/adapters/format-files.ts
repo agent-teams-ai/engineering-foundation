@@ -80,7 +80,7 @@ function observe(root: string, file: string) {
     fd = fs.openSync(current, flags);
   } catch (error) {
     if (typeof error === "object" && error !== null && "code" in error && error.code === "ELOOP") {
-      throw new Error("TOOLCHAIN_FORMAT_SYMLINK");
+      throw new Error("TOOLCHAIN_FORMAT_SYMLINK", { cause: error });
     }
     throw error;
   }

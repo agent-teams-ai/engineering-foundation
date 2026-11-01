@@ -27,6 +27,16 @@ The central change must update the actual selected package.json or manager-nativ
 
 A future repo, including an example such as Dogman, becomes a consumer only after identifying its real package paths, supported manager and explicit owner enrollment; name resemblance or shared libraries never activate a profile. No auto-discovery or forced full-stack choice.
 
+**Usability acceptance (test with a maintainer, not a mock interface):**
+
+- Joining the supported cohort must require only one **explicit, small enrollment step** in an otherwise existing repository, plus its normal direct manifest/native lock. If the winning solution is shared Renovate policy, an opt-in existing config route is enough; do not add a Stack config and a parallel catalog selection file merely to satisfy a planned architecture diagram.
+- One approved central desired-version edit must produce complete per-repository proposals **without copying the desired version into each repository by hand**. Review and merge remain intentionally local.
+- The PR description must explain the package/family, old and proposed exact version, selected central policy/revision provenance, changed manifest/lock files, why any peer/engine/security gate is required, and whether it is blocked. Never make users interpret raw selector hashes just to understand what changed.
+- The recipient must be able to hold/defer the update using its normal review workflow, with a visible reason and review trigger, without breaking frozen CI. Whether the chosen updater reopens closed PRs, supersedes versions or requires a dashboard action must be **observed in P0**; do not invent a magic "pause" button.
+- No PR for unchanged selected values; no new runtime imports, dependency injection or installation lifecycle hooks; no separate user-facing dashboard, group-wide coordinator or manual version-copying spreadsheet.
+
+
+
 ## 2. Evidence, scope and public-main reconciliation
 
 The supplied local working-tree inventory is identified as selected-consumer-dependencies.json, SHA-256 e59d93afe7cdee711b63d241ac5a1d1826c5c1f5973fe73730d4b0e463867049. Its reported 24 manifests, six named repositories, roles and dependency counts are useful design input, **not a reproducible public-main claim**. The inventory bytes are not part of this change and were not independently rehashed. A working-tree observation cannot establish fresh-main, transitive resolution or runtime/peer compatibility.

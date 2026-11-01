@@ -11,8 +11,11 @@ import {
   lstat,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, relative } from "node:path";
+import { createRequire } from "node:module";
 import test from "node:test";
+import { createInstalledStackToolchainFixture } from "../../../scripts/packed-stack-toolchain-qualification.ts";
+import { discoverSourceWorkspacePaths } from "../../../packages/engineering-foundation/dist/capabilities/source-dependencies/adapters/outbound/node/selected-package-source-discovery.js";
 import { copyPinnedToolchain } from "./copied-toolchain.mjs";
 import { qualifyMissingInstalledOxlint } from "../../../scripts/packed-quality-lint-protections.ts";
 import { inspectConsumerToolchain } from "../../../packages/engineering-foundation/dist/features/quality-coverage/node.js";
@@ -164,4 +167,54 @@ test("missing-tool qualification follows installed Stack authority inside its co
     /strictly inside copied consumer/u,
   );
   assert.deepEqual(await readFile(join(nested, "package.json")), packageBytes);
+});
+
+test("installed Stack Toolchain literal fixtures preserve the consumer census and installed instance", async (t) => {
+  const temporaryRoot = await mkdtemp(join(tmpdir(), "registry-toolchain-isolation-"));
+  t.after(() => rm(temporaryRoot, { recursive: true, force: true }));
+  const consumer = join(temporaryRoot, "consumer");
+  const installed = join(consumer, "node_modules/stack-toolchain");
+  await mkdir(installed, { recursive: true });
+  await writeFile(
+    join(installed, "package.json"),
+    JSON.stringify({ name: "stack-toolchain", type: "module", exports: "./index.js" }),
+  );
+  await writeFile(
+    join(installed, "index.js"),
+    "export const identity = 'verified-installation';\n",
+  );
+  await mkdir(join(consumer, "packages/worker/src"), { recursive: true });
+  await writeFile(join(consumer, "packages/worker/src/main.ts"), "export const value = 1;\n");
+  const fixture = await createInstalledStackToolchainFixture(consumer);
+  await mkdir(join(fixture, "literal"));
+  await writeFile(join(fixture, "package.json"), '{"type":"module"}');
+  for (const name of process.platform === "win32"
+    ? ["[abc].json"]
+    : ["[abc].json", "*.json", "?.json"]) {
+    await writeFile(join(fixture, "literal", name), "{}\n");
+  }
+  const discovery = await discoverSourceWorkspacePaths(await realpath(consumer), {
+    repositoryRoots: ["."],
+  });
+  assert.deepEqual(discovery.sourcePaths, ["packages/worker/src/main.ts"]);
+  assert.ok(relative(consumer, fixture).startsWith(".."));
+  const fromConsumer = createRequire(join(consumer, "package.json"));
+  const fromFixture = createRequire(join(fixture, "package.json"));
+  assert.equal(
+    await realpath(fromFixture.resolve("stack-toolchain")),
+    await realpath(fromConsumer.resolve("stack-toolchain")),
+  );
+  assert.equal(
+    await readFile(fromFixture.resolve("stack-toolchain"), "utf8"),
+    "export const identity = 'verified-installation';\n",
+  );
+  if (process.platform !== "win32") {
+    await writeFile(join(consumer, "unsafe?.json"), "{}\n");
+    await assert.rejects(
+      discoverSourceWorkspacePaths(await realpath(consumer), { repositoryRoots: ["."] }),
+      (error) => {
+        return error.problem?.code === "SOURCE_DISCOVERY_PATH_INVALID";
+      },
+    );
+  }
 });

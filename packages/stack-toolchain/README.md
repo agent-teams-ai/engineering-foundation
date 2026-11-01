@@ -152,6 +152,70 @@ Add `maintainability.json` for production budgets or
 `maintainability-tests.json` for test budgets. These are portable technical
 presets; product policy and organization conformance remain in their consumers.
 
+## Literal input source candidate
+
+The source candidate adds `runCommand({ command: "format:check", cwd, signal,
+formatFiles })` for callers that already own an explicit file census. It is not
+available in the current published version. This mode does not load
+`toolchain.config.json`, TypeScript projects, or native `format.paths`.
+
+Inputs are nonempty relative literal regular files, without aliases or symbolic
+links. The whole request rejects before execution if any input is missing,
+ambiguous, or unsupported by the pinned formatter contract. It never filters an
+unsupported input into a successful subset. The existing native paths command
+keeps its current glob and ignore behavior.
+
+Literal execution uses the existing pinned formatter and process owner, an empty
+owned ignore file, and explicit `./` arguments. Batches share the original budget
+and cancellation signal. Reports distinguish requested, validated, and attempted
+paths, completed batches, and selected-source byte revalidation; partial or
+uncertain execution cannot pass. This mode does not discover maintained inputs
+or prove repository-wide coverage. Consumer policy and alternate validators
+remain outside Stack.
+
+Before invoking this optional contract, callers check the public root export
+`formatFilesContractVersion === 1`. Older releases can ignore an unknown input
+field, so package presence or an ordinary successful format report is not feature
+negotiation. This checkpoint exposes the API; it adds no literal-input CLI flag.
+
+The initial literal applicability contract admits `.ts`, `.tsx`, `.mts`, `.cts`,
+`.js`, `.jsx`, `.mjs`, `.cjs`, `.json`, `.jsonc`, `.yaml`, `.yml`, and `.md`.
+Other types reject the entire request, including mixed requests. This contract
+does not claim every native Oxfmt language. Consumers retain real alternate
+validators for other types; they must not copy this table to filter their census.
+
+Paths use relative POSIX separators and well-formed Unicode. Absolute paths,
+dot segments, empty segments, control characters, backslashes, colons, trailing
+dots/spaces and Windows device names reject. NFC/lowercase identity collisions, duplicate
+paths, hardlink aliases and symbolic links reject before invocation. Filenames
+must be permitted by the actual filesystem; POSIX literal `*` and `?` support
+does not claim those names can be created on Windows. Filesystem observation
+assumes cooperative source ownership, not a hostile concurrent filesystem.
+
+The envelope permits at most 100,000 inputs, 4,096 UTF-8 bytes per path, 2 MiB of
+path text, 4 MiB per file and 64 MiB of selected input bytes. Argument batches
+include fixed executable/preset/control arguments in a conservative 24 KiB
+quoting bound. Platform/environment limits can still refuse execution; no retry
+or successful subset is substituted. Validation, revalidation, invocation and
+final acceptance share the original budget. Physical cleanup can outlast that
+budget to preserve custody, but expiry cannot return success.
+
+Literal details contain schema version 1; sorted requested, validated and
+attempted path arrays; SHA-256 digests of their UTF-8 JSON array encodings; batch
+completion; and selected-source byte revalidation. A complete check with format
+differences exits 1. Invalid, incomplete or uncertain execution exits 2; caller
+cancellation exits 130 and never reports `passed`. A null byte status means
+revalidation was not established. Early runtime/budget/mode refusals retain the
+ordinary command failure envelope. Callers require the literal evidence for a
+successful full-scope claim.
+
+Temporary controls must be outside the consumer root. An inside-source temporary
+directory is a named refusal, without silently writing elsewhere. If process
+custody or control cleanup is uncertain, details retain the control directory;
+Stack does not delete files that may still be in use. Operators establish
+settlement before retiring that owned evidence. Source preparation tests are
+not clean-install, cross-platform, public-release or consumer qualification.
+
 ## Minimal adoption
 
 Install an exact released version as a development dependency. For version

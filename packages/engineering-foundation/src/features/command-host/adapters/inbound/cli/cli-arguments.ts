@@ -220,8 +220,11 @@ function validateCommandOptions(command: string, state: ArgumentState): void {
 }
 
 function validateNonDocumentCommandOptions(command: string, state: ArgumentState): void {
-  if (state.scopeOnly && (command !== "quality" || state.positional[0] !== "check")) {
-    throw invalidCommand("--scope-only is supported only by quality check.");
+  if (
+    state.scopeOnly &&
+    (command !== "quality" || !["check", "format"].includes(state.positional[0] ?? ""))
+  ) {
+    throw invalidCommand("--scope-only is supported only by quality check or quality format.");
   }
   if (
     state.baseRef !== undefined &&

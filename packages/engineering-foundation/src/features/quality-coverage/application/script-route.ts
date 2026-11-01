@@ -35,13 +35,17 @@ function sequence(command: string | undefined, expected: string): readonly strin
     : [];
 }
 
-export function qualityHostCommand(command: string | undefined, scopeOnly: boolean): boolean {
+export function qualityHostCommand(
+  command: string | undefined,
+  scopeOnly: boolean,
+  mode: "check" | "format" = "check",
+): boolean {
   const host = parseStaticHostCommand(command);
   const expected = [
     "tool",
     "agent-teams-foundation",
     "quality",
-    "check",
+    mode,
     "--consumer",
     ".",
     ...(scopeOnly ? ["--scope-only"] : []),

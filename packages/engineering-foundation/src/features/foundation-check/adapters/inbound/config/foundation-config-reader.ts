@@ -20,7 +20,11 @@ export function createFoundationConfigReader(
         ? input.schemaVersion
         : undefined;
     await assertSchema(
-      version === 2 ? "foundation-config/v2" : "foundation-config/v1",
+      version === 3
+        ? "foundation-config/v3"
+        : version === 2
+          ? "foundation-config/v2"
+          : "foundation-config/v1",
       input,
       "foundation-config",
     );

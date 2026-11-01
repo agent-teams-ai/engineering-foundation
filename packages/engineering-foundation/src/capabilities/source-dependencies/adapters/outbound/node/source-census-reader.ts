@@ -51,6 +51,9 @@ export function createSourceCensusReader(files: SourceWorkspaceFileReader): Sour
         ),
         governedRoots: input.roots.filter((path) => path !== "."),
         recursivePackages: true,
+        ...(input.generatedDirectories === undefined
+          ? {}
+          : { generatedDirectories: input.generatedDirectories }),
         observeFile: (path) => {
           filePaths.add(path);
         },

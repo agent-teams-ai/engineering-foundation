@@ -9,9 +9,16 @@ import {
   resolveCompilerExecutable,
   resolveTsgolintExecutable,
 } from "./executables.js";
-import { createCheckerRunner, type CheckerExecutable } from "./process.js";
+import {
+  assertCompleteProcessResult,
+  createCheckerRunner,
+  type CheckerExecutable,
+} from "./process.js";
 import { typecheck } from "../application/typecheck.js";
 import { doctor } from "./doctor.js";
+import { checkFormatFiles } from "./format-files.js";
+export { formatFilesContractVersion } from "./format-files.js";
+export type { FormatFilesDetails } from "./format-files.js";
 
 export interface CommandInput {
   readonly command: "typecheck" | "lint" | "format:check" | "compile" | "doctor";
@@ -20,6 +27,7 @@ export interface CommandInput {
   readonly signal: AbortSignal;
   readonly budgetMs?: number;
   readonly compileArgs?: readonly string[];
+  readonly formatFiles?: readonly string[];
 }
 export interface CommandReport {
   readonly command: CommandInput["command"];
@@ -35,24 +43,18 @@ async function execute(
   args: readonly string[],
   cwd: string,
   signal: AbortSignal,
-  env?: Readonly<Record<string, string>>,
+  options?: { readonly env?: Readonly<Record<string, string>>; readonly timeoutMs?: number },
 ) {
   const result = await executor.run({
     command: executable.command,
     args: [...executable.prefix, ...args],
     cwd,
     signal,
-    timeoutMs: 300_000,
+    timeoutMs: options?.timeoutMs ?? 300_000,
     strictUtf8: true,
-    ...(env === undefined ? {} : { environment: env }),
+    ...(options?.env === undefined ? {} : { environment: options.env }),
   });
-  if (
-    !result.facts.outputBounded ||
-    result.facts.incompleteCustody ||
-    result.facts.lateFailureCodes.length > 0
-  ) {
-    throw new Error("TOOLCHAIN_INCOMPLETE_PROCESS_RESULT");
-  }
+  assertCompleteProcessResult(result);
   return result;
 }
 async function compile(input: CommandInput, executable: CheckerExecutable | null) {
@@ -123,7 +125,7 @@ async function lint(input: CommandInput, config: Awaited<ReturnType<typeof loadC
       ],
       config.root,
       input.signal,
-      typed ? { OXLINT_TSGOLINT_PATH: resolveTsgolintExecutable() } : undefined,
+      typed ? { env: { OXLINT_TSGOLINT_PATH: resolveTsgolintExecutable() } } : undefined,
     );
   if (config.lint.syntax === undefined) {
     const result = await invoke(config.lint, true);
@@ -159,6 +161,36 @@ function failureDetails(error: unknown): { readonly message: string; readonly la
     ...(error instanceof Error && "lanes" in error ? { lanes: error.lanes } : {}),
   };
 }
+async function formatLiteral(
+  input: CommandInput,
+  files: readonly string[],
+  deadline: number,
+  callerSignal: AbortSignal,
+) {
+  if (input.command !== "format:check" || input.configPath !== undefined) {
+    throw new Error("TOOLCHAIN_FORMAT_MODE");
+  }
+  const executable = resolveToolExecutable("oxfmt");
+  const prefix = [
+    "--check",
+    "--config",
+    fileURLToPath(new URL("../../../../presets/format.json", import.meta.url)),
+    "--disable-nested-config",
+  ];
+  const result = await checkFormatFiles(
+    {
+      cwd: input.cwd,
+      files,
+      signal: input.signal,
+      deadline,
+      fixedArgs: [executable.command, ...executable.prefix, ...prefix],
+    },
+    (args, cwd, timeoutMs) =>
+      execute(executable, [...prefix, ...args], cwd, input.signal, { timeoutMs }),
+  );
+  const exitCode = callerSignal.aborted ? 130 : result.exitCode;
+  return { ...result, exitCode, status: exitCode === 0 ? "passed" : "failed" };
+}
 export async function runCommand(input: CommandInput): Promise<CommandReport> {
   const started = performance.now();
   const originalSignal = input.signal;
@@ -183,6 +215,15 @@ export async function runCommand(input: CommandInput): Promise<CommandReport> {
     versions = JSON.parse(
       fs.readFileSync(new URL("../../../../toolchain-manifest.json", import.meta.url), "utf8"),
     ) as unknown;
+    if (input.formatFiles !== undefined) {
+      const result = await formatLiteral(
+        input,
+        input.formatFiles,
+        started + budget,
+        originalSignal,
+      );
+      return report(result.status, result.exitCode, result.details);
+    }
     if (input.command === "doctor") {
       const details = await doctor(input.signal, (executable) =>
         execute(executable, ["--version"], input.cwd, input.signal),

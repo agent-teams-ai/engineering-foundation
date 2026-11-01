@@ -231,6 +231,8 @@ packages:
     approvedBreakingChanges:
       - fingerprint: sha256:7543fdd6717ebff41d39fae71faaa2cb9ce2811d7deaad99243cfa351294df36
         decisionId: ADR-0065
+      - fingerprint: sha256:cbdefc1eae68189e5ebdf74059dac771e08263deb73bf2e0c5bf56056d3bc7c0
+        decisionId: ADR-0072
   - packageName: "@agent-teams/release-checks"
     packageRoot: packages/release-checks
     manifestPath: packages/release-checks/package.json

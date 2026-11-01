@@ -41,8 +41,13 @@ async function assertReleasedSchemaInventory(): Promise<void> {
   );
   assert.equal(new Set(releasedIds).size, releasedIds.length);
   assert.equal(releasedIds.filter((id) => id !== "quality-source-coverage/v4").length, 44);
-  const expectedIds = new Set([...releasedIds, "quality-source-coverage/v4"]);
-  assert.equal(expectedIds.size, 45);
+  const expectedIds = new Set([
+    ...releasedIds,
+    "quality-source-coverage/v4",
+    "quality-format-coverage/v1",
+    "foundation-config/v3",
+  ]);
+  assert.equal(expectedIds.size, 47);
   assert.deepEqual(FOUNDATION_SCHEMA_IDS.toSorted(), [...expectedIds].toSorted());
   for (const schema of schemas) {
     const bytes = await readFile(`packages/engineering-foundation/${schema.path}`);
@@ -56,7 +61,7 @@ async function assertReleasedSchemaInventory(): Promise<void> {
 
 function registerSchemaCatalogCases(): void {
   void test("schema contribution assembly preserves every published source byte and dependency registration", async () => {
-    assert.equal(FOUNDATION_SCHEMA_IDS.length, 45);
+    assert.equal(FOUNDATION_SCHEMA_IDS.length, 47);
     await assertReleasedSchemaInventory();
 
     assert.ok(FOUNDATION_SCHEMA_IDS.includes("workspace-dependency-declarations/v2"));

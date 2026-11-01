@@ -11,6 +11,10 @@ editing the accepted decision.
 
 ## Accepted
 
+- [ADR-0072: Explicit Stack Toolchain Literal Format API](0072-explicit-toolchain-literal-format-api.md)
+
+- [ADR-0071: Quality Coverage Strict JSON Consumer Admission](0071-quality-coverage-strict-json-consumer-admission.md)
+
 - [ADR-0070: Bounded Managed Generation3 Execution](0070-bounded-managed-generation3-execution.md)
 
 - [ADR-0069: Release Checks Existing Bootstrap Recovery](0069-release-checks-existing-bootstrap-recovery.md)

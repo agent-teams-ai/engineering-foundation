@@ -54,7 +54,7 @@ test("keeps schema, capability, rule, and explain registries drift-free", async 
   const foundationConfigSchema = JSON.parse(
     await readFile(
       new URL(
-        "../packages/engineering-foundation/schemas/foundation-config/v2.schema.json",
+        "../packages/engineering-foundation/schemas/foundation-config/v3.schema.json",
         import.meta.url,
       ),
       "utf8",

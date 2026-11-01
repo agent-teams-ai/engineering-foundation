@@ -25,6 +25,15 @@ export function createNodeQualityGateCommand(
   const pnpmEntrypoint =
     snapshot.npm_execpath ?? snapshot["AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT"];
   return async (input) => {
+    const startedAt = input.budgetMs === undefined ? undefined : performanceMonotonicClock.nowMs();
+    if (
+      input.budgetMs !== undefined &&
+      (!Number.isSafeInteger(input.budgetMs) ||
+        input.budgetMs < 1 ||
+        input.budgetMs > 2_147_483_647)
+    ) {
+      throw new TypeError("Aggregate gate budget must be a positive bounded integer.");
+    }
     const runtime = await resolveRepositoryRuntimeExecutables({
       environment: snapshot,
       currentExecutablePath: process.execPath,
@@ -39,6 +48,18 @@ export function createNodeQualityGateCommand(
         retryable: false,
       });
     });
+    const remainingMs =
+      startedAt === undefined
+        ? undefined
+        : Math.floor(input.budgetMs! - (performanceMonotonicClock.nowMs() - startedAt));
+    if (remainingMs !== undefined && remainingMs <= 0) {
+      throw new CapabilityInputError({
+        code: "QUALITY_GATE_BUDGET_EXCEEDED",
+        message: "Aggregate gate budget was exhausted during runtime admission.",
+        phase: "quality-gate-runner-runtime",
+        retryable: false,
+      });
+    }
     const childEnvironment = Object.freeze({
       ...snapshot,
       [ACTIVE_GATE_ENVIRONMENT_VARIABLE]: input.profileId,
@@ -80,6 +101,6 @@ export function createNodeQualityGateCommand(
           signal,
         ),
       qualityGateActive: snapshot[ACTIVE_GATE_ENVIRONMENT_VARIABLE] !== undefined,
-    })(input);
+    })({ ...input, ...(remainingMs === undefined ? {} : { budgetMs: remainingMs }) });
   };
 }

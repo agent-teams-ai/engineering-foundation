@@ -107,19 +107,21 @@ async function runQualityCommand<SchemaId extends string>(
   if (parsed.command !== "quality") {
     return false;
   }
-  if (parsed.positional.length !== 1 || parsed.positional[0] !== "check") {
-    throw invalidCommand("quality requires the check subcommand.");
+  if (parsed.positional.length !== 1 || !["check", "format"].includes(parsed.positional[0] ?? "")) {
+    throw invalidCommand("quality requires the check or format subcommand.");
   }
   await services.cancellation.withSignal(["SIGINT", "SIGTERM"], async (signal) => {
+    const format = parsed.positional[0] === "format";
+    const capabilityId = format ? "quality.format-coverage" : "quality.source-coverage";
     const settings = await services.readConfig(parsed.consumerRoot, signal);
-    const declaration = settings.declaredCapabilities.find(
-      ({ id }) => id === "quality.source-coverage",
-    );
+    const declaration = settings.declaredCapabilities.find(({ id }) => id === capabilityId);
     if (declaration === undefined) {
-      throw invalidCommand("quality.source-coverage must be declared before quality check.");
+      throw invalidCommand(
+        `${capabilityId} must be declared before quality ${parsed.positional[0]}.`,
+      );
     }
     const report = selectedCommandReport(
-      await services.qualityCoverage({
+      await (format ? services.qualityFormat : services.qualityCoverage)({
         consumerRoot: parsed.consumerRoot,
         configPath: declaration.configPath,
         scopeOnly: parsed.scopeOnly === true,

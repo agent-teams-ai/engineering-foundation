@@ -260,6 +260,7 @@ test("freezes the runtime, filesystem, and published schema allowlists", async (
     "schemas/package-public-api-audit-request/v1.schema.json",
     "schemas/package-public-api-native-transition/v1.schema.json",
     "schemas/foundation-config/v2.schema.json",
+    "schemas/foundation-config/v3.schema.json",
     "schemas/package-public-api-compatibility/v2.schema.json",
     "schemas/quality-findings-baseline/v1.schema.json",
     "schemas/quality-gate-run-report/v1.schema.json",
@@ -269,6 +270,7 @@ test("freezes the runtime, filesystem, and published schema allowlists", async (
     "schemas/quality-source-coverage/v2.schema.json",
     "schemas/quality-source-coverage/v3.schema.json",
     "schemas/quality-source-coverage/v4.schema.json",
+    "schemas/quality-format-coverage/v1.schema.json",
     "schemas/repository-agent-workflow/v2.schema.json",
     "schemas/workspace-dependency-declarations/v2.schema.json",
   ].toSorted();

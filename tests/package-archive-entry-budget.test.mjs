@@ -127,15 +127,15 @@ test("keeps the Foundation archive exception package-specific and bounded", () =
     () => inspectCompressedTarArchive(archiveWithEntries(2_501)),
     /too many entries: 2501/u,
   );
-  const atFoundationLimit = archiveWithEntries(2_871);
+  const atFoundationLimit = archiveWithEntries(2_905);
   assert.throws(() => inspectCompressedTarArchive(atFoundationLimit), /too many entries/u);
   assert.equal(
     inspectCompressedTarArchive(atFoundationLimit, FOUNDATION_PACKAGE).entryCount,
-    2_871,
+    2_905,
   );
   assert.throws(
-    () => inspectCompressedTarArchive(archiveWithEntries(2_872), FOUNDATION_PACKAGE),
-    /too many entries: 2872/u,
+    () => inspectCompressedTarArchive(archiveWithEntries(2_906), FOUNDATION_PACKAGE),
+    /too many entries: 2906/u,
   );
 });
 
@@ -171,7 +171,7 @@ test("applies the same Foundation budget to archive listings", () => {
     "package/package.json",
     "package/LICENSE",
     "package/README.md",
-    ...Array.from({ length: 2_868 }, (_, index) => `package/dist/${index}.js`),
+    ...Array.from({ length: 2_902 }, (_, index) => `package/dist/${index}.js`),
   ];
   const input = {
     archiveBytes: Buffer.from("fixture"),
@@ -189,7 +189,7 @@ test("applies the same Foundation budget to archive listings", () => {
           ...Array.from({ length: 1 }, (_, index) => `package/dist/extra-${index}.js`),
         ].join("\n"),
       }),
-    /too many entries: 2872/u,
+    /too many entries: 2906/u,
   );
 });
 
@@ -215,14 +215,14 @@ test("admits the complete built Foundation package inventory and rejects one add
   }
   assert.equal(
     paths.size,
-    2_871,
+    2_905,
     "Requalify the complete package inventory when its membership changes",
   );
   assert.equal(
     createHash("sha256")
       .update([...paths].toSorted().join("\n") + "\n")
       .digest("hex"),
-    "32c55269a6fea2465deb38c758bed25470ec5473b2c7f88e405124607ce95267",
+    "31ebc24cb106654d79c1a2e69e5e2273c9397cddd605947862461b6335b9df64",
     "Requalify exact artifact membership, even when the count stays unchanged",
   );
   assert.equal(
@@ -253,7 +253,7 @@ test("admits the complete built Foundation package inventory and rejects one add
         ...input,
         listing: [...listing, "package/dist/over-limit.js"].join("\n"),
       }),
-    /too many entries: 2872/u,
+    /too many entries: 2906/u,
   );
 });
 

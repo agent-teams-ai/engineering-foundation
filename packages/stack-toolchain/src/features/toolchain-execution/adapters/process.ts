@@ -12,6 +12,16 @@ export interface CheckerExecutable {
 
 export type CheckerExecutables = Readonly<Record<Engine, CheckerExecutable | null>>;
 
+export function assertCompleteProcessResult(result: ProcessRunResult): void {
+  if (
+    !result.facts.outputBounded ||
+    result.facts.incompleteCustody ||
+    result.facts.lateFailureCodes.length > 0
+  ) {
+    throw new Error("TOOLCHAIN_INCOMPLETE_PROCESS_RESULT");
+  }
+}
+
 function diagnostics(output: string): readonly string[] {
   // All three qualified pins use non-pretty TypeScript diagnostic records.
   // Unknown formats remain failures rather than being guessed to be crashes.

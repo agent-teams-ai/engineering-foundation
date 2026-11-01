@@ -1,7 +1,11 @@
-export { runCommand } from "./features/toolchain-execution/adapters/commands.js";
+export {
+  runCommand,
+  formatFilesContractVersion,
+} from "./features/toolchain-execution/adapters/commands.js";
 export type {
   CommandInput,
   CommandReport,
+  FormatFilesDetails,
 } from "./features/toolchain-execution/adapters/commands.js";
 export { loadConfiguration } from "./features/toolchain-execution/adapters/configuration.js";
 export type {

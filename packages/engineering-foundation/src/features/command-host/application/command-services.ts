@@ -36,6 +36,9 @@ export interface FoundationCommandServices<SchemaId extends string = string> {
     status(consumerRoot: string): Promise<FoundationStatus>;
   };
   readonly qualityGate: (input: CommandInvocation) => Promise<boolean>;
+  readonly qualityFormat: (
+    input: CapabilityInvocation & { readonly scopeOnly: boolean },
+  ) => Promise<CapabilityReport>;
   readonly qualityCoverage: (
     input: CapabilityInvocation & { readonly scopeOnly: boolean },
   ) => Promise<CapabilityReport>;

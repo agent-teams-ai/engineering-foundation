@@ -58,3 +58,6 @@ export function createQualityGateRunnerCapability(input: {
 }
 
 export { runProcessMandatoryNodeTests } from "./adapters/inbound/node-test-execution/command.js";
+
+export { loadQualityGatePolicy };
+export { performanceMonotonicClock } from "./adapters/outbound/time/performance-monotonic-clock.js";

@@ -1,7 +1,7 @@
-# Agent Teams Engineering Foundation
+# Engineering Foundation
 
-Versioned engineering policy, tooling, and conformance for Agent Teams
-repositories.
+Versioned engineering policy, tooling, and conformance for multi-repository
+projects.
 
 The [Foundation glossary](docs/reference/glossary.md) defines the core language
 used by this repository. In particular, authority is claim-specific, evidence is

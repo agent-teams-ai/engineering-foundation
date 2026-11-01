@@ -65,6 +65,12 @@ function remaining(input: FormatInput): number {
   }
   return value;
 }
+function boundedFileSize(stat: fs.BigIntStats): number {
+  if (!stat.isFile() || stat.size < 0n || stat.size > 4n * 1024n * 1024n) {
+    throw new Error("TOOLCHAIN_FORMAT_FILE");
+  }
+  return Number(stat.size);
+}
 function observe(root: string, file: string) {
   const current = path.join(root, file);
   let flags = fs.constants.O_RDONLY;
@@ -85,10 +91,8 @@ function observe(root: string, file: string) {
     throw error;
   }
   try {
-    const stat = fs.fstatSync(fd);
-    if (!stat.isFile() || stat.size > 4 * 1024 * 1024) {
-      throw new Error("TOOLCHAIN_FORMAT_FILE");
-    }
+    const stat = fs.fstatSync(fd, { bigint: true });
+    const size = boundedFileSize(stat);
     // Define the byte observation from this owned descriptor. Path checks only
     // reject what was opened; no later path-open trusts these checks.
     const pathSnapshot = () => {
@@ -97,7 +101,7 @@ function observe(root: string, file: string) {
       const observations: string[] = [];
       for (const [index, segment] of segments.entries()) {
         entry = path.join(entry, segment);
-        const value = fs.lstatSync(entry);
+        const value = fs.lstatSync(entry, { bigint: true });
         if (value.isSymbolicLink()) {
           throw new Error("TOOLCHAIN_FORMAT_SYMLINK");
         }
@@ -116,27 +120,27 @@ function observe(root: string, file: string) {
       return observations.join("\0");
     };
     const beforePath = pathSnapshot();
-    const bytes = Buffer.alloc(stat.size + 1);
-    if (fs.readSync(fd, bytes, 0, bytes.length, 0) !== stat.size) {
+    const bytes = Buffer.alloc(size + 1);
+    if (fs.readSync(fd, bytes, 0, bytes.length, 0) !== size) {
       throw new Error("TOOLCHAIN_FORMAT_SOURCE_CHANGED");
     }
-    const after = fs.fstatSync(fd);
+    const after = fs.fstatSync(fd, { bigint: true });
     if (
       !after.isFile() ||
       after.dev !== stat.dev ||
       after.ino !== stat.ino ||
       after.mode !== stat.mode ||
       after.size !== stat.size ||
-      after.mtimeMs !== stat.mtimeMs ||
-      after.ctimeMs !== stat.ctimeMs ||
+      after.mtimeNs !== stat.mtimeNs ||
+      after.ctimeNs !== stat.ctimeNs ||
       pathSnapshot() !== beforePath
     ) {
       throw new Error("TOOLCHAIN_FORMAT_SOURCE_CHANGED");
     }
     return {
       identity: `${stat.dev}:${stat.ino}`,
-      bytes: stat.size,
-      sha256: createHash("sha256").update(bytes.subarray(0, stat.size)).digest("hex"),
+      bytes: size,
+      sha256: createHash("sha256").update(bytes.subarray(0, size)).digest("hex"),
     };
   } finally {
     fs.closeSync(fd);
@@ -207,17 +211,20 @@ function batches(files: readonly string[], fixedArgs: readonly string[]): string
   return result;
 }
 const identity = (file: string) => {
-  const stat = fs.lstatSync(file);
+  const stat = fs.lstatSync(file, { bigint: true });
   return `${stat.dev}:${stat.ino}`;
 };
 function verifyControl(control: string, directoryIdentity: string, ignoreIdentity?: string): void {
-  if (!fs.lstatSync(control).isDirectory() || identity(control) !== directoryIdentity) {
+  if (
+    !fs.lstatSync(control, { bigint: true }).isDirectory() ||
+    identity(control) !== directoryIdentity
+  ) {
     throw new Error("TOOLCHAIN_FORMAT_CLEANUP");
   }
   if (ignoreIdentity !== undefined) {
     const ignore = path.join(control, "empty.ignore");
-    const stat = fs.lstatSync(ignore);
-    if (!stat.isFile() || stat.size !== 0 || identity(ignore) !== ignoreIdentity) {
+    const stat = fs.lstatSync(ignore, { bigint: true });
+    if (!stat.isFile() || stat.size !== 0n || identity(ignore) !== ignoreIdentity) {
       throw new Error("TOOLCHAIN_FORMAT_CLEANUP");
     }
   }

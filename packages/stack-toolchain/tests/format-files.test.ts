@@ -448,3 +448,64 @@ void test("literal binds opened files before reading after symlink or regular re
     }
   }
 });
+
+function stampInode(value: fs.Stats | fs.BigIntStats, inode: bigint) {
+  value.ino = typeof value.ino === "bigint" ? inode : Number(inode);
+  return value;
+}
+
+void test("literal preserves 64-bit file, path and control identities", async (parent) => {
+  for (const [kind, failure] of [
+    ["distinct", undefined],
+    ["fd-path", "TOOLCHAIN_FORMAT_SOURCE_CHANGED"],
+    ["control", "TOOLCHAIN_FORMAT_CLEANUP"],
+  ] as const) {
+    await parent.test(kind, async (t) => {
+      const f = literalFixture(t);
+      const other = join(f.consumer, "other.json");
+      fs.writeFileSync(other, "{}\n");
+      const otherInode = fs.statSync(other, { bigint: true }).ino;
+      const first = 2n ** 53n;
+      const fstat = fs.fstatSync;
+      const lstat = fs.lstatSync;
+      let calls = 0;
+      let retained: string | undefined;
+      t.mock.method(fs, "fstatSync", (fd: number, options?: { bigint?: boolean }) =>
+        stampInode(
+          fstat(fd, options),
+          fstat(fd, { bigint: true }).ino === otherInode ? first + 1n : first,
+        ),
+      );
+      t.mock.method(fs, "lstatSync", (file: fs.PathLike, options?: { bigint?: boolean }) => {
+        const value = lstat(file, options) as fs.Stats | fs.BigIntStats;
+        const name = String(file);
+        if (value.isFile() && name.startsWith(f.consumer + path.sep)) {
+          return stampInode(value, kind === "fd-path" || name === other ? first + 1n : first);
+        }
+        if (value.isDirectory() && path.basename(name).startsWith("stack-format-")) {
+          return stampInode(value, kind === "control" && calls > 0 ? first + 9n : first + 8n);
+        }
+        return value;
+      });
+      if (kind === "fd-path") {
+        t.mock.method(fs, "readSync", () => assert.fail("read before exact path identity"));
+      }
+      try {
+        const files = kind === "distinct" ? ["good.json", "other.json"] : ["good.json"];
+        const result = await checkFormatFiles(literalInput(f.consumer, files), async () => {
+          calls++;
+          return settled;
+        });
+        retained = result.details.retainedControlDirectory;
+        assert.equal(result.exitCode, kind === "distinct" ? 0 : 2);
+        assert.equal(result.details.failure, failure);
+        assert.equal(calls, kind === "fd-path" ? 0 : 1);
+      } finally {
+        t.mock.restoreAll();
+        if (retained) {
+          fs.rmSync(retained, { recursive: true });
+        }
+      }
+    });
+  }
+});

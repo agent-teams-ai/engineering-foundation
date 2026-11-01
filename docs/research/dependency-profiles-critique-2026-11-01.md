@@ -154,10 +154,13 @@ The portable Stack feature, independent version artifact and GitHub proposal ada
 
 ## Hard go/no-go gates before code
 
-1. Owner chooses exact central data owner and independently versioned distribution (retained immutable Git bytes or a data-only artifact). No new package name has been accepted.
-2. A disposable two-consumer pilot proves how a single approved revision becomes **two complete package-manager-native PR artifacts** without silently enabling arbitrary scripts. Check whether Renovate is actually installed; the existence of a shared preset is not enough.
-3. Payments optional peer published range is inspected and the coupled pg change refuses if not separately qualified. Keep library owner freedom to declare a compatible range.
-4. Per-repo CI gates distinguish selected-revision drift from informational newer revisions, and permit an old but internally consistent exact pin.
-5. Independent technical reviewer examines the exact final design; the incomplete ReviewRouter result is explicitly not review approval.
+1. **First prove that no new code is needed.** In approved disposable consumer repositories/branches, test existing shared Renovate exact-version policy and native pnpm manager, with actual updater installation/permissions. Dependabot security activity is not routine version-update admission. If this already provides the complete UX and existing CI gates, do not write a Stack checker or invent an artifact.
+2. P0 must show **two correct complete package-manager-native proposal PR artifacts from one approved central choice**, a third intentionally deferred repo, a no-op unrelated-family change and a forbidden downgrade. An updater config parsing successfully is not equivalent to a complete, reviewable PR.
+3. Payments optional peer published range must be inspected on actual packed output, with positive/negative real consumers; the currently coupled pg version writer **refuses** until its library owner approves any peer-contract change.
+4. Normal offline builds/frozen installs must work from a repo's own approved adoption without fetching latest central data. A newer central recommendation is informational while that old revision remains self-consistent. Security/advisory fixes remain independently visible; no fake "healthy" based solely on catalog pin equality.
+5. Exact immutable central source identity and least-privileged permissions must be demonstrably bound to the candidate update. Stale preimages, shared-config cache confusion, arbitrary post-upgrade execution or unreviewed signing/credential changes block delivery.
+6. The final exact-head design needs actual **independent** technical review. Prior ReviewRouter coverage was incomplete (0/2 earlier files); self-review and this long-horizon exercise cannot substitute.
 
-**Verdict:** architectural direction retained but material assumptions rejected. Design is ready for owning decisions and a bounded disposable updater spike, **not** approved for code, public names, release, or automatic fleet rollouts.
+**Decision verdict:** the *user need* is well supported; the *new mechanism* is **not yet justified** over native Renovate/Dependabot/pnpm. The architecture is deliberately conditional. First do a narrow real updater spike. If it passes with the existing stack, stop without new code. If it fails, specify only the proven missing seam, decide one version-policy authority and test that seam with real consumers.
+
+No public name, data package, Stack dependency-profile feature, CI status or automatic fleet update is accepted or released by PR #458.

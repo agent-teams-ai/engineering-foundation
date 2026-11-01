@@ -11,7 +11,7 @@ import {
 import { classifyFormatCoverage } from "./format-coverage.js";
 import type { FormatCoveragePorts } from "./format-coverage-ports.js";
 
-export const FORMAT_COVERAGE_ID = "quality.format-coverage";
+const FORMAT_COVERAGE_ID = "quality.format-coverage";
 export const FORMAT_COVERAGE_RULES_BY_ID: ReadonlyMap<string, RuleExplanation> = new Map([
   [
     `${FORMAT_COVERAGE_ID}.execution-mode`,

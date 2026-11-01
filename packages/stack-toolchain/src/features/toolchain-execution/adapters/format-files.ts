@@ -66,24 +66,71 @@ function remaining(input: FormatInput): number {
   return value;
 }
 function observe(root: string, file: string) {
-  let current = root;
-  for (const segment of file.split("/")) {
-    current = path.join(current, segment);
-    if (fs.lstatSync(current).isSymbolicLink()) {
+  const current = path.join(root, file);
+  let flags = fs.constants.O_RDONLY;
+  if (process.platform !== "win32") {
+    const { O_NOFOLLOW, O_NONBLOCK } = fs.constants;
+    if (!Number.isInteger(O_NOFOLLOW) || !Number.isInteger(O_NONBLOCK)) {
+      throw new Error("TOOLCHAIN_FORMAT_FILE");
+    }
+    flags |= O_NOFOLLOW | O_NONBLOCK;
+  }
+  let fd: number;
+  try {
+    fd = fs.openSync(current, flags);
+  } catch (error) {
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "ELOOP") {
       throw new Error("TOOLCHAIN_FORMAT_SYMLINK");
     }
+    throw error;
   }
-  if (!fs.lstatSync(current).isFile()) {
-    throw new Error("TOOLCHAIN_FORMAT_FILE");
-  }
-  const fd = fs.openSync(current, "r");
   try {
     const stat = fs.fstatSync(fd);
     if (!stat.isFile() || stat.size > 4 * 1024 * 1024) {
       throw new Error("TOOLCHAIN_FORMAT_FILE");
     }
+    // Define the byte observation from this owned descriptor. Path checks only
+    // reject what was opened; no later path-open trusts these checks.
+    const pathSnapshot = () => {
+      let entry = root;
+      const segments = ["", ...file.split("/")];
+      const observations: string[] = [];
+      for (const [index, segment] of segments.entries()) {
+        entry = path.join(entry, segment);
+        const value = fs.lstatSync(entry);
+        if (value.isSymbolicLink()) {
+          throw new Error("TOOLCHAIN_FORMAT_SYMLINK");
+        }
+        if (index === segments.length - 1) {
+          if (!value.isFile()) {
+            throw new Error("TOOLCHAIN_FORMAT_FILE");
+          }
+          if (value.dev !== stat.dev || value.ino !== stat.ino) {
+            throw new Error("TOOLCHAIN_FORMAT_SOURCE_CHANGED");
+          }
+        } else if (!value.isDirectory()) {
+          throw new Error("TOOLCHAIN_FORMAT_FILE");
+        }
+        observations.push(`${value.dev}:${value.ino}:${value.mode}`);
+      }
+      return observations.join("\0");
+    };
+    const beforePath = pathSnapshot();
     const bytes = Buffer.alloc(stat.size + 1);
     if (fs.readSync(fd, bytes, 0, bytes.length, 0) !== stat.size) {
+      throw new Error("TOOLCHAIN_FORMAT_SOURCE_CHANGED");
+    }
+    const after = fs.fstatSync(fd);
+    if (
+      !after.isFile() ||
+      after.dev !== stat.dev ||
+      after.ino !== stat.ino ||
+      after.mode !== stat.mode ||
+      after.size !== stat.size ||
+      after.mtimeMs !== stat.mtimeMs ||
+      after.ctimeMs !== stat.ctimeMs ||
+      pathSnapshot() !== beforePath
+    ) {
       throw new Error("TOOLCHAIN_FORMAT_SOURCE_CHANGED");
     }
     return {

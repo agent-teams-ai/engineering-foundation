@@ -510,3 +510,53 @@ void test("literal source mutation and changed controls refuse before another ba
   assert.ok(changed.details.retainedControlDirectory);
   fs.rmSync(changed.details.retainedControlDirectory, { recursive: true });
 });
+
+void test("literal binds opened files before reading after symlink or regular replacement", async (t) => {
+  for (const replacement of ["symlink", "regular"] as const) {
+    const f = literalFixture(t);
+    const selected = join(f.consumer, "good.json");
+    const outside = join(f.directory, "outside.json");
+    fs.writeFileSync(outside, "[]\n");
+    const open = fs.openSync;
+    let replaced = false;
+    let reads = 0;
+    let invocations = 0;
+    t.mock.method(fs, "openSync", (...args: Parameters<typeof fs.openSync>) => {
+      if (String(args[0]) !== selected || replaced) return open(...args);
+      replaced = true;
+      if (replacement === "symlink") {
+        fs.unlinkSync(selected);
+        fs.symlinkSync(outside, selected, "file");
+        return open(...args);
+      }
+      const fd = open(...args);
+      const changed = join(f.consumer, "changed.json");
+      fs.writeFileSync(changed, "[]\n");
+      fs.renameSync(changed, selected);
+      return fd;
+    });
+    t.mock.method(fs, "readSync", () => {
+      reads++;
+      throw new Error("must reject replacement before byte access");
+    });
+    try {
+      const result = await checkFormatFiles(literalInput(f.consumer), async () => {
+        invocations++;
+        return settled;
+      });
+      assert.equal(result.exitCode, 2);
+      assert.equal(
+        result.details.failure,
+        replacement === "symlink" ? "TOOLCHAIN_FORMAT_SYMLINK" : "TOOLCHAIN_FORMAT_SOURCE_CHANGED",
+      );
+      assert.equal(reads, 0);
+      assert.equal(invocations, 0);
+      assert.deepEqual(result.details.attempted, []);
+      assert.equal(result.details.completed, false);
+      assert.equal(result.details.retainedControlDirectory, undefined);
+      assert.equal(fs.readFileSync(outside, "utf8"), "[]\n");
+    } finally {
+      t.mock.restoreAll();
+    }
+  }
+});

@@ -40,7 +40,6 @@ export type { QualityObservationPorts } from "./application/observation-input.js
 export {
   checkFormatCoverage,
   createFormatCoverageCapability,
-  FORMAT_COVERAGE_ID,
   FORMAT_COVERAGE_RULES_BY_ID,
   rejectFormatCoverage,
 } from "./application/check-format-coverage.js";

@@ -289,7 +289,7 @@ void test("literal API rejects competing scope and commands before configuration
 });
 
 void test(
-  "literal refuses a POSIX FIFO before opening it",
+  "literal refuses a POSIX FIFO without blocking",
   { skip: process.platform === "win32" },
   () => {
     const directory = mkdtempSync(join(tmpdir(), "TEST-stack-literal-fifo-"));
@@ -389,3 +389,72 @@ void test("literal native arguments preserve special names, override ambient ign
   }
   assert.equal(fs.readFileSync(join(f.consumer, "protected.json"), "utf8"), witness);
 });
+
+void test(
+  "literal refuses a POSIX regular-to-FIFO replacement at open without blocking",
+  { skip: process.platform === "win32" },
+  () => {
+    const directory = mkdtempSync(join(tmpdir(), "TEST-stack-literal-fifo-swap-"));
+    try {
+      const consumer = join(directory, "consumer");
+      const controls = join(directory, "controls");
+      mkdirSync(consumer);
+      mkdirSync(controls);
+      const selected = join(consumer, "input.json");
+      writeFileSync(selected, "{}\n");
+      const adapter = new URL(
+        "../dist/features/toolchain-execution/adapters/format-files.js",
+        import.meta.url,
+      );
+      // This is a runtime-semantic fixture: keep the child process independent
+      // so an old blocking FIFO open cannot hang the parent test.
+      const source = `
+        import fs from "node:fs";
+        import { spawnSync } from "node:child_process";
+        import { checkFormatFiles } from ${JSON.stringify(adapter.href)};
+        const open = fs.openSync;
+        let swapped = false;
+        fs.openSync = (...args) => {
+          if (!swapped && String(args[0]).endsWith("/input.json")) {
+            swapped = true;
+            fs.unlinkSync(args[0]);
+            const created = spawnSync("mkfifo", [args[0]],
+              { encoding: "utf8", timeout: 10_000 });
+            if (created.status !== 0) throw new Error("FIFO fixture failed");
+          }
+          return open(...args);
+        };
+        const result = await checkFormatFiles({
+          cwd: process.cwd(), files: ["input.json"], fixedArgs: [],
+          signal: new AbortController().signal, deadline: performance.now() + 1_000,
+        }, async () => { throw new Error("must not invoke formatter"); });
+        process.stdout.write(JSON.stringify(result));
+      `;
+      const result = spawnSync(process.execPath, ["--input-type=module", "--eval", source], {
+        cwd: consumer,
+        encoding: "utf8",
+        timeout: 10_000,
+        killSignal: "SIGKILL",
+        env: {
+          ...process.env,
+          TMPDIR: controls,
+          TEMP: controls,
+          TMP: controls,
+          NODE_DISABLE_COMPILE_CACHE: "1",
+        },
+      });
+      assert.equal(result.error, undefined);
+      assert.equal(result.status, 0, result.stderr);
+      const report: unknown = JSON.parse(result.stdout);
+      assert.partialDeepStrictEqual(report, {
+        exitCode: 2,
+        details: { failure: "TOOLCHAIN_FORMAT_FILE", attempted: [], completed: false },
+      });
+      assert.ok(lstatSync(selected).isFIFO());
+      assert.deepEqual(fs.readdirSync(consumer), ["input.json"]);
+      assert.deepEqual(fs.readdirSync(controls), []);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  },
+);

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/engineering-foundation",
-  "packageVersion": "3.0.1",
+  "packageVersion": "3.1.0",
   "status": "release-candidate",
   "wildcardExports": [
     {
@@ -21,6 +21,7 @@
         "schemas/foundation-command-error/v1.schema.json",
         "schemas/foundation-config/v1.schema.json",
         "schemas/foundation-config/v2.schema.json",
+        "schemas/foundation-config/v3.schema.json",
         "schemas/foundation-transaction-envelope/v2.schema.json",
         "schemas/governance-architecture-decision-baseline/v1.schema.json",
         "schemas/governance-architecture-decisions/v1.schema.json",
@@ -33,6 +34,7 @@
         "schemas/quality-executable-specification-catalog/v1.schema.json",
         "schemas/quality-executable-specifications/v1.schema.json",
         "schemas/quality-findings-baseline/v1.schema.json",
+        "schemas/quality-format-coverage/v1.schema.json",
         "schemas/quality-gate-run-report/v1.schema.json",
         "schemas/quality-gate-runner/v1.schema.json",
         "schemas/quality-gate-runner/v2.schema.json",
@@ -219,6 +221,16 @@
       }
     },
     {
+      "path": "schemas/foundation-config/v3.schema.json",
+      "id": "https://schemas.agent-teams.ai/engineering-foundation/foundation-config/v3",
+      "digest": "sha256:acb8dcb2bdf2ca5673f77e1f5b7c8e6e6f3e19a8dc060f0223c0e6bbe0a5d7e8",
+      "discriminators": {
+        "schemaVersion": {
+          "const": 3
+        }
+      }
+    },
+    {
       "path": "schemas/foundation-transaction-envelope/v2.schema.json",
       "id": "https://agent-teams.ai/schemas/foundation-transaction-envelope/v2",
       "digest": "sha256:509c05f65bd5b8b6eb8da796fc53816211f109da4388df82bd229506cf85b80d",
@@ -360,6 +372,19 @@
       "id": "https://schemas.agent-teams.ai/engineering-foundation/quality-findings-baseline/v1",
       "digest": "sha256:dafb236d718bd4565728ae723a9bd0cf1103307c6db97e9142bdac805009f2c9",
       "discriminators": {
+        "schemaVersion": {
+          "const": 1
+        }
+      }
+    },
+    {
+      "path": "schemas/quality-format-coverage/v1.schema.json",
+      "id": "https://schemas.agent-teams.ai/engineering-foundation/quality-format-coverage/v1",
+      "digest": "sha256:7d0e18c49ba09ac7df685f6b5bda486b6eb65aa70ca4cb39476f0bc9778797d8",
+      "discriminators": {
+        "rootFiles": {
+          "const": "format-or-reject"
+        },
         "schemaVersion": {
           "const": 1
         }

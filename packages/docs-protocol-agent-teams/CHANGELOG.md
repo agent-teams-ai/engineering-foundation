@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.1
+
+### Patch Changes
+
+- [#459](https://github.com/agent-teams-ai/engineering-foundation/pull/459) [`14ffe12`](https://github.com/agent-teams-ai/engineering-foundation/commit/14ffe120995cd4ec8daa2d349280262163f9f72a) Thanks [@777genius](https://github.com/777genius)! - Project the exact pnpm engine together with the managed generation package manager,
+  so strict target installation accepts consumers migrating from an older pnpm pin.
+  Preserve the selected Node runtime and all unrelated manifest bytes.
+
 ## 0.6.0
 
 ### Minor Changes

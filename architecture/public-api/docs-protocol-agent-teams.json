@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/docs-protocol-agent-teams",
-  "packageVersion": "0.6.0",
+  "packageVersion": "0.6.1",
   "extractorVersion": "typescript-native/7.0.2",
   "entrypoints": [
     {

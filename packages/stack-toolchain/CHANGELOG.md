@@ -1,5 +1,16 @@
 # Stack Toolchain
 
+## 0.2.0
+
+### Minor Changes
+
+- [#457](https://github.com/agent-teams-ai/engineering-foundation/pull/457) [`4e98a9a`](https://github.com/agent-teams-ai/engineering-foundation/commit/4e98a9a674f6dcdc1c4d9b4485a44f45b534d3ff) Thanks [@777genius](https://github.com/777genius)! - Add an opt-in read-only literal-file formatting API with explicit contract
+  negotiation, bounded execution and partial-result evidence. Preserve the existing
+  configured native formatter scope and ignore semantics.
+
+  Use node-or-bun 0.2.5 for bounded capture allocation and a monotonic EOF grace
+  period without changing checker selection or fallback behavior.
+
 ## 0.1.1
 
 ### Patch Changes

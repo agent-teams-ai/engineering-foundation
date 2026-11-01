@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "stack-toolchain",
-  "packageVersion": "0.1.1",
+  "packageVersion": "0.2.0",
   "extractorVersion": "typescript-native/7.0.2",
   "entrypoints": [
     {
@@ -148,6 +148,13 @@
           "signature": "readonly cwd: string;"
         },
         {
+          "canonicalReference": "stack-toolchain!CommandInput#formatFiles:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!CommandInput:interface",
+          "parentKind": "Interface",
+          "signature": "readonly formatFiles?: readonly string[];"
+        },
+        {
           "canonicalReference": "stack-toolchain!CommandInput#signal:member",
           "kind": "PropertySignature",
           "parentReference": "stack-toolchain!CommandInput:interface",
@@ -216,6 +223,83 @@
           "parentReference": "stack-toolchain!",
           "parentKind": "EntryPoint",
           "signature": "export type Engine = \"tsrs\" | \"bun\" | \"typescript\";"
+        },
+        {
+          "canonicalReference": "stack-toolchain!FormatFilesDetails#attempted:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!FormatFilesDetails:interface",
+          "parentKind": "Interface",
+          "signature": "readonly attempted: readonly string[];"
+        },
+        {
+          "canonicalReference": "stack-toolchain!FormatFilesDetails#batches:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!FormatFilesDetails:interface",
+          "parentKind": "Interface",
+          "signature": "readonly batches: readonly {\n    readonly files: readonly string[];\n    readonly completed: boolean;\n    readonly result?: unknown;\n}[];"
+        },
+        {
+          "canonicalReference": "stack-toolchain!FormatFilesDetails#completed:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!FormatFilesDetails:interface",
+          "parentKind": "Interface",
+          "signature": "readonly completed: boolean;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!FormatFilesDetails#digests:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!FormatFilesDetails:interface",
+          "parentKind": "Interface",
+          "signature": "readonly digests: Readonly<Record<\"requested\" | \"validated\" | \"attempted\", string>>;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!FormatFilesDetails#failure:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!FormatFilesDetails:interface",
+          "parentKind": "Interface",
+          "signature": "readonly failure?: string;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!FormatFilesDetails#requested:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!FormatFilesDetails:interface",
+          "parentKind": "Interface",
+          "signature": "readonly requested: readonly string[];"
+        },
+        {
+          "canonicalReference": "stack-toolchain!FormatFilesDetails#retainedControlDirectory:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!FormatFilesDetails:interface",
+          "parentKind": "Interface",
+          "signature": "readonly retainedControlDirectory?: string;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!FormatFilesDetails#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!FormatFilesDetails:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: typeof formatFilesContractVersion;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!FormatFilesDetails#sourceBytesUnchanged:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!FormatFilesDetails:interface",
+          "parentKind": "Interface",
+          "signature": "readonly sourceBytesUnchanged: boolean | null;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!FormatFilesDetails#validated:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!FormatFilesDetails:interface",
+          "parentKind": "Interface",
+          "signature": "readonly validated: readonly string[];"
+        },
+        {
+          "canonicalReference": "stack-toolchain!FormatFilesDetails:interface",
+          "kind": "Interface",
+          "parentReference": "stack-toolchain!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface FormatFilesDetails"
         },
         {
           "canonicalReference": "stack-toolchain!LintScope#config:member",
@@ -307,6 +391,13 @@
           "parentReference": "stack-toolchain!",
           "parentKind": "EntryPoint",
           "signature": "export type TypecheckResult = {\n    readonly status: \"passed\" | \"passed-with-fallback\";\n    readonly engine: Engine;\n    readonly attempts: readonly AttemptRecord[];\n} | {\n    readonly status: \"failed\";\n    readonly code: \"TOOLCHAIN_DIAGNOSTICS\" | \"TOOLCHAIN_CAPTURE_FAILURE\" | \"TOOLCHAIN_CLEANUP_FAILURE\" | \"TOOLCHAIN_CANCELLED\" | \"TOOLCHAIN_DEADLINE\" | \"TOOLCHAIN_UNCLASSIFIED_FAILURE\" | \"TOOLCHAIN_ALL_ENGINES_FAILED\";\n    readonly attempts: readonly AttemptRecord[];\n};"
+        },
+        {
+          "canonicalReference": "stack-toolchain!formatFilesContractVersion:var",
+          "kind": "Variable",
+          "parentReference": "stack-toolchain!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare const formatFilesContractVersion = 1;"
         },
         {
           "canonicalReference": "stack-toolchain!loadConfiguration:function(1)",

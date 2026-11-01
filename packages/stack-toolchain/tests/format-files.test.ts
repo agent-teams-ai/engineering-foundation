@@ -190,7 +190,17 @@ void test("literal batches account for fixed argv, stop on later failure and ret
     assert.ok(quoted.length < 32_767);
     return { ...settled, exitCode: calls === 2 ? 1 : 0 };
   });
-  assert.equal(calls, 2);
+  assert.equal(
+    calls,
+    2,
+    JSON.stringify({
+      failure: result.details.failure,
+      exit: result.exitCode,
+      validated: result.details.validated.length,
+      attempted: result.details.attempted.length,
+      completed: result.details.completed,
+    }),
+  );
   assert.equal(result.exitCode, 1);
   assert.equal(result.details.completed, false);
   assert.ok(result.details.attempted.length < files.length);
@@ -364,7 +374,17 @@ void test("literal source mutation and changed controls refuse before another ba
     fs.writeFileSync(args[1]!, "changed");
     return settled;
   });
-  assert.equal(calls, 1);
+  assert.equal(
+    calls,
+    1,
+    JSON.stringify({
+      failure: changed.details.failure,
+      exit: changed.exitCode,
+      validated: changed.details.validated.length,
+      attempted: changed.details.attempted.length,
+      completed: changed.details.completed,
+    }),
+  );
   assert.equal(changed.details.failure, "TOOLCHAIN_FORMAT_CLEANUP");
   assert.ok(changed.details.retainedControlDirectory);
   fs.rmSync(changed.details.retainedControlDirectory, { recursive: true });
@@ -392,8 +412,14 @@ void test("literal binds opened files before reading after symlink or regular re
       }
       const fd = open(...args);
       const changed = join(f.consumer, "changed.json");
-      fs.writeFileSync(changed, "[]\n");
-      fs.renameSync(changed, selected);
+      try {
+        fs.writeFileSync(changed, "[]\n");
+        fs.renameSync(selected, join(f.consumer, "original-held.json"));
+        fs.renameSync(changed, selected);
+      } catch (error) {
+        fs.closeSync(fd); // The mock has not returned custody to observe().
+        throw error;
+      }
       return fd;
     });
     t.mock.method(fs, "readSync", () => {
@@ -409,6 +435,7 @@ void test("literal binds opened files before reading after symlink or regular re
       assert.equal(
         result.details.failure,
         replacement === "symlink" ? "TOOLCHAIN_FORMAT_SYMLINK" : "TOOLCHAIN_FORMAT_SOURCE_CHANGED",
+        JSON.stringify(result.details),
       );
       assert.equal(reads, 0);
       assert.equal(invocations, 0);

@@ -5,6 +5,20 @@
 **Owner candidate:** the existing independent Stack Toolchain package in Engineering Foundation.
 **Change boundary:** specification only. This document authorizes no new package name, public command, profile capability, release, automatic dependency update, or migration of consumer repositories. Token is excluded. Existing Toolchain migration and delivery/E2E PRs are independent and must not be edited by this work.
 
+## Decision at a glance (read this first)
+
+**Desired user outcome:** choose/approve a library version centrally once, then get a **complete native package manifest/catalog + lockfile PR** for every explicitly enrolled and eligible repository. Each repository keeps its own dependency kind, direct vendor imports, peer compatibility, exact manager and critical E2E/merge authority.
+
+**Recommended first action:** do a **design-only, disposable updater spike** using the existing shared Renovate preset, native pnpm catalog support, and observed Dependabot security behavior. A security Dependabot PR does **not** prove routine version updates are configured. If two real-role fixtures receive complete correct PRs **without any new library**, stop: no new Stack mechanism, catalog artifact or public CLI is necessary. If not, approve *only the observed missing* catalog/projection/check seam, never a broad framework.
+
+**Hardest compatibility block:** Payments' optional pg peer and dev pin currently share one pnpm catalog entry. Do not let an updater silently modify a published peer requirement. A changed packed peer contract belongs to a separately qualified Payments owner decision.
+
+**Long-term behavior:** projects can adopt independent immutable approved revisions, roll out gradually and defer updates visibly. An unrelated catalog family change generates no PR. Emergency security and downgrade use explicit separately governed paths. The central data source must not become a privileged arbitrary-code executor, CI dependency on a mutable network ref, fleet scheduler or multi-repo transaction.
+
+**Proof required before implementation claims:** one central approved version choice -> two complete reviewable candidate PR artifacts; a third deferred repository; a no-op unrelated-family revision; actual pinned pnpm frozen install; no unapproved peer/override/lifecycle/security changes; stale HEAD refusal; correct rollback handling. Then exact-head independent technical review and consumer-owned E2E. None of this is claimed to have been run by this documentation PR.
+
+**Current evidence status:** public-main sample checked, official updater/pnpm documentation checked, six adversarial **self-review** lenses and 26 future hostile cases documented. ReviewRouter's PR review remains **incomplete**; no independently executed subagent verdict is asserted. See [risk log](dependency-profiles-critique-2026-11-01.md) and open owner decisions in section 12.
+
 ## 1. Problem, concrete user journey and success criteria
 
 The problem is version-selection duplication across independent repositories. A native workspace catalog solves repetition *within* one pnpm workspace; it does not distribute one reviewed version choice across Gateway, Payments and other independently released projects. Consumers must keep ordinary vendor imports and their own runtime/peer/CI guarantees, with no umbrella runtime dependency.

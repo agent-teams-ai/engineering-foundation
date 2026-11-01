@@ -48,6 +48,7 @@ not repeat their rules.
 | Quality gates | [Quality gates](development/quality-gates.md) | Active |
 | Production quality coverage | [Coverage contract](reference/quality-source-coverage.md) | Implementation in progress; CLI and packed qualification pending |
 | Maintainability budgets | [Budget evaluation](research/maintainability-budget-evaluation.md) | Implemented and dogfooded; consumer adoption remains opt-in |
+| Dependency updates (proposed) | [Implementation specification](research/dependency-profiles-implementation-spec-2026-11-01.md), [critical review](research/dependency-profiles-critique-2026-11-01.md), [ready-made tool comparison](research/dependency-update-tool-comparison-2026-11-01.md) | Design only; recommend an existing-updater pilot before new code; no qualified cross-repo E2E |
 | DeepSeek Harness tooling comparison | [Strict comparison](research/deepseek-harness-tooling-comparison.md) | Revalidated; selected adaptations adopted |
 | Selective quality tools | [Execution spikes](research/quality-gate-tool-spikes.md) | Optional Lychee adopted; agnix, Squawk and publint strict deferred after execution and independent criticism |
 | Agent architecture standard | [Design study](research/agent-architecture-standard-design.md) | Incubation direction accepted by ADR-0036; normative authority moves to the dedicated repository |

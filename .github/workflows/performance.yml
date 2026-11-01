@@ -1,42 +1,93 @@
-name: Performance signals
-
+name: TEST PR457 Windows descriptor diagnosis
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "17 3 * * *"
-  push:
-    branches:
-      - main
-
 permissions:
   contents: read
-
-concurrency:
-  group: foundation-performance-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  advisory-performance:
-    name: advisory-performance
-    runs-on: ubuntu-24.04
+  native-windows-diagnostic:
+    if: ${{ startsWith(github.ref, 'refs/heads/test/pr457-windows-fd-') }}
+    runs-on: windows-2022
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with: { persist-credentials: false, fetch-depth: 0, path: overlay }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+          fetch-depth: 0
+          ref: def877a5fa2c9402c7bd5f7bb96f7d85dd9ea09a
+          path: source
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b
+        env: { pnpm_config_pm_on_fail: ignore }
+        with: { version: "11.20.0", install: false }
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
         with: { bun-version: "1.4.3" }
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with: { node-version: "26.11.1" }
+      - name: Bind source and owned temporary paths
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          if ((git -C source rev-parse HEAD) -ne "def877a5fa2c9402c7bd5f7bb96f7d85dd9ea09a") { throw "SOURCE_DRIFT" }
+          $root = Join-Path $env:RUNNER_TEMP "TEST-pr457-windows-fd"
+          if (Test-Path $root) { throw "DIAGNOSTIC_ROOT_EXISTS" }
+          New-Item -ItemType Directory -Path $root | Out-Null
+          git -C source diff --no-ext-diff --exit-code def877a5fa2c9402c7bd5f7bb96f7d85dd9ea09a -- . | Out-File "$root/tracked-before-build.diff"
+          if ($LASTEXITCODE -ne 0) { throw "TRACKED_SOURCE_CHANGED_BEFORE_BUILD" }
+          Add-Content -LiteralPath $env:GITHUB_ENV -Value @("FD_EVIDENCE=$root", "TEMP=$env:RUNNER_TEMP", "TMP=$env:RUNNER_TEMP")
+      - name: Install and build exact source with existing repository path
+        working-directory: source
+        run: |
+          bun tools/dev.mts install
+          if ($LASTEXITCODE -ne 0) { throw "INSTALL_FAILED" }
+          bun tools/dev.mts build
+          if ($LASTEXITCODE -ne 0) { throw "BUILD_FAILED" }
+      - name: Verify tracked source custody before diagnostic overlay
+        shell: pwsh
+        run: |
+          git -C source diff --no-ext-diff --exit-code def877a5fa2c9402c7bd5f7bb96f7d85dd9ea09a -- . | Out-File "$env:FD_EVIDENCE/tracked-before-overlay.diff"
+          if ($LASTEXITCODE -ne 0) { throw "TRACKED_SOURCE_CHANGED_BEFORE_OVERLAY" }
+      - name: Overlay diagnostic assertions without changing production
+        shell: pwsh
+        run: |
+          Copy-Item overlay/test-windows-fd/format-files.test.ts source/packages/stack-toolchain/tests/format-files.test.ts
+          $hash = (Get-FileHash source/packages/stack-toolchain/tests/format-files.test.ts -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($hash -ne "b70ea390657e1b9b4b01a9b45894350ffbf3458f9862ea6618d2a3cc876ef641") { throw "DIAGNOSTIC_TEST_COPY_DRIFT" }
+      - name: Strict-check diagnostic TypeScript
+        shell: pwsh
+        run: |
+          node source/node_modules/typescript/bin/tsc --version
+          if ($LASTEXITCODE -ne 0) { throw "COMPILER_UNAVAILABLE" }
+          if ((node source/node_modules/typescript/bin/tsc --version) -ne "Version 7.0.2") { throw "COMPILER_PIN" }
+          node source/node_modules/typescript/bin/tsc -p overlay/test-windows-fd/tsconfig.windows.json --typeRoots "$env:GITHUB_WORKSPACE/source/node_modules/@types"
+          if ($LASTEXITCODE -ne 0) { throw "DIAGNOSTIC_TYPECHECK_FAILED" }
+      - name: Native identity and targeted failing assertions
+        shell: pwsh
+        run: |
+          node overlay/test-windows-fd/identity-probe.ts 2>&1 | Tee-Object -FilePath "$env:FD_EVIDENCE/identity.jsonl"
+          if ($LASTEXITCODE -ne 0) { throw "IDENTITY_PROBE_FAILED" }
+          git -C source diff -- packages/stack-toolchain/tests/format-files.test.ts | Out-File "$env:FD_EVIDENCE/diagnostic-test-diff.patch"
+          node --import "./overlay/test-windows-fd/fs-errors.ts" --test --test-name-pattern "literal batches account|literal source mutation|literal binds opened" source/packages/stack-toolchain/tests/format-files.test.ts 2>&1 | Tee-Object -FilePath "$env:FD_EVIDENCE/targeted-tests.log"
+          $result = $LASTEXITCODE
+          @{ source = "def877a5fa2c9402c7bd5f7bb96f7d85dd9ea09a"; platform = "win32"; node = (node --version); exit = $result; scope = "diagnostic-only-three-existing-tests"; productionSourceCustody = "pending-postcheck" } | ConvertTo-Json | Out-File "$env:FD_EVIDENCE/result.json"
+          if ($result -ne 0) { throw "TARGETED_FAILURE_RETAINED" }
+      - name: Verify tracked source custody after diagnostic attempt
+        if: ${{ always() }}
+        shell: pwsh
+        run: |
+          if ((git -C source rev-parse HEAD) -ne "def877a5fa2c9402c7bd5f7bb96f7d85dd9ea09a") { throw "SOURCE_HEAD_DRIFT" }
+          git -C source diff --no-ext-diff --exit-code def877a5fa2c9402c7bd5f7bb96f7d85dd9ea09a -- . ":(exclude)packages/stack-toolchain/tests/format-files.test.ts" | Out-File "$env:FD_EVIDENCE/tracked-after-excluding-diagnostic.diff"
+          if ($LASTEXITCODE -ne 0) { throw "NON_DIAGNOSTIC_TRACKED_SOURCE_CHANGED" }
+          $hash = (Get-FileHash source/packages/stack-toolchain/tests/format-files.test.ts -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($hash -ne "b70ea390657e1b9b4b01a9b45894350ffbf3458f9862ea6618d2a3cc876ef641") {
+            git -C source diff --no-ext-diff --exit-code def877a5fa2c9402c7bd5f7bb96f7d85dd9ea09a -- packages/stack-toolchain/tests/format-files.test.ts | Out-File "$env:FD_EVIDENCE/test-original-state.diff"
+            if ($LASTEXITCODE -ne 0) { throw "DIAGNOSTIC_TEST_POST_DRIFT" }
+          }
+          @{ source = "def877a5fa2c9402c7bd5f7bb96f7d85dd9ea09a"; nonDiagnosticTrackedSourceExact = $true; testSHA256 = $hash; untrackedBuildOutputsAreNotSourceQualification = $true } | ConvertTo-Json | Out-File "$env:FD_EVIDENCE/tracked-custody.json"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: ${{ always() }}
         with:
-          node-version-file: .node-version
-      - run: bun tools/dev.mts install
-      - run: bun tools/dev.mts build
-      - name: Collect advisory benchmark signals
-        run: node scripts/run-performance-benchmarks.mjs --output "${RUNNER_TEMP}/foundation-performance.json"
-      - name: Upload immutable benchmark evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: foundation-performance-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/foundation-performance.json
-          if-no-files-found: error
-          retention-days: 30
+          name: TEST-pr457-windows-fd-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.FD_EVIDENCE }}
+          if-no-files-found: warn
+          retention-days: 14

@@ -4,6 +4,8 @@ import { assertConsumerIntegrationProfileSchema } from "./consumer-integration-s
 import { ConsumerIntegrationNodeError } from "./consumer-integration-node-error.js";
 import { parseJsonRecord } from "./strict-json-record.js";
 
+const managedPnpmVersion = "11.20.0";
+
 function decode(bytes: Uint8Array, subject: string): string {
   const source = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
   if (source.startsWith("\uFEFF") || source.includes("\u0000")) {
@@ -57,8 +59,12 @@ export function projectManagedGenerationRuntime(bytes: Uint8Array, node: string)
   ) {
     throw new TypeError("Managed generation transition requires the exact existing pnpm manager.");
   }
+  const engines = manifest["engines"];
   for (const [path, value] of [
-    [["packageManager"], "pnpm@11.20.0"],
+    [["packageManager"], `pnpm@${managedPnpmVersion}`],
+    ...(typeof engines === "object" && engines !== null && Object.hasOwn(engines, "pnpm")
+      ? [[["engines", "pnpm"], managedPnpmVersion] as const]
+      : []),
     [["engines", "node"], node],
   ] as const) {
     source = applyEdits(

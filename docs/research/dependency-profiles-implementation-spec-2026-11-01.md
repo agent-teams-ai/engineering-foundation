@@ -61,7 +61,7 @@ Source links: [Stack package](https://github.com/agent-teams-ai/engineering-foun
 ## 3. Explicit invariants and excluded scope
 
 1. **One desired-version authority; different technical authorities.** The catalog's owner selects exact recommended *install* versions. The consumer owns its adopted catalog revision, package kinds, real peer compatibility and exceptions. Its package.json or native catalog entries are tool-required projections, and pnpm owns the resolved graph/SRI in the lock.
-2. **Separate data and mechanism lifecycles.** The existing neutral Stack Toolchain owns the portable comparison/projection *mechanism*, not organization-specific pg/Zod/YAML version policy. A catalog change should not require shipping an unrelated TypeScript/linters release by default. No second Foundation catalog or duplicated consumer-local desired-version authority.
+2. **Separate data and mechanism lifecycles.** Only **if a missing checker/projection capability is proven**, the existing neutral Stack Toolchain **would own** that portable mechanism; it does not currently implement dependency profiles or own organization-specific pg/Zod/YAML version policy. A catalog change should not require shipping an unrelated TypeScript/linters release by default. No second Foundation catalog or duplicated consumer-local desired-version authority.
 3. **Opt-in literal targets.** One small named family and exact maintained package.json paths; reject ambient discovery, arbitrary globs, cross-repo scans and universal full-stack profiles. The consumer declares its selected dependency section(s) and literal/catalog provenance; no policy inferred from path.
 4. **Direct vendor ownership.** Apps keep direct runtime dependencies. A library controls its own peerDependencies, optional peer metadata and qualification dev pins. No umbrella dependency, runtime re-export, forced shared adapter, hidden React transitive or automated movement between dependency kinds.
 5. **Existing boundaries.** Foundation's workspace-declaration policy is independent and may consume a read-only drift result without changing its contract. node-or-bun remains the process execution mechanism; no new executor, job scheduler, queue or actor. Product financial/security policy and strict tests remain local.
@@ -74,10 +74,10 @@ Out of first implementation: token, React/Vite/Vitest/Playwright or frontend cla
 
 Revision-1's assumption that Stack owns *the chosen catalog values* is rejected as a default. Stack must remain organization-neutral and reusable while organization/project maintainers select *their* versions. Tool code and catalog selections need separate upgrade lifecycles.
 
-| Boundary | Owns | Does NOT own |
+| Boundary | Responsibility if selected (design only) | Explicitly excluded |
 | --- | --- | --- |
-| Existing Stack Toolchain | Stable portable strict input model, schema/loader, deterministic comparison and finite projection planning; narrow native adapters only when actually needed | Chosen organization versions, app/library policy, fleet orchestrator, compatibility verdict, runtime vendor imports |
-| One independent inert catalog data authority | Named, opt-in families of exact recommended vendor installation selections; immutable revision/digest/provenance | Product topology, dependency-kind policy, peer compatibility ranges, package manager resolution |
+| Existing Stack Toolchain (conditional extension) | Reuse existing tool execution; **if P0 proves a gap**, add only a strict input model, deterministic comparison/finite plan and narrow native adapters | Chosen organization versions, app/library policy, fleet orchestrator, compatibility verdict, runtime vendor imports |
+| One desired-version policy owner | In the no-new-code case, an actually adopted shared updater preset; otherwise **one** separately governed inert catalog with immutable revision/digest/provenance | Product topology, dependency-kind policy, peer compatibility ranges, package manager resolution |
 | Consumer and package manager | Exact enrolled package paths, dependency sections, adopted catalog version, local peer/exception policy, native pnpm input files, lockfile and critical CI | A second hand-maintained desired-version catalog |
 | Foundation, if adopted | Existing local declaration/architecture policy and optional read-only drift gate | Duplicated catalog, new runtime dependency, rewriting consumer versions |
 | Existing Renovate/Dependabot or approved future proposal adapter | Native manager-aware **proposals** for opted-in consumers | Central desired-version authority, unreviewed merges or arbitrary privileged scripts |
@@ -106,7 +106,7 @@ One cohesive Stack feature suffices if missing capabilities are proven. Pure sel
 
 ## 5. Candidate data contracts — conceptual, NOT public APIs
 
-Only small, evidenced families of exact **install selections** live in the central catalog. No global application/library dependency-kind whitelist: package roles and peer policy belong to the consumer. A second named compatibility track needs a real incompatible consumer and proof; no combinatorial full-stack preset explosion.
+**Conditional data-contract illustration only:** if P0 shows that existing updater presets cannot provide a single reliable desired-version authority, one separately approved data catalog may hold small, evidenced families of exact **install selections**. If shared Renovate policy works without extra code, **skip this schema, file and artifact entirely**. No global application/library dependency-kind whitelist: package roles and peer policy belong to the consumer. A second named compatibility track needs a real incompatible consumer and proof; no combinatorial full-stack preset explosion.
 
 Conceptual strict JSON example:
 
@@ -158,9 +158,9 @@ A Payments read-only selection would use its real adapter package path, actual d
 
 **Exception and hold:** older self-consistent adopted catalog revisions are explicitly deferred adoption, *not* a kind/value mismatch waiver. For an actual selected-field mismatch require exact package path, name, kind, expected value, observed value, owner, reason and review trigger. No wildcard, broad overrides, silent expiry or catch-all suppression. Report approved exception separately from exact match.
 
-## 6. Read-only comparison and controlled diagnostics
+## 6. Conditional read-only comparison and controlled diagnostics
 
-An offline check receives the explicit consumer root, local selection, exactly adopted **data catalog revision** and named target manifests/native pnpm catalog. It must not install, fetch, mutate, execute subprocesses, evaluate JavaScript configuration, repair or infer undeclared scopes. The selected catalog can come from a previously verified installed artifact or committed retained snapshot; no dependence on the current *latest* external revision.
+**Only if I1 is justified:** an offline check would receive the explicit consumer root, local selection, exactly adopted **data catalog revision** and named target manifests/native pnpm catalog. If the existing native updater/manager checks already suffice, there is no new check. It must not install, fetch, mutate, execute subprocesses, evaluate JavaScript configuration, repair or infer undeclared scopes. The selected catalog can come from a previously verified installed artifact or committed retained snapshot; no dependence on the current *latest* external revision.
 
 Validate: (1) strict bounded schema and duplicate keys; (2) immutable catalog locator/content digest and compatibility with the checker; (3) literal target path containment, normalized path identity, symlink and workspace ownership; (4) selected direct pin or precise default/named catalog selector; (5) actual section and effective selected exact version; (6) exact active/stale exception; (7) sorted stable findings and concise human guidance. Distinguish unknown/invalid input from a genuine known drift. Preserve literal pin versus catalog: provenance in diagnostics. Do not claim a string match establishes peer or runtime compatibility.
 

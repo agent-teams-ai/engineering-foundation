@@ -1,42 +1,83 @@
-name: Performance signals
-
+name: TEST PR457 Windows BigInt focused source
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "17 3 * * *"
-  push:
-    branches:
-      - main
-
 permissions:
   contents: read
-
-concurrency:
-  group: foundation-performance-${{ github.ref }}
-  cancel-in-progress: true
-
+env:
+  REVIEWED_SOURCE_HEAD: 5d71d4f203a20ccc51e69fbe82678708ee765d31
 jobs:
-  advisory-performance:
-    name: advisory-performance
-    runs-on: ubuntu-24.04
+  native-windows-focused:
+    if: ${{ startsWith(github.ref, 'refs/heads/test/pr457-windows-') }}
+    runs-on: windows-2022
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Refuse unresolved source before any checkout
+        shell: pwsh
+        run: |
+          if ($env:REVIEWED_SOURCE_HEAD -notmatch '^[a-f0-9]{40}$' -or $env:REVIEWED_SOURCE_HEAD -eq ('0' * 40)) { throw "SOURCE_HOLD" }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with: { persist-credentials: false, fetch-depth: 0, path: overlay }
+      - name: Verify reviewed source admission
+        shell: pwsh
+        run: |
+          $binding = Get-Content overlay/test-windows-bigint-focused/source-binding.json -Raw | ConvertFrom-Json
+          if ($binding.state -ne "committed" -or $binding.source -ne $env:REVIEWED_SOURCE_HEAD) { throw "SOURCE_HOLD" }
+          if ($binding.repairPatchSHA256 -ne "18b100b490e8ce87856c6fde0c5cd21a1b70a9aec8a481618e0f45f2eec76aed") { throw "REPAIR_BINDING_DRIFT" }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+          fetch-depth: 0
+          ref: 5d71d4f203a20ccc51e69fbe82678708ee765d31
+          path: source
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b
+        env: { pnpm_config_pm_on_fail: ignore }
+        with: { version: "11.20.0", install: false }
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
         with: { bun-version: "1.4.3" }
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with: { node-version: "26.11.1" }
+      - name: Bind actual source and owned evidence
+        shell: pwsh
+        run: |
+          if ((git -C source rev-parse HEAD) -ne $env:REVIEWED_SOURCE_HEAD) { throw "SOURCE_HEAD_DRIFT" }
+          $root = Join-Path $env:RUNNER_TEMP "TEST-pr457-windows-bigint-focused"
+          if (Test-Path $root) { throw "EVIDENCE_ROOT_EXISTS" }
+          New-Item -ItemType Directory -Path $root | Out-Null
+          git -C source diff --no-ext-diff --exit-code $env:REVIEWED_SOURCE_HEAD -- . | Out-File "$root/tracked-before-build.diff"
+          if ($LASTEXITCODE -ne 0) { throw "TRACKED_SOURCE_CHANGED_BEFORE_BUILD" }
+          Add-Content -LiteralPath $env:GITHUB_ENV -Value @("FOCUS_EVIDENCE=$root", "TEMP=$env:RUNNER_TEMP", "TMP=$env:RUNNER_TEMP")
+      - name: Install and build exact source with existing repository path
+        working-directory: source
+        run: |
+          bun tools/dev.mts install
+          if ($LASTEXITCODE -ne 0) { throw "INSTALL_FAILED" }
+          bun tools/dev.mts build
+          if ($LASTEXITCODE -ne 0) { throw "BUILD_FAILED" }
+      - name: Strict-check helpers and unmodified literal test
+        shell: pwsh
+        run: |
+          if ((node source/node_modules/typescript/bin/tsc --version) -ne "Version 7.0.2") { throw "COMPILER_PIN" }
+          node source/node_modules/typescript/bin/tsc -p overlay/test-windows-bigint-focused/tsconfig.native.json --typeRoots "$env:GITHUB_WORKSPACE/source/node_modules/@types"
+          if ($LASTEXITCODE -ne 0) { throw "STRICT_TYPECHECK_FAILED" }
+          git -C source diff --no-ext-diff --exit-code $env:REVIEWED_SOURCE_HEAD -- . | Out-File "$env:FOCUS_EVIDENCE/tracked-before-tests.diff"
+          if ($LASTEXITCODE -ne 0) { throw "TRACKED_SOURCE_CHANGED_BEFORE_TESTS" }
+      - name: Existing canonical mandatory route, actual source only
+        shell: pwsh
+        run: |
+          node overlay/test-windows-bigint-focused/canonical-run.ts source "$env:FOCUS_EVIDENCE" 2>&1 | Tee-Object -FilePath "$env:FOCUS_EVIDENCE/canonical.log"
+          if ($LASTEXITCODE -ne 0) { throw "FOCUSED_CANONICAL_FAILURE_RETAINED" }
+      - name: Verify every tracked source path after attempt
+        if: ${{ always() && env.FOCUS_EVIDENCE != '' }}
+        shell: pwsh
+        run: |
+          if ((git -C source rev-parse HEAD) -ne $env:REVIEWED_SOURCE_HEAD) { throw "SOURCE_HEAD_DRIFT" }
+          git -C source diff --no-ext-diff --exit-code $env:REVIEWED_SOURCE_HEAD -- . | Out-File "$env:FOCUS_EVIDENCE/tracked-after.diff"
+          if ($LASTEXITCODE -ne 0) { throw "TRACKED_SOURCE_CHANGED_AFTER_ATTEMPT" }
+          @{ source = $env:REVIEWED_SOURCE_HEAD; allTrackedSourceExact = $true; testOverlay = $false; untrackedBuildOutputsAreNotQualification = $true } | ConvertTo-Json | Out-File "$env:FOCUS_EVIDENCE/tracked-custody.json"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: ${{ always() && env.FOCUS_EVIDENCE != '' }}
         with:
-          node-version-file: .node-version
-      - run: bun tools/dev.mts install
-      - run: bun tools/dev.mts build
-      - name: Collect advisory benchmark signals
-        run: node scripts/run-performance-benchmarks.mjs --output "${RUNNER_TEMP}/foundation-performance.json"
-      - name: Upload immutable benchmark evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: foundation-performance-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/foundation-performance.json
-          if-no-files-found: error
-          retention-days: 30
+          name: TEST-pr457-windows-bigint-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.FOCUS_EVIDENCE }}
+          if-no-files-found: warn
+          retention-days: 14

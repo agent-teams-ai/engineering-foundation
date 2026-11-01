@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.json",
+  "files": [
+    "canonical-run.ts",
+    "preload.ts",
+    "../../source/packages/stack-toolchain/tests/format-files.test.ts"
+  ]
+}

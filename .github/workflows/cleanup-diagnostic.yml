@@ -33,7 +33,7 @@ jobs:
           import { createRequire } from 'node:module';
           const owner = createRequire(path.resolve('packages/stack-toolchain/package.json'));
           const out = process.env.EVIDENCE_ROOT;
-          const names = ['oxfmt', 'oxlint', 'oxlint-tsgolint', 'typescript', '@types/node', 'undici-types', 'jsonc-parser', 'node-or-bun'];
+          const names = ['oxfmt', 'oxlint', 'oxlint-tsgolint', 'typescript', '@types/node', 'jsonc-parser', 'node-or-bun'];
           const manifests = [];
           const copied = new Map();
           function copy(name, resolver, optional = false) {
@@ -59,6 +59,7 @@ jobs:
             for (const dependency of Object.keys(manifest.optionalDependencies ?? {})) copy(dependency, nested, true);
           }
           for (const name of names) copy(name, owner);
+          fs.cpSync('packages/stack-toolchain/dist', path.join(out, 'source/packages/stack-toolchain/dist'), { recursive: true });
           fs.writeFileSync(path.join(out, 'installed-tools.json'), JSON.stringify({ node: process.version, source: process.env.GITHUB_SHA, packages: manifests }, null, 2));
           NODE
           tar -czf "$RUNNER_TEMP/cleanup-offline.tgz" -C "$EVIDENCE_ROOT" .

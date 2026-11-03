@@ -4,13 +4,13 @@ on:
     branches: [test/cleanup-qualified-tools-462]
 permissions:
   contents: read
-  actions: read
+  actions: write
 jobs:
   evidence:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Read final candidate checks and existing reviewer workflow metadata
+      - name: Retire only obsolete PR 462 runs and collect current evidence
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -19,26 +19,45 @@ jobs:
           repo = 'repos/agent-teams-ai/engineering-foundation'
           out = pathlib.Path(os.environ['RUNNER_TEMP']) / 'cleanup-evidence'
           out.mkdir()
-          def api(endpoint):
-              result = subprocess.run(['gh', 'api', repo + endpoint], capture_output=True, text=True, timeout=30)
+          def api(endpoint, method='GET'):
+              result = subprocess.run(['gh', 'api', '--method', method, repo + endpoint], capture_output=True, text=True, timeout=30)
               if result.returncode:
-                  return {'readError': result.stderr.strip(), 'exitCode': result.returncode}
-              return json.loads(result.stdout)
+                  raise RuntimeError(result.stderr.strip())
+              return json.loads(result.stdout) if result.stdout.strip() else None
           expected = '6ac8002ffa6059d41b47550c0218da0597ceb144'
-          pr = api('/pulls/462')
-          observed = {k: pr.get(k) for k in ('number', 'state', 'merged', 'draft')}
-          observed['head'] = pr.get('head', {}).get('sha')
-          observed['base'] = pr.get('base', {}).get('sha')
-          observed['expectedHeadMatches'] = observed['head'] == expected
-          report = {'pr': observed, 'runs': [], 'reviewWorkflows': []}
+          expected_base = '99b7dac2fd3c3b2b1b024a8a640f6e13ec79dbef'
+          def require_current():
+              pr = api('/pulls/462')
+              assert pr['state'] == 'open' and not pr['merged']
+              assert pr['head']['sha'] == expected and pr['base']['sha'] == expected_base
+              return pr
+          pr = require_current()
+          report = {'head': expected, 'base': expected_base, 'obsoleteRuns': [], 'runs': []}
+          obsolete = {
+              41735881211: '7bce56f7de16b1437fa3849176c2346451ad6d51',
+              41737566598: '032717bc852753f5beec256c94d26690ae2662f4',
+          }
+          for run_id, old_head in obsolete.items():
+              run = api(f'/actions/runs/{run_id}')
+              assert run['head_sha'] == old_head and run['head_sha'] != expected
+              assert run['event'] == 'pull_request' and run['path'] == '.github/workflows/ci.yml'
+              assert any(item['number'] == 462 for item in run['pull_requests'])
+              item = {'id': run_id, 'head': old_head, 'before': run['status'], 'cancelRequested': False}
+              if run['status'] in ('queued', 'in_progress', 'pending', 'waiting'):
+                  require_current()
+                  try:
+                      api(f'/actions/runs/{run_id}/cancel', 'POST')
+                      item['cancelRequested'] = True
+                  except RuntimeError as error:
+                      item['cancelRequestError'] = str(error)
+              observed = api(f'/actions/runs/{run_id}')
+              item.update({'observedStatus': observed['status'], 'observedConclusion': observed['conclusion']})
+              report['obsoleteRuns'].append(item)
           for run_id in (41740969785, 41740895085, 41740895258):
               run = api(f'/actions/runs/{run_id}')
               jobs = []
               for page in range(1, 5):
                   response = api(f'/actions/runs/{run_id}/jobs?filter=latest&per_page=100&page={page}')
-                  if 'readError' in response:
-                      jobs.append(response)
-                      break
                   current = response.get('jobs', [])
                   jobs.extend(current)
                   if len(current) < 100:
@@ -51,25 +70,21 @@ jobs:
                   if job.get('conclusion') != 'failure':
                       continue
                   log = subprocess.run(['gh', 'api', repo + f'/actions/jobs/{job["id"]}/logs'], capture_output=True, timeout=30)
-                  text = log.stdout.decode('utf-8-sig', errors='replace')
-                  lines = text.splitlines()
+                  lines = log.stdout.decode('utf-8-sig', errors='replace').splitlines()
                   selected = set(range(max(0, len(lines) - 50), len(lines)))
                   needles = ('not ok', 'AssertionError', 'error TS', '##[error]', 'PUBLIC_API_', 'violations', 'failed', 'failure')
                   for i, line in enumerate(lines):
                       if any(needle in line for needle in needles):
                           selected.update(range(max(0, i - 2), min(len(lines), i + 12)))
-                  bounded = '\n'.join(lines[i] for i in sorted(selected))[-50000:]
-                  (out / f'failed-job-{job["id"]}.log').write_text(bounded)
-          for name in ('reviewrouter-codex.yml', 'reviewrouter-review.yml'):
-              workflow = api('/actions/workflows/' + name)
-              report['reviewWorkflows'].append({k: workflow.get(k) for k in ('id', 'name', 'path', 'state', 'html_url', 'readError')})
+                  (out / f'failed-job-{job["id"]}.log').write_text('\n'.join(lines[i] for i in sorted(selected))[-50000:])
+          require_current()
           (out / 'summary.json').write_text(json.dumps(report, indent=2) + '\n')
           print(json.dumps(report, indent=2))
-          print('Read-only observation; no workflow, branch, protection or review state was modified.')
+          print('Only the two enumerated obsolete runs were eligible for cancellation. Current runs, workflows, branches, protections and reviewer settings were not modified.')
           PY
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: cleanup-final-evidence-${{ github.run_id }}
+          name: cleanup-final-evidence-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/cleanup-evidence
           retention-days: 3

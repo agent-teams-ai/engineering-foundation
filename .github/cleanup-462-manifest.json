@@ -1,0 +1,13 @@
+{
+  "head": "3d6c7f7b9c3cf361e62ec3013b39952f444fe162",
+  "patchSha256": "79320ab37c9aaec20652037daa84576d11b260caeee337a1516e2b23a37c8b03",
+  "files": [
+    {"path":"AGENTS.md","before":"c10f1f307aa3e8c9d8d42553704290c2e3ac0090","after":"44c6de390411749bba4205301a0ac214e31d13a3"},
+    {"path":"architecture/foundation/public-api-compatibility.yaml","before":"d9dddaf68f271046cea20fe893ae674d9a938d3b","after":"6005afd4b407f524dbfc11fa6eb1d7c906297c9b"},
+    {"path":"architecture/foundation/source-dependencies.yaml","before":"04cee89c7f96062c6e5ce67f997f7e57390aefdf","after":"42f3eeef3c535cd7abc902bdc0beb359ae04b0c5"},
+    {"path":"packages/stack-toolchain/README.md","before":"976291b030a4d901a76c12371eb225daca338222","after":"7b0df2b4c0b01ef0c1e9f240b187022b14b139dd"},
+    {"path":"packages/stack-toolchain/CLEANUP.md","before":"38cddcffb8577f1d716aef01f1f80cc44b9d5c9a","after":"cad125cb3cddde4426afa2aa8eda7431adf24bf2"},
+    {"path":"packages/stack-toolchain/src/features/toolchain-execution/adapters/cleanup-files.ts","before":"4ae9c53fe2b2eae3c4c3b12ba18c02747b7eb089","after":"5d9809a3d2c873e8b94b8cde96603eab94a966c9"},
+    {"path":"packages/stack-toolchain/tests/lint-presets.test.ts","before":"06b14832e51dc2004974305a16f967981a1cadca","after":"a474d8cb5c7482fa5958b7b6b4946202e6e6797c"}
+  ]
+}

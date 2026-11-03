@@ -1,5 +1,7 @@
 import { registerGrowthRouteCases } from "./public-api-growth-route-cases.ts";
 registerGrowthRouteCases();
+import { registerGrowthInputStabilityCases } from "./public-api-growth-input-stability-cases.ts";
+registerGrowthInputStabilityCases();
 import { execFileSync } from "node:child_process";
 import assert from "node:assert/strict";
 import { cp, mkdir, readFile, writeFile } from "node:fs/promises";

@@ -1,7 +1,9 @@
 # Observation boundaries: debt audit and implementation plan
 
-Status: implementation plan under independent review. No implementation or
-qualification is claimed by this document's initial commit.
+Status: implementation integrated. The initial plan preceded implementation;
+observed results and review corrections are recorded below. Final-head review,
+native CI and merge evidence are tracked in
+[PR #463](https://github.com/agent-teams-ai/engineering-foundation/pull/463).
 
 Audited base: `99b7dac2fd3c3b2b1b024a8a640f6e13ec79dbef`, tree
 `4510029435f1c4c184ad45650402312025e7cefb`. The local checkout tree was compared
@@ -41,16 +43,16 @@ a release or change the release engine.
 
 Priority denotes impact and propagation risk, not a security severity rating.
 
-| Priority | Finding | Evidence and consequence |
-| --- | --- | --- |
-| P1 | Two documentation consumers duplicate an unsafe physical file reader | `node-consumer-repository-files.ts` and `adoption-input.ts` open a FIFO before checking file type and use `FileHandle.readFile()` after only an initial size check. Actual-source reproductions block on a writerless FIFO. With an 8-byte limit and a 4-byte initial file, a deterministic append caused both readers to consume 1,048,580 bytes before rejecting the result. |
-| P1 | Source graph can change the identity of a physically observed file | The generic source reader accepts a POSIX filename containing a literal backslash; graph normalization converts it to a slash. An actual-source reproduction returned graph path `src/a/b.ts` for physical file `src/a\\b.ts`; the graph path did not exist. |
-| P1 | SDK growth rechecks a cached workspace selection | The capability root captures inventory once, closes `readInvocation` over it, and supplies the same inventory through `workspace.read`. Invocation checks untracked inputs and hashes manifests only for that old set. A new untracked package under an existing workspace glob can therefore escape membership revalidation. This is code-confirmed; the full route reproduction is an implementation prerequisite. |
-| P1 | Repository compiler admission happens after execution on some routes | `dev.mts` build and private catalog entries execute `typescript/bin/tsc` before checking its resolved package metadata. Native qualification executes `tsc --version` and uses substring matching. A stale installation can execute a forbidden compiler before rejection. The current installed compiler is 7.0.2; this finding is about admission order. |
-| P2 | Source reader cancellation can become a successful final snapshot | An actual-source reproduction aborts after the last pre-read check and receives the file array. The reader lacks a post-await/final cancellation check. Some downstream callers check again; that does not repair the reader's own contract. |
-| P2 | Source copying and its digest share an overbroad exclusion | `profile-source.ts` excludes entries by basename at every depth, including ordinary files. A legitimate `packages/example/src/coverage/policy.ts` is invisible to both copy and digest. No currently tracked file loss was found; the algorithm permits future silent drift. |
-| P2 | Workspace declaration report loses the selected schema version | The loader accepts v2, but private settings discard the version and success/failure reports use the v1 constant. Preserve the validated version without changing the public report schema. |
-| P2 | Strict tooling membership is manually repeated | Ordinary `.ts` membership is spread across root and child config lists. A static census found no current missing maintained file. Simplify this duplication only if exact TS7 file-set comparison proves coverage is preserved; do not present a possible future gap as a current typecheck failure. |
+| Priority | Finding                                                              | Evidence and consequence                                                                                                                                                                                                                                                                                                                                                       |
+| -------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| P1       | Two documentation consumers duplicate an unsafe physical file reader | `node-consumer-repository-files.ts` and `adoption-input.ts` open a FIFO before checking file type and use `FileHandle.readFile()` after only an initial size check. Actual-source reproductions block on a writerless FIFO. With an 8-byte limit and a 4-byte initial file, a deterministic append caused both readers to consume 1,048,580 bytes before rejecting the result. |
+| P1       | Source graph can change the identity of a physically observed file   | The generic source reader accepts a POSIX filename containing a literal backslash; graph normalization converts it to a slash. An actual-source reproduction returned graph path `src/a/b.ts` for physical file `src/a\\b.ts`; the graph path did not exist.                                                                                                                   |
+| P1       | SDK growth rechecks a cached workspace selection                     | The capability root captured inventory once, closed `readInvocation` over it, and supplied the same inventory through `workspace.read`. The baseline actual Foundation-check route published an incomplete report after a new package appeared under an existing workspace glob. The new regression failed before the fix and now rejects before publication.                  |
+| P1       | Repository compiler admission happens after execution on some routes | `dev.mts` build and private catalog entries execute `typescript/bin/tsc` before checking its resolved package metadata. Native qualification executes `tsc --version` and uses substring matching. A stale installation can execute a forbidden compiler before rejection. The current installed compiler is 7.0.2; this finding is about admission order.                     |
+| P2       | Source reader cancellation can become a successful final snapshot    | An actual-source reproduction aborts after the last pre-read check and receives the file array. The reader lacks a post-await/final cancellation check. Some downstream callers check again; that does not repair the reader's own contract.                                                                                                                                   |
+| P2       | Source copying and its digest share an overbroad exclusion           | `profile-source.ts` excludes entries by basename at every depth, including ordinary files. A legitimate `packages/example/src/coverage/policy.ts` is invisible to both copy and digest. No currently tracked file loss was found; the algorithm permits future silent drift.                                                                                                   |
+| P2       | Workspace declaration report loses the selected schema version       | The loader accepts v2, but private settings discard the version and success/failure reports use the v1 constant. Preserve the validated version without changing the public report schema.                                                                                                                                                                                     |
+| P2       | Strict tooling membership is manually repeated                       | Ordinary `.ts` membership is spread across root and child config lists. A static census found no current missing maintained file. Simplify this duplication only if exact TS7 file-set comparison proves coverage is preserved; do not present a possible future gap as a current typecheck failure.                                                                           |
 
 The initial runtime reproductions used supported Node 24 type stripping and an
 ephemeral source-resolution hook. They did not execute an older TypeScript
@@ -194,8 +196,9 @@ observe facts and outer composition selects implementations.
   from changed execution inputs, including a newly labelled incomplete report.
 - Preserve destination fences, cancellation, normal v1 behavior, scope of
   unrelated untracked files, existing digests and unavailable-subject semantics.
-- Separately retain the validated workspace-declarations schema version in its
-  private settings and report it for v1/v2 success and downstream failure.
+- Separately retain the recognized requested workspace-declarations schema
+  version at the loader boundary and report it for v1/v2 success, validation
+  errors and downstream failure. Preserve the legacy settings shape.
 
 Required evidence: add a package under an existing workspace glob during the
 actual route and prove no report publication; capture initial/final membership
@@ -305,6 +308,71 @@ upgrade is performed implicitly by this refactor.
 
 ## Completion record
 
-Implementation commits, independent review rounds, exact test results and CI
-links will be appended after they exist. This section intentionally records no
-prospective success.
+### Delivered ownership changes
+
+- Both Docs readers use the existing public bounded reader. Their own containment,
+  strict text or byte/mode policy, single-link rule and final named-file identity
+  checks remain in the owning adapters. Post-read disappearance cannot become
+  optional absence. Coarse invalid physical input is reported as invalid without
+  reopening it to reconstruct an older error classification.
+- Source inventory validates discovered names before downstream normalization,
+  checks cancellation after asynchronous observation and visits overlapping
+  directories once. Generic source selection and v3 source policy remain separate.
+- The SDK application operation owns initial and final bracketed observations:
+  fresh inventory, existing invocation identity, fresh inventory. Its private
+  equality key retains ordered resolution facts without changing C0 serialization.
+  Changed/unavailable inputs preserve the prior report. Stable insufficient
+  evidence still produces the existing incomplete result.
+- Workspace report provenance is captured before schema validation once a
+  supported header is observed. A proposed additional settings field was removed
+  after the retained parity fixtures exposed an unnecessary shape change.
+- Private compiler admission checks wrapper and native-package metadata before
+  execution in all four launch owners. It uses the actual runtime's issuer search
+  paths, rejects unsupported resolver layouts and requires canonical native
+  metadata selection. It is not executable-byte attestation or an atomic
+  filesystem guarantee.
+- Source projection excludes generated material at owned locations and retains
+  legitimate nested source names. Native separator conversion preserves literal
+  POSIX backslashes, so the digest reads the same physical files that copying uses.
+
+### Independent review corrections
+
+Plan review tightened full ordered SDK facts, final Docs pathname binding,
+native TS7 selection and scope exclusions before implementation. Implementation
+cross-review independently examined Docs, Foundation and repository tooling.
+
+Tooling review reproduced three selection failures using inert markers and the
+actual installed wrapper bytes: source-build resolver branches, a nested wrapper
+package scope and a conditional native metadata export. All are now rejected
+before candidate execution. A proposed Node-only metadata API failed an actual
+Bun 1.4.3 startup check and was replaced with the bounded dual-runtime lookup.
+Another reproducer proved that a literal POSIX backslash filename could change
+without changing the old digest; the corrected projection observes that mutation
+and matches the copied bytes. These findings were fixed and independently rerun.
+
+Required typed lint additionally corrected new test registration and fixture
+typing. New suites/helpers have explicit strict-project membership. Existing
+legacy test files were not rewritten just to register a separate regression suite.
+Four new suites enter the exact-once Linux and Windows inventories; SDK and
+workspace regression helpers run through their existing registered wrappers.
+
+### Executed evidence before final native CI
+
+| Boundary                                  | Observed result                                                                                                                                                                                                                |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Baseline repository                       | Build, `check:fast` and workflow security passed before implementation.                                                                                                                                                        |
+| Docs regressions against old distribution | 10 failures / 2 passes; actual overread, final pathname races and FIFO hangs reproduced.                                                                                                                                       |
+| Corrected Docs                            | Node 26: 15/15 including existing adoption cases; Node 24: 12/12 new cases; final lint-corrected Node 26 repetition: 12/12. No skips in these Linux runs.                                                                      |
+| Source reader against old distribution    | Four of five new cases failed: physical identity, final-read cancellation, empty-directory cancellation and repeated traversal.                                                                                                |
+| Source and workspace integration          | 149/149 passed, including legacy configuration/diagnostic parity and actual CLI provenance. The final schema-validated provenance helper also passed separately.                                                               |
+| SDK execution                             | Full wrapper 17/17 passed; final nine actual-route regressions passed again after fixture typing and registration changes.                                                                                                     |
+| Compiler/projection                       | Final owner run 31/31 and independent focused run 30/30 passed with different documented selection filters; no skips. The earlier four existing runtime/profile suites passed 77/77.                                           |
+| Actual runtime compatibility              | Node 26 and Bun 1.4.3 native qualification passed independently; actual Bun build passed. The current helper admitted the installed pnpm layout under both runtimes. That layout check is not final-head source qualification. |
+| Static checks                             | Changed source/test/tool typed lint, lane syntax lint, required strict TS7 projects and formatter checks passed. Integrated required gates and exact-head CI evidence are recorded in the PR.                                  |
+
+Source commits are published immediately through the authorized GitHub plugin.
+The first implementation checkpoint is
+[`137506b3`](https://github.com/agent-teams-ai/engineering-foundation/commit/137506b3c5c6a27e3492bd08a43587afe02c42c4).
+No local result is substituted for the required final-head/base native matrix,
+and no candidate workflow success claims to repair the documented GitHub Free
+workflow-source trust limitation.

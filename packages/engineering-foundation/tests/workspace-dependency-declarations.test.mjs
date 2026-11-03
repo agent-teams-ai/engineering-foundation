@@ -1,5 +1,7 @@
 import * as registeredCases1 from "./workspace-dependency-alias-normalization-cases.ts";
 void registeredCases1;
+import * as reportProvenanceCases from "./workspace-report-provenance-cases.ts";
+void reportProvenanceCases;
 import assert from "node:assert/strict";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -51,7 +53,9 @@ test("workspace feature composition owns one catalog cache for its selected v1/v
       const config = parse(await readFile(path, "utf8"));
       config.schemaVersion = version;
       await writeFile(path, stringify(config));
-      assert.equal((await capability.run({ consumerRoot, configPath })).outcome, "passed");
+      const report = await capability.run({ consumerRoot, configPath });
+      assert.equal(report.outcome, "passed");
+      assert.equal(report.capabilityConfigSchemaVersion, version);
     }
     assert.deepEqual(reads, [
       "workspace-dependency-declarations/v1",
@@ -455,6 +459,7 @@ for (const [schemaVersion, kind] of [
       const { report, result } = check(root);
       assert.equal(result.status, 0);
       assert.equal(report.capabilities[0].outcome, "passed");
+      assert.equal(report.capabilities[0].capabilityConfigSchemaVersion, schemaVersion);
       for (const value of [
         `${kind === "bun" ? "pnpm" : "bun"}@1.4.3`,
         `${kind}@^1.4.3`,

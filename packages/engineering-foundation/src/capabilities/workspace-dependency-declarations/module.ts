@@ -10,7 +10,10 @@ import { CAPABILITY_CONFIG_SCHEMA_VERSION, CAPABILITY_ID } from "./contract/conf
 import { evaluateWorkspaceDependencies } from "./application/policies/evaluate-workspace-dependencies.js";
 import { RULES_BY_ID } from "./application/rules.js";
 
-import type { WorkspaceConfigurationSchemaAssertion } from "./application/configuration-input.js";
+import type {
+  WorkspaceConfigurationSchemaAssertion,
+  WorkspaceConfigurationSchemaVersion,
+} from "./application/configuration-input.js";
 import { WORKSPACE_DEPENDENCY_DECLARATIONS_SCHEMA_IDS } from "./schemas.js";
 import { createSchemaCatalog } from "../../features/configuration-input/module.js";
 import { loadStrictYamlFile } from "../../features/configuration-input/node.js";
@@ -39,12 +42,17 @@ export function createWorkspaceDependencyDeclarationsCapability(
     id: CAPABILITY_ID,
     configSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
     async run(invocation: CapabilityInvocation) {
+      let requestedSchemaVersion: WorkspaceConfigurationSchemaVersion =
+        CAPABILITY_CONFIG_SCHEMA_VERSION;
       try {
         const config = await loadCapabilityConfig(
           { readYaml: loadStrictYamlFile, assertSchema: schemas.assertSchema },
           invocation.consumerRoot,
           invocation.configPath,
           invocation.signal,
+          (version) => {
+            requestedSchemaVersion = version;
+          },
         );
         const snapshot = await workspaceReader.read(
           invocation.consumerRoot,
@@ -53,7 +61,7 @@ export function createWorkspaceDependencyDeclarationsCapability(
         );
         return capabilityReport({
           capabilityId: CAPABILITY_ID,
-          capabilityConfigSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
+          capabilityConfigSchemaVersion: requestedSchemaVersion,
           diagnostics: evaluateWorkspaceDependencies(
             snapshot,
             config.policy,
@@ -63,7 +71,7 @@ export function createWorkspaceDependencyDeclarationsCapability(
       } catch (error) {
         return capabilityFailureReport({
           capabilityId: CAPABILITY_ID,
-          capabilityConfigSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
+          capabilityConfigSchemaVersion: requestedSchemaVersion,
           error,
           phase: "capability-execution",
         });

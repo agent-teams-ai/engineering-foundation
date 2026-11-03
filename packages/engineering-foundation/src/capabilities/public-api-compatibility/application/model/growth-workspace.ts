@@ -14,3 +14,7 @@ export interface GrowthWorkspacePackage {
     readonly entries: readonly { readonly subpath: string; readonly target?: GrowthExportTarget }[];
   };
 }
+
+export interface GrowthWorkspaceInventory {
+  readonly packages: readonly GrowthWorkspacePackage[];
+}

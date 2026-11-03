@@ -3,8 +3,8 @@ import type { PublicApiSchemaAssertion } from "../../schema-validation.js";
 import {
   readPublicApiConfigurationHeader,
   mapPublicApiConfiguration,
-  assertGrowthReportDestination,
 } from "./parse-growth-config.js";
+import { assertGrowthReportDestination } from "../../../application/policies/growth-report-destination.js";
 
 export interface PublicApiConfigurationDependencies {
   readonly readYaml: (

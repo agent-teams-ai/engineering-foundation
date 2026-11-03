@@ -19,7 +19,7 @@ async function fixture(t: TestContext): Promise<string> {
   return root;
 }
 
-test("managed input bounds actual bytes when an admitted regular file grows", async (t) => {
+void test("managed input bounds actual bytes when an admitted regular file grows", async (t) => {
   const root = await fixture(t);
   const path = join(root, "input.json");
   await fs.writeFile(path, "text");
@@ -27,7 +27,9 @@ test("managed input bounds actual bytes when an admitted regular file grows", as
   let bytesRead = 0;
   t.mock.method(fs, "open", async (...args: Parameters<typeof fs.open>) => {
     const handle = await originalOpen(...args);
-    if (args[0] !== path) return handle;
+    if (args[0] !== path) {
+      return handle;
+    }
     let first = true;
     handle.stat = new Proxy(handle.stat.bind(handle), {
       async apply(target, receiver: unknown, parameters: unknown[]) {
@@ -61,7 +63,7 @@ test("managed input bounds actual bytes when an admitted regular file grows", as
 });
 
 for (const change of ["disappear", "replace", "hardlink"] as const) {
-  test(`managed input rejects ${change} after physical read instead of optional absence`, async (t) => {
+  void test(`managed input rejects ${change} after physical read instead of optional absence`, async (t) => {
     const root = await fixture(t);
     const path = join(root, "input.json");
     await fs.writeFile(path, "original\n");
@@ -69,18 +71,26 @@ for (const change of ["disappear", "replace", "hardlink"] as const) {
     let changed = false;
     t.mock.method(fs, "open", async (...args: Parameters<typeof fs.open>) => {
       const handle = await originalOpen(...args);
-      if (args[0] !== path) return handle;
+      if (args[0] !== path) {
+        return handle;
+      }
       const close = handle.close.bind(handle);
       handle.close = async () => {
         await close();
-        if (changed) return;
+        if (changed) {
+          return;
+        }
         changed = true;
-        if (change === "disappear") await fs.rm(path);
+        if (change === "disappear") {
+          await fs.rm(path);
+        }
         if (change === "replace") {
           await fs.rename(path, `${path}.old`);
           await fs.writeFile(path, "original\n");
         }
-        if (change === "hardlink") await fs.link(path, `${path}.alias`);
+        if (change === "hardlink") {
+          await fs.link(path, `${path}.alias`);
+        }
       };
       return handle;
     });
@@ -92,14 +102,13 @@ for (const change of ["disappear", "replace", "hardlink"] as const) {
   });
 }
 
-test("managed input preserves bytes, permission mode and initial optional absence", async (t) => {
+void test("managed input preserves bytes, permission mode and initial optional absence", async (t) => {
   const root = await fixture(t);
   const path = join(root, "input.json");
   const bytes = Buffer.from([0, 255, 10, 42]);
   await fs.writeFile(path, bytes, { mode: 0o600 });
   const observation = await readStableConsumerFile(root, "input.json", 4, true);
   assert.equal(observation.state, "file");
-  if (observation.state !== "file") throw new Error("expected observed file");
   assert.deepEqual(observation.bytes, bytes);
   assert.equal(observation.mode, (await fs.stat(path)).mode & 0o777);
   await assert.rejects(readStableConsumerFile(root, "input.json", 3, true), {
@@ -129,7 +138,7 @@ test("managed input preserves bytes, permission mode and initial optional absenc
   });
 });
 
-test(
+void test(
   "public managed input rejects a FIFO manifest without recovery state",
   {
     skip:

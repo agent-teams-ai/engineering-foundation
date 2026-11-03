@@ -1,4 +1,7 @@
-import type { WorkspaceConfigurationSchemaAssertion } from "../../../application/configuration-input.js";
+import type {
+  WorkspaceConfigurationSchemaAssertion,
+  WorkspaceConfigurationSchemaVersion,
+} from "../../../application/configuration-input.js";
 import { parseCapabilityConfig } from "./parse-capability-config.js";
 import type { WorkspaceDependencyDeclarationsSettings } from "../../../application/model/workspace-dependency-settings.js";
 
@@ -17,6 +20,7 @@ export async function loadCapabilityConfig(
   consumerRoot: string,
   configPath: string,
   signal?: AbortSignal,
+  observeSchemaVersion?: (version: WorkspaceConfigurationSchemaVersion) => void,
 ): Promise<WorkspaceDependencyDeclarationsSettings> {
   const input = await dependencies.readYaml(
     consumerRoot,
@@ -28,6 +32,9 @@ export async function loadCapabilityConfig(
     typeof input === "object" && input !== null && !Array.isArray(input)
       ? (input as Record<string, unknown>)["schemaVersion"]
       : undefined;
+  if (version === 1 || version === 2) {
+    observeSchemaVersion?.(version);
+  }
   await dependencies.assertSchema(
     version === 2 ? "workspace-dependency-declarations/v2" : "workspace-dependency-declarations/v1",
     input,

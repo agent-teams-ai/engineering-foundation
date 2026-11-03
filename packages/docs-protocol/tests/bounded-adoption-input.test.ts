@@ -18,7 +18,7 @@ async function fixture(t: TestContext): Promise<string> {
   return root;
 }
 
-test("adoption bounds actual bytes when an admitted regular file grows", async (t) => {
+void test("adoption bounds actual bytes when an admitted regular file grows", async (t) => {
   const root = await fixture(t);
   const path = join(root, "authority.md");
   await fs.writeFile(path, "text");
@@ -26,7 +26,9 @@ test("adoption bounds actual bytes when an admitted regular file grows", async (
   let bytesRead = 0;
   t.mock.method(fs, "open", async (...args: Parameters<typeof fs.open>) => {
     const handle = await originalOpen(...args);
-    if (args[0] !== path) return handle;
+    if (args[0] !== path) {
+      return handle;
+    }
     let first = true;
     handle.stat = new Proxy(handle.stat.bind(handle), {
       async apply(target, receiver: unknown, parameters: unknown[]) {
@@ -60,7 +62,7 @@ test("adoption bounds actual bytes when an admitted regular file grows", async (
 });
 
 for (const change of ["disappear", "replace", "hardlink"] as const) {
-  test(`adoption rejects ${change} after physical read and before owner recheck`, async (t) => {
+  void test(`adoption rejects ${change} after physical read and before owner recheck`, async (t) => {
     const root = await fixture(t);
     const path = join(root, "authority.md");
     await fs.writeFile(path, "original\n");
@@ -68,18 +70,26 @@ for (const change of ["disappear", "replace", "hardlink"] as const) {
     let changed = false;
     t.mock.method(fs, "open", async (...args: Parameters<typeof fs.open>) => {
       const handle = await originalOpen(...args);
-      if (args[0] !== path) return handle;
+      if (args[0] !== path) {
+        return handle;
+      }
       const close = handle.close.bind(handle);
       handle.close = async () => {
         await close();
-        if (changed) return;
+        if (changed) {
+          return;
+        }
         changed = true;
-        if (change === "disappear") await fs.rm(path);
+        if (change === "disappear") {
+          await fs.rm(path);
+        }
         if (change === "replace") {
           await fs.rename(path, `${path}.old`);
           await fs.writeFile(path, "original\n");
         }
-        if (change === "hardlink") await fs.link(path, `${path}.alias`);
+        if (change === "hardlink") {
+          await fs.link(path, `${path}.alias`);
+        }
       };
       return handle;
     });
@@ -91,7 +101,7 @@ for (const change of ["disappear", "replace", "hardlink"] as const) {
   });
 }
 
-test("adoption preserves contained regular text and rejects invalid authority inputs", async (t) => {
+void test("adoption preserves contained regular text and rejects invalid authority inputs", async (t) => {
   const root = await fixture(t);
   await fs.writeFile(join(root, "valid.md"), "Документ\n");
   assert.equal(await readContainedText(root, "valid.md", 128), "Документ\n");
@@ -112,7 +122,7 @@ test("adoption preserves contained regular text and rejects invalid authority in
   }
 });
 
-test(
+void test(
   "public portable check and doctor reject FIFO adoption input without recovery state",
   {
     skip:

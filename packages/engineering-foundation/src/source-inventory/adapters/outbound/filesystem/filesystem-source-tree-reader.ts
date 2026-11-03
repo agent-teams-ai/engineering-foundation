@@ -71,7 +71,9 @@ async function discoverSourcePaths(
   signal?: AbortSignal,
 ): Promise<readonly string[]> {
   const paths: string[] = [];
+  const visitedDirectories = new Set<string>();
   for (const governedRoot of governedRoots) {
+    assertSourceReadActive(signal);
     const absoluteSourceRoot = await containedDirectory(canonicalRoot, governedRoot);
     const directories = [absoluteSourceRoot];
     while (directories.length > 0) {
@@ -80,14 +82,20 @@ async function discoverSourcePaths(
       if (directoryPath === undefined) {
         break;
       }
+      if (visitedDirectories.has(directoryPath)) {
+        continue;
+      }
+      visitedDirectories.add(directoryPath);
       const directory = await opendir(directoryPath);
       for await (const entry of directory) {
         assertSourceReadActive(signal);
         const absoluteEntry = join(directoryPath, entry.name);
         inspectSourceEntry(canonicalRoot, absoluteEntry, entry, directories, paths);
       }
+      assertSourceReadActive(signal);
     }
   }
+  assertSourceReadActive(signal);
   const uniquePaths = [...new Set(paths)].toSorted();
   const caseFoldedPaths = new Map<string, string>();
   for (const path of uniquePaths) {
@@ -115,13 +123,19 @@ function inspectSourceEntry(
     sourceEntrySymlink(toPosixPath(relative(canonicalRoot, absoluteEntry)));
   }
   if (entry.isDirectory()) {
+    assertRepositoryRelativePath(
+      toPosixPath(relative(canonicalRoot, absoluteEntry)),
+      "source-discovery",
+    );
     directories.push(absoluteEntry);
     return;
   }
   if (!entry.isFile() || !SOURCE_EXTENSIONS.has(posix.extname(entry.name))) {
     return;
   }
-  paths.push(toPosixPath(relative(canonicalRoot, absoluteEntry)));
+  const repositoryPath = toPosixPath(relative(canonicalRoot, absoluteEntry));
+  assertRepositoryRelativePath(repositoryPath, "source-discovery");
+  paths.push(repositoryPath);
   if (paths.length > MAX_SOURCE_FILES) {
     sourceFileCountExceeded(MAX_SOURCE_FILES);
   }
@@ -146,11 +160,13 @@ async function readSourceFiles(
             root: canonicalRoot,
           });
         } catch (error) {
+          assertSourceReadActive(signal);
           if (error instanceof ContainedFileReadError) {
             unstableSourceFile(path);
           }
           throw error;
         }
+        assertSourceReadActive(signal);
         const source = bytes.toString("utf8");
         if (source.includes("\0")) {
           nulSourceFile(path);
@@ -166,6 +182,7 @@ async function readSourceFiles(
       files.push({ path: file.path, source: file.source });
     }
   }
+  assertSourceReadActive(signal);
   return files;
 }
 

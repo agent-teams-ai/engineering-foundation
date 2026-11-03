@@ -95,6 +95,7 @@ boundaries:
         - docs-protocol.portable-documentation.domain
       packages:
         - "@agent-teams/document-authoring"
+        - "@agent-teams/repository-mutation"
         - ajv
         - ajv-formats
         - minisearch
@@ -338,6 +339,7 @@ boundaries:
         - node:crypto
         - node:fs
         - node:fs/promises
+        - node:module
         - node:os
         - node:path
         - node:test
@@ -704,6 +706,7 @@ boundaries:
   - id: docs-protocol-agent-teams.tests
     dependencyMode: development
     roots:
+      - packages/docs-protocol-agent-teams/tests/consumer-input-observation.test.ts
       - packages/docs-protocol-agent-teams/tests/consumer-committed-restoration.test.ts
       - packages/docs-protocol-agent-teams/tests/consumer-managed-restoration.test.ts
       - packages/docs-protocol-agent-teams/tests/consumer-upgrade-generation3-fixture.ts
@@ -2494,6 +2497,8 @@ boundaries:
       builtins: []
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/policies/growth-report-destination.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/use-cases/run-sdk-growth-check.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/policies/validate-growth-authority-primitives.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/ports/growth-workspace.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/ports/growth-report-writer.ts
@@ -2914,6 +2919,7 @@ boundaries:
   - id: foundation.dependency-aliases.tests
     dependencyMode: development
     roots:
+      - packages/engineering-foundation/tests/workspace-report-provenance-cases.ts
       - packages/engineering-foundation/tests/source-dependency-aliases.test.mjs
       - packages/engineering-foundation/tests/workspace-dependency-declarations.test.mjs
       - packages/engineering-foundation/tests/support/dependency-fixtures.mjs

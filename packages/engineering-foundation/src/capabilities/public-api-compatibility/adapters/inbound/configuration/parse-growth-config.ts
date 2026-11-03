@@ -7,6 +7,7 @@ import type {
   SdkGrowthCapabilityPolicy,
 } from "../../../application/model/growth-configuration.js";
 import { parseCapabilityConfig } from "./parse-capability-config.js";
+import { assertGrowthReportDestination } from "../../../application/policies/growth-report-destination.js";
 
 export function readPublicApiConfigurationHeader(input: unknown): Record<string, unknown> {
   if (input === null || typeof input !== "object" || Array.isArray(input)) {
@@ -121,24 +122,4 @@ export function mapPublicApiConfiguration(
       }),
     }),
   });
-}
-
-/** Protect both descendants and ancestors: a destination cannot replace a
- * directory that owns an input, even when the final file does not exist yet. */
-export function assertGrowthReportDestination(
-  destination: string,
-  protectedPaths: readonly string[],
-): void {
-  if (
-    protectedPaths.some(
-      (path) =>
-        destination === path ||
-        destination.startsWith(`${path}/`) ||
-        path.startsWith(`${destination}/`),
-    )
-  ) {
-    configurationInputError(
-      "SDK report path overlaps a protected input, governance, baseline, lockfile or package path.",
-    );
-  }
 }

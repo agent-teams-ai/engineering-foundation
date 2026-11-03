@@ -1,18 +1,25 @@
 import { createHash } from "node:crypto";
 import { copyFile, mkdir, readFile, readdir } from "node:fs/promises";
-import { relative, resolve } from "node:path";
+import { relative, resolve, sep } from "node:path";
 import { repositoryRoot } from "./runtime-policy.mts";
 
-const excludedSourceDirectories = new Set([
-  ".git",
+const generatedRootDirectories = new Set([
   ".worker-tmp",
   ".cache",
   ".nx",
-  "node_modules",
   ".pnpm-store",
   "coverage",
   ".coverage-evidence",
 ]);
+
+function generatedFile(pathParts: readonly string[], name: string): boolean {
+  return (
+    name.endsWith(".tsbuildinfo") ||
+    (pathParts.length === 1 && name === ".agent-teams-runtime-profile.json") ||
+    // prepare-package owns these copies; the root LICENSE remains source.
+    (pathParts.length === 3 && pathParts[0] === "packages" && name === "LICENSE")
+  );
+}
 
 function isExcludedSourceEntry(
   sourceRoot: string,
@@ -21,29 +28,22 @@ function isExcludedSourceEntry(
     readonly name: string;
     readonly isDirectory: () => boolean;
     readonly isFile: () => boolean;
+    readonly isSymbolicLink: () => boolean;
   },
 ): boolean {
-  if (excludedSourceDirectories.has(entry.name)) {
+  const pathParts = relative(sourceRoot, path).split(sep);
+  // Root Git metadata includes the ordinary .git marker of a linked worktree.
+  if (pathParts.length === 1 && entry.name === ".git") {
     return true;
   }
-  if (entry.isFile() && entry.name.endsWith(".tsbuildinfo")) {
+  // A dependency installation may be a directory or an explicit directory link.
+  if (entry.name === "node_modules" && (entry.isDirectory() || entry.isSymbolicLink())) {
     return true;
   }
-  const pathParts = relative(sourceRoot, path).split(/[\\/]/u);
-  if (
-    entry.isFile() &&
-    pathParts.length === 1 &&
-    pathParts[0] === ".agent-teams-runtime-profile.json"
-  ) {
+  if (entry.isDirectory() && pathParts.length === 1 && generatedRootDirectories.has(entry.name)) {
     return true;
   }
-  // prepare-package owns these generated package copies; the root LICENSE is source.
-  if (
-    entry.isFile() &&
-    pathParts.length === 3 &&
-    pathParts[0] === "packages" &&
-    pathParts[2] === "LICENSE"
-  ) {
+  if (entry.isFile() && generatedFile(pathParts, entry.name)) {
     return true;
   }
   return (
@@ -99,7 +99,7 @@ export async function sourceTreeDigest(
       if (entry.isDirectory()) {
         await walk(path);
       } else if (entry.isFile()) {
-        files.push(relative(sourceRoot, path).split(/[\\/]/u).join("/"));
+        files.push(relative(sourceRoot, path).split(sep).join("/"));
       } else {
         throw new Error(
           `Profile source contains an unsupported entry: ${relative(sourceRoot, path)}.`,

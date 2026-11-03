@@ -157,6 +157,7 @@ async function runOperations(
     readonly deadline: number;
   },
   evidence: CleanupEvidence,
+  mode: "write" | "check",
 ): Promise<number> {
   const plan = operations(input.config, input.ignore).map((operation) => ({
     ...operation,
@@ -168,6 +169,9 @@ async function runOperations(
     ]),
   }));
   for (const operation of plan) {
+    if (operation.operation !== mode) {
+      continue;
+    }
     for (const files of operation.groups) {
       for (const file of files) {
         remaining(input.signal, input.deadline);
@@ -199,6 +203,33 @@ async function runOperations(
     }
   }
   return 0;
+}
+
+// Native fixes can overlap within one declaration. Finish those edits before
+// handing diagnostics back to the caller; never let conflicting policies loop.
+async function stabilizeCleanup(
+  input: Parameters<typeof runOperations>[0],
+  evidence: CleanupEvidence,
+): Promise<number> {
+  for (let pass = 0; pass < 10; pass++) {
+    const before = new Map<string, ReturnType<typeof snapshot>>();
+    for (const file of input.files) {
+      remaining(input.signal, input.deadline);
+      before.set(file, snapshot(input.root, file));
+    }
+    const exitCode = await runOperations(input, evidence, "write");
+    if (exitCode !== 0) {
+      return exitCode;
+    }
+    const observation = changedFiles(input.root, before, input.signal, input.deadline);
+    if (!observation.complete) {
+      throw new Error("TOOLCHAIN_CLEANUP_OBSERVATION");
+    }
+    if (observation.changed.length === 0) {
+      return runOperations(input, evidence, "check");
+    }
+  }
+  throw new Error("TOOLCHAIN_CLEANUP_NOT_STABLE");
 }
 
 /** Explicit writes only. The caller owns selection, protected files and exclusive source access. */
@@ -233,7 +264,7 @@ export async function fixFiles(input: CleanupInput): Promise<CleanupReport> {
     control = fs.mkdtempSync(path.join(outsideTemporaryRoot(root), "stack-cleanup-"));
     const ignore = path.join(control, "empty.ignore");
     fs.writeFileSync(ignore, "", { flag: "wx", mode: 0o600 });
-    exitCode = await runOperations(
+    exitCode = await stabilizeCleanup(
       { config, ignore, files: requested, root, signal, deadline },
       evidence,
     );

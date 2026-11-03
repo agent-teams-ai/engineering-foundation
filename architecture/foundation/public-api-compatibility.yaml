@@ -216,6 +216,10 @@ packages:
         kind: data
       - exportPath: "./presets/oxlint/base.json"
         kind: data
+      - exportPath: "./presets/oxlint/cleanup.json"
+        kind: data
+      - exportPath: "./presets/oxlint/cleanup-fix.json"
+        kind: data
       - exportPath: "./presets/typescript/base.json"
         kind: data
       - exportPath: "./presets/oxlint/maintainability-tests.json"

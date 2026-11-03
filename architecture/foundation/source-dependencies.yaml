@@ -4459,6 +4459,8 @@ boundaries:
       runtimeReferences: []
   - id: stack-toolchain.execution.adapters
     roots:
+      - packages/stack-toolchain/src/features/toolchain-execution/adapters/cleanup-cli.ts
+      - packages/stack-toolchain/src/features/toolchain-execution/adapters/cleanup-files.ts
       - packages/stack-toolchain/src/features/toolchain-execution/adapters/commands.ts
       - packages/stack-toolchain/src/features/toolchain-execution/adapters/configuration.ts
       - packages/stack-toolchain/src/features/toolchain-execution/adapters/doctor.ts
@@ -4467,6 +4469,8 @@ boundaries:
       - packages/stack-toolchain/src/features/toolchain-execution/adapters/process.ts
       - packages/stack-toolchain/src/features/toolchain-execution/adapters/run-cli.ts
     entrypoints:
+      - packages/stack-toolchain/src/features/toolchain-execution/adapters/cleanup-cli.ts
+      - packages/stack-toolchain/src/features/toolchain-execution/adapters/cleanup-files.ts
       - packages/stack-toolchain/src/features/toolchain-execution/adapters/commands.ts
       - packages/stack-toolchain/src/features/toolchain-execution/adapters/configuration.ts
       - packages/stack-toolchain/src/features/toolchain-execution/adapters/doctor.ts

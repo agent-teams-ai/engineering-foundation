@@ -1,8 +1,8 @@
 # Explicit-file cleanup
 
-Status: implementation candidate in source. Native qualification, independent
-review, publication and consumer rollout are separate steps. Do not infer that an
-older installed Stack version implements this command from this document.
+Status: implemented in source. Native qualification, independent review,
+publication and consumer rollout are separate steps. An installed package must
+expose `fixFiles`; older releases do not implement this command.
 
 ## Purpose and ownership
 
@@ -33,7 +33,9 @@ The caller must have exclusive cooperative access to the selected files while
 cleanup runs. This is not a sandbox against hostile concurrent filesystem edits.
 
 The command runs syntax-only Oxlint safe fixes, then the existing Oxfmt preset,
-then read-only checks of those same cleanup/format configurations. It never adds
+then read-only checks of those same cleanup/format configurations. Overlapping
+native fixes are settled in at most ten write passes; a non-stabilizing pipeline
+fails instead of asking the agent to repeat cleanup indefinitely. It never adds
 `--fix-suggestions` or `--fix-dangerously`, runs typed fixers, downloads tools,
 loads JS plugins, sorts imports, stages changes or commits files.
 It does not load `toolchain.config.json` or start a compiler. Existing native
@@ -47,11 +49,11 @@ run the project's normal focused checks afterwards.
 
 ## Default rule selection
 
-| Native rule | Why selected | Boundaries |
-| --- | --- | --- |
-| `prefer-const` | Communicates stable bindings without manual edits | `destructuring: all`, `ignoreReadBeforeAssign: true`; no forced splitting of mixed declarations |
-| `no-useless-rename` | Removes redundant import/export/destructuring aliases | Native safe fixes only |
-| `no-useless-computed-key` | Removes redundant literal object keys | Class-member enforcement disabled; preserve special-key semantics |
+| Native rule               | Why selected                                          | Boundaries                                                                                      |
+| ------------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `prefer-const`            | Communicates stable bindings without manual edits     | `destructuring: all`, `ignoreReadBeforeAssign: true`; no forced splitting of mixed declarations |
+| `no-useless-rename`       | Removes redundant import/export/destructuring aliases | Native safe fixes only                                                                          |
+| `no-useless-computed-key` | Removes redundant literal object keys                 | Class-member enforcement disabled; preserve special-key semantics                               |
 
 `cleanup.json` contains only rule settings and can be explicitly composed with a
 consumer's diagnostic configuration. It does not reset categories, plugins or
@@ -66,9 +68,7 @@ For example, a consumer-owned `.oxlintrc.cleanup.json` may contain:
 
 ```json
 {
-  "extends": [
-    "./node_modules/stack-toolchain/presets/oxlint/cleanup-fix.json"
-  ],
+  "extends": ["./node_modules/stack-toolchain/presets/oxlint/cleanup-fix.json"],
   "rules": {
     "prefer-const": "off"
   }

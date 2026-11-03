@@ -167,14 +167,21 @@ void test("all eight extensions retain syntax checks and only TS enables typed c
 
 function cleanupFixture(t: TestContext) {
   const root = mkdtempSync(join(tmpdir(), "TEST-stack-cleanup-"));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
+  t.after(() => {
+    rmSync(root, { recursive: true, force: true });
+  });
   writeFileSync(join(root, "package.json"), '{"type":"module"}\n');
-  writeFileSync(join(root, "input.ts"), 'let value={ ["answer"]:42 };\nconsole.log(value.answer);\n');
+  writeFileSync(
+    join(root, "input.ts"),
+    'let value={ ["answer"]:42 };\nconsole.log(value.answer);\n',
+  );
   writeFileSync(join(root, "other.ts"), 'let untouched={ ["answer"]:42 };\n');
   return root;
 }
 const cleanupPresetPath = fileURLToPath(new URL("../presets/oxlint/cleanup.json", import.meta.url));
-const cleanupFixPath = fileURLToPath(new URL("../presets/oxlint/cleanup-fix.json", import.meta.url));
+const cleanupFixPath = fileURLToPath(
+  new URL("../presets/oxlint/cleanup-fix.json", import.meta.url),
+);
 const cleanupCli = fileURLToPath(new URL("../dist/cli.js", import.meta.url));
 
 void test("cleanup overlay cannot disable baseline categories or change other plugins", () => {
@@ -217,17 +224,17 @@ void test("cleanup native CLI preserves behavior, types, other files and second-
   const root = cleanupFixture(t);
   const source = [
     'let value={ ["answer"]:42 };',
-    'const { answer: answer } = value;',
-    'const source = [0, 1, 2];',
-    'const copy = source.map(x => x); copy.push(3);',
-    'const filtered = source.filter(x => x);',
-    'const flat = [[1], [2]].flatMap(x => x);',
-    'const transformed = source.flatMap(x => x > 0 ? [x * 2] : []);',
+    "const { answer: answer } = value;",
+    "const source = [0, 1, 2];",
+    "const copy = source.map(x => x); copy.push(3);",
+    "const filtered = source.filter(x => x);",
+    "const flat = [[1], [2]].flatMap(x => x);",
+    "const transformed = source.flatMap(x => x > 0 ? [x * 2] : []);",
     'const proto = { ["__proto__"]: 7 };',
-    'let [stable, moving] = [1, 2]; moving += 1;',
-    'const guard = (text: string | undefined): boolean => !!text;',
+    "let [stable, moving] = [1, 2]; moving += 1;",
+    "const guard = (text: string | undefined): boolean => !!text;",
     'console.log(JSON.stringify({ answer, source, copy, filtered, flat, transformed, proto, stable, moving, guard: guard("x") }));',
-    'export { answer as answer };',
+    "export { answer as answer };",
   ].join("\n");
   writeFileSync(join(root, "input.ts"), source);
   writeFileSync(
@@ -245,13 +252,16 @@ void test("cleanup native CLI preserves behavior, types, other files and second-
   const compiler = JSON.parse(readFileSync(compilerPackage, "utf8")) as { version: string };
   assert.equal(compiler.version, "7.0.2", "Never execute an older compiler for qualification");
   const executable = resolveCompilerExecutable();
-  assert.ok(executable);
   const typecheck = () => {
-    const checked = spawnSync(executable.command, [...executable.prefix, "--project", "verify.json"], {
-      cwd: root,
-      encoding: "utf8",
-      timeout: 30_000,
-    });
+    const checked = spawnSync(
+      executable.command,
+      [...executable.prefix, "--project", "verify.json"],
+      {
+        cwd: root,
+        encoding: "utf8",
+        timeout: 30_000,
+      },
+    );
     assert.ifError(checked.error);
     assert.equal(checked.status, 0, checked.stdout + checked.stderr);
   };
@@ -333,7 +343,11 @@ void test("cleanup rejects symlinks and hardlinks to unselected files", async (t
   symlinkSync(join(root, "other.ts"), join(root, "symlink.ts"), "file");
   linkSync(join(root, "other.ts"), join(root, "hardlink.ts"));
   for (const file of ["symlink.ts", "hardlink.ts"]) {
-    const result = await fixFiles({ cwd: root, files: [file], signal: new AbortController().signal });
+    const result = await fixFiles({
+      cwd: root,
+      files: [file],
+      signal: new AbortController().signal,
+    });
     assert.equal(result.exitCode, 2);
     assert.deepEqual(result.details.attempted, []);
     assert.equal(readFileSync(join(root, "other.ts"), "utf8"), before);
@@ -398,7 +412,9 @@ void test("cleanup in-flight cancellation leaves an inspectable, retryable scope
   const root = cleanupFixture(t);
   const other = readFileSync(join(root, "other.ts"), "utf8");
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 1);
+  const timer = setTimeout(() => {
+    controller.abort();
+  }, 1);
   try {
     const result = await fixFiles({ cwd: root, files: ["input.ts"], signal: controller.signal });
     assert.equal(controller.signal.aborted, true);

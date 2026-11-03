@@ -1,4 +1,4 @@
-import { fixFiles } from "./cleanup-files.js";
+import { fixFiles, readCleanupDiagnostics, type CleanupReport } from "./cleanup-files.js";
 
 /** Requiring -- keeps options distinct from the caller's literal file census. */
 export function parseCleanupArguments(args: readonly string[]) {
@@ -31,6 +31,24 @@ export function parseCleanupArguments(args: readonly string[]) {
   return { json, files, ...(lintConfigPath === undefined ? {} : { lintConfigPath }) };
 }
 
+function writeRemainingDiagnostics(report: CleanupReport): void {
+  const checks = report.details.steps.filter((step) => step.operation === "check");
+  const selected = checks.length > 0 ? checks : report.details.steps.slice(-1);
+  for (const step of selected) {
+    const diagnostics =
+      step.tool === "oxlint" ? readCleanupDiagnostics(step.result.stdout) : undefined;
+    if (diagnostics !== undefined) {
+      for (const diagnostic of diagnostics) {
+        process.stderr.write(
+          `${diagnostic.filename}: ${diagnostic.severity} ${diagnostic.code}: ${diagnostic.message}\n`,
+        );
+      }
+    } else if (step.result.exitCode !== 0 || report.details.failure !== undefined) {
+      process.stderr.write(step.result.stdout + step.result.stderr);
+    }
+  }
+}
+
 export async function runCleanupCli(args: readonly string[], signal: AbortSignal): Promise<number> {
   const { json, ...options } = parseCleanupArguments(args);
   const report = await fixFiles({ cwd: process.cwd(), signal, ...options });
@@ -40,11 +58,8 @@ export async function runCleanupCli(args: readonly string[], signal: AbortSignal
     process.stdout.write(
       `fix: ${report.details.completed ? "completed" : "incomplete"}; ${report.details.changed.length} file(s) changed\n`,
     );
+    writeRemainingDiagnostics(report);
     if (report.exitCode !== 0) {
-      const last = report.details.steps.at(-1);
-      if (last !== undefined) {
-        process.stderr.write(last.result.stdout + last.result.stderr);
-      }
       if (report.details.failure !== undefined) {
         process.stderr.write(`${report.details.failure}\n`);
       }

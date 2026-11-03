@@ -36,6 +36,45 @@ interface CleanupStep {
   readonly files: readonly string[];
   readonly result: ProcessRunResult;
 }
+interface CleanupDiagnostic {
+  readonly filename: string;
+  readonly code: string;
+  readonly message: string;
+  readonly severity: "error" | "warning";
+}
+function isRuleDiagnostic(value: unknown): value is CleanupDiagnostic {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "filename" in value &&
+    typeof value.filename === "string" &&
+    "message" in value &&
+    typeof value.message === "string" &&
+    "code" in value &&
+    typeof value.code === "string" &&
+    /^[a-z][a-z0-9-]*\([a-z][a-z0-9-]*\)$/u.test(value.code) &&
+    "severity" in value &&
+    (value.severity === "error" || value.severity === "warning")
+  );
+}
+/** Only ordinary native rule diagnostics may continue the cleanup pipeline. */
+export function readCleanupDiagnostics(stdout: string): readonly CleanupDiagnostic[] | undefined {
+  try {
+    const output: unknown = JSON.parse(stdout);
+    if (
+      typeof output !== "object" ||
+      output === null ||
+      !("diagnostics" in output) ||
+      !Array.isArray(output.diagnostics)
+    ) {
+      return undefined;
+    }
+    const diagnostics: readonly unknown[] = output.diagnostics;
+    return diagnostics.every(isRuleDiagnostic) ? diagnostics : undefined;
+  } catch {
+    return undefined;
+  }
+}
 const syntaxExtensions = new Set([".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"]);
 const preset = (name: string) =>
   fileURLToPath(new URL(`../../../../presets/${name}`, import.meta.url));
@@ -168,6 +207,7 @@ async function runOperations(
       "--",
     ]),
   }));
+  let outcome = 0;
   for (const operation of plan) {
     if (operation.operation !== mode) {
       continue;
@@ -197,12 +237,27 @@ async function runOperations(
       }
       evidence.steps.push({ tool: operation.tool, operation: operation.operation, files, result });
       remaining(input.signal, input.deadline);
-      if (result.exitCode !== 0) {
-        return result.exitCode === 1 ? 1 : 2;
+      if (operation.tool === "oxlint") {
+        const diagnostics = readCleanupDiagnostics(result.stdout);
+        if (
+          diagnostics === undefined ||
+          (result.exitCode !== 0 && result.exitCode !== 1) ||
+          (result.exitCode === 1 && diagnostics.length === 0)
+        ) {
+          throw new Error("TOOLCHAIN_CLEANUP_LINT_OUTPUT");
+        }
+        if (result.exitCode === 1) {
+          outcome = 1;
+        }
+      } else if (result.exitCode !== 0) {
+        if (mode !== "check" || result.exitCode !== 1) {
+          return 2;
+        }
+        outcome = 1;
       }
     }
   }
-  return 0;
+  return outcome;
 }
 
 // Native fixes can overlap within one declaration. Finish those edits before
@@ -218,7 +273,7 @@ async function stabilizeCleanup(
       before.set(file, snapshot(input.root, file));
     }
     const exitCode = await runOperations(input, evidence, "write");
-    if (exitCode !== 0) {
+    if (exitCode === 2) {
       return exitCode;
     }
     const observation = changedFiles(input.root, before, input.signal, input.deadline);

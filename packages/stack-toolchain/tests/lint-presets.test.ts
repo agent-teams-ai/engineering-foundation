@@ -16,6 +16,7 @@ import test, { type TestContext } from "node:test";
 import { fileURLToPath } from "node:url";
 import { fixFiles, runCommand } from "../dist/index.js";
 import { parseCleanupArguments } from "../dist/features/toolchain-execution/adapters/cleanup-cli.js";
+import { readCleanupDiagnostics } from "../dist/features/toolchain-execution/adapters/cleanup-files.js";
 import { resolveCompilerExecutable } from "../dist/features/toolchain-execution/adapters/executables.js";
 
 interface RuleMetadata {
@@ -431,4 +432,84 @@ void test("cleanup in-flight cancellation leaves an inspectable, retryable scope
   } finally {
     clearTimeout(timer);
   }
+});
+
+function remainingDiagnosticFixture(t: TestContext, severity: "warn" | "error") {
+  const root = cleanupFixture(t);
+  writeFileSync(
+    join(root, "input.ts"),
+    'let value={ ["answer"]:42 };console.log(value.answer);eval("1 + 1");\n',
+  );
+  const config = {
+    plugins: ["eslint"],
+    categories: { correctness: "off" },
+    rules: { "prefer-const": severity, "no-useless-computed-key": severity, "no-eval": severity },
+  };
+  writeFileSync(join(root, "cleanup.json"), JSON.stringify(config));
+  return root;
+}
+
+void test("cleanup finishes mechanical writes but preserves remaining error status", async (t) => {
+  const root = remainingDiagnosticFixture(t, "error");
+  const other = readFileSync(join(root, "other.ts"), "utf8");
+  const result = await fixFiles({
+    cwd: root,
+    files: ["input.ts"],
+    lintConfigPath: "cleanup.json",
+    signal: new AbortController().signal,
+  });
+  assert.equal(result.exitCode, 1, JSON.stringify(result));
+  assert.equal(result.details.completed, false);
+  assert.equal(result.details.sourceObservationComplete, true);
+  assert.deepEqual(result.details.changed, ["input.ts"]);
+  assert.match(readFileSync(join(root, "input.ts"), "utf8"), /const value =/u);
+  assert.doesNotMatch(readFileSync(join(root, "input.ts"), "utf8"), /\["answer"\]/u);
+  assert.equal(readFileSync(join(root, "other.ts"), "utf8"), other);
+  const checks = result.details.steps.filter((step) => step.operation === "check");
+  assert.deepEqual(
+    checks.map((step) => [step.tool, step.result.exitCode]),
+    [
+      ["oxlint", 1],
+      ["oxfmt", 0],
+    ],
+  );
+  const lint = checks.find((step) => step.tool === "oxlint");
+  assert.ok(lint);
+  const diagnostics = readCleanupDiagnostics(lint.result.stdout);
+  assert.ok(diagnostics);
+  assert.deepEqual(diagnostics.map((diagnostic) => diagnostic.code), ["eslint(no-eval)"]);
+});
+
+void test("cleanup CLI shows only remaining warnings, once", (t) => {
+  const root = remainingDiagnosticFixture(t, "warn");
+  const result = spawnSync(
+    process.execPath,
+    [cleanupCli, "fix", "--lint-config", "cleanup.json", "--", "input.ts"],
+    { cwd: root, encoding: "utf8", timeout: 60_000 },
+  );
+  assert.ifError(result.error);
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.match(result.stdout, /fix: completed/u);
+  assert.match(result.stderr, /input\.ts: warning eslint\(no-eval\)/u);
+  assert.equal(result.stderr.match(/eslint\(no-eval\)/gu)?.length, 1);
+  assert.doesNotMatch(result.stderr, /prefer-const|no-useless-computed-key/u);
+});
+
+void test("cleanup config failure stops before formatting or mutation", async (t) => {
+  const root = cleanupFixture(t);
+  const before = readFileSync(join(root, "input.ts"), "utf8");
+  writeFileSync(
+    join(root, "cleanup.json"),
+    JSON.stringify({ rules: { "not-a-real-cleanup-rule": "error" } }),
+  );
+  const result = await fixFiles({
+    cwd: root,
+    files: ["input.ts"],
+    lintConfigPath: "cleanup.json",
+    signal: new AbortController().signal,
+  });
+  assert.equal(result.exitCode, 2, JSON.stringify(result));
+  assert.equal(result.details.completed, false);
+  assert.equal(result.details.steps.some((step) => step.tool === "oxfmt"), false);
+  assert.equal(readFileSync(join(root, "input.ts"), "utf8"), before);
 });

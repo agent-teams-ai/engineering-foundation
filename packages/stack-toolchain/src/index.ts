@@ -26,4 +26,5 @@ export { fixFiles } from "./features/toolchain-execution/adapters/cleanup-files.
 export type {
   CleanupInput,
   CleanupReport,
+  CleanupStep,
 } from "./features/toolchain-execution/adapters/cleanup-files.js";

@@ -477,7 +477,8 @@ void test("cleanup finishes mechanical writes but preserves remaining error stat
   assert.ok(lint);
   const diagnostics = readCleanupDiagnostics(lint.result.stdout);
   assert.ok(diagnostics);
-  assert.deepEqual(diagnostics.map((diagnostic) => diagnostic.code), ["eslint(no-eval)"]);
+  const codes = diagnostics.map((diagnostic) => diagnostic.code);
+  assert.deepEqual(codes, ["eslint(no-eval)"]);
 });
 
 void test("cleanup CLI shows only remaining warnings, once", (t) => {
@@ -510,6 +511,7 @@ void test("cleanup config failure stops before formatting or mutation", async (t
   });
   assert.equal(result.exitCode, 2, JSON.stringify(result));
   assert.equal(result.details.completed, false);
-  assert.equal(result.details.steps.some((step) => step.tool === "oxfmt"), false);
+  const formatted = result.details.steps.some((step) => step.tool === "oxfmt");
+  assert.equal(formatted, false);
   assert.equal(readFileSync(join(root, "input.ts"), "utf8"), before);
 });

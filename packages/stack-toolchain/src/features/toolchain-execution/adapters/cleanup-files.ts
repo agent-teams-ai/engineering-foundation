@@ -30,7 +30,7 @@ export interface CleanupReport {
     readonly retainedControlDirectory?: string;
   };
 }
-interface CleanupStep {
+export interface CleanupStep {
   readonly tool: "oxlint" | "oxfmt";
   readonly operation: "write" | "check";
   readonly files: readonly string[];

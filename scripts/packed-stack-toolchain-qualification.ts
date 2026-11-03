@@ -356,5 +356,39 @@ export async function qualifyInstalledStackToolchain(consumerRoot: string): Prom
   assert.equal(formattingFailed, true);
   assert.equal(await readFile(join(root, "index.ts"), "utf8"), 'export const value:string="ready"');
   await writeFile(join(root, "index.ts"), original);
+  const cleanupSource = 'let value={ ["answer"]:42 };console.log(value.answer);\n';
+  await writeFile(join(root, "cleanup-input.ts"), cleanupSource);
+  await writeFile(join(root, "cleanup-other.ts"), cleanupSource);
+  const cleanupBefore = await runCommand(process.execPath, ["cleanup-input.ts"], root);
+  let cleaned = "";
+  for (const pass of [0, 1]) {
+    const fixed = await runCommand(
+      process.execPath,
+      [cli, "fix", "--json", "--", "cleanup-input.ts"],
+      root,
+    );
+    const report = doctorRecord(JSON.parse(fixed.stdout));
+    assert.equal(report["command"], "fix");
+    assert.equal(report["exitCode"], 0);
+    assert.partialDeepStrictEqual(report["details"], {
+      schemaVersion: 1,
+      requested: ["cleanup-input.ts"],
+      changed: pass === 0 ? ["cleanup-input.ts"] : [],
+      completed: true,
+      sourceObservationComplete: true,
+    });
+    const source = await readFile(join(root, "cleanup-input.ts"), "utf8");
+    assert.match(source, /const value =/u);
+    assert.doesNotMatch(source, /\["answer"\]/u);
+    if (pass === 1) {
+      assert.equal(source, cleaned);
+    }
+    cleaned = source;
+    const after = await runCommand(process.execPath, ["cleanup-input.ts"], root);
+    assert.equal(after.stdout, cleanupBefore.stdout);
+    assert.equal(await readFile(join(root, "cleanup-other.ts"), "utf8"), cleanupSource);
+    assert.equal(await readFile(join(root, "index.ts"), "utf8"), original);
+    await assert.rejects(readFile(join(root, "formatter-marker")), /ENOENT/u);
+  }
   await qualifyInstalledLiteralFormat(root, cli);
 }

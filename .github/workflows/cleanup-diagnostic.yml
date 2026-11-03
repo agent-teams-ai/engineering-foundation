@@ -4,94 +4,72 @@ on:
     branches: [test/cleanup-qualified-tools-462]
 permissions:
   contents: read
+  actions: read
 jobs:
-  qualify:
+  evidence:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    permissions:
-      contents: write
-      actions: read
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-          ref: 032717bc852753f5beec256c94d26690ae2662f4
-      - name: Prepare bounded evidence and ownership blob without changing a branch
+      - name: Read final candidate checks and existing reviewer workflow metadata
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          mkdir -p "$RUNNER_TEMP/cleanup-evidence"
-          python3 - <<'PY'
-          import base64, json, os, pathlib, subprocess
-          repo = 'repos/agent-teams-ai/engineering-foundation'
-          expected = '032717bc852753f5beec256c94d26690ae2662f4'
-          def git(*args):
-              return subprocess.check_output(['git', *args], text=True).strip()
-          def api(method, endpoint, data=None):
-              args = ['gh', 'api', '--method', method, endpoint]
-              if data is not None:
-                  args += ['--input', '-']
-              result = subprocess.run(args, input=None if data is None else json.dumps(data), text=True, capture_output=True, check=True)
-              return json.loads(result.stdout)
-          assert git('rev-parse', 'HEAD') == expected
-          p = pathlib.Path('architecture/foundation/feature-modules.json')
-          assert git('hash-object', str(p)) == 'fe48bcf85043203be00265c9de136969eab0a19b'
-          prefix = '                "packages/stack-toolchain/src/features/toolchain-execution/adapters/'
-          needle = prefix + 'commands.ts",'
-          source = p.read_text()
-          assert source.count(needle) == 1
-          p.write_text(source.replace(needle, prefix + 'cleanup-cli.ts",\n' + prefix + 'cleanup-files.ts",\n' + needle))
-          sha = '44cdf6de1b2f33f0a88a087c19c02b6182908de6'
-          assert git('hash-object', str(p)) == sha
-          assert api('GET', repo + '/git/refs/heads/feat/opt-in-cleanup')['object']['sha'] == expected
-          blob = api('POST', repo + '/git/blobs', {'encoding': 'base64', 'content': base64.b64encode(p.read_bytes()).decode()})
-          assert blob['sha'] == sha
-          print('Staged inert ownership blob:', sha, '(not qualification; no commit or branch changed)')
-          evidence = pathlib.Path(os.environ['RUNNER_TEMP']) / 'cleanup-evidence'
-          for job in (126270710460, 126270710476, 126270710569, 126274977230):
-              with (evidence / f'previous-job-{job}.log').open('wb') as out:
-                  result = subprocess.run(['gh', 'api', repo + f'/actions/jobs/{job}/logs'], stdout=out, stderr=subprocess.PIPE)
-              (evidence / f'previous-job-{job}.status').write_text(str(result.returncode))
-          PY
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
-        with: { bun-version: "1.4.3" }
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
-        with: { node-version-file: .node-version }
-      - name: Bind physical Node
-        run: printf 'AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE=%s\n' "$(command -v node)" >> "$GITHUB_ENV"
-      - run: bun tools/dev.mts install
-      - run: bun tools/dev.mts build
-      - name: Run all diagnostic checks and retain exact results
-        run: |
           python3 - <<'PY'
           import json, os, pathlib, subprocess
-          evidence = pathlib.Path(os.environ['RUNNER_TEMP']) / 'cleanup-evidence'
-          commands = {
-              'changed': ['bun', 'tools/dev.mts', 'check:changed'],
-              'fast': ['bun', 'tools/dev.mts', 'check:fast'],
-              'workflows': ['bun', 'tools/dev.mts', 'security:workflows'],
-              'stack-tests': ['node', '--test', *map(str, sorted(pathlib.Path('packages/stack-toolchain/tests').glob('*.test.ts')))],
-          }
-          results = {}
-          for name, command in commands.items():
-              with (evidence / f'{name}.log').open('wb') as out:
-                  result = subprocess.run(command, stdout=out, stderr=subprocess.STDOUT)
-              results[name] = result.returncode
-              print(name, 'exit', result.returncode, flush=True)
-          (evidence / 'results.json').write_text(json.dumps(results, indent=2) + '\n')
-          raise SystemExit(1 if any(results.values()) else 0)
+          repo = 'repos/agent-teams-ai/engineering-foundation'
+          out = pathlib.Path(os.environ['RUNNER_TEMP']) / 'cleanup-evidence'
+          out.mkdir()
+          def api(endpoint):
+              result = subprocess.run(['gh', 'api', repo + endpoint], capture_output=True, text=True, timeout=30)
+              if result.returncode:
+                  return {'readError': result.stderr.strip(), 'exitCode': result.returncode}
+              return json.loads(result.stdout)
+          expected = '6ac8002ffa6059d41b47550c0218da0597ceb144'
+          pr = api('/pulls/462')
+          observed = {k: pr.get(k) for k in ('number', 'state', 'merged', 'draft')}
+          observed['head'] = pr.get('head', {}).get('sha')
+          observed['base'] = pr.get('base', {}).get('sha')
+          observed['expectedHeadMatches'] = observed['head'] == expected
+          report = {'pr': observed, 'runs': [], 'reviewWorkflows': []}
+          for run_id in (41740969785, 41740895085, 41740895258):
+              run = api(f'/actions/runs/{run_id}')
+              jobs = []
+              for page in range(1, 5):
+                  response = api(f'/actions/runs/{run_id}/jobs?filter=latest&per_page=100&page={page}')
+                  if 'readError' in response:
+                      jobs.append(response)
+                      break
+                  current = response.get('jobs', [])
+                  jobs.extend(current)
+                  if len(current) < 100:
+                      break
+              (out / f'run-{run_id}.json').write_text(json.dumps({'run': run, 'jobs': jobs}, indent=2))
+              summary = {k: run.get(k) for k in ('id', 'name', 'head_sha', 'status', 'conclusion', 'run_attempt', 'html_url')}
+              summary['jobs'] = [{k: j.get(k) for k in ('id', 'name', 'status', 'conclusion')} for j in jobs]
+              report['runs'].append(summary)
+              for job in jobs:
+                  if job.get('conclusion') != 'failure':
+                      continue
+                  log = subprocess.run(['gh', 'api', repo + f'/actions/jobs/{job["id"]}/logs'], capture_output=True, timeout=30)
+                  text = log.stdout.decode('utf-8-sig', errors='replace')
+                  lines = text.splitlines()
+                  selected = set(range(max(0, len(lines) - 50), len(lines)))
+                  needles = ('not ok', 'AssertionError', 'error TS', '##[error]', 'PUBLIC_API_', 'violations', 'failed', 'failure')
+                  for i, line in enumerate(lines):
+                      if any(needle in line for needle in needles):
+                          selected.update(range(max(0, i - 2), min(len(lines), i + 12)))
+                  bounded = '\n'.join(lines[i] for i in sorted(selected))[-50000:]
+                  (out / f'failed-job-{job["id"]}.log').write_text(bounded)
+          for name in ('reviewrouter-codex.yml', 'reviewrouter-review.yml'):
+              workflow = api('/actions/workflows/' + name)
+              report['reviewWorkflows'].append({k: workflow.get(k) for k in ('id', 'name', 'path', 'state', 'html_url', 'readError')})
+          (out / 'summary.json').write_text(json.dumps(report, indent=2) + '\n')
+          print(json.dumps(report, indent=2))
+          print('Read-only observation; no workflow, branch, protection or review state was modified.')
           PY
-      - name: Retain exact source evidence
-        if: always()
-        run: |
-          mkdir -p "$RUNNER_TEMP/cleanup-evidence"
-          git diff --binary > "$RUNNER_TEMP/cleanup-evidence/ownership.patch"
-          git rev-parse HEAD > "$RUNNER_TEMP/cleanup-evidence/source-head.txt"
-          tar --exclude='node_modules' --exclude='.git' --exclude='.worker-tmp' -czf "$RUNNER_TEMP/cleanup-evidence/stack-source.tgz" packages/stack-toolchain
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: cleanup-evidence-${{ github.run_id }}
+          name: cleanup-final-evidence-${{ github.run_id }}
           path: ${{ runner.temp }}/cleanup-evidence
           retention-days: 3

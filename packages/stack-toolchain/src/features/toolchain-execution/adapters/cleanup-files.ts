@@ -48,6 +48,16 @@ function remaining(signal: AbortSignal, deadline: number): number {
   }
   return value;
 }
+function cleanupWindow(input: CleanupInput, started: number) {
+  const budget = input.budgetMs ?? 300_000;
+  if (!Number.isSafeInteger(budget) || budget <= 0 || budget > 2_147_483_647) {
+    throw new Error("TOOLCHAIN_INVALID_BUDGET");
+  }
+  return {
+    signal: AbortSignal.any([input.signal, AbortSignal.timeout(budget)]),
+    deadline: started + budget,
+  };
+}
 function snapshot(root: string, file: string) {
   const result = observe(root, file);
   // A writer must also reject a link to a file outside the selected census.
@@ -62,7 +72,10 @@ function selectFiles(input: CleanupInput, root: string, signal: AbortSignal, dea
   let bytes = 0;
   for (const file of files) {
     remaining(signal, deadline);
-    if (!syntaxExtensions.has(path.extname(file)) || /[*?{}\[\]]/u.test(file)) {
+    if (
+      !syntaxExtensions.has(path.extname(file)) ||
+      ["*", "?", "{", "}", "[", "]"].some((character) => file.includes(character))
+    ) {
       throw new Error("TOOLCHAIN_CLEANUP_UNSUPPORTED");
     }
     const value = snapshot(root, file);
@@ -87,10 +100,15 @@ function cleanupConfig(input: CleanupInput, root: string): string {
 function changedFiles(
   root: string,
   snapshots: ReadonlyMap<string, ReturnType<typeof snapshot>>,
+  signal: AbortSignal,
+  deadline: number,
 ): { changed: string[]; complete: boolean } {
   const changed: string[] = [];
   let complete = true;
   for (const [file, before] of snapshots) {
+    if (signal.aborted || performance.now() >= deadline) {
+      return { changed, complete: false };
+    }
     try {
       if (snapshot(root, file).sha256 !== before.sha256) {
         changed.push(file);
@@ -124,16 +142,77 @@ function operations(config: string, ignore: string) {
   ] as const;
 }
 
+interface CleanupEvidence {
+  readonly attempted: Set<string>;
+  readonly steps: CleanupStep[];
+  retainControl: boolean;
+}
+async function runOperations(
+  input: {
+    readonly config: string;
+    readonly ignore: string;
+    readonly files: readonly string[];
+    readonly root: string;
+    readonly signal: AbortSignal;
+    readonly deadline: number;
+  },
+  evidence: CleanupEvidence,
+): Promise<number> {
+  const plan = operations(input.config, input.ignore).map((operation) => ({
+    ...operation,
+    groups: batches(input.files, [
+      operation.executable.command,
+      ...operation.executable.prefix,
+      ...operation.args,
+      "--",
+    ]),
+  }));
+  for (const operation of plan) {
+    for (const files of operation.groups) {
+      for (const file of files) {
+        remaining(input.signal, input.deadline);
+        snapshot(input.root, file);
+      }
+      if (operation.operation === "write") {
+        for (const file of files) {
+          evidence.attempted.add(file);
+        }
+      }
+      let result: ProcessRunResult;
+      try {
+        result = await execute(
+          operation.executable,
+          [...operation.args, "--", ...files.map((file) => `./${file}`)],
+          input.root,
+          input.signal,
+          { timeoutMs: remaining(input.signal, input.deadline) },
+        );
+      } catch (error) {
+        evidence.retainControl = !isProcessRuntimeError(error) || error.incompleteCustody;
+        throw error;
+      }
+      evidence.steps.push({ tool: operation.tool, operation: operation.operation, files, result });
+      remaining(input.signal, input.deadline);
+      if (result.exitCode !== 0) {
+        return result.exitCode === 1 ? 1 : 2;
+      }
+    }
+  }
+  return 0;
+}
+
 /** Explicit writes only. The caller owns selection, protected files and exclusive source access. */
 export async function fixFiles(input: CleanupInput): Promise<CleanupReport> {
   const started = performance.now();
-  const attempted = new Set<string>();
-  const steps: CleanupStep[] = [];
+  const evidence: CleanupEvidence = {
+    attempted: new Set<string>(),
+    steps: [],
+    retainControl: false,
+  };
   let requested: string[] = [];
   let snapshots = new Map<string, ReturnType<typeof snapshot>>();
   let root = input.cwd;
   let control: string | undefined;
-  let retainControl = false;
   let completed = false;
   let validated = false;
   let exitCode = 2;
@@ -141,12 +220,9 @@ export async function fixFiles(input: CleanupInput): Promise<CleanupReport> {
   let deadline = Number.POSITIVE_INFINITY;
   try {
     assertRuntime();
-    const budget = input.budgetMs ?? 300_000;
-    if (!Number.isSafeInteger(budget) || budget <= 0 || budget > 2_147_483_647) {
-      throw new Error("TOOLCHAIN_INVALID_BUDGET");
-    }
-    const signal = AbortSignal.any([input.signal, AbortSignal.timeout(budget)]);
-    deadline = started + budget;
+    const window = cleanupWindow(input, started);
+    const signal = window.signal;
+    deadline = window.deadline;
     remaining(signal, deadline);
     root = fs.realpathSync(input.cwd);
     const selected = selectFiles(input, root, signal, deadline);
@@ -157,49 +233,10 @@ export async function fixFiles(input: CleanupInput): Promise<CleanupReport> {
     control = fs.mkdtempSync(path.join(outsideTemporaryRoot(root), "stack-cleanup-"));
     const ignore = path.join(control, "empty.ignore");
     fs.writeFileSync(ignore, "", { flag: "wx", mode: 0o600 });
-    const plan = operations(config, ignore).map((operation) => ({
-      ...operation,
-      groups: batches(requested, [
-        operation.executable.command,
-        ...operation.executable.prefix,
-        ...operation.args,
-        "--",
-      ]),
-    }));
-    exitCode = 0;
-    for (const operation of plan) {
-      for (const files of operation.groups) {
-        for (const file of files) {
-          remaining(signal, deadline);
-          snapshot(root, file);
-          if (operation.operation === "write") {
-            attempted.add(file);
-          }
-        }
-        let result: ProcessRunResult;
-        try {
-          result = await execute(
-            operation.executable,
-            [...operation.args, "--", ...files.map((file) => `./${file}`)],
-            root,
-            signal,
-            { timeoutMs: remaining(signal, deadline) },
-          );
-        } catch (error) {
-          retainControl = !isProcessRuntimeError(error) || error.incompleteCustody;
-          throw error;
-        }
-        steps.push({ tool: operation.tool, operation: operation.operation, files, result });
-        remaining(signal, deadline);
-        if (result.exitCode !== 0) {
-          exitCode = result.exitCode === 1 ? 1 : 2;
-          break;
-        }
-      }
-      if (exitCode !== 0) {
-        break;
-      }
-    }
+    exitCode = await runOperations(
+      { config, ignore, files: requested, root, signal, deadline },
+      evidence,
+    );
     completed = exitCode === 0;
     remaining(signal, deadline);
   } catch (error) {
@@ -207,19 +244,19 @@ export async function fixFiles(input: CleanupInput): Promise<CleanupReport> {
     exitCode = 2;
     completed = false;
   } finally {
-    if (control !== undefined && !retainControl) {
+    if (control !== undefined && !evidence.retainControl) {
       try {
         fs.unlinkSync(path.join(control, "empty.ignore"));
         fs.rmdirSync(control);
       } catch {
-        retainControl = true;
+        evidence.retainControl = true;
         failure ??= "TOOLCHAIN_CLEANUP_CONTROL";
         exitCode = 2;
         completed = false;
       }
     }
   }
-  const observation = changedFiles(root, snapshots);
+  const observation = changedFiles(root, snapshots, input.signal, deadline);
   if (!observation.complete || input.signal.aborted || performance.now() >= deadline) {
     completed = false;
     exitCode = input.signal.aborted ? 130 : 2;
@@ -236,13 +273,13 @@ export async function fixFiles(input: CleanupInput): Promise<CleanupReport> {
     details: {
       schemaVersion: 1,
       requested,
-      attempted: [...attempted],
+      attempted: [...evidence.attempted],
       changed: observation.changed,
       completed,
-      sourceObservationComplete: validated && observation.complete && !retainControl,
-      steps,
+      sourceObservationComplete: validated && observation.complete && !evidence.retainControl,
+      steps: evidence.steps,
       ...(failure === undefined ? {} : { failure }),
-      ...(retainControl ? { retainedControlDirectory: control! } : {}),
+      ...(evidence.retainControl ? { retainedControlDirectory: control! } : {}),
     },
   };
 }

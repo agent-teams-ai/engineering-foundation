@@ -1,0 +1,75 @@
+name: Cleanup diagnostic
+on:
+  push:
+    branches: [test/cleanup-qualified-tools-462]
+permissions:
+  contents: read
+jobs:
+  focused:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with: { persist-credentials: false, fetch-depth: 1 }
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+        with: { bun-version: "1.4.3" }
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with: { node-version-file: .node-version }
+      - name: Bind physical Node
+        run: printf 'AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE=%s\n' "$(command -v node)" >> "$GITHUB_ENV"
+      - run: bun tools/dev.mts install
+      - run: bun tools/dev.mts build
+      - name: Collect exact installed public tools and tracked source for offline qualification
+        env:
+          EVIDENCE_ROOT: ${{ runner.temp }}/cleanup-offline
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "$EVIDENCE_ROOT/source" "$EVIDENCE_ROOT/bin"
+          git archive HEAD | tar -x -C "$EVIDENCE_ROOT/source"
+          cp "$(command -v node)" "$EVIDENCE_ROOT/bin/node"
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import { createRequire } from 'node:module';
+          const owner = createRequire(path.resolve('packages/stack-toolchain/package.json'));
+          const out = process.env.EVIDENCE_ROOT;
+          const names = ['oxfmt', 'oxlint', 'oxlint-tsgolint', 'typescript', '@types/node', 'undici-types', 'jsonc-parser', 'node-or-bun'];
+          const manifests = [];
+          const copied = new Map();
+          function copy(name, resolver, optional = false) {
+            let source;
+            try { source = path.dirname(resolver.resolve(`${name}/package.json`)); }
+            catch (error) { if (optional && error.code === 'MODULE_NOT_FOUND') return; throw error; }
+            const manifest = JSON.parse(fs.readFileSync(path.join(source, 'package.json'), 'utf8'));
+            if (copied.has(name)) {
+              if (copied.get(name) !== manifest.version) throw new Error(`Version collision: ${name}`);
+              return;
+            }
+            copied.set(name, manifest.version);
+            const target = path.join(out, 'source/node_modules', name);
+            fs.mkdirSync(path.dirname(target), { recursive: true });
+            fs.cpSync(fs.realpathSync(source), target, {
+              recursive: true,
+              dereference: true,
+              filter: (entry) => !path.relative(fs.realpathSync(source), entry).split(path.sep).includes('node_modules'),
+            });
+            manifests.push({ name, version: manifest.version });
+            const nested = createRequire(path.join(source, 'package.json'));
+            for (const dependency of Object.keys(manifest.dependencies ?? {})) copy(dependency, nested);
+            for (const dependency of Object.keys(manifest.optionalDependencies ?? {})) copy(dependency, nested, true);
+          }
+          for (const name of names) copy(name, owner);
+          fs.writeFileSync(path.join(out, 'installed-tools.json'), JSON.stringify({ node: process.version, source: process.env.GITHUB_SHA, packages: manifests }, null, 2));
+          NODE
+          tar -czf "$RUNNER_TEMP/cleanup-offline.tgz" -C "$EVIDENCE_ROOT" .
+          sha256sum "$RUNNER_TEMP/cleanup-offline.tgz"
+      - name: Upload offline tool evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: cleanup-offline-${{ github.sha }}
+          path: ${{ runner.temp }}/cleanup-offline.tgz
+          if-no-files-found: error
+          retention-days: 3
+          compression-level: 0
+      - name: Run native cleanup cases without replacing full CI
+        run: node --test packages/stack-toolchain/tests/lint-presets.test.ts

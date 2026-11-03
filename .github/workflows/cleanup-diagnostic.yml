@@ -5,80 +5,36 @@ on:
 permissions:
   contents: read
 jobs:
-  apply:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    permissions:
-      contents: write
-    outputs:
-      candidate: ${{ steps.apply.outputs.candidate }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with: { persist-credentials: false, path: patch-input }
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          persist-credentials: false
-          ref: 3d6c7f7b9c3cf361e62ec3013b39952f444fe162
-          path: candidate
-      - name: Apply only the reviewed literal patch to PR 462
-        id: apply
-        working-directory: candidate
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          python3 - <<'PY'
-          import base64, gzip, hashlib, json, os, pathlib, subprocess
-          root=pathlib.Path.cwd()
-          inputs=root.parent/'patch-input/.github'
-          manifest=json.loads((inputs/'cleanup-462-manifest.json').read_text())
-          expected='3d6c7f7b9c3cf361e62ec3013b39952f444fe162'
-          assert manifest['head']==expected
-          patch=pathlib.Path(os.environ['RUNNER_TEMP'])/'cleanup-462.patch'
-          patch.write_bytes(gzip.decompress((inputs/'cleanup-462.patch.gz').read_bytes()))
-          assert hashlib.sha256(patch.read_bytes()).hexdigest()==manifest['patchSha256']
-          repo='repos/agent-teams-ai/engineering-foundation'
-          ref=repo+'/git/refs/heads/feat/opt-in-cleanup'
-          def api(method, endpoint, data=None):
-            args=['gh','api','--method',method,endpoint]
-            if data is not None: args+=['--input','-']
-            result=subprocess.run(args,input=None if data is None else json.dumps(data),text=True,capture_output=True,check=True)
-            return json.loads(result.stdout)
-          def git(*args):
-            return subprocess.check_output(['git',*args],text=True).strip()
-          assert api('GET',ref)['object']['sha']==expected, 'PR head moved; reconcile instead of overwriting'
-          assert git('rev-parse','HEAD')==expected
-          for item in manifest['files']:
-            assert git('rev-parse',f"HEAD:{item['path']}")==item['before']
-          subprocess.run(['git','apply','--check','--index',str(patch)],check=True)
-          subprocess.run(['git','apply','--index',str(patch)],check=True)
-          subprocess.run(['git','diff','--cached','--check'],check=True)
-          assert sorted(git('diff','--cached','--name-only').splitlines())==sorted(item['path'] for item in manifest['files'])
-          entries=[]
-          for item in manifest['files']:
-            assert git('hash-object',item['path'])==item['after']
-            data=(root/item['path']).read_bytes()
-            blob=api('POST',repo+'/git/blobs',{'encoding':'base64','content':base64.b64encode(data).decode()})
-            assert blob['sha']==item['after']
-            entries.append({'path':item['path'],'mode':'100644','type':'blob','sha':blob['sha']})
-          tree=api('POST',repo+'/git/trees',{'base_tree':git('rev-parse','HEAD^{tree}'),'tree':entries})
-          assert tree['sha']==git('write-tree')
-          commit=api('POST',repo+'/git/commits',{'message':'fix(stack-toolchain): stabilize cleanup and qualify explicit consumer scope','tree':tree['sha'],'parents':[expected],'author':{'name':'777genius','email':'iliyazelenkog@gmail.com'}})
-          assert api('GET',ref)['object']['sha']==expected, 'PR head moved during preparation'
-          api('PATCH',ref,{'sha':commit['sha'],'force':False})
-          assert api('GET',ref)['object']['sha']==commit['sha']
-          with open(os.environ['GITHUB_OUTPUT'],'a') as output: output.write('candidate='+commit['sha']+'\n')
-          print('Updated PR 462 candidate:',commit['sha'])
-          PY
-  focused:
-    needs: apply
+  qualify:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-          ref: ${{ needs.apply.outputs.candidate }}
           fetch-depth: 0
+          ref: 032717bc852753f5beec256c94d26690ae2662f4
+      - name: Apply the two reviewed ownership entries
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import subprocess
+          expected = '032717bc852753f5beec256c94d26690ae2662f4'
+          def git(*args):
+              return subprocess.check_output(['git', *args], text=True).strip()
+          assert git('rev-parse', 'HEAD') == expected
+          p = Path('architecture/foundation/feature-modules.json')
+          assert git('hash-object', str(p)) == 'fe48bcf85043203be00265c9de136969eab0a19b'
+          prefix = '                "packages/stack-toolchain/src/features/toolchain-execution/adapters/'
+          needle = prefix + 'commands.ts",'
+          source = p.read_text()
+          assert source.count(needle) == 1
+          p.write_text(source.replace(needle, prefix + 'cleanup-cli.ts",\n' + prefix + 'cleanup-files.ts",\n' + needle))
+          assert git('hash-object', str(p)) == '44cdf6de1b2f33f0a88a087c19c02b6182908de6'
+          subprocess.run(['git', 'diff', '--check'], check=True)
+          PY
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
         with: { bun-version: "1.4.3" }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
@@ -87,7 +43,50 @@ jobs:
         run: printf 'AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE=%s\n' "$(command -v node)" >> "$GITHUB_ENV"
       - run: bun tools/dev.mts install
       - run: bun tools/dev.mts build
-      - run: bun tools/dev.mts check:fast
-      - run: node --test packages/stack-toolchain/tests/*.test.ts
-      - run: node packages/engineering-foundation/dist/cli.js check architecture.source-dependencies --json
-      - run: node --test --test-name-pattern='v2 first-surface' tests/public-api-growth-schema-corpus.test.mjs
+      - name: Check changed scope
+        run: bun tools/dev.mts check:changed
+      - name: Complete fast checks
+        run: bun tools/dev.mts check:fast
+      - name: Workflow security checks
+        run: bun tools/dev.mts security:workflows
+      - name: Complete Stack test inventory
+        run: node --test packages/stack-toolchain/tests/*.test.ts
+      - name: Stage only the verified blob, without updating any branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import base64, json, pathlib, subprocess
+          repo = 'repos/agent-teams-ai/engineering-foundation'
+          filename = 'architecture/foundation/feature-modules.json'
+          expected = '032717bc852753f5beec256c94d26690ae2662f4'
+          sha = '44cdf6de1b2f33f0a88a087c19c02b6182908de6'
+          def git(*args):
+              return subprocess.check_output(['git', *args], text=True).strip()
+          def api(method, endpoint, data=None):
+              args = ['gh', 'api', '--method', method, endpoint]
+              if data is not None:
+                  args += ['--input', '-']
+              response = subprocess.run(args, input=None if data is None else json.dumps(data), text=True, capture_output=True, check=True)
+              return json.loads(response.stdout)
+          assert git('diff', '--name-only') == filename
+          assert git('hash-object', filename) == sha
+          assert api('GET', repo + '/git/refs/heads/feat/opt-in-cleanup')['object']['sha'] == expected
+          blob = api('POST', repo + '/git/blobs', {'encoding': 'base64', 'content': base64.b64encode(pathlib.Path(filename).read_bytes()).decode()})
+          assert blob['sha'] == sha
+          print('Qualified ownership blob:', sha)
+          print('No candidate branch or commit was changed by this diagnostic job.')
+          PY
+      - name: Retain source-only evidence
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/cleanup-evidence"
+          git diff --binary > "$RUNNER_TEMP/cleanup-evidence/ownership.patch"
+          git rev-parse HEAD > "$RUNNER_TEMP/cleanup-evidence/source-head.txt"
+          tar --exclude='node_modules' --exclude='.git' --exclude='.worker-tmp' -czf "$RUNNER_TEMP/cleanup-evidence/stack-source.tgz" packages/stack-toolchain
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: cleanup-ownership-${{ github.run_id }}
+          path: ${{ runner.temp }}/cleanup-evidence
+          retention-days: 3

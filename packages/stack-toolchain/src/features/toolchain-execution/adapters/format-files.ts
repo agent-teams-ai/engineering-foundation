@@ -71,7 +71,7 @@ function boundedFileSize(stat: fs.BigIntStats): number {
   }
   return Number(stat.size);
 }
-function observe(root: string, file: string) {
+export function observe(root: string, file: string) {
   const current = path.join(root, file);
   let flags = fs.constants.O_RDONLY;
   if (process.platform !== "win32") {
@@ -146,7 +146,7 @@ function observe(root: string, file: string) {
     fs.closeSync(fd);
   }
 }
-function requestedFiles(files: readonly string[]): string[] {
+export function requestedFiles(files: readonly string[]): string[] {
   if (!Array.isArray(files) || files.length === 0 || files.length > 100_000) {
     throw new Error("TOOLCHAIN_FORMAT_FILES");
   }
@@ -189,7 +189,7 @@ function requestedFiles(files: readonly string[]): string[] {
 }
 // Twice UTF-8 bytes plus quoting bounds Windows UTF-16 quoting and POSIX argv bytes.
 const argumentBytes = (value: string) => Buffer.byteLength(value) * 2 + 4;
-function batches(files: readonly string[], fixedArgs: readonly string[]): string[][] {
+export function batches(files: readonly string[], fixedArgs: readonly string[]): string[][] {
   const result: string[][] = [];
   let batch: string[] = [];
   const overhead = fixedArgs.reduce((sum, value) => sum + argumentBytes(value), 0);
@@ -265,7 +265,7 @@ function verifySources(
   }
   remaining(input);
 }
-function outsideTemporaryRoot(root: string): string {
+export function outsideTemporaryRoot(root: string): string {
   const temporaryRoot = fs.realpathSync(tmpdir());
   const relative = path.relative(root, temporaryRoot);
   if (

@@ -1,12 +1,4 @@
 {
-  "categories": {
-    "correctness": "off"
-  },
-  "plugins": ["eslint"],
-  "options": {
-    "typeAware": false,
-    "typeCheck": false
-  },
   "rules": {
     "prefer-const": [
       "warn",

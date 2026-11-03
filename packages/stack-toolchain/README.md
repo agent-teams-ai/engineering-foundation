@@ -259,3 +259,13 @@ Keep stable package scripts while upgrading the single pinned dependency:
 For Bun select `typescript-bun` and its TypeScript preset. The consumer supplies
 its own exact Node or Bun ambient types, compiler environment and build outputs;
 the toolchain does not infer or install product-specific environment types.
+
+## Opt-in cleanup candidate
+
+The source candidate adds `stack-toolchain fix -- file...` and the separate
+`fixFiles` API for explicitly selected JS/TS files. It combines three native
+syntax fixes with existing formatting; ordinary checks remain read-only.
+Neither package installation nor upgrading enables writes or changes consumer
+lint policy. See [explicit-file cleanup](CLEANUP.md) for configuration, limits,
+partial-write reporting, standalone use and the Foundation source workflow.
+This is not a claim that an older published package contains the command.

@@ -56,7 +56,7 @@ function paths(value: unknown): readonly string[] {
   }
   return result;
 }
-function validateLintConfiguration(
+export function validateLintConfiguration(
   filename: string,
   syntaxOnly: boolean,
   seen = new Set<string>(),

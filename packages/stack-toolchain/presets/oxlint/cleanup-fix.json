@@ -1,0 +1,11 @@
+{
+  "extends": ["./cleanup.json"],
+  "categories": {
+    "correctness": "off"
+  },
+  "plugins": ["eslint"],
+  "options": {
+    "typeAware": false,
+    "typeCheck": false
+  }
+}

@@ -1,3 +1,4 @@
+import { runCleanupCli } from "./cleanup-cli.js";
 import { runCommand, type CommandInput } from "./commands.js";
 
 function isHelp(args: readonly string[]): boolean {
@@ -20,15 +21,19 @@ export async function main(args: readonly string[]): Promise<number> {
   try {
     const values = [...args];
     const command = values.shift();
+    if (command === "fix") {
+      const result = await runCleanupCli(values, controller.signal);
+      return cancelled || result;
+    }
     if (isHelp(args)) {
       process.stdout.write(
-        "Usage: stack-toolchain typecheck|lint|format:check|compile|doctor [--json] [--config path]\nCompile: stack-toolchain compile --project path | --build path...\n",
+        "Usage: stack-toolchain typecheck|lint|format:check|compile|doctor|fix [--json] [--config path]\nCompile: stack-toolchain compile --project path | --build path...\nFix: stack-toolchain fix [--json] [--lint-config path] -- file...\n",
       );
       return 0;
     }
     if (!["typecheck", "lint", "format:check", "compile", "doctor"].includes(command ?? "")) {
       process.stderr.write(
-        "Usage: stack-toolchain typecheck|lint|format:check|compile|doctor [--json] [--config path]\n",
+        "Usage: stack-toolchain typecheck|lint|format:check|compile|doctor|fix [--json] [--config path]\n",
       );
       return 2;
     }

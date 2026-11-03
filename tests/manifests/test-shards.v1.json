@@ -217,7 +217,8 @@
         "tests/public-api-native-migration-cli.test.ts",
         "packages/engineering-foundation/tests/public-api-native-transition.test.ts",
         "tests/repository-release-runtime.test.mts",
-        "tests/repository-ci-runtime.test.mts"
+        "tests/repository-ci-runtime.test.mts",
+        "packages/docs-protocol/tests/bounded-adoption-input.test.ts"
       ]
     },
     {
@@ -363,7 +364,8 @@
         "packages/stack-toolchain/tests/typecheck.test.ts",
         "packages/docs-protocol-agent-teams/tests/consumer-upgrade-generation3.test.ts",
         "packages/docs-protocol-agent-teams/tests/consumer-managed-restoration.test.ts",
-        "packages/docs-protocol-agent-teams/tests/consumer-committed-restoration.test.ts"
+        "packages/docs-protocol-agent-teams/tests/consumer-committed-restoration.test.ts",
+        "packages/docs-protocol-agent-teams/tests/consumer-input-observation.test.ts"
       ]
     }
   ]

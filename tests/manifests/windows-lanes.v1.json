@@ -73,7 +73,8 @@
       "tests/registry-package-boundary.test.mjs",
       "tests/command-host-successor-cli.test.mts",
       "tests/c1-agent-workflow-coverage.test.mts",
-      "tests/features/quality-coverage/governed-assets.test.ts"
+      "tests/features/quality-coverage/governed-assets.test.ts",
+      "packages/docs-protocol/tests/bounded-adoption-input.test.ts"
     ],
     "b": [
       "tests/process-runtime-delegation.test.mts",
@@ -182,7 +183,8 @@
       "packages/stack-toolchain/tests/typecheck.test.ts",
       "packages/docs-protocol-agent-teams/tests/consumer-upgrade-generation3.test.ts",
       "packages/docs-protocol-agent-teams/tests/consumer-managed-restoration.test.ts",
-      "packages/docs-protocol-agent-teams/tests/consumer-committed-restoration.test.ts"
+      "packages/docs-protocol-agent-teams/tests/consumer-committed-restoration.test.ts",
+      "packages/docs-protocol-agent-teams/tests/consumer-input-observation.test.ts"
     ],
     "c": ["tests/source-dependency-loader-cli.test.mjs"],
     "d": [

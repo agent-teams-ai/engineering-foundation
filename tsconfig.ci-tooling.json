@@ -185,6 +185,7 @@
     "tests/support/release-probe-attestations.ts",
     "tests/support/release-freshness-git.ts",
     "packages/engineering-foundation/tests/public-api-native-spelling-cases.ts",
-    "tests/support/release-section-cases.ts"
+    "tests/support/release-section-cases.ts",
+    "packages/docs-protocol/tests/bounded-adoption-input.test.ts"
   ]
 }

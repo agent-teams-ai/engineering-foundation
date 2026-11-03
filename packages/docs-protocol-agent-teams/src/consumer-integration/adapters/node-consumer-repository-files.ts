@@ -1,5 +1,5 @@
-import { constants } from "node:fs";
-import { lstat, open, realpath } from "node:fs/promises";
+import { readBoundedRegularFile } from "@agent-teams/repository-mutation/node";
+import { lstat, realpath } from "node:fs/promises";
 import { isAbsolute, relative, resolve as resolvePath, sep } from "node:path";
 
 import type { ConsumerIntegrationFileObservation } from "../application-api.js";
@@ -58,12 +58,9 @@ export async function readStableConsumerFile(
   required: boolean,
 ): Promise<ConsumerIntegrationFileObservation> {
   const path = contained(root, repositoryPath);
-  let handle;
+  let observed;
   try {
-    handle = await open(
-      path,
-      constants.O_RDONLY | (process.platform === "win32" ? 0 : constants.O_NOFOLLOW),
-    );
+    observed = await readBoundedRegularFile(path, maximumBytes);
   } catch (error) {
     if (!required && errorCode(error) === "ENOENT") {
       return { state: "absent" };
@@ -74,41 +71,52 @@ export async function readStableConsumerFile(
       { cause: error },
     );
   }
+  if (
+    observed.outcome === "invalid" ||
+    (observed.outcome === "read" && observed.linkCount !== 1n)
+  ) {
+    throw new ConsumerIntegrationNodeError(
+      "DOCS_CONSUMER_INPUT_INVALID",
+      `Consumer integration input must be one bounded, non-hardlinked regular file: ${repositoryPath}.`,
+    );
+  }
+  if (observed.outcome === "changed") {
+    throw new ConsumerIntegrationNodeError(
+      "DOCS_CONSUMER_INPUT_UNSTABLE",
+      `Consumer integration input changed during observation: ${repositoryPath}.`,
+    );
+  }
   try {
-    const before = await handle.stat({ bigint: true });
-    if (!before.isFile() || before.nlink > 1n || before.size > BigInt(maximumBytes)) {
-      throw new ConsumerIntegrationNodeError(
-        "DOCS_CONSUMER_INPUT_INVALID",
-        `Consumer integration input must be one bounded, non-hardlinked regular file: ${repositoryPath}.`,
-      );
-    }
-    const bytes = await handle.readFile();
-    const [after, pathState, canonical] = await Promise.all([
-      handle.stat({ bigint: true }),
+    const [pathState, canonical] = await Promise.all([
       lstat(path, { bigint: true }),
       realpath(path),
     ]);
     if (
       pathState.isSymbolicLink() ||
+      !pathState.isFile() ||
+      pathState.nlink !== 1n ||
       canonical !== path ||
-      before.dev !== after.dev ||
-      before.ino !== after.ino ||
-      before.birthtimeNs !== after.birthtimeNs ||
-      before.ctimeNs !== after.ctimeNs ||
-      before.mtimeNs !== after.mtimeNs ||
-      before.size !== after.size ||
-      pathState.dev !== after.dev ||
-      pathState.ino !== after.ino ||
-      bytes.byteLength !== Number(after.size)
+      pathState.dev !== observed.identity.dev ||
+      pathState.ino !== observed.identity.ino ||
+      pathState.birthtimeNs !== observed.identity.birthtimeNs ||
+      pathState.size !== BigInt(observed.bytes.byteLength) ||
+      Number(pathState.mode) !== observed.mode
     ) {
       throw new ConsumerIntegrationNodeError(
         "DOCS_CONSUMER_INPUT_UNSTABLE",
         `Consumer integration input changed during observation: ${repositoryPath}.`,
       );
     }
-    return { state: "file", bytes, mode: Number(after.mode) & 0o777 };
-  } finally {
-    await handle.close();
+    return { state: "file", bytes: observed.bytes, mode: observed.mode & 0o777 };
+  } catch (error) {
+    if (error instanceof ConsumerIntegrationNodeError) {
+      throw error;
+    }
+    throw new ConsumerIntegrationNodeError(
+      "DOCS_CONSUMER_INPUT_UNSTABLE",
+      `Consumer integration input changed or became unavailable after observation: ${repositoryPath}.`,
+      { cause: error },
+    );
   }
 }
 

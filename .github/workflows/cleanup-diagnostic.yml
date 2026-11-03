@@ -10,30 +10,49 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: write
+      actions: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
           fetch-depth: 0
           ref: 032717bc852753f5beec256c94d26690ae2662f4
-      - name: Apply the two reviewed ownership entries
+      - name: Prepare bounded evidence and ownership blob without changing a branch
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          mkdir -p "$RUNNER_TEMP/cleanup-evidence"
           python3 - <<'PY'
-          from pathlib import Path
-          import subprocess
+          import base64, json, os, pathlib, subprocess
+          repo = 'repos/agent-teams-ai/engineering-foundation'
           expected = '032717bc852753f5beec256c94d26690ae2662f4'
           def git(*args):
               return subprocess.check_output(['git', *args], text=True).strip()
+          def api(method, endpoint, data=None):
+              args = ['gh', 'api', '--method', method, endpoint]
+              if data is not None:
+                  args += ['--input', '-']
+              result = subprocess.run(args, input=None if data is None else json.dumps(data), text=True, capture_output=True, check=True)
+              return json.loads(result.stdout)
           assert git('rev-parse', 'HEAD') == expected
-          p = Path('architecture/foundation/feature-modules.json')
+          p = pathlib.Path('architecture/foundation/feature-modules.json')
           assert git('hash-object', str(p)) == 'fe48bcf85043203be00265c9de136969eab0a19b'
           prefix = '                "packages/stack-toolchain/src/features/toolchain-execution/adapters/'
           needle = prefix + 'commands.ts",'
           source = p.read_text()
           assert source.count(needle) == 1
           p.write_text(source.replace(needle, prefix + 'cleanup-cli.ts",\n' + prefix + 'cleanup-files.ts",\n' + needle))
-          assert git('hash-object', str(p)) == '44cdf6de1b2f33f0a88a087c19c02b6182908de6'
-          subprocess.run(['git', 'diff', '--check'], check=True)
+          sha = '44cdf6de1b2f33f0a88a087c19c02b6182908de6'
+          assert git('hash-object', str(p)) == sha
+          assert api('GET', repo + '/git/refs/heads/feat/opt-in-cleanup')['object']['sha'] == expected
+          blob = api('POST', repo + '/git/blobs', {'encoding': 'base64', 'content': base64.b64encode(p.read_bytes()).decode()})
+          assert blob['sha'] == sha
+          print('Staged inert ownership blob:', sha, '(not qualification; no commit or branch changed)')
+          evidence = pathlib.Path(os.environ['RUNNER_TEMP']) / 'cleanup-evidence'
+          for job in (126270710460, 126270710476, 126270710569, 126274977230):
+              with (evidence / f'previous-job-{job}.log').open('wb') as out:
+                  result = subprocess.run(['gh', 'api', repo + f'/actions/jobs/{job}/logs'], stdout=out, stderr=subprocess.PIPE)
+              (evidence / f'previous-job-{job}.status').write_text(str(result.returncode))
           PY
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
         with: { bun-version: "1.4.3" }
@@ -43,41 +62,27 @@ jobs:
         run: printf 'AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE=%s\n' "$(command -v node)" >> "$GITHUB_ENV"
       - run: bun tools/dev.mts install
       - run: bun tools/dev.mts build
-      - name: Check changed scope
-        run: bun tools/dev.mts check:changed
-      - name: Complete fast checks
-        run: bun tools/dev.mts check:fast
-      - name: Workflow security checks
-        run: bun tools/dev.mts security:workflows
-      - name: Complete Stack test inventory
-        run: node --test packages/stack-toolchain/tests/*.test.ts
-      - name: Stage only the verified blob, without updating any branch
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Run all diagnostic checks and retain exact results
         run: |
           python3 - <<'PY'
-          import base64, json, pathlib, subprocess
-          repo = 'repos/agent-teams-ai/engineering-foundation'
-          filename = 'architecture/foundation/feature-modules.json'
-          expected = '032717bc852753f5beec256c94d26690ae2662f4'
-          sha = '44cdf6de1b2f33f0a88a087c19c02b6182908de6'
-          def git(*args):
-              return subprocess.check_output(['git', *args], text=True).strip()
-          def api(method, endpoint, data=None):
-              args = ['gh', 'api', '--method', method, endpoint]
-              if data is not None:
-                  args += ['--input', '-']
-              response = subprocess.run(args, input=None if data is None else json.dumps(data), text=True, capture_output=True, check=True)
-              return json.loads(response.stdout)
-          assert git('diff', '--name-only') == filename
-          assert git('hash-object', filename) == sha
-          assert api('GET', repo + '/git/refs/heads/feat/opt-in-cleanup')['object']['sha'] == expected
-          blob = api('POST', repo + '/git/blobs', {'encoding': 'base64', 'content': base64.b64encode(pathlib.Path(filename).read_bytes()).decode()})
-          assert blob['sha'] == sha
-          print('Qualified ownership blob:', sha)
-          print('No candidate branch or commit was changed by this diagnostic job.')
+          import json, os, pathlib, subprocess
+          evidence = pathlib.Path(os.environ['RUNNER_TEMP']) / 'cleanup-evidence'
+          commands = {
+              'changed': ['bun', 'tools/dev.mts', 'check:changed'],
+              'fast': ['bun', 'tools/dev.mts', 'check:fast'],
+              'workflows': ['bun', 'tools/dev.mts', 'security:workflows'],
+              'stack-tests': ['node', '--test', *map(str, sorted(pathlib.Path('packages/stack-toolchain/tests').glob('*.test.ts')))],
+          }
+          results = {}
+          for name, command in commands.items():
+              with (evidence / f'{name}.log').open('wb') as out:
+                  result = subprocess.run(command, stdout=out, stderr=subprocess.STDOUT)
+              results[name] = result.returncode
+              print(name, 'exit', result.returncode, flush=True)
+          (evidence / 'results.json').write_text(json.dumps(results, indent=2) + '\n')
+          raise SystemExit(1 if any(results.values()) else 0)
           PY
-      - name: Retain source-only evidence
+      - name: Retain exact source evidence
         if: always()
         run: |
           mkdir -p "$RUNNER_TEMP/cleanup-evidence"
@@ -87,6 +92,6 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: cleanup-ownership-${{ github.run_id }}
+          name: cleanup-evidence-${{ github.run_id }}
           path: ${{ runner.temp }}/cleanup-evidence
           retention-days: 3

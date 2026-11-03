@@ -39,8 +39,18 @@ jobs:
           function copy(name, resolver, optional = false) {
             let source;
             try { source = path.dirname(resolver.resolve(`${name}/package.json`)); }
-            catch (error) { if (optional && error.code === 'MODULE_NOT_FOUND') return; throw error; }
+            catch (error) {
+              if (error.code === 'ERR_PACKAGE_PATH_NOT_EXPORTED') {
+                const candidate = (resolver.resolve.paths(name) ?? []).map(base => path.join(base, name, 'package.json')).find(file => fs.existsSync(file));
+                if (candidate) source = fs.realpathSync(path.dirname(candidate));
+              }
+              if (!source) {
+                if (optional && error.code === 'MODULE_NOT_FOUND') return;
+                throw error;
+              }
+            }
             const manifest = JSON.parse(fs.readFileSync(path.join(source, 'package.json'), 'utf8'));
+            if (manifest.name !== name) throw new Error(`Unexpected manifest: ${name}`);
             if (copied.has(name)) {
               if (copied.get(name) !== manifest.version) throw new Error(`Version collision: ${name}`);
               return;

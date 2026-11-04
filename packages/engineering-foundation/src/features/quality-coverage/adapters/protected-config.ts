@@ -1,6 +1,7 @@
-import { createRequire } from "node:module";
 import { dirname, isAbsolute, join, posix, relative, sep } from "node:path";
 import { realpath } from "node:fs/promises";
+import { resolveQualityJsonConfig } from "./quality-config-resolution.js";
+import type { QualityResolutionBinding } from "./quality-input-witness.js";
 import type { ProtectedSetting, RequiredProtectedSetting } from "../api.js";
 import { invalidQualityInput, qualityRecord, qualityStrings } from "./profile-input.js";
 
@@ -100,12 +101,17 @@ function ceiling(value: unknown): number | undefined {
 async function protectedRules(
   consumerRoot: string,
   read: DataReader,
+  observeBinding: (binding: QualityResolutionBinding) => Promise<void>,
 ): Promise<{ rules: ReadonlyMap<string, unknown>; typedPath: string }> {
-  const root = dirname(
-    await realpath(
-      createRequire(join(consumerRoot, "package.json")).resolve("stack-toolchain/package.json"),
-    ),
-  );
+  const issuer = join(consumerRoot, "package.json");
+  const target = await resolveQualityJsonConfig({
+    root: consumerRoot,
+    issuer,
+    request: "stack-toolchain/package.json",
+    read,
+    observeBinding,
+  });
+  const root = dirname(target);
   const physicalRoot = await realpath(consumerRoot);
   const suffix = relative(physicalRoot, root);
   if (suffix === ".." || suffix.startsWith(`..${sep}`) || isAbsolute(suffix)) {
@@ -127,26 +133,23 @@ async function protectedRules(
 }
 
 async function configPath(
-  root: string,
   physicalRoot: string,
   from: string,
   reference: string,
+  read: DataReader,
+  observeBinding: (binding: QualityResolutionBinding) => Promise<void>,
 ): Promise<string> {
   if (!reference.endsWith(".json") || isAbsolute(reference)) {
     invalidQualityInput("V1 quality coverage accepts contained JSON Oxlint configuration only.");
   }
-  let path: string;
-  try {
-    path = await realpath(
-      createRequire(join(root, dirname(from), "package.json")).resolve(reference),
-    );
-  } catch {
-    invalidQualityInput("An Oxlint extends configuration is missing or unsupported.");
-  }
+  const path = await resolveQualityJsonConfig({
+    root: physicalRoot,
+    issuer: join(physicalRoot, dirname(from), "package.json"),
+    request: reference,
+    read,
+    observeBinding,
+  });
   const suffix = relative(physicalRoot, path);
-  if (suffix === ".." || suffix.startsWith(`..${sep}`) || isAbsolute(suffix)) {
-    invalidQualityInput("Oxlint configuration escapes the consumer root.");
-  }
   return suffix.split(sep).join("/");
 }
 
@@ -222,13 +225,14 @@ export async function inspectProtectedConfig(
   lintPath: string,
   read: DataReader,
   scope: OverrideScope,
+  observeBinding: (binding: QualityResolutionBinding) => Promise<void> = async () => {},
 ): Promise<{
   readonly requiredSettings: readonly string[];
   readonly requiredSettingObservations: readonly RequiredProtectedSetting[];
   readonly settings: readonly ProtectedSetting[];
 }> {
   const physicalRoot = await realpath(root);
-  const protectedPreset = await protectedRules(root, read);
+  const protectedPreset = await protectedRules(root, read, observeBinding);
   const required = new Map(protectedPreset.rules);
   const requiredSettings = [
     "typeAware",
@@ -287,7 +291,7 @@ export async function inspectProtectedConfig(
     for (const reference of value["extends"] === undefined
       ? []
       : qualityStrings(value["extends"])) {
-      await visit(await configPath(root, physicalRoot, path, reference));
+      await visit(await configPath(physicalRoot, path, reference, read, observeBinding));
     }
     const rules = value["rules"] === undefined ? {} : qualityRecord(value["rules"]);
     for (const name of Object.keys(rules)) {

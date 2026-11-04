@@ -73,13 +73,43 @@ composition-contract cases as complete module descriptions with their expected
 diagnostic codes. The kernel tests, and every adopting checker as its
 conformance test, run the same data.
 
+## Quality topology projection
+
+The pure `@agent-teams/feature-module-standard/quality-topology` entrypoint exports
+`projectQualitySourceTopology(profile, sourcePolicyPath)` and the
+`QualitySourceTopology` type. It projects supported flat or nested FMS v1/v1.1
+profile facts into Foundation's neutral `quality-source-topology/v1` wire format:
+explicit census, package, production source, test and excluded roots, plus exact
+generator paths. It performs no filesystem access and requires no Foundation
+installation.
+
+```ts
+import { projectQualitySourceTopology } from "@agent-teams/feature-module-standard/quality-topology";
+
+const topology = projectQualitySourceTopology(fmsProfile, "architecture/source.yaml");
+// Write this value as the topologyPath input of a quality-source-coverage/v5 profile.
+```
+
+Pending FMS adoption still contributes its declared production sources. Nested
+application roots contribute their mapped production sources; their surrounding
+tests and scripts are not automatically promoted to production. Flat profile
+source-policy linkage and nested module/layout linkage are validated before
+projection. Generator provenance contributes exact tooling files and does not
+remove production protection from a generator inside a source root.
+
+The returned object and arrays are frozen, sorted and deduplicated. Consumers
+that do not adopt FMS can write the neutral topology directly. A repository-owned
+generator can add the neutral format's optional `derivedFrom` hashes; this pure
+mapper does not read or hash consumer files. The new projection entrypoint and
+v5 integration are prepared for the companion release.
+
 ## Runner
 
 `@agent-teams/feature-module-standard/node` checks a module on disk. It reads the declared roots through
 `@agent-teams/engineering-foundation/source-graph`, runs the kernel and compares the per-feature metrics with
-growth budgets from `@agent-teams/engineering-foundation/ratchet` (warnings only). Engineering Foundation `^1.8.0 || ^2.0.0 || ^3.0.0` is an
-optional peer dependency: users of `.` and `./fixtures` do not need it.
-The Foundation 3 window is prepared for the companion release. See the
+growth budgets from `@agent-teams/engineering-foundation/ratchet` (warnings only). Engineering Foundation `^1.8.0 || ^2.0.0 || ^3.0.0 || ^4.0.0` is an
+optional peer dependency: users of `.`, `./fixtures` and `./quality-topology` do not need it.
+The Foundation 4 window is prepared for the quality v5 companion release and requires final installed candidate qualification. The Foundation 3 runner migration remains documented in the
 [migration and qualification record](../../docs/development/feature-module-standard-foundation-3-migration.md)
 for the unchanged runner contracts and the required final installed-artifact gate.
 

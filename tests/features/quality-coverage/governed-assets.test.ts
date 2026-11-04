@@ -1,5 +1,6 @@
 import { copyInstalledToolchainPresets } from "./copied-toolchain.mjs";
 import assert from "node:assert/strict";
+import { qualityFixtureRecord } from "../../../scripts/quality-command-report.ts";
 import {
   link,
   mkdir,
@@ -25,8 +26,8 @@ import {
 } from "../../../packages/engineering-foundation/dist/features/quality-coverage/api.js";
 import { mapQualityProfile } from "../../../packages/engineering-foundation/dist/features/quality-coverage/adapters/profile-input.js";
 import { createSourceCensusReader } from "../../../packages/engineering-foundation/dist/capabilities/source-dependencies/module.js";
-import { loadStrictYamlFile } from "../../../packages/engineering-foundation/dist/features/configuration-input/node.js";
 import { readContainedRegularFile } from "../../../packages/engineering-foundation/dist/source-inventory/node.js";
+import { createStrictYamlFileLoader } from "../../../packages/engineering-foundation/dist/features/configuration-input/node.js";
 import { assertSchema } from "../../../packages/engineering-foundation/dist/schema-catalog.js";
 import {
   cleanupIdentityMatchingOwnedTemporary,
@@ -47,12 +48,13 @@ const asset = (path: string, kind: string, script: string) => ({
   boundaryId: "example",
 });
 const profile = {
-  schemaVersion: 3,
+  schemaVersion: 5,
+  budgetMs: 120000,
   sourcePolicyPath: "source.yaml",
   suppressionPolicyPath: "suppressions.yaml",
-  featureProfilePath: "features.json",
+  topologyPath: "topology.json",
   lintConfigPath: "lint.json",
-  compilerProjects: ["config/production.json"],
+  toolchainConfigPath: "toolchain.config.json",
   scripts: { fast: "check:fast", full: "check", scope: "quality:scope", typed: "lint:typed" },
   assets: [asset(proto, "protobuf", "wire:check"), asset(sql, "sql-migration", "migration:check")],
 };
@@ -80,6 +82,10 @@ async function fixture(t: TestContext) {
   await put(sql, "CREATE TABLE example (id integer PRIMARY KEY);\n");
   await put("config/production.json", "{}");
   await put(
+    "toolchain.config.json",
+    JSON.stringify({ typecheck: { projects: ["config/production.json"] } }),
+  );
+  await put(
     "scripts/wire/generate.ts",
     "throw new Error('static checks never execute validators');\n",
   );
@@ -90,41 +96,48 @@ async function fixture(t: TestContext) {
   await put("quality.yaml", JSON.stringify(profile));
   await put("package.json", JSON.stringify({ scripts }));
   await put(
-    "features.json",
+    "topology.json",
     JSON.stringify({
       schemaVersion: 1,
-      standard: { id: "agent-teams.feature-module-standard", version: "v1" },
-      productionRoots: ["packages"],
-      applicationRoots: [],
+      censusRoots: ["packages"],
+      packageRoots: [".", moduleRoot],
+      sourceRoots: [sourceRoot],
+      testRoots: [`${moduleRoot}/tests`],
+      toolingFiles: [],
       excludedRoots: [],
-      topology: { sourcePolicy: "source.yaml" },
-      modules: [{ root: moduleRoot, sourceRoot, testRoots: [`${moduleRoot}/tests`] }],
     }),
   );
-  const typed = JSON.parse(
-    await readFile(
-      new URL("../../../packages/stack-toolchain/presets/oxlint/type-aware.json", import.meta.url),
-      "utf8",
+  const typed = qualityFixtureRecord(
+    JSON.parse(
+      await readFile(
+        new URL(
+          "../../../packages/stack-toolchain/presets/oxlint/type-aware.json",
+          import.meta.url,
+        ),
+        "utf8",
+      ),
     ),
   );
-  const budgets = JSON.parse(
-    await readFile(
-      new URL(
-        "../../../packages/stack-toolchain/presets/oxlint/maintainability.json",
-        import.meta.url,
+  const budgets = qualityFixtureRecord(
+    JSON.parse(
+      await readFile(
+        new URL(
+          "../../../packages/stack-toolchain/presets/oxlint/maintainability.json",
+          import.meta.url,
+        ),
+        "utf8",
       ),
-      "utf8",
     ),
   );
   await put(
     "lint.json",
     JSON.stringify({
       options: {
-        ...typed.options,
+        ...qualityFixtureRecord(typed["options"]),
         respectEslintDisableDirectives: false,
         reportUnusedDisableDirectives: "error",
       },
-      rules: { ...typed.rules, ...budgets.rules },
+      rules: { ...qualityFixtureRecord(typed["rules"]), ...qualityFixtureRecord(budgets["rules"]) },
     }),
   );
   const reader = createQualityCoverageReader(
@@ -139,7 +152,7 @@ async function fixture(t: TestContext) {
         suppressions: async () => ({ governedRoots: [sourceRoot] }),
       },
     },
-    createQualityConfigurationReader(loadStrictYamlFile, assertSchema),
+    createQualityConfigurationReader(assertSchema, createStrictYamlFileLoader),
     readContainedRegularFile,
   );
   const run = () =>
@@ -147,10 +160,10 @@ async function fixture(t: TestContext) {
   return { root, put, reader, run };
 }
 
-test("v3 assets preserve exact semantic ownership and require reachable readable validators", async (t) => {
+await test("current assets preserve exact semantic ownership and require reachable readable validators", async (t) => {
   const { put, reader, root, run } = await fixture(t);
   assert.equal((await run()).outcome, "passed");
-  const observation = await reader.read(root, "quality.yaml");
+  const { observation } = await reader.read(root, "quality.yaml");
   assert.deepEqual(
     observation.sources
       .filter(({ assetGates }) => assetGates !== undefined)
@@ -185,7 +198,7 @@ test("v3 assets preserve exact semantic ownership and require reachable readable
   const missing = await run();
   assert.equal(missing.outcome, "invalid-input");
   assert.equal(missing.problem?.code, "QUALITY_PROFILE_INVALID");
-  assert.match(missing.problem?.message ?? "", /Asset validator script.*migration:check/u);
+  assert.match(missing.problem.message, /Asset validator script.*migration:check/u);
   assert.deepEqual(missing.diagnostics, []);
   await mkdir(join(root, "scripts/check-migrations.ts"));
   const unreadable = await run();
@@ -197,7 +210,7 @@ test("v3 assets preserve exact semantic ownership and require reachable readable
   assert.equal(unreadable.problem?.code, "QUALITY_PROFILE_INVALID");
 });
 
-test("assets cannot admit executable extensions, unknown siblings, stale paths or another owner", async (t) => {
+await test("assets cannot admit executable extensions, unknown siblings, stale paths or another owner", async (t) => {
   const { root, put, run } = await fixture(t);
   for (const assets of [
     [asset(main, "protobuf", "wire:check")],
@@ -228,24 +241,40 @@ test("assets cannot admit executable extensions, unknown siblings, stale paths o
   );
 });
 
-test("v1/v2 cannot opt into v3 asset fields and fixed kind must match extension", async () => {
+await test("v1/v2 cannot opt into v3 asset fields and fixed kind must match extension", async () => {
+  const historical = {
+    schemaVersion: 3,
+    sourcePolicyPath: profile.sourcePolicyPath,
+    suppressionPolicyPath: profile.suppressionPolicyPath,
+    featureProfilePath: "features.json",
+    lintConfigPath: profile.lintConfigPath,
+    compilerProjects: ["config/production.json"],
+    scripts: profile.scripts,
+    assets: profile.assets,
+  };
   for (const schemaVersion of [1, 2] as const) {
     await assert.rejects(
       assertSchema(
         `quality-source-coverage/v${schemaVersion}`,
-        { ...profile, schemaVersion },
+        { ...historical, schemaVersion },
         "test",
       ),
     );
   }
-  await assertSchema("quality-source-coverage/v3", profile, "test");
+  await assertSchema("quality-source-coverage/v3", historical, "test");
+  await assertSchema("quality-source-coverage/v5", profile, "test");
   assert.throws(
-    () => mapQualityProfile({ ...profile, assets: [asset(sql, "protobuf", "wire:check")] }),
+    () =>
+      mapQualityProfile({
+        ...profile,
+        compilerProjects: ["config/production.json"],
+        assets: [asset(sql, "protobuf", "wire:check")],
+      }),
     /fixed protobuf or sql-migration/u,
   );
 });
 
-test("asset route observations reject cycles, no-ops, masks and absent targets", () => {
+await test("asset route observations reject cycles, no-ops, masks and absent targets", () => {
   assert.equal(executesAssetValidator(scripts, "check", "wire:check"), true);
   assert.deepEqual(assetValidatorDeclaration(scripts["wire:check"]), ["scripts/wire/generate.ts"]);
   for (const command of [
@@ -279,9 +308,6 @@ async function retiredFixture(t: TestContext) {
   await link(temporaryPath, join(root, counterpart));
   const observed = await readBoundedRegularFile(temporaryPath, 1024);
   assert.equal(observed.outcome, "read");
-  if (observed.outcome !== "read") {
-    throw new Error("missing owned fixture");
-  }
   assert.equal(
     await cleanupIdentityMatchingOwnedTemporary({
       allowUnsupportedDirectoryDurability: process.platform === "win32",
@@ -306,7 +332,7 @@ async function retiredFixture(t: TestContext) {
   };
 }
 
-test("actual native retirement excludes only an inode duplicate of a still-governed sibling", async (t) => {
+await test("actual native retirement excludes only an inode duplicate of a still-governed sibling", async (t) => {
   const { root, counterpart, path, inspect } = await retiredFixture(t);
   assert.deepEqual(await inspect(), [{ path, counterpart }]);
   await rm(join(root, counterpart));
@@ -323,14 +349,14 @@ test("actual native retirement excludes only an inode duplicate of a still-gover
   );
 });
 
-test("ordinary broad censuses retain the existing 500000-entry discovery budget", async (t) => {
+await test("ordinary broad censuses retain the existing 500000-entry discovery budget", async (t) => {
   const root = await mkdtemp(join(tmpdir(), "TEST-retired-census-budget-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const ordinaryFiles = Array.from({ length: 100_001 }, (_, index) => `docs/entry-${index}.md`);
   assert.deepEqual(await inspectRetiredTemporaryDuplicates(root, ordinaryFiles), []);
 });
 
-test("retirement duplicate observation rejects extra, nested, forged and symlink evidence", async (t) => {
+await test("retirement duplicate observation rejects extra, nested, forged and symlink evidence", async (t) => {
   const { root, counterpart, path, inspect } = await retiredFixture(t);
   const extra = join(root, dirname(path), "hidden.ts");
   await writeFile(extra, "export const hidden = true;\n");
@@ -352,7 +378,7 @@ test("retirement duplicate observation rejects extra, nested, forged and symlink
   );
 });
 
-test("quality reader preserves canonical executable coverage after real native retirement", async (t) => {
+await test("quality reader preserves canonical executable coverage after real native retirement", async (t) => {
   const { root, reader, run } = await fixture(t);
   const temporaryPath = join(root, sourceRoot, ".main.ts.temporary");
   await link(join(root, main), temporaryPath);
@@ -373,7 +399,7 @@ test("quality reader preserves canonical executable coverage after real native r
     "removed",
   );
   assert.equal((await run()).outcome, "passed");
-  const before = await reader.read(root, "quality.yaml");
+  const { observation: before } = await reader.read(root, "quality.yaml");
   assert.deepEqual(before.sources.find(({ path }) => path === main)?.owners, ["example"]);
   assert.ok(!before.sources.some(({ path }) => path.includes(".foundation-retired-evidence-")));
   const [token] = await readdir(join(root, sourceRoot, ".foundation-retired-evidence-"));
@@ -383,7 +409,9 @@ test("quality reader preserves canonical executable coverage after real native r
   const report = await run();
   assert.equal(report.outcome, "violations");
   assert.ok(
-    (await reader.read(root, "quality.yaml")).sources.some(({ path }) => path === hidden),
+    (await reader.read(root, "quality.yaml")).observation.sources.some(
+      ({ path }) => path === hidden,
+    ),
     "the added executable retains ordinary typed selection rather than receiving retirement status",
   );
   await rm(join(root, hidden));

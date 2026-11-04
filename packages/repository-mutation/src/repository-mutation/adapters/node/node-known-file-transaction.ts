@@ -16,7 +16,7 @@ import type {
   KnownFileTransactionReceiptV1,
 } from "../../application/model/known-file-transaction.js";
 import { compileKnownFileTransactionEnvelope } from "../../application/policies/known-file-transaction-envelope.js";
-import { assertKnownFileTransactionPlan } from "../../application/policies/known-file-transaction-plan.js";
+import { snapshotKnownFileTransactionPlan } from "../../application/policies/known-file-transaction-plan.js";
 import { cleanupCommittedKnownFileCaptures } from "./node-known-file-recovery-filesystem.js";
 import type {
   KnownFileTransactionFaultInjector,
@@ -142,7 +142,7 @@ export async function applyKnownFileTransactionWithFaults(
     readonly faultInjector?: KnownFileTransactionFaultInjector;
   },
 ): Promise<KnownFileTransactionReceiptV1> {
-  assertKnownFileTransactionPlan(options.plan);
+  const plan = snapshotKnownFileTransactionPlan(options.plan);
   if (process.platform === "win32") {
     throw new KnownFileTransactionError(
       "KNOWN_FILE_APPLY_UNSUPPORTED",
@@ -162,16 +162,16 @@ export async function applyKnownFileTransactionWithFaults(
       artifact: mutationArtifact,
       claim,
       lease: ownedLease,
-      planDigest: options.plan.planDigest,
+      planDigest: plan.planDigest,
     });
     await assertApplyClaim(coordination, {
       artifact: mutationArtifact,
       claim,
-      planDigest: options.plan.planDigest,
+      planDigest: plan.planDigest,
       root,
     });
     await options.faultInjector?.({ phase: "after-barrier-acquired" });
-    const journal = await observeInitialKnownFileJournal(coordination, root, options.plan);
+    const journal = await observeInitialKnownFileJournal(coordination, root, plan);
     if (journal.operations.every(({ state }) => state === "already-satisfied")) {
       return compileKnownFileTransactionReceipt(journal, "already-satisfied");
     }

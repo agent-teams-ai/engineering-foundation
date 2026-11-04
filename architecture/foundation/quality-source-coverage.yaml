@@ -1,7 +1,8 @@
-schemaVersion: 4
+schemaVersion: 5
+budgetMs: 300000
 sourcePolicyPath: architecture/foundation/source-dependencies.yaml
 suppressionPolicyPath: architecture/foundation/suppression-governance.yaml
-featureProfilePath: architecture/foundation/feature-modules.json
+topologyPath: architecture/foundation/quality-source-topology.json
 lintConfigPath: .oxlintrc.type-aware.json
 bridgeAdmissionsPath: architecture/foundation/quality-explicit-unknown-bridges.json
 toolchainConfigPath: toolchain.config.json

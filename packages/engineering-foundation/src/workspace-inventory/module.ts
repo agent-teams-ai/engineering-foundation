@@ -3,14 +3,21 @@ import { pathTraversesSymbolicLink, readContainedRegularFile } from "../source-i
 import { PnpmPackageManifestSnapshotReader } from "./adapters/outbound/pnpm/pnpm-package-manifest-snapshot-reader.js";
 import { PnpmWorkspaceInventoryReader } from "./adapters/outbound/pnpm/pnpm-workspace-inventory-reader.js";
 
+import type { ContainedFileObservation } from "../source-inventory/api.js";
 import type { WorkspaceObservationReader } from "./api.js";
 
-export function createWorkspaceInventoryReader(): WorkspaceObservationReader {
+export function createWorkspaceInventoryReader(
+  input: {
+    readonly readYaml?: typeof loadStrictYamlFile;
+    readonly read?: ContainedFileObservation["read"];
+    readonly pathTraversesSymbolicLink?: typeof pathTraversesSymbolicLink;
+  } = {},
+): WorkspaceObservationReader {
   return new PnpmWorkspaceInventoryReader(
-    { readYaml: loadStrictYamlFile },
+    { readYaml: input.readYaml ?? loadStrictYamlFile },
     new PnpmPackageManifestSnapshotReader({
-      read: readContainedRegularFile,
-      pathTraversesSymbolicLink,
+      read: input.read ?? readContainedRegularFile,
+      pathTraversesSymbolicLink: input.pathTraversesSymbolicLink ?? pathTraversesSymbolicLink,
     }),
   );
 }

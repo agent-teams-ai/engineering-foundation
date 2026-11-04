@@ -371,57 +371,57 @@
     },
     {
       "path": "packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-plan.ts",
-      "start": 4476,
-      "end": 4513,
+      "start": 1412,
+      "end": 1449,
       "sha256": "b4711a3ca348833adff2fc24d4d89b12b706d2892826636ba43b9be3c4d7e8df",
       "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
       "rejectingTest": "tests/known-file-transaction-plan.test.mjs"
     },
     {
       "path": "packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-plan.ts",
-      "start": 4534,
-      "end": 4572,
+      "start": 1470,
+      "end": 1508,
       "sha256": "6154ecd00496e3ac84123781e155aba5c47b2f1474df5a74d4591d271910cb2a",
       "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
       "rejectingTest": "tests/known-file-transaction-plan.test.mjs"
     },
     {
       "path": "packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-plan.ts",
-      "start": 6837,
-      "end": 6898,
+      "start": 3036,
+      "end": 3097,
       "sha256": "c7eb9264af8721e8fb2c40b321fca4d2d8bca3288c3d24f175ea32ee9b90ba5d",
       "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
       "rejectingTest": "tests/known-file-transaction-plan.test.mjs"
     },
     {
       "path": "packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-plan.ts",
-      "start": 6924,
-      "end": 6981,
+      "start": 3123,
+      "end": 3180,
       "sha256": "20967de32f858385c3380b777c85d0c4c13967af91782c4685bdb3a8ea128e45",
       "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
       "rejectingTest": "tests/known-file-transaction-plan.test.mjs"
     },
     {
       "path": "packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-plan.ts",
-      "start": 9176,
-      "end": 9290,
+      "start": 4819,
+      "end": 4933,
       "sha256": "2826d2f6db9b383e84f53f0bb2789f45dce71ad10469d6773739d3e6303d1e5d",
       "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
       "rejectingTest": "tests/known-file-transaction-plan.test.mjs"
     },
     {
       "path": "packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-plan.ts",
-      "start": 11839,
-      "end": 11885,
+      "start": 6082,
+      "end": 6128,
       "sha256": "081ef3447e9e5a4f83e6b2e99f05d739871807fb29b66b20772818cb381a1d50",
       "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
       "rejectingTest": "tests/known-file-transaction-plan.test.mjs"
     },
     {
       "path": "packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-plan.ts",
-      "start": 11909,
-      "end": 11947,
-      "sha256": "ba62f6b50b1bd4ce0c1afe3d7ed85a20a0f12e559bda394e5d85d38c30aad26a",
+      "start": 6152,
+      "end": 6193,
+      "sha256": "cf594b0967cc1e06b08598ca5180d70ceb8f447f33a3e2b5da6a3edbb81a9595",
       "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
       "rejectingTest": "tests/known-file-transaction-plan.test.mjs"
     },

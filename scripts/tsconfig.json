@@ -52,6 +52,18 @@
     "release-candidate-*.ts",
     "packed-release-checks.ts",
     "pack-quality-assets.ts",
-    "packed-stack-toolchain-qualification.ts"
+    "packed-stack-toolchain-qualification.ts",
+    "pack-quality-coverage-test.ts",
+    "registry-quality-cast-e2e.ts",
+    "packed-quality-input-drift.ts",
+    "packed-known-file-contract.ts",
+    "packed-quality-command.ts",
+    "packed-quality-rejections.ts",
+    "packed-quality-typecheck.ts",
+    "fixtures/quality-input-drift-preloader.ts",
+    "quality-command-report.ts",
+    "packed-docs-fixture-support.ts",
+    "packed-docs-rollback-fixture.ts",
+    "packed-docs-consumer-integration.ts"
   ]
 }

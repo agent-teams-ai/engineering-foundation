@@ -136,6 +136,18 @@ commands or plugins, static `check` never executes scripts, and installation or
 upgrade never activates a profile. See the
 [quality gate runner reference](../../docs/reference/quality-gate-runner.md).
 
+The candidate next major introduces `quality-source-coverage/v5`. Consumers
+declare neutral source, package, test and tooling paths, one Stack Toolchain
+configuration and an invocation time budget. The checker observes those inputs
+once and rejects persistent file or configuration changes during execution.
+Root packages and monorepos use the same contract without adopting Feature
+Module Standard. FMS users can project their existing policy through the opt-in
+package's `./quality-topology` export. Upgrading from v1–v4 requires an explicit
+profile migration; their exported schema bytes remain available unchanged.
+See the [migration guide](../../docs/development/quality-v5-migration.md) for
+configuration, supported limits and rollout. Candidate qualification and
+publication remain separate from this source change.
+
 The root file is `foundation.config.yaml`. Use
 `agent-teams-foundation schema foundation-config/v1` for its canonical schema
 and `agent-teams-foundation explain <rule-id>` for rule guidance.

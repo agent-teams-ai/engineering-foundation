@@ -21,6 +21,7 @@ export interface OxlintSessionInput {
   readonly configPath: string;
   readonly sourceRoots: readonly string[];
   readonly projects: readonly string[];
+  readonly remainingMs?: () => number;
   readonly environment?: Readonly<Record<string, string | undefined>>;
 }
 
@@ -85,7 +86,7 @@ export function createOxlintSession(
       args,
       cwd: input.consumerRoot,
       ...(input.environment === undefined ? {} : { environment: input.environment }),
-      timeoutMs: 120_000,
+      timeoutMs: Math.min(120_000, input.remainingMs?.() ?? 120_000),
       strictUtf8: true,
       ...(signal === undefined ? {} : { signal }),
     });
@@ -102,6 +103,7 @@ export function createOxlintSession(
     const results: T[] = [];
     for (const batch of sourceBatches(input.sourceRoots)) {
       assertNotCancelled(signal);
+      input.remainingMs?.();
       const result = await execute(batch, signal);
       assertNotCancelled(signal);
       results.push(result);
@@ -122,6 +124,7 @@ export function createOxlintSession(
       return [...new Set(results.flat())].toSorted();
     },
     async typeContext(signal) {
+      input.remainingMs?.();
       const root = await realpath(input.consumerRoot);
       const paths = new Set<string>();
       for (const project of input.projects) {

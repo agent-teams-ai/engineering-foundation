@@ -21,7 +21,7 @@ import {
   copyInstalledClosure,
   invokeInstalledTypecheck,
   qualifyExternalDeclaration,
-} from "../scripts/pack-quality-coverage-test.mjs";
+} from "../scripts/pack-quality-coverage-test.ts";
 import {
   qualifyMissingDeclaration,
   assertMissingTypeDiagnostic,
@@ -301,7 +301,7 @@ test("quality closure never rereads the fixture after validating its snapshot", 
 });
 
 test("packed asset extension preserves and validates the consumer profile schema", async (t) => {
-  for (const schemaVersion of [3, 4]) {
+  for (const schemaVersion of [3, 4, 5]) {
     await t.test(`v${schemaVersion}`, async (context) => {
       const root = await mkdtemp(join(tmpdir(), "quality-assets-schema-"));
       context.after(() => rm(root, { recursive: true, force: true }));
@@ -309,9 +309,11 @@ test("packed asset extension preserves and validates the consumer profile schema
         schemaVersion,
         sourcePolicyPath: "source.yaml",
         suppressionPolicyPath: "suppressions.yaml",
-        featureProfilePath: "features.json",
+        ...(schemaVersion === 5
+          ? { topologyPath: "topology.json", budgetMs: 120000 }
+          : { featureProfilePath: "features.json" }),
         lintConfigPath: "lint.json",
-        ...(schemaVersion === 4
+        ...(schemaVersion >= 4
           ? { toolchainConfigPath: "toolchain.config.json" }
           : { compilerProjects: ["tsconfig.json"] }),
         scripts: { fast: "check:fast", full: "check", scope: "quality:scope", typed: "lint:typed" },

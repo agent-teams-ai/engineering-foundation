@@ -3,7 +3,10 @@ import {
   createSourceCensusReader,
 } from "../capabilities/source-dependencies/module.js";
 import { createSuppressionPolicyReader } from "../capabilities/suppression-governance/module.js";
-import { loadStrictYamlFile } from "../features/configuration-input/node.js";
+import {
+  loadStrictYamlFile,
+  createStrictYamlFileLoader,
+} from "../features/configuration-input/node.js";
 import { readContainedRegularFile } from "../source-inventory/node.js";
 import { createWorkspaceInventoryReader } from "../workspace-inventory/module.js";
 import { assertSchema } from "../schema-catalog.js";
@@ -15,19 +18,27 @@ import {
 import {
   createQualityCoverageCapability,
   createQualityCoverageCommand,
+  type QualityFileReader,
 } from "../features/quality-coverage/api.js";
 import type { ManagedProcessExecutor } from "../process-execution/api.js";
 
-const ports = {
-  census: createSourceCensusReader({ read: readContainedRegularFile }),
-  inventory: createWorkspaceInventoryReader(),
-  authority: {
-    source: createSourceArchitecturePolicyReader({ readYaml: loadStrictYamlFile, assertSchema }),
-    suppressions: createSuppressionPolicyReader({ readYaml: loadStrictYamlFile, assertSchema }),
-  },
-};
-const configuration = createQualityConfigurationReader(loadStrictYamlFile, assertSchema);
-const reader = createQualityCoverageReader(ports, configuration, readContainedRegularFile);
+function observedPorts(read: QualityFileReader, readYaml: typeof loadStrictYamlFile) {
+  return {
+    census: createSourceCensusReader({ read }),
+    inventory: createWorkspaceInventoryReader({ read, readYaml }),
+    authority: {
+      source: createSourceArchitecturePolicyReader({ readYaml, assertSchema }),
+      suppressions: createSuppressionPolicyReader({ readYaml, assertSchema }),
+    },
+  };
+}
+const configuration = createQualityConfigurationReader(assertSchema, createStrictYamlFileLoader);
+const reader = createQualityCoverageReader(
+  observedPorts(readContainedRegularFile, loadStrictYamlFile),
+  configuration,
+  readContainedRegularFile,
+  observedPorts,
+);
 export const qualityCoverageCapability = createQualityCoverageCapability(reader);
 
 export function createQualityCommand(
@@ -38,9 +49,6 @@ export function createQualityCommand(
   return createQualityCoverageCommand(
     reader,
     createQualityToolProvider({
-      ports,
-      configuration,
-      readFile: readContainedRegularFile,
       executor,
       nodeExecutable,
       environment,

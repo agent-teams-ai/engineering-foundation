@@ -17,6 +17,12 @@ export function createSourceCensusReader(files: SourceWorkspaceFileReader): Sour
   const fileSystem = createSourceWorkspaceFileSystem(files);
   return {
     async read(input) {
+      if (
+        input.maxFiles !== undefined &&
+        (!Number.isSafeInteger(input.maxFiles) || input.maxFiles < 1)
+      ) {
+        throw new TypeError("Source census maxFiles must be a positive safe integer.");
+      }
       const root = await realpath(input.consumerRoot);
       const manifests = new RootPackageSourceScopes(
         root,
@@ -55,6 +61,16 @@ export function createSourceCensusReader(files: SourceWorkspaceFileReader): Sour
           ? {}
           : { generatedDirectories: input.generatedDirectories }),
         observeFile: (path) => {
+          if (
+            !filePaths.has(path) &&
+            input.maxFiles !== undefined &&
+            filePaths.size >= input.maxFiles
+          ) {
+            sourceTopologyInputError(
+              "SOURCE_FILE_LIMIT",
+              "Source census file count exceeded its caller budget.",
+            );
+          }
           filePaths.add(path);
         },
         budget: manifests.budget,

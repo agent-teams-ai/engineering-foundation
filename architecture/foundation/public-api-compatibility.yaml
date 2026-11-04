@@ -29,6 +29,9 @@ packages:
     tsconfigPath: packages/repository-mutation/tsconfig.json
     releasedBaselinePath: architecture/public-api/repository-mutation.json
     approvedBreakingChanges:
+      # ADR-0074 adds bounded optional read accounting to the existing ./node observer.
+      - fingerprint: sha256:e5e9917d9ec26bbee64bd39b3c58bb3bef94d2698de24a7f2aee0823c9d814ad
+        decisionId: ADR-0074
       - fingerprint: sha256:d9e941c4b83743f5785dc879e6e0161dd0e8e42dd31237c19c2805bdfff37be8
         decisionId: ADR-0054
   - packageName: "@agent-teams/engineering-foundation"
@@ -193,6 +196,8 @@ packages:
         declarationEntryPoint: packages/feature-module-standard/dist/fixtures.d.ts
       - exportPath: "./node"
         declarationEntryPoint: packages/feature-module-standard/dist/node.d.ts
+      - exportPath: "./quality-topology"
+        declarationEntryPoint: packages/feature-module-standard/dist/quality-topology.d.ts
     nonTypeExports:
       - exportPath: "./package.json"
         kind: data

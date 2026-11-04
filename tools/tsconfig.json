@@ -12,6 +12,7 @@
     "producer-source-dependencies.ts",
     "profile-projection.ts",
     "check-changed-repository.ts",
-    "typescript-admission.ts"
+    "typescript-admission.ts",
+    "quality-topology.ts"
   ]
 }

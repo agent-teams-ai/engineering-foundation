@@ -8,7 +8,7 @@ export function createQualityCoverageCapability(
 ): CapabilityDefinition {
   return {
     id: QUALITY_COVERAGE_ID,
-    configSchemaVersion: 1,
+    configSchemaVersion: 5,
     run: (invocation) => checkStaticQualityCoverage(invocation, reader),
   };
 }

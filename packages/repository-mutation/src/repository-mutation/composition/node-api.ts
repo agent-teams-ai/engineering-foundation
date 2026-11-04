@@ -28,3 +28,5 @@ export type {
 export type { DirectoryDurability } from "../adapters/node/node-directory-durability.js";
 export { NodeAtomicFileReplacementError } from "../adapters/node/node-atomic-file-replacement.js";
 export type { NodeAtomicFileReplacement } from "../adapters/node/node-atomic-file-replacement.js";
+
+export type { RetiredTemporaryInspectionBudget } from "../application/ports/retired-temporary-inspection-budget.js";

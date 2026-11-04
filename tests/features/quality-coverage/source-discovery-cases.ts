@@ -1,3 +1,4 @@
+import { qualitySessionFixture } from "./quality-session-fixture.ts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { join } from "node:path";
@@ -8,7 +9,6 @@ import {
   qualitySourceLanguage,
 } from "../../../packages/engineering-foundation/dist/features/quality-coverage/api.js";
 import {
-  mapQualityTopology,
   qualityScriptCommand,
   qualityString,
 } from "../../../packages/engineering-foundation/dist/features/quality-coverage/adapters/profile-input.js";
@@ -39,14 +39,15 @@ export function registerDiscoveryCases(): void {
     const report = await checkStaticQualityCoverage(
       { consumerRoot: "/unused", configPath: "quality.yaml" },
       {
-        read: async () => ({
-          ...classified,
-          routes: [],
-          requiredRoutes: [],
-          requiredSettings: [],
-          requiredSettingObservations: [],
-          settings: [],
-        }),
+        read: async () =>
+          qualitySessionFixture({
+            ...classified,
+            routes: [],
+            requiredRoutes: [],
+            requiredSettings: [],
+            requiredSettingObservations: [],
+            settings: [],
+          }),
       },
     );
     for (const name of ["native.c", "native.h", "unknown.future"]) {
@@ -94,14 +95,15 @@ export function registerDiscoveryCases(): void {
     const report = await checkStaticQualityCoverage(
       { consumerRoot: "/unused", configPath: "quality.yaml" },
       {
-        read: async () => ({
-          ...classified,
-          routes: [],
-          requiredRoutes: [],
-          requiredSettings: [],
-          requiredSettingObservations: [],
-          settings: [],
-        }),
+        read: async () =>
+          qualitySessionFixture({
+            ...classified,
+            routes: [],
+            requiredRoutes: [],
+            requiredSettings: [],
+            requiredSettingObservations: [],
+            settings: [],
+          }),
       },
     );
     assert.ok(
@@ -133,24 +135,28 @@ export function registerDiscoveryCases(): void {
       unclassified.sources.map(({ path }) => path),
       [native, header, main],
     );
-    assert.ok(unclassified.sources[0]);
+    assert.notEqual(unclassified.sources[0], undefined);
     assert.deepEqual(unclassified.sources[0].owners, []);
     const nativeRoot = `${moduleRoot}/native`;
     const classified = classifyQualityCensus({
       ...input,
-      topology: { ...topology, applicationRoots: [nativeRoot] },
+      topology: { ...topology, sourceRoots: [...topology.sourceRoots, nativeRoot] },
       authority: {
         ...authority,
         boundaries: [...authority.boundaries, { id: "native", roots: [nativeRoot] }],
       },
       suppressionRoots: [sourceRoot, nativeRoot],
     });
-    assert.ok(classified.sources[0]);
+    assert.notEqual(classified.sources[0], undefined);
     assert.deepEqual(classified.sources[0].owners, ["native"]);
     assert.equal(classified.sources[0].suppressionCovered, true);
     assert.ok(!classified.sources.some(({ path }) => path === harness));
   });
 
+  registerDeclarationAndSymlinkCases();
+}
+
+function registerDeclarationAndSymlinkCases(): void {
   void test("owned TypeScript declarations remain in the independent production census", async (t) => {
     const { put, census } = await fixture(t);
     const declarations = [
@@ -174,7 +180,7 @@ export function registerDiscoveryCases(): void {
     for (const declaration of declarations) {
       const source = classified.sources.find(({ path }) => path === declaration);
       assert.deepEqual(source?.owners, ["worker"]);
-      assert.equal(source?.suppressionCovered, true);
+      assert.equal(source.suppressionCovered, true);
       assert.equal(qualitySourceLanguage(declaration), "typescript");
     }
     for (const extension of ["ts", "tsx", "mts", "cts"]) {
@@ -195,67 +201,6 @@ export function registerDiscoveryCases(): void {
 }
 
 export function registerTopologyCases(): void {
-  void test("a v1.1 production mapping with a sub-feature and a composition contract reads the same topology as its v1 twin", () => {
-    const nested = (version: string, extra = {}) => ({
-      schemaVersion: 1,
-      authority: fmsStandard(version),
-      scope: {
-        workspaceContainers: ["packages"],
-        productionRoots: [sourceRoot],
-        productionModules: [{ moduleRoot, sourceRoot }],
-      },
-      adoption: {
-        applicationRoots: [],
-        excludedRoots: ["spikes"],
-        abstractLayout: { modules: [{ moduleRoot, sourceRoot, testRoot: `${moduleRoot}/tests` }] },
-      },
-      ...extra,
-    });
-    const flat = (version: string, extra = {}) => ({
-      schemaVersion: 1,
-      standard: fmsStandard(version),
-      topology: { sourcePolicy: "source.yaml" },
-      productionRoots: ["packages"],
-      applicationRoots: [],
-      excludedRoots: ["spikes"],
-      modules: [{ root: moduleRoot, sourceRoot, testRoots: [`${moduleRoot}/tests`] }],
-      ...extra,
-    });
-    const subFeature = {
-      features: [
-        {
-          id: "orders",
-          root: `${sourceRoot}/features/orders`,
-          features: [{ id: "discounts", root: `${sourceRoot}/features/orders/features/discounts` }],
-          compositionContract: `${sourceRoot}/features/orders/composition/orders.contracts.ts`,
-        },
-      ],
-    };
-    const profileCases: readonly [
-      (version: string, extra?: Record<string, unknown>) => unknown,
-      string,
-    ][] = [
-      [nested, "source.yaml"],
-      [flat, "source.yaml"],
-    ];
-    for (const [profile, source] of profileCases) {
-      assert.deepEqual(
-        mapQualityTopology(profile("v1.1", subFeature), source),
-        mapQualityTopology(profile("v1"), source),
-      );
-      assert.throws(() => mapQualityTopology(profile("v1.2"), source), /FMS v1 or v1\.1/u);
-      assert.throws(() => mapQualityTopology(profile("v2"), source), /FMS v1 or v1\.1/u);
-    }
-    assert.throws(
-      () =>
-        mapQualityTopology(
-          { ...nested("v1.1"), authority: { id: "agent-teams.other-standard", version: "v1.1" } },
-          "source.yaml",
-        ),
-      /FMS v1 or v1\.1/u,
-    );
-  });
-
   void test("package script command bounds use UTF-8 bytes without widening profile paths", () => {
     assert.equal(qualityScriptCommand("a".repeat(16384)).length, 16384);
     assert.equal(qualityScriptCommand("é".repeat(8192)).length, 8192);
@@ -267,5 +212,3 @@ export function registerTopologyCases(): void {
     assert.throws(() => qualityString("a".repeat(1025)), /bounded nonempty string/u);
   });
 }
-
-const fmsStandard = (version: string) => ({ id: "agent-teams.feature-module-standard", version });

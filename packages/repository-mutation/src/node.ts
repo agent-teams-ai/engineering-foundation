@@ -38,6 +38,7 @@ export {
 } from "./repository-mutation/adapters/node/node-cleanup-owned-temporary.js";
 export { cleanupIdentityMatchingOwnedTemporary } from "./composition/node-known-file.js";
 export { inspectRetiredTemporaryDuplicates } from "./composition/node-known-file.js";
+export type { RetiredTemporaryInspectionBudget } from "./composition/node-known-file.js";
 export {
   syncDirectoryDurably,
   syncDirectoryStrictly,

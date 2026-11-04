@@ -34,21 +34,21 @@ These terms describe different facts and must not be used interchangeably:
 - **consumer-enabled** means a consuming repository declares the capability in
   its own `foundation.config.yaml` with consumer-owned policy and evidence.
 
-| Capability | Implemented | Released | Dogfooded here | Consumer activation |
-| --- | --- | --- | --- | --- |
-| `workspace.dependency-declarations` | Yes | Yes | Yes | Only by explicit declaration |
-| `architecture.source-dependencies` | Yes | Yes | Yes | Only by explicit declaration |
-| `quality.suppression-governance` | Yes | Yes | Yes | Only by explicit declaration |
-| `quality.findings-baseline` | Yes, through the `baseline` commands | No | No | Only by explicit configuration file; not yet declarable in `foundation.config.yaml` |
-| `quality.executable-specifications` | Yes | Yes, since 0.10.0 | No donor catalog owned here | Only by explicit declaration after consumer qualification |
-| `package.public-api-compatibility` | Yes | Yes | Yes | Only by explicit declaration and release-owned baselines |
-| `repository.security-baseline` | Yes | Yes | Yes | Only for an applicable publishing repository |
-| `documentation.local-references` | Yes | Yes | Yes | Only by explicit declaration |
-| `governance.architecture-decisions` | Yes | Yes | Yes | Only by explicit declaration and baseline promotion |
-| `contract.protobuf-evolution` | Yes | Yes | No contract owned here | Only by explicit declaration and capability-qualification evidence |
-| `contract.json-schema-releases` | Yes | Yes | Yes, `docs-protocol-profile` v3 only | Only by explicit declaration and consumer evidence |
-| `repository.agent-workflow` | Yes | Yes | Yes | Only by explicit declaration |
-| `quality.gate-runner` | Yes | Yes, since 0.17.0 | Yes, after build | Only by explicit declaration |
+| Capability                          | Implemented                          | Released          | Dogfooded here                       | Consumer activation                                                                 |
+| ----------------------------------- | ------------------------------------ | ----------------- | ------------------------------------ | ----------------------------------------------------------------------------------- |
+| `workspace.dependency-declarations` | Yes                                  | Yes               | Yes                                  | Only by explicit declaration                                                        |
+| `architecture.source-dependencies`  | Yes                                  | Yes               | Yes                                  | Only by explicit declaration                                                        |
+| `quality.suppression-governance`    | Yes                                  | Yes               | Yes                                  | Only by explicit declaration                                                        |
+| `quality.findings-baseline`         | Yes, through the `baseline` commands | No                | No                                   | Only by explicit configuration file; not yet declarable in `foundation.config.yaml` |
+| `quality.executable-specifications` | Yes                                  | Yes, since 0.10.0 | No donor catalog owned here          | Only by explicit declaration after consumer qualification                           |
+| `package.public-api-compatibility`  | Yes                                  | Yes               | Yes                                  | Only by explicit declaration and release-owned baselines                            |
+| `repository.security-baseline`      | Yes                                  | Yes               | Yes                                  | Only for an applicable publishing repository                                        |
+| `documentation.local-references`    | Yes                                  | Yes               | Yes                                  | Only by explicit declaration                                                        |
+| `governance.architecture-decisions` | Yes                                  | Yes               | Yes                                  | Only by explicit declaration and baseline promotion                                 |
+| `contract.protobuf-evolution`       | Yes                                  | Yes               | No contract owned here               | Only by explicit declaration and capability-qualification evidence                  |
+| `contract.json-schema-releases`     | Yes                                  | Yes               | Yes, `docs-protocol-profile` v3 only | Only by explicit declaration and consumer evidence                                  |
+| `repository.agent-workflow`         | Yes                                  | Yes               | Yes                                  | Only by explicit declaration                                                        |
+| `quality.gate-runner`               | Yes                                  | Yes, since 0.17.0 | Yes, after build                     | Only by explicit declaration                                                        |
 
 Installing or upgrading the package changes none of the consumer activation
 cells. Each consumer records its own activation status in its repository.
@@ -94,14 +94,13 @@ packages.
 - A new or changed core capability never encodes the layout, vocabulary or
   visibility rules of one architecture, for example what a feature, a
   sub-feature, a layer or a contract surface is.
-- Known exception: `quality.source-coverage` reads its production topology only
-  from a Feature Module Standard v1 or v1.1 profile (`featureProfilePath`) and
-  rejects other profiles. It is not architecture-neutral until a neutral consumer-owned
-  topology input replaces that profile and the Feature Module Standard mapping
-  moves to the standard's opt-in package. That migration is a breaking change
-  of a released capability. Until then, changes to it may keep that dependency
-  and accept later versions of the same standard, but must not extend it to
-  another standard or capability.
+- `quality.source-coverage` v5 closes the former FMS exception: core consumes
+  neutral technical topology, while the opt-in Feature Module Standard package
+  owns its pure projection. Neither runtime nor type-only core imports depend
+  on that package. This deliberately replaces the released v1–v4 runtime
+  contracts in the next Foundation major; historical schema artifacts remain
+  byte-identical. See [ADR-0074](../decisions/0074-neutral-quality-inputs.md) and
+  the [consumer migration](../development/quality-v5-migration.md).
 - Checks for a standard that defines one architecture's layout or vocabulary,
   such as the organization Feature Module Standard, ship only as a separate
   opt-in package named after that standard. The normative text stays with the

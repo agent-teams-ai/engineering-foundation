@@ -135,11 +135,11 @@ void test("split lint preserves the original syntax scope and production typed p
 
 void test("actual typed selection equals authoritative quality production targets", async () => {
   const topology: unknown = JSON.parse(
-    readFileSync(join(root, "architecture/foundation/feature-modules.json"), "utf8"),
+    readFileSync(join(root, "architecture/foundation/quality-source-topology.json"), "utf8"),
   );
   const expected = qualitySourceTargets(
     roots.flatMap((directory) => census(join(root, directory))),
-    mapQualityTopology(topology, "architecture/foundation/source-dependencies.yaml"),
+    mapQualityTopology(topology),
     sourceAuthority(),
   );
   assert.ok(expected.length > 0);

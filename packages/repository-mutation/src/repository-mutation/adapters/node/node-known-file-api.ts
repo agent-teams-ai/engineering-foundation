@@ -110,8 +110,11 @@ export function createKnownFileNodeAdapter(coordination: KnownFileCoordination) 
     applyKnownFileTransactionWithFaults,
     classifyExactFilePostimage,
     cleanupIdentityMatchingOwnedTemporary,
-    inspectRetiredTemporaryDuplicates: (consumerRoot: string, filePaths: readonly string[]) =>
-      inspectDuplicates(coordination, consumerRoot, filePaths),
+    inspectRetiredTemporaryDuplicates: (
+      consumerRoot: string,
+      filePaths: readonly string[],
+      budget?: Parameters<typeof inspectDuplicates>[3],
+    ) => inspectDuplicates(coordination, consumerRoot, filePaths, budget),
     inspectKnownFileTransactionBarrier,
     prepareExactSiblingTemporary,
     prepareExactSiblingTemporaryWithFaults,

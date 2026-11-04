@@ -8,72 +8,28 @@ import {
   qualitySourceTargets,
   type ManagedProcessExecutor,
   type QualityFileReader,
-  type QualityObservationPorts,
   type QualityToolProvider,
   type ExplicitUnknownFinding,
 } from "../api.js";
-import {
-  readConfiguredQualityProfile,
-  type QualityConfigurationReader,
-} from "./consumer-observations.js";
 import { inspectConsumerToolchain } from "./consumer-toolchain.js";
 import { createOxlintSession } from "./oxlint-session.js";
-import { invalidQualityInput, mapQualityTopology } from "./profile-input.js";
+import { invalidQualityInput } from "./profile-input.js";
 
 /** Bind one invocation to consumer-local tools and the module-owned compiler projects. */
 export function createQualityToolProvider(input: {
-  readonly ports: QualityObservationPorts;
-  readonly configuration: QualityConfigurationReader;
-  readonly readFile: QualityFileReader;
   readonly executor: ManagedProcessExecutor;
   readonly nodeExecutable: string;
   readonly environment: Readonly<Record<string, string | undefined>>;
 }): QualityToolProvider {
   return {
-    async prepare(consumerRoot, configPath, sourcePaths, signal) {
+    async prepare(observed, sourcePaths, signal) {
       assertNotCancelled(signal);
-      const value = await input.configuration.read(
-        consumerRoot,
-        configPath,
-        "quality-profile",
-        signal,
-      );
-      await input.configuration.assertProfile(value);
-      const profile = await readConfiguredQualityProfile(
-        value,
-        consumerRoot,
-        input.configuration,
-        signal,
-      );
-      const topology = mapQualityTopology(
-        await input.configuration.read(
-          consumerRoot,
-          profile.featureProfilePath,
-          "quality-topology",
-          signal,
-        ),
-        profile.sourcePolicyPath,
-      );
-      const authority = await input.ports.authority.source(
-        consumerRoot,
-        profile.sourcePolicyPath,
-        signal,
-      );
-      const inventory = await input.ports.inventory.read(
-        consumerRoot,
-        authority.workspaceManifestPath,
-        signal,
-      );
-      const rootPackage = inventory.packages.find(
-        ({ manifestPath }) => manifestPath === "package.json",
-      );
-      if (rootPackage === undefined) {
-        invalidQualityInput("The consumer root package is missing from workspace observations.");
-      }
+      observed.remainingMs();
+      const { consumerRoot, profile, topology, authority } = observed;
       const tools = await inspectConsumerToolchain({
         consumerRoot,
-        dependencies: rootPackage.dependencies,
-        read: input.readFile,
+        dependencies: observed.dependencies,
+        read: observed.readToolFile,
         ...(signal === undefined ? {} : { signal }),
       });
       assertNotCancelled(signal);
@@ -88,6 +44,7 @@ export function createQualityToolProvider(input: {
           configPath: profile.lintConfigPath,
           sourceRoots: sourceTargets,
           projects: profile.compilerProjects,
+          remainingMs: () => observed.remainingMs(),
         },
         input.executor,
       );
@@ -95,20 +52,13 @@ export function createQualityToolProvider(input: {
         ...session,
         async explicitUnknown(scanSignal) {
           try {
-            const admissionValue =
-              profile.bridgeAdmissionsPath === undefined
-                ? undefined
-                : await input.configuration.read(
-                    consumerRoot,
-                    profile.bridgeAdmissionsPath,
-                    "quality-bridge-admissions",
-                    scanSignal,
-                  );
+            observed.remainingMs();
+            const admissionValue = await observed.readBridgeAdmissions(scanSignal);
             return await inspectExplicitUnknown({
               consumerRoot,
               paths: sourceTargets,
               admissionValue,
-              read: input.readFile,
+              read: observed.readFile,
               ...(scanSignal === undefined ? {} : { signal: scanSignal }),
             });
           } catch (error) {

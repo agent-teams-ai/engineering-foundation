@@ -75,6 +75,8 @@ editing the accepted decision.
 - [ADR-0050: Exact JSON Primitive Admission](0050-exact-json-primitive-admission.md)
 - [ADR-0051: Exact File Observation Contract](0051-exact-file-observation-contract.md)
 
+- [ADR-0074: Neutral Quality Inputs](0074-neutral-quality-inputs.md)
+
 ## Superseded
 
 - [ADR-0006: Closed Deterministic Scaffolding Compiler](0006-closed-deterministic-scaffolding-compiler.md)

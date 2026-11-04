@@ -78,7 +78,8 @@ The final report will give actual diff size and remaining bounded debt.
   bridge admissions, native gate wiring, governed assets and required scripts.
   Do not change source-language admission or expand native execution authority.
 - Add one positive, bounded invocation `budgetMs` to v5, following the existing
-  format-coverage convention. Repository adoption starts at 120000 ms. The
+  format-coverage convention. The initial repository estimate was 120000 ms;
+  measured complete qualification below establishes 300000 ms for adoption. The
   schema allows 1000–1800000 ms; a remaining budget is shared by observation,
   verification and tool stages, never reset per subprocess.
 - Preserve the requested schema version in all reports after its header is
@@ -232,7 +233,7 @@ reads, scans and batches; exhaustion starts no more children. Filesystem and
 synchronous parsing deadlines are cooperative. Existing bounded process cleanup
 grace remains permitted after timeout. No hard real-time cutoff is claimed.
 Dogfood hashing/verification duration, not merely stat timing, must qualify the
-120000 ms adopted budget. Research measured full-input census at 7865 files /
+300000 ms adopted budget. Research measured full-input census at 7865 files /
 36282624 bytes / maximum 844774 bytes. This is a checkpoint headroom measurement,
 not execution-time qualification.
 
@@ -306,7 +307,10 @@ the existing fail-before-effects unsupported-apply contract.
 
 Foundation needs a major Changeset for stopping execution of v1–v4. FMS receives
 the appropriate current 0.x minor for the added mapper and qualified peer range;
-Repository Mutation receives a patch for the input-boundary fix. Source package
+The original input-boundary fix alone required a Repository Mutation patch.
+Implementation review also required the bounded optional observer accounting
+argument: that public signature change raises the release intent to a minor,
+with its exact comparator fingerprint approved in ADR-0074. Source package
 versions and released baselines are not edited manually.
 
 Add a scoped accepted ADR, explicitly superseding the quality-runtime portion
@@ -419,4 +423,55 @@ branches are closed, with the full supported behavior qualified.
   contracts/compatibility. No blockers remained. The execution critic's final
   nonblocking correction removed an incomparable older census measurement from
   the headroom paragraph. This status/record update adds no implementation scope.
-- Implementation, installed E2E, repeated review and merge: pending.
+- Implementation round 1: independent architecture/input-coherence,
+  public-contract/consumer and scope/E2E reviewers identified three bounded
+  corrections. Node's cached package resolution did not prove fresh lint target
+  bindings; a narrow data-only JSON resolver now observes fresh manifests,
+  aliases and relevant absences, with unsupported export forms documented.
+  Retired-temporary duplicate reads bypassed quality's cumulative budget; the
+  existing owner now accepts optional accounting/deadline callbacks and keeps
+  all physical-custody checks. Source CLI fixtures trusted an unchecked report
+  cast; source and installed fixtures now share a narrow validated report reader.
+- Incremental round 2: the public-contract/consumer reviewer independently
+  reproduced the corrected report rejection and real hardlink/accounting cases.
+  An intermediate metadata-checkpoint gap was fixed. Stable actual byte reads,
+  conservative charges on unsuccessful reads and original identity comparisons
+  remain. These are worktree findings, not final-head qualification.
+- Integration has preserved the migrated test identities, strict inventories and
+  whole-report determinism. Real built CLI/source scenarios pass. Installed
+  candidate E2E, final-head review, complete native CI and merge remain pending.
+- Required changed-file typed lint also exposed the retained oversized packed
+  Docs consumer functions and package-manifest test callbacks in two touched
+  `.mjs` entrypoints. Their existing scenarios move into cohesive private strict
+  `.ts` helpers, keeping the entrypoints, phase/test order, installed tools,
+  artifact custody and assertions. This closes affected E2E maintenance debt;
+  it does not admit the deferred process-lifetime rewrite or another installer.
+- The repeated core review approved the corrected production worktree after
+  independently passing all 16 resolver/witness cases. Integration passed the
+  architecture check, 38 source/governed-asset cases after DI cleanup, strict
+  compilation, peer inventory and ordinary API compatibility. ADR-0074 was
+  added through the normal accepted-decision promotion; all 70 prior accepted
+  decision entries and released API/schema bytes remain unchanged.
+- The manifest extraction retained all 39 tests/subtests and passed its existing
+  suite plus strict typing/lint. An independent execution of the repository's
+  mandatory runner completed all three adopted quality identities after the
+  test-helper moves; helper source locations did not replace selected-entry
+  authority. Final source/head qualification still requires current PR review
+  and full-CI evidence; these focused results do not replace it.
+- Full repository dogfood exposed stale positions for seven retained canonical
+  JSON bridges after the Plan refactor. Only their exact positions/digests were
+  refreshed: six expressions are byte-identical, and the seventh now uses the
+  closed, owned `admitted` wire value. Independent Mutation review confirmed no
+  expansion of admission count, scope, rationales or rejecting-test ownership.
+- The initial 120000 ms whole-invocation estimate exhausted at 121118 ms. The
+  previous runtime applied 120000 ms to each child, so reusing that number for
+  all observation, verification and batches was not equivalent. A complete
+  measured run passed in 133780 ms with a 300000 ms repository budget: 16
+  selection batches, six compiler projects and 16 typed-lint batches all exited
+  successfully, followed by final input verification. A strict, test-owned
+  timing preloader forwarded native spawn arguments/results unchanged and wrote
+  observations outside the consumer. Two independent reviewers approved this
+  measured root-only correction. Per-child `min(120000, remaining)`, Windows
+  batching, source scope, three snapshots and all resource limits are unchanged.
+  The measurement supplies adoption headroom, not a cross-platform performance
+  guarantee; native qualification remains required.

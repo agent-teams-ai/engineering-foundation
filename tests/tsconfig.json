@@ -32,9 +32,6 @@
     "support/transaction-recovery-snapshot.ts",
     "support/transaction-recovery-cases.ts",
     "support/document-contract-evidence-cases.ts",
-    "features/quality-coverage/source-observation-fixture.ts",
-    "features/quality-coverage/source-census-cases.ts",
-    "features/quality-coverage/source-discovery-cases.ts",
     "public-api-growth-route-cases.ts",
     "support/public-api-growth-decision-cases.ts",
     "fixtures/feature-modules/factory-symbol-star-cases.ts",
@@ -85,9 +82,6 @@
     "github-release-reconciliation.test.ts",
     "npm-bootstrap-recovery.test.ts",
     "support/npm-bootstrap-recovery-fixtures.ts",
-    "features/quality-coverage/source-observation-fixture.ts",
-    "features/quality-coverage/source-census-cases.ts",
-    "features/quality-coverage/source-discovery-cases.ts",
     "producer-source-dependencies.test.ts",
     "support/npm-bootstrap-successor-fixtures.ts",
     "support/release-probe-attestations.ts",
@@ -96,6 +90,12 @@
     "source-inventory-observation.test.ts",
     "public-api-growth-input-stability-cases.ts",
     "support/repository-compiler-admission-cases.ts",
-    "repository-compiler-admission.test.ts"
+    "repository-compiler-admission.test.ts",
+    "features/quality-coverage/*.ts",
+    "feature-module-quality-topology.test.ts",
+    "known-file-transaction-admission.test.ts",
+    "pack-peer-release-cases.ts",
+    "pack-manifest-authority-cases.ts",
+    "pack-manifest-qualification-cases.ts"
   ]
 }

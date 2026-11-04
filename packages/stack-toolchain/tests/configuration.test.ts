@@ -446,3 +446,40 @@ void test("cleanup CLI follows native symlink parent traversal before admitting 
   assert.equal(fs.existsSync(canary), false);
   assert.match(fs.readFileSync(source, "utf8"), /\{ answer: 42 \}/u);
 });
+
+void test("cleanup API honors native cwd traversal and leaves sibling sources untouched", async (t) => {
+  const root = fixture();
+  t.after(() => {
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+  fs.mkdirSync(path.join(root, "actual", "inner"), { recursive: true });
+  fs.symlinkSync(
+    path.join(root, "actual", "inner"),
+    path.join(root, "linked"),
+    process.platform === "win32" ? "junction" : "dir",
+  );
+  const cwd = `${root}${path.sep}linked${path.sep}..`;
+  const files = [path.join(root, "index.ts"), path.join(root, "actual", "index.ts")];
+  const untouched = 'console.log({["unselected"]:99});\n';
+  for (const file of files) {
+    fs.writeFileSync(file, untouched);
+  }
+  // Raw IO establishes the caller-selected file independently of root normalization.
+  const selected = `${cwd}${path.sep}index.ts`;
+  fs.writeFileSync(selected, 'console.log({["selected"]:42});\n');
+  const siblings = files.filter((file) => fs.readFileSync(file, "utf8") === untouched);
+  assert.equal(siblings.length, 1);
+  for (const pass of [0, 1]) {
+    const report = await fixFiles({
+      cwd,
+      files: ["index.ts"],
+      signal: new AbortController().signal,
+    });
+    assert.equal(report.exitCode, 0, JSON.stringify(report));
+    assert.equal(report.details.completed, true);
+    assert.equal(report.details.sourceObservationComplete, true);
+    assert.deepEqual(report.details.changed, pass === 0 ? ["index.ts"] : []);
+    assert.equal(fs.readFileSync(selected, "utf8"), "console.log({ selected: 42 });\n");
+    assert.equal(fs.readFileSync(siblings[0]!, "utf8"), untouched);
+  }
+});

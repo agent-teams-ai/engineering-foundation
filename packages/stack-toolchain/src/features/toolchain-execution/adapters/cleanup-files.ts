@@ -310,7 +310,7 @@ export async function fixFiles(input: CleanupInput): Promise<CleanupReport> {
     const signal = window.signal;
     deadline = window.deadline;
     remaining(signal, deadline);
-    root = fs.realpathSync(input.cwd);
+    root = fs.realpathSync.native(input.cwd);
     const selected = selectFiles(input, root, signal, deadline);
     requested = selected.files;
     snapshots = selected.snapshots;

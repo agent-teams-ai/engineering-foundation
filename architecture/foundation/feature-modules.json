@@ -2160,6 +2160,8 @@
             {
               "role": "adapters",
               "roots": [
+                "packages/stack-toolchain/src/features/toolchain-execution/adapters/cleanup-cli.ts",
+                "packages/stack-toolchain/src/features/toolchain-execution/adapters/cleanup-files.ts",
                 "packages/stack-toolchain/src/features/toolchain-execution/adapters/commands.ts",
                 "packages/stack-toolchain/src/features/toolchain-execution/adapters/configuration.ts",
                 "packages/stack-toolchain/src/features/toolchain-execution/adapters/doctor.ts",

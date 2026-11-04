@@ -14,6 +14,7 @@
   "files": [
     "dist",
     "README.md",
+    "CLEANUP.md",
     "LICENSE",
     "CHANGELOG.md",
     "toolchain-manifest.json",
@@ -31,6 +32,8 @@
     "./presets/typescript/node.json": "./presets/typescript/node.json",
     "./presets/typescript/bun.json": "./presets/typescript/bun.json",
     "./presets/oxlint/base.json": "./presets/oxlint/base.json",
+    "./presets/oxlint/cleanup.json": "./presets/oxlint/cleanup.json",
+    "./presets/oxlint/cleanup-fix.json": "./presets/oxlint/cleanup-fix.json",
     "./presets/typescript/base.json": "./presets/typescript/base.json",
     "./presets/oxlint/maintainability-tests.json": "./presets/oxlint/maintainability-tests.json",
     "./presets/oxlint/maintainability.json": "./presets/oxlint/maintainability.json",

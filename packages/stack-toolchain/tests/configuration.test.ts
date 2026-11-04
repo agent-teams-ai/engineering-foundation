@@ -387,3 +387,62 @@ void test("cleanup preserves data-only symlink presets and rejects executable pa
     }
   }
 });
+
+void test("cleanup CLI follows native symlink parent traversal before admitting config", (t) => {
+  const root = fixture();
+  t.after(() => {
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+  fs.mkdirSync(path.join(root, "actual", "inner"), { recursive: true });
+  fs.symlinkSync(
+    path.join(root, "actual", "inner"),
+    path.join(root, "linked"),
+    process.platform === "win32" ? "junction" : "dir",
+  );
+  const source = path.join(root, "index.ts");
+  const before = 'console.log({["answer"]:42});\n';
+  fs.writeFileSync(source, before);
+  fs.writeFileSync(path.join(root, ".oxlintrc.json"), '{"extends":["./linked/../policy.json"]}');
+  const canary = path.join(root, "plugin-loaded");
+  const directories = [root, path.join(root, "actual")];
+  // Native JS plugin syntax is the rejecting fixture, never maintained application code.
+  for (const directory of directories) {
+    fs.writeFileSync(path.join(directory, "policy.json"), "{}");
+    fs.writeFileSync(
+      path.join(directory, "plugin.mjs"),
+      `import fs from "node:fs"; fs.writeFileSync(${JSON.stringify(canary)}, "loaded"); export default { meta: { name: "canary" }, rules: {} };`,
+    );
+  }
+  // Raw filesystem IO, not path.join/resolve, selects this platform's native parent.
+  const inherited = `${path.join(root, "linked")}${path.sep}..${path.sep}policy.json`;
+  fs.writeFileSync(inherited, '{"jsPlugins":["./plugin.mjs"]}');
+  const cli = fileURLToPath(new URL("../dist/cli.js", import.meta.url));
+  const invoke = () =>
+    spawnSync(
+      process.execPath,
+      [cli, "fix", "--json", "--lint-config", ".oxlintrc.json", "--", "index.ts"],
+      { cwd: root, encoding: "utf8", timeout: 10_000, killSignal: "SIGKILL" },
+    );
+  const rejected = invoke();
+  assert.ifError(rejected.error);
+  assert.equal(rejected.status, 2, rejected.stdout + rejected.stderr);
+  const report = JSON.parse(rejected.stdout) as CleanupReport;
+  assert.equal(report.details.failure, "TOOLCHAIN_LINT_CONFIG_EXECUTABLE");
+  assert.deepEqual(report.details.steps, []);
+  assert.deepEqual(report.details.attempted, []);
+  assert.equal(fs.existsSync(canary), false);
+  assert.equal(fs.readFileSync(source, "utf8"), before);
+  // An unselected sibling must not govern the inherited native configuration.
+  for (const directory of directories) {
+    fs.writeFileSync(path.join(directory, "policy.json"), '{"jsPlugins":["./plugin.mjs"]}');
+  }
+  fs.writeFileSync(
+    inherited,
+    '{"categories":{"correctness":"off"},"rules":{"no-useless-computed-key":"warn"}}',
+  );
+  const accepted = invoke();
+  assert.ifError(accepted.error);
+  assert.equal(accepted.status, 0, accepted.stdout + accepted.stderr);
+  assert.equal(fs.existsSync(canary), false);
+  assert.match(fs.readFileSync(source, "utf8"), /\{ answer: 42 \}/u);
+});

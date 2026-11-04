@@ -86,10 +86,13 @@ export function validateLintConfiguration(
   seen = new Set<string>(),
   active = new Set<string>(),
 ): void {
-  // Relative extends follow the requested path, not a symlink target's directory.
-  // Different aliases of one physical config can inherit different child files.
-  const resolved = path.resolve(filename);
-  const canonical = fs.realpathSync(resolved);
+  // Resolve the parent with native filesystem semantics, preserving symlink/.. order.
+  // A symlinked file inherits beside its requested name, not its physical target.
+  const resolved = path.join(
+    fs.realpathSync.native(path.dirname(filename)),
+    path.basename(filename),
+  );
+  const canonical = fs.realpathSync.native(resolved);
   if (
     active.has(resolved) ||
     seen.size >= 32 ||
@@ -137,7 +140,7 @@ export function validateLintConfiguration(
         }
         for (const entry of child as string[]) {
           validateLintConfiguration(
-            path.resolve(path.dirname(resolved), entry),
+            `${path.dirname(resolved)}${path.sep}${entry}`,
             syntaxOnly,
             seen,
             active,

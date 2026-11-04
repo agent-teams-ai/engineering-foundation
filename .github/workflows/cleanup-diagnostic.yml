@@ -24,7 +24,7 @@ jobs:
               if result.returncode:
                   raise RuntimeError(result.stderr.strip())
               return json.loads(result.stdout) if result.stdout.strip() else None
-          expected = '6ac8002ffa6059d41b47550c0218da0597ceb144'
+          expected = '6ef116c1ea9010569cfcfd827c7d72f9c3bf9e6b'
           expected_base = '99b7dac2fd3c3b2b1b024a8a640f6e13ec79dbef'
           def require_current():
               pr = api('/pulls/462')
@@ -34,8 +34,7 @@ jobs:
           pr = require_current()
           report = {'head': expected, 'base': expected_base, 'obsoleteRuns': [], 'runs': []}
           obsolete = {
-              41735881211: '7bce56f7de16b1437fa3849176c2346451ad6d51',
-              41737566598: '032717bc852753f5beec256c94d26690ae2662f4',
+              41746619985: '573992dd36acae631ad61ccaf6b5f558a50f7835',
           }
           for run_id, old_head in obsolete.items():
               run = api(f'/actions/runs/{run_id}')
@@ -53,7 +52,7 @@ jobs:
               observed = api(f'/actions/runs/{run_id}')
               item.update({'observedStatus': observed['status'], 'observedConclusion': observed['conclusion']})
               report['obsoleteRuns'].append(item)
-          for run_id in (41740969785, 41740895085, 41740895258):
+          for run_id in (41747135547, 41747100869, 41747100881, 41747157701):
               run = api(f'/actions/runs/{run_id}')
               jobs = []
               for page in range(1, 5):
@@ -80,7 +79,7 @@ jobs:
           require_current()
           (out / 'summary.json').write_text(json.dumps(report, indent=2) + '\n')
           print(json.dumps(report, indent=2))
-          print('Only the two enumerated obsolete runs were eligible for cancellation. Current runs, workflows, branches, protections and reviewer settings were not modified.')
+          print('Only the enumerated obsolete run was eligible for cancellation. Current runs, workflows, branches, protections and reviewer settings were not modified.')
           PY
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()

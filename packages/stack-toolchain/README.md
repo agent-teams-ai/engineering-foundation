@@ -263,8 +263,10 @@ the toolchain does not infer or install product-specific environment types.
 ## Opt-in cleanup
 
 Current source adds `stack-toolchain fix -- file...` and the separate
-`fixFiles` API for explicitly selected JS/TS files. It combines three native
+`fixFiles` API for explicitly selected JS/TS files. It combines two native
 syntax fixes with existing formatting; ordinary checks remain read-only.
+`prefer-const` is available as an optional diagnostic, not a default write rule,
+because dynamic eval can invalidate its binding analysis.
 Neither package installation nor upgrading enables writes or changes consumer
 lint policy. See [explicit-file cleanup](CLEANUP.md) for configuration, limits,
 partial-write reporting, standalone use and the Foundation source workflow.

@@ -199,6 +199,7 @@ void test("cleanup overlay cannot disable baseline categories or change other pl
     extends: ["./cleanup.json"],
     categories: { correctness: "off" },
     plugins: ["eslint"],
+    rules: { "prefer-const": "off" },
     options: { typeAware: false, typeCheck: false },
   });
 });
@@ -226,6 +227,7 @@ void test("cleanup native CLI preserves behavior, types, other files and second-
   const source = [
     'let value={ ["answer"]:42 };',
     "const { answer: answer } = value;",
+    'let evaluated = 1; const loopValues: number[] = []; eval("evaluated = 2"); for (let item of [1]) { eval("item = 2"); loopValues.push(item); }',
     "const source = [0, 1, 2];",
     "const copy = source.map(x => x); copy.push(3);",
     "const filtered = source.filter(x => x);",
@@ -234,7 +236,7 @@ void test("cleanup native CLI preserves behavior, types, other files and second-
     'const proto = { ["__proto__"]: 7 };',
     "let [stable, moving] = [1, 2]; moving += 1;",
     "const guard = (text: string | undefined): boolean => !!text;",
-    'console.log(JSON.stringify({ answer, source, copy, filtered, flat, transformed, proto, stable, moving, guard: guard("x") }));',
+    'console.log(JSON.stringify({ answer, evaluated, loopValues, source, copy, filtered, flat, transformed, proto, stable, moving, guard: guard("x") }));',
     "export { answer as answer };",
   ].join("\n");
   writeFileSync(join(root, "input.ts"), source);
@@ -287,7 +289,7 @@ void test("cleanup native CLI preserves behavior, types, other files and second-
   assert.ifError(result.error);
   assert.equal(result.status, 0, result.stdout + result.stderr);
   const after = readFileSync(join(root, "input.ts"), "utf8");
-  assert.match(after, /const value =/u);
+  assert.match(after, /let value =/u);
   assert.match(after, /const \{ answer \} = value/u);
   assert.match(after, /export \{ answer \}/u);
   assert.match(after, /\["__proto__"\]/u);

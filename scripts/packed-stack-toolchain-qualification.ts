@@ -356,7 +356,8 @@ export async function qualifyInstalledStackToolchain(consumerRoot: string): Prom
   assert.equal(formattingFailed, true);
   assert.equal(await readFile(join(root, "index.ts"), "utf8"), 'export const value:string="ready"');
   await writeFile(join(root, "index.ts"), original);
-  const cleanupSource = 'let value={ ["answer"]:42 };console.log(value.answer);\n';
+  const cleanupSource =
+    'let value={ ["answer"]:42 };let evaluated=1;eval("evaluated=2");console.log(value.answer,evaluated);\n';
   await writeFile(join(root, "cleanup-input.ts"), cleanupSource);
   await writeFile(join(root, "cleanup-other.ts"), cleanupSource);
   const cleanupBefore = await runCommand(process.execPath, ["cleanup-input.ts"], root);
@@ -378,7 +379,7 @@ export async function qualifyInstalledStackToolchain(consumerRoot: string): Prom
       sourceObservationComplete: true,
     });
     const source = await readFile(join(root, "cleanup-input.ts"), "utf8");
-    assert.match(source, /const value =/u);
+    assert.match(source, /let value =/u);
     assert.doesNotMatch(source, /\["answer"\]/u);
     if (pass === 1) {
       assert.equal(source, cleaned);

@@ -49,20 +49,29 @@ run the project's normal focused checks afterwards.
 
 ## Default rule selection
 
-| Native rule               | Why selected                                          | Boundaries                                                                                      |
-| ------------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `prefer-const`            | Communicates stable bindings without manual edits     | `destructuring: all`, `ignoreReadBeforeAssign: true`; no forced splitting of mixed declarations |
-| `no-useless-rename`       | Removes redundant import/export/destructuring aliases | Native safe fixes only                                                                          |
-| `no-useless-computed-key` | Removes redundant literal object keys                 | Class-member enforcement disabled; preserve special-key semantics                               |
+| Native rule               | Why selected                                          | Boundaries                                                                         |
+| ------------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `prefer-const`            | Optional stable-binding diagnostic, not a default fix | `destructuring: all`, `ignoreReadBeforeAssign: true`; disabled in the write preset |
+| `no-useless-rename`       | Removes redundant import/export/destructuring aliases | Native safe fixes only                                                             |
+| `no-useless-computed-key` | Removes redundant literal object keys                 | Class-member enforcement disabled; preserve special-key semantics                  |
 
 `cleanup.json` contains only rule settings and can be explicitly composed with a
 consumer's diagnostic configuration. It does not reset categories, plugins or
 typed options. Consumer overrides remain authoritative.
 
 `cleanup-fix.json` is instead an isolated write configuration: it disables default
-correctness-category selection and enables only the three chosen rules. Do not
-extend it from ordinary CI configuration; it is not a replacement for baseline
-correctness checking. There is one source for rule settings: `cleanup.json`.
+correctness-category selection and enables only `no-useless-rename` and
+`no-useless-computed-key` for automatic writes. Do not extend it from ordinary CI
+configuration; it is not a replacement for baseline correctness checking.
+Rule options still come from `cleanup.json`; the write preset explicitly opts out
+of `prefer-const`.
+
+The pinned Oxlint 1.83.0 `prefer-const` fixer changes working direct-eval code such
+as `let value = 1; eval("value = 2")` into a failing const assignment, including
+loop bindings. It remains an optional diagnostic, but the default cleanup writer
+must not perform that transformation. Consumer overrides can explicitly enable it
+for a separately qualified scope; no custom parser, eval ban or heuristic file
+scanner is added. Diagnostic availability does not authorize automatic mutation.
 
 For example, a consumer-owned `.oxlintrc.cleanup.json` may contain:
 
@@ -70,7 +79,7 @@ For example, a consumer-owned `.oxlintrc.cleanup.json` may contain:
 {
   "extends": ["./node_modules/stack-toolchain/presets/oxlint/cleanup-fix.json"],
   "rules": {
-    "prefer-const": "off"
+    "no-useless-rename": "off"
   }
 }
 ```

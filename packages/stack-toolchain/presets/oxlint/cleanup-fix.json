@@ -4,6 +4,7 @@
     "correctness": "off"
   },
   "plugins": ["eslint"],
+  "rules": { "prefer-const": "off" },
   "options": {
     "typeAware": false,
     "typeCheck": false

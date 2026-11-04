@@ -24,8 +24,8 @@ jobs:
               if result.returncode:
                   raise RuntimeError(result.stderr.strip())
               return json.loads(result.stdout) if result.stdout.strip() else None
-          expected = '6ef116c1ea9010569cfcfd827c7d72f9c3bf9e6b'
-          expected_base = '99b7dac2fd3c3b2b1b024a8a640f6e13ec79dbef'
+          expected = 'ac01d55e1a55ed6a7a4e53c74f9ea97219f44cc5'
+          expected_base = '1fb16560e6972909e68fb36b9b005bf16273cbea'
           def require_current():
               pr = api('/pulls/462')
               assert pr['state'] == 'open' and not pr['merged']
@@ -34,7 +34,8 @@ jobs:
           pr = require_current()
           report = {'head': expected, 'base': expected_base, 'obsoleteRuns': [], 'runs': []}
           obsolete = {
-              41746619985: '573992dd36acae631ad61ccaf6b5f558a50f7835',
+              41747135547: '6ef116c1ea9010569cfcfd827c7d72f9c3bf9e6b',
+              41750377421: '76e1021ca028b3da3b36cac8e1a9b0e18917850a',
           }
           for run_id, old_head in obsolete.items():
               run = api(f'/actions/runs/{run_id}')
@@ -52,7 +53,7 @@ jobs:
               observed = api(f'/actions/runs/{run_id}')
               item.update({'observedStatus': observed['status'], 'observedConclusion': observed['conclusion']})
               report['obsoleteRuns'].append(item)
-          for run_id in (41747135547, 41747100869, 41747100881, 41747157701):
+          for run_id in (41750883183, 41750837894, 41750838013, 41750869890):
               run = api(f'/actions/runs/{run_id}')
               jobs = []
               for page in range(1, 5):
@@ -79,7 +80,7 @@ jobs:
           require_current()
           (out / 'summary.json').write_text(json.dumps(report, indent=2) + '\n')
           print(json.dumps(report, indent=2))
-          print('Only the enumerated obsolete run was eligible for cancellation. Current runs, workflows, branches, protections and reviewer settings were not modified.')
+          print('Only the enumerated obsolete runs were eligible for cancellation. Current runs, workflows, branches, protections and reviewer settings were not modified.')
           PY
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()

@@ -1,6 +1,6 @@
 import { realpath } from "node:fs/promises";
 import { createRequire } from "node:module";
-import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { invalidQualityInput, qualityRecord } from "./quality-input-values.js";
 import type { QualityResolutionBinding } from "./quality-input-witness.js";
 
@@ -96,13 +96,14 @@ export async function resolveQualityJsonConfig(input: {
   readonly request: string;
   readonly read: DataReader;
   readonly observeBinding: (binding: QualityResolutionBinding) => Promise<void>;
-}): Promise<string> {
+}): Promise<{ readonly target: string; readonly context: string }> {
   const { root, issuer, request, read, observeBinding } = input;
   assertQualityReference(request);
   const aliases: { path: string; target: string | null }[] = [];
   let logicalTarget: string | undefined;
   if (request.startsWith("./") || request.startsWith("../")) {
-    logicalTarget = resolve(dirname(issuer), request);
+    // Native parent traversal must see symlink/.. before lexical normalization.
+    logicalTarget = `${dirname(issuer)}${sep}${request}`;
   } else {
     const segments = request.split("/");
     const length = request.startsWith("@") ? 2 : 1;
@@ -141,10 +142,20 @@ export async function resolveQualityJsonConfig(input: {
       "An installed or relative JSON lint configuration is missing or outside the consumer.",
     );
   }
-  const target = await existing(logicalTarget);
+  const logicalParent = dirname(logicalTarget);
+  const parent = await existing(logicalParent);
+  if (parent === undefined || !contained(root, parent)) {
+    invalidQualityInput(
+      "A JSON lint configuration parent is missing or escapes the consumer root.",
+    );
+  }
+  // A file alias inherits beside its requested name; only byte reads use its physical target.
+  const context = join(parent, basename(logicalTarget));
+  const target = await existing(context);
   if (target === undefined || !contained(root, target)) {
     invalidQualityInput("A JSON lint configuration is missing or escapes the consumer root.");
   }
+  aliases.push({ path: logicalParent, target: parent });
   await observeBinding({ issuer, request, logicalTarget, aliases, target });
-  return target;
+  return { target, context };
 }

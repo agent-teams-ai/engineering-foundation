@@ -2,10 +2,11 @@ import assert from "node:assert/strict";
 import { mkdtemp, realpath, mkdir, rename, rm, symlink, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import test from "node:test";
 import { createStrictYamlFileLoader } from "../../../packages/engineering-foundation/dist/features/configuration-input/node.js";
 import { resolveQualityJsonConfig } from "../../../packages/engineering-foundation/dist/features/quality-coverage/adapters/quality-config-resolution.js";
+import { inspectProtectedConfig } from "../../../packages/engineering-foundation/dist/features/quality-coverage/adapters/protected-config.js";
 import { createQualityInputWitness } from "../../../packages/engineering-foundation/dist/features/quality-coverage/adapters/quality-input-witness.js";
 import { readContainedRegularFile } from "../../../packages/engineering-foundation/dist/source-inventory/node.js";
 
@@ -31,14 +32,16 @@ async function fixture() {
         return { filePaths: ["package.json"], sourcePaths: [], manifestPaths: ["package.json"] };
       },
     });
-    const resolve = (request = "lint-preset/config.json") =>
-      resolveQualityJsonConfig({
+    const resolve = async (request = "lint-preset/config.json") => {
+      const resolved = await resolveQualityJsonConfig({
         root,
         issuer,
         request,
         read: (directory, path) => readYaml(directory, path, "resolution-test"),
         observeBinding: (binding) => witness.bindResolution(binding),
       });
+      return resolved.target;
+    };
     return { witness, resolve };
   };
   return {
@@ -49,6 +52,127 @@ async function fixture() {
     dispose: () => rm(root, { recursive: true, force: true }),
   };
 }
+
+async function protectionFixture() {
+  const temporary = await fixture();
+  const stack = join(temporary.root, "node_modules", "stack-toolchain");
+  await mkdir(join(stack, "presets", "oxlint"), { recursive: true });
+  await writeFile(
+    join(stack, "package.json"),
+    JSON.stringify({ name: "stack-toolchain", exports: { "./package.json": "./package.json" } }),
+  );
+  await writeFile(
+    join(stack, "presets", "oxlint", "type-aware.json"),
+    JSON.stringify({ rules: { "typescript/no-explicit-any": "error" } }),
+  );
+  await writeFile(join(stack, "presets", "oxlint", "maintainability.json"), '{"rules":{}}');
+  const inspect = async (references: readonly string[]) => {
+    await writeFile(
+      join(temporary.root, "lint.json"),
+      JSON.stringify({
+        extends: references,
+        options: {
+          typeAware: true,
+          respectEslintDisableDirectives: false,
+          reportUnusedDisableDirectives: "error",
+        },
+        rules: { "typescript/no-explicit-any": "error" },
+      }),
+    );
+    const { witness } = await temporary.observe();
+    const readYaml = createStrictYamlFileLoader({ read: witness.read });
+    const result = await inspectProtectedConfig(
+      temporary.root,
+      "lint.json",
+      (directory, path) => readYaml(directory, path, "protected-resolution-test"),
+      { files: [], production: [], tests: [] },
+      (binding) => witness.bindResolution(binding),
+    );
+    return { result, witness };
+  };
+  return { ...temporary, inspect };
+}
+
+void test("protected lint closure follows each requested file alias and binds its parent", async () => {
+  const temporary = await protectionFixture();
+  try {
+    const actual = join(temporary.packageRoot, "actual");
+    const first = join(temporary.packageRoot, "first");
+    const second = join(temporary.packageRoot, "second");
+    const linked = join(temporary.packageRoot, "linked");
+    for (const directory of [actual, first, second]) {
+      await mkdir(directory);
+      await writeFile(join(directory, "policy.json"), "{}");
+    }
+    await writeFile(
+      join(actual, "bridge.json"),
+      JSON.stringify({
+        extends: ["./policy.json"],
+        rules: { "typescript/no-explicit-any": "error" },
+      }),
+    );
+    for (const directory of [first, second]) {
+      await symlink(join(actual, "bridge.json"), join(directory, "bridge.json"), "file");
+    }
+    await symlink(first, linked, "junction");
+    const direct = "./node_modules/lint-preset/actual/bridge.json";
+    const alias = "./node_modules/lint-preset/linked/bridge.json";
+    await writeFile(join(first, "policy.json"), '{"jsPlugins":[]}');
+    await assert.rejects(temporary.inspect([direct, alias]), /Executable Oxlint plugins/u);
+
+    await writeFile(join(first, "policy.json"), '{"rules":{"typescript/no-explicit-any":"off"}}');
+    const weakened = await temporary.inspect([direct, alias]);
+    assert.ok(
+      weakened.result.settings.some(
+        (setting) => setting.name === "typescript/no-explicit-any" && setting.actual === "off",
+      ),
+    );
+    const identities = weakened.result.requiredSettingObservations.map(
+      ({ observationId }) => observationId,
+    );
+    assert.equal(new Set(identities).size, identities.length);
+
+    // A file alias inherits beside its requested name, not beside the physical target.
+    await writeFile(join(actual, "policy.json"), '{"jsPlugins":[]}');
+    await writeFile(join(first, "policy.json"), "{}");
+    const observed = await temporary.inspect([alias]);
+    await observed.witness.verify();
+    await rm(linked);
+    await symlink(second, linked, "junction");
+    assert.equal(await realpath(join(linked, "bridge.json")), join(actual, "bridge.json"));
+    await assert.rejects(observed.witness.verify(), /aliases changed/u);
+  } finally {
+    await temporary.dispose();
+  }
+});
+
+void test("protected lint closure follows native symlink parent traversal", async () => {
+  const temporary = await protectionFixture();
+  try {
+    const actual = join(temporary.packageRoot, "actual");
+    await mkdir(join(actual, "inner"), { recursive: true });
+    await symlink(join(actual, "inner"), join(temporary.packageRoot, "linked"), "junction");
+    const candidates = [join(temporary.packageRoot, "policy.json"), join(actual, "policy.json")];
+    const nativePath = `${temporary.packageRoot}${sep}linked${sep}..${sep}policy.json`;
+    const reference = "./node_modules/lint-preset/linked/../policy.json";
+    for (const candidate of candidates) {
+      await writeFile(candidate, "{}");
+    }
+    // Raw filesystem IO selects the platform's native parent before any lexical collapse.
+    await writeFile(nativePath, '{"jsPlugins":[]}');
+    await assert.rejects(temporary.inspect([reference]), /Executable Oxlint plugins/u);
+    for (const candidate of candidates) {
+      await writeFile(candidate, '{"jsPlugins":[]}');
+    }
+    await writeFile(nativePath, "{}");
+    const observed = await temporary.inspect([reference]);
+    await observed.witness.verify();
+    await writeFile(nativePath, '{"rules":{"typescript/no-explicit-any":"off"}}');
+    await assert.rejects(observed.witness.verify(), /changed/u);
+  } finally {
+    await temporary.dispose();
+  }
+});
 
 void test("fresh exact exports derive from observed manifest even after an earlier Node resolution", async () => {
   const temporary = await fixture();

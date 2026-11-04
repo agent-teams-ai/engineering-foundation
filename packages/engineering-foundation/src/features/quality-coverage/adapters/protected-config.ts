@@ -104,7 +104,7 @@ async function protectedRules(
   observeBinding: (binding: QualityResolutionBinding) => Promise<void>,
 ): Promise<{ rules: ReadonlyMap<string, unknown>; typedPath: string }> {
   const issuer = join(consumerRoot, "package.json");
-  const target = await resolveQualityJsonConfig({
+  const { target } = await resolveQualityJsonConfig({
     root: consumerRoot,
     issuer,
     request: "stack-toolchain/package.json",
@@ -138,19 +138,21 @@ async function configPath(
   reference: string,
   read: DataReader,
   observeBinding: (binding: QualityResolutionBinding) => Promise<void>,
-): Promise<string> {
+): Promise<{ readonly path: string; readonly context: string }> {
   if (!reference.endsWith(".json") || isAbsolute(reference)) {
     invalidQualityInput("V1 quality coverage accepts contained JSON Oxlint configuration only.");
   }
-  const path = await resolveQualityJsonConfig({
+  const resolved = await resolveQualityJsonConfig({
     root: physicalRoot,
     issuer: join(physicalRoot, dirname(from), "package.json"),
     request: reference,
     read,
     observeBinding,
   });
-  const suffix = relative(physicalRoot, path);
-  return suffix.split(sep).join("/");
+  return {
+    path: relative(physicalRoot, resolved.target).split(sep).join("/"),
+    context: relative(physicalRoot, resolved.context).split(sep).join("/"),
+  };
 }
 
 function requiredRuleAssignments(
@@ -270,18 +272,19 @@ export async function inspectProtectedConfig(
   }
   let typed = false;
   let rootOptions: Record<string, unknown> = {};
-  async function visit(path: string): Promise<void> {
-    if (active.has(path)) {
+  async function visit(input: { readonly path: string; readonly context: string }): Promise<void> {
+    const { path, context } = input;
+    if (active.has(context)) {
       invalidQualityInput("Oxlint extends contains a cycle.");
     }
-    if (seen.has(path)) {
+    if (seen.has(context)) {
       return;
     }
     if (seen.size >= 32) {
       invalidQualityInput("Oxlint configuration exceeds the qualified JSON closure limit.");
     }
-    seen.add(path);
-    active.add(path);
+    seen.add(context);
+    active.add(context);
     const value = qualityRecord(await read(root, path));
     if (value["jsPlugins"] !== undefined) {
       invalidQualityInput(
@@ -291,25 +294,31 @@ export async function inspectProtectedConfig(
     for (const reference of value["extends"] === undefined
       ? []
       : qualityStrings(value["extends"])) {
-      await visit(await configPath(physicalRoot, path, reference, read, observeBinding));
+      await visit(await configPath(physicalRoot, context, reference, read, observeBinding));
     }
     const rules = value["rules"] === undefined ? {} : qualityRecord(value["rules"]);
     for (const name of Object.keys(rules)) {
       assigned.add(name);
     }
-    inspectAssignments(path, "rules", rules);
+    inspectAssignments(context, "rules", rules);
     retainStrongerCeilings(rules, required);
     if (value["options"] !== undefined) {
       const options = qualityRecord(value["options"]);
       if (options["typeCheck"] === true) {
         invalidQualityInput("Oxlint semantic typeCheck is outside the standalone lint contract.");
       }
-      if (path === lintPath) {
+      if (context === lintPath) {
         rootOptions = options;
       }
       if (options["typeAware"] !== undefined) {
         if (typed) {
-          inspectOption(path, "options", "typeAware", "true", scalarSetting(options["typeAware"]));
+          inspectOption(
+            context,
+            "options",
+            "typeAware",
+            "true",
+            scalarSetting(options["typeAware"]),
+          );
         }
         typed = options["typeAware"] === true;
       }
@@ -330,12 +339,17 @@ export async function inspectProtectedConfig(
           continue;
         }
         const testOnly = isTestOnlyOverride(override, scope);
-        inspectAssignments(path, `override:${index}`, qualityRecord(override["rules"]), testOnly);
+        inspectAssignments(
+          context,
+          `override:${index}`,
+          qualityRecord(override["rules"]),
+          testOnly,
+        );
       }
     }
-    active.delete(path);
+    active.delete(context);
   }
-  await visit(lintPath);
+  await visit({ path: lintPath, context: lintPath });
   for (const [name, expected] of [
     ["respectEslintDisableDirectives", "false"],
     ["reportUnusedDisableDirectives", "error"],

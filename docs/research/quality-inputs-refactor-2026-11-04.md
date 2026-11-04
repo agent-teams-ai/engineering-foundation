@@ -475,3 +475,80 @@ branches are closed, with the full supported behavior qualified.
   batching, source scope, three snapshots and all resource limits are unchanged.
   The measurement supplies adoption headroom, not a cross-platform performance
   guarantee; native qualification remains required.
+
+### Reconciliation with the concurrently merged Stack cleanup change
+
+The reviewed head `34cc50a2e341e597accf104042739000b9725b43` completed all 35
+effective jobs in full CI run `41883509672`, attempt 2, against
+`1fb16560e6972909e68fb36b9b005bf16273cbea`. Independent Windows, Linux installed
+and Darwin audits confirmed the mandatory identities, real input-drift rejection,
+public Mutation consumer, process conformance and artifact custody.
+
+The final merge preflight then found actual `main` at
+`b66641cad3e4ff2042872a8a1b66214cc775d5d2` after PR #462 merged. The PR API still
+reported the older base. The completed run therefore qualifies only its recorded
+tuple; the independent main-branch read remains required before final merge.
+
+Three independent roles reviewed this bounded reconciliation plan before edits:
+quality architecture/execution, scope/E2E preservation, and Mutation/public
+contracts/owner identity. All approved the following scope:
+
+1. Merge the new main commit into the reviewed head, preserving both parents and
+   all 20 mainline file changes. The four shared files have disjoint additions:
+   `AGENTS.md`, FMS ownership, public data exports and source dependency roots.
+2. Regenerate quality topology through its existing owner generator. Only the
+   FMS provenance hash should change; projected source/test roots and the v5
+   profile remain identical. Preserve the new opt-in cleanup API, presets,
+   tests, installed consumer probe and release intent from main.
+3. Keep ADR-0074, historical baselines, the 49-schema catalog, the Foundation
+   2935-member bound, complete test inventories and mandatory identities intact.
+   Ordinary quality routes retain their read-only behavior. Main's cleanup
+   fixture remains separate from the root/flat/nested quality consumers.
+4. Validate the combined build, strict/architecture/API gates, topology freshness
+   and the existing affected Stack and quality tests. Apply the new cleanup
+   instruction only to explicitly selected task-owned JS/TS edits. The initial
+   merge required only generated JSON and this execution record; the subsequent
+   semantic review below admits a bounded correction in the existing resolver.
+5. Independently review the actual combined tree, create an owner-authored
+   two-parent commit through the GitHub integration and immediately advance the
+   feature branch with the expected old head. Main retains its ordinary squash
+   merge policy. Re-read the complete PR source-commit list after its base updates.
+6. Obtain a fresh complete native matrix on the new head/current main tuple.
+   Revalidate actual main, PR refs, source identity, reviews and all aggregate
+   results before merging, then verify the resulting main commit and its CI.
+
+This reconciliation admits no additional refactoring or public contract change.
+
+#### Combined-input semantic review
+
+The initial merge-only tree `cc5c1c2965299bd55be55ddda8fc30e2a2022954` preserved
+both parents and passed 48 focused checks plus `check:fast`. Scope and public
+contract reviewers confirmed that preservation. The quality critic nevertheless
+found a concrete mismatch with the native inheritance semantics established by
+main's Stack tests: a symlinked JSON file inherits beside its requested filename,
+and a directory symlink followed by `..` needs native filesystem resolution.
+Foundation instead traversed from the physical target and normalized `..` early,
+which could inspect a different installed sibling policy from the real tool.
+Preservation and green existing tests therefore did not close this integration.
+
+All three independent roles approved this narrower correction before its edits:
+
+- Keep the physical file for the existing strict reader, fingerprints and trusted
+  installed-preset exemption. Keep a separate native requested context for
+  inheritance, cycle detection, the 32-context bound and unique observation IDs.
+- Resolve the raw requested parent before appending the requested basename. Bind
+  both that parent and the requested file through the existing alias witness.
+  Pass only canonical physical paths to the strict reader; its normalization and
+  the witness's physical-byte accounting remain unchanged.
+- Limit production changes to the existing private resolver and protected-config
+  traversal. Preserve root admission, exact export support, absence observations,
+  cancellation/deadlines and all resource limits. No new public API, resolver
+  framework, dependency or witness interface is admitted.
+- Add focused controls in existing test entrypoints: file-alias inheritance with
+  opposing sibling policies and a valid counterpart; native directory-link/`..`
+  traversal; and parent retargeting that preserves the final physical file.
+  Include repeated physical bytes under different requested contexts to protect
+  closure accounting and observation-ID uniqueness. Retain existing regressions.
+- Review the actual correction independently, record its final diff size, and
+  qualify the new head/base. The line-count estimate does not justify deleting
+  these controls or admitting unrelated edge cases.

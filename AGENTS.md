@@ -35,6 +35,11 @@ Hard rules:
   route and preserve the complete test inventories; Node type stripping is not
   type checking;
 - use conventional commits and short feature branches;
+- after a source build, use `node packages/stack-toolchain/dist/cli.js fix -- <file...>`
+  for mechanical cleanup of explicitly selected JS/TS files owned by the current
+  task; follow [cleanup scope and failure handling](packages/stack-toolchain/CLEANUP.md).
+  Never select another agent's files or protected/generated artifacts merely
+  because they appear in `git diff`. Cleanup does not replace the checks below;
 - run `bun tools/dev.mts check:changed` while editing and `bun tools/dev.mts check:fast` before handoff;
 - before opening a pull request, run `bun tools/dev.mts check:changed`, `bun tools/dev.mts check:fast`,
   `bun tools/dev.mts security:workflows`, and focused checks for the changed behavior;

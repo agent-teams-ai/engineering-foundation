@@ -56,25 +56,56 @@ function paths(value: unknown): readonly string[] {
   }
   return result;
 }
-function validateLintConfiguration(
+function readLintConfiguration(filename: string): string {
+  // O_NONBLOCK makes rejecting an inherited FIFO independent of a writer opening it.
+  const flags =
+    fs.constants.O_RDONLY | (process.platform === "win32" ? 0 : fs.constants.O_NONBLOCK);
+  const fd = fs.openSync(filename, flags);
+  try {
+    const stat = fs.fstatSync(fd);
+    if (!stat.isFile()) {
+      throw new Error("TOOLCHAIN_LINT_CONFIG_FILE");
+    }
+    // Keep the existing decoded-length limit, but bound allocation before reading UTF-8.
+    const maxLength = 1_000_000;
+    if (stat.size > maxLength * 4) {
+      throw new Error("TOOLCHAIN_LINT_CONFIG_LIMIT");
+    }
+    const source = fs.readFileSync(fd, "utf8");
+    if (source.length > maxLength) {
+      throw new Error("TOOLCHAIN_LINT_CONFIG_LIMIT");
+    }
+    return source;
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+export function validateLintConfiguration(
   filename: string,
   syntaxOnly: boolean,
   seen = new Set<string>(),
   active = new Set<string>(),
 ): void {
-  const canonical = fs.realpathSync(filename);
-  if (active.has(canonical) || seen.size >= 32 || !/\.jsonc?$/u.test(canonical)) {
+  // Resolve the parent with native filesystem semantics, preserving symlink/.. order.
+  // A symlinked file inherits beside its requested name, not its physical target.
+  const resolved = path.join(
+    fs.realpathSync.native(path.dirname(filename)),
+    path.basename(filename),
+  );
+  const canonical = fs.realpathSync.native(resolved);
+  if (
+    active.has(resolved) ||
+    seen.size >= 32 ||
+    [resolved, canonical].some((item) => !/\.jsonc?$/u.test(item))
+  ) {
     throw new Error("TOOLCHAIN_LINT_CONFIG_EXECUTABLE_OR_CYCLE");
   }
-  if (seen.has(canonical)) {
+  if (seen.has(resolved)) {
     return;
   }
-  seen.add(canonical);
-  active.add(canonical);
-  const source = fs.readFileSync(canonical, "utf8");
-  if (source.length > 1_000_000) {
-    throw new Error("TOOLCHAIN_LINT_CONFIG_LIMIT");
-  }
+  seen.add(resolved);
+  active.add(resolved);
+  const source = readLintConfiguration(canonical);
   const errors: ParseError[] = [];
   const value: unknown = parse(source, errors, { allowTrailingComma: true });
   if (errors.length) {
@@ -109,7 +140,7 @@ function validateLintConfiguration(
         }
         for (const entry of child as string[]) {
           validateLintConfiguration(
-            path.resolve(path.dirname(canonical), entry),
+            `${path.dirname(resolved)}${path.sep}${entry}`,
             syntaxOnly,
             seen,
             active,
@@ -121,7 +152,7 @@ function validateLintConfiguration(
     }
   };
   inspect(value);
-  active.delete(canonical);
+  active.delete(resolved);
 }
 function lintScope(root: string, value: unknown, syntaxOnly: boolean): LintScope {
   const scope = object(value, ["config", "paths"]);

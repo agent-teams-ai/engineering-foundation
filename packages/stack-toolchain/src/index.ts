@@ -22,3 +22,9 @@ export type {
   AttemptRecord,
   TypecheckDependencies,
 } from "./features/toolchain-execution/application/typecheck.js";
+export { fixFiles } from "./features/toolchain-execution/adapters/cleanup-files.js";
+export type {
+  CleanupInput,
+  CleanupReport,
+  CleanupStep,
+} from "./features/toolchain-execution/adapters/cleanup-files.js";

@@ -38,7 +38,7 @@ export interface CommandReport {
   readonly versions: unknown;
 }
 const executor = createProcessExecutor(createNodeProcessAdapter());
-async function execute(
+export async function execute(
   executable: CheckerExecutable,
   args: readonly string[],
   cwd: string,
@@ -100,7 +100,7 @@ function checkExit(
   }
   return result.code === "TOOLCHAIN_CANCELLED" && callerSignal.aborted ? 130 : 2;
 }
-function assertRuntime(): void {
+export function assertRuntime(): void {
   const [major, minor] = process.versions.node.split(".").map(Number);
   if (
     process.release.name !== "node" ||

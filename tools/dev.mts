@@ -26,6 +26,7 @@ import { resolveQualificationExecutables, verifySupportedNode } from "./executab
 import { assertOwnedProfileRoot, assertExplicitSourceGitAuthority } from "./profile-root.mts";
 import { withoutGitRepositorySelectors } from "./git-environment.ts";
 import { copySourceTree, sourceTreeDigest } from "./profile-source.ts";
+import { admitRepositoryTypeScript } from "./typescript-admission.ts";
 export { copySourceTree, sourceTreeDigest } from "./profile-source.ts";
 export { assertExplicitSourceGitAuthority } from "./profile-root.mts";
 
@@ -423,7 +424,7 @@ async function build(profile: Profile, sourceOwned = false): Promise<number> {
   return run(
     tools.node,
     [
-      resolve(root, "node_modules/typescript/bin/tsc"),
+      (await admitRepositoryTypeScript(root)).entry,
       "--build",
       "tsconfig.json",
       "--pretty",

@@ -118,6 +118,7 @@ async function packagePhaseSource(root: string): Promise<void> {
         catalog: {},
         catalogs: {},
         overrides: {},
+        devDependencies: { typescript: "7.0.2" },
       },
       null,
       2,
@@ -137,6 +138,47 @@ async function packagePhaseSource(root: string): Promise<void> {
       join(root, "architecture/foundation", path),
     );
   }
+}
+
+/** Metadata/projection test double: only the dispatch marker executes, not a compiler. */
+async function prepareCompilerSentinel(root: string, marker: string): Promise<void> {
+  const compiler = join(root, "node_modules/typescript");
+  const nativeName = `@typescript/typescript-${process.platform}-${process.arch}`;
+  const native = join(root, "node_modules", nativeName);
+  await mkdir(join(compiler, "bin"), { recursive: true });
+  await mkdir(join(compiler, "lib"), { recursive: true });
+  await mkdir(join(native, "lib"), { recursive: true });
+  await writeFile(
+    join(compiler, "package.json"),
+    JSON.stringify({
+      name: "typescript",
+      version: "7.0.2",
+      type: "module",
+      bin: { tsc: "./bin/tsc" },
+      imports: { "#getExePath": "./lib/getExePath.js" },
+      optionalDependencies: { [nativeName]: "7.0.2" },
+    }),
+  );
+  await writeFile(
+    join(compiler, "bin/tsc"),
+    `import { writeFileSync } from "node:fs"; writeFileSync(${JSON.stringify(marker)}, "compiler");`,
+  );
+  for (const path of ["lib/tsc.js", "lib/getExePath.js"]) {
+    await writeFile(join(compiler, path), "// Metadata-admitted fixture; not executed.\n");
+  }
+  await writeFile(
+    join(native, "package.json"),
+    JSON.stringify({
+      name: nativeName,
+      version: "7.0.2",
+      exports: { "./package.json": "./package.json" },
+    }),
+  );
+  await writeFile(
+    join(native, "lib", process.platform === "win32" ? "tsc.exe" : "tsc"),
+    "inert native fixture; never executed\n",
+    { mode: 0o755 },
+  );
 }
 
 export async function packagePhaseFixture(repositoryRoot: string) {
@@ -203,11 +245,7 @@ export async function packagePhaseFixture(repositoryRoot: string) {
     targetRoot,
     sourceSha: authority.sourceCommit,
   });
-  await mkdir(join(targetRoot, "node_modules/typescript/bin"), { recursive: true });
-  await writeFile(
-    join(targetRoot, "node_modules/typescript/bin/tsc"),
-    `require("node:fs").writeFileSync(${JSON.stringify(compilerMarker)}, "compiler");`,
-  );
+  await prepareCompilerSentinel(targetRoot, compilerMarker);
   await mkdir(join(targetRoot, "node_modules/.pnpm"), { recursive: true });
   await writeFile(join(targetRoot, "node_modules/.pnpm/lock.yaml"), "lockfileVersion: '9.0'\n");
   const runtime = await resolveQualificationExecutables("bun");

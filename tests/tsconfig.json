@@ -92,6 +92,10 @@
     "support/npm-bootstrap-successor-fixtures.ts",
     "support/release-probe-attestations.ts",
     "support/release-freshness-git.ts",
-    "support/release-section-cases.ts"
+    "support/release-section-cases.ts",
+    "source-inventory-observation.test.ts",
+    "public-api-growth-input-stability-cases.ts",
+    "support/repository-compiler-admission-cases.ts",
+    "repository-compiler-admission.test.ts"
   ]
 }

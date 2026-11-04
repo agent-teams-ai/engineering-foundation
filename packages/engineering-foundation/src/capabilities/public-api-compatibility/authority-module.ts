@@ -5,7 +5,7 @@ import {
   readContainedRegularFile,
 } from "../../source-inventory/node.js";
 import { createWorkspaceInventoryReader } from "../../workspace-inventory/module.js";
-import { assertGrowthReportDestination } from "./adapters/inbound/configuration/parse-growth-config.js";
+import { assertGrowthReportDestination } from "./application/policies/growth-report-destination.js";
 import {
   loadCapabilityConfig,
   type PublicApiConfigurationDependencies,

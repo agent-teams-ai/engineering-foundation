@@ -11,7 +11,7 @@ import {
   symlink,
   writeFile,
 } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { assertOwnedProfileRoot } from "../../tools/profile-root.mts";
@@ -241,6 +241,91 @@ export async function isFile(path: string): Promise<boolean> {
     () => false,
   );
 }
+
+void test("profile projection preserves nested source names while excluding only owned generated roots", async (context) => {
+  const parent = await mkdtemp(join(profilesTemporaryParent(), "projection-source-names-"));
+  context.after(() => rm(parent, { recursive: true, force: true }));
+  const source = join(parent, "source");
+  const copied = join(parent, "copied");
+  const preserved = [
+    "packages/example/src/coverage/policy.ts",
+    "packages/example/src/.cache/input.ts",
+    "tests/fixtures/.nx/evidence.json",
+    "tests/fixtures/.worker-tmp/input.txt",
+    "tests/fixtures/.pnpm-store/input.txt",
+    "tests/fixtures/.coverage-evidence/input.json",
+    "tools/coverage",
+    "tools/.cache",
+    "tools/node_modules",
+    "packages/example/src/dist/source.ts",
+    "LICENSE",
+  ];
+  if (process.platform !== "win32") {
+    preserved.push(
+      "literal\\path.txt",
+      "literal/path.txt",
+      "packages\\literal/LICENSE",
+      "packages\\literal/dist/definition.ts",
+    );
+  }
+  const generated = [
+    ".git/HEAD",
+    ".cache/generated",
+    ".nx/generated",
+    ".worker-tmp/generated",
+    ".pnpm-store/generated",
+    ".coverage-evidence/generated",
+    "coverage/generated",
+    "node_modules/generated",
+    "packages/example/node_modules/generated",
+    "packages/example/dist/generated",
+    "packages/example/LICENSE",
+    "build.tsbuildinfo",
+    ".agent-teams-runtime-profile.json",
+  ];
+  for (const path of [...preserved, ...generated]) {
+    await mkdir(dirname(join(source, path)), { recursive: true });
+    await writeFile(join(source, path), path);
+  }
+  await mkdir(join(source, "packages/linked"), { recursive: true });
+  await symlink(
+    join(source, "node_modules"),
+    join(source, "packages/linked/node_modules"),
+    "junction",
+  );
+  const initial = await sourceTreeDigest(source);
+  await writeFile(join(source, ".cache/generated"), "generated churn");
+  assert.equal(await sourceTreeDigest(source), initial);
+  await writeFile(join(source, "packages/example/src/coverage/policy.ts"), "changed source");
+  assert.notEqual(await sourceTreeDigest(source), initial);
+  if (process.platform !== "win32") {
+    for (const path of ["literal\\path.txt", "literal/path.txt"]) {
+      const before = await sourceTreeDigest(source);
+      await writeFile(join(source, path), `independently changed ${path}`);
+      assert.notEqual(await sourceTreeDigest(source), before);
+    }
+  }
+  await copySourceTree(source, copied);
+  for (const path of preserved) {
+    assert.equal(
+      await readFile(join(copied, path), "utf8"),
+      await readFile(join(source, path), "utf8"),
+    );
+  }
+  for (const path of generated) {
+    await assert.rejects(readFile(join(copied, path)), { code: "ENOENT" });
+  }
+  await assert.rejects(readFile(join(copied, "packages/linked/node_modules/generated")), {
+    code: "ENOENT",
+  });
+  assert.equal(await sourceTreeDigest(copied), await sourceTreeDigest(source));
+  // A linked-worktree marker is an ordinary file, but still root Git metadata.
+  await rm(join(source, ".git"), { recursive: true });
+  await writeFile(join(source, ".git"), "gitdir: /an/uncopied/worktree\n");
+  assert.equal(await sourceTreeDigest(source), await sourceTreeDigest(copied));
+  await copySourceTree(source, copied);
+  await assert.rejects(readFile(join(copied, ".git")), { code: "ENOENT" });
+});
 
 export function profilesTemporaryParent(): string {
   return resolve(repositoryRoot, ".worker-tmp/profiles");

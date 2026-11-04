@@ -42,15 +42,27 @@ function inventoriedShards(
   return result;
 }
 
+function inventoriedPathGroups(value: unknown): Record<string, readonly string[]> {
+  assert.ok(value !== null && typeof value === "object" && !Array.isArray(value));
+  return Object.fromEntries(
+    Object.entries(value).map(([id, files]) => [id, inventoriedPaths(files)]),
+  );
+}
+
 async function repositoryManifest(): Promise<WindowsTestManifest> {
   const manifest = await validateTestManifests();
-  const additionalTestsByShard: Record<string, readonly string[]> = {};
-  for (const [id, files] of Object.entries(manifest.coverageConfig.additionalTestsByShard)) {
-    additionalTestsByShard[id] = inventoriedPaths(files);
-  }
+  const coverageConfig: unknown = manifest.coverageConfig;
+  assert.ok(
+    coverageConfig !== null &&
+      typeof coverageConfig === "object" &&
+      "additionalTestsByShard" in coverageConfig,
+  );
+  const additionalTestsByShard = inventoriedPathGroups(coverageConfig.additionalTestsByShard);
+  const testCount: unknown = manifest.testCount;
+  assert.ok(typeof testCount === "number");
   return {
     tests: inventoriedPaths(manifest.tests),
-    testCount: manifest.testCount,
+    testCount,
     shards: inventoriedShards(manifest.shards),
     coverageShards: inventoriedShards(manifest.coverageShards),
     coverageConfig: { additionalTestsByShard },
@@ -80,7 +92,7 @@ function fixture() {
   };
   const coverageShards = new Map<string, string[]>();
   for (const [id, files] of shards) {
-    coverageShards.set(id, [...files, ...additionalTestsByShard[id]!]);
+    coverageShards.set(id, [...files, ...additionalTestsByShard[id]]);
   }
   const tests = [...coverageShards.values()].flat();
   return {
@@ -120,7 +132,7 @@ function selectFixtureLanePaths(
   });
 }
 
-test("five fixed Windows lanes retain exact real canonical inventory and mandatory files", async () => {
+void test("five fixed Windows lanes retain exact real canonical inventory and mandatory files", async () => {
   const manifest = await repositoryManifest();
   const before = structuredClone(manifest);
   const ids = ["1", "2", "3", "4", "5", "6", "7", "8"];
@@ -152,43 +164,55 @@ test("five fixed Windows lanes retain exact real canonical inventory and mandato
       canonical.indexOf(qualificationCohort),
       canonical.indexOf(canaryGeneration3),
     ],
-    [14, 33, 107, 142, 223],
+    [14, 33, 108, 143, 224],
   );
-  const lanePolicy = JSON.parse(
+  const lanePolicy: unknown = JSON.parse(
     await readFile(new URL("../tests/manifests/windows-lanes.v1.json", import.meta.url), "utf8"),
   );
-  assert.deepEqual(Object.fromEntries(byLane), lanePolicy.lanes);
+  assert.ok(lanePolicy !== null && typeof lanePolicy === "object" && "lanes" in lanePolicy);
+  const lanePaths = inventoriedPathGroups(lanePolicy.lanes);
+  assert.deepEqual(Object.fromEntries(byLane), lanePaths);
   const laneB = byLane.get("b")!;
   assert.ok(laneB.indexOf(successor) < laneB.indexOf(comparator));
   for (const [lane, files] of byLane) {
     assert.ok(files.length > 0);
-    assert.deepEqual(files, lanePolicy.lanes[lane]);
+    assert.deepEqual(files, lanePaths[lane]);
   }
   assert.deepEqual(selectTestShardPaths(manifest, ids, false, "linux", "x64"), canonical);
   assert.deepEqual(
-    selectTestShardPaths(manifest, ids, true, "linux", "x64").toSorted(),
+    inventoriedPaths(selectTestShardPaths(manifest, ids, true, "linux", "x64")).toSorted(),
     manifest.tests.toSorted(),
   );
-  const contract: { required: readonly { file: string }[] } = JSON.parse(
+  const contract: unknown = JSON.parse(
     await readFile(
       new URL("../architecture/foundation/node-test-execution.json", import.meta.url),
       "utf8",
     ),
   );
-  for (const { file } of contract.required) {
+  assert.ok(contract !== null && typeof contract === "object" && "required" in contract);
+  assert.ok(Array.isArray(contract.required));
+  const required: readonly unknown[] = contract.required;
+  for (const entry of required) {
+    assert.ok(
+      entry !== null &&
+        typeof entry === "object" &&
+        "file" in entry &&
+        typeof entry.file === "string",
+    );
+    const file = entry.file;
     assert.equal(selected.filter((path) => path === file).length, 1, file);
   }
   assert.deepEqual(manifest, before);
 });
 
-test("new canonical files fail closed until explicitly assigned to the Windows policy", () => {
+void test("new canonical files fail closed until explicitly assigned to the Windows policy", () => {
   for (const id of ["1", "2", "3", "4", "5", "6", "7", "8"]) {
     const manifest = fixture();
     const added = `tests/future-shard-${id}.test.mts`;
     manifest.shards.get(id)!.push(added);
     manifest.coverageShards.set(id, [
       ...manifest.shards.get(id)!,
-      ...manifest.coverageConfig.additionalTestsByShard[id]!,
+      ...manifest.coverageConfig.additionalTestsByShard[id],
     ]);
     manifest.tests.push(added);
     manifest.testCount += 1;
@@ -210,7 +234,7 @@ test("new canonical files fail closed until explicitly assigned to the Windows p
   }
 });
 
-test("runtime Windows policy rejects open, malformed and unsupported configuration", () => {
+void test("runtime Windows policy rejects open, malformed and unsupported configuration", () => {
   const policy = fixturePolicy();
   const invalid: readonly [string, unknown][] = [
     ["null policy", null],
@@ -250,7 +274,7 @@ test("runtime Windows policy rejects open, malformed and unsupported configurati
   }
 });
 
-test("every lane rejects policy omission, duplicate, raw-only, Linux-only and loader contamination", () => {
+void test("every lane rejects policy omission, duplicate, raw-only, Linux-only and loader contamination", () => {
   const policy = fixturePolicy();
   const invalid: readonly [string, unknown][] = [
     ["missing canonical path", { ...policy.lanes, a: ["tests/a.test.mjs"] }],
@@ -283,7 +307,7 @@ test("every lane rejects policy omission, duplicate, raw-only, Linux-only and lo
   }
 });
 
-test("Windows selection rejects partial, unknown and duplicated inventory before dispatch", () => {
+void test("Windows selection rejects partial, unknown and duplicated inventory before dispatch", () => {
   const mutations: readonly [string, (manifest: ReturnType<typeof fixture>) => void][] = [
     [
       "missing canonical id",
@@ -337,7 +361,7 @@ test("Windows selection rejects partial, unknown and duplicated inventory before
     [
       "duplicate canonical assignment",
       (manifest) => {
-        const duplicated = manifest.shards.get("1")![0]!;
+        const duplicated = manifest.shards.get("1")![0];
         manifest.shards.get("2")!.unshift(duplicated);
         manifest.coverageShards.get("2")!.unshift(duplicated);
       },
@@ -345,7 +369,7 @@ test("Windows selection rejects partial, unknown and duplicated inventory before
     [
       "duplicate test identity",
       (manifest) => {
-        manifest.tests.push(manifest.tests[0]!);
+        manifest.tests.push(manifest.tests[0]);
         manifest.testCount += 1;
       },
     ],
@@ -381,7 +405,7 @@ test("Windows selection rejects partial, unknown and duplicated inventory before
   }
 });
 
-test("missing or moved pinned loader and an empty residual lane cannot dispatch", () => {
+void test("missing or moved pinned loader and an empty residual lane cannot dispatch", () => {
   for (const destination of [undefined, "2"]) {
     const manifest = fixture();
     for (const shards of [manifest.shards, manifest.coverageShards]) {
@@ -410,9 +434,9 @@ test("missing or moved pinned loader and an empty residual lane cannot dispatch"
   );
 });
 
-test("Windows selection retains the managed-platform inventory authority", () => {
+void test("Windows selection retains the managed-platform inventory authority", () => {
   const manifest = fixture();
-  const removed = linuxOnly[0]!;
+  const removed = linuxOnly[0];
   for (const shards of [manifest.shards, manifest.coverageShards]) {
     shards.set(
       "4",
@@ -427,7 +451,7 @@ test("Windows selection retains the managed-platform inventory authority", () =>
   );
 });
 
-test("closed Windows CLI preserves shard mode and rejects invalid dispatch and coverage", () => {
+void test("closed Windows CLI preserves shard mode and rejects invalid dispatch and coverage", () => {
   const manifest = fixture();
   const parsed = parseTestShardArguments([
     "--",

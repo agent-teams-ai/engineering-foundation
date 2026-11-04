@@ -72,28 +72,24 @@ async function writeRepositoryQualityFixture(root: string, repositoryRoot: strin
       },
     ],
   });
-  await put("features.json", {
+  await put("topology.json", {
     schemaVersion: 1,
-    standard: { id: "agent-teams.feature-module-standard", version: "v1" },
-    productionRoots: ["packages"],
-    applicationRoots: [],
+    censusRoots: ["packages"],
+    packageRoots: [".", "packages/worker"],
+    sourceRoots: ["packages/worker/src"],
+    testRoots: ["packages/worker/tests"],
     excludedRoots: [],
-    topology: { sourcePolicy: "source.yaml" },
-    modules: [
-      {
-        root: "packages/worker",
-        sourceRoot: "packages/worker/src",
-        testRoots: ["packages/worker/tests"],
-      },
-    ],
+    toolingFiles: [],
   });
+  await put("toolchain.config.json", { typecheck: { projects: ["config/production.json"] } });
   await put("quality.yaml", {
-    schemaVersion: 1,
+    schemaVersion: 5,
+    budgetMs: 120000,
     sourcePolicyPath: "source.yaml",
     suppressionPolicyPath: "suppressions.yaml",
-    featureProfilePath: "features.json",
+    topologyPath: "topology.json",
     lintConfigPath: "lint.json",
-    compilerProjects: ["config/production.json"],
+    toolchainConfigPath: "toolchain.config.json",
     scripts: { fast: "check:fast", full: "check", scope: "quality:scope", typed: "lint:typed" },
   });
   await put("foundation.config.yaml", {

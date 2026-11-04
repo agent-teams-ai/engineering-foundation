@@ -34,11 +34,7 @@ export type {
   QualityDependencyDeclaration,
   QualityFileReader,
 } from "./application/input-observations.js";
-export type {
-  QualityCoverageProfile,
-  QualityTopology,
-  QualitySourceAuthority,
-} from "./application/profile.js";
+export type { QualityCoverageProfile, QualityTopology } from "./application/profile.js";
 export type { ProtectedSetting, RequiredProtectedSetting } from "./application/model.js";
 export type { QualityObservationPorts } from "./application/observation-input.js";
 

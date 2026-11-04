@@ -33,6 +33,7 @@ const enumeratedNonV1SchemaPathsByRoot = new Map([
       "schemas/quality-source-coverage/v2.schema.json",
       "schemas/quality-source-coverage/v3.schema.json",
       "schemas/quality-source-coverage/v4.schema.json",
+      "schemas/quality-source-coverage/v5.schema.json",
       "schemas/repository-agent-workflow/v2.schema.json",
       "schemas/workspace-dependency-declarations/v2.schema.json",
     ],
@@ -99,6 +100,72 @@ function assertOwnedNumericDiscriminatorsAreV1(value, source) {
     assertOwnedNumericDiscriminatorsAreV1(child, source);
   }
 }
+
+const versionedContractLiterals =
+  /(?:schemaVersion|protocolVersion|producerVersion):\s*([2-9]|[1-9][0-9]+)\b/gu;
+const enumeratedVersionedSourceLiteralsByRoot = new Map([
+  [
+    packageRoot,
+    {
+      "src/capabilities/repository-agent-workflow/application/model/check-changed.ts": [2],
+      "src/capabilities/repository-agent-workflow/adapters/inbound/configuration/parse-agent-workflow-policy-v2.ts":
+        [2, 2],
+      "src/capabilities/public-api-compatibility/adapters/inbound/configuration/parse-growth-config.ts":
+        [2],
+      "src/capabilities/public-api-compatibility/application/model/growth-configuration.ts": [2],
+      "src/capabilities/source-dependencies/application/model/source-workspace.ts": [2, 3],
+      "src/capabilities/source-dependencies/adapters/inbound/configuration/parse-capability-config.ts":
+        [3, 2],
+      "src/transaction-coordination/adapters/node/schema6-transaction-status.ts": [6],
+      "src/features/quality-coverage/adapters/profile-input.ts": [5],
+      "src/features/quality-coverage/application/profile.ts": [5],
+    },
+  ],
+  [
+    documentAuthoringPackageRoot,
+    {
+      "src/document-authoring/adapters/node/load-validated-document-authoring-profile-v2.ts": [2],
+      "src/document-authoring/adapters/node/node-document-parent-materializer.ts": [2],
+      "src/document-authoring/application/model/document-authoring-profile-description.ts": [2, 3],
+      "src/document-authoring/application/model/document-command.ts": [2],
+      "src/document-authoring/application/model/document-parent-materialization.ts": [2],
+      "src/document-authoring/application/model/document-planning.ts": [2, 2],
+      "src/document-authoring/application/model/document-receipt.ts": [2, 2],
+      "src/document-authoring/application/model/document-transaction-inspection.ts": [2, 2, 2],
+      "src/document-authoring/application/model/document-transaction.ts": [2, 3, 3, 4],
+      "src/document-authoring/application/policies/document-authoring-semantic-digests.ts": [2],
+      "src/document-authoring/application/policies/document-command-projection.ts": [2],
+      "src/document-authoring/application/policies/document-receipt-policy.ts": [2, 2, 2, 2],
+      "src/document-authoring/application/policies/document-transaction-envelope-body.ts": [
+        3, 2, 2, 2, 2, 4, 3, 3, 3, 3, 3,
+      ],
+      "src/document-authoring/application/policies/document-transaction-envelope-policy.ts": [4],
+      "src/document-authoring/application/use-cases/apply-document-plan.ts": [2, 2],
+      "src/document-authoring/application/use-cases/compile-document-plan.ts": [2, 2],
+      "src/document-authoring/application/use-cases/document-parent-materialization-continuation.ts":
+        [2],
+      "src/document-authoring/application/use-cases/document-transaction-continuation.ts": [2],
+      "src/document-authoring/application/use-cases/document-transaction-receipts.ts": [2, 2],
+      "src/document-authoring/application/use-cases/recapture-directory-receipt-evidence.ts": [2],
+      "src/document-authoring/application/use-cases/recover-document-transaction.ts": [2, 2],
+      "src/document-authoring/application/policies/project-document-authoring-description.ts": [
+        2, 3,
+      ],
+      "src/document-authoring/adapters/node/inspect-document-transaction.ts": [2, 2, 2],
+      "src/document-authoring/application/policies/project-document-transaction-inspection.ts": [
+        2, 2, 2,
+      ],
+      "src/document-authoring/application/model/validated-document-authoring-profile.ts": [2, 3],
+    },
+  ],
+  [
+    repositoryMutationPackageRoot,
+    {
+      "src/repository-mutation/application/model/known-file-transaction-journal.ts": [6],
+      "src/transaction-coordination/application/repository-mutation-envelope.ts": [6, 6],
+    },
+  ],
+]);
 
 test("ships only enumerated schema and persisted envelope generations", async () => {
   for (const [ownerRoot, enumeratedNonV1SchemaPaths] of enumeratedNonV1SchemaPathsByRoot) {
@@ -168,71 +235,6 @@ test("ships only enumerated schema and persisted envelope generations", async ()
     }
   }
 
-  const versionedContractLiterals =
-    /(?:schemaVersion|protocolVersion|producerVersion):\s*([2-9]|[1-9][0-9]+)\b/gu;
-  const enumeratedVersionedSourceLiteralsByRoot = new Map([
-    [
-      packageRoot,
-      {
-        "src/capabilities/repository-agent-workflow/application/model/check-changed.ts": [2],
-        "src/capabilities/repository-agent-workflow/adapters/inbound/configuration/parse-agent-workflow-policy-v2.ts":
-          [2, 2],
-        "src/capabilities/public-api-compatibility/adapters/inbound/configuration/parse-growth-config.ts":
-          [2],
-        "src/capabilities/public-api-compatibility/application/model/growth-configuration.ts": [2],
-        "src/capabilities/source-dependencies/application/model/source-workspace.ts": [2, 3],
-        "src/capabilities/source-dependencies/adapters/inbound/configuration/parse-capability-config.ts":
-          [3, 2],
-        "src/transaction-coordination/adapters/node/schema6-transaction-status.ts": [6],
-      },
-    ],
-    [
-      documentAuthoringPackageRoot,
-      {
-        "src/document-authoring/adapters/node/load-validated-document-authoring-profile-v2.ts": [2],
-        "src/document-authoring/adapters/node/node-document-parent-materializer.ts": [2],
-        "src/document-authoring/application/model/document-authoring-profile-description.ts": [
-          2, 3,
-        ],
-        "src/document-authoring/application/model/document-command.ts": [2],
-        "src/document-authoring/application/model/document-parent-materialization.ts": [2],
-        "src/document-authoring/application/model/document-planning.ts": [2, 2],
-        "src/document-authoring/application/model/document-receipt.ts": [2, 2],
-        "src/document-authoring/application/model/document-transaction-inspection.ts": [2, 2, 2],
-        "src/document-authoring/application/model/document-transaction.ts": [2, 3, 3, 4],
-        "src/document-authoring/application/policies/document-authoring-semantic-digests.ts": [2],
-        "src/document-authoring/application/policies/document-command-projection.ts": [2],
-        "src/document-authoring/application/policies/document-receipt-policy.ts": [2, 2, 2, 2],
-        "src/document-authoring/application/policies/document-transaction-envelope-body.ts": [
-          3, 2, 2, 2, 2, 4, 3, 3, 3, 3, 3,
-        ],
-        "src/document-authoring/application/policies/document-transaction-envelope-policy.ts": [4],
-        "src/document-authoring/application/use-cases/apply-document-plan.ts": [2, 2],
-        "src/document-authoring/application/use-cases/compile-document-plan.ts": [2, 2],
-        "src/document-authoring/application/use-cases/document-parent-materialization-continuation.ts":
-          [2],
-        "src/document-authoring/application/use-cases/document-transaction-continuation.ts": [2],
-        "src/document-authoring/application/use-cases/document-transaction-receipts.ts": [2, 2],
-        "src/document-authoring/application/use-cases/recapture-directory-receipt-evidence.ts": [2],
-        "src/document-authoring/application/use-cases/recover-document-transaction.ts": [2, 2],
-        "src/document-authoring/application/policies/project-document-authoring-description.ts": [
-          2, 3,
-        ],
-        "src/document-authoring/adapters/node/inspect-document-transaction.ts": [2, 2, 2],
-        "src/document-authoring/application/policies/project-document-transaction-inspection.ts": [
-          2, 2, 2,
-        ],
-        "src/document-authoring/application/model/validated-document-authoring-profile.ts": [2, 3],
-      },
-    ],
-    [
-      repositoryMutationPackageRoot,
-      {
-        "src/repository-mutation/application/model/known-file-transaction-journal.ts": [6],
-        "src/transaction-coordination/application/repository-mutation-envelope.ts": [6, 6],
-      },
-    ],
-  ]);
   for (const [
     ownerRoot,
     enumeratedVersionedSourceLiterals,

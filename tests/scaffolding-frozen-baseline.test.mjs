@@ -270,6 +270,8 @@ test("freezes the runtime, filesystem, and published schema allowlists", async (
     "schemas/quality-source-coverage/v2.schema.json",
     "schemas/quality-source-coverage/v3.schema.json",
     "schemas/quality-source-coverage/v4.schema.json",
+    "schemas/quality-source-coverage/v5.schema.json",
+    "schemas/quality-source-topology/v1.schema.json",
     "schemas/quality-format-coverage/v1.schema.json",
     "schemas/repository-agent-workflow/v2.schema.json",
     "schemas/workspace-dependency-declarations/v2.schema.json",

@@ -43,11 +43,13 @@ async function assertReleasedSchemaInventory(): Promise<void> {
     "foundation-config/v3",
     "quality-format-coverage/v1",
     "quality-source-coverage/v4",
+    "quality-source-coverage/v5",
+    "quality-source-topology/v1",
   ];
   assert.equal(new Set(releasedIds).size, releasedIds.length);
   assert.equal(releasedIds.filter((id) => !additionalSchemaIds.includes(id)).length, 44);
   const expectedIds = new Set([...releasedIds, ...additionalSchemaIds]);
-  assert.equal(expectedIds.size, 47);
+  assert.equal(expectedIds.size, 49);
   assert.deepEqual(FOUNDATION_SCHEMA_IDS.toSorted(), [...expectedIds].toSorted());
   for (const schema of schemas) {
     const bytes = await readFile(`packages/engineering-foundation/${schema.path}`);
@@ -61,7 +63,7 @@ async function assertReleasedSchemaInventory(): Promise<void> {
 
 function registerSchemaCatalogCases(): void {
   void test("schema contribution assembly preserves every published source byte and dependency registration", async () => {
-    assert.equal(FOUNDATION_SCHEMA_IDS.length, 47);
+    assert.equal(FOUNDATION_SCHEMA_IDS.length, 49);
     await assertReleasedSchemaInventory();
 
     assert.ok(FOUNDATION_SCHEMA_IDS.includes("workspace-dependency-declarations/v2"));
@@ -76,6 +78,8 @@ function registerSchemaCatalogCases(): void {
     assert.ok(FOUNDATION_SCHEMA_IDS.includes("quality-source-coverage/v2"));
     assert.ok(FOUNDATION_SCHEMA_IDS.includes("quality-source-coverage/v3"));
     assert.ok(FOUNDATION_SCHEMA_IDS.includes("quality-source-coverage/v4"));
+    assert.ok(FOUNDATION_SCHEMA_IDS.includes("quality-source-coverage/v5"));
+    assert.ok(FOUNDATION_SCHEMA_IDS.includes("quality-source-topology/v1"));
     assert.ok(FOUNDATION_SCHEMA_IDS.includes("architecture-source-dependencies/v3"));
     assert.ok(FOUNDATION_SCHEMA_IDS.includes("quality-gate-runner/v1"));
     assert.ok(FOUNDATION_SCHEMA_IDS.includes("quality-gate-runner/v2"));

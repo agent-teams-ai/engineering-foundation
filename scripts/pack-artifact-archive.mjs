@@ -66,9 +66,11 @@ const PACKAGE_MAX_ARCHIVE_ENTRIES = Object.freeze({
   // Literal-format coverage: +34 = eight production TS compiler tuples + two schemas.
   // Observation boundaries: +12 = three SDK application modules (report destination,
   // workspace observation key and execution lifecycle) x four compiler artifacts.
-  // Exact current census is 2,917. Subtracting those tuples restores the prior
-  // 2,905-member digest; the full inventory digest and +1 rejection stay enforced.
-  "@agent-teams/engineering-foundation": 2_917,
+  // Quality inputs: +18 = four production adapter compiler tuples plus the
+  // quality-source-coverage/v5 and quality-source-topology/v1 schemas. Exact
+  // current census is 2,935; removing those additions restores the qualified
+  // 2,917-member digest. The full inventory digest and +1 rejection stay enforced.
+  "@agent-teams/engineering-foundation": 2_935,
 });
 
 export function maximumArchiveEntries(packageName) {

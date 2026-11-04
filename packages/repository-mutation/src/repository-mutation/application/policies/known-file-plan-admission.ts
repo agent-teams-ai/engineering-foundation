@@ -4,7 +4,7 @@ import type { KnownFileTransactionOperationInput } from "../model/known-file-tra
 export const maximumKnownFileOperations = 32;
 export const maximumKnownFilePreimages = 16;
 export const maximumKnownFileImageBytes = 8 * 1024 * 1024;
-export const maximumKnownFilePlanBytes = 16 * 1024 * 1024;
+const maximumKnownFilePlanBytes = 16 * 1024 * 1024;
 
 /** Default modes are resolved; only the closed compiler vocabulary crosses admission. */
 export interface AdmittedKnownFileOperation {

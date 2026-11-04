@@ -62,7 +62,14 @@
       "docs-protocol.portable-documentation.application",
       "docs-protocol.portable-documentation.domain"
     ],
-    "packages": ["@agent-teams/document-authoring", "ajv", "ajv-formats", "minisearch", "yaml"],
+    "packages": [
+      "@agent-teams/document-authoring",
+      "@agent-teams/repository-mutation",
+      "ajv",
+      "ajv-formats",
+      "minisearch",
+      "yaml"
+    ],
     "builtins": ["node:fs", "node:fs/promises", "node:path"],
     "entrypoints": [
       "packages/docs-protocol/src/features/portable-documentation/adapters/outbound/document-authoring-port.ts",

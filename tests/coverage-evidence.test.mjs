@@ -755,6 +755,7 @@ test("coverage keeps Linux shards complete and adds package evidence", () => {
       .filter((path) => path.startsWith("packages/docs-protocol/tests/"))
       .toSorted(),
     [
+      "packages/docs-protocol/tests/bounded-adoption-input.test.ts",
       "packages/docs-protocol/tests/portable-dx.test.mjs",
       "packages/docs-protocol/tests/qualification-application.test.mjs",
       "packages/docs-protocol/tests/reviewed-authoring.test.mjs",

@@ -1,7 +1,7 @@
 import type { PublicApiCompatibilityPolicy } from "./public-api.js";
 import type { GrowthContextRequest } from "./growth-admission-context.js";
 
-/** Closed frozen configuration. Execution identity belongs to composition. */
+/** Closed frozen configuration. The SDK execution workflow owns observed identity. */
 export interface SdkGrowthCapabilityPolicy {
   readonly schemaVersion: 2;
   readonly compatibility: PublicApiCompatibilityPolicy;

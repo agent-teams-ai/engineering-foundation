@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { resolveNodeToolInvocation } from "./repository-command.mts";
 import { resolveQualificationExecutables } from "./executable-policy.mts";
+import { admitRepositoryTypeScript } from "./typescript-admission.ts";
 
 const root = process.cwd();
 
@@ -15,25 +16,26 @@ function observed(command: string, args: readonly string[]): string {
 }
 
 const nodeRuntime = await resolveQualificationExecutables("node");
+const compiler = await admitRepositoryTypeScript(root);
 const expected = [
   {
     name: "oxlint",
     entry: resolve(root, "node_modules/oxlint/bin/oxlint"),
     args: ["--version"],
-    contains: "1.83.0",
+    output: /^Version: 1\.83\.0$/u,
   },
   {
     name: "typescript",
-    entry: resolve(root, "node_modules/typescript/bin/tsc"),
+    entry: compiler.entry,
     args: ["--version"],
-    contains: "7.0.2",
+    output: new RegExp(`^Version ${compiler.version.replaceAll(".", "\\.")}$`, "u"),
   },
   // Nx 23.3.0 removes Axios and uses the patched TOML parser.
   {
     name: "nx",
     entry: resolve(root, "node_modules/nx/dist/bin/nx.js"),
     args: ["--version"],
-    contains: "23.3.0",
+    output: /^Nx Version:\r?\n- Local: v23\.3\.0\r?\n- Global: [^\r\n]+$/u,
   },
   // esbuild's supported JS entry resolves its optional native package in the
   // package's own installed context; do not assume root hoisting or a platform map.
@@ -41,14 +43,14 @@ const expected = [
     name: "esbuild",
     entry: resolve(root, "node_modules/esbuild/bin/esbuild"),
     args: ["--version"],
-    contains: "0.28.2",
+    output: /^0\.28\.2$/u,
   },
 ] as const;
 
 for (const tool of expected) {
   const invocation = resolveNodeToolInvocation(tool.entry, tool.args, [], nodeRuntime.node);
   const output = observed(invocation.command, invocation.args);
-  if (!output.includes(tool.contains)) {
+  if (!tool.output.test(output)) {
     throw new Error(`${tool.name} version mismatch: ${output}`);
   }
 }
@@ -75,7 +77,7 @@ if (process.env["AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE"] !== undefined) {
       })(),
     ["-e", `${oxcExpression} process.stdout.write(process.versions.bun ?? 'missing');`],
   );
-  if (!bunOutput.includes("1.4.3")) {
+  if (bunOutput !== "1.4.3") {
     throw new Error(`Oxc API startup did not run under admitted Bun 1.4.3: ${bunOutput}`);
   }
   process.stdout.write(

@@ -3,12 +3,14 @@ import assert from "node:assert/strict";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { runCommand } from "./pack-test-support.mjs";
+import { admitRepositoryTypeScript } from "../tools/typescript-admission.ts";
 
 /** Runs against the caller's existing installed package fixture; never installs.
  * The existing library authority fixture uses the same built-in recipe as the
  * consumer crash contract, while keeping all catalog and owner data generic.
  */
 export async function verifyPackedScaffoldingQualification({ fixture, repositoryRoot }) {
+  const compiler = await admitRepositoryTypeScript(repositoryRoot);
   const programPath = join(fixture.consumerRoot, "scaffold-qualification.test.mjs");
   await writeFile(programPath, scaffoldingQualificationProgram(repositoryRoot));
   const environment = { ...process.env };
@@ -56,7 +58,7 @@ point.phase = "after-journal-prepared";
   await runCommand(
     process.execPath,
     [
-      join(repositoryRoot, "node_modules/typescript/bin/tsc"),
+      compiler.entry,
       "--ignoreConfig",
       "--noEmit",
       "--strict",

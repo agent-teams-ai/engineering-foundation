@@ -16,6 +16,7 @@ import {
 import { resolveQualificationExecutables, type RuntimeExecutables } from "./executable-policy.mts";
 import { withoutGitRepositorySelectors } from "./git-environment.ts";
 import { runRepositoryOxlint } from "./repository-oxlint.ts";
+import { admitRepositoryTypeScript } from "./typescript-admission.ts";
 import {
   assertExplicitSourceGitAuthority,
   assertPnpmProfileQualificationRoot,
@@ -222,6 +223,17 @@ async function invokeLintTool(input: {
   });
 }
 
+async function repositoryToolEntrypoint(command: ToolCommand): Promise<string> {
+  const entry =
+    command.entry === "node_modules/typescript/bin/tsc"
+      ? (await admitRepositoryTypeScript(repositoryRoot)).entry
+      : resolve(repositoryRoot, command.entry);
+  if (!(await isFile(entry))) {
+    throw new Error(`Tool entrypoint is unavailable: ${command.entry}`);
+  }
+  return entry;
+}
+
 async function invokeTool(
   id: string,
   paths: readonly string[],
@@ -248,10 +260,7 @@ async function invokeTool(
     command.role === "node-tool" || command.role === "node-qualification"
       ? await resolveQualificationExecutables("node")
       : await resolveQualificationExecutables(profile);
-  const entry = resolve(repositoryRoot, command.entry);
-  if (!(await isFile(entry))) {
-    throw new Error(`Tool entrypoint is unavailable: ${command.entry}`);
-  }
+  const entry = await repositoryToolEntrypoint(command);
   if (["lint:fast", "lint:fast:files", "lint:typed:files"].includes(id)) {
     return invokeLintTool({ id, command, paths, profile, runtime, entry });
   }

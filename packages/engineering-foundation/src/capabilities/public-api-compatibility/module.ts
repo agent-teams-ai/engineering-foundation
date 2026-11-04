@@ -1,6 +1,5 @@
 import { createNativeTypeParenthesisEquivalence } from "./adapters/outbound/api-extractor/native-type-parenthesis-equivalence.js";
 import { createManagedProcessExecutor } from "../../process-execution/module.js";
-import { assertGrowthReportDestination } from "./adapters/inbound/configuration/parse-growth-config.js";
 import {
   createGrowthGitRunner,
   readGrowthInvocation,
@@ -43,7 +42,7 @@ import { createWorkspaceInventoryReader } from "../../workspace-inventory/module
 import { createWorkspaceGrowthReader } from "./adapters/outbound/filesystem/workspace-growth-reader.js";
 import { createFilesystemGrowthInputContext } from "./adapters/outbound/filesystem/growth-input-context.js";
 import { createFilesystemGrowthReportWriter } from "./adapters/outbound/filesystem/growth-report-writer.js";
-import { checkSdkGrowth } from "./application/use-cases/check-sdk-growth.js";
+import { runSdkGrowthCheck } from "./application/use-cases/run-sdk-growth-check.js";
 
 const evidence: PublicApiRepositoryEvidence = {
   files: { read: readContainedRegularFile },
@@ -136,44 +135,26 @@ export function createPublicApiCompatibilityCapability(
         );
         configVersion = policy.schemaVersion;
         if (policy.schemaVersion === 2) {
-          await assertGrowthDestination(invocation.consumerRoot, policy.sdkGrowth.reportPath);
-          const inventory = await createWorkspaceGrowthReader(
-            createWorkspaceInventoryReader(),
-          ).read(invocation.consumerRoot, "pnpm-workspace.yaml", invocation.signal);
-          assertGrowthReportDestination(
-            policy.sdkGrowth.reportPath,
-            inventory.packages.flatMap((pkg) => [pkg.rootPath, pkg.manifestPath]),
-          );
           const identityInputs = {
             files: evidence.files,
             runGit: createGrowthGitRunner(processes, invocation.consumerRoot),
           };
-          return await checkSdkGrowth(
+          return await runSdkGrowthCheck(
             {
               consumerRoot: invocation.consumerRoot,
               policy,
-              invocation: await readGrowthInvocation(
-                invocation.consumerRoot,
-                inventory,
-                identityInputs,
-                invocation.signal,
-              ),
               ...(invocation.signal === undefined ? {} : { signal: invocation.signal }),
             },
             {
-              readInvocation: (cancellation) =>
-                readGrowthInvocation(
-                  invocation.consumerRoot,
-                  inventory,
-                  identityInputs,
-                  cancellation.signal,
-                ),
+              assertDestination: assertGrowthDestination,
+              readInvocation: (consumerRoot, inventory, signal) =>
+                readGrowthInvocation(consumerRoot, inventory, identityInputs, signal),
               repository: dependencies.repository,
               fingerprint: dependencies.fingerprint,
               signatures: dependencies.signatures,
               typed: dependencies.extractor,
               artifact: new FilesystemPackageArtifactInventory(inspector, evidence),
-              workspace: { read: async () => inventory },
+              workspace: createWorkspaceGrowthReader(createWorkspaceInventoryReader()),
               context: createFilesystemGrowthInputContext(
                 { consumerRoot: invocation.consumerRoot, policy: policy.compatibility },
                 { ...dependencies, assertSchema },

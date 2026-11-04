@@ -3,5 +3,5 @@
   "compilerOptions": {
     "noUncheckedIndexedAccess": true
   },
-  "include": ["support/**/*.ts"]
+  "include": ["support/**/*.ts", "bounded-adoption-input.test.ts"]
 }

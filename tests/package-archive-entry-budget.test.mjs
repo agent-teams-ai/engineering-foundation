@@ -22,6 +22,13 @@ const F3_PRODUCTION_MODULES = JSON.parse(
 const EXPECTED_F3_ARTIFACTS = F3_PRODUCTION_MODULES.productionModuleStems.flatMap((stem) =>
   F3_PRODUCTION_MODULES.compilerArtifacts.map((suffix) => `${stem}${suffix}`),
 );
+const EXPECTED_OBSERVATION_ARTIFACTS = Object.freeze(
+  [
+    "dist/capabilities/public-api-compatibility/application/policies/growth-report-destination",
+    "dist/capabilities/public-api-compatibility/application/policies/growth-workspace-observation-key",
+    "dist/capabilities/public-api-compatibility/application/use-cases/run-sdk-growth-check",
+  ].flatMap((stem) => [".d.ts", ".d.ts.map", ".js", ".js.map"].map((suffix) => `${stem}${suffix}`)),
+);
 const EXPECTED_NEW_MODULE_ARTIFACTS = Object.freeze([
   "dist/local-mode/application/bun-registry-policy.d.ts",
   "dist/local-mode/application/bun-registry-policy.d.ts.map",
@@ -127,15 +134,15 @@ test("keeps the Foundation archive exception package-specific and bounded", () =
     () => inspectCompressedTarArchive(archiveWithEntries(2_501)),
     /too many entries: 2501/u,
   );
-  const atFoundationLimit = archiveWithEntries(2_905);
+  const atFoundationLimit = archiveWithEntries(2_917);
   assert.throws(() => inspectCompressedTarArchive(atFoundationLimit), /too many entries/u);
   assert.equal(
     inspectCompressedTarArchive(atFoundationLimit, FOUNDATION_PACKAGE).entryCount,
-    2_905,
+    2_917,
   );
   assert.throws(
-    () => inspectCompressedTarArchive(archiveWithEntries(2_906), FOUNDATION_PACKAGE),
-    /too many entries: 2906/u,
+    () => inspectCompressedTarArchive(archiveWithEntries(2_918), FOUNDATION_PACKAGE),
+    /too many entries: 2918/u,
   );
 });
 
@@ -171,7 +178,7 @@ test("applies the same Foundation budget to archive listings", () => {
     "package/package.json",
     "package/LICENSE",
     "package/README.md",
-    ...Array.from({ length: 2_902 }, (_, index) => `package/dist/${index}.js`),
+    ...Array.from({ length: 2_914 }, (_, index) => `package/dist/${index}.js`),
   ];
   const input = {
     archiveBytes: Buffer.from("fixture"),
@@ -189,7 +196,7 @@ test("applies the same Foundation budget to archive listings", () => {
           ...Array.from({ length: 1 }, (_, index) => `package/dist/extra-${index}.js`),
         ].join("\n"),
       }),
-    /too many entries: 2906/u,
+    /too many entries: 2918/u,
   );
 });
 
@@ -215,14 +222,14 @@ test("admits the complete built Foundation package inventory and rejects one add
   }
   assert.equal(
     paths.size,
-    2_905,
+    2_917,
     "Requalify the complete package inventory when its membership changes",
   );
   assert.equal(
     createHash("sha256")
       .update([...paths].toSorted().join("\n") + "\n")
       .digest("hex"),
-    "31ebc24cb106654d79c1a2e69e5e2273c9397cddd605947862461b6335b9df64",
+    "4c4e60ded19f43aa5a301377c0e3d41886d0bc4346b4c46a2e227d88e04bb474",
     "Requalify exact artifact membership, even when the count stays unchanged",
   );
   assert.equal(
@@ -232,7 +239,22 @@ test("admits the complete built Foundation package inventory and rejects one add
   assert.ok(paths.has("schemas/quality-source-coverage/v4.schema.json"));
   assert.ok(paths.has("schemas/quality-source-coverage/v3.schema.json"));
   assert.ok(paths.has("schemas/package-public-api-native-transition/v1.schema.json"));
-  for (const path of [...EXPECTED_NEW_MODULE_ARTIFACTS, ...EXPECTED_F3_ARTIFACTS]) {
+  assert.equal(EXPECTED_OBSERVATION_ARTIFACTS.length, 12);
+  assert.equal(new Set(EXPECTED_OBSERVATION_ARTIFACTS).size, 12);
+  const previousPaths = [...paths].filter((path) => !EXPECTED_OBSERVATION_ARTIFACTS.includes(path));
+  assert.equal(previousPaths.length, 2_905);
+  assert.equal(
+    createHash("sha256")
+      .update(previousPaths.toSorted().join("\n") + "\n")
+      .digest("hex"),
+    "31ebc24cb106654d79c1a2e69e5e2273c9397cddd605947862461b6335b9df64",
+    "The three observation modules must retain every previously qualified artifact",
+  );
+  for (const path of [
+    ...EXPECTED_NEW_MODULE_ARTIFACTS,
+    ...EXPECTED_F3_ARTIFACTS,
+    ...EXPECTED_OBSERVATION_ARTIFACTS,
+  ]) {
     assert.ok(
       paths.has(path),
       `Expected compiled module artifact is missing from actual inventory: ${path}`,
@@ -253,7 +275,7 @@ test("admits the complete built Foundation package inventory and rejects one add
         ...input,
         listing: [...listing, "package/dist/over-limit.js"].join("\n"),
       }),
-    /too many entries: 2906/u,
+    /too many entries: 2918/u,
   );
 });
 

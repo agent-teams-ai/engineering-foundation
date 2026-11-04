@@ -56,7 +56,8 @@
         "tests/command-host-successor-cli.test.mts",
         "tests/features/release-checks/candidate-checking.test.ts",
         "tests/features/release-checks/conformance.test.ts",
-        "tests/release-candidate-host.test.ts"
+        "tests/release-candidate-host.test.ts",
+        "tests/repository-compiler-admission.test.ts"
       ]
     },
     {
@@ -217,7 +218,8 @@
         "tests/public-api-native-migration-cli.test.ts",
         "packages/engineering-foundation/tests/public-api-native-transition.test.ts",
         "tests/repository-release-runtime.test.mts",
-        "tests/repository-ci-runtime.test.mts"
+        "tests/repository-ci-runtime.test.mts",
+        "packages/docs-protocol/tests/bounded-adoption-input.test.ts"
       ]
     },
     {
@@ -296,7 +298,8 @@
         "packages/docs-protocol-agent-teams/tests/qualification-application.test.mjs",
         "packages/docs-protocol-agent-teams/tests/restoration-lock-inputs.test.mts",
         "packages/docs-protocol-agent-teams/tests/restoration-lock.test.mts",
-        "packages/engineering-foundation/tests/public-api-audit-command.test.mjs"
+        "packages/engineering-foundation/tests/public-api-audit-command.test.mjs",
+        "tests/source-inventory-observation.test.ts"
       ]
     },
     {
@@ -363,7 +366,8 @@
         "packages/stack-toolchain/tests/typecheck.test.ts",
         "packages/docs-protocol-agent-teams/tests/consumer-upgrade-generation3.test.ts",
         "packages/docs-protocol-agent-teams/tests/consumer-managed-restoration.test.ts",
-        "packages/docs-protocol-agent-teams/tests/consumer-committed-restoration.test.ts"
+        "packages/docs-protocol-agent-teams/tests/consumer-committed-restoration.test.ts",
+        "packages/docs-protocol-agent-teams/tests/consumer-input-observation.test.ts"
       ]
     }
   ]

@@ -185,6 +185,13 @@
     "tests/support/release-probe-attestations.ts",
     "tests/support/release-freshness-git.ts",
     "packages/engineering-foundation/tests/public-api-native-spelling-cases.ts",
-    "tests/support/release-section-cases.ts"
+    "tests/support/release-section-cases.ts",
+    "packages/docs-protocol/tests/bounded-adoption-input.test.ts",
+    "packages/engineering-foundation/tests/workspace-report-provenance-cases.ts",
+    "tests/source-inventory-observation.test.ts",
+    "tools/typescript-admission.ts",
+    "tests/public-api-growth-input-stability-cases.ts",
+    "tests/support/repository-compiler-admission-cases.ts",
+    "tests/repository-compiler-admission.test.ts"
   ]
 }

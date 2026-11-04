@@ -394,7 +394,7 @@ export function createQualityInputWitness(
         reject("Quality input verification requires an initial capture.");
       }
       const paths = await snapshot(census);
-      const ordinary = new Set(paths.map((path) => join(root, path)));
+      const ordinary = new Set(paths.map((path) => resolve(join(root, path))));
       const extra = [...files.fingerprints]
         .filter(([path]) => !ordinary.has(path))
         .map(([, value]) => value.request);

@@ -61,6 +61,9 @@ test("SDK source bindings preserve accepted bytes under CRLF checkout filters", 
     "tests/support/npm-bootstrap-recovery-fixtures.ts",
     "toolchain.config.json",
     "tsconfig.quality.json",
+    "architecture/foundation/feature-modules.json",
+    "architecture/foundation/quality-source-coverage.yaml",
+    "architecture/foundation/quality-source-topology.json",
   ];
   const rawLockPath =
     "packages/docs-protocol-agent-teams/tests/fixtures/restoration-lock-v1/actual-lock.yaml";

@@ -7,15 +7,27 @@ export const featureModuleProgram = `
   import { checkFeatureModule, STANDARD } from "@agent-teams/feature-module-standard";
   import { exampleModule, exampleSources } from "@agent-teams/feature-module-standard/fixtures";
   import { checkFeatureModuleOnDisk, formatNodeReport } from "@agent-teams/feature-module-standard/node";
+  import { projectQualitySourceTopology } from "@agent-teams/feature-module-standard/quality-topology";
   const foundationResolution = import.meta.resolve("@agent-teams/engineering-foundation/package.json");
   const foundationManifest = JSON.parse(await readFile(fileURLToPath(foundationResolution), "utf8"));
   assert.equal(foundationManifest.name, "@agent-teams/engineering-foundation");
   assert.equal(foundationManifest.version, process.argv[2]);
   const standardManifest = JSON.parse(await readFile(fileURLToPath(import.meta.resolve("@agent-teams/feature-module-standard/package.json")), "utf8"));
-  assert.equal(standardManifest.peerDependencies["@agent-teams/engineering-foundation"], "^1.8.0 || ^2.0.0 || ^3.0.0");
+  assert.equal(standardManifest.peerDependencies["@agent-teams/engineering-foundation"], "^1.8.0 || ^2.0.0 || ^3.0.0 || ^4.0.0");
   assert.equal(standardManifest.peerDependenciesMeta["@agent-teams/engineering-foundation"].optional, true);
   const fromFms = createRequire(import.meta.resolve("@agent-teams/feature-module-standard/node"));
   assert.equal(fromFms.resolve("@agent-teams/engineering-foundation/package.json"), fileURLToPath(foundationResolution));
+  const topology = projectQualitySourceTopology({
+    schemaVersion: 1,
+    standard: { id: "agent-teams.feature-module-standard", version: "v1.1" },
+    topology: { sourcePolicy: "source.yaml" },
+    productionRoots: ["packages"], applicationRoots: [], excludedRoots: [],
+    modules: [{ root: "packages/worker", sourceRoot: "packages/worker/src", testRoots: ["packages/worker/tests"] }],
+  }, "source.yaml");
+  assert.deepEqual(topology, {
+    schemaVersion: 1, censusRoots: ["packages"], packageRoots: [".", "packages/worker"],
+    sourceRoots: ["packages/worker/src"], testRoots: ["packages/worker/tests"], excludedRoots: [], toolingFiles: [],
+  });
   const expected = exampleModule();
   const consumerRoot = join(process.cwd(), "subject");
   for (const [path, source] of Object.entries(exampleSources())) {
@@ -70,12 +82,12 @@ export const featureModuleProgram = `
   assert.equal(restored.ok, true);
   assert.deepEqual(restored.parseFailures, []);
   await assert.rejects(import("@agent-teams/feature-module-standard/dist/node.js"), { code: "ERR_PACKAGE_PATH_NOT_EXPORTED" });
-  for (const suffix of ["", "/fixtures", "/node"]) {
+  for (const suffix of ["", "/fixtures", "/node", "/quality-topology"]) {
     assert.ok(fileURLToPath(import.meta.resolve("@agent-teams/feature-module-standard" + suffix)).startsWith(process.cwd()));
   }
   assert.equal(STANDARD.version, "v1.1");
   console.log(JSON.stringify({ status: "passed", cases: ["public-typed-entries", "actual-source-parity",
     "explicit-module-composition", "runtime-republication", "type-only-republication", "closed-deep-import",
-    "missing-relative-reference", "unsupported-literal-reference", "computed-reference", "malformed-source", "budget-warning"],
+    "missing-relative-reference", "unsupported-literal-reference", "computed-reference", "malformed-source", "budget-warning", "pure-quality-topology"],
     foundationVersion: foundationManifest.version, foundationResolution, standard: STANDARD }));
   `;

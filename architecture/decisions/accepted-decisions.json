@@ -351,6 +351,11 @@
       "id": "ADR-0073",
       "path": "docs/decisions/0073-coherent-managed-pnpm-engine-projection.md",
       "immutableDigest": "sha256:73343325b3005327bfa1b54969c31d842cd9a294b5171775d96ce141d112248e"
+    },
+    {
+      "id": "ADR-0074",
+      "path": "docs/decisions/0074-neutral-quality-inputs.md",
+      "immutableDigest": "sha256:3b8ad8ab8bcd0d10684834682808dbb357b33b54aa8c7ffe2014cfd2327b1499"
     }
   ]
 }

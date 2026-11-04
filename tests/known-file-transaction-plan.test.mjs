@@ -321,7 +321,7 @@ test("inert input checks preserve plain/null prototypes and never invoke accesso
   };
   assert.throws(
     () => compileKnownFileTransactionPlan(Object.defineProperty({}, "operations", accessor)),
-    /at most/u,
+    /enumerable data properties/u,
   );
   assert.throws(
     () => compile([Object.defineProperty({}, "path", accessor)]),

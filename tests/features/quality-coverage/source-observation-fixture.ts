@@ -4,6 +4,7 @@ import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import type { TestContext } from "node:test";
+import type { WorkspacePackage } from "../../../packages/engineering-foundation/dist/workspace-inventory/api.js";
 import { createSourceCensusReader } from "../../../packages/engineering-foundation/dist/capabilities/source-dependencies/module.js";
 import { readContainedRegularFile } from "../../../packages/engineering-foundation/dist/source-inventory/node.js";
 import { copyInstalledToolchainPresets } from "./copied-toolchain.mjs";
@@ -12,16 +13,31 @@ export const sourceRoot = `${moduleRoot}/src`;
 export const main = `${sourceRoot}/main.ts`;
 export const compilerProject = `${sourceRoot}/tsconfig.json`;
 export const topology = {
-  productionRoots: ["packages"],
-  applicationRoots: [],
+  schemaVersion: 1,
+  censusRoots: ["packages"],
+  packageRoots: [".", moduleRoot],
+  sourceRoots: [sourceRoot],
+  testRoots: [`${moduleRoot}/tests`],
   excludedRoots: ["spikes"],
-  modules: [{ root: moduleRoot, sourceRoot, testRoots: [`${moduleRoot}/tests`] }],
+  toolingFiles: [],
 } as const;
 export const authority = {
   workspaceManifestPath: "pnpm-workspace.yaml",
   boundaries: [{ id: "worker", roots: [sourceRoot] }],
 } as const;
 export const censusReader = createSourceCensusReader({ read: readContainedRegularFile });
+
+export function fixturePackage(rootPath: string): WorkspacePackage {
+  return {
+    name: `fixture-${rootPath.replaceAll("/", "-")}`,
+    rootPath,
+    manifestPath: rootPath === "." ? "package.json" : `${rootPath}/package.json`,
+    moduleType: "module",
+    dependencies: [],
+    bundledDependencies: [],
+    exportSurface: { explicit: false, entries: [] },
+  };
+}
 
 export interface SourceObservationFixture {
   readonly root: string;

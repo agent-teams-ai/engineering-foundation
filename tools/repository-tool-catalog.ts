@@ -82,6 +82,7 @@ export const SCRIPT_IDS = new Set([
   "architecture:features:check",
   "architecture:features:plan",
   "quality:coverage:scope",
+  "quality:topology:check",
   "package:qualification:built",
 ]);
 
@@ -204,6 +205,11 @@ export const TOOL_COMMANDS: Readonly<Record<string, ToolCommand>> = Object.freez
     entry: "node_modules/stack-toolchain/dist/cli.js",
     args: ["format:check"],
     role: "node-tool",
+  },
+  "quality:topology:check": {
+    entry: "tools/quality-topology.ts",
+    args: ["--check"],
+    role: "runtime",
   },
   typecheck: {
     entry: "node_modules/stack-toolchain/dist/cli.js",

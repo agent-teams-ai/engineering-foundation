@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "censusRoots": [
+    "packages"
+  ],
+  "packageRoots": [
+    ".",
+    "packages/ci-input-proof",
+    "packages/docs-protocol",
+    "packages/docs-protocol-agent-teams",
+    "packages/docs-protocol-mcp",
+    "packages/document-authoring",
+    "packages/engineering-foundation",
+    "packages/feature-module-standard",
+    "packages/release-checks",
+    "packages/repository-mutation",
+    "packages/stack-toolchain"
+  ],
+  "sourceRoots": [
+    "packages/ci-input-proof/src",
+    "packages/docs-protocol-agent-teams/src",
+    "packages/docs-protocol-mcp/src",
+    "packages/docs-protocol/src",
+    "packages/document-authoring/src",
+    "packages/engineering-foundation/src",
+    "packages/feature-module-standard/src",
+    "packages/release-checks/src",
+    "packages/repository-mutation/src",
+    "packages/stack-toolchain/src"
+  ],
+  "testRoots": [
+    "packages/docs-protocol-agent-teams/tests",
+    "packages/docs-protocol-mcp/tests",
+    "packages/docs-protocol/tests",
+    "packages/document-authoring/tests",
+    "packages/engineering-foundation/tests",
+    "packages/repository-mutation/tests",
+    "packages/stack-toolchain/tests/cli.test.ts",
+    "packages/stack-toolchain/tests/configuration.test.ts",
+    "packages/stack-toolchain/tests/doctor.test.ts",
+    "packages/stack-toolchain/tests/executables.test.ts",
+    "packages/stack-toolchain/tests/format-files.test.ts",
+    "packages/stack-toolchain/tests/lint-presets.test.ts",
+    "packages/stack-toolchain/tests/process.test.ts",
+    "packages/stack-toolchain/tests/typecheck.test.ts",
+    "tests",
+    "tests/feature-module-quality-topology.test.ts",
+    "tests/features/feature-module-standard/conformance.test.mts",
+    "tests/features/feature-module-standard/dependencies.test.mts",
+    "tests/features/feature-module-standard/layout.test.mts",
+    "tests/features/feature-module-standard/module-check.test.mts",
+    "tests/features/feature-module-standard/node-runner.test.mts",
+    "tests/features/input-comparison/ci-input-proof-process.test.mts",
+    "tests/features/input-comparison/ci-input-proof.test.mts",
+    "tests/features/release-checks/candidate-checking.test.ts",
+    "tests/features/release-checks/conformance.test.ts"
+  ],
+  "excludedRoots": [
+    "scripts",
+    "spikes",
+    "tests"
+  ],
+  "toolingFiles": [
+    "packages/docs-protocol-agent-teams/scripts/generate-consumer-assets.mjs"
+  ],
+  "derivedFrom": [
+    {
+      "path": "architecture/foundation/feature-modules.json",
+      "sha256": "0d9b3c8e0181a4f8e4e7c843fb9b3865cbb8f4c5320465c515997549df93f0cc"
+    },
+    {
+      "path": "architecture/foundation/quality-source-coverage.yaml",
+      "sha256": "c64e80a4fd2a65d3c40a49d1e2479183cdf1824ba522fab4894ba0d1d5e2bc51"
+    }
+  ]
+}

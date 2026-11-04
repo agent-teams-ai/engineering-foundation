@@ -12,6 +12,7 @@ export type {
   QualityToolProvider,
   QualityToolSession,
   QualityCoverageObservation,
+  QualityCoverageSession,
   ExplicitUnknownFinding,
   OxlintFindings,
 } from "./application/model.js";

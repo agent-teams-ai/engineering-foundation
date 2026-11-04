@@ -1,3 +1,4 @@
+import { qualitySessionFixture } from "./quality-session-fixture.ts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
@@ -5,7 +6,6 @@ import {
   checkStaticQualityCoverage,
   qualitySourceLanguage,
 } from "../../../packages/engineering-foundation/dist/features/quality-coverage/api.js";
-import { mapQualityTopology } from "../../../packages/engineering-foundation/dist/features/quality-coverage/adapters/profile-input.js";
 import {
   fixture,
   moduleRoot,
@@ -41,21 +41,22 @@ function registerOwnershipCases(): void {
         "packages/new-private/src/new.mts",
       ],
     );
-    assert.ok(classified.sources[0]);
+    assert.notEqual(classified.sources[0], undefined);
     assert.deepEqual(classified.sources[0].owners, []);
-    assert.ok(classified.sources[1]);
+    assert.notEqual(classified.sources[1], undefined);
     assert.deepEqual(classified.sources[1].owners, ["worker"]);
     const report = await checkStaticQualityCoverage(
       { consumerRoot: "/unused", configPath: "quality.yaml" },
       {
-        read: async () => ({
-          ...classified,
-          routes: [],
-          requiredRoutes: [],
-          requiredSettings: [],
-          requiredSettingObservations: [],
-          settings: [],
-        }),
+        read: async () =>
+          qualitySessionFixture({
+            ...classified,
+            routes: [],
+            requiredRoutes: [],
+            requiredSettings: [],
+            requiredSettingObservations: [],
+            settings: [],
+          }),
       },
     );
     assert.equal(report.outcome, "violations");
@@ -132,7 +133,7 @@ function registerOwnershipCases(): void {
       production.sources.map(({ path }) => path),
       [main],
     );
-    assert.ok(production.sources[0]);
+    assert.notEqual(production.sources[0], undefined);
     assert.deepEqual(production.sources[0].owners, ["worker"]);
     const native = `${scriptsRoot}/helper.c`;
     await put(native, "int helper(void) { return 0; }\n");
@@ -141,14 +142,15 @@ function registerOwnershipCases(): void {
     const report = await checkStaticQualityCoverage(
       { consumerRoot: "/unused", configPath: "quality.yaml" },
       {
-        read: async () => ({
-          ...withNative,
-          routes: [],
-          requiredRoutes: [],
-          requiredSettings: [],
-          requiredSettingObservations: [],
-          settings: [],
-        }),
+        read: async () =>
+          qualitySessionFixture({
+            ...withNative,
+            routes: [],
+            requiredRoutes: [],
+            requiredSettings: [],
+            requiredSettingObservations: [],
+            settings: [],
+          }),
       },
     );
     assert.ok(
@@ -161,6 +163,35 @@ function registerOwnershipCases(): void {
 }
 
 function registerTopologyOwnershipCases(): void {
+  void test("a root package requires explicit neutral admission and never promotes its manifest to source", () => {
+    const input = {
+      sourcePaths: ["src/main.ts"],
+      filePaths: ["package.json", "src/main.ts"],
+      manifestPaths: ["package.json"],
+      topology: {
+        ...topology,
+        censusRoots: ["."],
+        packageRoots: ["."],
+        sourceRoots: ["."],
+        testRoots: [],
+        excludedRoots: [],
+      },
+      authority: { ...authority, boundaries: [{ id: "root", roots: ["src"] }] },
+      suppressionRoots: ["src"],
+    };
+    const admitted = classifyQualityCensus(input);
+    assert.deepEqual(admitted.unclassifiedPackages, []);
+    assert.deepEqual(
+      admitted.sources.map(({ path }) => path),
+      ["src/main.ts"],
+    );
+    const missing = classifyQualityCensus({
+      ...input,
+      topology: { ...input.topology, packageRoots: [] },
+    });
+    assert.deepEqual(missing.unclassifiedPackages, ["package.json"]);
+  });
+
   void test("runtime-owned adapters outside production roots remain in the authoritative census", () => {
     const path = "adapters/runtime/owned.mjs";
     const classified = classifyQualityCensus({
@@ -196,7 +227,7 @@ function registerTopologyOwnershipCases(): void {
       topology: {
         ...topology,
         excludedRoots: [excludedRoot, excludedTestRoot],
-        modules: [{ ...topology.modules[0], testRoots: [nestedTestRoot] }],
+        testRoots: [nestedTestRoot],
       },
       authority,
       suppressionRoots: [sourceRoot],
@@ -218,55 +249,16 @@ function registerTopologyOwnershipCases(): void {
     for (const path of [appMain, appTest, appScript]) {
       await put(path, "export const value = 1;\n");
     }
-    const profile = {
-      schemaVersion: 1,
-      authority: { id: "agent-teams.feature-module-standard", version: "v1" },
-      scope: {
-        workspaceContainers: ["packages"],
-        productionRoots: [sourceRoot, appSource],
-        productionModules: [
-          { moduleRoot, sourceRoot, adoption: "pending" },
-          { moduleRoot: appRoot, sourceRoot: appSource, adoption: "active" },
-        ],
-      },
-      adoption: {
-        applicationRoots: [appRoot],
-        excludedRoots: [`${appRoot}/tests`],
-        abstractLayout: { modules: [{ moduleRoot, sourceRoot, testRoot: `${moduleRoot}/tests` }] },
-      },
+    const mapped = {
+      ...topology,
+      censusRoots: [...topology.censusRoots, appRoot],
+      packageRoots: [...topology.packageRoots, appRoot],
+      sourceRoots: [...topology.sourceRoots, appSource],
+      excludedRoots: [`${appRoot}/tests`],
     };
-    const mapped = mapQualityTopology(profile, "source.yaml");
-    assert.deepEqual(
-      mapped.applicationRoots,
-      [appRoot],
-      "discovery retains application packages outside workspace containers",
-    );
-    assert.deepEqual(
-      mapped.productionSourceRoots,
-      [sourceRoot, appSource],
-      "typed execution receives only production sources",
-    );
-    assert.deepEqual(
-      mapped.modules.map(({ sourceRoot: path }) => path),
-      [sourceRoot, appSource],
-      "pending module sources remain covered",
-    );
-    assert.deepEqual(
-      mapQualityTopology(
-        {
-          ...topology,
-          schemaVersion: 1,
-          standard: profile.authority,
-          topology: { sourcePolicy: "source.yaml" },
-        },
-        "source.yaml",
-      ),
-      { ...topology, toolingFiles: [] },
-      "flat source mappings remain unchanged",
-    );
     const observed = await censusReader.read({
       consumerRoot: root,
-      roots: [...mapped.productionRoots, ...mapped.applicationRoots],
+      roots: mapped.censusRoots,
     });
     assert.ok(
       observed.sourcePaths.includes(appTest),
@@ -296,14 +288,6 @@ function registerTopologyOwnershipCases(): void {
     assert.deepEqual(
       classified.sources.map(({ owners }) => owners),
       [["app"], ["worker"]],
-    );
-    assert.throws(
-      () =>
-        mapQualityTopology(
-          { ...profile, scope: { ...profile.scope, productionRoots: [sourceRoot] } },
-          "source.yaml",
-        ),
-      /application must map an existing production source root/u,
     );
   });
 }

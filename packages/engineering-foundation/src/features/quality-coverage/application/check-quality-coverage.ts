@@ -19,13 +19,25 @@ export async function checkStaticQualityCoverage(
   input: CapabilityInvocation,
   reader: QualityCoverageReader,
 ): Promise<CapabilityReport> {
+  let schemaVersion = 5;
   try {
     assertNotCancelled(input.signal);
-    const observation = await reader.read(input.consumerRoot, input.configPath, input.signal);
+    const observed = await reader.read(
+      input.consumerRoot,
+      input.configPath,
+      input.signal,
+      (version) => {
+        schemaVersion = version;
+      },
+    );
+    const { observation } = observed;
     assertNotCancelled(input.signal);
-    return report(evaluateStaticCoverage(observation));
+    const diagnostics = evaluateStaticCoverage(observation);
+    await observed.verify(input.signal);
+    observed.remainingMs();
+    return report(diagnostics, schemaVersion);
   } catch (error) {
-    return failure(error);
+    return failure(error, schemaVersion);
   }
 }
 
@@ -35,12 +47,21 @@ export async function checkQualityCoverage(
   reader: QualityCoverageReader,
   tools: QualityToolProvider,
 ): Promise<CapabilityReport> {
+  let schemaVersion = 5;
   try {
     assertNotCancelled(input.signal);
-    const observation = await reader.read(input.consumerRoot, input.configPath, input.signal);
+    const observed = await reader.read(
+      input.consumerRoot,
+      input.configPath,
+      input.signal,
+      (version) => {
+        schemaVersion = version;
+      },
+    );
+    const { observation } = observed;
     const diagnostics = [...evaluateStaticCoverage(observation)];
     if (diagnostics.length > 0) {
-      return report(diagnostics);
+      return report(diagnostics, schemaVersion);
     }
     assertNotCancelled(input.signal);
     const production = observation.sources
@@ -50,12 +71,9 @@ export async function checkQualityCoverage(
           qualitySourceLanguage(path) === "typescript" ||
           qualitySourceLanguage(path) === "javascript",
       );
-    const session = await tools.prepare(
-      input.consumerRoot,
-      input.configPath,
-      production,
-      input.signal,
-    );
+    const session = await tools.prepare(observed, production, input.signal);
+    await observed.verify(input.signal);
+    observed.remainingMs();
     const selected = await session.select(input.signal);
     diagnostics.push(...evaluateSelectedCoverage(production, selected, observation.testPaths));
     assertNotCancelled(input.signal);
@@ -86,26 +104,29 @@ export async function checkQualityCoverage(
       diagnostics.push(...lint.diagnostics);
     }
     assertNotCancelled(input.signal);
-    return report(diagnostics);
+    await observed.verify(input.signal);
+    observed.remainingMs();
+    return report(diagnostics, schemaVersion);
   } catch (error) {
-    return failure(error);
+    return failure(error, schemaVersion);
   }
 }
 
 function report(
   diagnostics: NonNullable<Parameters<typeof capabilityReport>[0]["diagnostics"]>,
+  schemaVersion: number,
 ): CapabilityReport {
   return capabilityReport({
     capabilityId: QUALITY_COVERAGE_ID,
-    capabilityConfigSchemaVersion: 1,
+    capabilityConfigSchemaVersion: schemaVersion,
     diagnostics,
   });
 }
 
-function failure(error: unknown): CapabilityReport {
+function failure(error: unknown, schemaVersion: number): CapabilityReport {
   return capabilityFailureReport({
     capabilityId: QUALITY_COVERAGE_ID,
-    capabilityConfigSchemaVersion: 1,
+    capabilityConfigSchemaVersion: schemaVersion,
     error,
     phase: "quality-coverage",
   });

@@ -1,4 +1,4 @@
 {
   "extends": "../../../tsconfig.ci-tooling.json",
-  "include": ["lease-fixture.ts"]
+  "include": ["lease-fixture.ts", "public-contract.ts"]
 }

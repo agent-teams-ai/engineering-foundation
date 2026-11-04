@@ -2039,16 +2039,31 @@
       "publicEntrypoints": [
         "packages/feature-module-standard/src/index.ts",
         "packages/feature-module-standard/src/fixtures.ts",
-        "packages/feature-module-standard/src/node.ts"
+        "packages/feature-module-standard/src/node.ts",
+        "packages/feature-module-standard/src/quality-topology.ts"
       ],
       "moduleAssembly": [
         "packages/feature-module-standard/src/index.ts",
         "packages/feature-module-standard/src/fixtures.ts",
-        "packages/feature-module-standard/src/node.ts"
+        "packages/feature-module-standard/src/node.ts",
+        "packages/feature-module-standard/src/quality-topology.ts"
       ],
       "generatedRoots": [],
       "exceptions": [],
       "features": [
+        {
+          "id": "quality-topology",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/feature-module-standard/src/features/quality-topology/application"
+              ]
+            }
+          ],
+          "testRoots": ["tests/feature-module-quality-topology.test.ts"]
+        },
         {
           "id": "feature-model",
           "role": "platform",
@@ -2129,7 +2144,8 @@
         "tests/features/feature-module-standard/dependencies.test.mts",
         "tests/features/feature-module-standard/layout.test.mts",
         "tests/features/feature-module-standard/module-check.test.mts",
-        "tests/features/feature-module-standard/node-runner.test.mts"
+        "tests/features/feature-module-standard/node-runner.test.mts",
+        "tests/feature-module-quality-topology.test.ts"
       ]
     },
     {

@@ -1,9 +1,11 @@
+export type { RetiredTemporaryInspectionBudget } from "../repository-mutation/composition/node-api.js";
 import type { link, mkdir, rename } from "node:fs/promises";
 import type { PortablePathIdentity } from "../path-identity.js";
 import type { MutationClaim } from "../transaction-coordination/application-api.js";
 export { NodeAtomicFileReplacementError } from "../repository-mutation/composition/node-api.js";
 export type { NodeAtomicFileReplacement } from "../repository-mutation/composition/node-api.js";
 import type {
+  RetiredTemporaryInspectionBudget,
   AbsentFilePublicationFaultInjector,
   AbsentFilePublicationOperations,
   AbsentFilePublicationOptions,
@@ -172,6 +174,7 @@ export function recoverKnownFileTransactionWithFaults(options: {
 export function inspectRetiredTemporaryDuplicates(
   consumerRoot: string,
   filePaths: readonly string[],
+  budget?: RetiredTemporaryInspectionBudget,
 ): Promise<readonly { readonly path: string; readonly counterpart: string }[]> {
-  return knownFileNodeApi.inspectRetiredTemporaryDuplicates(consumerRoot, filePaths);
+  return knownFileNodeApi.inspectRetiredTemporaryDuplicates(consumerRoot, filePaths, budget);
 }

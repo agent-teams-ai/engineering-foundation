@@ -7,3 +7,10 @@ export class KnownFileTransactionError extends Error {
     this.code = code;
   }
 }
+
+export class KnownFileTransactionPlanError extends Error {
+  public constructor(message: string) {
+    super(message);
+    this.name = "KnownFileTransactionPlanError";
+  }
+}

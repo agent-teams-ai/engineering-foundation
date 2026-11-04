@@ -22,6 +22,16 @@ const F3_PRODUCTION_MODULES = JSON.parse(
 const EXPECTED_F3_ARTIFACTS = F3_PRODUCTION_MODULES.productionModuleStems.flatMap((stem) =>
   F3_PRODUCTION_MODULES.compilerArtifacts.map((suffix) => `${stem}${suffix}`),
 );
+const EXPECTED_QUALITY_INPUT_ARTIFACTS = Object.freeze([
+  ...[
+    "dist/features/quality-coverage/adapters/quality-config-resolution",
+    "dist/features/quality-coverage/adapters/quality-input-values",
+    "dist/features/quality-coverage/adapters/quality-input-witness",
+    "dist/features/quality-coverage/adapters/topology-input",
+  ].flatMap((stem) => [".d.ts", ".d.ts.map", ".js", ".js.map"].map((suffix) => `${stem}${suffix}`)),
+  "schemas/quality-source-coverage/v5.schema.json",
+  "schemas/quality-source-topology/v1.schema.json",
+]);
 const EXPECTED_OBSERVATION_ARTIFACTS = Object.freeze(
   [
     "dist/capabilities/public-api-compatibility/application/policies/growth-report-destination",
@@ -134,15 +144,15 @@ test("keeps the Foundation archive exception package-specific and bounded", () =
     () => inspectCompressedTarArchive(archiveWithEntries(2_501)),
     /too many entries: 2501/u,
   );
-  const atFoundationLimit = archiveWithEntries(2_917);
+  const atFoundationLimit = archiveWithEntries(2_935);
   assert.throws(() => inspectCompressedTarArchive(atFoundationLimit), /too many entries/u);
   assert.equal(
     inspectCompressedTarArchive(atFoundationLimit, FOUNDATION_PACKAGE).entryCount,
-    2_917,
+    2_935,
   );
   assert.throws(
-    () => inspectCompressedTarArchive(archiveWithEntries(2_918), FOUNDATION_PACKAGE),
-    /too many entries: 2918/u,
+    () => inspectCompressedTarArchive(archiveWithEntries(2_936), FOUNDATION_PACKAGE),
+    /too many entries: 2936/u,
   );
 });
 
@@ -178,7 +188,7 @@ test("applies the same Foundation budget to archive listings", () => {
     "package/package.json",
     "package/LICENSE",
     "package/README.md",
-    ...Array.from({ length: 2_914 }, (_, index) => `package/dist/${index}.js`),
+    ...Array.from({ length: 2_932 }, (_, index) => `package/dist/${index}.js`),
   ];
   const input = {
     archiveBytes: Buffer.from("fixture"),
@@ -196,7 +206,7 @@ test("applies the same Foundation budget to archive listings", () => {
           ...Array.from({ length: 1 }, (_, index) => `package/dist/extra-${index}.js`),
         ].join("\n"),
       }),
-    /too many entries: 2918/u,
+    /too many entries: 2936/u,
   );
 });
 
@@ -222,14 +232,14 @@ test("admits the complete built Foundation package inventory and rejects one add
   }
   assert.equal(
     paths.size,
-    2_917,
+    2_935,
     "Requalify the complete package inventory when its membership changes",
   );
   assert.equal(
     createHash("sha256")
       .update([...paths].toSorted().join("\n") + "\n")
       .digest("hex"),
-    "4c4e60ded19f43aa5a301377c0e3d41886d0bc4346b4c46a2e227d88e04bb474",
+    "8a8ddd6845189069a93febb3cc021105ef0c562287703558f08a6ed7cf302f81",
     "Requalify exact artifact membership, even when the count stays unchanged",
   );
   assert.equal(
@@ -239,13 +249,28 @@ test("admits the complete built Foundation package inventory and rejects one add
   assert.ok(paths.has("schemas/quality-source-coverage/v4.schema.json"));
   assert.ok(paths.has("schemas/quality-source-coverage/v3.schema.json"));
   assert.ok(paths.has("schemas/package-public-api-native-transition/v1.schema.json"));
-  assert.equal(EXPECTED_OBSERVATION_ARTIFACTS.length, 12);
-  assert.equal(new Set(EXPECTED_OBSERVATION_ARTIFACTS).size, 12);
-  const previousPaths = [...paths].filter((path) => !EXPECTED_OBSERVATION_ARTIFACTS.includes(path));
-  assert.equal(previousPaths.length, 2_905);
+  assert.equal(EXPECTED_QUALITY_INPUT_ARTIFACTS.length, 18);
+  assert.equal(new Set(EXPECTED_QUALITY_INPUT_ARTIFACTS).size, 18);
+  const previousPaths = [...paths].filter(
+    (path) => !EXPECTED_QUALITY_INPUT_ARTIFACTS.includes(path),
+  );
+  assert.equal(previousPaths.length, 2_917);
   assert.equal(
     createHash("sha256")
       .update(previousPaths.toSorted().join("\n") + "\n")
+      .digest("hex"),
+    "4c4e60ded19f43aa5a301377c0e3d41886d0bc4346b4c46a2e227d88e04bb474",
+    "The quality input adapters and schemas must retain every previously qualified artifact",
+  );
+  assert.equal(EXPECTED_OBSERVATION_ARTIFACTS.length, 12);
+  assert.equal(new Set(EXPECTED_OBSERVATION_ARTIFACTS).size, 12);
+  const beforeObservationPaths = previousPaths.filter(
+    (path) => !EXPECTED_OBSERVATION_ARTIFACTS.includes(path),
+  );
+  assert.equal(beforeObservationPaths.length, 2_905);
+  assert.equal(
+    createHash("sha256")
+      .update(beforeObservationPaths.toSorted().join("\n") + "\n")
       .digest("hex"),
     "31ebc24cb106654d79c1a2e69e5e2273c9397cddd605947862461b6335b9df64",
     "The three observation modules must retain every previously qualified artifact",
@@ -254,6 +279,7 @@ test("admits the complete built Foundation package inventory and rejects one add
     ...EXPECTED_NEW_MODULE_ARTIFACTS,
     ...EXPECTED_F3_ARTIFACTS,
     ...EXPECTED_OBSERVATION_ARTIFACTS,
+    ...EXPECTED_QUALITY_INPUT_ARTIFACTS,
   ]) {
     assert.ok(
       paths.has(path),
@@ -275,7 +301,7 @@ test("admits the complete built Foundation package inventory and rejects one add
         ...input,
         listing: [...listing, "package/dist/over-limit.js"].join("\n"),
       }),
-    /too many entries: 2918/u,
+    /too many entries: 2936/u,
   );
 });
 

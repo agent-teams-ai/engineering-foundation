@@ -25,7 +25,7 @@ import {
   verifyPnpmTargetIntegrity,
 } from "./registry-installed-package-qualification.mjs";
 import { registryPublishArguments } from "./registry-publication-policy.mjs";
-import { verifyRegistryQualityCast } from "./registry-quality-cast-e2e.mjs";
+import { verifyRegistryQualityCast } from "./registry-quality-cast-e2e.ts";
 import { publishWithExactEffectReconciliation } from "./registry-publish-reconciliation.mjs";
 import {
   installRegistryConsumerWithRetry,

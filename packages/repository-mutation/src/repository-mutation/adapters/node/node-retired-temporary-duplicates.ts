@@ -1,3 +1,4 @@
+import type { RetiredTemporaryInspectionBudget } from "../../application/ports/retired-temporary-inspection-budget.js";
 import { lstat, readdir, realpath } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import type { BoundedRegularFileRead } from "../../../path-identity.js";
@@ -7,6 +8,32 @@ import { OWNED_TEMPORARY_RETIRED_EVIDENCE_MARKER } from "./node-cleanup-owned-te
 
 type Observation = Pick<KnownFileCoordination, "readBoundedRegularFile">;
 type StableRead = Extract<BoundedRegularFileRead, { readonly outcome: "read" }>;
+
+function budgetedObservation(
+  observation: Observation,
+  budget: RetiredTemporaryInspectionBudget | undefined,
+): Observation {
+  return {
+    async readBoundedRegularFile(path, maximumBytes) {
+      budget?.checkpoint();
+      const grant = budget?.beforeRead(maximumBytes) ?? maximumBytes;
+      if (!Number.isSafeInteger(grant) || grant < 0 || grant > maximumBytes) {
+        throw new TypeError("Retirement observation budget cannot widen the owner read bound.");
+      }
+      let charged = grant;
+      try {
+        const result = await observation.readBoundedRegularFile(path, grant);
+        if (result.outcome === "read") {
+          charged = result.bytes.byteLength;
+        }
+        return result;
+      } finally {
+        budget?.afterRead(charged);
+        budget?.checkpoint();
+      }
+    },
+  };
+}
 
 function sameOwnedRead(left: BoundedRegularFileRead, right: StableRead): boolean {
   return (
@@ -41,10 +68,13 @@ async function counterpartMatches(
   root: string,
   candidates: readonly string[],
   evidence: StableRead,
+  checkpoint: () => void,
 ): Promise<readonly string[]> {
   const matches: string[] = [];
   for (const candidate of candidates) {
+    checkpoint();
     await assertSafeExistingRepositoryAncestors(root, candidate);
+    checkpoint();
     const canonical = await observation.readBoundedRegularFile(
       join(root, candidate),
       2 * 1024 * 1024,
@@ -61,34 +91,42 @@ async function inspectDuplicate(
   root: string,
   path: string,
   candidates: readonly string[],
+  checkpoint: () => void,
 ): Promise<string | undefined> {
+  checkpoint();
   await assertSafeExistingRepositoryAncestors(root, path);
+  checkpoint();
   const evidencePath = resolve(root, path);
   const directory = dirname(evidencePath);
   const entries = await readdir(directory);
+  checkpoint();
   if (entries.length !== 1 || entries[0] !== "owned-temporary") {
     return undefined;
   }
   const before = await lstat(directory, { bigint: true });
+  checkpoint();
   const evidence = await observation.readBoundedRegularFile(evidencePath, 2 * 1024 * 1024);
   if (evidence.outcome !== "read" || evidence.linkCount !== 2n) {
     return undefined;
   }
-  const matches = await counterpartMatches(observation, root, candidates, evidence);
+  const matches = await counterpartMatches(observation, root, candidates, evidence, checkpoint);
   const after = await observation.readBoundedRegularFile(evidencePath, 2 * 1024 * 1024);
+  checkpoint();
   const directoryAfter = await lstat(directory, { bigint: true });
+  checkpoint();
   if (
     matches.length !== 1 ||
     !sameOwnedRead(after, evidence) ||
     before.dev !== directoryAfter.dev ||
     before.ino !== directoryAfter.ino ||
     before.birthtimeNs !== directoryAfter.birthtimeNs ||
-    before.mtimeNs !== directoryAfter.mtimeNs ||
-    (await readdir(directory)).join("\0") !== "owned-temporary"
+    before.mtimeNs !== directoryAfter.mtimeNs
   ) {
     return undefined;
   }
-  return matches[0];
+  const entriesAfter = await readdir(directory);
+  checkpoint();
+  return entriesAfter.join("\0") === "owned-temporary" ? matches[0] : undefined;
 }
 
 /** Read-only duplicate observation, never deletion or transaction recovery authority. */
@@ -96,6 +134,7 @@ export async function inspectRetiredTemporaryDuplicates(
   observation: Observation,
   consumerRoot: string,
   filePaths: readonly string[],
+  budget?: RetiredTemporaryInspectionBudget,
 ): Promise<readonly { readonly path: string; readonly counterpart: string }[]> {
   if (
     filePaths.length > 500_000 ||
@@ -110,10 +149,14 @@ export async function inspectRetiredTemporaryDuplicates(
       "Retired evidence inspection requires a bounded contained repository census.",
     );
   }
+  budget?.checkpoint();
+  const bounded = budgetedObservation(observation, budget);
   const root = await realpath(consumerRoot);
+  budget?.checkpoint();
   const observed: { path: string; counterpart: string }[] = [];
   const siblings = new Map<string, string[]>();
   for (const candidate of filePaths) {
+    budget?.checkpoint();
     if (!/\.(?:[cm]?tsx?|mjs|md)$/u.test(candidate)) {
       continue;
     }
@@ -123,14 +166,22 @@ export async function inspectRetiredTemporaryDuplicates(
     siblings.set(parent, entries);
   }
   for (const path of filePaths) {
+    budget?.checkpoint();
     const parent = retirementParent(path);
     if (parent === undefined) {
       continue;
     }
-    const counterpart = await inspectDuplicate(observation, root, path, siblings.get(parent) ?? []);
+    const counterpart = await inspectDuplicate(
+      bounded,
+      root,
+      path,
+      siblings.get(parent) ?? [],
+      () => budget?.checkpoint(),
+    );
     if (counterpart !== undefined) {
       observed.push({ path, counterpart });
     }
   }
+  budget?.checkpoint();
   return observed;
 }

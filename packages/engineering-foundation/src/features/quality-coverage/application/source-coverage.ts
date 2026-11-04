@@ -2,7 +2,7 @@ import type { QualityTopology, QualitySourceAuthority } from "./profile.js";
 import type { QualitySource } from "./model.js";
 
 function inside(path: string, root: string): boolean {
-  return path === root || path.startsWith(`${root}/`);
+  return root === "." || path === root || path.startsWith(`${root}/`);
 }
 
 export function classifyQualityCensus(input: {
@@ -19,19 +19,17 @@ export function classifyQualityCensus(input: {
   readonly testPaths: readonly string[];
   readonly unclassifiedPackages: readonly string[];
 } {
-  const productionRoots = input.topology.productionSourceRoots ?? [
-    ...input.topology.modules.map(({ sourceRoot }) => sourceRoot),
-    ...input.topology.applicationRoots,
-  ];
-  const censusRoots = [...input.topology.productionRoots, ...input.topology.applicationRoots];
-  const testRoots = input.topology.modules.flatMap((module) => module.testRoots);
+  const productionRoots = input.topology.sourceRoots;
+  const censusRoots = input.topology.censusRoots;
+  const testRoots = input.topology.testRoots;
   const nonProductionRoots = [...testRoots, ...input.topology.excludedRoots];
   const unclassifiedPackages = input.manifestPaths.filter(
     (path) =>
-      path !== "package.json" &&
       censusRoots.some((root) => inside(path, root)) &&
       !input.topology.excludedRoots.some((root) => inside(path, root)) &&
-      !input.topology.modules.some(({ root }) => path === `${root}/package.json`) &&
+      !input.topology.packageRoots.some(
+        (root) => path === (root === "." ? "package.json" : `${root}/package.json`),
+      ) &&
       !testRoots.some((root) => inside(path, root)),
   );
   const compilerConfigs = new Set(
@@ -43,7 +41,8 @@ export function classifyQualityCensus(input: {
       ...input.filePaths.filter(
         (path) =>
           /\.(?:c|h)$/u.test(path) ||
-          (!path.endsWith("/package.json") &&
+          (path !== "package.json" &&
+            !path.endsWith("/package.json") &&
             !path.endsWith(".md") &&
             !compilerConfigs.has(path) &&
             productionRoots.some((root) => inside(path, root))),
@@ -69,7 +68,7 @@ export function classifyQualityCensus(input: {
       (path) =>
         !nonProductionRoots.some((root) => inside(path, root)) &&
         (productionRoots.some((root) => inside(path, root)) ||
-          (input.topology.toolingFiles?.includes(path) !== true &&
+          (!input.topology.toolingFiles.includes(path) &&
             ((censusRoots.some((root) => inside(path, root)) && !isDevelopmentTooling(path)) ||
               isRuntimeOwned(path)))),
     )
@@ -127,17 +126,12 @@ export function qualitySourceTargets(
     }
     if (
       topology.excludedRoots.some((root) => inside(path, root)) ||
-      topology.modules.some(({ testRoots }) => testRoots.some((root) => inside(path, root)))
+      topology.testRoots.some((root) => inside(path, root))
     ) {
       return false;
     }
-    const production = (
-      topology.productionSourceRoots ?? [
-        ...topology.modules.map(({ sourceRoot }) => sourceRoot),
-        ...topology.applicationRoots,
-      ]
-    ).some((root) => inside(path, root));
-    if (!production && topology.toolingFiles?.includes(path) === true) {
+    const production = topology.sourceRoots.some((root) => inside(path, root));
+    if (!production && topology.toolingFiles.includes(path)) {
       return false;
     }
     const runtimeOwned = authority.boundaries.some(

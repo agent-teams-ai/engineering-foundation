@@ -19,6 +19,20 @@ Foreign builds cannot take over; impossible, corrupt, or unknown historical byte
 remain a manual-only mutation barrier. Known-file apply and recovery remain unsupported
 on Windows and fail before effects; pure Plan compilation remains portable.
 
+`compileKnownFileTransactionPlan` accepts plain or null-prototype data records,
+dense ordinary arrays, and `Uint8Array` or Buffer images, including subviews.
+Inert extra fields on compiler-input records remain ignored; wire Plans remain
+closed. Admission never invokes caller accessors, array methods, iterators, or
+coercions. The existing limits are 32 operations, 16 accepted preimages per
+replacement, 8 MiB per image, and 16 MiB total raw image bytes; admission checks
+these limits before copying, encoding, decoding, or hashing the images.
+
+`applyKnownFileTransaction` synchronously validates and takes its own immutable
+Plan before awaiting filesystem work. Later changes to a caller's deserialized
+Plan cannot change the selected operations, file effects, or receipt binding.
+The same rule applies when every selected postimage is already satisfied.
+This does not change persisted Plan bytes, receipt digests, or recovery authority.
+
 For a valid interrupted journal, use `recoverKnownFileTransaction` from the
 recorded owner and kernel artifacts, matching each name, version, and
 `buildIdentity`: `APPLYING` rolls back and `COMMITTED` completes cleanup. A
@@ -70,3 +84,12 @@ The canonical file retains ordinary source governance. Unknown geometry, extra
 files, symlinks, missing counterparts and replaced inodes grant no exemption.
 This read-only result proves duplicate custody at observation; it does not
 authenticate historical execution or authorize cleanup, mutation or recovery.
+
+An optional third argument supplies observation resource accounting:
+`beforeRead(requestedMaxBytes)` reserves and returns an integer allowance no
+larger than the owner's existing 2 MiB file bound; `afterRead(bytes)` receives
+the actual successful read size or a conservative allowance after a changed,
+invalid or failed read; `checkpoint()` can stop metadata traversal for a caller's
+deadline or cancellation. The owner keeps its existing reader and physical
+identity checks. Omitting this argument preserves the existing observation
+behavior. Accounting covers repeated reads, rather than only distinct paths.

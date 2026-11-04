@@ -1,7 +1,10 @@
 export interface QualityCoverageProfile {
+  readonly schemaVersion: 5;
+  readonly budgetMs: number;
+  readonly topologyPath: string;
+  readonly toolchainConfigPath: string;
   readonly sourcePolicyPath: string;
   readonly suppressionPolicyPath: string;
-  readonly featureProfilePath: string;
   readonly lintConfigPath: string;
   readonly bridgeAdmissionsPath?: string;
   /** Existing source boundary and consumer-owned native gate script identities. */
@@ -23,17 +26,14 @@ export interface QualityCoverageProfile {
 }
 
 export interface QualityTopology {
-  readonly productionRoots: readonly string[];
-  readonly applicationRoots: readonly string[];
-  /** Exact production sources; absent for legacy flat mappings. */
-  readonly productionSourceRoots?: readonly string[];
+  readonly schemaVersion: 1;
+  readonly censusRoots: readonly string[];
+  readonly packageRoots: readonly string[];
+  readonly sourceRoots: readonly string[];
+  readonly testRoots: readonly string[];
   readonly excludedRoots: readonly string[];
-  readonly toolingFiles?: readonly string[];
-  readonly modules: readonly {
-    readonly root: string;
-    readonly sourceRoot: string;
-    readonly testRoots: readonly string[];
-  }[];
+  readonly toolingFiles: readonly string[];
+  readonly derivedFrom?: readonly { readonly path: string; readonly sha256: string }[];
 }
 
 export interface QualitySourceAuthority {

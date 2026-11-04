@@ -8,8 +8,7 @@ Hard rules:
 - never import this package from production runtime code;
 - keep consumer-specific catalogs, bounded contexts, classifications, and ADRs in
   the consumer repository;
-- keep core capabilities architecture-neutral and do not extend the recorded
-  `quality.source-coverage` exception beyond the Feature Module Standard; checks
+- keep core capabilities architecture-neutral; checks
   for a standard that defines one architecture's layout or vocabulary ship only
   as an opt-in package named after it (see
   [Architecture neutrality](docs/architecture/executable-capabilities.md#architecture-neutrality));
@@ -99,6 +98,7 @@ Start with:
 - [Release](docs/release.md)
 
 <!-- agent-teams:quality-standard:start -->
+
 Before planning, implementing, or reviewing changes, read and follow the
 [organization Engineering Quality Standard](https://github.com/agent-teams-ai/.github/blob/main/docs/engineering-quality-standard.md).
 Apply it with this repository's instructions, accepted decisions and local

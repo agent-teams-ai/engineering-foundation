@@ -1302,6 +1302,7 @@ boundaries:
       - packages/repository-mutation/src/repository-mutation/application/ports/owned-temporary-cleanup-transition.ts
       - packages/repository-mutation/src/repository-mutation/application/ports/known-file-mutation.ts
       - packages/repository-mutation/src/repository-mutation/application/ports/known-file-observation.ts
+      - packages/repository-mutation/src/repository-mutation/application/ports/retired-temporary-inspection-budget.ts
       - packages/repository-mutation/src/repository-mutation/application/policies/known-file-mutation-admission.ts
       - packages/repository-mutation/src/repository-mutation/application/policies/known-file-state-names.ts
       - packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-lease-release.ts
@@ -3909,6 +3910,7 @@ boundaries:
     allow:
       boundaries:
         - foundation.source-inventory.composition
+        - foundation.source-inventory.application
         - foundation.configuration-input.composition
         - foundation.workspace-inventory.application
         - foundation.workspace-inventory.adapters
@@ -4226,6 +4228,10 @@ boundaries:
       - packages/engineering-foundation/src/features/quality-coverage/adapters/oxlint-session.ts
       - packages/engineering-foundation/src/features/quality-coverage/adapters/profile-input.ts
       - packages/engineering-foundation/src/features/quality-coverage/adapters/protected-config.ts
+      - packages/engineering-foundation/src/features/quality-coverage/adapters/quality-config-resolution.ts
+      - packages/engineering-foundation/src/features/quality-coverage/adapters/quality-input-values.ts
+      - packages/engineering-foundation/src/features/quality-coverage/adapters/quality-input-witness.ts
+      - packages/engineering-foundation/src/features/quality-coverage/adapters/topology-input.ts
       - packages/engineering-foundation/src/features/quality-coverage/node.ts
     allow:
       boundaries:
@@ -4319,6 +4325,29 @@ boundaries:
       builtins: []
       runtimeReferences: []
 
+  - id: feature-module-standard.quality-topology.application
+    roots:
+      - packages/feature-module-standard/src/features/quality-topology/application
+    entrypoints:
+      - packages/feature-module-standard/src/features/quality-topology/application/project-quality-source-topology.ts
+    allow:
+      boundaries: []
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: feature-module-standard.quality-topology.public
+    roots:
+      - packages/feature-module-standard/src/quality-topology.ts
+    entrypoints:
+      - packages/feature-module-standard/src/quality-topology.ts
+    packageExports:
+      - ./quality-topology
+    allow:
+      boundaries:
+        - feature-module-standard.quality-topology.application
+      packages: []
+      builtins: []
+      runtimeReferences: []
   - id: feature-module-standard.model.domain
     roots:
       - packages/feature-module-standard/src/features/feature-model/domain

@@ -12,6 +12,10 @@ toolchain.config.json text eol=lf
 tsconfig.quality.json text eol=lf
 
 architecture/public-api/*.json text eol=lf
+# The neutral topology binds the exact bytes of both repository-owned inputs.
+architecture/foundation/feature-modules.json text eol=lf
+architecture/foundation/quality-source-coverage.yaml text eol=lf
+architecture/foundation/quality-source-topology.json text eol=lf
 docs/reference/sdk-growth-c0.md text eol=lf
 docs/reference/sdk-growth-c0/*.json text eol=lf
 docs/reference/sdk-growth-c0/*.txt text eol=lf

@@ -1,16 +1,22 @@
 export type FixturePut = (path: string, value: unknown) => Promise<void>;
 export async function writeQualityLayout({
   nested,
+  rootPackage = false,
   devDependencies,
   put,
 }: {
   nested: boolean;
+  rootPackage?: boolean;
   devDependencies: Record<string, string>;
   put: FixturePut;
 }) {
-  const moduleRoot = nested ? "packages/contexts/private-worker" : "packages/worker";
+  const moduleRoot = rootPackage
+    ? "."
+    : nested
+      ? "packages/contexts/private-worker"
+      : "packages/worker";
   const packageContainer = nested ? "packages/contexts" : "packages";
-  const sourceRoot = `${moduleRoot}/src`;
+  const sourceRoot = rootPackage ? "src" : `${moduleRoot}/src`;
   const nativeRoot = `${moduleRoot}/native`;
   const governedRoots = nested ? [sourceRoot, nativeRoot] : [sourceRoot];
   const main = `${sourceRoot}/main.ts`;
@@ -28,12 +34,17 @@ export async function writeQualityLayout({
     scripts,
     devDependencies,
   });
-  await put("pnpm-workspace.yaml", `packages: ['${packageContainer}/*']\n`);
-  await put(`${moduleRoot}/package.json`, {
-    name: "@fixture/private-worker",
-    private: true,
-    type: "module",
-  });
+  await put(
+    "pnpm-workspace.yaml",
+    rootPackage ? "packages: []\n" : `packages: ['${packageContainer}/*']\n`,
+  );
+  if (!rootPackage) {
+    await put(`${moduleRoot}/package.json`, {
+      name: "@fixture/private-worker",
+      private: true,
+      type: "module",
+    });
+  }
   await put(main, "export const value = 1;\n");
   if (nested) {
     await put(`${nativeRoot}/helper.c`, "int helper(void) { return 0; }\n");
@@ -56,39 +67,20 @@ export async function writeQualityLayout({
     },
     include: [`../${sourceRoot}/**/*.ts`, `../${sourceRoot}/**/*.d.mts`],
   });
-  await put(
-    "features.json",
-    nested
-      ? {
-          schemaVersion: 1,
-          authority: { id: "agent-teams.feature-module-standard", version: "v1" },
-          scope: {
-            workspaceContainers: [packageContainer],
-            productionModules: [{ moduleRoot, sourceRoot }],
-          },
-          adoption: {
-            applicationRoots: [],
-            excludedRoots: [],
-            abstractLayout: {
-              modules: [{ moduleRoot, sourceRoot, testRoot: `${moduleRoot}/tests` }],
-              applications: [],
-            },
-          },
-        }
-      : {
-          schemaVersion: 1,
-          standard: { id: "agent-teams.feature-module-standard", version: "v1" },
-          productionRoots: [packageContainer],
-          applicationRoots: [],
-          excludedRoots: [],
-          topology: { sourcePolicy: "source.yaml" },
-          modules: [{ root: moduleRoot, sourceRoot, testRoots: [`${moduleRoot}/tests`] }],
-        },
-  );
+  await put("topology.json", {
+    schemaVersion: 1,
+    censusRoots: rootPackage ? ["."] : [packageContainer],
+    packageRoots: rootPackage ? ["."] : [".", moduleRoot],
+    sourceRoots: governedRoots,
+    testRoots: [rootPackage ? "tests" : `${moduleRoot}/tests`],
+    excludedRoots: [],
+    toolingFiles: [],
+  });
   await put("source.yaml", {
     schemaVersion: 3,
     workspace: { kind: "pnpm", manifest: "pnpm-workspace.yaml" },
-    packageRoots: [packageContainer],
+    packageRoots: rootPackage ? [] : [packageContainer],
+    ...(rootPackage ? { rootPackage: true } : {}),
     governedRoots,
     boundaries: [
       {
@@ -120,10 +112,11 @@ export async function writeQualityLayout({
     ],
   });
   await put("quality.yaml", {
-    schemaVersion: 4,
+    schemaVersion: 5,
+    budgetMs: 120000,
     sourcePolicyPath: "source.yaml",
     suppressionPolicyPath: "suppressions.yaml",
-    featureProfilePath: "features.json",
+    topologyPath: "topology.json",
     lintConfigPath: "lint.json",
     toolchainConfigPath: "toolchain.config.json",
     ...(nested ? { nativeChecks: [{ boundaryId: "worker", script: "native:check" }] } : {}),

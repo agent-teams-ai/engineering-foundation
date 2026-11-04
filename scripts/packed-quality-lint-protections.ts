@@ -3,19 +3,7 @@ import { createRequire } from "node:module";
 import { lstat, readFile, realpath, rename, rm } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative } from "node:path";
 import type { FixturePut } from "./packed-quality-layout.ts";
-export interface QualityFixtureReport {
-  outcome: string;
-  capabilities: readonly [
-    {
-      problem?: { readonly code: string; readonly message: string };
-      diagnostics: readonly {
-        ruleId: string;
-        location: { path: string };
-        evidence: readonly { kind: string; value: string }[];
-      }[];
-    },
-  ];
-}
+import type { QualityFixtureReport } from "./quality-command-report.ts";
 export type QualityFixtureInvoke = (
   args: readonly string[],
   code?: number,
@@ -247,7 +235,7 @@ export async function qualifyMissingInstalledOxlint({
     const missing = await invoke(["quality", "check"], 2);
     assert.equal(missing.outcome, "invalid-input");
     assert.equal(missing.capabilities[0].problem?.code, "QUALITY_TOOLCHAIN_INVALID");
-    assert.match(missing.capabilities[0].problem?.message ?? "", /oxlint/u);
+    assert.match(missing.capabilities[0].problem.message, /oxlint/u);
     assert.equal(missing.capabilities[0].diagnostics.length, 0);
   } finally {
     if (selectedMoved) {

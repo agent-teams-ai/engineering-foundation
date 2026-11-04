@@ -87,7 +87,11 @@ async function installNodeConsumer({
 }
 // Uses the caller's already qualified archives. No build or pack occurs here.
 function assertNodeSourceChecks(report) {
-  if (report.status !== "passed" || report.cases.length !== 11) {
+  if (
+    report.status !== "passed" ||
+    report.cases.length !== 12 ||
+    !report.cases.includes("pure-quality-topology")
+  ) {
     throw new Error("Packed Feature Module Standard did not complete its public source checks.");
   }
 }
@@ -125,11 +129,13 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { checkFeatureModule, STANDARD } from "@agent-teams/feature-module-standard";
 import { exampleModule, exampleSources } from "@agent-teams/feature-module-standard/fixtures";
+import { projectQualitySourceTopology } from "@agent-teams/feature-module-standard/quality-topology";
 const requireFromFms = createRequire(import.meta.resolve("@agent-teams/feature-module-standard/package.json"));
 assert.throws(() => import.meta.resolve("@agent-teams/engineering-foundation/package.json"), { code: "ERR_MODULE_NOT_FOUND" });
 assert.throws(() => requireFromFms.resolve("@agent-teams/engineering-foundation/package.json"), { code: "MODULE_NOT_FOUND" });
 assert.equal(checkFeatureModule(exampleModule()).ok, true);
 assert.ok(Object.keys(exampleSources()).length > 0);
+assert.equal(typeof projectQualitySourceTopology, "function");
 assert.equal(STANDARD.version, "v1.1");
 console.log(JSON.stringify({ status: "passed", cases: ["pure-entries-without-foundation"] }));
 `,
@@ -171,6 +177,10 @@ console.log(JSON.stringify({ status: "passed", cases: ["pure-entries-without-fou
   import { exampleModule, exampleSources } from "@agent-teams/feature-module-standard/fixtures";
   import { checkFeatureModuleOnDisk, formatNodeReport } from "@agent-teams/feature-module-standard/node";
   import type { NodeCheckConfig, NodeReport } from "@agent-teams/feature-module-standard/node";
+  import { projectQualitySourceTopology } from "@agent-teams/feature-module-standard/quality-topology";
+  import type { QualitySourceTopology } from "@agent-teams/feature-module-standard/quality-topology";
+  const project: (profile: unknown, path: string) => QualitySourceTopology = projectQualitySourceTopology;
+  void project;
   const config: NodeCheckConfig = { consumerRoot: ".", sourceRoots: ["src"],
     structure: { featureRoots: [], roleRoots: [] }, moduleComposition: [] };
   const pending: Promise<NodeReport> = checkFeatureModuleOnDisk(config);

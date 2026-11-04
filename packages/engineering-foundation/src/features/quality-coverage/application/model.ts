@@ -1,3 +1,5 @@
+import type { QualityCoverageProfile, QualityTopology, QualitySourceAuthority } from "./profile.js";
+import type { QualityFileReader, QualityDependencyDeclaration } from "./input-observations.js";
 import type { FoundationDiagnostic } from "../../validation-reporting/api.js";
 
 /** Observations refer to consumer-owned classification, never filename heuristics. */
@@ -62,18 +64,33 @@ export interface QualityToolSession {
   explicitUnknown(signal?: AbortSignal): Promise<readonly ExplicitUnknownFinding[]>;
 }
 
+/** One invocation owns these observations and their bounded verification resource. */
+export interface QualityCoverageSession {
+  readonly consumerRoot: string;
+  readonly observation: QualityCoverageObservation;
+  readonly profile: QualityCoverageProfile;
+  readonly topology: QualityTopology;
+  readonly authority: QualitySourceAuthority;
+  readonly dependencies: readonly QualityDependencyDeclaration[];
+  readonly readFile: QualityFileReader;
+  readonly readToolFile: QualityFileReader;
+  readBridgeAdmissions(signal?: AbortSignal): Promise<unknown>;
+  verify(signal?: AbortSignal): Promise<void>;
+  remainingMs(): number;
+}
+
 export interface QualityCoverageReader {
   read(
     consumerRoot: string,
     configPath: string,
     signal?: AbortSignal,
-  ): Promise<QualityCoverageObservation>;
+    observeSchemaVersion?: (version: number) => void,
+  ): Promise<QualityCoverageSession>;
 }
 
 export interface QualityToolProvider {
   prepare(
-    consumerRoot: string,
-    configPath: string,
+    session: QualityCoverageSession,
     sourcePaths: readonly string[],
     signal?: AbortSignal,
   ): Promise<QualityToolSession>;

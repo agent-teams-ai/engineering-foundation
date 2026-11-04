@@ -65,10 +65,19 @@ test("known-file Node factory forwards all thirteen operations without binding o
     assert.equal(calls.length, 0);
     const opaque = Object.freeze({ get claim() { assert.fail("Forwarder inspected its request"); } });
     const postimage = Object.freeze({ bytes: Buffer.from("exact bytes") });
-    for (const name of names) {
-      assert.notEqual(api[name], another[name]);
+    const budget = Object.freeze({
+      get beforeRead() { assert.fail("Forwarder inspected the inspection budget"); },
+      get afterRead() { assert.fail("Forwarder inspected the inspection budget"); },
+      get checkpoint() { assert.fail("Forwarder inspected the inspection budget"); }
+    });
+    const cases = names.flatMap((name) => {
       const args = name === "classifyExactFilePostimage" ? ["/unused", postimage]
         : name === "inspectRetiredTemporaryDuplicates" ? ["/unused", opaque] : [opaque];
+      return name === "inspectRetiredTemporaryDuplicates"
+        ? [{ name, args }, { name, args: [...args, budget] }] : [{ name, args }];
+    });
+    for (const { name, args } of cases) {
+      assert.notEqual(api[name], another[name]);
       const receipt = Object.freeze({ outcome: name });
       let settle;
       completion = new Promise((resolve) => { settle = resolve; });
@@ -76,9 +85,12 @@ test("known-file Node factory forwards all thirteen operations without binding o
       assert.equal(returned, completion, name + " must preserve the original promise and timing");
       const call = calls.at(-1);
       assert.equal(call.name, name);
-      assert.equal(call.args.length, args.length + 1);
-      assert.equal(call.args[0], coordination);
-      args.forEach((arg, index) => assert.equal(call.args[index + 1], arg));
+      const forwarded = [coordination, ...args];
+      if (name === "inspectRetiredTemporaryDuplicates" && args.length === 2) {
+        forwarded.push(undefined);
+      }
+      assert.equal(call.args.length, forwarded.length);
+      forwarded.forEach((arg, index) => assert.equal(call.args[index], arg));
       settle(receipt);
       assert.equal(await returned, receipt);
       const cause = Object.freeze({ cause: name });
@@ -90,7 +102,8 @@ test("known-file Node factory forwards all thirteen operations without binding o
       assert.throws(() => api[name](...args), (error) => error === failure);
       failure = undefined;
     }
-    assert.equal(calls.length, names.length * 3);
+    assert.equal(cases.length, names.length + 1);
+    assert.equal(calls.length, cases.length * 3);
   `;
   const invocation = spawnSync(
     process.execPath,

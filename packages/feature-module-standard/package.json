@@ -29,6 +29,10 @@
       "types": "./dist/node.d.ts",
       "import": "./dist/node.js"
     },
+    "./quality-topology": {
+      "types": "./dist/quality-topology.d.ts",
+      "import": "./dist/quality-topology.js"
+    },
     "./package.json": "./package.json"
   },
   "publishConfig": {
@@ -44,7 +48,7 @@
     "typescript": "catalog:"
   },
   "peerDependencies": {
-    "@agent-teams/engineering-foundation": "workspace:^1.8.0 || ^2.0.0 || ^3.0.0"
+    "@agent-teams/engineering-foundation": "workspace:^1.8.0 || ^2.0.0 || ^3.0.0 || ^4.0.0"
   },
   "peerDependenciesMeta": {
     "@agent-teams/engineering-foundation": {

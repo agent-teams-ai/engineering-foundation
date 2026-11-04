@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
+import { fixFiles, type CleanupReport } from "../dist/index.js";
 import { loadConfiguration } from "../dist/features/toolchain-execution/adapters/configuration.js";
 
 function fixture(): string {
@@ -239,3 +242,65 @@ void test("syntax preflight rejects inherited typed options, plugins and config 
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+void test("cleanup rejects oversized and non-file inherited configs before writes", async (t) => {
+  const root = fixture();
+  t.after(() => {
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+  const before = fs.readFileSync(path.join(root, "index.ts"), "utf8");
+  fs.writeFileSync(path.join(root, "oversized.json"), "{}");
+  fs.truncateSync(path.join(root, "oversized.json"), 4_000_001);
+  fs.mkdirSync(path.join(root, "directory.json"));
+  for (const parent of ["oversized.json", "directory.json"]) {
+    fs.writeFileSync(
+      path.join(root, ".oxlintrc.json"),
+      JSON.stringify({ extends: [`./${parent}`] }),
+    );
+    const result = await fixFiles({
+      cwd: root,
+      files: ["index.ts"],
+      lintConfigPath: ".oxlintrc.json",
+      signal: new AbortController().signal,
+    });
+    assert.equal(result.exitCode, 2);
+    assert.equal(result.details.completed, false);
+    assert.deepEqual(result.details.attempted, []);
+    assert.deepEqual(result.details.steps, []);
+    assert.equal(fs.readFileSync(path.join(root, "index.ts"), "utf8"), before);
+  }
+});
+
+void test(
+  "cleanup CLI rejects inherited FIFOs without blocking or writing",
+  { skip: process.platform === "win32" },
+  (t) => {
+    // POSIX FIFO syntax is the rejecting fixture; the actual CLI is the boundary.
+    const root = fixture();
+    t.after(() => {
+      fs.rmSync(root, { recursive: true, force: true });
+    });
+    const before = fs.readFileSync(path.join(root, "index.ts"), "utf8");
+    fs.writeFileSync(path.join(root, ".oxlintrc.json"), '{"extends":["./pipe.json"]}\n');
+    const fifo = spawnSync("mkfifo", [path.join(root, "pipe.json")], {
+      encoding: "utf8",
+      timeout: 10_000,
+    });
+    assert.ifError(fifo.error);
+    assert.equal(fifo.status, 0, fifo.stderr);
+    const cli = fileURLToPath(new URL("../dist/cli.js", import.meta.url));
+    const result = spawnSync(
+      process.execPath,
+      [cli, "fix", "--json", "--lint-config", ".oxlintrc.json", "--", "index.ts"],
+      { cwd: root, encoding: "utf8", timeout: 10_000, killSignal: "SIGKILL" },
+    );
+    assert.ifError(result.error);
+    assert.equal(result.status, 2, result.stdout + result.stderr);
+    const report = JSON.parse(result.stdout) as CleanupReport;
+    assert.equal(report.details.failure, "TOOLCHAIN_LINT_CONFIG_FILE");
+    assert.equal(report.details.completed, false);
+    assert.deepEqual(report.details.attempted, []);
+    assert.deepEqual(report.details.steps, []);
+    assert.equal(fs.readFileSync(path.join(root, "index.ts"), "utf8"), before);
+  },
+);

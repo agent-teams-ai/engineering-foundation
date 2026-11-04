@@ -7,6 +7,7 @@ import {
   readFileSync,
   rmSync,
   symlinkSync,
+  truncateSync,
   writeFileSync,
 } from "node:fs";
 import { createRequire } from "node:module";
@@ -14,7 +15,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test, { type TestContext } from "node:test";
 import { fileURLToPath } from "node:url";
-import { fixFiles, runCommand } from "../dist/index.js";
+import { fixFiles, runCommand, type CleanupReport } from "../dist/index.js";
 import { parseCleanupArguments } from "../dist/features/toolchain-execution/adapters/cleanup-cli.js";
 import { readCleanupDiagnostics } from "../dist/features/toolchain-execution/adapters/cleanup-files.js";
 import { resolveCompilerExecutable } from "../dist/features/toolchain-execution/adapters/executables.js";
@@ -515,3 +516,55 @@ void test("cleanup config failure stops before formatting or mutation", async (t
   assert.equal(formatted, false);
   assert.equal(readFileSync(join(root, "input.ts"), "utf8"), before);
 });
+
+void test("cleanup rejects oversized and non-file inherited configs before writes", async (t) => {
+  const root = cleanupFixture(t);
+  const before = readFileSync(join(root, "input.ts"), "utf8");
+  writeFileSync(join(root, "oversized.json"), "{}");
+  truncateSync(join(root, "oversized.json"), 4_000_001);
+  mkdirSync(join(root, "directory.json"));
+  for (const parent of ["oversized.json", "directory.json"]) {
+    writeFileSync(join(root, "cleanup.json"), JSON.stringify({ extends: [`./${parent}`] }));
+    const result = await fixFiles({
+      cwd: root,
+      files: ["input.ts"],
+      lintConfigPath: "cleanup.json",
+      signal: new AbortController().signal,
+    });
+    assert.equal(result.exitCode, 2);
+    assert.equal(result.details.completed, false);
+    assert.deepEqual(result.details.attempted, []);
+    assert.deepEqual(result.details.steps, []);
+    assert.equal(readFileSync(join(root, "input.ts"), "utf8"), before);
+  }
+});
+
+void test(
+  "cleanup CLI rejects inherited FIFOs without blocking or writing",
+  { skip: process.platform === "win32" },
+  (t) => {
+    // POSIX FIFO syntax is the rejecting fixture; the actual CLI is the boundary.
+    const root = cleanupFixture(t);
+    const before = readFileSync(join(root, "input.ts"), "utf8");
+    writeFileSync(join(root, "cleanup.json"), '{"extends":["./pipe.json"]}\n');
+    const fifo = spawnSync("mkfifo", [join(root, "pipe.json")], {
+      encoding: "utf8",
+      timeout: 10_000,
+    });
+    assert.ifError(fifo.error);
+    assert.equal(fifo.status, 0, fifo.stderr);
+    const result = spawnSync(
+      process.execPath,
+      [cleanupCli, "fix", "--json", "--lint-config", "cleanup.json", "--", "input.ts"],
+      { cwd: root, encoding: "utf8", timeout: 10_000, killSignal: "SIGKILL" },
+    );
+    assert.ifError(result.error);
+    assert.equal(result.status, 2, result.stdout + result.stderr);
+    const report = JSON.parse(result.stdout) as CleanupReport;
+    assert.equal(report.details.failure, "TOOLCHAIN_LINT_CONFIG_FILE");
+    assert.equal(report.details.completed, false);
+    assert.deepEqual(report.details.attempted, []);
+    assert.deepEqual(report.details.steps, []);
+    assert.equal(readFileSync(join(root, "input.ts"), "utf8"), before);
+  },
+);

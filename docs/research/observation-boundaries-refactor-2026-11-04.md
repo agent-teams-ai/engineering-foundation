@@ -356,6 +356,28 @@ legacy test files were not rewritten just to register a separate regression suit
 Four new suites enter the exact-once Linux and Windows inventories; SDK and
 workspace regression helpers run through their existing registered wrappers.
 
+The first full native matrix found an integration omission: the three new SDK
+application modules add twelve compiler artifacts, while the package-specific
+archive census still described the previous distribution. Requalification pins
+the complete 2,917-member inventory and its digest. Removing exactly those twelve
+artifacts must recover the original 2,905-member digest; a 2,918th member is still
+rejected. Other packages retain the 2,500-member limit; member and aggregate byte
+limits and the decompression-bound formula are unchanged. An independent census
+and review confirmed the narrow change. All five archive-budget cases and a real npm 11.20.0 tarball
+qualification passed with TypeScript 7.0.2 in node16-esm and bundler modes.
+The complete local route also exposed the retained coverage fixture's explicit
+Docs list. It now names the new bounded-input suite alongside the three existing
+suites. Fixed Windows index canaries follow the expanded canonical inventory;
+all prior tests retain their relative order and exact membership. Native CI also
+identified the current Docs dependency-fence golden and the positive Node
+projection fixture's compiler metadata. These fixtures are requalified for the
+approved dependency and admission contract; existing execution assertions remain
+mandatory.
+The release-plan check also requires a Feature Module Standard patch because its
+canonical packed manifest carries the exact Foundation development dependency.
+The existing Foundation changeset includes that dependent patch; package
+versions and release machinery are left to the ordinary release process.
+
 ### Executed evidence before final native CI
 
 | Boundary                                  | Observed result                                                                                                                                                                                                                |

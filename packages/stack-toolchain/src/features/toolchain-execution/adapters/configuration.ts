@@ -86,15 +86,22 @@ export function validateLintConfiguration(
   seen = new Set<string>(),
   active = new Set<string>(),
 ): void {
-  const canonical = fs.realpathSync(filename);
-  if (active.has(canonical) || seen.size >= 32 || !/\.jsonc?$/u.test(canonical)) {
+  // Relative extends follow the requested path, not a symlink target's directory.
+  // Different aliases of one physical config can inherit different child files.
+  const resolved = path.resolve(filename);
+  const canonical = fs.realpathSync(resolved);
+  if (
+    active.has(resolved) ||
+    seen.size >= 32 ||
+    [resolved, canonical].some((item) => !/\.jsonc?$/u.test(item))
+  ) {
     throw new Error("TOOLCHAIN_LINT_CONFIG_EXECUTABLE_OR_CYCLE");
   }
-  if (seen.has(canonical)) {
+  if (seen.has(resolved)) {
     return;
   }
-  seen.add(canonical);
-  active.add(canonical);
+  seen.add(resolved);
+  active.add(resolved);
   const source = readLintConfiguration(canonical);
   const errors: ParseError[] = [];
   const value: unknown = parse(source, errors, { allowTrailingComma: true });
@@ -130,7 +137,7 @@ export function validateLintConfiguration(
         }
         for (const entry of child as string[]) {
           validateLintConfiguration(
-            path.resolve(path.dirname(canonical), entry),
+            path.resolve(path.dirname(resolved), entry),
             syntaxOnly,
             seen,
             active,
@@ -142,7 +149,7 @@ export function validateLintConfiguration(
     }
   };
   inspect(value);
-  active.delete(canonical);
+  active.delete(resolved);
 }
 function lintScope(root: string, value: unknown, syntaxOnly: boolean): LintScope {
   const scope = object(value, ["config", "paths"]);

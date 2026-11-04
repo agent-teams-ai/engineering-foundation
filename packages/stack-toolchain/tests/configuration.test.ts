@@ -304,3 +304,86 @@ void test(
     assert.equal(fs.readFileSync(path.join(root, "index.ts"), "utf8"), before);
   },
 );
+
+void test("cleanup validates each inherited symlink alias in the native config directory", async (t) => {
+  const root = fixture();
+  t.after(() => {
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+  const before = fs.readFileSync(path.join(root, "index.ts"), "utf8");
+  fs.mkdirSync(path.join(root, "actual"));
+  fs.mkdirSync(path.join(root, "linked"));
+  fs.writeFileSync(path.join(root, "actual", "bridge.json"), '{"extends":["./policy.json"]}');
+  fs.writeFileSync(path.join(root, "actual", "policy.json"), "{}");
+  fs.symlinkSync(
+    path.join(root, "actual", "bridge.json"),
+    path.join(root, "linked", "bridge.json"),
+    "file",
+  );
+  for (const parents of [
+    ["./linked/bridge.json"],
+    ["./actual/bridge.json", "./linked/bridge.json"],
+  ]) {
+    fs.writeFileSync(path.join(root, ".oxlintrc.json"), JSON.stringify({ extends: parents }));
+    for (const [policy, failure] of [
+      [{ jsPlugins: [] }, "TOOLCHAIN_LINT_CONFIG_EXECUTABLE"],
+      [{ options: { typeAware: true } }, "TOOLCHAIN_SYNTAX_LINT_TYPE_AWARE"],
+      [{ options: { typeCheck: true } }, "TOOLCHAIN_LINT_SEMANTIC_CHECK_UNSUPPORTED"],
+    ] as const) {
+      fs.writeFileSync(path.join(root, "linked", "policy.json"), JSON.stringify(policy));
+      const result = await fixFiles({
+        cwd: root,
+        files: ["index.ts"],
+        lintConfigPath: ".oxlintrc.json",
+        signal: new AbortController().signal,
+      });
+      assert.equal(result.details.failure, failure, JSON.stringify(result));
+      assert.equal(result.exitCode, 2);
+      assert.deepEqual(result.details.attempted, []);
+      assert.deepEqual(result.details.steps, []);
+      assert.equal(fs.readFileSync(path.join(root, "index.ts"), "utf8"), before);
+    }
+  }
+});
+
+void test("cleanup preserves data-only symlink presets and rejects executable path aliases", async (t) => {
+  const root = fixture();
+  t.after(() => {
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+  fs.mkdirSync(path.join(root, "actual"));
+  fs.mkdirSync(path.join(root, "linked"));
+  fs.writeFileSync(path.join(root, "actual", "bridge.json"), '{"extends":["./policy.json"]}');
+  // The real target's sibling is not inherited by Oxlint through the alias.
+  fs.writeFileSync(path.join(root, "actual", "policy.json"), '{"jsPlugins":[]}');
+  fs.writeFileSync(
+    path.join(root, "linked", "policy.json"),
+    '{"categories":{"correctness":"off"},"rules":{"no-useless-computed-key":"warn"}}',
+  );
+  const filename = path.join(root, "index.ts");
+  fs.writeFileSync(filename, 'console.log({["answer"]:42});\n');
+  for (const alias of ["bridge.json", "bridge.ts"]) {
+    fs.symlinkSync(
+      path.join(root, "actual", "bridge.json"),
+      path.join(root, "linked", alias),
+      "file",
+    );
+    fs.writeFileSync(
+      path.join(root, ".oxlintrc.json"),
+      JSON.stringify({ extends: [`./linked/${alias}`] }),
+    );
+    const result = await fixFiles({
+      cwd: root,
+      files: ["index.ts"],
+      lintConfigPath: ".oxlintrc.json",
+      signal: new AbortController().signal,
+    });
+    if (alias.endsWith(".ts")) {
+      assert.equal(result.details.failure, "TOOLCHAIN_LINT_CONFIG_EXECUTABLE_OR_CYCLE");
+      assert.deepEqual(result.details.steps, []);
+    } else {
+      assert.equal(result.exitCode, 0, JSON.stringify(result));
+      assert.match(fs.readFileSync(filename, "utf8"), /\{ answer: 42 \}/u);
+    }
+  }
+});

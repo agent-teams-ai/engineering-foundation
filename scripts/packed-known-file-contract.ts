@@ -1,16 +1,38 @@
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
+import type { QualifiedArchiveRecord } from "./package-artifact-custody.mts";
 import { runCommand } from "./pack-test-support.mjs";
 
-/** Reuse a consumer already installed by the ordinary artifact custody harness. */
-export async function verifyInstalledKnownFileContract(input: {
-  readonly consumerRoot: string;
-  readonly packageVersion: string;
+/** Install the qualified archive as this public API consumer's direct dependency. */
+export async function verifyPackedKnownFileContract(input: {
+  readonly artifact: QualifiedArchiveRecord;
+  readonly temporaryRoot: string;
   readonly repositoryRoot: string;
+  readonly packageManager: string;
+  readonly runPnpm: (args: readonly string[], cwd: string) => Promise<unknown>;
 }): Promise<void> {
-  const root = await mkdtemp(join(input.consumerRoot, ".known-file-contract-"));
+  assert.equal(input.artifact.packageName, "@agent-teams/repository-mutation");
+  const root = await mkdtemp(join(input.temporaryRoot, "known-file-contract-"));
   try {
+    await writeFile(
+      join(root, "package.json"),
+      JSON.stringify({
+        name: "known-file-contract-packed-test",
+        private: true,
+        type: "module",
+        packageManager: input.packageManager,
+        devDependencies: {
+          [input.artifact.packageName]: pathToFileURL(input.artifact.archivePath).href,
+        },
+      }),
+    );
+    await writeFile(join(root, "pnpm-workspace.yaml"), "packages: []\n");
+    await input.runPnpm(
+      ["install", "--offline", "--ignore-scripts", "--strict-peer-dependencies"],
+      root,
+    );
     const fixture = await readFile(
       join(input.repositoryRoot, "packages/repository-mutation/tests/public-contract.ts"),
       "utf8",
@@ -80,7 +102,7 @@ console.log(JSON.stringify({ outcome: "passed", rejections, platform: process.pl
     );
     const result: unknown = await runCommand(
       process.execPath,
-      ["probe.ts", input.packageVersion, input.consumerRoot],
+      ["probe.ts", input.artifact.packageVersion, root],
       root,
     );
     assert.ok(

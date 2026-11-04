@@ -23,7 +23,7 @@ import { createPackedConsumerFixture } from "./packed-consumer-fixture.mjs";
 import { verifyPackedConsumer } from "./packed-consumer-e2e.mjs";
 import { verifyPackedCiInputProof } from "./packed-ci-input-proof.mts";
 import { verifyPackedFeatureModuleStandard } from "./packed-feature-module-standard.mjs";
-import { verifyInstalledKnownFileContract } from "./packed-known-file-contract.ts";
+import { verifyPackedKnownFileContract } from "./packed-known-file-contract.ts";
 import { verifyPackedReleaseChecks } from "./packed-release-checks.ts";
 import { verifyPackedLocalMode } from "./packed-local-mode-e2e.mjs";
 import { createPnpmRunner, localRegistryInstallQualification } from "./pack-test-support.mjs";
@@ -143,10 +143,12 @@ export function qualifyPackedConsumers(handle, group) {
         },
         consumerPhase("packed consumer E2E", async (current) => {
           await verifyPackedConsumer({ fixture: current });
-          await verifyInstalledKnownFileContract({
-            consumerRoot: current.consumerRoot,
-            packageVersion: mutationArtifact.packageVersion,
+          await verifyPackedKnownFileContract({
+            artifact: mutationArtifact,
+            temporaryRoot,
             repositoryRoot,
+            packageManager,
+            runPnpm,
           });
           await verifyPackedCiInputProof(
             artifacts["@agent-teams/ci-input-proof"],

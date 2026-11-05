@@ -1,6 +1,6 @@
 # Local-mode custody and command ownership refactor
 
-Status: implementation under final review; integrated and native qualification pending.
+Status: implementation and review record; current qualification is tracked in [draft PR #466](https://github.com/agent-teams-ai/engineering-foundation/pull/466).
 Date: 2026-11-05 (Europe/Kyiv).
 Baseline: `942b616a4b79b9509a6a89d36205d7b1788d0928`.
 Delivery: one new draft PR; no merge, package publication, or consumer upgrade is part of this task.
@@ -380,4 +380,10 @@ findings; final diff size and any remaining bounded debt recorded.
   fixtures remain unchanged.
   This is required membership qualification of the selected implementation;
   fresh archive execution and current-head native evidence remain required.
+- The complete native test inventories exposed two retained fixed expectations
+  that also needed synchronization: Windows mandatory-case positions after the
+  four new suites, and the exact adapter builtin list after admitting crypto and
+  filesystem observations. Independent critics verified the new literals; exact
+  ordering, inventory unions, empty application/facade builtin lists, and all
+  dependency fences remain enforced.
 

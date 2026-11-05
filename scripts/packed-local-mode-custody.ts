@@ -184,7 +184,11 @@ async function verifyOrphanBackup(input: PackedLocalModeCustody): Promise<void> 
 
 async function verifyDanglingTarget(input: PackedLocalModeCustody): Promise<void> {
   const target = join(input.temporaryRoot, "disposable-packed-local-target");
-  await cp(input.installedPackageRoot, target, { recursive: true, dereference: false });
+  await cp(input.installedPackageRoot, target, {
+    recursive: true,
+    dereference: false,
+    filter: (source) => source !== join(input.installedPackageRoot, "node_modules"),
+  });
   const dependencyDirectory = dirname(dirname(input.installedPackageRoot));
   assert.equal(basename(dependencyDirectory), "node_modules");
   await symlink(

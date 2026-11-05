@@ -386,4 +386,10 @@ findings; final diff size and any remaining bounded debt recorded.
   filesystem observations. Independent critics verified the new literals; exact
   ordering, inventory unions, empty application/facade builtin lists, and all
   dependency fences remain enforced.
+- Native installed-E2E follow-up found that the dangling-target fixture copied
+  pnpm's package-root `node_modules` before creating its own dependency link.
+  The copy now excludes only that exact installation-scaffolding directory;
+  nested package content, dependency resolution, target removal, backup custody,
+  and successful recovery assertions remain intact. Independent critics approved
+  the bounded fixture correction without production or protocol changes.
 

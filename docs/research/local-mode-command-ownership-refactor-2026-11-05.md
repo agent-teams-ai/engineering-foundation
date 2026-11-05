@@ -448,3 +448,35 @@ custody, settlement, recovery and local-mode batch passed all 89 cases with no
 failures or skips. These are mutable-working-tree results; committed-head native
 and real-consumer evidence belongs in the PR's final qualification record.
 
+## Ready-for-review follow-up: atomic fixture absence and repair
+
+The owner subsequently requested Ready for review and merge after successful E2E
+and independent reviews. This replaces the earlier draft-only delivery boundary;
+package publication and unrelated refactoring remain outside this change.
+
+The Ready-triggered CodeQL scan reported alert 149 at the orphan-backup fixture's
+exclusive marker repair. Two independent critics confirmed that the existing
+`writeFile(..., { flag: "wx" })` already refuses a competing destination. The
+preceding `lstat` assertion was an independent absence observation, not authority
+for overwriting the path. No production vulnerability was established.
+
+Both critics separately approved consolidating that absence assertion and repair
+into `assert.doesNotReject(writeFile(..., { flag: "wx" }), ...)`. Successful
+exclusive creation proves absence when restoration begins; any existing regular
+file or symlink makes the assertion fail without overwriting it. This preserves
+the owned, sequential fixture's contract. It does not claim continuous absence,
+general ABA detection, or a stronger write primitive than the existing `wx`.
+
+Keep the rejected public detach, installed-link identity, complete backup
+evidence, subsequent successful public detach and second orphan-recovery case.
+The change stays directly in the fixture without a helper, fallback write,
+suppression, scan exclusion, public API change or test-inventory change.
+
+Validate the exact assertion in a disposable boundary probe: an absent marker is
+restored byte-for-byte; distinct and byte-identical existing files reject and
+retain their bytes; a dangling symlink rejects and retains its link and absent
+target. This supports the primitive's contract and remains separate from public
+packed lifecycle evidence. Run the existing strict and cleanup routes, obtain
+new exact-head native and CodeQL results, refresh the scoped actual-consumer
+proof, and finish independent review before the protected squash merge.
+

@@ -171,10 +171,12 @@ async function verifyOrphanBackup(input: PackedLocalModeCustody): Promise<void> 
   await rejectDetach(input);
   assert.deepEqual(await entryIdentity(paths.installed), localLink);
   assert.deepEqual(await backupEvidence(paths.backup), evidence);
-  await assert.rejects(lstat(paths.marker), { code: "ENOENT" });
 
-  // The explicit fixture repair reinstates the original marker and permits normal detach.
-  await writeFile(paths.marker, marker, { flag: "wx" });
+  // Exclusive fixture repair also proves that rejected detach left the marker absent.
+  await assert.doesNotReject(
+    writeFile(paths.marker, marker, { flag: "wx" }),
+    "Rejected detach must leave the marker absent for exclusive fixture repair.",
+  );
   await detach(input);
 
   await attach(input);

@@ -18,7 +18,7 @@ import {
 import { createNodeProcessRunner } from "../../packages/engineering-foundation/dist/local-mode/composition/process-runner.js";
 
 export const COMMIT = "0123456789abcdef0123456789abcdef01234567";
-export const REGISTRY_INTEGRITY =
+const REGISTRY_INTEGRITY =
   "sha512-bIIjRzA6EHhga2N0sRQ1R5zZSnP3YJ9q8JcD1QmQf3uVn3f2r6q1aXJf0Hb2U5QG6QH0xBvM1nHqN9vQ9w==";
 
 interface LocalModeFixtureOptions {
@@ -114,7 +114,7 @@ export async function writeRegistryLock(
   }
 }
 
-export async function createTargetPackage(path: string, version: string) {
+async function createTargetPackage(path: string, version: string) {
   const selfCheck = {
     ok: true,
     metadataSchemaVersion: 1,

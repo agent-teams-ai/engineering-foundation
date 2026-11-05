@@ -3,7 +3,7 @@ import { lstat, readlink, realpath } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve, sep, toNamespacedPath } from "node:path";
 import { localCustodyFailure } from "../../application/inspection-failures.js";
 
-export function isMissingLocalEntry(error: unknown): boolean {
+function isMissingLocalEntry(error: unknown): boolean {
   return error instanceof Error && "code" in error && error.code === "ENOENT";
 }
 

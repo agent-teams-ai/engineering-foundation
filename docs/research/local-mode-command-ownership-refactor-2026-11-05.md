@@ -368,4 +368,16 @@ findings; final diff size and any remaining bounded debt recorded.
   proof, final diff size, and the disposition of the integration findings will
   be recorded in the draft PR. Evidence from a mutable working tree is not
   current-head qualification.
+- Native qualification follow-up: dead-code checking identified three unused
+  private exports, removed without suppressions. Packaging required exact
+  inventory reenrollment for the eight new production modules: 32 normal compiler
+  outputs increase Foundation's fixed census from 2,935 to 2,967. Two independent
+  researchers verified that subtracting precisely those outputs restores the
+  previous full membership digest and approved the two-file census successor.
+  The test retains that historical digest, every older census layer, and the
+  one-extra-member rejection. The generic 2,500-entry bound, all payload byte
+  limits, the decompression formula, path policies, manifests and historical
+  fixtures remain unchanged.
+  This is required membership qualification of the selected implementation;
+  fresh archive execution and current-head native evidence remain required.
 

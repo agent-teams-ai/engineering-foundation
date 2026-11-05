@@ -70,7 +70,12 @@ const PACKAGE_MAX_ARCHIVE_ENTRIES = Object.freeze({
   // quality-source-coverage/v5 and quality-source-topology/v1 schemas. Exact
   // current census is 2,935; removing those additions restores the qualified
   // 2,917-member digest. The full inventory digest and +1 rejection stay enforced.
-  "@agent-teams/engineering-foundation": 2_935,
+  // Local custody and command admission: +32 = eight production TS modules
+  // (five command handlers and three private local-mode modules) x four compiler
+  // artifacts. Exact census is 2,967; removing only these named tuples restores
+  // the qualified 2,935-member digest. Full membership and +1 rejection remain
+  // enforced, with no additional headroom or change to the default/byte limits.
+  "@agent-teams/engineering-foundation": 2_967,
 });
 
 export function maximumArchiveEntries(packageName) {

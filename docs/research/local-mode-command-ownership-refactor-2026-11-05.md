@@ -388,8 +388,12 @@ findings; final diff size and any remaining bounded debt recorded.
   dependency fences remain enforced.
 - Native installed-E2E follow-up found that the dangling-target fixture copied
   pnpm's package-root `node_modules` before creating its own dependency link.
-  The copy now excludes only that exact installation-scaffolding directory;
-  nested package content, dependency resolution, target removal, backup custody,
-  and successful recovery assertions remain intact. Independent critics approved
-  the bounded fixture correction without production or protocol changes.
+  An initial exact-directory copy exclusion passed Linux and macOS qualification,
+  but Windows exposed the synthetic link's incomplete dependency resolution.
+  The corrected fixture makes a fresh sibling clone of the complete installed
+  package, preserving both package-owned modules and normal ancestor lookup.
+  Three critics approved removing the exclusion and manual dependency bridge.
+  Only the returned owned clone is removed to make the local link dangle;
+  physical CLI binding, backup custody, and recovery assertions remain intact.
+  There is no production, protocol, or package-census change.
 

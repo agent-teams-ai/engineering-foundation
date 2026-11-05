@@ -3,6 +3,7 @@ import {
   cp,
   lstat,
   mkdir,
+  mkdtemp,
   readFile,
   readlink,
   realpath,
@@ -12,7 +13,7 @@ import {
   unlink,
   writeFile,
 } from "node:fs/promises";
-import { basename, dirname, join } from "node:path";
+import { dirname, join } from "node:path";
 import { runCommand, writeJson } from "./pack-test-support.mjs";
 import {
   localModeJson,
@@ -183,19 +184,8 @@ async function verifyOrphanBackup(input: PackedLocalModeCustody): Promise<void> 
 }
 
 async function verifyDanglingTarget(input: PackedLocalModeCustody): Promise<void> {
-  const target = join(input.temporaryRoot, "disposable-packed-local-target");
-  await cp(input.installedPackageRoot, target, {
-    recursive: true,
-    dereference: false,
-    filter: (source) => source !== join(input.installedPackageRoot, "node_modules"),
-  });
-  const dependencyDirectory = dirname(dirname(input.installedPackageRoot));
-  assert.equal(basename(dependencyDirectory), "node_modules");
-  await symlink(
-    dependencyDirectory,
-    join(target, "node_modules"),
-    process.platform === "win32" ? "junction" : "dir",
-  );
+  const target = await mkdtemp(join(dirname(input.installedPackageRoot), "local-target-"));
+  await cp(input.installedPackageRoot, target, { recursive: true, dereference: false });
   await runCommand("git", ["init", "--quiet"], target);
   await runCommand(
     "git",

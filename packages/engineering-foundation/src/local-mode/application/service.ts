@@ -5,6 +5,7 @@ import { releaseFoundationTransactionLeaseSafely } from "../../transaction-coord
 import type { AttachResult, FoundationDevOnlyStatus, FoundationStatus } from "./model.js";
 import { FOUNDATION_PACKAGE_NAME } from "./model.js";
 import type { LocalPackageLifecyclePorts } from "./ports.js";
+import { settleLocalOperation } from "./settle-local-operation.js";
 
 export interface LocalPackageLifecycleOptions {
   readonly ports: LocalPackageLifecyclePorts;
@@ -76,41 +77,49 @@ export class LocalPackageLifecycle {
       requestedMutation: "detach",
       allowRecoveryOf: "local-mode",
     });
-    try {
-      const current = await this.#ports.inspection.mode(before.consumerRoot, {
-        ignoreOperationLock: true,
-      });
-      if (
-        current.consumerRoot !== before.consumerRoot ||
-        current.dependencySpec === undefined ||
-        current.dependencySpec !== before.dependencySpec ||
-        !isExactVersion(current.dependencySpec)
-      ) {
-        throw new FoundationError(
-          "LOCAL_STATE_INVALID",
-          "Consumer foundation dependency changed before detach acquired its operation lock.",
-        );
-      }
-      if (current.mode === "REGISTRY") {
-        return current;
-      }
-      if (current.linkState !== undefined) {
-        await this.#ports.state.write(before.consumerRoot, {
-          ...current.linkState,
-          phase: "DETACHING",
+    const existing = await settleLocalOperation(
+      async () => {
+        const current = await this.#ports.inspection.mode(before.consumerRoot, {
+          ignoreOperationLock: true,
         });
-      }
-      await this.#ports.links.restore(
-        before.consumerRoot,
-        current.dependencySpec,
-        current.linkState,
-      );
-      await this.#ports.state.remove(before.consumerRoot);
-    } finally {
-      await releaseFoundationTransactionLeaseSafely({
-        lease,
-        inspectRetainTransactionBarrier: async () => (await coordinator.inspect()).state !== "idle",
-      });
+        if (
+          current.consumerRoot !== before.consumerRoot ||
+          current.dependencySpec === undefined ||
+          current.dependencySpec !== before.dependencySpec ||
+          !isExactVersion(current.dependencySpec)
+        ) {
+          throw new FoundationError(
+            "LOCAL_STATE_INVALID",
+            "Consumer foundation dependency changed before detach acquired its operation lock.",
+          );
+        }
+        if (current.mode === "REGISTRY") {
+          return current;
+        }
+        if (current.linkState !== undefined) {
+          await this.#ports.state.write(before.consumerRoot, {
+            ...current.linkState,
+            phase: "DETACHING",
+          });
+        }
+        await this.#ports.links.restore(
+          before.consumerRoot,
+          current.dependencySpec,
+          current.linkState,
+        );
+        await this.#ports.state.remove(before.consumerRoot);
+        return;
+      },
+      async () => {
+        await releaseFoundationTransactionLeaseSafely({
+          lease,
+          inspectRetainTransactionBarrier: async () =>
+            (await coordinator.inspect()).state !== "idle",
+        });
+      },
+    );
+    if (existing !== undefined) {
+      return existing;
     }
 
     const after = await this.#ports.inspection.mode(before.consumerRoot);

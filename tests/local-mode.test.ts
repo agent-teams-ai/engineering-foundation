@@ -1,316 +1,35 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import {
-  lstat,
-  realpath,
-  symlink,
-  mkdir,
-  mkdtemp,
-  readFile,
-  rm,
-  writeFile,
-} from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { lstat, realpath, symlink, readFile, rm, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { parseDocument } from "yaml";
 import { LocalPackageLifecycle } from "../packages/engineering-foundation/dist/local-mode/application/service.js";
 import { createNodeLocalPackageLifecyclePorts } from "../packages/engineering-foundation/dist/composition/local-mode-ports.js";
 import {
   inspectConsumerManifest,
   inspectLockfile,
 } from "../packages/engineering-foundation/dist/local-mode/application/consumer-policy.js";
-import { parseDocument } from "yaml";
-
 import {
   FOUNDATION_PACKAGE_NAME,
-  FoundationLocalModeService,
-  NodeProcessRunner as PublicNodeProcessRunner,
   inspectFoundationMode,
 } from "../packages/engineering-foundation/dist/local-mode/index.js";
-import {
-  FOUNDATION_PACKAGE_FILE_ALLOWLIST,
-  FOUNDATION_REQUIRED_ARTIFACT_PATHS,
-} from "../packages/engineering-foundation/dist/composition/local-package-artifacts.js";
+import type { FoundationMode } from "../packages/engineering-foundation/dist/local-mode/index.js";
 import { compileKnownFileTransactionPlan } from "../packages/repository-mutation/dist/index.js";
 import { applyKnownFileTransaction } from "../packages/repository-mutation/dist/qualification/index.js";
-import { createNodeProcessRunner } from "../packages/engineering-foundation/dist/local-mode/composition/process-runner.js";
+import {
+  COMMIT,
+  createFixture,
+  createPackage,
+  writeJson,
+  writeRegistryLock,
+} from "./helpers/local-mode-fixture.ts";
+import { registerLocalModeOwnedPortTests } from "./helpers/local-mode-owned-ports.mjs";
 
-function NodeProcessRunner() {
-  return process.platform === "win32"
-    ? createNodeProcessRunner(process.env)
-    : new PublicNodeProcessRunner();
-}
-
-const COMMIT = "0123456789abcdef0123456789abcdef01234567";
 const strictDirectoryDurabilityTest = process.platform === "win32" ? test.skip : test;
-const REGISTRY_INTEGRITY =
-  "sha512-bIIjRzA6EHhga2N0sRQ1R5zZSnP3YJ9q8JcD1QmQf3uVn3f2r6q1aXJf0Hb2U5QG6QH0xBvM1nHqN9vQ9w==";
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 const cliPath = join(repositoryRoot, "packages", "engineering-foundation", "dist", "cli.js");
-
-async function writeJson(path, value) {
-  await mkdir(dirname(path), { recursive: true });
-  await writeFile(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
-}
-
-async function createPackage(path, version) {
-  await writeJson(join(path, "package.json"), {
-    name: FOUNDATION_PACKAGE_NAME,
-    version,
-    type: "module",
-  });
-}
-
-async function writeRegistryLock(
-  consumerRoot,
-  version,
-  {
-    lockedSpecifier = version,
-    lockedVersion = version,
-    integrity = REGISTRY_INTEGRITY,
-    override = false,
-    patch = false,
-    writeVirtualStore = true,
-  } = {},
-) {
-  const packageKey = `${FOUNDATION_PACKAGE_NAME}@${version}`;
-  const snapshotKey = `${FOUNDATION_PACKAGE_NAME}@${lockedVersion}`;
-  const lines = [
-    "lockfileVersion: '9.0'",
-    "",
-    "settings:",
-    "  autoInstallPeers: true",
-    "  excludeLinksFromLockfile: false",
-    "",
-  ];
-  if (override) {
-    lines.push(
-      "overrides:",
-      `  ${JSON.stringify(FOUNDATION_PACKAGE_NAME)}: ${JSON.stringify(version)}`,
-      "",
-    );
-  }
-  if (patch) {
-    lines.push(
-      "patchedDependencies:",
-      `  ${JSON.stringify(packageKey)}:`,
-      '    path: "patches/foundation.patch"',
-      '    hash: "test-patch-hash"',
-      "",
-    );
-  }
-  lines.push(
-    "importers:",
-    "",
-    "  .:",
-    "    devDependencies:",
-    `      ${JSON.stringify(FOUNDATION_PACKAGE_NAME)}:`,
-    `        specifier: ${JSON.stringify(lockedSpecifier)}`,
-    `        version: ${JSON.stringify(lockedVersion)}`,
-    "",
-    "packages:",
-    "",
-    `  ${JSON.stringify(packageKey)}:`,
-    `    resolution: {integrity: ${JSON.stringify(integrity)}}`,
-    "",
-    "snapshots:",
-    "",
-    `  ${JSON.stringify(snapshotKey)}: {}`,
-    "",
-  );
-  const source = `${lines.join("\n")}\n`;
-  await writeFile(join(consumerRoot, "pnpm-lock.yaml"), source, "utf8");
-  if (writeVirtualStore) {
-    const virtualStoreRoot = join(consumerRoot, "node_modules", ".pnpm");
-    await mkdir(virtualStoreRoot, { recursive: true });
-    await writeFile(join(virtualStoreRoot, "lock.yaml"), source, "utf8");
-  }
-}
-
-async function createTargetPackage(path, version) {
-  const selfCheck = {
-    ok: true,
-    metadataSchemaVersion: 1,
-    packageName: FOUNDATION_PACKAGE_NAME,
-    packageVersion: version,
-    localModeProtocolVersion: 1,
-    compatibleLocalModeProtocolVersions: [1],
-    exportPaths: [
-      ".",
-      "./local-mode",
-      "./package.json",
-      "./presets/*",
-      "./scaffolding",
-      "./schemas/*",
-    ],
-    runtimeDependencies: {},
-  };
-  await writeJson(join(path, "package.json"), {
-    name: FOUNDATION_PACKAGE_NAME,
-    version,
-    type: "module",
-    files: FOUNDATION_PACKAGE_FILE_ALLOWLIST,
-    bin: {
-      "agent-teams-foundation": "./dist/cli.js",
-    },
-    exports: {
-      ".": {
-        types: "./dist/index.d.ts",
-        import: "./dist/index.js",
-      },
-      "./local-mode": {
-        types: "./dist/local-mode/index.d.ts",
-        import: "./dist/local-mode/index.js",
-      },
-      "./scaffolding": {
-        types: "./dist/scaffolding/index.d.ts",
-        import: "./dist/scaffolding/index.js",
-      },
-      "./schemas/*": "./schemas/*",
-      "./presets/*": "./presets/*",
-      "./package.json": "./package.json",
-    },
-    agentTeamsFoundation: {
-      metadataSchemaVersion: 1,
-      localModeProtocolVersion: 1,
-      compatibleLocalModeProtocolVersions: [1],
-    },
-    dependencies: {},
-  });
-  for (const artifactPath of FOUNDATION_REQUIRED_ARTIFACT_PATHS) {
-    const targetPath = join(path, artifactPath);
-    await mkdir(dirname(targetPath), { recursive: true });
-    await writeFile(
-      targetPath,
-      artifactPath.endsWith(".json")
-        ? "{}\n"
-        : artifactPath.endsWith(".d.ts")
-          ? ""
-          : "export {};\n",
-      "utf8",
-    );
-  }
-  await writeFile(
-    join(path, "dist", "cli.js"),
-    `process.stdout.write(${JSON.stringify(`${JSON.stringify(selfCheck)}\n`)});\n`,
-    "utf8",
-  );
-  await writeFile(
-    join(path, "dist", "index.js"),
-    "export class FoundationError extends Error {}\n",
-    "utf8",
-  );
-  await writeFile(
-    join(path, "dist", "local-mode", "index.js"),
-    "export class FoundationLocalModeService {}\nexport function inspectFoundationMode() {}\n",
-    "utf8",
-  );
-  await writeFile(
-    join(path, "dist", "scaffolding", "index.js"),
-    "export function planScaffoldFromFile() {}\nexport function applyFilesystemScaffold() {}\n",
-    "utf8",
-  );
-}
-
-async function replaceWithDirectory(path, version) {
-  await rm(path, { force: true, recursive: true });
-  await createPackage(path, version);
-}
-
-class FakeProcessRunner {
-  constructor({ failAttachedStatus = false, blockExcludeLookup = false }) {
-    this.failAttachedStatus = failAttachedStatus;
-    this.blockExcludeLookup = blockExcludeLookup;
-    this.gitCommitRequests = 0;
-    this.requests = [];
-    this.nodeRunner = new NodeProcessRunner();
-    this.excludeLookupStarted = new Promise((resolve) => {
-      this.resolveExcludeLookupStarted = resolve;
-    });
-    this.excludeLookupRelease = new Promise((resolve) => {
-      this.resolveExcludeLookupRelease = resolve;
-    });
-  }
-
-  async waitForExcludeLookup() {
-    await this.excludeLookupStarted;
-  }
-
-  releaseExcludeLookup() {
-    this.resolveExcludeLookupRelease();
-  }
-
-  async run(request) {
-    this.requests.push(request);
-    if (request.command === "git" && request.args.includes("--git-path")) {
-      this.resolveExcludeLookupStarted();
-      if (this.blockExcludeLookup) {
-        await this.excludeLookupRelease;
-      }
-      return { stdout: ".git/info/exclude\n", stderr: "" };
-    }
-    if (request.command === "git" && request.args.includes("rev-parse")) {
-      this.gitCommitRequests += 1;
-      if (this.failAttachedStatus && this.gitCommitRequests > 1) {
-        throw new Error("Simulated post-attach status failure.");
-      }
-      return { stdout: `${COMMIT}\n`, stderr: "" };
-    }
-    if (request.command === "git" && request.args.includes("status")) {
-      return { stdout: "", stderr: "" };
-    }
-    if (request.command === process.execPath) {
-      return await this.nodeRunner.run(request);
-    }
-    throw new Error(`Unexpected process request: ${JSON.stringify(request)}`);
-  }
-}
-
-async function createFixture({ failAttachedStatus = false, blockExcludeLookup = false } = {}) {
-  const root = await realpath(await mkdtemp(join(tmpdir(), "foundation-local-mode-")));
-  const consumerRoot = join(root, "consumer");
-  const targetRepositoryRoot = join(root, "foundation");
-  const targetPackageRoot = join(targetRepositoryRoot, "packages", "engineering-foundation");
-  const registryVersion = "1.2.3";
-
-  await writeJson(join(consumerRoot, "package.json"), {
-    name: "consumer",
-    version: "0.0.0",
-    private: true,
-    packageManager: "pnpm@11.18.0",
-    devDependencies: {
-      [FOUNDATION_PACKAGE_NAME]: registryVersion,
-    },
-  });
-  await writeRegistryLock(consumerRoot, registryVersion);
-  await mkdir(join(consumerRoot, ".git", "info"), { recursive: true });
-  await writeFile(join(consumerRoot, ".git", "info", "exclude"), "", "utf8");
-  await replaceWithDirectory(
-    join(consumerRoot, "node_modules", "@agent-teams", "engineering-foundation"),
-    registryVersion,
-  );
-
-  await createTargetPackage(targetPackageRoot, "1.3.0-dev.1");
-
-  const runner = new FakeProcessRunner({
-    failAttachedStatus,
-    blockExcludeLookup,
-  });
-  const service = new FoundationLocalModeService({
-    runner,
-    now: () => new Date("2026-07-29T12:00:00.000Z"),
-  });
-
-  return {
-    consumerRoot,
-    root,
-    runner,
-    service,
-    targetPackageRoot,
-    targetRepositoryRoot,
-  };
-}
 
 test("attaches, reports local evidence, and restores registry mode", async () => {
   const fixture = await createFixture();
@@ -367,12 +86,14 @@ test("blocks attach and detach while a foreign Foundation transaction is pending
     await assert.rejects(
       fixture.service.attach(fixture.consumerRoot, fixture.targetRepositoryRoot),
       (error) => {
-        assert.equal(error?.code, "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED");
+        assert.ok(error instanceof Error && "code" in error);
+        assert.equal(error.code, "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED");
         return true;
       },
     );
     await assert.rejects(fixture.service.detach(fixture.consumerRoot), (error) => {
-      assert.equal(error?.code, "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED");
+      assert.ok(error instanceof Error && "code" in error);
+      assert.equal(error.code, "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED");
       return true;
     });
     assert.deepEqual(await readFile(transactionPath), original);
@@ -433,10 +154,13 @@ strictDirectoryDurabilityTest(
 
       const status = await inspectFoundationMode(fixture.consumerRoot);
       assert.equal(status.mode, "INVALID");
-      assert.equal(status.transaction?.state, "pending");
-      assert.equal(status.transaction?.operationKind, "known-file-transaction");
-      assert.equal(status.transaction?.format, "known-file-transaction-envelope-v1");
-      assert.equal(status.transaction?.recovery.commandId, "replace-known-file-recover");
+      assert.ok("transaction" in status);
+      assert.partialDeepStrictEqual(status.transaction, {
+        state: "pending",
+        operationKind: "known-file-transaction",
+        format: "known-file-transaction-envelope-v1",
+        recovery: { commandId: "replace-known-file-recover" },
+      });
       await readFile(
         join(fixture.consumerRoot, ".agent-teams-local", "scaffolding-transaction.json"),
       );
@@ -755,7 +479,7 @@ test("alternate inspection port preserves real directory and pnpm-link lifecycle
         );
         const registryRoot = await realpath(installedPath);
         const ports = createNodeLocalPackageLifecyclePorts(fixture.runner);
-        const observations = [];
+        const observations: Array<{ mode: FoundationMode; ignoreLock: boolean }> = [];
         const alternate = new LocalPackageLifecycle({
           ports: {
             ...ports,
@@ -775,6 +499,7 @@ test("alternate inspection port preserves real directory and pnpm-link lifecycle
         });
         const attached = await alternate.attach(fixture.consumerRoot, fixture.targetRepositoryRoot);
         assert.equal(attached.status.mode, "LOCAL");
+        assert.ok(attached.status.linkState);
         assert.equal(attached.status.linkState.registryEntryKind, kind);
         assert.equal(await realpath(installedPath), fixture.targetPackageRoot);
         assert.equal((await alternate.detach(fixture.consumerRoot)).mode, "REGISTRY");
@@ -805,5 +530,4 @@ test("alternate inspection port preserves real directory and pnpm-link lifecycle
   }
 });
 
-import { registerLocalModeOwnedPortTests } from "./helpers/local-mode-owned-ports.mjs";
 registerLocalModeOwnedPortTests(test);

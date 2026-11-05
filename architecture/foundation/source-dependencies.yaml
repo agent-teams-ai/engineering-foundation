@@ -2256,6 +2256,7 @@ boundaries:
       - packages/engineering-foundation/src/local-mode/application/package-metadata.ts
       - packages/engineering-foundation/src/local-mode/application/ports.ts
       - packages/engineering-foundation/src/local-mode/application/service.ts
+      - packages/engineering-foundation/src/local-mode/application/settle-local-operation.ts
       - packages/engineering-foundation/src/local-mode/api.ts
     allow:
       boundaries:
@@ -2270,6 +2271,7 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/local-mode/application/inspection-failures.ts
+      - packages/engineering-foundation/src/local-mode/application/settle-local-operation.ts
       - packages/engineering-foundation/src/local-mode/application/bun-registry-policy.ts
       - packages/engineering-foundation/src/local-mode/application/consumer-policy.ts
       - packages/engineering-foundation/src/local-mode/application/mode-status.ts
@@ -2282,6 +2284,8 @@ boundaries:
     roots:
       - packages/engineering-foundation/src/local-mode/adapters/node/bun-registry-inspection.ts
       - packages/engineering-foundation/src/local-mode/adapters/node/consumer-inspection.ts
+      - packages/engineering-foundation/src/local-mode/adapters/node/local-entry-observation.ts
+      - packages/engineering-foundation/src/local-mode/adapters/node/local-operation-custody.ts
       - packages/engineering-foundation/src/local-mode/adapters/node/local-state-store.ts
       - packages/engineering-foundation/src/local-mode/adapters/node/mode-inspection.ts
       - packages/engineering-foundation/src/local-mode/adapters/node/package-inspection.ts
@@ -2297,6 +2301,8 @@ boundaries:
         - jsonc-parser
         - yaml
       builtins:
+        - node:crypto
+        - node:fs
         - node:fs/promises
         - node:module
         - node:path
@@ -2307,6 +2313,7 @@ boundaries:
     entrypoints:
       - packages/engineering-foundation/src/local-mode/adapters/node/bun-registry-inspection.ts
       - packages/engineering-foundation/src/local-mode/adapters/node/consumer-inspection.ts
+      - packages/engineering-foundation/src/local-mode/adapters/node/local-operation-custody.ts
       - packages/engineering-foundation/src/local-mode/adapters/node/local-state-store.ts
       - packages/engineering-foundation/src/local-mode/adapters/node/mode-inspection.ts
       - packages/engineering-foundation/src/local-mode/adapters/node/package-inspection.ts

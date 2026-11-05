@@ -206,6 +206,17 @@
     "scripts/packed-docs-consumer-integration.ts",
     "tests/pack-peer-release-cases.ts",
     "tests/pack-manifest-authority-cases.ts",
-    "tests/pack-manifest-qualification-cases.ts"
+    "tests/pack-manifest-qualification-cases.ts",
+    "scripts/packed-local-mode-e2e.ts",
+    "scripts/packed-local-mode-command.ts",
+    "scripts/packed-local-mode-custody.ts",
+    "tests/local-mode.test.ts",
+    "tests/local-mode-recovery.test.ts",
+    "tests/local-mode-custody.test.ts",
+    "tests/helpers/local-mode-fixture.ts",
+    "tests/command-admission.test.ts",
+    "tests/command-results.test.ts",
+    "tests/support/command-host-fixture.ts",
+    "tests/local-mode-settlement.test.ts"
   ]
 }

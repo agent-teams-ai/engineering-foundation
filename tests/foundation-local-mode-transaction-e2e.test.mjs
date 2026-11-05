@@ -454,7 +454,15 @@ test("an unavailable post-failure observation still retains the transaction barr
   await fixture.service.attach(fixture.consumerRoot, fixture.targetPackageRoot);
   fixture.faults.failRestore = true;
   fixture.faults.failSlot = true;
-  await assert.rejects(fixture.service.detach(fixture.consumerRoot), /slot unreadable/u);
+  await assert.rejects(fixture.service.detach(fixture.consumerRoot), (error) => {
+    assert.equal(error.code, "LOCAL_STATE_INVALID");
+    assert.ok(error.cause instanceof AggregateError);
+    assert.deepEqual(
+      error.cause.errors.map((failure) => failure.message),
+      ["restore failed", "slot unreadable"],
+    );
+    return true;
+  });
   assert.equal(fixture.evidence().state.phase, "DETACHING");
   assert.equal(fixture.trace.at(-1), "release:true");
 });

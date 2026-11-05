@@ -128,3 +128,7 @@ export function unresolvableRuntimeDependency(
     { cause: error },
   );
 }
+
+export function localCustodyFailure(message: string): FoundationError {
+  return new FoundationError("LOCAL_STATE_INVALID", message);
+}

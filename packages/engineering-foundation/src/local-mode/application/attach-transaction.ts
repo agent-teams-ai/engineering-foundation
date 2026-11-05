@@ -4,6 +4,7 @@ import { releaseFoundationTransactionLeaseSafely } from "../../transaction-coord
 import type { AttachResult, FoundationLinkState, FoundationStatus } from "./model.js";
 import { FOUNDATION_PACKAGE_NAME } from "./model.js";
 import type { LocalPackageLifecyclePorts } from "./ports.js";
+import { settleLocalOperation } from "./settle-local-operation.js";
 
 interface AttachTransactionInput {
   readonly consumerPath: string;
@@ -180,13 +181,16 @@ async function commitAttach(
 export async function attachFoundation(input: AttachTransactionInput): Promise<AttachResult> {
   const coordinator = await input.ports.coordinator(input.consumerPath);
   const lease = await coordinator.acquire({ requestedMutation: "attach" });
-  try {
-    const preflight = await inspectAttachConsumerState(input, "CONSUMER_INVALID");
-    return await commitAttach(input, preflight);
-  } finally {
-    await releaseFoundationTransactionLeaseSafely({
-      lease,
-      inspectRetainTransactionBarrier: async () => (await coordinator.inspect()).state !== "idle",
-    });
-  }
+  return settleLocalOperation(
+    async () => {
+      const preflight = await inspectAttachConsumerState(input, "CONSUMER_INVALID");
+      return await commitAttach(input, preflight);
+    },
+    async () => {
+      await releaseFoundationTransactionLeaseSafely({
+        lease,
+        inspectRetainTransactionBarrier: async () => (await coordinator.inspect()).state !== "idle",
+      });
+    },
+  );
 }

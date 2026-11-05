@@ -34,12 +34,7 @@ const repositoryMutationName = "@agent-teams/repository-mutation",
   documentAuthoringName = "@agent-teams/document-authoring";
 const foundationName = "@agent-teams/engineering-foundation",
   docsProtocolAgentTeamsName = "@agent-teams/docs-protocol-agent-teams";
-const openSourceDocsRelease = JSON.parse(
-  await readFile(
-    join(repositoryRoot, "architecture/foundation/open-source-docs-release.json"),
-    "utf8",
-  ),
-);
+const openSourceDocsRelease = await json("architecture/foundation/open-source-docs-release.json");
 const docsProtocolName = openSourceDocsRelease.packages.cli.name;
 const docsProtocolMcpName = openSourceDocsRelease.packages.mcp.name;
 const exactVersion =
@@ -363,6 +358,8 @@ test("Foundation source and source-boundary authority cannot import Docs Protoco
   assert.deepEqual(foundationLocalMode.allow.builtins, []);
   assert.deepEqual(localModeApplication.allow.builtins, []);
   assert.deepEqual(localModeAdapters.allow.builtins, [
+    "node:crypto",
+    "node:fs",
     "node:fs/promises",
     "node:module",
     "node:path",

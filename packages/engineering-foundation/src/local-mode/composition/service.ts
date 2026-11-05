@@ -7,11 +7,8 @@ import {
   inspectCanonicalConsumerDevOnly,
   assertNodeLocalMutationSupported,
 } from "../adapters/node/consumer-inspection.js";
-import {
-  createNodeLocalLinkStateStore,
-  type LocalStateDirectory,
-} from "../adapters/node/local-state-store.js";
-import { createNodeRegistryLinks } from "../adapters/node/registry-links.js";
+import type { LocalStateDirectory } from "../adapters/node/local-state-store.js";
+import { createNodeLocalOperationCustody } from "../adapters/node/local-operation-custody.js";
 import { createNodeLocalTargetReader } from "../adapters/node/target-reader.js";
 
 export interface NodeLocalPackageLifecycleDependencies {
@@ -62,10 +59,7 @@ export function createNodeLocalPackageLifecyclePorts(
   dependencies: NodeLocalPackageLifecycleDependencies,
 ): LocalPackageLifecyclePorts {
   const target = createNodeLocalTargetReader(dependencies.runner, dependencies.inspectPackage);
-  const state = createNodeLocalLinkStateStore(dependencies.stateDirectory);
-  const links = createNodeRegistryLinks(dependencies.runner, (path) =>
-    dependencies.stateDirectory.sync(path),
-  );
+  const custody = createNodeLocalOperationCustody(dependencies.stateDirectory, dependencies.runner);
   return {
     inspection: {
       mode: async (path, options) => {
@@ -85,20 +79,23 @@ export function createNodeLocalPackageLifecyclePorts(
       git: (root, path) => guarded(root, () => target.git(root, path)),
     },
     state: {
-      write: (root, value) => guarded(root, () => state.write(root, value)),
-      remove: state.remove,
+      write: (root, value) => guarded(root, () => custody.current(root).state.write(root, value)),
+      remove: (root) => custody.current(root).state.remove(root),
     },
     links: {
-      prepare: (root, path) => guarded(root, () => links.prepare(root, path)),
-      ignoreLocalState: (root) => guarded(root, () => links.ignoreLocalState(root)),
-      replace: (value) => guarded(value.consumerRoot, () => links.replace(value)),
-      restore: (root, spec, value) => links.restore(root, spec, value),
+      prepare: (root, path) => guarded(root, () => custody.current(root).links.prepare(root, path)),
+      ignoreLocalState: (root) =>
+        guarded(root, () => custody.current(root).links.ignoreLocalState(root)),
+      replace: (value) =>
+        guarded(value.consumerRoot, () => custody.current(value.consumerRoot).links.replace(value)),
+      restore: (root, spec, value) => custody.current(root).links.restore(root, spec, value),
     },
     coordinator: async (path) => {
       await assertNodeLocalMutationSupported(path);
       const coordinator = await dependencies.coordinator(path);
       return {
-        acquire: (options) => guarded(path, () => coordinator.acquire(options)),
+        acquire: (options) =>
+          guarded(path, () => custody.acquire(path, () => coordinator.acquire(options))),
         inspect: () => coordinator.inspect(),
       };
     },

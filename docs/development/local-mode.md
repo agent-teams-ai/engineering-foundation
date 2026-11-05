@@ -87,8 +87,40 @@ detach refuse recognized mismatching 0.9.0 evidence before acquiring the shared
 operation lock; other observations still acquire and inspect afresh. They refuse to switch package bytes
 while any foreign, incompatible, unknown, or manual-recovery evidence exists.
 
-Detach removes only the foundation link and atomically restores the preserved
-registry package entry. It never runs a workspace install. A consumer-scoped
+Detach verifies the installed entry before removing the recorded local link and
+restoring the preserved registry package entry. A matching link may be dangling
+because its local checkout was deleted; its recorded target still supplies the
+required evidence. An absent installed entry can also be restored from a valid
+backup. An already restored registry entry is admitted independently, without
+deleting it to infer ownership. Detach never runs a workspace install.
+
+A foreign directory, file, or link at the installed package path is preserved and
+automatic recovery refuses. An orphan backup without a marker can restore an
+absent installed entry. If an installed link independently points to the same
+admitted registry directory as the backup, recovery preserves that installed
+entry and removes only the redundant backup link. An installed local or unproven
+entry and its backup remain for manual reconciliation instead of guessing
+whether the entry belongs to the interrupted attach. This intentionally tightens
+the previous orphan recovery behavior. A refused detach may already have recorded
+the durable `DETACHING` phase; that phase is recovery intent, not proof that any
+installed bytes were replaced.
+
+Marker publication uses a fresh exclusively created temporary file. Phase
+replacement and marker removal require the canonical entry and its parent to
+match evidence observed during the held operation. A new operation reads the
+durable predecessor again. Cleanup removes only a temporary entry still owned
+by that operation; historical or substituted `foundation-link.json.*.tmp` files
+remain for inspection. A filename pattern alone grants no deletion authority.
+These checks fence cooperative local operations; they do not claim an atomic
+compare-and-unlink primitive against an unrelated hostile filesystem writer.
+
+When both the local operation and lease finalization fail, the reported
+`LOCAL_STATE_INVALID` error retains both original failures, in that order, in its
+aggregate cause. A cancellation with failed finalization is an execution failure
+with CLI exit code 1, because retained recovery evidence must be reconciled.
+When only one step fails, its original failure is preserved.
+
+A consumer-scoped
 owner-token regular-file lock rejects concurrent mutations. Creation uses a
 no-replace exclusive file creation; takeover and release are token- and
 file-identity-fenced. Takeover and barrier retention rewrite the already verified

@@ -64,6 +64,9 @@
     "quality-command-report.ts",
     "packed-docs-fixture-support.ts",
     "packed-docs-rollback-fixture.ts",
-    "packed-docs-consumer-integration.ts"
+    "packed-docs-consumer-integration.ts",
+    "packed-local-mode-e2e.ts",
+    "packed-local-mode-command.ts",
+    "packed-local-mode-custody.ts"
   ]
 }

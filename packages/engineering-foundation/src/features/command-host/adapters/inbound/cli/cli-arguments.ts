@@ -54,19 +54,31 @@ interface ArgumentState {
   nativeTransitionPath?: string;
   qualificationOnly?: boolean;
   optionsEnded: boolean;
+  consumedValues: number;
+  jsonRequested: boolean;
 }
 
 const MAXIMUM_CONSUMER_ROOT_BYTES = 512;
 
-function requiredOptionValue(args: readonly string[], index: number, option: string): string {
+function requiredOptionValue(
+  args: readonly string[],
+  index: number,
+  option: string,
+  state: ArgumentState,
+): string {
   const candidate = args[index + 1];
   if (candidate === undefined || candidate.length === 0 || candidate.startsWith("-")) {
     throw invalidCommand(`${option} requires a value.`);
   }
+  state.consumedValues = 1;
   return candidate;
 }
 
-function requiredBaseRefValue(args: readonly string[], index: number): string {
+function requiredBaseRefValue(
+  args: readonly string[],
+  index: number,
+  state: ArgumentState,
+): string {
   const candidate = args[index + 1];
   if (candidate === undefined || candidate.length === 0) {
     throw invalidCommand("--base requires a Git ref.");
@@ -74,6 +86,7 @@ function requiredBaseRefValue(args: readonly string[], index: number): string {
   if (candidate.startsWith("-")) {
     throw invalidCommand("The base ref cannot start with a dash.");
   }
+  state.consumedValues = 1;
   return candidate;
 }
 
@@ -88,23 +101,23 @@ function consumeQualificationOption(
   args: readonly string[],
   index: number,
   state: ArgumentState,
-): number | undefined {
+): boolean {
   const value = args[index];
   if (value === "--write") {
     state.write = true;
-    return 0;
+    return true;
   }
   if (value === "--scope-only") {
     provideScalarOption(state, "--scope-only", "--scope-only");
     state.scopeOnly = true;
-    return 0;
+    return true;
   }
   if (value !== "--buf-executable") {
-    return undefined;
+    return false;
   }
-  const candidate = requiredOptionValue(args, index, "--buf-executable");
+  const candidate = requiredOptionValue(args, index, "--buf-executable", state);
   state.bufExecutablePath = candidate;
-  return 1;
+  return true;
 }
 
 function consumePositionalControl(value: string, state: ArgumentState): boolean {
@@ -123,53 +136,56 @@ function consumeOutputFormatOption(
   args: readonly string[],
   index: number,
   state: ArgumentState,
-): number | undefined {
+): boolean {
   const value = args[index];
   if (value === "--json") {
+    state.jsonRequested = true;
     provideScalarOption(state, "output-format", "--json or --format");
     state.format = "json";
-    return 0;
+    return true;
   }
   if (value !== "--format") {
-    return undefined;
+    return false;
   }
   const candidate = args[index + 1];
   if (candidate !== "json" && candidate !== "text") {
     throw invalidCommand("--format requires json or text.");
   }
+  state.consumedValues = 1;
+  state.jsonRequested ||= candidate === "json";
   provideScalarOption(state, "output-format", "--json or --format");
   state.format = candidate;
-  return 1;
+  return true;
 }
 
-function consumeArgument(args: readonly string[], index: number, state: ArgumentState): number {
+function consumeArgument(args: readonly string[], index: number, state: ArgumentState): void {
   const value = args[index];
   if (value === undefined) {
-    return 0;
+    return;
   }
   if (consumePositionalControl(value, state)) {
-    return 0;
+    return;
   }
-  const outputFormatOption = consumeOutputFormatOption(args, index, state);
-  if (outputFormatOption !== undefined) {
-    return outputFormatOption;
+  if (consumeOutputFormatOption(args, index, state)) {
+    return;
   }
-  const qualificationOption = consumeQualificationOption(args, index, state);
-  if (qualificationOption !== undefined) {
-    return qualificationOption;
+  if (consumeQualificationOption(args, index, state)) {
+    return;
   }
   if (value === "--native-transition") {
     provideScalarOption(state, "--native-transition", "--native-transition");
-    state.nativeTransitionPath = resolve(requiredOptionValue(args, index, "--native-transition"));
-    return 1;
+    state.nativeTransitionPath = resolve(
+      requiredOptionValue(args, index, "--native-transition", state),
+    );
+    return;
   }
   if (value === "--qualification-only") {
     provideScalarOption(state, "--qualification-only", "--qualification-only");
     state.qualificationOnly = true;
-    return 0;
+    return;
   }
   if (value === "--consumer") {
-    const candidate = requiredOptionValue(args, index, "--consumer");
+    const candidate = requiredOptionValue(args, index, "--consumer", state);
     provideScalarOption(state, "--consumer", "--consumer");
     const consumerRoot = resolve(candidate);
     if (Buffer.byteLength(consumerRoot, "utf8") > MAXIMUM_CONSUMER_ROOT_BYTES) {
@@ -178,24 +194,24 @@ function consumeArgument(args: readonly string[], index: number, state: Argument
       );
     }
     state.consumerRoot = consumerRoot;
-    return 1;
+    return;
   }
   if (value === "--base") {
-    const candidate = requiredBaseRefValue(args, index);
+    const candidate = requiredBaseRefValue(args, index, state);
     state.baseRef = candidate;
-    return 1;
+    return;
   }
   if (value === "--config") {
-    const candidate = requiredOptionValue(args, index, "--config");
+    const candidate = requiredOptionValue(args, index, "--config", state);
     state.configPath = candidate;
     state.configPathProvided = true;
-    return 1;
+    return;
   }
   if (value.startsWith("-")) {
     throw invalidCommand(`Unknown option: ${value}.`);
   }
   state.positional.push(value);
-  return 0;
+  return;
 }
 
 function validateCommandOptions(command: string, state: ArgumentState): void {
@@ -260,7 +276,12 @@ function validatePositionalArguments(command: string, positional: readonly strin
   }
 }
 
-export function parseArguments(args: readonly string[]): ParsedArguments {
+export type ArgumentAdmission =
+  | { readonly kind: "admitted"; readonly invocation: ParsedArguments }
+  | { readonly kind: "invalid"; readonly error: unknown; readonly format: OutputFormat };
+
+/** One token traversal owns consumption, rejection precedence and failure output intent. */
+export function admitArguments(args: readonly string[]): ArgumentAdmission {
   const state: ArgumentState = {
     positional: [],
     configPath: defaultCommandConfigPath(),
@@ -271,35 +292,71 @@ export function parseArguments(args: readonly string[]): ParsedArguments {
     write: false,
     scopeOnly: false,
     optionsEnded: false,
+    consumedValues: 0,
+    jsonRequested: false,
   };
-
+  let firstFailure: { readonly error: unknown } | undefined;
   const command = commandFromArguments(args);
   const firstArgumentIndex =
     args[0] === "gate" || (args[0] === "repo" && args[1] === "check") ? 2 : 1;
   for (let index = firstArgumentIndex; index < args.length; index += 1) {
-    index += consumeArgument(args, index, state);
+    state.consumedValues = 0;
+    try {
+      consumeArgument(args, index, state);
+    } catch (error) {
+      firstFailure ??= { error };
+    }
+    // A valid scalar remains consumed even when a later duplicate/path check
+    // rejects it. A flag rejected as a scalar is visited as the next token.
+    index += state.consumedValues;
   }
+  if (firstFailure === undefined) {
+    try {
+      validateCommandOptions(command, state);
+      validatePositionalArguments(command, state.positional);
+      if (!Object.hasOwn(MAX_POSITIONAL_ARGUMENTS, command)) {
+        throw invalidCommand(`Unknown command: ${command}.`);
+      }
+    } catch (error) {
+      firstFailure = { error };
+    }
+  }
+  if (firstFailure !== undefined) {
+    return {
+      kind: "invalid",
+      error: firstFailure.error,
+      format: state.jsonRequested ? "json" : "text",
+    };
+  }
+  return {
+    kind: "admitted",
+    invocation: Object.freeze({
+      command,
+      positional: Object.freeze([...state.positional]),
+      consumerRoot: state.consumerRoot,
+      configPath: state.configPath,
+      format: state.format,
+      write: state.write,
+      ...(state.scopeOnly ? { scopeOnly: true } : {}),
+      ...(state.nativeTransitionPath === undefined
+        ? {}
+        : { nativeTransitionPath: state.nativeTransitionPath }),
+      ...(state.qualificationOnly === true ? { qualificationOnly: true } : {}),
+      ...(state.baseRef === undefined ? {} : { baseRef: state.baseRef }),
+      ...(state.bufExecutablePath === undefined
+        ? {}
+        : { bufExecutablePath: state.bufExecutablePath }),
+    }),
+  };
+}
 
-  validateCommandOptions(command, state);
-  validatePositionalArguments(command, state.positional);
-
-  return Object.freeze({
-    command,
-    positional: Object.freeze([...state.positional]),
-    consumerRoot: state.consumerRoot,
-    configPath: state.configPath,
-    format: state.format,
-    write: state.write,
-    ...(state.scopeOnly ? { scopeOnly: true } : {}),
-    ...(state.nativeTransitionPath === undefined
-      ? {}
-      : { nativeTransitionPath: state.nativeTransitionPath }),
-    ...(state.qualificationOnly === true ? { qualificationOnly: true } : {}),
-    ...(state.baseRef === undefined ? {} : { baseRef: state.baseRef }),
-    ...(state.bufExecutablePath === undefined
-      ? {}
-      : { bufExecutablePath: state.bufExecutablePath }),
-  });
+/** Existing internal consumers request a valid invocation or the original failure. */
+export function parseArguments(args: readonly string[]): ParsedArguments {
+  const admission = admitArguments(args);
+  if (admission.kind === "invalid") {
+    throw admission.error;
+  }
+  return admission.invocation;
 }
 
 function commandFromArguments(args: readonly string[]): string {

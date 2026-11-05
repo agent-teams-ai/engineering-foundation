@@ -103,6 +103,11 @@ pnpm foundation:assert-dev-only
 pnpm foundation:assert-registry
 ```
 
+Foundation CLI options end at `--`; later values are positional arguments even
+when spelled `--json` or `--format`. Failure output follows the options admitted
+before that separator. Invalid arguments preserve the first parse error and
+produce one JSON error only when a real JSON output option was requested.
+
 Any repository can preview a portable documentation setup without mutation:
 
 ```bash

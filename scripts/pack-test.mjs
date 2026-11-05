@@ -25,7 +25,7 @@ import { verifyPackedCiInputProof } from "./packed-ci-input-proof.mts";
 import { verifyPackedFeatureModuleStandard } from "./packed-feature-module-standard.mjs";
 import { verifyPackedKnownFileContract } from "./packed-known-file-contract.ts";
 import { verifyPackedReleaseChecks } from "./packed-release-checks.ts";
-import { verifyPackedLocalMode } from "./packed-local-mode-e2e.mjs";
+import { verifyPackedLocalMode } from "./packed-local-mode-e2e.ts";
 import { createPnpmRunner, localRegistryInstallQualification } from "./pack-test-support.mjs";
 
 const repositoryRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));

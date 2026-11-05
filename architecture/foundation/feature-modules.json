@@ -1276,7 +1276,13 @@
               ]
             }
           ],
-          "testRoots": ["tests/local-mode.test.mjs", "tests/local-mode-bun.test.ts"]
+          "testRoots": [
+            "tests/local-mode.test.ts",
+            "tests/local-mode-recovery.test.ts",
+            "tests/local-mode-custody.test.ts",
+            "tests/local-mode-settlement.test.ts",
+            "tests/local-mode-bun.test.ts"
+          ]
         },
         {
           "id": "process-execution",
@@ -1898,6 +1904,8 @@
           ],
           "testRoots": [
             "tests/cli.test.mjs",
+            "tests/command-admission.test.ts",
+            "tests/command-results.test.ts",
             "tests/reporting-rest.test.mjs",
             "tests/command-host-successor-cli.test.mts"
           ]

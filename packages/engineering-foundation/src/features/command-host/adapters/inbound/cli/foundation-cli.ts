@@ -3,166 +3,108 @@ import {
   checkCommandExitCode,
   commandInputText,
   commandFoundationText,
-  selectedCommandReport,
 } from "../../../application/command-reporting.js";
 import {
   commandTransactionText,
   commandCancellationText,
 } from "../../../application/command-failure.js";
 import { printStatus, printDevOnlyStatus, printHelp } from "./cli-output.js";
-import { dispatchFoundationCommand, type FoundationCommandServices } from "../../../api.js";
-import { parseArguments, type ParsedArguments } from "./cli-arguments.js";
+import {
+  dispatchFoundationCommand,
+  admitLocalModeCommand,
+  executeLocalModeCommand,
+  admitCheckCommand,
+  executeCheckCommand,
+  admitQualityCommand,
+  executeQualityCommand,
+  admitBaselineCommand,
+  executeBaselineCommand,
+  admitInformationCommand,
+  executeInformationCommand,
+  type FoundationCommandServices,
+  type LocalModeCommand,
+  type CheckCommand,
+  type QualityCommand,
+  type BaselineCommand,
+  type InformationCommand,
+} from "../../../api.js";
+import { admitArguments, type ParsedArguments } from "./cli-arguments.js";
+import type { OutputFormat } from "../../../application/command-invocation.js";
 import { foundationCommandFailure } from "./command-error.js";
 
 async function runLocalModeCommand<SchemaId extends string>(
   services: FoundationCommandServices<SchemaId>,
-  parsed: ParsedArguments,
-  service: FoundationCommandServices<SchemaId>["localMode"],
+  input: LocalModeCommand | undefined,
   json: boolean,
 ): Promise<boolean> {
-  switch (parsed.command) {
-    case "attach": {
-      const target = parsed.positional[0];
-      if (target === undefined) {
-        throw invalidCommand("attach requires a foundation repository or package path.");
-      }
-      const result = await service.attach(parsed.consumerRoot, target);
-      printStatus(result.status, json);
-      return true;
-    }
-    case "assert-dev-only": {
-      printDevOnlyStatus(await service.assertDevOnly(parsed.consumerRoot), json);
-      return true;
-    }
-    case "assert-registry": {
-      printStatus(await service.assertRegistry(parsed.consumerRoot), json);
-      return true;
-    }
-    case "architecture-decisions-promote-baseline": {
-      const settings = await services.readConfig(parsed.consumerRoot);
-      const declaration = settings.declaredCapabilities.find(
-        ({ id }) => id === "governance.architecture-decisions",
-      );
-      if (declaration === undefined) {
-        throw invalidCommand(
-          "governance.architecture-decisions must be declared before baseline promotion.",
-        );
-      }
-      const promotion = await services.promoteDecisions({
-        consumerRoot: parsed.consumerRoot,
-        configPath: declaration.configPath,
-      });
-      process.stdout.write(
-        json
-          ? `${JSON.stringify({ promotion }, null, 2)}\n`
-          : `Architecture-decision baseline ${promotion.writeResult}.\n`,
-      );
-      return true;
-    }
-    case "detach": {
-      printStatus(await service.detach(parsed.consumerRoot), json);
-      return true;
-    }
-    case "status": {
-      const status = await service.status(parsed.consumerRoot);
-      printStatus(status, json);
-      if (status.mode === "INVALID") {
-        process.exitCode = 1;
-      }
-      return true;
-    }
-    default:
-      return false;
+  if (input === undefined) {
+    return false;
   }
+  const result = await executeLocalModeCommand(services.localMode, input);
+  if (result.kind === "dev-only") {
+    printDevOnlyStatus(result.status, json);
+  } else {
+    printStatus(result.status, json);
+    if (result.kind === "inspection" && result.status.mode === "INVALID") {
+      process.exitCode = 1;
+    }
+  }
+  return true;
+}
+
+function publishCheckReport(
+  report: Awaited<ReturnType<FoundationCommandServices["check"]>>,
+  json: boolean,
+  services: Pick<FoundationCommandServices, "renderCheck">,
+): void {
+  process.stdout.write(
+    json ? `${JSON.stringify(report, null, 2)}\n` : services.renderCheck(report),
+  );
+  process.exitCode = checkCommandExitCode(report.outcome);
 }
 
 async function runCheckCommand<SchemaId extends string>(
   services: FoundationCommandServices<SchemaId>,
-  parsed: ParsedArguments,
+  input: CheckCommand | undefined,
   json: boolean,
 ): Promise<boolean> {
-  if (parsed.command !== "check") {
+  if (input === undefined) {
     return false;
   }
-  await services.cancellation.withSignal(["SIGINT"], async (signal) => {
-    const report = await services.check({
-      consumerRoot: parsed.consumerRoot,
-      foundationVersion: await services.installedVersion(),
-      ...(parsed.positional[0] === undefined ? {} : { capabilityId: parsed.positional[0] }),
-      signal,
-    });
-    process.stdout.write(
-      json ? `${JSON.stringify(report, null, 2)}\n` : services.renderCheck(report),
-    );
-    process.exitCode = checkCommandExitCode(report.outcome);
+  await executeCheckCommand(services, input, (report) => {
+    publishCheckReport(report, json, services);
   });
   return true;
 }
 
 async function runQualityCommand<SchemaId extends string>(
   services: FoundationCommandServices<SchemaId>,
-  parsed: ParsedArguments,
+  input: QualityCommand | undefined,
   json: boolean,
 ): Promise<boolean> {
-  if (parsed.command !== "quality") {
+  if (input === undefined) {
     return false;
   }
-  if (parsed.positional.length !== 1 || !["check", "format"].includes(parsed.positional[0] ?? "")) {
-    throw invalidCommand("quality requires the check or format subcommand.");
-  }
-  await services.cancellation.withSignal(["SIGINT", "SIGTERM"], async (signal) => {
-    const format = parsed.positional[0] === "format";
-    const capabilityId = format ? "quality.format-coverage" : "quality.source-coverage";
-    const settings = await services.readConfig(parsed.consumerRoot, signal);
-    const declaration = settings.declaredCapabilities.find(({ id }) => id === capabilityId);
-    if (declaration === undefined) {
-      throw invalidCommand(
-        `${capabilityId} must be declared before quality ${parsed.positional[0]}.`,
-      );
-    }
-    const report = selectedCommandReport(
-      await (format ? services.qualityFormat : services.qualityCoverage)({
-        consumerRoot: parsed.consumerRoot,
-        configPath: declaration.configPath,
-        scopeOnly: parsed.scopeOnly === true,
-        signal,
-      }),
-      await services.installedVersion(),
-    );
-    process.stdout.write(
-      json ? `${JSON.stringify(report, null, 2)}\n` : services.renderCheck(report),
-    );
-    process.exitCode = checkCommandExitCode(report.outcome);
+  await executeQualityCommand(services, input, (report) => {
+    publishCheckReport(report, json, services);
   });
   return true;
 }
 
 async function runBaselineCommand<SchemaId extends string>(
   services: FoundationCommandServices<SchemaId>,
-  parsed: ParsedArguments,
+  input: BaselineCommand | undefined,
   json: boolean,
 ): Promise<boolean> {
-  if (parsed.command !== "baseline") {
+  if (input === undefined) {
     return false;
   }
-  const action = parsed.positional[0];
-  if (action !== "check" && action !== "init" && action !== "prune") {
-    throw invalidCommand("baseline requires the check, init or prune subcommand.");
-  }
-  await services.cancellation.withSignal(["SIGINT", "SIGTERM"], async (signal) => {
-    const invocation = { consumerRoot: parsed.consumerRoot, configPath: parsed.configPath, signal };
-    if (action === "check") {
-      const report = selectedCommandReport(
-        await services.findingsBaseline.check(invocation),
-        await services.installedVersion(),
-      );
-      process.stdout.write(
-        json ? `${JSON.stringify(report, null, 2)}\n` : services.renderCheck(report),
-      );
-      process.exitCode = checkCommandExitCode(report.outcome);
+  await executeBaselineCommand(services, input, (output) => {
+    if (output.kind === "check") {
+      publishCheckReport(output.report, json, services);
       return;
     }
-    const result = await services.findingsBaseline.write({ ...invocation, action });
+    const result = output.result;
     process.stdout.write(
       json
         ? `${JSON.stringify({ baseline: result }, null, 2)}\n`
@@ -171,7 +113,6 @@ async function runBaselineCommand<SchemaId extends string>(
               .map(({ kind, path, rule }) => `Not accepted (${kind}): ${path} ${rule}\n`)
               .join(""),
     );
-    // A new or worse finding stays a failure of the check; pruning cannot accept it.
     if (result.remaining.length > 0) {
       process.exitCode = 1;
     }
@@ -282,6 +223,27 @@ async function runPolicyCommand<SchemaId extends string>(
   json: boolean,
 ): Promise<boolean> {
   switch (parsed.command) {
+    case "architecture-decisions-promote-baseline": {
+      const settings = await services.readConfig(parsed.consumerRoot);
+      const declaration = settings.declaredCapabilities.find(
+        ({ id }) => id === "governance.architecture-decisions",
+      );
+      if (declaration === undefined) {
+        throw invalidCommand(
+          "governance.architecture-decisions must be declared before baseline promotion.",
+        );
+      }
+      const promotion = await services.promoteDecisions({
+        consumerRoot: parsed.consumerRoot,
+        configPath: declaration.configPath,
+      });
+      process.stdout.write(
+        json
+          ? `${JSON.stringify({ promotion }, null, 2)}\n`
+          : `Architecture-decision baseline ${promotion.writeResult}.\n`,
+      );
+      return true;
+    }
     case "explain": {
       const ruleId = parsed.positional[0];
       if (ruleId === undefined) {
@@ -360,64 +322,51 @@ async function runInformationCommand<SchemaId extends string>(
   services: FoundationCommandServices<SchemaId>,
   parsed: ParsedArguments,
   json: boolean,
+  input: InformationCommand | undefined,
 ): Promise<boolean> {
   if (await services.scaffold(parsed, json)) {
     return true;
   }
-  switch (parsed.command) {
-    case "help":
-    case "--help":
-    case "-h": {
-      if (json) {
-        throw invalidCommand("--json is not accepted by help.");
-      }
-      printHelp();
-      return true;
-    }
-    case "self-check": {
-      const result = await services.inspectPackage();
-      process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-      return true;
-    }
-    case "schema": {
-      const schemaId = parsed.positional[0];
-      if (schemaId === undefined || !services.isSchemaId(schemaId)) {
-        throw invalidCommand(`Unknown schema ID: ${schemaId ?? "missing"}.`);
-      }
-      process.stdout.write(await services.readSchema(schemaId));
-      return true;
-    }
-    case "version":
-    case "--version":
-    case "-v": {
-      if (json) {
-        throw invalidCommand("--json is not accepted by version.");
-      }
-      process.stdout.write(`${await services.installedVersion()}\n`);
-      return true;
-    }
-    default:
-      return false;
+  if (input === undefined) {
+    return false;
   }
+  const result = await executeInformationCommand(services, input);
+  switch (result.kind) {
+    case "help":
+      printHelp();
+      break;
+    case "text":
+      process.stdout.write(result.text);
+      break;
+    case "package":
+      process.stdout.write(`${JSON.stringify(result.result, null, 2)}\n`);
+      break;
+  }
+  return true;
 }
 
 async function main<SchemaId extends string>(
   createServices: () => FoundationCommandServices<SchemaId>,
-  args: readonly string[],
+  parsed: ParsedArguments,
 ): Promise<void> {
-  const parsed = parseArguments(args);
   const json = parsed.format === "json";
+  // Prepare the buffered commands before constructing any effectful services.
+  const localMode = admitLocalModeCommand(parsed);
+  const check = admitCheckCommand(parsed);
+  const quality = admitQualityCommand(parsed);
+  const baseline = admitBaselineCommand(parsed);
+  const information = admitInformationCommand(parsed);
   const services = createServices();
   await dispatchFoundationCommand(parsed, [
-    (input) => runLocalModeCommand(services, input, services.localMode, json),
+    () => runLocalModeCommand(services, localMode, json),
     services.qualityGate,
-    (input) => runQualityCommand(services, input, json),
-    (input) => runBaselineCommand(services, input, json),
+    () => runQualityCommand(services, quality, json),
+    () => runBaselineCommand(services, baseline, json),
     (input) => runAgentWorkflowCommand(services, input),
     (input) => runProtobufQualificationCommand(services, input, json),
-    (input) => runCheckCommand(services, input, json),
+    () => runCheckCommand(services, check, json),
     (input) => runPolicyCommand(services, input, json),
-    (input) => runInformationCommand(services, input, json),
+    (input) => runInformationCommand(services, input, json, information),
   ]);
 }
 
@@ -425,16 +374,16 @@ export async function runFoundationCli<SchemaId extends string>(
   createServices: () => FoundationCommandServices<SchemaId>,
   args: readonly string[],
 ): Promise<void> {
+  let format: OutputFormat = "text";
   try {
-    await main(createServices, args);
+    const admission = admitArguments(args);
+    format = admission.kind === "admitted" ? admission.invocation.format : admission.format;
+    if (admission.kind === "invalid") {
+      throw admission.error;
+    }
+    await main(createServices, admission.invocation);
   } catch (error) {
-    if (
-      args.includes("--json") ||
-      args.some(
-        (argument, index, arguments_) =>
-          argument === "--format" && arguments_[index + 1] === "json",
-      )
-    ) {
+    if (format === "json") {
       const failure = foundationCommandFailure(error);
       process.stdout.write(`${JSON.stringify(failure.envelope)}\n`);
       process.exitCode = failure.exitCode;

@@ -1,6 +1,6 @@
 # Local-mode custody and command ownership refactor
 
-Status: proposed implementation plan; scope choice reviewed by three independent researchers.
+Status: implementation under final review; integrated and native qualification pending.
 Date: 2026-11-05 (Europe/Kyiv).
 Baseline: `942b616a4b79b9509a6a89d36205d7b1788d0928`.
 Delivery: one new draft PR; no merge, package publication, or consumer upgrade is part of this task.
@@ -343,5 +343,29 @@ findings; final diff size and any remaining bounded debt recorded.
   and compatibility; CLI admission/failure contracts; portable contracts and
   scope/E2E). No remaining plan blocker. Approvals cover the concrete revised
   boundaries above, not implementation or runtime qualification.
-- Implementation and final-head evidence: pending.
+- Implementation round 1: critics found and reproduced eager/unbound report
+  rendering, exact-byte admission of otherwise equivalent v1 marker JSON,
+  recovery-diagnostic precedence, and custody loss across publication sync. The
+  owners corrected these findings and added focused regression evidence; the
+  pre-existing reporting oracle remains unchanged.
+- Implementation round 2: independent custody/compatibility and CLI/installed-E2E
+  reviewers approved the corrected behavior. CLI review independently passed
+  all 12 new admission/result cases and 75 retained reporting-observation cases.
+  The integrated 213-case focused run passed 212 cases; its sole failure and the
+  fast gate identified the same adapter-to-reporting architectural edge. Final
+  integration also identified six typed-lint findings. The correction moved
+  failure construction to the existing local application owner and removed
+  redundant narrowed conditions; no dependency permissions or suppressions were
+  added.
+- Implementation round 3: an independent critic reproduced two same-operation
+  rollback defects after forward replacement had already detected substitution:
+  replaced installed parents and a new link with identical target text. The
+  correction retains expected installed entry/absence, both parent observations,
+  and published backup through rollback. Both public regressions were RED before
+  the change and GREEN afterward; the author's complete local batch passed all
+  85 cases. Fresh detach still admits durable evidence in its new operation.
+- Final committed-head review, complete native matrix, scoped real-consumer
+  proof, final diff size, and the disposition of the integration findings will
+  be recorded in the draft PR. Evidence from a mutable working tree is not
+  current-head qualification.
 

@@ -96,6 +96,14 @@
     "known-file-transaction-admission.test.ts",
     "pack-peer-release-cases.ts",
     "pack-manifest-authority-cases.ts",
-    "pack-manifest-qualification-cases.ts"
+    "pack-manifest-qualification-cases.ts",
+    "local-mode.test.ts",
+    "local-mode-recovery.test.ts",
+    "local-mode-custody.test.ts",
+    "helpers/local-mode-fixture.ts",
+    "command-admission.test.ts",
+    "command-results.test.ts",
+    "support/command-host-fixture.ts",
+    "local-mode-settlement.test.ts"
   ]
 }

@@ -397,3 +397,54 @@ findings; final diff size and any remaining bounded debt recorded.
   physical CLI binding, backup custody, and recovery assertions remain intact.
   There is no production, protocol, or package-census change.
 
+## Follow-up: retained marker authority and duplicate-lease settlement
+
+A fresh review of PR #466 found three preliminary findings in
+[ReviewRouter comment 6647361803](https://github.com/agent-teams-ai/engineering-foundation/pull/466#issuecomment-6647361803)
+that remained present in `bfd8aaa3e2d9d997cdaaca9a853cf80fc64467c0`.
+The later provider-exhaustion result did not supersede these findings. The
+successful 35-job native matrix for that head remains valid historical evidence;
+it did not exercise these precise fault-injection windows.
+
+The bounded correction stays in the existing local-mode adapter and its custody
+suite, with this plan recording the review disposition:
+
+| Finding | Correction | Regression boundary |
+| --- | --- | --- |
+| A retained marker can be replaced while directory observations are awaited, then admitted as a new predecessor | Carry the retained marker and parent observations through preparation and the final publication checks; only a fresh operation admits a new persisted predecessor | Substitute a byte-identical marker during the intervening parent observation; refuse publication and preserve both entries |
+| An in-place edit after publication can become the newly retained baseline | Read the observed published marker with the existing bounded reader and compare its bytes with the intended publication before retaining it | Modify the destination immediately after the filesystem publication; refuse the write and subsequent removal, preserving the altered evidence |
+| Duplicate acquisition can lose the custody violation when releasing the extra lease also fails | Reuse local operation settlement to preserve the custody violation first and the exact release failure second, releasing the extra lease once | Keep the first owner active, fail the duplicate lease release, and check ordered failures, retained barrier, release count and unchanged first-owner custody |
+
+Two independent critics approved this plan. Both required retaining the original
+parent observations as well as the marker; a fresh parent snapshot must not
+replace already-held authority. Existing on-disk DETACHING admission, semantic
+v1 parsing, and custody after a successful publication followed by sync failure
+must continue to work. The adapter will reuse the existing application settlement
+helper rather than introducing another error aggregation policy.
+
+Independent implementation review identified one integration declaration needed
+by that reuse: enroll the already-owned `settle-local-operation.ts` as an exact
+entrypoint of `foundation.local-mode.application`. The adapter already has the
+inward dependency on that owner. This adds no allowed owner, wildcard import,
+public package export, new module or dependency exception.
+
+No new public API, filesystem port, schema, package dependency, production module,
+archive-census successor, feature flag or test-inventory change is needed. The
+correction does not claim atomic filesystem compare-and-swap. It rejects the
+observable substitutions in the existing operation and retains unproven evidence.
+
+Verification proceeds from deterministic RED cases on the unchanged production
+baseline to the corrected custody suite and the retained local-mode/settlement
+regressions. Run explicit-file cleanup, strict typechecking and the required
+changed/fast/workflow checks, recording any executor limitation accurately.
+After independent implementation review, push the correction immediately and
+request the complete native matrix on the new exact head/base. Refresh the
+scoped real-consumer lifecycle evidence for that candidate before final delivery.
+Keep this same PR open as a draft.
+
+The unchanged production baseline failed all four new regression cases while
+its fourteen existing custody cases passed. After the correction, the combined
+custody, settlement, recovery and local-mode batch passed all 89 cases with no
+failures or skips. These are mutable-working-tree results; committed-head native
+and real-consumer evidence belongs in the PR's final qualification record.
+

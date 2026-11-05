@@ -2271,6 +2271,7 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/local-mode/application/inspection-failures.ts
+      - packages/engineering-foundation/src/local-mode/application/settle-local-operation.ts
       - packages/engineering-foundation/src/local-mode/application/bun-registry-policy.ts
       - packages/engineering-foundation/src/local-mode/application/consumer-policy.ts
       - packages/engineering-foundation/src/local-mode/application/mode-status.ts

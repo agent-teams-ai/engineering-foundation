@@ -148,11 +148,11 @@ async function prepareMarkerWrite(
     existingDirectory.metadata === undefined
       ? root
       : await observeLocalParents(consumerRoot, directory);
-  const predecessor = await observeLocalEntry(destination);
+  const predecessor = retained?.marker ?? (await observeLocalEntry(destination));
   await durability.ensure(consumerRoot);
   await beforeParents.assertCurrent();
   await assertLocalEntry(predecessor);
-  const parents = await observeLocalParents(consumerRoot, directory);
+  const parents = retained?.parents ?? (await observeLocalParents(consumerRoot, directory));
   if (predecessor.metadata === undefined) {
     if (state.phase !== "ATTACHING") {
       throw localCustodyFailure("Local phase replacement requires its predecessor marker.");
@@ -251,10 +251,13 @@ export function createNodeLocalLinkStateStore(durability: LocalStateDirectory) {
             published = true;
           }
           // Rename can update ctime. Retain its post-publication observation only
-          // after proving the inode is still the one opened by this operation.
+          // after proving the opened inode still contains the intended bytes.
           const observed = await observeLocalEntry(destination);
           if (observed.metadata === undefined || !sameLocalEntry(initial, observed.metadata)) {
             throw localCustodyFailure("Published local marker ownership changed.");
+          }
+          if (!(await readMarker(observed)).equals(bytes)) {
+            throw localCustodyFailure("Published local marker bytes changed.");
           }
           const publication = { root: consumerRoot, marker: observed, parents };
           retained = publication;

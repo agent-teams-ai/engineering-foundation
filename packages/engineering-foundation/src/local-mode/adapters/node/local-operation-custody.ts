@@ -5,6 +5,7 @@ import type { ProcessRunner } from "../../application/model.js";
 import { createNodeLocalLinkStateStore, type LocalStateDirectory } from "./local-state-store.js";
 import { createNodeRegistryLinks } from "./registry-links.js";
 import { localCustodyFailure } from "../../application/inspection-failures.js";
+import { settleLocalOperation } from "../../application/settle-local-operation.js";
 
 type LocalCoordinator = Awaited<ReturnType<LocalPackageLifecyclePorts["coordinator"]>>;
 type LocalLease = Awaited<ReturnType<LocalCoordinator["acquire"]>>;
@@ -31,8 +32,17 @@ export function createNodeLocalOperationCustody(
       const root = await realpath(resolve(path));
       const lease = await acquire();
       if (active.has(root)) {
-        await lease.release({ retainTransactionBarrier: true });
-        throw localCustodyFailure("The local operation lease did not exclude an existing owner.");
+        const failure = localCustodyFailure(
+          "The local operation lease did not exclude an existing owner.",
+        );
+        return settleLocalOperation(
+          async () => {
+            throw failure;
+          },
+          async () => {
+            await lease.release({ retainTransactionBarrier: true });
+          },
+        );
       }
       const operation = create();
       active.set(root, operation);

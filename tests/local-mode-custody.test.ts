@@ -15,6 +15,7 @@ import test from "node:test";
 import { createNodeLocalLinkStateStore } from "../packages/engineering-foundation/dist/local-mode/adapters/node/local-state-store.js";
 import { createNodeLocalOperationCustody } from "../packages/engineering-foundation/dist/local-mode/adapters/node/local-operation-custody.js";
 import type { FoundationLinkState } from "../packages/engineering-foundation/dist/local-mode/application/model.js";
+import { FoundationError } from "../packages/engineering-foundation/dist/features/validation-reporting/api.js";
 
 async function fixture() {
   const root = await realpath(await mkdtemp(join(tmpdir(), "foundation-marker-custody-")));
@@ -101,6 +102,88 @@ test("failed acquisition and repeated release cannot retain or erase another ope
   }
 });
 
+test("duplicate acquisition preserves ownership failure and release failure without disturbing the owner", async () => {
+  const f = await fixture();
+  try {
+    const custody = createNodeLocalOperationCustody(
+      { ensure: async () => {}, sync: async () => {}, prune: async () => {} },
+      {
+        run: async () => {
+          throw new Error("unexpected process execution");
+        },
+      },
+    );
+    let ownerReleases = 0;
+    const owner = await custody.acquire(f.root, async () => ({
+      status: { state: "idle", diagnostics: [] },
+      release: async () => {
+        ownerReleases++;
+      },
+    }));
+    const resources = custody.current(f.root);
+    try {
+      for (const releaseFailure of [
+        Object.freeze(new Error("duplicate lease release failed")),
+        undefined,
+      ]) {
+        let releases = 0;
+        await assert.rejects(
+          custody.acquire(f.root, async () => ({
+            status: { state: "idle", diagnostics: [] },
+            release: async (options) => {
+              releases++;
+              assert.deepEqual(options, { retainTransactionBarrier: true });
+              throw releaseFailure;
+            },
+          })),
+          (failure: unknown) => {
+            assert.ok(failure instanceof FoundationError);
+            assert.equal(failure.code, "LOCAL_STATE_INVALID");
+            assert.ok(failure.cause instanceof AggregateError);
+            assert.equal(failure.cause.errors.length, 2);
+            const ownershipFailure: unknown = failure.cause.errors[0];
+            const finalizationFailure: unknown = failure.cause.errors[1];
+            assert.ok(ownershipFailure instanceof FoundationError);
+            assert.equal(ownershipFailure.code, "LOCAL_STATE_INVALID");
+            assert.match(ownershipFailure.message, /did not exclude an existing owner/u);
+            assert.equal(finalizationFailure, releaseFailure);
+            return true;
+          },
+        );
+        assert.equal(releases, 1);
+        assert.equal(ownerReleases, 0);
+        assert.equal(custody.current(f.root), resources);
+      }
+      let releases = 0;
+      await assert.rejects(
+        custody.acquire(f.root, async () => ({
+          status: { state: "idle", diagnostics: [] },
+          release: async (options) => {
+            releases++;
+            assert.deepEqual(options, { retainTransactionBarrier: true });
+          },
+        })),
+        (failure: unknown) => {
+          assert.ok(failure instanceof FoundationError);
+          assert.equal(failure.code, "LOCAL_STATE_INVALID");
+          assert.match(failure.message, /did not exclude an existing owner/u);
+          assert.equal(failure.cause, undefined);
+          return true;
+        },
+      );
+      assert.equal(releases, 1);
+      assert.equal(ownerReleases, 0);
+      assert.equal(custody.current(f.root), resources);
+    } finally {
+      await owner.release();
+    }
+    assert.equal(ownerReleases, 1);
+    assert.throws(() => custody.current(f.root), /active operation lease/u);
+  } finally {
+    await rm(f.root, { recursive: true, force: true });
+  }
+});
+
 test("initial marker publication refuses a preexisting foreign marker", async () => {
   const f = await fixture();
   try {
@@ -125,6 +208,40 @@ test("phase publication refuses a marker substituted while ensuring its director
     assert.deepEqual(await readFile(f.marker), bytes);
     assert.deepEqual(await readFile(join(f.directory, "original")), bytes);
   } finally {
+    await rm(f.root, { recursive: true, force: true });
+  }
+});
+
+test("phase publication preserves retained marker custody across directory observations", async (context) => {
+  const f = await fixture();
+  const originalRealpath = filesystem.realpath;
+  let substituted = false;
+  try {
+    await f.store.write(f.root, f.state);
+    const bytes = await readFile(f.marker);
+    const originalMarker = join(f.directory, "retained-marker");
+    context.mock.method(
+      filesystem,
+      "realpath",
+      async (...args: Parameters<typeof originalRealpath>) => {
+        const result = await originalRealpath(...args);
+        if (!substituted && String(args[0]) === f.directory) {
+          substituted = true;
+          await rename(f.marker, originalMarker);
+          await writeFile(f.marker, bytes);
+        }
+        return result;
+      },
+    );
+    syncBuiltinESMExports();
+    await assert.rejects(f.store.write(f.root, { ...f.state, phase: "LOCAL" }));
+    assert.equal(substituted, true);
+    await assert.rejects(f.store.remove(f.root));
+    assert.deepEqual(await readFile(f.marker), bytes);
+    assert.deepEqual(await readFile(originalMarker), bytes);
+  } finally {
+    context.mock.restoreAll();
+    syncBuiltinESMExports();
     await rm(f.root, { recursive: true, force: true });
   }
 });
@@ -264,6 +381,49 @@ test("post-publication marker substitution is refused and never cleaned as owned
     await rm(f.root, { recursive: true, force: true });
   }
 });
+
+for (const publication of ["initial", "phase"] as const) {
+  test(`${publication} publication refuses an in-place marker edit before retaining its observation`, async (context) => {
+    const f = await fixture();
+    const method = publication === "initial" ? "link" : "rename";
+    const originalPublish = filesystem[method];
+    const state = publication === "initial" ? f.state : { ...f.state, phase: "LOCAL" as const };
+    const expectedBytes = Buffer.from(`${JSON.stringify(state, null, 2)}\n`, "utf8");
+    const foreignBytes = Buffer.from(
+      `${JSON.stringify({ ...state, packageVersion: "9.9.9" }, null, 2)}\n`,
+      "utf8",
+    );
+    let edited = false;
+    try {
+      if (publication === "phase") {
+        await f.store.write(f.root, f.state);
+      }
+      context.mock.method(
+        filesystem,
+        method,
+        async (...args: Parameters<typeof originalPublish>) => {
+          await originalPublish(args[0], args[1]);
+          if (String(args[1]) === f.marker) {
+            assert.deepEqual(await readFile(f.marker), expectedBytes);
+            assert.equal(foreignBytes.length, expectedBytes.length);
+            assert.notDeepEqual(foreignBytes, expectedBytes);
+            edited = true;
+            await writeFile(f.marker, foreignBytes);
+          }
+        },
+      );
+      syncBuiltinESMExports();
+      await assert.rejects(f.store.write(f.root, state));
+      assert.equal(edited, true);
+      await assert.rejects(f.store.remove(f.root));
+      assert.deepEqual(await readFile(f.marker), foreignBytes);
+    } finally {
+      context.mock.restoreAll();
+      syncBuiltinESMExports();
+      await rm(f.root, { recursive: true, force: true });
+    }
+  });
+}
 
 test("marker removal preserves a replaced destination even when its bytes match", async () => {
   const f = await fixture();

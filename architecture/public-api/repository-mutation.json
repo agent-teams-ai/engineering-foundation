@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/repository-mutation",
-  "packageVersion": "0.4.2",
+  "packageVersion": "0.5.0",
   "extractorVersion": "typescript-native/7.0.2",
   "entrypoints": [
     {
@@ -2732,6 +2732,34 @@
           "signature": "export interface PublishPreparedAbsentFileOptions"
         },
         {
+          "canonicalReference": "@agent-teams/repository-mutation!RetiredTemporaryInspectionBudget#afterRead:member(1)",
+          "kind": "MethodSignature",
+          "parentReference": "@agent-teams/repository-mutation!RetiredTemporaryInspectionBudget:interface",
+          "parentKind": "Interface",
+          "signature": "afterRead(actualOrConservativeBytes: number): void;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!RetiredTemporaryInspectionBudget#beforeRead:member(1)",
+          "kind": "MethodSignature",
+          "parentReference": "@agent-teams/repository-mutation!RetiredTemporaryInspectionBudget:interface",
+          "parentKind": "Interface",
+          "signature": "beforeRead(requestedMaxBytes: number): number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!RetiredTemporaryInspectionBudget#checkpoint:member(1)",
+          "kind": "MethodSignature",
+          "parentReference": "@agent-teams/repository-mutation!RetiredTemporaryInspectionBudget:interface",
+          "parentKind": "Interface",
+          "signature": "checkpoint(): void;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!RetiredTemporaryInspectionBudget:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface RetiredTemporaryInspectionBudget"
+        },
+        {
           "canonicalReference": "@agent-teams/repository-mutation!StoredJournalSlot#authority:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/repository-mutation!StoredJournalSlot:interface",
@@ -2932,7 +2960,7 @@
           "kind": "Function",
           "parentReference": "@agent-teams/repository-mutation!",
           "parentKind": "EntryPoint",
-          "signature": "export declare function inspectRetiredTemporaryDuplicates(consumerRoot: string, filePaths: readonly string[]): Promise<readonly {\n    readonly path: string;\n    readonly counterpart: string;\n}[]>;"
+          "signature": "export declare function inspectRetiredTemporaryDuplicates(consumerRoot: string, filePaths: readonly string[], budget?: RetiredTemporaryInspectionBudget): Promise<readonly {\n    readonly path: string;\n    readonly counterpart: string;\n}[]>;"
         },
         {
           "canonicalReference": "@agent-teams/repository-mutation!isLexicallyContainedPath:function(1)",

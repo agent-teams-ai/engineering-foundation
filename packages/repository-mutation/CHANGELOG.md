@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.5.0
+
+### Minor Changes
+
+- [#465](https://github.com/agent-teams-ai/engineering-foundation/pull/465) [`942b616`](https://github.com/agent-teams-ai/engineering-foundation/commit/942b616a4b79b9509a6a89d36205d7b1788d0928) Thanks [@777genius](https://github.com/777genius)! - Validate and own known-file transaction Plans synchronously before apply yields,
+  so caller mutation cannot change the operation associated with a receipt digest.
+  Reject executable input properties without invoking them and preflight image
+  counts/byte budgets before expensive work. Preserve valid inert compiler extras,
+  canonical Plan bytes, journal limits and historical recovery contracts.
+
+  Allow retired-temporary duplicate observers to participate in a caller's shared
+  read budget and deadline while retaining the owner's reader and physical
+  identity checks. Existing calls without accounting retain their behavior.
+
 ## 0.4.2
 
 ### Patch Changes

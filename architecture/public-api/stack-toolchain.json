@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "stack-toolchain",
-  "packageVersion": "0.2.0",
+  "packageVersion": "0.3.0",
   "extractorVersion": "typescript-native/7.0.2",
   "entrypoints": [
     {
@@ -111,6 +111,118 @@
           "parentReference": "stack-toolchain!",
           "parentKind": "EntryPoint",
           "signature": "export interface AttemptResult"
+        },
+        {
+          "canonicalReference": "stack-toolchain!CleanupInput#budgetMs:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!CleanupInput:interface",
+          "parentKind": "Interface",
+          "signature": "readonly budgetMs?: number;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!CleanupInput#cwd:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!CleanupInput:interface",
+          "parentKind": "Interface",
+          "signature": "readonly cwd: string;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!CleanupInput#files:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!CleanupInput:interface",
+          "parentKind": "Interface",
+          "signature": "readonly files: readonly string[];"
+        },
+        {
+          "canonicalReference": "stack-toolchain!CleanupInput#lintConfigPath:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!CleanupInput:interface",
+          "parentKind": "Interface",
+          "signature": "readonly lintConfigPath?: string;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!CleanupInput#signal:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!CleanupInput:interface",
+          "parentKind": "Interface",
+          "signature": "readonly signal: AbortSignal;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!CleanupInput:interface",
+          "kind": "Interface",
+          "parentReference": "stack-toolchain!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface CleanupInput"
+        },
+        {
+          "canonicalReference": "stack-toolchain!CleanupReport#command:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!CleanupReport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly command: \"fix\";"
+        },
+        {
+          "canonicalReference": "stack-toolchain!CleanupReport#details:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!CleanupReport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly details: {\n    readonly schemaVersion: 1;\n    readonly requested: readonly string[];\n    readonly attempted: readonly string[];\n    readonly changed: readonly string[];\n    readonly completed: boolean;\n    readonly sourceObservationComplete: boolean;\n    readonly steps: readonly CleanupStep[];\n    readonly failure?: string;\n    readonly retainedControlDirectory?: string;\n};"
+        },
+        {
+          "canonicalReference": "stack-toolchain!CleanupReport#durationMs:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!CleanupReport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly durationMs: number;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!CleanupReport#exitCode:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!CleanupReport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly exitCode: number;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!CleanupReport:interface",
+          "kind": "Interface",
+          "parentReference": "stack-toolchain!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface CleanupReport"
+        },
+        {
+          "canonicalReference": "stack-toolchain!CleanupStep#files:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!CleanupStep:interface",
+          "parentKind": "Interface",
+          "signature": "readonly files: readonly string[];"
+        },
+        {
+          "canonicalReference": "stack-toolchain!CleanupStep#operation:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!CleanupStep:interface",
+          "parentKind": "Interface",
+          "signature": "readonly operation: \"write\" | \"check\";"
+        },
+        {
+          "canonicalReference": "stack-toolchain!CleanupStep#result:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!CleanupStep:interface",
+          "parentKind": "Interface",
+          "signature": "readonly result: ProcessRunResult;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!CleanupStep#tool:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!CleanupStep:interface",
+          "parentKind": "Interface",
+          "signature": "readonly tool: \"oxlint\" | \"oxfmt\";"
+        },
+        {
+          "canonicalReference": "stack-toolchain!CleanupStep:interface",
+          "kind": "Interface",
+          "parentReference": "stack-toolchain!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface CleanupStep"
         },
         {
           "canonicalReference": "stack-toolchain!CommandInput#budgetMs:member",
@@ -391,6 +503,13 @@
           "parentReference": "stack-toolchain!",
           "parentKind": "EntryPoint",
           "signature": "export type TypecheckResult = {\n    readonly status: \"passed\" | \"passed-with-fallback\";\n    readonly engine: Engine;\n    readonly attempts: readonly AttemptRecord[];\n} | {\n    readonly status: \"failed\";\n    readonly code: \"TOOLCHAIN_DIAGNOSTICS\" | \"TOOLCHAIN_CAPTURE_FAILURE\" | \"TOOLCHAIN_CLEANUP_FAILURE\" | \"TOOLCHAIN_CANCELLED\" | \"TOOLCHAIN_DEADLINE\" | \"TOOLCHAIN_UNCLASSIFIED_FAILURE\" | \"TOOLCHAIN_ALL_ENGINES_FAILED\";\n    readonly attempts: readonly AttemptRecord[];\n};"
+        },
+        {
+          "canonicalReference": "stack-toolchain!fixFiles:function(1)",
+          "kind": "Function",
+          "parentReference": "stack-toolchain!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function fixFiles(input: CleanupInput): Promise<CleanupReport>;"
         },
         {
           "canonicalReference": "stack-toolchain!formatFilesContractVersion:var",

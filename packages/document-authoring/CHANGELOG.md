@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.7
+
+### Patch Changes
+
+- Updated dependencies [[`942b616`](https://github.com/agent-teams-ai/engineering-foundation/commit/942b616a4b79b9509a6a89d36205d7b1788d0928)]:
+  - @agent-teams/repository-mutation@0.5.0
+
 ## 0.3.6
 
 ### Patch Changes

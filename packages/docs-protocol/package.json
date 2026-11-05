@@ -1,6 +1,6 @@
 {
   "name": "@agent-teams/docs-protocol",
-  "version": "0.6.6",
+  "version": "0.6.7",
   "description": "Deterministic documentation authoring and agent-context protocol for any repository.",
   "homepage": "https://github.com/agent-teams-ai/engineering-foundation#readme",
   "bugs": {

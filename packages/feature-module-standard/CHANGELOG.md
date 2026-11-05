@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.4.0
+
+### Minor Changes
+
+- [#465](https://github.com/agent-teams-ai/engineering-foundation/pull/465) [`942b616`](https://github.com/agent-teams-ai/engineering-foundation/commit/942b616a4b79b9509a6a89d36205d7b1788d0928) Thanks [@777genius](https://github.com/777genius)! - Replace quality source-coverage profiles v1–v4 with v5's architecture-neutral
+  topology and one captured invocation. Execution no longer rereads a profile to
+  select different lint/project inputs; bounded consumer-file verification rejects
+  persistent changes before success and preserves the admitted report version.
+
+  Move FMS topology projection to the opt-in package's pure `./quality-topology`
+  export, preserve historical schema artifacts and provide the v5 migration guide.
+  Existing consumers may retain their previous pinned major until they migrate.
+
+### Patch Changes
+
+- [#463](https://github.com/agent-teams-ai/engineering-foundation/pull/463) [`1fb1656`](https://github.com/agent-teams-ai/engineering-foundation/commit/1fb16560e6972909e68fb36b9b005bf16273cbea) Thanks [@777genius](https://github.com/777genius)! - Reobserve SDK growth workspace inputs before publishing a report, including ordered export conditions, and preserve the prior report when inputs change or become unavailable. Validate discovered source path identities, honor cancellation after asynchronous reads, and avoid repeated traversal of overlapping roots. Preserve the selected workspace declaration configuration version in success and failure reports.
+
+  Republish Feature Module Standard with the corresponding exact Foundation development dependency in its canonical package manifest.
+
 ## 0.3.2
 
 ### Patch Changes

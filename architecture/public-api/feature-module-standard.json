@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/feature-module-standard",
-  "packageVersion": "0.3.2",
+  "packageVersion": "0.4.0",
   "extractorVersion": "typescript-native/7.0.2",
   "entrypoints": [
     {
@@ -527,6 +527,74 @@
           "parentReference": "@agent-teams/feature-module-standard!",
           "parentKind": "EntryPoint",
           "signature": "export declare function formatNodeReport(report: NodeReport): string;"
+        }
+      ]
+    },
+    {
+      "exportPath": "./quality-topology",
+      "items": [
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!QualitySourceTopology#censusRoots:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/feature-module-standard!QualitySourceTopology:interface",
+          "parentKind": "Interface",
+          "signature": "readonly censusRoots: readonly string[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!QualitySourceTopology#excludedRoots:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/feature-module-standard!QualitySourceTopology:interface",
+          "parentKind": "Interface",
+          "signature": "readonly excludedRoots: readonly string[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!QualitySourceTopology#packageRoots:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/feature-module-standard!QualitySourceTopology:interface",
+          "parentKind": "Interface",
+          "signature": "readonly packageRoots: readonly string[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!QualitySourceTopology#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/feature-module-standard!QualitySourceTopology:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!QualitySourceTopology#sourceRoots:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/feature-module-standard!QualitySourceTopology:interface",
+          "parentKind": "Interface",
+          "signature": "readonly sourceRoots: readonly string[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!QualitySourceTopology#testRoots:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/feature-module-standard!QualitySourceTopology:interface",
+          "parentKind": "Interface",
+          "signature": "readonly testRoots: readonly string[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!QualitySourceTopology#toolingFiles:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/feature-module-standard!QualitySourceTopology:interface",
+          "parentKind": "Interface",
+          "signature": "readonly toolingFiles: readonly string[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!QualitySourceTopology:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface QualitySourceTopology"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!projectQualitySourceTopology:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function projectQualitySourceTopology(profile: unknown, sourcePolicyPath: string): QualitySourceTopology;"
         }
       ]
     }

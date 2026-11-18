@@ -34,6 +34,7 @@
     "./presets/oxlint/base.json": "./presets/oxlint/base.json",
     "./presets/oxlint/cleanup.json": "./presets/oxlint/cleanup.json",
     "./presets/oxlint/cleanup-fix.json": "./presets/oxlint/cleanup-fix.json",
+    "./presets/oxlint/test-integrity.json": "./presets/oxlint/test-integrity.json",
     "./presets/typescript/base.json": "./presets/typescript/base.json",
     "./presets/oxlint/maintainability-tests.json": "./presets/oxlint/maintainability-tests.json",
     "./presets/oxlint/maintainability.json": "./presets/oxlint/maintainability.json",

@@ -152,6 +152,31 @@ Add `maintainability.json` for production budgets or
 `maintainability-tests.json` for test budgets. These are portable technical
 presets; product policy and organization conformance remain in their consumers.
 
+#### Optional Landmines test-integrity overlay
+
+The opt-in `test-integrity.json` preset selects exactly two external Oxlint
+rules: `landmines-testing/no-fixed-sleep` and
+`landmines-testing/no-flake-masking`. It does not load a plugin, change default
+lint behavior, or prove tests are reliable.
+
+A consumer choosing these rules must pin an exact
+[`@interfere/landmines`](https://github.com/interfere-inc/landmines)
+development dependency and register `@interfere/landmines/testing` under
+`jsPlugins` in its own Oxlint configuration. Oxlint resolves plugin specifiers
+relative to the declaring config, so do not register the plugin inside the
+installed Stack preset. Qualify both rejected shortcuts and accepted
+event-driven tests under the installed consumer's package manager before
+enabling the rules in required CI.
+
+Do not adopt Landmines `recommended.json` globally.
+`no-test-doubles` can prohibit legitimate test adapters and fault injection,
+while comment, test placement, exported API, and return-type rules can conflict
+with consumer policy. The other testing rules require separate review of
+known upstream detection gaps and false positives. See the
+[Landmines upstream issues](https://github.com/interfere-inc/landmines/issues).
+This optional preset does not replace E2E tests, complete test inventories, or
+consumer-owned quality gates.
+
 ## Literal file input availability
 
 An installed package whose public root exports `formatFilesContractVersion === 1`

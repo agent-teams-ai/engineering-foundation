@@ -1,0 +1,6 @@
+{
+  "rules": {
+    "landmines-testing/no-fixed-sleep": "error",
+    "landmines-testing/no-flake-masking": "error"
+  }
+}

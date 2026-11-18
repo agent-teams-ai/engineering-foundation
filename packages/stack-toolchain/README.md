@@ -152,6 +152,60 @@ Add `maintainability.json` for production budgets or
 `maintainability-tests.json` for test budgets. These are portable technical
 presets; product policy and organization conformance remain in their consumers.
 
+#### Optional Landmines test-integrity overlay
+
+`test-integrity.json` provides two **opt-in** test-quality checks from
+[Interfere Landmines](https://github.com/interfere-inc/landmines):
+`no-fixed-sleep` and `no-flake-masking`. They reject common attempts to
+make asynchronous tests pass by sleeping, retrying or raising a per-test timeout.
+They do not prove that tests exercise real behavior. Neither Stack Toolchain nor
+Engineering Foundation enables this preset automatically.
+
+The third-party JS plugin belongs to the **consumer's devDependencies**, not
+Stack Toolchain's mandatory dependency graph. With a reviewed exact version,
+for example Landmines `0.1.0`:
+
+```sh
+bun add --dev --exact @interfere/landmines@0.1.0
+```
+
+Register the plugin in the **consumer-owned** `.oxlintrc.json` and extend the
+portable rules-only overlay alongside the appropriate Stack base preset:
+
+```json
+{
+  "extends": [
+    "./node_modules/stack-toolchain/presets/oxlint/node.json",
+    "./node_modules/stack-toolchain/presets/oxlint/test-integrity.json"
+  ],
+  "jsPlugins": [
+    { "name": "landmines-testing", "specifier": "@interfere/landmines/testing" }
+  ]
+}
+```
+
+Oxlint resolves JS plugin specifiers relative to the **declaring config file**.
+Do not move `jsPlugins` into the installed Stack preset: with pnpm or Bun
+isolation, that would resolve against Stack's package rather than the consumer
+and require bundling the third-party code for everyone. Keep existing consumer
+paths, overrides and required CI gates; this overlay is not a new lint command.
+
+If existing tests have justified timeout exceptions, Landmines supports an
+exact-count, per-file `allow` setting for `no-flake-masking`. Review each
+exception rather than adding a blanket suppression. Verify both a rejected
+retry/fixed sleep and an accepted event-driven test under the **installed**
+consumer configuration before requiring this rule in CI. Its heuristics are
+not a substitute for real E2E execution, complete test inventories or coverage.
+
+Do **not** extend Landmines' `recommended.json` by default. In particular,
+`no-test-doubles` can prohibit legitimate boundary simulators and fault-injection
+tests, while `no-comments`, test colocating/naming rules and
+`no-explicit-return-types` impose conventions that consumers own.
+`strict-msw` and `no-unsignaled-poll` require separate, consumer-specific
+qualification; upstream `0.1.0` has reported detection gaps and false
+positives. Oxlint's JS plugin API is still experimental. This overlay is a
+narrow candidate, not a claim of fleet-wide policy adoption.
+
 ## Literal file input availability
 
 An installed package whose public root exports `formatFilesContractVersion === 1`

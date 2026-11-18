@@ -166,6 +166,20 @@ void test("all eight extensions retain syntax checks and only TS enables typed c
   }
 });
 
+const integrityPresetPath = fileURLToPath(
+  new URL("../presets/oxlint/test-integrity.json", import.meta.url),
+);
+
+void test("test-integrity preset selects narrow external rules without loading plugins", () => {
+  const overlay: unknown = JSON.parse(readFileSync(integrityPresetPath, "utf8"));
+  assert.deepEqual(overlay, {
+    rules: {
+      "landmines-testing/no-fixed-sleep": "error",
+      "landmines-testing/no-flake-masking": "error",
+    },
+  });
+});
+
 function cleanupFixture(t: TestContext) {
   const root = mkdtempSync(join(tmpdir(), "TEST-stack-cleanup-"));
   t.after(() => {

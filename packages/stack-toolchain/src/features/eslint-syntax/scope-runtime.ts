@@ -3,7 +3,21 @@ import { readFileSync, realpathSync } from "node:fs";
 import type * as TSESTree from "./ast.js";
 import { ScopeType, type Definition } from "./scope-contract.js";
 
-export * from "./scope-contract.js";
+export { DefinitionType, ScopeType } from "./scope-contract.js";
+export type {
+  CatchClauseDefinition,
+  ClassNameDefinition,
+  Definition,
+  FunctionNameDefinition,
+  ImplicitGlobalVariableDefinition,
+  ImportBindingDefinition,
+  ParameterDefinition,
+  TSEnumMemberDefinition,
+  TSEnumNameDefinition,
+  TSModuleNameDefinition,
+  TypeDefinition,
+  VariableDefinition,
+} from "./scope-contract.js";
 
 export interface ScopeVariable {
   readonly defs: Definition[];
@@ -42,13 +56,23 @@ interface ScopeBase {
   readonly references: Reference[];
 }
 
-export type Scope = ScopeBase & ({
-  readonly type: ScopeType.function;
-  readonly block: TSESTree.ArrowFunctionExpression | TSESTree.FunctionDeclaration | TSESTree.FunctionExpression | TSESTree.Program | TSESTree.TSDeclareFunction | TSESTree.TSEmptyBodyFunctionExpression;
-} | {
-  readonly type: Exclude<ScopeType, ScopeType.function>;
-  readonly block: TSESTree.Node;
-});
+export type Scope = ScopeBase &
+  (
+    | {
+        readonly type: ScopeType.function;
+        readonly block:
+          | TSESTree.ArrowFunctionExpression
+          | TSESTree.FunctionDeclaration
+          | TSESTree.FunctionExpression
+          | TSESTree.Program
+          | TSESTree.TSDeclareFunction
+          | TSESTree.TSEmptyBodyFunctionExpression;
+      }
+    | {
+        readonly type: Exclude<ScopeType, ScopeType.function>;
+        readonly block: TSESTree.Node;
+      }
+  );
 
 export interface ClassScope extends ScopeBase {
   readonly type: ScopeType.class;
@@ -70,10 +94,14 @@ interface VisitorInstance {
   visitPattern(node: TSESTree.Node, callback: PatternCallback): void;
 }
 interface VisitorConstructor {
-  new(options: VisitorOptions): VisitorInstance;
+  new (options: VisitorOptions): VisitorInstance;
 }
 interface PatternVisitorConstructor {
-  new(options: VisitorOptions, rootPattern: TSESTree.Node, callback: PatternCallback): Pick<VisitorInstance, "visit">;
+  new (
+    options: VisitorOptions,
+    rootPattern: TSESTree.Node,
+    callback: PatternCallback,
+  ): Pick<VisitorInstance, "visit">;
 }
 interface InstanceIdentity {
   [Symbol.hasInstance](value: unknown): boolean;
@@ -84,7 +112,9 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function hasPrototypeMethods(value: unknown, methods: readonly string[]): boolean {
-  if (typeof value !== "function") return false;
+  if (typeof value !== "function") {
+    return false;
+  }
   const prototype: unknown = Reflect.get(value, "prototype");
   return isRecord(prototype) && methods.every((method) => typeof prototype[method] === "function");
 }
@@ -99,17 +129,31 @@ function isInstanceIdentity(value: unknown): value is InstanceIdentity {
 }
 
 const require = createRequire(import.meta.url);
-const scopeManifest: unknown = JSON.parse(readFileSync(require.resolve("@typescript-eslint/scope-manager/package.json"), "utf8"));
-if (!isRecord(scopeManifest) || scopeManifest["name"] !== "@typescript-eslint/scope-manager" || scopeManifest["version"] !== "8.73.0") {
-  throw new Error("stack-toolchain/eslint-syntax requires the qualified scope-manager 8.73.0 package.");
+const scopeManifest: unknown = JSON.parse(
+  readFileSync(require.resolve("@typescript-eslint/scope-manager/package.json"), "utf8"),
+);
+if (
+  !isRecord(scopeManifest) ||
+  scopeManifest["name"] !== "@typescript-eslint/scope-manager" ||
+  scopeManifest["version"] !== "8.73.0"
+) {
+  throw new Error(
+    "stack-toolchain/eslint-syntax requires the qualified scope-manager 8.73.0 package.",
+  );
 }
 const scopeEntry = realpathSync(require.resolve("@typescript-eslint/scope-manager"));
 const scopeModule: unknown = require("@typescript-eslint/scope-manager");
-if (!isRecord(scopeModule)) throw new Error("The qualified scope-manager public exports are missing.");
+if (!isRecord(scopeModule)) {
+  throw new Error("The qualified scope-manager public exports are missing.");
+}
 const visitor = scopeModule["Visitor"];
 const patternVisitor = scopeModule["PatternVisitor"];
 const implicitLibVariable = scopeModule["ImplicitLibVariable"];
-if (!isVisitorConstructor(visitor) || !isPatternVisitorConstructor(patternVisitor) || !isInstanceIdentity(implicitLibVariable)) {
+if (
+  !isVisitorConstructor(visitor) ||
+  !isPatternVisitorConstructor(patternVisitor) ||
+  !isInstanceIdentity(implicitLibVariable)
+) {
   throw new Error("The qualified scope-manager constructor contract is missing.");
 }
 
@@ -119,14 +163,30 @@ export const PatternVisitor = patternVisitor;
 export const ImplicitLibVariable = implicitLibVariable;
 
 export function assertScopeResolution(candidateRequire: NodeJS.Require): void {
-  const candidateManifest: unknown = JSON.parse(readFileSync(candidateRequire.resolve("@typescript-eslint/scope-manager/package.json"), "utf8"));
-  if (!isRecord(candidateManifest) || candidateManifest["name"] !== "@typescript-eslint/scope-manager" || candidateManifest["version"] !== "8.73.0" || realpathSync(candidateRequire.resolve("@typescript-eslint/scope-manager")) !== scopeEntry) {
-    throw new Error("The parser must resolve the same qualified scope-manager before initialization.");
+  const candidateManifest: unknown = JSON.parse(
+    readFileSync(candidateRequire.resolve("@typescript-eslint/scope-manager/package.json"), "utf8"),
+  );
+  if (
+    !isRecord(candidateManifest) ||
+    candidateManifest["name"] !== "@typescript-eslint/scope-manager" ||
+    candidateManifest["version"] !== "8.73.0" ||
+    realpathSync(candidateRequire.resolve("@typescript-eslint/scope-manager")) !== scopeEntry
+  ) {
+    throw new Error(
+      "The parser must resolve the same qualified scope-manager before initialization.",
+    );
   }
 }
 
 export function assertSameScopeModule(other: unknown): void {
-  if (!isRecord(other) || other["Visitor"] !== visitor || other["PatternVisitor"] !== patternVisitor || other["ImplicitLibVariable"] !== implicitLibVariable) {
-    throw new Error("The parser and retained rules must share one physical scope-manager instance.");
+  if (
+    !isRecord(other) ||
+    other["Visitor"] !== visitor ||
+    other["PatternVisitor"] !== patternVisitor ||
+    other["ImplicitLibVariable"] !== implicitLibVariable
+  ) {
+    throw new Error(
+      "The parser and retained rules must share one physical scope-manager instance.",
+    );
   }
 }

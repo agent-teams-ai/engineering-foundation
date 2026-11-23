@@ -18,7 +18,10 @@ const guarded = `
 `;
 
 function run(source: string): ReturnType<typeof spawnSync> {
-  const result = spawnSync(process.execPath, ["--input-type=module", "-e", source], { encoding: "utf8", timeout: 30_000 });
+  const result = spawnSync(process.execPath, ["--input-type=module", "-e", source], {
+    encoding: "utf8",
+    timeout: 30_000,
+  });
   assert.ifError(result.error);
   assert.equal(result.signal, null);
   return result;
@@ -27,18 +30,27 @@ function run(source: string): ReturnType<typeof spawnSync> {
 void test("actual syntax entry and its scope graph execute behind an ESM/CJS legacy-load tripwire", () => {
   const entry = new URL("../dist/eslint-syntax.js", import.meta.url).href;
   const host = pathToFileURL(require.resolve("eslint")).href;
-  const result = run(guarded + `
+  const result = run(
+    guarded +
+      `
     const { configs } = await import(${JSON.stringify(entry)});
     const { Linter } = await import(${JSON.stringify(host)});
     const messages = new Linter().verify("const unused: any = 1;", [...configs.recommended, { files: ["**/*.ts"] }], { filename: "fixture.ts" });
     process.stdout.write(JSON.stringify(messages.map(({ruleId}) => ruleId).sort()));
-  `);
+  `,
+  );
   assert.equal(result.status, 0, String(result.stderr));
-  assert.deepEqual(JSON.parse(String(result.stdout)), ["@typescript-eslint/no-explicit-any", "@typescript-eslint/no-unused-vars"]);
+  assert.deepEqual(JSON.parse(String(result.stdout)), [
+    "@typescript-eslint/no-explicit-any",
+    "@typescript-eslint/no-unused-vars",
+  ]);
 });
 
 void test("tripwire negative controls reject both ESM import and CommonJS require before resolution", () => {
-  for (const action of ['await import("typescript")', 'createRequire(import.meta.url)("@typescript-eslint/eslint-plugin")']) {
+  for (const action of [
+    'await import("typescript")',
+    'createRequire(import.meta.url)("@typescript-eslint/eslint-plugin")',
+  ]) {
     const result = run(guarded + action);
     assert.notEqual(result.status, 0);
     assert.match(String(result.stderr), /LEGACY_INITIALIZER_BLOCKED:/u);

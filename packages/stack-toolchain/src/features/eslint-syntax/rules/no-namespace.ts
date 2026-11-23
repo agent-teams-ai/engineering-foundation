@@ -1,9 +1,10 @@
+import { isNullish } from "../source-helpers.js";
 // Adapted from typescript-eslint 8.59.1 (MIT). See THIRD_PARTY_NOTICES.md and eslint-syntax-provenance.json.
 import type * as TSESTree from "../ast.js";
 
 import { AST_NODE_TYPES } from "../ast.js";
 
-import { createRule, isDefinitionFile } from '../helpers/index.js';
+import { createRule, isDefinitionFile } from "../helpers/index.js";
 
 export type Options = [
   {
@@ -11,34 +12,32 @@ export type Options = [
     allowDefinitionFiles?: boolean;
   },
 ];
-export type MessageIds = 'moduleSyntaxIsPreferred';
+export type MessageIds = "moduleSyntaxIsPreferred";
 
 export default createRule<Options, MessageIds>({
-  name: 'no-namespace',
+  name: "no-namespace",
   meta: {
-    type: 'suggestion',
+    type: "suggestion",
     docs: {
-      description: 'Disallow TypeScript namespaces',
-      recommended: 'recommended',
+      description: "Disallow TypeScript namespaces",
+      recommended: "recommended",
     },
     messages: {
-      moduleSyntaxIsPreferred:
-        'ES2015 module syntax is preferred over namespaces.',
+      moduleSyntaxIsPreferred: "ES2015 module syntax is preferred over namespaces.",
     },
     schema: [
       {
-        type: 'object',
+        type: "object",
         additionalProperties: false,
         properties: {
           allowDeclarations: {
-            type: 'boolean',
-            description:
-              'Whether to allow `declare` with custom TypeScript namespaces.',
+            type: "boolean",
+            description: "Whether to allow `declare` with custom TypeScript namespaces.",
           },
           allowDefinitionFiles: {
-            type: 'boolean',
+            type: "boolean",
             description:
-              'Whether to allow `declare` with custom TypeScript namespaces inside definition files.',
+              "Whether to allow `declare` with custom TypeScript namespaces inside definition files.",
           },
         },
       },
@@ -51,14 +50,6 @@ export default createRule<Options, MessageIds>({
     },
   ],
   create(context, [{ allowDeclarations, allowDefinitionFiles }]) {
-    function isDeclaration(node: TSESTree.Node): boolean {
-      if (node.type === AST_NODE_TYPES.TSModuleDeclaration && node.declare) {
-        return true;
-      }
-
-      return node.parent != null && isDeclaration(node.parent);
-    }
-
     return {
       "TSModuleDeclaration[global!=true][id.type!='Literal']"(
         node: TSESTree.TSModuleDeclaration,
@@ -73,9 +64,17 @@ export default createRule<Options, MessageIds>({
 
         context.report({
           node,
-          messageId: 'moduleSyntaxIsPreferred',
+          messageId: "moduleSyntaxIsPreferred",
         });
       },
     };
   },
 });
+
+function isDeclaration(node: TSESTree.Node): boolean {
+  if (node.type === AST_NODE_TYPES.TSModuleDeclaration && node.declare) {
+    return true;
+  }
+
+  return !isNullish(node.parent) && isDeclaration(node.parent);
+}

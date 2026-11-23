@@ -1,26 +1,23 @@
+import { isNullish, isOpeningParenToken, isClosingParenToken } from "../source-helpers.js";
 // Adapted from typescript-eslint 8.59.1 (MIT). See THIRD_PARTY_NOTICES.md and eslint-syntax-provenance.json.
 import type * as TSESTree from "../ast.js";
 
 import { AST_NODE_TYPES } from "../ast.js";
-import {
-  isOpeningParenToken,
-  isClosingParenToken,
-} from '../source-helpers.js';
 
-import { createRule } from '../helpers/index.js';
+import { createRule } from "../helpers/index.js";
 
 export default createRule({
-  name: 'no-array-constructor',
+  name: "no-array-constructor",
   meta: {
-    type: 'suggestion',
+    type: "suggestion",
     docs: {
-      description: 'Disallow generic `Array` constructors',
+      description: "Disallow generic `Array` constructors",
       extendsBaseRule: true,
-      recommended: 'recommended',
+      recommended: "recommended",
     },
-    fixable: 'code',
+    fixable: "code",
     messages: {
-      useLiteral: 'The array literal notation [] is preferable.',
+      useLiteral: "The array literal notation [] is preferable.",
     },
     schema: [],
   },
@@ -28,13 +25,11 @@ export default createRule({
   create(context) {
     const sourceCode = context.sourceCode;
 
-    function getArgumentsText(
-      node: TSESTree.CallExpression | TSESTree.NewExpression,
-    ) {
+    function getArgumentsText(node: TSESTree.CallExpression | TSESTree.NewExpression) {
       const lastToken = sourceCode.getLastToken(node);
 
-      if (lastToken == null || !isClosingParenToken(lastToken)) {
-        return '';
+      if (isNullish(lastToken) || !isClosingParenToken(lastToken)) {
+        return "";
       }
 
       let firstToken: TSESTree.Expression | TSESTree.Token | null = node.callee;
@@ -42,7 +37,7 @@ export default createRule({
       do {
         firstToken = sourceCode.getTokenAfter(firstToken);
         if (!firstToken || firstToken === lastToken) {
-          return '';
+          return "";
         }
       } while (!isOpeningParenToken(firstToken));
 
@@ -53,18 +48,16 @@ export default createRule({
      * Disallow construction of dense arrays using the Array constructor
      * @param node node to evaluate
      */
-    function check(
-      node: TSESTree.CallExpression | TSESTree.NewExpression,
-    ): void {
+    function check(node: TSESTree.CallExpression | TSESTree.NewExpression): void {
       if (
         node.arguments.length !== 1 &&
         node.callee.type === AST_NODE_TYPES.Identifier &&
-        node.callee.name === 'Array' &&
+        node.callee.name === "Array" &&
         !node.typeArguments
       ) {
         context.report({
           node,
-          messageId: 'useLiteral',
+          messageId: "useLiteral",
           fix(fixer) {
             const argsText = getArgumentsText(node);
 

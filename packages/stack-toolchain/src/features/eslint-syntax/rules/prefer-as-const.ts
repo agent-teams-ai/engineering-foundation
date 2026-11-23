@@ -1,27 +1,25 @@
 // Adapted from typescript-eslint 8.59.1 (MIT). See THIRD_PARTY_NOTICES.md and eslint-syntax-provenance.json.
-import type * as TSESLint from '../rule-contract.js';
+import type * as TSESLint from "../rule-contract.js";
 import type * as TSESTree from "../ast.js";
 
 import { AST_NODE_TYPES } from "../ast.js";
 
-import { createRule } from '../helpers/index.js';
+import { createRule } from "../helpers/index.js";
 
 export default createRule({
-  name: 'prefer-as-const',
+  name: "prefer-as-const",
   meta: {
-    type: 'suggestion',
+    type: "suggestion",
     docs: {
-      description: 'Enforce the use of `as const` over literal type',
-      recommended: 'recommended',
+      description: "Enforce the use of `as const` over literal type",
+      recommended: "recommended",
     },
-    fixable: 'code',
+    fixable: "code",
     hasSuggestions: true,
     messages: {
-      preferConstAssertion:
-        'Expected a `const` instead of a literal type assertion.',
-      variableConstAssertion:
-        'Expected a `const` assertion instead of a literal type annotation.',
-      variableSuggest: 'You should use `as const` instead of type annotation.',
+      preferConstAssertion: "Expected a `const` instead of a literal type assertion.",
+      variableConstAssertion: "Expected a `const` assertion instead of a literal type annotation.",
+      variableSuggest: "You should use `as const` instead of type annotation.",
     },
     schema: [],
   },
@@ -41,19 +39,19 @@ export default createRule({
         if (canFix) {
           context.report({
             node: typeNode,
-            messageId: 'preferConstAssertion',
-            fix: fixer => fixer.replaceText(typeNode, 'const'),
+            messageId: "preferConstAssertion",
+            fix: (fixer) => fixer.replaceText(typeNode, "const"),
           });
         } else {
           context.report({
             node: typeNode,
-            messageId: 'variableConstAssertion',
+            messageId: "variableConstAssertion",
             suggest: [
               {
-                messageId: 'variableSuggest',
+                messageId: "variableSuggest",
                 fix: (fixer): TSESLint.RuleFix[] => [
                   fixer.remove(typeNode.parent),
-                  fixer.insertTextAfter(valueNode, ' as const'),
+                  fixer.insertTextAfter(valueNode, " as const"),
                 ],
               },
             ],

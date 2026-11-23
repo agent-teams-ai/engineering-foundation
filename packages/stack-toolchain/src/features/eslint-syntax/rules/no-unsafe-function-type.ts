@@ -3,21 +3,21 @@ import type * as TSESTree from "../ast.js";
 
 import { AST_NODE_TYPES } from "../ast.js";
 
-import { createRule, isReferenceToGlobalFunction } from '../helpers/index.js';
+import { createRule, isReferenceToGlobalFunction } from "../helpers/index.js";
 
 export default createRule({
-  name: 'no-unsafe-function-type',
+  name: "no-unsafe-function-type",
   meta: {
-    type: 'problem',
+    type: "problem",
     docs: {
-      description: 'Disallow using the unsafe built-in Function type',
-      recommended: 'recommended',
+      description: "Disallow using the unsafe built-in Function type",
+      recommended: "recommended",
     },
     messages: {
       bannedFunctionType: [
-        'The `Function` type accepts any function-like value.',
-        'Prefer explicitly defining any function parameters and return type.',
-      ].join('\n'),
+        "The `Function` type accepts any function-like value.",
+        "Prefer explicitly defining any function parameters and return type.",
+      ].join("\n"),
     },
     schema: [],
   },
@@ -26,12 +26,12 @@ export default createRule({
     function checkBannedTypes(node: TSESTree.Node): void {
       if (
         node.type === AST_NODE_TYPES.Identifier &&
-        node.name === 'Function' &&
-        isReferenceToGlobalFunction('Function', node, context.sourceCode)
+        node.name === "Function" &&
+        isReferenceToGlobalFunction("Function", node, context.sourceCode)
       ) {
         context.report({
           node,
-          messageId: 'bannedFunctionType',
+          messageId: "bannedFunctionType",
         });
       }
     }

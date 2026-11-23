@@ -2,10 +2,10 @@
 import type * as TSESTree from "../ast.js";
 import { AST_NODE_TYPES } from "../ast.js";
 
-import { createRule } from '../helpers/index.js';
-import { unusedExpressionCore as baseRule } from '../unused-expression-core.js';
-import type { MessageIds, Options } from '../unused-expression-core.js';
-export type { MessageIds, Options } from '../unused-expression-core.js';
+import { createRule } from "../helpers/index.js";
+import { unusedExpressionCore as baseRule } from "../unused-expression-core.js";
+import type { MessageIds, Options } from "../unused-expression-core.js";
+export type { MessageIds, Options } from "../unused-expression-core.js";
 
 const defaultOptions: Options = [
   {
@@ -16,14 +16,14 @@ const defaultOptions: Options = [
 ];
 
 export default createRule<Options, MessageIds>({
-  name: 'no-unused-expressions',
+  name: "no-unused-expressions",
   meta: {
-    type: 'suggestion',
+    type: "suggestion",
     defaultOptions,
     docs: {
-      description: 'Disallow unused expressions',
+      description: "Disallow unused expressions",
       extendsBaseRule: true,
-      recommended: 'recommended',
+      recommended: "recommended",
     },
     messages: baseRule.meta.messages,
     schema: baseRule.meta.schema,
@@ -37,10 +37,7 @@ export default createRule<Options, MessageIds>({
         return isValidExpression(node.right);
       }
       if (allowTernary && node.type === AST_NODE_TYPES.ConditionalExpression) {
-        return (
-          isValidExpression(node.alternate) &&
-          isValidExpression(node.consequent)
-        );
+        return isValidExpression(node.alternate) && isValidExpression(node.consequent);
       }
       return (
         (node.type === AST_NODE_TYPES.ChainExpression &&
@@ -58,8 +55,7 @@ export default createRule<Options, MessageIds>({
         const expressionType = node.expression.type;
 
         if (
-          expressionType ===
-            AST_NODE_TYPES.TSInstantiationExpression ||
+          expressionType === AST_NODE_TYPES.TSInstantiationExpression ||
           expressionType === AST_NODE_TYPES.TSAsExpression ||
           expressionType === AST_NODE_TYPES.TSNonNullExpression ||
           expressionType === AST_NODE_TYPES.TSTypeAssertion

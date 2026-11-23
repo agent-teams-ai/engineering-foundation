@@ -3,52 +3,49 @@ import type * as TSESTree from "../ast.js";
 
 import { AST_NODE_TYPES, AST_TOKEN_TYPES } from "../ast.js";
 
-import { createRule, nullThrows } from '../helpers/index.js';
+import { createRule, nullThrows } from "../helpers/index.js";
 
 export type Options = [
   {
-    lib?: 'always' | 'never';
-    path?: 'always' | 'never';
-    types?: 'always' | 'never' | 'prefer-import';
+    lib?: "always" | "never";
+    path?: "always" | "never";
+    types?: "always" | "never" | "prefer-import";
   },
 ];
-export type MessageIds = 'tripleSlashReference';
+export type MessageIds = "tripleSlashReference";
 
 export default createRule<Options, MessageIds>({
-  name: 'triple-slash-reference',
+  name: "triple-slash-reference",
   meta: {
-    type: 'suggestion',
+    type: "suggestion",
     docs: {
       description:
-        'Disallow certain triple slash directives in favor of ES6-style import declarations',
-      recommended: 'recommended',
+        "Disallow certain triple slash directives in favor of ES6-style import declarations",
+      recommended: "recommended",
     },
     messages: {
       tripleSlashReference:
-        'Do not use a triple slash reference for {{module}}, use `import` style instead.',
+        "Do not use a triple slash reference for {{module}}, use `import` style instead.",
     },
     schema: [
       {
-        type: 'object',
+        type: "object",
         additionalProperties: false,
         properties: {
           lib: {
-            type: 'string',
-            description:
-              'What to enforce for `/// <reference lib="..." />` references.',
-            enum: ['always', 'never'],
+            type: "string",
+            description: 'What to enforce for `/// <reference lib="..." />` references.',
+            enum: ["always", "never"],
           },
           path: {
-            type: 'string',
-            description:
-              'What to enforce for `/// <reference path="..." />` references.',
-            enum: ['always', 'never'],
+            type: "string",
+            description: 'What to enforce for `/// <reference path="..." />` references.',
+            enum: ["always", "never"],
           },
           types: {
-            type: 'string',
-            description:
-              'What to enforce for `/// <reference types="..." />` references.',
-            enum: ['always', 'never', 'prefer-import'],
+            type: "string",
+            description: 'What to enforce for `/// <reference types="..." />` references.',
+            enum: ["always", "never", "prefer-import"],
           },
         },
       },
@@ -56,9 +53,9 @@ export default createRule<Options, MessageIds>({
   },
   defaultOptions: [
     {
-      lib: 'always',
-      path: 'never',
-      types: 'prefer-import',
+      lib: "always",
+      path: "never",
+      types: "prefer-import",
     },
   ],
   create(context, [{ lib, path, types }]) {
@@ -70,11 +67,11 @@ export default createRule<Options, MessageIds>({
     }[] = [];
 
     function hasMatchingReference(source: TSESTree.Literal): void {
-      references.forEach(reference => {
+      references.forEach((reference) => {
         if (reference.importName === source.value) {
           context.report({
             node: reference.comment,
-            messageId: 'tripleSlashReference',
+            messageId: "tripleSlashReference",
             data: {
               module: reference.importName,
             },
@@ -89,16 +86,14 @@ export default createRule<Options, MessageIds>({
         }
       },
       Program(node): void {
-        if (lib === 'always' && path === 'always' && types === 'always') {
+        if (lib === "always" && path === "always" && types === "always") {
           return;
         }
         programNode = node;
-        const referenceRegExp =
-          /^\/\s*<reference\s*(types|path|lib)\s*=\s*["|'](.*)["|']/;
-        const commentsBefore =
-          context.sourceCode.getCommentsBefore(programNode);
+        const referenceRegExp = /^\/\s*<reference\s*(types|path|lib)\s*=\s*["|'](.*)["|']/;
+        const commentsBefore = context.sourceCode.getCommentsBefore(programNode);
 
-        commentsBefore.forEach(comment => {
+        commentsBefore.forEach((comment) => {
           if (comment.type !== AST_TOKEN_TYPES.Line) {
             return;
           }
@@ -106,21 +101,27 @@ export default createRule<Options, MessageIds>({
 
           if (referenceResult) {
             if (
-              (referenceResult[1] === 'types' && types === 'never') ||
-              (referenceResult[1] === 'path' && path === 'never') ||
-              (referenceResult[1] === 'lib' && lib === 'never')
+              (referenceResult[1] === "types" && types === "never") ||
+              (referenceResult[1] === "path" && path === "never") ||
+              (referenceResult[1] === "lib" && lib === "never")
             ) {
               context.report({
                 node: comment,
-                messageId: 'tripleSlashReference',
+                messageId: "tripleSlashReference",
                 data: {
                   module: referenceResult[2],
                 },
               });
               return;
             }
-            if (referenceResult[1] === 'types' && types === 'prefer-import') {
-              references.push({ comment, importName: nullThrows(referenceResult[2], "Matched reference must contain its import name.") });
+            if (referenceResult[1] === "types" && types === "prefer-import") {
+              references.push({
+                comment,
+                importName: nullThrows(
+                  referenceResult[2],
+                  "Matched reference must contain its import name.",
+                ),
+              });
             }
           }
         });

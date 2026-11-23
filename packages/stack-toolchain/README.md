@@ -22,15 +22,53 @@ The initial profiles are `typescript-node` and `typescript-bun`. Additional
 profiles require a real consumer. Unrelated language toolchains belong in
 separate packages rather than mandatory dependencies of every installation.
 
-### Planned ESLint syntax export
+### Compiler-free ESLint syntax rules
 
-The [bounded ESLint syntax plan](../../docs/research/compiler-free-eslint-syntax-2026-11-23.md)
-proposes a typed `stack-toolchain/eslint-syntax` export for an existing ESLint 10
-host, retaining twenty syntax rules without initializing a TypeScript compiler.
-This export is not implemented or released. The parser and one-rule prototypes
-are limited evidence; complete rule, packed artifact and consumer qualification
-remain pending. Consumers would retain their file scope, globals, ignores and
-rule policy. The existing Oxlint CLI contract remains separately owned.
+The typed ESM subpath `stack-toolchain/eslint-syntax` exports `parser`, `plugin`
+and `configs.recommended` for an explicit ESLint **10.3.0** host. It retains the
+twenty syntax-only rules from typescript-eslint **8.59.1** under their existing
+`@typescript-eslint` rule names. Parsing uses the public native
+`eslint-parser-oxc` **0.1.1** API and the actual **8.73.0** scope-manager
+constructors. These rules do not initialize a TypeScript compiler, the legacy
+TypeScript ESLint parser, its plugin, or its utilities package.
+
+```ts
+import { configs } from "stack-toolchain/eslint-syntax";
+
+export default [
+  ...configs.recommended,
+  {
+    files: ["**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"],
+    // Keep your existing globals, ignores, overrides and severity policy here.
+  },
+];
+```
+
+The recommended preset preserves three layers: native parser plus plugin
+namespace, core-rule adjustments scoped to TS/TSX/MTS/CTS, then the twenty
+recommended rules. Projects retain ESLint's CLI, discovery, directives, unused
+disable reporting, fixes and suggestions. Projects also retain explicit
+overrides such as their own `no-explicit-any` policy. The optional entry does
+not change the existing Oxlint CLI or initialize when importing the root
+`stack-toolchain` API.
+
+Install the exact ESLint host in the consuming project. The parser itself has a
+mandatory ESLint peer, so a lazy root entry does not promise an ESLint-free
+dependency installation. Parser/scope package versions and a shared physical
+scope-manager instance are checked before the parser initializes. An invalid
+graph fails admission instead of silently substituting a parser or constructor.
+
+This is syntax linting: no compiler `Program`, semantic type information or
+typed ESLint rule support is exposed. Native parsing reports malformed source as
+a fatal error. The qualified parser's documented AST differences, including
+null absent children and stricter rejection of invalid TypeScript syntax, remain
+visible; it does not claim full compiler-parser equivalence.
+
+The source implementation, independent fixture evidence and delivery gates are
+tracked in the [bounded syntax plan](https://github.com/agent-teams-ai/engineering-foundation/blob/main/docs/research/compiler-free-eslint-syntax-2026-11-23.md).
+Use a released package that exports this subpath; older **0.2.0** artifacts do
+not contain it. [Third-party notices](./THIRD_PARTY_NOTICES.md) and the shipped
+provenance ledger identify all retained upstream portions and adaptations.
 
 ## Commands
 

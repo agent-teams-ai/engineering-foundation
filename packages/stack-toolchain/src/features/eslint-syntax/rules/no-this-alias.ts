@@ -3,7 +3,7 @@ import type * as TSESTree from "../ast.js";
 
 import { AST_NODE_TYPES } from "../ast.js";
 
-import { createRule } from '../helpers/index.js';
+import { createRule } from "../helpers/index.js";
 
 export type Options = [
   {
@@ -11,37 +11,35 @@ export type Options = [
     allowedNames?: string[];
   },
 ];
-export type MessageIds = 'thisAssignment' | 'thisDestructure';
+export type MessageIds = "thisAssignment" | "thisDestructure";
 
 export default createRule<Options, MessageIds>({
-  name: 'no-this-alias',
+  name: "no-this-alias",
   meta: {
-    type: 'suggestion',
+    type: "suggestion",
     docs: {
-      description: 'Disallow aliasing `this`',
-      recommended: 'recommended',
+      description: "Disallow aliasing `this`",
+      recommended: "recommended",
     },
     messages: {
       thisAssignment: "Unexpected aliasing of 'this' to local variable.",
-      thisDestructure:
-        "Unexpected aliasing of members of 'this' to local variables.",
+      thisDestructure: "Unexpected aliasing of members of 'this' to local variables.",
     },
     schema: [
       {
-        type: 'object',
+        type: "object",
         additionalProperties: false,
         properties: {
           allowDestructuring: {
-            type: 'boolean',
+            type: "boolean",
             description:
-              'Whether to ignore destructurings, such as `const { props, state } = this`.',
+              "Whether to ignore destructurings, such as `const { props, state } = this`.",
           },
           allowedNames: {
-            type: 'array',
-            description:
-              'Names to ignore, such as ["self"] for `const self = this;`.',
+            type: "array",
+            description: 'Names to ignore, such as ["self"] for `const self = this;`.',
             items: {
-              type: 'string',
+              type: "string",
             },
           },
         },
@@ -59,8 +57,7 @@ export default createRule<Options, MessageIds>({
       "VariableDeclarator[init.type='ThisExpression'], AssignmentExpression[right.type='ThisExpression']"(
         node: TSESTree.AssignmentExpression | TSESTree.VariableDeclarator,
       ): void {
-        const id =
-          node.type === AST_NODE_TYPES.VariableDeclarator ? node.id : node.left;
+        const id = node.type === AST_NODE_TYPES.VariableDeclarator ? node.id : node.left;
         if (allowDestructuring && id.type !== AST_NODE_TYPES.Identifier) {
           return;
         }
@@ -74,10 +71,7 @@ export default createRule<Options, MessageIds>({
         if (!hasAllowedName) {
           context.report({
             node: id,
-            messageId:
-              id.type === AST_NODE_TYPES.Identifier
-                ? 'thisAssignment'
-                : 'thisDestructure',
+            messageId: id.type === AST_NODE_TYPES.Identifier ? "thisAssignment" : "thisDestructure",
           });
         }
       },

@@ -38,6 +38,13 @@
     "packages/stack-toolchain/tests/cli.test.ts",
     "packages/stack-toolchain/tests/configuration.test.ts",
     "packages/stack-toolchain/tests/doctor.test.ts",
+    "packages/stack-toolchain/tests/eslint-syntax-admission.test.ts",
+    "packages/stack-toolchain/tests/eslint-syntax-load.test.ts",
+    "packages/stack-toolchain/tests/eslint-syntax-parser.test.ts",
+    "packages/stack-toolchain/tests/eslint-syntax-rules.test.ts",
+    "packages/stack-toolchain/tests/eslint-syntax-semantics.test.ts",
+    "packages/stack-toolchain/tests/eslint-syntax-support.ts",
+    "packages/stack-toolchain/tests/eslint-syntax-types.test.ts",
     "packages/stack-toolchain/tests/executables.test.ts",
     "packages/stack-toolchain/tests/format-files.test.ts",
     "packages/stack-toolchain/tests/lint-presets.test.ts",
@@ -66,7 +73,7 @@
   "derivedFrom": [
     {
       "path": "architecture/foundation/feature-modules.json",
-      "sha256": "6178db047395455bd81391f24c54bfbceb4d9182997c16a49ea1dbceb14ee1ee"
+      "sha256": "95809ea8170225374a67bc393c26eac28c56a6b8b1344042d3c2b97577de4316"
     },
     {
       "path": "architecture/foundation/quality-source-coverage.yaml",

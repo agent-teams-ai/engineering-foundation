@@ -52,7 +52,11 @@ export const plugin: Plugin = {
 
 export const configs: { recommended: Linter.Config[] } = {
   recommended: [
-    { name: "stack-toolchain/eslint-syntax/base", languageOptions: { parser, sourceType: "module" }, plugins: { "@typescript-eslint": plugin } },
+    {
+      name: "stack-toolchain/eslint-syntax/base",
+      languageOptions: { parser, sourceType: "module" },
+      plugins: { "@typescript-eslint": plugin },
+    },
     {
       name: "stack-toolchain/eslint-syntax/eslint-recommended",
       files: ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],

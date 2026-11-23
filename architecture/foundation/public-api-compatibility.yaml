@@ -210,6 +210,8 @@ packages:
     entrypoints:
       - exportPath: "."
         declarationEntryPoint: packages/stack-toolchain/dist/index.d.ts
+      - exportPath: "./eslint-syntax"
+        declarationEntryPoint: packages/stack-toolchain/dist/eslint-syntax.d.ts
     nonTypeExports:
       - exportPath: "./package.json"
         kind: data

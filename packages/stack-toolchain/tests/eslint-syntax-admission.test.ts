@@ -5,14 +5,24 @@ import { join } from "node:path";
 import test from "node:test";
 import { pathToFileURL } from "node:url";
 
-const scopeApi = "class Visitor { visit() {} visitPattern() {} } class PatternVisitor { visit() {} } class ImplicitLibVariable {} module.exports = { Visitor, PatternVisitor, ImplicitLibVariable };";
+const scopeApi =
+  "class Visitor { visit() {} visitPattern() {} } class PatternVisitor { visit() {} } class ImplicitLibVariable {} module.exports = { Visitor, PatternVisitor, ImplicitLibVariable };";
 
-interface FixtureOptions { scopeVersion?: string; parserVersion?: string; duplicateScope?: boolean; invalidScopeApi?: boolean; invalidParserApi?: boolean }
+interface FixtureOptions {
+  scopeVersion?: string;
+  parserVersion?: string;
+  duplicateScope?: boolean;
+  invalidScopeApi?: boolean;
+  invalidParserApi?: boolean;
+}
 
 function packageFixture(root: string, name: string, version: string, source: string): void {
   const directory = join(root, "node_modules", name);
   mkdirSync(directory, { recursive: true });
-  writeFileSync(join(directory, "package.json"), JSON.stringify({ name, version, main: "index.cjs" }));
+  writeFileSync(
+    join(directory, "package.json"),
+    JSON.stringify({ name, version, main: "index.cjs" }),
+  );
   writeFileSync(join(directory, "index.cjs"), source);
 }
 
@@ -20,38 +30,92 @@ function admissionFixture(options: FixtureOptions): string {
   const root = mkdtempSync(join(tmpdir(), "TEST-eslint-admission-"));
   writeFileSync(join(root, "package.json"), '{"type":"module"}');
   for (const name of ["parser-runtime.js", "scope-runtime.js", "scope-contract.js"]) {
-    copyFileSync(new URL(`../dist/features/eslint-syntax/${name}`, import.meta.url), join(root, name));
+    copyFileSync(
+      new URL(`../dist/features/eslint-syntax/${name}`, import.meta.url),
+      join(root, name),
+    );
   }
-  const marker = (name: string) => `require('node:fs').writeFileSync(${JSON.stringify(join(root, name))}, 'initialized');`;
-  packageFixture(root, "@typescript-eslint/scope-manager", options.scopeVersion ?? "8.73.0", marker("scope-started") + (options.invalidScopeApi ? "module.exports = {};" : scopeApi));
-  packageFixture(root, "eslint-parser-oxc", options.parserVersion ?? "0.1.1", marker("parser-started") + (options.invalidParserApi ? "module.exports = {};" : "module.exports = { parseForESLint() { return {}; } };"));
-  if (options.duplicateScope) packageFixture(join(root, "node_modules/eslint-parser-oxc"), "@typescript-eslint/scope-manager", "8.73.0", marker("duplicate-started") + scopeApi);
+  const marker = (name: string) =>
+    `require('node:fs').writeFileSync(${JSON.stringify(join(root, name))}, 'initialized');`;
+  packageFixture(
+    root,
+    "@typescript-eslint/scope-manager",
+    options.scopeVersion ?? "8.73.0",
+    marker("scope-started") + (options.invalidScopeApi ? "module.exports = {};" : scopeApi),
+  );
+  packageFixture(
+    root,
+    "eslint-parser-oxc",
+    options.parserVersion ?? "0.1.1",
+    marker("parser-started") +
+      (options.invalidParserApi
+        ? "module.exports = {};"
+        : "module.exports = { parseForESLint() { return {}; } };"),
+  );
+  if (options.duplicateScope) {
+    packageFixture(
+      join(root, "node_modules/eslint-parser-oxc"),
+      "@typescript-eslint/scope-manager",
+      "8.73.0",
+      marker("duplicate-started") + scopeApi,
+    );
+  }
   return root;
 }
 
 const rejected = [
-  { name: "scope version", options: { scopeVersion: "8.72.0" }, error: /qualified scope-manager 8\.73\.0/u, scopeStarted: false },
-  { name: "parser version", options: { parserVersion: "0.1.0" }, error: /qualified public eslint-parser-oxc 0\.1\.1/u, scopeStarted: true },
-  { name: "second physical scope", options: { duplicateScope: true }, error: /same qualified scope-manager before initialization/u, scopeStarted: true },
-  { name: "missing scope constructors", options: { invalidScopeApi: true }, error: /constructor contract is missing/u, scopeStarted: true },
+  {
+    name: "scope version",
+    options: { scopeVersion: "8.72.0" },
+    error: /qualified scope-manager 8\.73\.0/u,
+    scopeStarted: false,
+  },
+  {
+    name: "parser version",
+    options: { parserVersion: "0.1.0" },
+    error: /qualified public eslint-parser-oxc 0\.1\.1/u,
+    scopeStarted: true,
+  },
+  {
+    name: "second physical scope",
+    options: { duplicateScope: true },
+    error: /same qualified scope-manager before initialization/u,
+    scopeStarted: true,
+  },
+  {
+    name: "missing scope constructors",
+    options: { invalidScopeApi: true },
+    error: /constructor contract is missing/u,
+    scopeStarted: true,
+  },
 ] satisfies { name: string; options: FixtureOptions; error: RegExp; scopeStarted: boolean }[];
 
 for (const fixture of rejected) {
   void test(`admission rejects ${fixture.name} before parser or divergent scope initialization`, async () => {
     const root = admissionFixture(fixture.options);
     try {
-      await assert.rejects(import(pathToFileURL(join(root, "parser-runtime.js")).href), fixture.error);
+      await assert.rejects(
+        import(pathToFileURL(join(root, "parser-runtime.js")).href),
+        fixture.error,
+      );
       assert.equal(existsSync(join(root, "scope-started")), fixture.scopeStarted);
       assert.equal(existsSync(join(root, "parser-started")), false);
       assert.equal(existsSync(join(root, "duplicate-started")), false);
-    } finally { rmSync(root, { recursive: true, force: true }); }
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 }
 
 void test("admission validates the public parser API after qualified initialization", async () => {
   const root = admissionFixture({ invalidParserApi: true });
   try {
-    await assert.rejects(import(pathToFileURL(join(root, "parser-runtime.js")).href), /native parser API is missing/u);
+    await assert.rejects(
+      import(pathToFileURL(join(root, "parser-runtime.js")).href),
+      /native parser API is missing/u,
+    );
     assert.equal(existsSync(join(root, "parser-started")), true);
-  } finally { rmSync(root, { recursive: true, force: true }); }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

@@ -13,7 +13,8 @@
       "sha256": "37bc2602839dacc26a96175b930c1145ff3db4605218561ae6cd2e26bf74d6d9",
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
-        "Retained decision logic; checked array/scope invariants for strict indexed access."
+        "Retained decision logic; checked array/scope invariants for strict indexed access.",
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
       ]
     },
     {
@@ -23,7 +24,8 @@
       "sha256": "6953f049dd3c689326ac359e398a700f8a5bb2d930b66fe256dc0321b158315e",
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
-        "Retained decision logic; checked array/scope invariants for strict indexed access."
+        "Retained decision logic; checked array/scope invariants for strict indexed access.",
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
       ]
     },
     {
@@ -33,7 +35,8 @@
       "sha256": "61f8060d162c024bb28c2dd048d925808b3dc116f8aaabc1117b5b1486e2773c",
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
-        "Retained decision logic; checked array/scope invariants for strict indexed access."
+        "Retained decision logic; checked array/scope invariants for strict indexed access.",
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
       ]
     },
     {
@@ -43,17 +46,32 @@
       "sha256": "bfd3e012c5a023cc33595fcb1617bd0190bf51d60549dc9518629bc9b478c312",
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
-        "Retained decision logic; checked array/scope invariants for strict indexed access."
+        "Retained decision logic; checked array/scope invariants for strict indexed access.",
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
       ]
     },
     {
       "source": "packages/eslint-plugin/src/rules/no-unused-vars.ts",
-      "destination": "src/features/eslint-syntax/rules/no-unused-vars.ts",
       "gitBlob": "7121a2a2b45e9c96ead796a5a3ad26a64baa0b66",
       "sha256": "fbbed0518e549629df0a39eca500d0a020dcee8916551730b278c6e4141409e4",
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
-        "Retained decision logic; checked array/scope invariants for strict indexed access."
+        "Retained decision logic; checked array/scope invariants for strict indexed access.",
+        "Separate unchanged metadata, option translation, reporting, import edits and ambient handling into typed modules; pass per-rule state explicitly.",
+        "Separate selection branches while preserving explicit-global, array-ignore, class, catch, parameter, ordinary-variable, using-declaration, rest-sibling and late-use order.",
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
+      ],
+      "destinations": [
+        "src/features/eslint-syntax/rules/no-unused-vars.ts",
+        "src/features/eslint-syntax/rules/no-unused-vars/ambient.ts",
+        "src/features/eslint-syntax/rules/no-unused-vars/contracts.ts",
+        "src/features/eslint-syntax/rules/no-unused-vars/exit.ts",
+        "src/features/eslint-syntax/rules/no-unused-vars/import-fixes.ts",
+        "src/features/eslint-syntax/rules/no-unused-vars/messages.ts",
+        "src/features/eslint-syntax/rules/no-unused-vars/metadata.ts",
+        "src/features/eslint-syntax/rules/no-unused-vars/options.ts",
+        "src/features/eslint-syntax/rules/no-unused-vars/report.ts",
+        "src/features/eslint-syntax/rules/no-unused-vars/selection.ts"
       ]
     },
     {
@@ -63,7 +81,8 @@
       "sha256": "3c9370b85981e671e4b5f64d312c687ba191b56d28a3e5f35f03893a66fc9e2b",
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
-        "Retained decision logic; checked array/scope invariants for strict indexed access."
+        "Retained decision logic; checked array/scope invariants for strict indexed access.",
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
       ]
     },
     {
@@ -73,7 +92,8 @@
       "sha256": "b6c7e68cb338f02693f66f68489350cf0ddca7d8fa1d4b5045a5621ddd5336b8",
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
-        "Retained decision logic; checked array/scope invariants for strict indexed access."
+        "Retained decision logic; checked array/scope invariants for strict indexed access.",
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
       ]
     },
     {
@@ -83,7 +103,8 @@
       "sha256": "f1f3284338433be5b0f90ca6fa8cbcec30aa33d7104cf8736c9dcd5dff13854a",
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
-        "Retained decision logic; checked array/scope invariants for strict indexed access."
+        "Retained decision logic; checked array/scope invariants for strict indexed access.",
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
       ]
     },
     {
@@ -93,7 +114,8 @@
       "sha256": "1b5c3117fd5f69169687589870e9eaf2479359ee985c33a02a8b5d9551921e11",
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
-        "Retained decision logic; checked array/scope invariants for strict indexed access."
+        "Retained decision logic; checked array/scope invariants for strict indexed access.",
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
       ]
     },
     {
@@ -103,7 +125,8 @@
       "sha256": "75d2413729fcd80df63fc7d783583e3950444f7844ca566d49ed8979036a8110",
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
-        "Retained decision logic; checked array/scope invariants for strict indexed access."
+        "Retained decision logic; checked array/scope invariants for strict indexed access.",
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
       ]
     },
     {
@@ -113,7 +136,8 @@
       "sha256": "9f4cd541b84ad482cffa686e4574e660ba6ed136bb879170d24e61a86e95ddd7",
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
-        "Retained decision logic; checked array/scope invariants for strict indexed access."
+        "Retained decision logic; checked array/scope invariants for strict indexed access.",
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
       ]
     },
     {
@@ -123,7 +147,8 @@
       "sha256": "617a387f3bc4644e6f18d3fe7ab316ed2df0578ef8b0eb50ba866a95ef9657bc",
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
-        "Retained decision logic; checked array/scope invariants for strict indexed access."
+        "Retained decision logic; checked array/scope invariants for strict indexed access.",
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
       ]
     },
     {
@@ -133,7 +158,8 @@
       "sha256": "94a176d39bbd4871344406332113ddbc0d81a5dcea0f77d1c3be52fc694f9e9b",
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
-        "Retained decision logic; checked array/scope invariants for strict indexed access."
+        "Retained decision logic; checked array/scope invariants for strict indexed access.",
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
       ]
     },
     {
@@ -143,7 +169,8 @@
       "sha256": "f1e0242cd37010cd0c265e46ed778cd9b4620bca72174043b58db79391c4b6ae",
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
-        "Retained decision logic; checked array/scope invariants for strict indexed access."
+        "Retained decision logic; checked array/scope invariants for strict indexed access.",
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
       ]
     },
     {
@@ -153,7 +180,8 @@
       "sha256": "239fc6d208273f11adf7a71b40930409ae8457d35669951ccd6b6d31fdabca2f",
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
-        "Retained decision logic; checked array/scope invariants for strict indexed access."
+        "Retained decision logic; checked array/scope invariants for strict indexed access.",
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
       ]
     },
     {
@@ -163,7 +191,8 @@
       "sha256": "a4d7845c4ea6cda948dfcdb844b331e8c31ade1e2297f48edf2c209e697f2972",
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
-        "Retained decision logic; checked array/scope invariants for strict indexed access."
+        "Retained decision logic; checked array/scope invariants for strict indexed access.",
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
       ]
     },
     {
@@ -173,7 +202,8 @@
       "sha256": "c4542d02091d6ca99848304f7b28db78479d9e3cd93b9777e71cb94d785da4cf",
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
-        "Retained decision logic; checked array/scope invariants for strict indexed access."
+        "Retained decision logic; checked array/scope invariants for strict indexed access.",
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
       ]
     },
     {
@@ -183,7 +213,8 @@
       "sha256": "2802b29a49dc4138f4e5312e877b10abe07ca33a2deda6d839995b78cf980827",
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
-        "Retained decision logic; checked array/scope invariants for strict indexed access."
+        "Retained decision logic; checked array/scope invariants for strict indexed access.",
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
       ]
     },
     {
@@ -193,7 +224,8 @@
       "sha256": "2c470dc0437c5211985affcca1388c85fac23382dd03a921523be78b44f0a823",
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
-        "Retained decision logic; checked array/scope invariants for strict indexed access."
+        "Retained decision logic; checked array/scope invariants for strict indexed access.",
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
       ]
     },
     {
@@ -203,17 +235,23 @@
       "sha256": "0c1d9dea4d603338f98b835dd681afccf4748d86c79e977b71a27f982c3c0acb",
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
-        "Retained decision logic; checked array/scope invariants for strict indexed access."
+        "Retained decision logic; checked array/scope invariants for strict indexed access.",
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
       ]
     },
     {
       "source": "packages/eslint-plugin/src/util/collectUnusedVariables.ts",
-      "destination": "src/features/eslint-syntax/helpers/collectUnusedVariables.ts",
       "gitBlob": "d4b768797c6f537d7faff8acb4414be7156f6e5a",
       "sha256": "ff4c9b92f012eda718cf3902f6c1c2058f68fc4a15db653558cda741969296ec",
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
-        "Retained decision logic; checked array/scope invariants for strict indexed access."
+        "Retained decision logic; checked array/scope invariants for strict indexed access.",
+        "Keep original Visitor, PatternVisitor and ImplicitLibVariable runtime identities; separate pure reference-classification functions without changing the shared program cache.",
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
+      ],
+      "destinations": [
+        "src/features/eslint-syntax/helpers/collectUnusedVariables.ts",
+        "src/features/eslint-syntax/helpers/unused-reference-classification.ts"
       ]
     },
     {
@@ -223,7 +261,8 @@
       "sha256": "0961136640830f509baae2604333006708ecda8d51ef7f261d34aca58e594da9",
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
-        "Retained decision logic; checked array/scope invariants for strict indexed access."
+        "Retained decision logic; checked array/scope invariants for strict indexed access.",
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
       ]
     },
     {
@@ -233,7 +272,8 @@
       "sha256": "be413c0945e85202a41f846f4811be54c090dd7011086ed25fc9b7b3c294118a",
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
-        "Retained decision logic; checked array/scope invariants for strict indexed access."
+        "Retained decision logic; checked array/scope invariants for strict indexed access.",
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
       ]
     },
     {
@@ -243,7 +283,8 @@
       "sha256": "c06da7943a744f0c30a6812124f16ba267507e2dc502e89e3a321a4f274d8c50",
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
-        "Retained decision logic; checked array/scope invariants for strict indexed access."
+        "Retained decision logic; checked array/scope invariants for strict indexed access.",
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
       ]
     },
     {
@@ -253,7 +294,8 @@
       "sha256": "9c96283d39dca277fc6067f85929070f956b32e7542e4033d210bb8cc7d83941",
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
-        "Retained decision logic; checked array/scope invariants for strict indexed access."
+        "Retained decision logic; checked array/scope invariants for strict indexed access.",
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
       ]
     },
     {
@@ -263,7 +305,8 @@
       "sha256": "9f4a4d52754f0d94eff2737f60bcce20a22148e739854d7623a8771537eb9450",
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
-        "Retained decision logic; checked array/scope invariants for strict indexed access."
+        "Retained decision logic; checked array/scope invariants for strict indexed access.",
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
       ]
     },
     {
@@ -273,7 +316,8 @@
       "sha256": "33b8cc2bc5532ca89a7822657289f1c87818d845b72bf2942d394d66b6013b67",
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
-        "Retained decision logic; checked array/scope invariants for strict indexed access."
+        "Retained decision logic; checked array/scope invariants for strict indexed access.",
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
       ]
     },
     {
@@ -283,7 +327,8 @@
       "sha256": "512dfbe852b658a35a5353938aa1b887cc1293aa13723cfb988db21a4ebd86ce",
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
-        "Retained decision logic; checked array/scope invariants for strict indexed access."
+        "Retained decision logic; checked array/scope invariants for strict indexed access.",
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
       ]
     }
   ],
@@ -295,7 +340,441 @@
     "modifications": [
       "Retain the ESTree AST and parser-host parent relationships as private TypeScript source.",
       "Replace compiler-enum keys in internal operator maps with identifier keys; preserve every literal operator-value union.",
-      "Exclude legacy Program/parser-options/compiler declarations."
+      "Exclude legacy Program/parser-options/compiler declarations.",
+      "Retain native null for absent child properties and use type-only declaration partitions to meet source maintainability budgets."
+    ],
+    "artifactIntegrity": "sha512-O/1ytYzflF16QDKXx4/qOXg1IuZp+n7hr9t+S0nv7N/2Tl8rJiNCshztV1gcSUvHbPtoX3+zmNbtSAyVbzxVfw==",
+    "sources": [
+      {
+        "source": "dist/generated/ast-spec.d.ts",
+        "sha256": "e6b518302b08f6c1f430177f9d2cae55bb5a64be522de032573e33113d51a24e",
+        "gitBlob": "bc47409fe6ec03ccfbbf7a9a06672eeb128b1a5c"
+      },
+      {
+        "source": "dist/ts-estree.d.ts",
+        "sha256": "e81484fc62d5e6add90882339bb2cdba0c87b85ca4002add438d0771ce2fdfa7",
+        "gitBlob": "c31ff839662c3c998c9cf4e85c0bf6810144f391"
+      }
+    ],
+    "destinations": [
+      "src/features/eslint-syntax/ast.ts",
+      "src/features/eslint-syntax/ast/break-statement.ts",
+      "src/features/eslint-syntax/ast/declaration-statement.ts",
+      "src/features/eslint-syntax/ast/export-named-declaration-without-source-with-multiple.ts",
+      "src/features/eslint-syntax/ast/function-base.ts",
+      "src/features/eslint-syntax/ast/import-declaration.ts",
+      "src/features/eslint-syntax/ast/jsx-member-expression.ts",
+      "src/features/eslint-syntax/ast/member-expression.ts",
+      "src/features/eslint-syntax/ast/node-kinds.ts",
+      "src/features/eslint-syntax/ast/node-or-token-data.ts",
+      "src/features/eslint-syntax/ast/node.ts",
+      "src/features/eslint-syntax/ast/property-definition-non-computed-name.ts",
+      "src/features/eslint-syntax/ast/static-block.ts",
+      "src/features/eslint-syntax/ast/token-kinds.ts",
+      "src/features/eslint-syntax/ast/ts-declare-function-with-declare.ts",
+      "src/features/eslint-syntax/ast/ts-index-signature.ts",
+      "src/features/eslint-syntax/ast/ts-module-declaration-base.ts",
+      "src/features/eslint-syntax/ast/ts-property-signature-base.ts",
+      "src/features/eslint-syntax/ast/ts-unary-expression.ts",
+      "src/features/eslint-syntax/ast/using-declaration-base.ts"
     ]
-  }
+  },
+  "selectedContracts": [
+    {
+      "source": "packages/utils/src/eslint-utils/RuleCreator.ts",
+      "destination": "src/features/eslint-syntax/create-rule.ts",
+      "sha256": "7a012904daea0c8911757a21414ad4dac502d2257468101e77bab5f151a7bf1d",
+      "gitBlob": "84b964adc5cc6bca82f6b126fb7046fec8f95ae7",
+      "retained": ["RuleCreator/createRule default application and public metadata URL"],
+      "modifications": [
+        "Narrow the surface to actual retained-rule use; preserve option, diagnostic, token and scope decisions without loading legacy utils or compiler APIs."
+      ]
+    },
+    {
+      "source": "packages/utils/src/eslint-utils/applyDefault.ts",
+      "destination": "src/features/eslint-syntax/create-rule.ts",
+      "sha256": "5354f3c036651f5c7e352c8b7b436b01ca7a0e6c4cc99c26070f504f1c643941",
+      "gitBlob": "567d47c8ede98474762f1164392bbdd6f05402f0",
+      "retained": ["applyDefault"],
+      "modifications": [
+        "Narrow the surface to actual retained-rule use; preserve option, diagnostic, token and scope decisions without loading legacy utils or compiler APIs."
+      ]
+    },
+    {
+      "source": "packages/utils/src/eslint-utils/deepMerge.ts",
+      "destination": "src/features/eslint-syntax/create-rule.ts",
+      "sha256": "c46ece3a84ed9cefb70d116488c1421f53db97ccf02f2ae205bc387a9eb885a1",
+      "gitBlob": "a323d14a8e60b375d25a308728267aa8f563f146",
+      "retained": ["deepMerge/isObjectNotArray"],
+      "modifications": [
+        "Narrow the surface to actual retained-rule use; preserve option, diagnostic, token and scope decisions without loading legacy utils or compiler APIs."
+      ]
+    },
+    {
+      "source": "packages/utils/src/eslint-utils/nullThrows.ts",
+      "destination": "src/features/eslint-syntax/source-helpers.ts",
+      "sha256": "0c8c8a5d4f368979b27ca0d7edcec8bd183aaa99c9ea0c00c69bb7fae14dec04",
+      "gitBlob": "163d9278ff91cb34fe8c8818eb5ff7c5a87742ab",
+      "retained": ["nullThrows/NullThrowsReasons"],
+      "modifications": [
+        "Narrow the surface to actual retained-rule use; preserve option, diagnostic, token and scope decisions without loading legacy utils or compiler APIs."
+      ]
+    },
+    {
+      "source": "packages/utils/src/ast-utils/predicates.ts",
+      "destination": "src/features/eslint-syntax/source-helpers.ts",
+      "sha256": "1ffc05c4bac80d8fad631f0c7fcc1b5b6d562eebd3ff898f874e68946f9e1731",
+      "gitBlob": "8e3e02142b7cda0f054730affe8eaae38c4070e3",
+      "retained": ["isFunction/isLoop"],
+      "modifications": [
+        "Narrow the surface to actual retained-rule use; preserve option, diagnostic, token and scope decisions without loading legacy utils or compiler APIs."
+      ]
+    },
+    {
+      "source": "packages/utils/src/ast-utils/eslint-utils/predicates.ts",
+      "destination": "src/features/eslint-syntax/source-helpers.ts",
+      "sha256": "401f66e935565b2af899251075a3af72ef94704aa96470c793931a1b36e24dd2",
+      "gitBlob": "afa813460ca3568cf21ebe4a8f9bcd21ae127976",
+      "retained": ["isOpeningParenToken/isClosingParenToken public predicate contract"],
+      "modifications": [
+        "Narrow the surface to actual retained-rule use; preserve option, diagnostic, token and scope decisions without loading legacy utils or compiler APIs."
+      ]
+    },
+    {
+      "source": "packages/utils/src/ast-utils/eslint-utils/scopeAnalysis.ts",
+      "destination": "src/features/eslint-syntax/source-helpers.ts",
+      "sha256": "9da70984e8da322b2a9b4c8205987d9e785edc4761e58199b41fb43bfe11b639",
+      "gitBlob": "1f7af13dd3cb1d4c97d903aee25e190e7b23348e",
+      "retained": ["findVariable string-name public contract; local scope.set/upper traversal"],
+      "modifications": [
+        "Narrow the surface to actual retained-rule use; preserve option, diagnostic, token and scope decisions without loading legacy utils or compiler APIs."
+      ]
+    },
+    {
+      "source": "packages/eslint-plugin/src/util/scopeUtils.ts",
+      "destination": "src/features/eslint-syntax/source-helpers.ts",
+      "sha256": "1dd97f76fcd02879b4f1a6c0c28961d3fd05c9694684d612938e94728e3721c1",
+      "gitBlob": "b350a74121066271dd3bdc8e73b18e0c04126341",
+      "retained": ["isReferenceToGlobalFunction"],
+      "modifications": [
+        "Narrow the surface to actual retained-rule use; preserve option, diagnostic, token and scope decisions without loading legacy utils or compiler APIs."
+      ]
+    },
+    {
+      "source": "packages/eslint-plugin/src/util/misc.ts",
+      "destination": "src/features/eslint-syntax/source-helpers.ts",
+      "sha256": "7a7c5abc89ca475ff7be1a471016fce24d1d3942128e4720463fa0d7f46a90db",
+      "gitBlob": "a39235e17aad619e21d5f88dd8237a0be835ec35",
+      "retained": ["isDefinitionFile; exact extension strings replace compiler enum values"],
+      "modifications": [
+        "Narrow the surface to actual retained-rule use; preserve option, diagnostic, token and scope decisions without loading legacy utils or compiler APIs."
+      ]
+    },
+    {
+      "source": "packages/eslint-plugin/src/util/astUtils.ts",
+      "destination": "src/features/eslint-syntax/source-helpers.ts",
+      "sha256": "5a4611c552da6676994c93a0ad2d5c352b8df2f6ccade0b9144bc6c39b17f5d7",
+      "gitBlob": "10c9b75e9947c4df6b1f5dfd1be96c689dac44df",
+      "retained": ["getNameLocationInGlobalDirectiveComment"],
+      "modifications": [
+        "Narrow the surface to actual retained-rule use; preserve option, diagnostic, token and scope decisions without loading legacy utils or compiler APIs."
+      ]
+    },
+    {
+      "source": "packages/eslint-plugin/src/configs/flat/base.ts",
+      "destination": "src/features/eslint-syntax/index.ts",
+      "sha256": "6ab92b2f1677329ccfbe1160dff94d0fd8577e00f9e3377ea823113bc32ebb3c",
+      "gitBlob": "6ad1eaa62b837434abd5cdefa4d180ba6cfdd1bb",
+      "retained": ["base flat config shape"],
+      "modifications": [
+        "Narrow the surface to actual retained-rule use; preserve option, diagnostic, token and scope decisions without loading legacy utils or compiler APIs."
+      ]
+    },
+    {
+      "source": "packages/eslint-plugin/src/configs/flat/eslint-recommended.ts",
+      "destination": "src/features/eslint-syntax/index.ts",
+      "sha256": "509e5a814dcb25da9253f2b673a4a5fcfeda4c6256e1b35feaa727ede17d2ea8",
+      "gitBlob": "15af2e07d561fb31ef73276ebe2231aebae92d53",
+      "retained": ["TypeScript override file scope"],
+      "modifications": [
+        "Narrow the surface to actual retained-rule use; preserve option, diagnostic, token and scope decisions without loading legacy utils or compiler APIs."
+      ]
+    },
+    {
+      "source": "packages/eslint-plugin/src/configs/eslint-recommended-raw.ts",
+      "destination": "src/features/eslint-syntax/index.ts",
+      "sha256": "e8549262e5d563b8b1a02ad946280020b443cbc9e61b7a0848783a2d43d22259",
+      "gitBlob": "c9f3fb5c9729ade8f1336ab0e1953c25ff639e5f",
+      "retained": ["core rule levels"],
+      "modifications": [
+        "Narrow the surface to actual retained-rule use; preserve option, diagnostic, token and scope decisions without loading legacy utils or compiler APIs."
+      ]
+    },
+    {
+      "source": "packages/eslint-plugin/src/configs/flat/recommended.ts",
+      "destination": "src/features/eslint-syntax/index.ts",
+      "sha256": "b3b4a16bc495a51a683df2812efc1fe42db1f81c301b0951a96d0d9300c2a0db",
+      "gitBlob": "1e74e334941062b51b3e5ebe153b1c158cfe3ffd",
+      "retained": ["twenty recommended syntax rule levels and core duplicate disables"],
+      "modifications": [
+        "Narrow the surface to actual retained-rule use; preserve option, diagnostic, token and scope decisions without loading legacy utils or compiler APIs."
+      ]
+    }
+  ],
+  "runtimeArtifacts": [
+    {
+      "name": "@typescript-eslint/types",
+      "version": "8.73.0",
+      "integrity": "sha512-O/1ytYzflF16QDKXx4/qOXg1IuZp+n7hr9t+S0nv7N/2Tl8rJiNCshztV1gcSUvHbPtoX3+zmNbtSAyVbzxVfw==",
+      "tarball": "https://registry.npmjs.org/@typescript-eslint/types/-/types-8.73.0.tgz"
+    },
+    {
+      "name": "@typescript-eslint/scope-manager",
+      "version": "8.73.0",
+      "integrity": "sha512-/TjD738Iq2rzj5z0ixVOi+TsvgjAzZPLPaH1yWdDBytR/HTR5gMpyYWZeCe5WTQZLwk3ho8AV7U3muoQCRtXBQ==",
+      "tarball": "https://registry.npmjs.org/@typescript-eslint/scope-manager/-/scope-manager-8.73.0.tgz"
+    },
+    {
+      "name": "@typescript-eslint/visitor-keys",
+      "version": "8.73.0",
+      "integrity": "sha512-k4lsFVpRZICbltkIEEH4hZRkwXkqDF1GHBpClKQOHQY+RkoZAAuyc1ci3I6p+CB6v3U4jaHIUshc4RzzQXZWLg==",
+      "tarball": "https://registry.npmjs.org/@typescript-eslint/visitor-keys/-/visitor-keys-8.73.0.tgz"
+    },
+    {
+      "name": "@eslint/core",
+      "version": "1.2.1",
+      "integrity": "sha512-MwcE1P+AZ4C6DWlpin/OmOA54mmIZ/+xZuJiQd4SyB29oAJjN30UW9wkKNptW2ctp4cEsvhlLY/CsQ1uoHDloQ==",
+      "tarball": "https://registry.npmjs.org/@eslint/core/-/core-1.2.1.tgz",
+      "gitHead": "d2dbf7b73d01505da89a69b7465e486d8a88aa8f"
+    },
+    {
+      "name": "eslint-parser-oxc",
+      "version": "0.1.1",
+      "integrity": "sha512-yzb3YTNf9ZbeIk7VKRvJX10foyMdIQPnp17yE6jWAUh5UR69NYPWaaYJnoYLpzg14V/nruAgb0jtVI+lKvqIXg==",
+      "tarball": "https://registry.npmjs.org/eslint-parser-oxc/-/eslint-parser-oxc-0.1.1.tgz",
+      "gitHead": "e08064b14232ee5064957b099c184236f9bfb893"
+    },
+    {
+      "name": "eslint",
+      "version": "10.3.0",
+      "integrity": "sha512-XbEXaRva5cF0ZQB8w6MluHA0kZZfV2DuCMJ3ozyEOHLwDpZX2Lmm/7Pp0xdJmI0GL1W05VH5VwIFHEm1Vcw2gw==",
+      "tarball": "https://registry.npmjs.org/eslint/-/eslint-10.3.0.tgz",
+      "gitHead": "78892043a36da4aa7640b59c99344b00c181048a"
+    }
+  ],
+  "eslintCore": {
+    "repository": "https://github.com/eslint/eslint",
+    "version": "10.3.0",
+    "commit": "78892043a36da4aa7640b59c99344b00c181048a",
+    "license": "MIT",
+    "files": [
+      {
+        "source": "lib/rules/no-unused-expressions.js",
+        "sha256": "a05ab1c6d1b6783fa4dbb74c082babc9b1bda87759c45fda93f4ed3a5b143fbc",
+        "gitBlob": "3c530e6effb28a100a31704375e0b9ede7a442e2",
+        "destination": "src/features/eslint-syntax/unused-expression-core.ts"
+      },
+      {
+        "source": "lib/rules/utils/ast-utils.js",
+        "sha256": "3a28d87e6f37ca262068b5eab60d988ef5acc4b2bef4f1a6ef3b8a3c2b2103ee",
+        "gitBlob": "06f28f914d630b872dcbd41569910656b8dcd939",
+        "destination": "src/features/eslint-syntax/unused-expression-core.ts"
+      }
+    ],
+    "retained": [
+      "All no-unused-expressions option defaults, schema, diagnostic text, side-effect branches, TypeScript wrappers, JSX, directive and prologue distinctions.",
+      "isDirective and isTopLevelExpressionStatement behavior from ast-utils."
+    ],
+    "modifications": [
+      "Use public typed host contracts and a constant membership set for always-disallowed node kinds; preserve unknown-kind fallthrough.",
+      "No private ESLint source imports at runtime."
+    ]
+  },
+  "scopeContract": {
+    "package": "@typescript-eslint/scope-manager",
+    "version": "8.73.0",
+    "artifactIntegrity": "sha512-/TjD738Iq2rzj5z0ixVOi+TsvgjAzZPLPaH1yWdDBytR/HTR5gMpyYWZeCe5WTQZLwk3ho8AV7U3muoQCRtXBQ==",
+    "sources": [
+      {
+        "source": "dist/ScopeManager.d.ts",
+        "sha256": "06e13dc31517e5123765206ad170f0625b8a1a1321f702598a0563a9ac7d68c3",
+        "gitBlob": "438d6360dac3365d974e3d597c3edcdf1dcefcb2"
+      },
+      {
+        "source": "dist/definition/CatchClauseDefinition.d.ts",
+        "sha256": "2105f9dfb4de768168ca5234b185aa508f4a9e9ecdd937400e05fb52734e49c5",
+        "gitBlob": "10c9e9088b793e5720fe8f5157944e1c93683383"
+      },
+      {
+        "source": "dist/definition/ClassNameDefinition.d.ts",
+        "sha256": "9e0b7af2247ab847874dc5ca0a92c4f28f55332b8241591bd06fafd3d184f605",
+        "gitBlob": "ca02c8192e20584a302d84f92fdcde13f74d51f6"
+      },
+      {
+        "source": "dist/definition/Definition.d.ts",
+        "sha256": "b04f68c5b937801cebf5264072a6f4a1f76050a75fd0830d65ae0bf0275ed1fc",
+        "gitBlob": "95fe4a5571cd08c01f1fbda8449251e529673ad3"
+      },
+      {
+        "source": "dist/definition/DefinitionBase.d.ts",
+        "sha256": "1fa946b4013f86f5a90107c6cf08850edd290a11b8b400fe3a4c7c24bc800785",
+        "gitBlob": "cd5ebcb9ac2020c6fe762d7fc4475c01432401f1"
+      },
+      {
+        "source": "dist/definition/DefinitionType.d.ts",
+        "sha256": "2db60104bde79eac5c47dcfa9738246190173cb76966d88e42959ca8d1ea7e27",
+        "gitBlob": "6a4321cd42886f1c5c21c7aa790565c2325a8673"
+      },
+      {
+        "source": "dist/definition/FunctionNameDefinition.d.ts",
+        "sha256": "39bff71bf16f3a020c438f5ddc1a24ab26c28dad91d324372eabbce88abaec74",
+        "gitBlob": "200a7c44faab06c7f0c66f90c620f75a81e11fd7"
+      },
+      {
+        "source": "dist/definition/ImplicitGlobalVariableDefinition.d.ts",
+        "sha256": "5a395ff9e24f89cc08679e731889b2ed1bfe451ba76f16184ccef0b742589d13",
+        "gitBlob": "fddb5b42264ee20c6413303096f1aa7f5acb4d85"
+      },
+      {
+        "source": "dist/definition/ImportBindingDefinition.d.ts",
+        "sha256": "0651a8dd2c6446154e0994391f7bdebbde389dc7ec75ac4a0f727fff5255143c",
+        "gitBlob": "bdd228bc2aaba21508d8a709b3443aa788cd5fdd"
+      },
+      {
+        "source": "dist/definition/ParameterDefinition.d.ts",
+        "sha256": "2088a7c3bf5a885904de841f5fa6103d8689e439a3cb3273f3bac69c1b3a3b1b",
+        "gitBlob": "721e03bc21486f88a6da19d202823896fc84f6ce"
+      },
+      {
+        "source": "dist/definition/TSEnumMemberDefinition.d.ts",
+        "sha256": "6dbc5313fe49ecbab3215f1cb1733d7348b392f1ca12c331c5720f4ea0036f47",
+        "gitBlob": "eeb30614de1bd7155ef22609f4e3bf3eaf741839"
+      },
+      {
+        "source": "dist/definition/TSEnumNameDefinition.d.ts",
+        "sha256": "3ed4ef1f210705e2c320e5b05787d7b6e74b7920492a76bb8712857bb22fc915",
+        "gitBlob": "3ffd577e95a03293eb07164098f58ff70bd36e05"
+      },
+      {
+        "source": "dist/definition/TSModuleNameDefinition.d.ts",
+        "sha256": "6fca2337de679c9c118e9005f3ee7f41725690a923bbff4ee20401e879471acd",
+        "gitBlob": "5088b2bf9d4b1fc1a5e6197750daafc3f6fb961e"
+      },
+      {
+        "source": "dist/definition/TypeDefinition.d.ts",
+        "sha256": "58f59363f3c50919bdc19c44e68b35bb471548486ca98f6e757de252d5d1e856",
+        "gitBlob": "4740a9ce255cdabfa44a1420e4385a085a024aa9"
+      },
+      {
+        "source": "dist/definition/VariableDefinition.d.ts",
+        "sha256": "109381191d7b0beb0de64a68ce3735fff9c91944180bfb6abfe42080b116689b",
+        "gitBlob": "5b75b2cd3a9c493aa555810ef8477115e6ad9f7c"
+      },
+      {
+        "source": "dist/definition/index.d.ts",
+        "sha256": "ad42060f3e0f92a294748f19d9490a8a6a980fb40dda0fd4627991d1361862cc",
+        "gitBlob": "9bd1f0123370fd9d0f2c89ffb5f7f194e81b2870"
+      },
+      {
+        "source": "dist/referencer/PatternVisitor.d.ts",
+        "sha256": "b4e618b2d4422fa5fae63e999dccb69736b03ec7b0c6fd2d4dc833263d40921c",
+        "gitBlob": "16d1ade30ab9b236f749b1e36c90d474176b8b81"
+      },
+      {
+        "source": "dist/referencer/Reference.d.ts",
+        "sha256": "8c00c7abd1e6e594cb9726674fdc65e4d9681d1e4c890bdbd602096e3b48f917",
+        "gitBlob": "d6ffe00d990f90f895e0498e3c55a42363c917e5"
+      },
+      {
+        "source": "dist/referencer/Visitor.d.ts",
+        "sha256": "21a06a5d3e4f859723386772d4c481ed5b40f883ecd4ed9a8ec8bcb54a10e542",
+        "gitBlob": "677709dc4d9dcf698ca4d843d31c89951730a828"
+      },
+      {
+        "source": "dist/referencer/VisitorBase.d.ts",
+        "sha256": "9811146d06f6b7615165f0dcd3d2aaea72adb260c8e747449b7a87c4c44f7ff1",
+        "gitBlob": "1be51f450c1162081cac682d420708b3b4c42291"
+      },
+      {
+        "source": "dist/scope/ClassScope.d.ts",
+        "sha256": "5d89916c41cc7051b9c83148d704c4e5aa20343a07efd14b953d16c693eda3ee",
+        "gitBlob": "48ae5921cd3366509f2274f28d4f6d25e01f331d"
+      },
+      {
+        "source": "dist/scope/FunctionScope.d.ts",
+        "sha256": "8764a0ff3269684a2c85a54acd7e90d33876927140e28880b8a4c95e8ca63bd6",
+        "gitBlob": "bc248841a0bbd3b4a8b6991eefc968d772801251"
+      },
+      {
+        "source": "dist/scope/Scope.d.ts",
+        "sha256": "3b05973f4a6dc88d28c125b744dc99d2a527bdb3c567eda1b439d10ce70246f5",
+        "gitBlob": "8ee2e6bdb28cfbcc8217f7fa44e28939e6f1deeb"
+      },
+      {
+        "source": "dist/scope/ScopeBase.d.ts",
+        "sha256": "228eca402015a3ac3ee5b0726de796244ab2b4db866c2294983b8027ade23338",
+        "gitBlob": "df902b7daec9113f6f032b7fc75de9154c6ce501"
+      },
+      {
+        "source": "dist/scope/ScopeType.d.ts",
+        "sha256": "25528369e718c89acd957ae0e72b1b5105b1111329d31442d8d639ee020b3fce",
+        "gitBlob": "120762d1e1d09ff3de339c63e4c1e03f13e6452a"
+      },
+      {
+        "source": "dist/variable/ImplicitLibVariable.d.ts",
+        "sha256": "386ff073cfe770b93867e65c26e969d672aeb42fc5506279c71a0185fd653539",
+        "gitBlob": "6c967519e4bf1ce20c0fc5dd60e5bde2e3ae9ef2"
+      },
+      {
+        "source": "dist/variable/Variable.d.ts",
+        "sha256": "6735eae673357ba7f9fc7e55af3b00e1415b32d3b639c38fb936151f336a5978",
+        "gitBlob": "d75ebd292de79bb8f5abea8ebd97435f91efeab4"
+      },
+      {
+        "source": "dist/variable/VariableBase.d.ts",
+        "sha256": "ce6b390be6cdd541f54e393b87ce72b0d1171732f9e93c59716e622a5b2e3be5",
+        "gitBlob": "ebe9575680258dfdcf7625e7501e3b06ce77316f"
+      }
+    ],
+    "destinations": [
+      "src/features/eslint-syntax/scope-contract.ts",
+      "src/features/eslint-syntax/scope-runtime.ts"
+    ],
+    "modifications": [
+      "Model only consumed public scope/reference/variable methods and discriminated definition shapes.",
+      "Load checked public runtime constructors after exact manifest admission; never synthesize or copy constructor implementations.",
+      "Require the parser to resolve the same physical scope module before parser initialization."
+    ]
+  },
+  "authoredBoundaries": [
+    "src/features/eslint-syntax/parser-runtime.ts",
+    "src/features/eslint-syntax/rule-contract.ts",
+    "src/eslint-syntax.ts"
+  ],
+  "licenseSources": [
+    {
+      "upstream": "typescript-eslint 8.59.1",
+      "source": "LICENSE",
+      "sha256": "2eb5c7a0bba9deb77a98c81bf6b9d3fb1c67118eebf968b6b1a787b3f8928ee0",
+      "gitBlob": "a1164108d4d6037cb976384c16e5493917d87157"
+    },
+    {
+      "upstream": "@typescript-eslint/types 8.73.0",
+      "source": "LICENSE",
+      "sha256": "2eb5c7a0bba9deb77a98c81bf6b9d3fb1c67118eebf968b6b1a787b3f8928ee0",
+      "gitBlob": "a1164108d4d6037cb976384c16e5493917d87157"
+    },
+    {
+      "upstream": "@typescript-eslint/scope-manager 8.73.0",
+      "source": "LICENSE",
+      "sha256": "2eb5c7a0bba9deb77a98c81bf6b9d3fb1c67118eebf968b6b1a787b3f8928ee0",
+      "gitBlob": "a1164108d4d6037cb976384c16e5493917d87157"
+    },
+    {
+      "upstream": "ESLint 10.3.0",
+      "source": "LICENSE",
+      "sha256": "3b6be04f862a077a4b97929dbf247299360824d9365f8603c263769303ace18c",
+      "gitBlob": "b607bb36e96c33fd8ef50897db0336c585b6137a"
+    }
+  ]
 }

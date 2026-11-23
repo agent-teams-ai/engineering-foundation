@@ -14,12 +14,15 @@ import type { Scope, ScopeManager, ScopeVariable } from "./scope-runtime.js";
 import type * as TSESTree from "./ast.js";
 
 type SyntaxElement = TSESTree.Node | TSESTree.Token | TSESTree.Comment;
-type TokenOptions = number | ((token: TSESTree.Token) => boolean) | {
-  filter?: (token: TSESTree.Token) => boolean;
-  skip?: number;
-  count?: number;
-  includeComments?: false;
-};
+type TokenOptions =
+  | number
+  | ((token: TSESTree.Token) => boolean)
+  | {
+      filter?: (token: TSESTree.Token) => boolean;
+      skip?: number;
+      count?: number;
+      includeComments?: false;
+    };
 
 /** ESLint's public source contract, specialized to the qualified parser. */
 export interface SourceCode extends TextSourceCode<{
@@ -55,23 +58,40 @@ type NamedListeners = {
 
 /** These selector relationships are exercised by independent runtime fixtures. */
 type SelectorListeners = {
-  ":not(ArrowFunctionExpression) > TSTypeParameterDeclaration > TSTypeParameter[constraint]"?: (node: TSESTree.TSTypeParameter & { constraint: TSESTree.TypeNode }) => void;
-  "ArrowFunctionExpression > TSTypeParameterDeclaration > TSTypeParameter[constraint]"?: (node: TSESTree.TSTypeParameter & { constraint: TSESTree.TypeNode }) => void;
+  ":not(ArrowFunctionExpression) > TSTypeParameterDeclaration > TSTypeParameter[constraint]"?: (
+    node: TSESTree.TSTypeParameter & { constraint: TSESTree.TypeNode },
+  ) => void;
+  "ArrowFunctionExpression > TSTypeParameterDeclaration > TSTypeParameter[constraint]"?: (
+    node: TSESTree.TSTypeParameter & { constraint: TSESTree.TypeNode },
+  ) => void;
   "TSNonNullExpression > ChainExpression"?: (node: TSESTree.ChainExpression) => void;
   "ChainExpression > TSNonNullExpression"?: (node: TSESTree.TSNonNullExpression) => void;
-  "CallExpression[optional = true] > TSNonNullExpression.callee"?: (node: TSESTree.TSNonNullExpression) => void;
-  "MemberExpression[optional = true] > TSNonNullExpression.object"?: (node: TSESTree.TSNonNullExpression) => void;
+  "CallExpression[optional = true] > TSNonNullExpression.callee"?: (
+    node: TSESTree.TSNonNullExpression,
+  ) => void;
+  "MemberExpression[optional = true] > TSNonNullExpression.object"?: (
+    node: TSESTree.TSNonNullExpression,
+  ) => void;
   "TSNonNullExpression > TSNonNullExpression"?: (node: TSESTree.TSNonNullExpression) => void;
-  "CallExpression[callee.name=\"require\"]"?: (node: TSESTree.CallExpression) => void;
-  "TSModuleDeclaration[global!=true][id.type!='Literal']"?: (node: TSESTree.TSModuleDeclaration) => void;
-  "VariableDeclarator[init.type='ThisExpression'], AssignmentExpression[right.type='ThisExpression']"?: (node: TSESTree.VariableDeclarator | TSESTree.AssignmentExpression) => void;
+  'CallExpression[callee.name="require"]'?: (node: TSESTree.CallExpression) => void;
+  "TSModuleDeclaration[global!=true][id.type!='Literal']"?: (
+    node: TSESTree.TSModuleDeclaration,
+  ) => void;
+  "VariableDeclarator[init.type='ThisExpression'], AssignmentExpression[right.type='ThisExpression']"?: (
+    node: TSESTree.VariableDeclarator | TSESTree.AssignmentExpression,
+  ) => void;
   "ClassBody > MethodDefinition[key.name='new']"?: (node: TSESTree.MethodDefinition) => void;
-  "TSInterfaceBody > TSConstructSignatureDeclaration"?: (node: TSESTree.TSConstructSignatureDeclaration) => void;
+  "TSInterfaceBody > TSConstructSignatureDeclaration"?: (
+    node: TSESTree.TSConstructSignatureDeclaration,
+  ) => void;
   "TSMethodSignature[key.name='constructor']"?: (node: TSESTree.TSMethodSignature) => void;
-}
+};
 
 export type RuleListener = NamedListeners & SelectorListeners;
-export type RuleContext<MessageIds extends string, Options extends readonly unknown[]> = PublicRuleContext<{
+export type RuleContext<
+  MessageIds extends string,
+  Options extends readonly unknown[],
+> = PublicRuleContext<{
   LangOptions: LanguageOptions;
   Code: SourceCode;
   RuleOptions: [...Options];
@@ -84,7 +104,10 @@ export interface RuleDocs {
   requiresTypeChecking?: boolean;
 }
 
-export type SyntaxRule<Options extends readonly unknown[], MessageIds extends string> = RuleDefinition<{
+export type SyntaxRule<
+  Options extends readonly unknown[],
+  MessageIds extends string,
+> = RuleDefinition<{
   LangOptions: LanguageOptions;
   Code: SourceCode;
   RuleOptions: [...Options];

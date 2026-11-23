@@ -6,64 +6,92 @@ import type { RuleContext } from "./rule-contract.js";
 import { isFunction } from "./source-helpers.js";
 
 export type MessageIds = "unusedExpression";
-export type Options = [{
-  allowShortCircuit?: boolean;
-  allowTernary?: boolean;
-  allowTaggedTemplates?: boolean;
-  enforceForJSX?: boolean;
-  ignoreDirectives?: boolean;
-}];
+export type Options = [
+  {
+    allowShortCircuit?: boolean;
+    allowTernary?: boolean;
+    allowTaggedTemplates?: boolean;
+    enforceForJSX?: boolean;
+    ignoreDirectives?: boolean;
+  },
+];
 
 function isDirectivePrologue(node: TSESTree.ExpressionStatement): boolean {
   const parent = node.parent;
-  if (!(parent.type === "Program" || parent.type === "TSModuleBlock" ||
-    (parent.type === "BlockStatement" && isFunction(parent.parent)))) return false;
+  if (
+    !(
+      parent.type === "Program" ||
+      parent.type === "TSModuleBlock" ||
+      (parent.type === "BlockStatement" && isFunction(parent.parent))
+    )
+  ) {
+    return false;
+  }
   for (const sibling of parent.body) {
-    if (sibling.type !== "ExpressionStatement" || sibling.expression.type !== "Literal" || typeof sibling.expression.value !== "string") return false;
-    if (sibling === node) return true;
+    if (
+      sibling.type !== "ExpressionStatement" ||
+      sibling.expression.type !== "Literal" ||
+      typeof sibling.expression.value !== "string"
+    ) {
+      return false;
+    }
+    if (sibling === node) {
+      return true;
+    }
   }
   return false;
 }
 
 const meta = {
   type: "suggestion",
-  schema: [{
-    type: "object",
-    properties: {
-      allowShortCircuit: { type: "boolean" },
-      allowTernary: { type: "boolean" },
-      allowTaggedTemplates: { type: "boolean" },
-      enforceForJSX: { type: "boolean" },
-      ignoreDirectives: { type: "boolean" },
+  schema: [
+    {
+      type: "object",
+      properties: {
+        allowShortCircuit: { type: "boolean" },
+        allowTernary: { type: "boolean" },
+        allowTaggedTemplates: { type: "boolean" },
+        enforceForJSX: { type: "boolean" },
+        ignoreDirectives: { type: "boolean" },
+      },
+      additionalProperties: false,
     },
-    additionalProperties: false,
-  }],
+  ],
   messages: {
     unusedExpression: "Expected an assignment or function call and instead saw an expression.",
   },
 } satisfies RulesMeta<MessageIds, Options>;
 
+const alwaysDisallowed = new Set([
+  "ArrayExpression",
+  "ArrowFunctionExpression",
+  "BinaryExpression",
+  "ClassExpression",
+  "FunctionExpression",
+  "Identifier",
+  "Literal",
+  "MemberExpression",
+  "MetaProperty",
+  "ObjectExpression",
+  "SequenceExpression",
+  "TemplateLiteral",
+  "ThisExpression",
+]);
+
 export const unusedExpressionCore = {
   meta,
-  create(context: RuleContext<MessageIds, Options>): { ExpressionStatement(node: TSESTree.ExpressionStatement): void } {
-    const [{ allowShortCircuit, allowTernary, allowTaggedTemplates, enforceForJSX, ignoreDirectives }] = context.options;
+  create(context: RuleContext<MessageIds, Options>): {
+    ExpressionStatement(node: TSESTree.ExpressionStatement): void;
+  } {
+    const [
+      { allowShortCircuit, allowTernary, allowTaggedTemplates, enforceForJSX, ignoreDirectives },
+    ] = context.options;
 
     function isDisallowed(node: TSESTree.Node): boolean {
+      if (alwaysDisallowed.has(node.type)) {
+        return true;
+      }
       switch (node.type) {
-        case "ArrayExpression":
-        case "ArrowFunctionExpression":
-        case "BinaryExpression":
-        case "ClassExpression":
-        case "FunctionExpression":
-        case "Identifier":
-        case "Literal":
-        case "MemberExpression":
-        case "MetaProperty":
-        case "ObjectExpression":
-        case "SequenceExpression":
-        case "TemplateLiteral":
-        case "ThisExpression":
-          return true;
         case "ChainExpression":
         case "TSAsExpression":
         case "TSTypeAssertion":
@@ -71,7 +99,9 @@ export const unusedExpressionCore = {
         case "TSInstantiationExpression":
           return isDisallowed(node.expression);
         case "ConditionalExpression":
-          return allowTernary ? isDisallowed(node.consequent) || isDisallowed(node.alternate) : true;
+          return allowTernary
+            ? isDisallowed(node.consequent) || isDisallowed(node.alternate)
+            : true;
         case "LogicalExpression":
           return allowShortCircuit ? isDisallowed(node.right) : true;
         case "JSXElement":
@@ -88,7 +118,11 @@ export const unusedExpressionCore = {
 
     return {
       ExpressionStatement(node) {
-        if (isDisallowed(node.expression) && typeof node.directive !== "string" && !(ignoreDirectives && isDirectivePrologue(node))) {
+        if (
+          isDisallowed(node.expression) &&
+          typeof node.directive !== "string" &&
+          !(ignoreDirectives && isDirectivePrologue(node))
+        ) {
           context.report({ node, messageId: "unusedExpression" });
         }
       },

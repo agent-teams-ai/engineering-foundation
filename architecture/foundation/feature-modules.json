@@ -2163,10 +2163,14 @@
       "sourceRoot": "packages/stack-toolchain/src",
       "role": "platform",
       "preferredFeatureRoot": "packages/stack-toolchain/src/features",
-      "publicEntrypoints": ["packages/stack-toolchain/src/index.ts"],
+      "publicEntrypoints": [
+        "packages/stack-toolchain/src/index.ts",
+        "packages/stack-toolchain/src/eslint-syntax.ts"
+      ],
       "moduleAssembly": [
         "packages/stack-toolchain/src/index.ts",
-        "packages/stack-toolchain/src/cli.ts"
+        "packages/stack-toolchain/src/cli.ts",
+        "packages/stack-toolchain/src/eslint-syntax.ts"
       ],
       "generatedRoots": [],
       "exceptions": [],
@@ -2206,6 +2210,25 @@
             "packages/stack-toolchain/tests/process.test.ts",
             "packages/stack-toolchain/tests/typecheck.test.ts"
           ]
+        },
+        {
+          "id": "eslint-syntax",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "adapters",
+              "roots": ["packages/stack-toolchain/src/features/eslint-syntax"]
+            }
+          ],
+          "testRoots": [
+            "packages/stack-toolchain/tests/eslint-syntax-admission.test.ts",
+            "packages/stack-toolchain/tests/eslint-syntax-load.test.ts",
+            "packages/stack-toolchain/tests/eslint-syntax-parser.test.ts",
+            "packages/stack-toolchain/tests/eslint-syntax-rules.test.ts",
+            "packages/stack-toolchain/tests/eslint-syntax-semantics.test.ts",
+            "packages/stack-toolchain/tests/eslint-syntax-support.ts",
+            "packages/stack-toolchain/tests/eslint-syntax-types.test.ts"
+          ]
         }
       ],
       "testRoots": [
@@ -2216,7 +2239,14 @@
         "packages/stack-toolchain/tests/format-files.test.ts",
         "packages/stack-toolchain/tests/lint-presets.test.ts",
         "packages/stack-toolchain/tests/process.test.ts",
-        "packages/stack-toolchain/tests/typecheck.test.ts"
+        "packages/stack-toolchain/tests/typecheck.test.ts",
+        "packages/stack-toolchain/tests/eslint-syntax-admission.test.ts",
+        "packages/stack-toolchain/tests/eslint-syntax-load.test.ts",
+        "packages/stack-toolchain/tests/eslint-syntax-parser.test.ts",
+        "packages/stack-toolchain/tests/eslint-syntax-rules.test.ts",
+        "packages/stack-toolchain/tests/eslint-syntax-semantics.test.ts",
+        "packages/stack-toolchain/tests/eslint-syntax-support.ts",
+        "packages/stack-toolchain/tests/eslint-syntax-types.test.ts"
       ]
     },
     {

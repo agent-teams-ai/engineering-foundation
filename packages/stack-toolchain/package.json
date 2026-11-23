@@ -56,28 +56,19 @@
     "test": "node --test tests/*.test.ts"
   },
   "dependencies": {
+    "@eslint/core": "catalog:",
+    "@typescript-eslint/scope-manager": "catalog:",
+    "eslint-parser-oxc": "catalog:",
     "jsonc-parser": "catalog:",
     "node-or-bun": "catalog:",
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
     "oxlint-tsgolint": "catalog:",
-    "typescript": "catalog:",
-    "@eslint/core": "catalog:",
-    "@typescript-eslint/scope-manager": "catalog:",
-    "@typescript-eslint/types": "catalog:",
-    "@typescript-eslint/visitor-keys": "catalog:",
-    "eslint-parser-oxc": "catalog:"
+    "typescript": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",
     "eslint": "catalog:"
-  },
-  "optionalDependencies": {
-    "bun": "catalog:",
-    "tsrs": "catalog:"
-  },
-  "engines": {
-    "node": "^24.18.0 || ^26.0.0"
   },
   "peerDependencies": {
     "eslint": "10.3.0"
@@ -86,5 +77,12 @@
     "eslint": {
       "optional": true
     }
+  },
+  "optionalDependencies": {
+    "bun": "catalog:",
+    "tsrs": "catalog:"
+  },
+  "engines": {
+    "node": "^24.18.0 || ^26.0.0"
   }
 }

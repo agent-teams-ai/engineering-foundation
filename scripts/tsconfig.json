@@ -53,6 +53,8 @@
     "packed-release-checks.ts",
     "pack-quality-assets.ts",
     "packed-stack-toolchain-qualification.ts",
+    "packed-eslint-syntax-qualification.ts",
+    "packed-eslint-syntax-installation.ts",
     "pack-quality-coverage-test.ts",
     "registry-quality-cast-e2e.ts",
     "packed-quality-input-drift.ts",

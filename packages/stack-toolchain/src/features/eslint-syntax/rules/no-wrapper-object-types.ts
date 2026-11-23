@@ -1,34 +1,34 @@
 // Adapted from typescript-eslint 8.59.1 (MIT). See THIRD_PARTY_NOTICES.md and eslint-syntax-provenance.json.
-import type * as TSESLint from '../rule-contract.js';
+import type * as TSESLint from "../rule-contract.js";
 import type * as TSESTree from "../ast.js";
 
 import { AST_NODE_TYPES } from "../ast.js";
 
-import { createRule, isReferenceToGlobalFunction } from '../helpers/index.js';
+import { createRule, isReferenceToGlobalFunction } from "../helpers/index.js";
 
 const classNames = new Set([
-  'BigInt',
+  "BigInt",
 
-  'Boolean',
-  'Number',
-  'Object',
+  "Boolean",
+  "Number",
+  "Object",
 
-  'String',
-  'Symbol',
+  "String",
+  "Symbol",
 ]);
 
 export default createRule({
-  name: 'no-wrapper-object-types',
+  name: "no-wrapper-object-types",
   meta: {
-    type: 'problem',
+    type: "problem",
     docs: {
-      description: 'Disallow using confusing built-in primitive class wrappers',
-      recommended: 'recommended',
+      description: "Disallow using confusing built-in primitive class wrappers",
+      recommended: "recommended",
     },
-    fixable: 'code',
+    fixable: "code",
     messages: {
       bannedClassType:
-        'Prefer using the primitive `{{preferred}}` as a type name, rather than the upper-cased `{{typeName}}`.',
+        "Prefer using the primitive `{{preferred}}` as a type name, rather than the upper-cased `{{typeName}}`.",
     },
     schema: [],
   },
@@ -51,7 +51,7 @@ export default createRule({
 
       context.report({
         node,
-        messageId: 'bannedClassType',
+        messageId: "bannedClassType",
         data: { preferred, typeName },
         fix: includeFix
           ? (fixer): TSESLint.RuleFix => fixer.replaceText(node, preferred)

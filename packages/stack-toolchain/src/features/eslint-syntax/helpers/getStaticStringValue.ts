@@ -6,7 +6,7 @@ import type * as TSESTree from "../ast.js";
 
 import { AST_NODE_TYPES } from "../ast.js";
 
-import { isNullLiteral } from './isNullLiteral.js';
+import { isNullLiteral } from "./isNullLiteral.js";
 
 /**
  * Returns the result of the string conversion applied to the evaluated value of the given expression node,
@@ -20,16 +20,15 @@ import { isNullLiteral } from './isNullLiteral.js';
 export function getStaticStringValue(node: TSESTree.Node): string | null {
   switch (node.type) {
     case AST_NODE_TYPES.Literal:
-
       if (node.value === null) {
         if (isNullLiteral(node)) {
           return String(node.value); // "null"
         }
-        if ('regex' in node) {
+        if ("regex" in node) {
           return `/${node.regex.pattern}/${node.regex.flags}`;
         }
 
-        if ('bigint' in node) {
+        if ("bigint" in node) {
           return node.bigint;
         }
 

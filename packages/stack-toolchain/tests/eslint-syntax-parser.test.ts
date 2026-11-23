@@ -10,12 +10,18 @@ function record(value: unknown): Record<string, unknown> {
 
 function nodes(value: unknown, found: Record<string, unknown>[] = []): Record<string, unknown>[] {
   if (Array.isArray(value)) {
-    for (const child of value) nodes(child, found);
+    for (const child of value) {
+      nodes(child, found);
+    }
   } else if (value !== null && typeof value === "object") {
     const node = record(value);
-    if (typeof node["type"] === "string") found.push(node);
+    if (typeof node["type"] === "string") {
+      found.push(node);
+    }
     for (const [key, child] of Object.entries(node)) {
-      if (!["loc", "range", "parent", "tokens", "comments"].includes(key)) nodes(child, found);
+      if (!["loc", "range", "parent", "tokens", "comments"].includes(key)) {
+        nodes(child, found);
+      }
     }
   }
   return found;
@@ -28,7 +34,9 @@ function parse(code: string): Record<string, unknown> {
 }
 
 void test("native absent children retain their actual null shape without normalization", () => {
-  const result = parse("function plain(value) { return value; } type Box<T> = T; declare function empty(): void; class C { field; method() {} } call();");
+  const result = parse(
+    "function plain(value) { return value; } type Box<T> = T; declare function empty(): void; class C { field; method() {} } call();",
+  );
   const all = nodes(result["ast"]);
   const checks = [
     ["Identifier", "typeAnnotation"],
@@ -54,7 +62,9 @@ void test("native library variables preserve the admitted nominal constructor id
   const variables = record(scopes[0])["variables"];
   assert.ok(Array.isArray(variables));
   for (const name of ["Promise", "Array"]) {
-    const variable: unknown = variables.find((candidate: unknown) => record(candidate)["name"] === name);
+    const variable: unknown = variables.find(
+      (candidate: unknown) => record(candidate)["name"] === name,
+    );
     assert.ok(variable instanceof ImplicitLibVariable, name);
   }
 });
@@ -67,11 +77,18 @@ void test("native parse result exposes source-preserving tokens, comments, range
   assert.ok(Array.isArray(tokens));
   assert.ok(Array.isArray(comments));
   assert.equal(record(comments[0])["value"], " retained");
-  assert.deepEqual(tokens.filter((token: unknown) => record(token)["value"] === ">").map((token: unknown) => record(token)["value"]), [">", ">", ">"]);
+  assert.deepEqual(
+    tokens
+      .filter((token: unknown) => record(token)["value"] === ">")
+      .map((token: unknown) => record(token)["value"]),
+    [">", ">", ">"],
+  );
   assert.equal(ast["type"], "Program");
   assert.ok(Array.isArray(ast["range"]));
   assert.ok("parseForESLint" in parser);
-  const jsx: unknown = parser.parseForESLint("export const view = <span>&amp;</span>;", { filePath: "fixture.tsx" });
+  const jsx: unknown = parser.parseForESLint("export const view = <span>&amp;</span>;", {
+    filePath: "fixture.tsx",
+  });
   const text = nodes(record(jsx)["ast"]).find((node) => node["type"] === "JSXText");
   assert.equal(text?.["value"], "&");
 });

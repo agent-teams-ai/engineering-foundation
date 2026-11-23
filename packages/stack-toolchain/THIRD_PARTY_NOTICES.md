@@ -1,6 +1,18 @@
 # Third-party notices for compiler-free ESLint syntax rules
 
-The retained syntax-rule contract derives from typescript-eslint 8.59.1, commit `52457932e5507b5ca01e720a541f3f8d01e09b9d`. Selected source is adapted to public compiler-free AST, scope and ESLint types. The no-unused-expressions core derives from ESLint 10.3.0, commit `78892043a36da4aa7640b59c99344b00c181048a`. The provenance ledger identifies retained files and modifications. These MIT notices apply to those portions and are not replaced by this package's Apache-2.0 license.
+The retained syntax-rule contract derives from typescript-eslint 8.59.1, commit
+`52457932e5507b5ca01e720a541f3f8d01e09b9d`. Selected rule, helper, configuration
+and default-merging source is adapted to compiler-free AST/scope boundaries and
+public ESLint types. The private ESTree contract and consumed scope contracts
+derive from the published typescript-eslint 8.73.0 declarations. The
+no-unused-expressions core and its directive helper derive from ESLint 10.3.0,
+commit `78892043a36da4aa7640b59c99344b00c181048a`.
+
+The shipped `eslint-syntax-provenance.json` ledger identifies source artifacts,
+hashes, destinations, selected helper contracts and modifications. These MIT
+notices apply to those portions and are not replaced by this package's
+Apache-2.0 license. Runtime parser and scope packages retain their own shipped
+licenses; their implementations are consumed through public entrypoints.
 
 ## typescript-eslint (MIT)
 

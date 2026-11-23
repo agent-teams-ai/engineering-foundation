@@ -1,34 +1,31 @@
 // Adapted from typescript-eslint 8.59.1 (MIT). See THIRD_PARTY_NOTICES.md and eslint-syntax-provenance.json.
-import type * as TSESLint from '../rule-contract.js';
+import type * as TSESLint from "../rule-contract.js";
 import type * as TSESTree from "../ast.js";
 
 import { AST_TOKEN_TYPES } from "../ast.js";
 
-import { createRule, getStringLength, nullThrows } from '../helpers/index.js';
+import { createRule, getStringLength, nullThrows } from "../helpers/index.js";
 
 const defaultMinimumDescriptionLength = 3;
 
-export type DirectiveConfig =
-  | boolean
-  | 'allow-with-description'
-  | { descriptionFormat: string };
+export type DirectiveConfig = boolean | "allow-with-description" | { descriptionFormat: string };
 
 export interface OptionsShape {
   minimumDescriptionLength?: number;
-  'ts-check'?: DirectiveConfig;
-  'ts-expect-error'?: DirectiveConfig;
-  'ts-ignore'?: DirectiveConfig;
-  'ts-nocheck'?: DirectiveConfig;
+  "ts-check"?: DirectiveConfig;
+  "ts-expect-error"?: DirectiveConfig;
+  "ts-ignore"?: DirectiveConfig;
+  "ts-nocheck"?: DirectiveConfig;
 }
 
 export type Options = [OptionsShape];
 
 export type MessageIds =
-  | 'replaceTsIgnoreWithTsExpectError'
-  | 'tsDirectiveComment'
-  | 'tsDirectiveCommentDescriptionNotMatchPattern'
-  | 'tsDirectiveCommentRequiresDescription'
-  | 'tsIgnoreInsteadOfExpectError';
+  | "replaceTsIgnoreWithTsExpectError"
+  | "tsDirectiveComment"
+  | "tsDirectiveCommentDescriptionNotMatchPattern"
+  | "tsDirectiveCommentRequiresDescription"
+  | "tsIgnoreInsteadOfExpectError";
 
 interface MatchedTSDirective {
   description: string;
@@ -36,12 +33,11 @@ interface MatchedTSDirective {
 }
 
 export default createRule<Options, MessageIds>({
-  name: 'ban-ts-comment',
+  name: "ban-ts-comment",
   meta: {
-    type: 'problem',
+    type: "problem",
     docs: {
-      description:
-        'Disallow `@ts-<directive>` comments or require descriptions after directives',
+      description: "Disallow `@ts-<directive>` comments or require descriptions after directives",
       recommended: {
         recommended: true,
         strict: [{ minimumDescriptionLength: 10 }],
@@ -49,10 +45,8 @@ export default createRule<Options, MessageIds>({
     },
     hasSuggestions: true,
     messages: {
-      replaceTsIgnoreWithTsExpectError:
-        'Replace "@ts-ignore" with "@ts-expect-error".',
-      tsDirectiveComment:
-        'Do not use "@ts-{{directive}}" because it alters compilation errors.',
+      replaceTsIgnoreWithTsExpectError: 'Replace "@ts-ignore" with "@ts-expect-error".',
+      tsDirectiveComment: 'Do not use "@ts-{{directive}}" because it alters compilation errors.',
       tsDirectiveCommentDescriptionNotMatchPattern:
         'The description for the "@ts-{{directive}}" directive must match the {{format}} format.',
       tsDirectiveCommentRequiresDescription:
@@ -62,23 +56,23 @@ export default createRule<Options, MessageIds>({
     },
     schema: [
       {
-        type: 'object',
+        type: "object",
         $defs: {
           directiveConfigSchema: {
             oneOf: [
               {
-                type: 'boolean',
+                type: "boolean",
                 default: true,
               },
               {
-                type: 'string',
-                enum: ['allow-with-description'],
+                type: "string",
+                enum: ["allow-with-description"],
               },
               {
-                type: 'object',
+                type: "object",
                 additionalProperties: false,
                 properties: {
-                  descriptionFormat: { type: 'string' },
+                  descriptionFormat: { type: "string" },
                 },
               },
             ],
@@ -87,29 +81,25 @@ export default createRule<Options, MessageIds>({
         additionalProperties: false,
         properties: {
           minimumDescriptionLength: {
-            type: 'number',
+            type: "number",
             description:
-              'A minimum character length for descriptions when `allow-with-description` is enabled.',
+              "A minimum character length for descriptions when `allow-with-description` is enabled.",
           },
-          'ts-check': {
-            $ref: '#/items/0/$defs/directiveConfigSchema',
-            description:
-              'Whether allow ts-check directives, and with which restrictions.',
+          "ts-check": {
+            $ref: "#/items/0/$defs/directiveConfigSchema",
+            description: "Whether allow ts-check directives, and with which restrictions.",
           },
-          'ts-expect-error': {
-            $ref: '#/items/0/$defs/directiveConfigSchema',
-            description:
-              'Whether and when expect-error directives, and with which restrictions.',
+          "ts-expect-error": {
+            $ref: "#/items/0/$defs/directiveConfigSchema",
+            description: "Whether and when expect-error directives, and with which restrictions.",
           },
-          'ts-ignore': {
-            $ref: '#/items/0/$defs/directiveConfigSchema',
-            description:
-              'Whether allow ts-ignore directives, and with which restrictions.',
+          "ts-ignore": {
+            $ref: "#/items/0/$defs/directiveConfigSchema",
+            description: "Whether allow ts-ignore directives, and with which restrictions.",
           },
-          'ts-nocheck': {
-            $ref: '#/items/0/$defs/directiveConfigSchema',
-            description:
-              'Whether allow ts-nocheck directives, and with which restrictions.',
+          "ts-nocheck": {
+            $ref: "#/items/0/$defs/directiveConfigSchema",
+            description: "Whether allow ts-nocheck directives, and with which restrictions.",
           },
         },
       },
@@ -118,16 +108,15 @@ export default createRule<Options, MessageIds>({
   defaultOptions: [
     {
       minimumDescriptionLength: defaultMinimumDescriptionLength,
-      'ts-check': false,
-      'ts-expect-error': 'allow-with-description',
-      'ts-ignore': true,
-      'ts-nocheck': true,
+      "ts-check": false,
+      "ts-expect-error": "allow-with-description",
+      "ts-ignore": true,
+      "ts-nocheck": true,
     },
   ],
   create(context, [options]) {
     // https://github.com/microsoft/TypeScript/blob/6f1ad5ad8bec5671f7e951a3524b62d82ec4be68/src/compiler/parser.ts#L10591
-    const singleLinePragmaRegEx =
-      /^\/\/\/?\s*@ts-(?<directive>check|nocheck)(?<description>.*)$/;
+    const singleLinePragmaRegEx = /^\/\/\/?\s*@ts-(?<directive>check|nocheck)(?<description>.*)$/;
 
     /*
       The regex used are taken from the ones used in the official TypeScript repo -
@@ -139,62 +128,24 @@ export default createRule<Options, MessageIds>({
       /^\s*(?:\/|\*)*\s*@ts-(?<directive>expect-error|ignore)(?<description>.*)/;
 
     const descriptionFormats = new Map<string, RegExp>();
-    for (const directive of [
-      'ts-expect-error',
-      'ts-ignore',
-      'ts-nocheck',
-      'ts-check',
-    ] as const) {
+    for (const directive of ["ts-expect-error", "ts-ignore", "ts-nocheck", "ts-check"] as const) {
       const option = options[directive];
-      if (typeof option === 'object' && option.descriptionFormat) {
+      if (typeof option === "object" && option.descriptionFormat) {
         descriptionFormats.set(directive, new RegExp(option.descriptionFormat));
       }
     }
 
-    function execDirectiveRegEx(
-      regex: RegExp,
-      str: string,
-    ): MatchedTSDirective | null {
-      const match = regex.exec(str);
-      if (!match) {
-        return null;
-      }
-
-      const { description, directive } = nullThrows(
-        match.groups,
-        'RegExp should contain groups',
-      );
-      return {
-        description: nullThrows(
-          description,
-          'RegExp should contain "description" group',
-        ),
-        directive: nullThrows(
-          directive,
-          'RegExp should contain "directive" group',
-        ),
-      };
-    }
-
-    function findDirectiveInComment(
-      comment: TSESTree.Comment,
-    ): MatchedTSDirective | null {
+    function findDirectiveInComment(comment: TSESTree.Comment): MatchedTSDirective | null {
       if (comment.type === AST_TOKEN_TYPES.Line) {
-        const matchedPragma = execDirectiveRegEx(
-          singleLinePragmaRegEx,
-          `//${comment.value}`,
-        );
+        const matchedPragma = execDirectiveRegEx(singleLinePragmaRegEx, `//${comment.value}`);
         if (matchedPragma) {
           return matchedPragma;
         }
 
-        return execDirectiveRegEx(
-          commentDirectiveRegExSingleLine,
-          comment.value,
-        );
+        return execDirectiveRegEx(commentDirectiveRegExSingleLine, comment.value);
       }
 
-      const commentLines = comment.value.split('\n');
+      const commentLines = comment.value.split("\n");
       return execDirectiveRegEx(
         commentDirectiveRegExMultiLine,
         nullThrows(commentLines.at(-1), "Split comment must contain a line."),
@@ -207,7 +158,7 @@ export default createRule<Options, MessageIds>({
 
         const comments = context.sourceCode.getAllComments();
 
-        comments.forEach(comment => {
+        comments.forEach((comment) => {
           const match = findDirectiveInComment(comment);
           if (!match) {
             return;
@@ -215,7 +166,7 @@ export default createRule<Options, MessageIds>({
           const { description, directive } = match;
 
           if (
-            directive === 'nocheck' &&
+            directive === "nocheck" &&
             firstStatement &&
             firstStatement.loc.start.line <= comment.loc.start.line
           ) {
@@ -226,19 +177,16 @@ export default createRule<Options, MessageIds>({
 
           const option = options[fullDirective];
           if (option === true) {
-            if (directive === 'ignore') {
+            if (directive === "ignore") {
               // Special case to suggest @ts-expect-error instead of @ts-ignore
               context.report({
                 node: comment,
-                messageId: 'tsIgnoreInsteadOfExpectError',
+                messageId: "tsIgnoreInsteadOfExpectError",
                 suggest: [
                   {
-                    messageId: 'replaceTsIgnoreWithTsExpectError',
+                    messageId: "replaceTsIgnoreWithTsExpectError",
                     fix(fixer): TSESLint.RuleFix {
-                      const commentText = comment.value.replace(
-                        /@ts-ignore/,
-                        '@ts-expect-error',
-                      );
+                      const commentText = comment.value.replace(/@ts-ignore/, "@ts-expect-error");
                       return fixer.replaceText(
                         comment,
                         comment.type === AST_TOKEN_TYPES.Line
@@ -252,34 +200,31 @@ export default createRule<Options, MessageIds>({
             } else {
               context.report({
                 node: comment,
-                messageId: 'tsDirectiveComment',
+                messageId: "tsDirectiveComment",
                 data: { directive },
               });
             }
           }
 
           if (
-            option === 'allow-with-description' ||
-            (typeof option === 'object' && option.descriptionFormat)
+            option === "allow-with-description" ||
+            (typeof option === "object" && option.descriptionFormat)
           ) {
             const { minimumDescriptionLength } = options;
             const format = descriptionFormats.get(fullDirective);
             if (
               getStringLength(description.trim()) <
-              nullThrows(
-                minimumDescriptionLength,
-                'Expected minimumDescriptionLength to be set',
-              )
+              nullThrows(minimumDescriptionLength, "Expected minimumDescriptionLength to be set")
             ) {
               context.report({
                 node: comment,
-                messageId: 'tsDirectiveCommentRequiresDescription',
+                messageId: "tsDirectiveCommentRequiresDescription",
                 data: { directive, minimumDescriptionLength },
               });
             } else if (format && !format.test(description)) {
               context.report({
                 node: comment,
-                messageId: 'tsDirectiveCommentDescriptionNotMatchPattern',
+                messageId: "tsDirectiveCommentDescriptionNotMatchPattern",
                 data: { directive, format: format.source },
               });
             }
@@ -289,3 +234,16 @@ export default createRule<Options, MessageIds>({
     };
   },
 });
+
+function execDirectiveRegEx(regex: RegExp, str: string): MatchedTSDirective | null {
+  const match = regex.exec(str);
+  if (!match) {
+    return null;
+  }
+
+  const { description, directive } = nullThrows(match.groups, "RegExp should contain groups");
+  return {
+    description: nullThrows(description, 'RegExp should contain "description" group'),
+    directive: nullThrows(directive, 'RegExp should contain "directive" group'),
+  };
+}

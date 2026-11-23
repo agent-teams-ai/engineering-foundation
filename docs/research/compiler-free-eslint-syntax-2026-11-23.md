@@ -1,9 +1,10 @@
 # Compiler-free ESLint syntax rules
 
-Date: 2026-11-23. Status: implementation plan after a successful bounded
-prototype. Foundation base: `e38d8444f74cceef37c366f4e28ed1918b214d4a`.
-The proposed export is not implemented or published. The current source package
-version `stack-toolchain@0.2.0` is not evidence of a registry release.
+Date: 2026-11-23. Status: implemented in source; producer, packed-consumer and
+release qualification in progress. Foundation base:
+`e38d8444f74cceef37c366f4e28ed1918b214d4a`.
+The new export is not published. The current source package version
+`stack-toolchain@0.2.0` is not evidence that a registry artifact exposes it.
 
 ## Problem and owner
 
@@ -44,12 +45,12 @@ technical ESLint feature under `packages/stack-toolchain/src/features/`, reached
 through a thin `src/eslint-syntax.ts` public entry. A technical adapter needs no
 invented domain model.
 
-| Route | Evidence and decision |
-| --- | --- |
-| Supported upstream syntax-only export | Preferred if published with a genuinely compiler-free package and type contract. The inspected 8.73.0 plugin/utils exports do not supply it. |
-| Existing Oxlint route | Remains supported for its existing contract. Replacing the current ESLint CLI, rule IDs, directives and rule semantics would be a separate consumer migration. |
-| Bounded owned extraction | Selected for qualification: retain the twenty rules and minimal helper closure, use public pure AST/scope packages and the public generic ESLint contract. |
-| Copying utils or changing peer ranges | Rejected: retains an unsupported compiler package graph or creates a much larger second type/runtime abstraction. |
+| Route                                 | Evidence and decision                                                                                                                                          |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Supported upstream syntax-only export | Preferred if published with a genuinely compiler-free package and type contract. The inspected 8.73.0 plugin/utils exports do not supply it.                   |
+| Existing Oxlint route                 | Remains supported for its existing contract. Replacing the current ESLint CLI, rule IDs, directives and rule semantics would be a separate consumer migration. |
+| Bounded owned extraction              | Selected for qualification: retain the twenty rules and minimal helper closure, use public pure AST/scope packages and the public generic ESLint contract.     |
+| Copying utils or changing peer ranges | Rejected: retains an unsupported compiler package graph or creates a much larger second type/runtime abstraction.                                              |
 
 The native parser is the published `eslint-parser-oxc@0.1.1`, with its own
 `oxc-parser@0.148.0` dependency. This is a public parser integration, not a local
@@ -83,28 +84,28 @@ retained lines before the ESLint core rule, typed contracts, assembly and tests.
 The collector and `no-unused-vars` are the main semantic risk, not a trivial
 import substitution.
 
-| Retained rule | Independent rejecting and accepted boundary |
-| --- | --- |
-| `ban-ts-comment` | Bare ignore versus permitted described expect-error; comment location and Unicode description length. |
-| `no-array-constructor` | Multiple arguments versus the permitted one-argument case; exact fix. |
-| `no-duplicate-enum-values` | Duplicate versus distinct literal members; report the duplicate member. |
-| `no-empty-object-type` | Empty interface/object versus a member; existing option defaults and suggestions. |
-| `no-explicit-any` | Explicit any versus unknown; rest-option behavior and exact suggestion output. |
-| `no-extra-non-null-assertion` | Duplicate versus single assertion; exact removal range. |
-| `no-misused-new` | Interface constructor returning itself versus a distinct instance type. |
-| `no-namespace` | Ordinary namespace versus permitted external module; declaration-file and ambient options. |
-| `no-non-null-asserted-optional-chain` | Assertion after optional access versus ordinary optional access; suggestion range. |
-| `no-require-imports` | Global require versus import or locally shadowed require; allow-list options. |
-| `no-this-alias` | Direct alias versus permitted destructuring; allowed-name option. |
-| `no-unnecessary-type-constraint` | Unknown/any constraint versus a meaningful bound; TSX/MTS/CTS generic-arrow comma. |
-| `no-unsafe-declaration-merging` | Class/interface same-name merge versus distinct names; both declaration locations. |
-| `no-unsafe-function-type` | Global Function versus explicit function or locally shadowed Function. |
-| `no-unused-expressions` | Standalone identifier versus calls; TS wrappers, directives, optional calls, imports and JSX options. |
-| `no-unused-vars` | Unused versus used/exported declarations; declarations, scope, type references and options listed below. |
-| `no-wrapper-object-types` | Global wrapper type versus primitive or local shadow. |
-| `prefer-as-const` | Repeated literal assertion/annotation versus as const; exact fixes and suggestions. |
-| `prefer-namespace-keyword` | Identifier module versus namespace/external string module; keyword range. |
-| `triple-slash-reference` | Forbidden path versus permitted lib/import directive; comments and default options. |
+| Retained rule                         | Independent rejecting and accepted boundary                                                              |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `ban-ts-comment`                      | Bare ignore versus permitted described expect-error; comment location and Unicode description length.    |
+| `no-array-constructor`                | Multiple arguments versus the permitted one-argument case; exact fix.                                    |
+| `no-duplicate-enum-values`            | Duplicate versus distinct literal members; report the duplicate member.                                  |
+| `no-empty-object-type`                | Empty interface/object versus a member; existing option defaults and suggestions.                        |
+| `no-explicit-any`                     | Explicit any versus unknown; rest-option behavior and exact suggestion output.                           |
+| `no-extra-non-null-assertion`         | Duplicate versus single assertion; exact removal range.                                                  |
+| `no-misused-new`                      | Interface constructor returning itself versus a distinct instance type.                                  |
+| `no-namespace`                        | Ordinary namespace versus permitted external module; declaration-file and ambient options.               |
+| `no-non-null-asserted-optional-chain` | Assertion after optional access versus ordinary optional access; suggestion range.                       |
+| `no-require-imports`                  | Global require versus import or locally shadowed require; allow-list options.                            |
+| `no-this-alias`                       | Direct alias versus permitted destructuring; allowed-name option.                                        |
+| `no-unnecessary-type-constraint`      | Unknown/any constraint versus a meaningful bound; TSX/MTS/CTS generic-arrow comma.                       |
+| `no-unsafe-declaration-merging`       | Class/interface same-name merge versus distinct names; both declaration locations.                       |
+| `no-unsafe-function-type`             | Global Function versus explicit function or locally shadowed Function.                                   |
+| `no-unused-expressions`               | Standalone identifier versus calls; TS wrappers, directives, optional calls, imports and JSX options.    |
+| `no-unused-vars`                      | Unused versus used/exported declarations; declarations, scope, type references and options listed below. |
+| `no-wrapper-object-types`             | Global wrapper type versus primitive or local shadow.                                                    |
+| `prefer-as-const`                     | Repeated literal assertion/annotation versus as const; exact fixes and suggestions.                      |
+| `prefer-namespace-keyword`            | Identifier module versus namespace/external string module; keyword range.                                |
+| `triple-slash-reference`              | Forbidden path versus permitted lib/import directive; comments and default options.                      |
 
 Copy only `collectUnusedVariables`, `getStringLength`, `getStaticStringValue`,
 `isNullLiteral`, `escapeRegExp`, `isReferenceToGlobalFunction`, `isTypeImport`,
@@ -145,11 +146,11 @@ Two separate temporary experiments ran on Node 26.11.1/Linux x64 before any
 Foundation rule port. Neither changes a consumer configuration or certifies a
 Foundation artifact.
 
-| Evidence | Observed result | SHA-256 of retained result JSON |
-| --- | --- | --- |
-| Public parser/host boundary | 17/17 checks, including TSX, declaration modules, globals, directives, coordinates, ESM/CJS exports and pre-initialization guard controls. | `360d47ce91e1e712effe3068f66c4a5cd6a5c72c5f28a7b44510a42bcb579886` |
+| Evidence                               | Observed result                                                                                                                                        | SHA-256 of retained result JSON                                    |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------ |
+| Public parser/host boundary            | 17/17 checks, including TSX, declaration modules, globals, directives, coordinates, ESM/CJS exports and pre-initialization guard controls.             | `360d47ce91e1e712effe3068f66c4a5cd6a5c72c5f28a7b44510a42bcb579886` |
 | One real rule and public generic types | Strict native TypeScript 7.0.2 with noUncheckedIndexedAccess, exactOptionalPropertyTypes and declaration checking; 13/13 runtime and rejecting checks. | `edd523f3366d9af20e0b041a81fa44ef1458651225aaca73f6523ebe3a8ef929` |
-| Upstream source inventory | Twenty rule blobs and selected helper inventory; read-only evidence. | `b59d7ffe02429ec7f0f80cfb4216e57c51009bf7d1caf3805813911faad69ef8` |
+| Upstream source inventory              | Twenty rule blobs and selected helper inventory; read-only evidence.                                                                                   | `b59d7ffe02429ec7f0f80cfb4216e57c51009bf7d1caf3805813911faad69ef8` |
 
 The rule experiment retained actual `prefer-as-const` source blob
 `eb0a1e12008e7dd4011426566e0915cbdd88f5c8`. It exercised real reports, fixes,
@@ -221,15 +222,18 @@ contracts with runtime fixtures, not inferred by a new selector engine.
 
 ## Current delivery ledger
 
-| Step | State |
-| --- | --- |
-| Current Foundation rules, catalog, ownership and original source inspected | Complete at the base above. |
-| Parser admission and one-rule strict prototype | Complete in the bounded Linux scope above. |
-| Plan and public owner navigation | This initial checkpoint. |
-| Foundation rules, dependencies, artifacts and consumer integration | Not yet changed. |
-| Foundation changed/fast/workflow-security preflight | Pending normal exact runtime/dependency preparation; not replaced by the prototype. |
-| Independent final-source review and complete native CI | Pending implementation. |
-| Registry publication and ReviewRouter adoption | Pending qualification and release. |
+| Step                                                                         | State                                                                                                                                                                 |
+| ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Current Foundation rules, catalog, ownership and original source inspected   | Complete at the base above.                                                                                                                                           |
+| Parser admission and one-rule strict prototype                               | Complete in the bounded Linux scope above.                                                                                                                            |
+| Plan and public owner navigation                                             | Committed before implementation in the existing draft PR.                                                                                                             |
+| All twenty retained rules, native parser admission and strict type boundary  | Implemented; exact-source Node 26.11.1 / TypeScript 7.0.2 source and test projects pass.                                                                              |
+| Independent rule, semantic, parser, admission, load and declaration fixtures | 50/50 pass on Linux x64 with zero skipped tests; exact diagnostics, fixes, suggestions and rejecting controls included.                                               |
+| Source budgets and scoped cleanup                                            | Existing syntax and maintainability presets report zero diagnostics; source-owned explicit-file cleanup completes.                                                    |
+| Dependencies, metadata and real manager lockfiles                            | Implemented; both locks generated with admitted managers and all tracked install inputs; frozen lock-only revalidation passes. Installation is a separate gate.       |
+| Foundation changed/fast/workflow-security preflight and packed consumers     | Pending ordinary exact-runtime producer preparation; not replaced by the focused checks.                                                                              |
+| Independent final-source review and complete native CI                       | Parser/scope admission, retained rules and final unused-variable modularization reviewed without an outstanding blocking finding; complete native CI remains pending. |
+| Registry publication and ReviewRouter adoption                               | Pending qualification and release.                                                                                                                                    |
 
 An independent technical plan review found no architectural blocker in the
 initial design bytes (SHA-256
@@ -238,11 +242,18 @@ Its two concrete findings are incorporated above: default merging requires
 explicit equivalence evidence, and the parser's mandatory ESLint peer constrains
 any optional-host claim. This is a plan review, not final-source approval.
 
-The initial checkout has no installed Foundation dependencies or Bun executable.
+The initial checkout had no installed Foundation dependencies or Bun executable.
 The documented changed check requires the source-owned Bun 1.4.3 installation
 and build, including when launched from Node. Its ordinary preparation remains
 required before those gates can be claimed; the isolated Node diagnostic profile
 is a separate documented route, not a renamed changed-check result.
+
+The first durable implementation checkpoint was published on the existing draft
+PR as `da209739faeffe7f64fcdabc61f7b6c622fe5e67`, with tree
+`53eeb9ea7f32c072aaa46d045275e43a011c4106`. Its commit explicitly leaves final
+modularization, metadata, lockfiles and producer qualification pending. Later
+working-source results above must be repeated on the final published head before
+merge; that checkpoint is not a completed release or E2E claim.
 
 ## Reconstructed source checkpoint
 
@@ -268,9 +279,26 @@ with the parser. The original Visitor, PatternVisitor and ImplicitLibVariable
 constructors are retained. Public package declarations expose ordinary ESLint
 types; legacy compiler declarations do not enter the source or consumer graph.
 
-The complete Stack Toolchain source project currently passes native TypeScript
-7.0.2 with its unchanged strict, exact-optional, indexed-access and declaration
-checks. Runtime semantic fixtures, complete inventories, both real lockfiles,
-packed consumers, required full CI and independent final-source review remain
-pending at this checkpoint. This is durable source recovery, not release or
-consumer qualification.
+At that first reconstructed checkpoint the complete Stack Toolchain source
+project passed native TypeScript 7.0.2 with its unchanged strict, exact-optional,
+indexed-access and declaration checks. Runtime semantics, complete inventories,
+both real lockfiles, packed consumers, full CI and final-source review were still
+pending. Subsequent focused results are recorded in the delivery ledger above.
+
+The final source layout separates the retained unused-variable rule's option
+normalization, selection, ambient handling, diagnostics and import fixes. The
+collector keeps its original Visitor and per-program cache while reference
+classification resides in a private helper. These partitions satisfy the existing
+500-line file, 150-line function and complexity-20 budgets without exemptions.
+The private AST declarations are split along actual node contracts. The shipped
+`eslint-syntax-provenance.json` maps original immutable sources and artifact
+integrities to every retained portion; both MIT notices remain in the tarball.
+
+The repository intentionally installs `stack-toolchain@0.1.0` from the registry
+as its own tool consumer. That installation must not be replaced with source just
+because the source workspace has the same name. The four newly required producer
+dependencies therefore also appear as exact-catalog root development dependencies,
+so the existing producer projection can resolve and validate them separately.
+The source package keeps its own parser/scope/core runtime declarations and exact
+development host. Real Bun and pnpm locks are generated by their admitted managers;
+lock-only resolution does not count as a frozen-install or packed-consumer result.

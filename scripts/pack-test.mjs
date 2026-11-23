@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 
 import { assertPnpmProfileQualificationRoot } from "../tools/dev.mts";
 import { qualifyInstalledStackToolchain } from "./packed-stack-toolchain-qualification.ts";
+import { qualifyPackedEslintInstallations } from "./packed-eslint-syntax-installation.ts";
 import { testPackedAgentWorkflow } from "./pack-agent-workflow-test.mjs";
 import { qualifyPackedDocsIntegration } from "./packed-docs-consumer-integration.ts";
 import { testPackedQualityCoverage } from "./pack-quality-coverage-test.ts";
@@ -197,6 +198,13 @@ export function qualifyPackedConsumers(handle, group) {
         ),
         consumerPhase("quality coverage", async (current) => {
           await qualifyInstalledStackToolchain(current.consumerRoot);
+          await qualifyPackedEslintInstallations({
+            artifact: artifacts["stack-toolchain"],
+            packageManager,
+            temporaryRoot,
+            runPnpm,
+            sourcePackageRoot: join(repositoryRoot, "packages/stack-toolchain"),
+          });
           return testPackedQualityCoverage({ consumerRoot: current.consumerRoot, artifact });
         }),
         consumerPhase("quality gate runner", (current) =>

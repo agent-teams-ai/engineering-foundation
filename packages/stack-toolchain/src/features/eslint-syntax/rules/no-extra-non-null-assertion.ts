@@ -1,30 +1,28 @@
 // Adapted from typescript-eslint 8.59.1 (MIT). See THIRD_PARTY_NOTICES.md and eslint-syntax-provenance.json.
 import type * as TSESTree from "../ast.js";
 
-import { createRule } from '../helpers/index.js';
+import { createRule } from "../helpers/index.js";
 
 export default createRule({
-  name: 'no-extra-non-null-assertion',
+  name: "no-extra-non-null-assertion",
   meta: {
-    type: 'problem',
+    type: "problem",
     docs: {
-      description: 'Disallow extra non-null assertions',
-      recommended: 'recommended',
+      description: "Disallow extra non-null assertions",
+      recommended: "recommended",
     },
-    fixable: 'code',
+    fixable: "code",
     messages: {
-      noExtraNonNullAssertion: 'Forbidden extra non-null assertion.',
+      noExtraNonNullAssertion: "Forbidden extra non-null assertion.",
     },
     schema: [],
   },
   defaultOptions: [],
   create(context) {
-    function checkExtraNonNullAssertion(
-      node: TSESTree.TSNonNullExpression,
-    ): void {
+    function checkExtraNonNullAssertion(node: TSESTree.TSNonNullExpression): void {
       context.report({
         node,
-        messageId: 'noExtraNonNullAssertion',
+        messageId: "noExtraNonNullAssertion",
         fix(fixer) {
           return fixer.removeRange([node.range[1] - 1, node.range[1]]);
         },
@@ -32,11 +30,9 @@ export default createRule({
     }
 
     return {
-      'CallExpression[optional = true] > TSNonNullExpression.callee':
-        checkExtraNonNullAssertion,
-      'MemberExpression[optional = true] > TSNonNullExpression.object':
-        checkExtraNonNullAssertion,
-      'TSNonNullExpression > TSNonNullExpression': checkExtraNonNullAssertion,
+      "CallExpression[optional = true] > TSNonNullExpression.callee": checkExtraNonNullAssertion,
+      "MemberExpression[optional = true] > TSNonNullExpression.object": checkExtraNonNullAssertion,
+      "TSNonNullExpression > TSNonNullExpression": checkExtraNonNullAssertion,
     };
   },
 });

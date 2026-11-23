@@ -1,23 +1,23 @@
+import { isNullish } from "../source-helpers.js";
 // Adapted from typescript-eslint 8.59.1 (MIT). See THIRD_PARTY_NOTICES.md and eslint-syntax-provenance.json.
 import type { Scope } from "../scope-runtime.js";
 import type * as TSESTree from "../ast.js";
 
 import { AST_NODE_TYPES } from "../ast.js";
 
-import { createRule } from '../helpers/index.js';
+import { createRule } from "../helpers/index.js";
 
 export default createRule({
-  name: 'no-unsafe-declaration-merging',
+  name: "no-unsafe-declaration-merging",
   meta: {
-    type: 'problem',
+    type: "problem",
     docs: {
-      description: 'Disallow unsafe declaration merging',
-      recommended: 'recommended',
+      description: "Disallow unsafe declaration merging",
+      recommended: "recommended",
       requiresTypeChecking: false,
     },
     messages: {
-      unsafeMerging:
-        'Unsafe declaration merging between classes and interfaces.',
+      unsafeMerging: "Unsafe declaration merging between classes and interfaces.",
     },
     schema: [],
   },
@@ -38,10 +38,10 @@ export default createRule({
         return;
       }
 
-      if (defs.some(def => def.node.type === unsafeKind)) {
+      if (defs.some((def) => def.node.type === unsafeKind)) {
         context.report({
           node,
-          messageId: 'unsafeMerging',
+          messageId: "unsafeMerging",
         });
       }
     }
@@ -52,15 +52,11 @@ export default createRule({
           // by default eslint returns the inner class scope for the ClassDeclaration node
           // but we want the outer scope within which merged variables will sit
           const currentScope = context.sourceCode.getScope(node).upper;
-          if (currentScope == null) {
+          if (isNullish(currentScope)) {
             return;
           }
 
-          checkUnsafeDeclaration(
-            currentScope,
-            node.id,
-            AST_NODE_TYPES.TSInterfaceDeclaration,
-          );
+          checkUnsafeDeclaration(currentScope, node.id, AST_NODE_TYPES.TSInterfaceDeclaration);
         }
       },
       TSInterfaceDeclaration(node): void {

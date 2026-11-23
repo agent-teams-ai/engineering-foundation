@@ -11,23 +11,51 @@ export const NullThrowsReasons = {
 } as const;
 
 export function nullThrows<T>(value: T, message: string): NonNullable<T> {
-  if (value == null) throw new Error(`Non-null Assertion Failed: ${message}`);
+  if (value === null || value === undefined) {
+    throw new Error(`Non-null Assertion Failed: ${message}`);
+  }
   return value;
 }
 
-export function isFunction(node: TSESTree.Node | null | undefined): node is TSESTree.ArrowFunctionExpression | TSESTree.FunctionDeclaration | TSESTree.FunctionExpression {
-  return node?.type === AST_NODE_TYPES.ArrowFunctionExpression || node?.type === AST_NODE_TYPES.FunctionDeclaration || node?.type === AST_NODE_TYPES.FunctionExpression;
+export function isFunction(
+  node: TSESTree.Node | null | undefined,
+): node is
+  | TSESTree.ArrowFunctionExpression
+  | TSESTree.FunctionDeclaration
+  | TSESTree.FunctionExpression {
+  return (
+    node?.type === AST_NODE_TYPES.ArrowFunctionExpression ||
+    node?.type === AST_NODE_TYPES.FunctionDeclaration ||
+    node?.type === AST_NODE_TYPES.FunctionExpression
+  );
 }
 
-export function isLoop(node: TSESTree.Node | null | undefined): node is TSESTree.DoWhileStatement | TSESTree.ForStatement | TSESTree.ForInStatement | TSESTree.ForOfStatement | TSESTree.WhileStatement {
-  return node?.type === AST_NODE_TYPES.DoWhileStatement || node?.type === AST_NODE_TYPES.ForStatement || node?.type === AST_NODE_TYPES.ForInStatement || node?.type === AST_NODE_TYPES.ForOfStatement || node?.type === AST_NODE_TYPES.WhileStatement;
+export function isLoop(
+  node: TSESTree.Node | null | undefined,
+): node is
+  | TSESTree.DoWhileStatement
+  | TSESTree.ForStatement
+  | TSESTree.ForInStatement
+  | TSESTree.ForOfStatement
+  | TSESTree.WhileStatement {
+  return (
+    node?.type === AST_NODE_TYPES.DoWhileStatement ||
+    node?.type === AST_NODE_TYPES.ForStatement ||
+    node?.type === AST_NODE_TYPES.ForInStatement ||
+    node?.type === AST_NODE_TYPES.ForOfStatement ||
+    node?.type === AST_NODE_TYPES.WhileStatement
+  );
 }
 
-export function isOpeningParenToken(token: TSESTree.Token | null | undefined): token is TSESTree.PunctuatorToken {
+export function isOpeningParenToken(
+  token: TSESTree.Token | null | undefined,
+): token is TSESTree.PunctuatorToken {
   return token?.type === AST_TOKEN_TYPES.Punctuator && token.value === "(";
 }
 
-export function isClosingParenToken(token: TSESTree.Token | null | undefined): token is TSESTree.PunctuatorToken {
+export function isClosingParenToken(
+  token: TSESTree.Token | null | undefined,
+): token is TSESTree.PunctuatorToken {
   return token?.type === AST_TOKEN_TYPES.Punctuator && token.value === ")";
 }
 
@@ -36,27 +64,49 @@ export function findVariable(initial: Scope, name: string): ScopeVariable | null
   let scope: Scope | null = initial;
   while (scope) {
     const variable = scope.set.get(name);
-    if (variable) return variable;
+    if (variable) {
+      return variable;
+    }
     scope = scope.upper;
   }
   return null;
 }
 
-export function isReferenceToGlobalFunction(calleeName: string, node: TSESTree.Node, sourceCode: SourceCode): boolean {
-  const reference = sourceCode.getScope(node).references.find((ref) => ref.identifier.name === calleeName);
+export function isReferenceToGlobalFunction(
+  calleeName: string,
+  node: TSESTree.Node,
+  sourceCode: SourceCode,
+): boolean {
+  const reference = sourceCode
+    .getScope(node)
+    .references.find((ref) => ref.identifier.name === calleeName);
   return !reference?.resolved?.defs.length;
 }
 
 export function isDefinitionFile(fileName: string): boolean {
   const lowerFileName = fileName.toLowerCase();
-  return [".d.ts", ".d.cts", ".d.mts"].some((extension) => lowerFileName.endsWith(extension)) || /\.d\.(ts|cts|mts|.*\.ts)$/.test(lowerFileName);
+  return (
+    [".d.ts", ".d.cts", ".d.mts"].some((extension) => lowerFileName.endsWith(extension)) ||
+    /\.d\.(ts|cts|mts|.*\.ts)$/.test(lowerFileName)
+  );
 }
 
-export function getNameLocationInGlobalDirectiveComment(sourceCode: SourceCode, comment: TSESTree.Comment, name: string): TSESTree.SourceLocation {
+export function getNameLocationInGlobalDirectiveComment(
+  sourceCode: SourceCode,
+  comment: TSESTree.Comment,
+  name: string,
+): TSESTree.SourceLocation {
   const namePattern = new RegExp(`[\\s,]${escapeRegExp(name)}(?:$|[\\s,:])`, "gu");
   namePattern.lastIndex = comment.value.indexOf("global") + 6;
   const match = namePattern.exec(comment.value);
-  const start = sourceCode.getLocFromIndex(comment.range[0] + "/*".length + (match ? match.index + 1 : 0));
+  const start = sourceCode.getLocFromIndex(
+    comment.range[0] + "/*".length + (match ? match.index + 1 : 0),
+  );
   const end = { column: start.column + (match ? name.length : 1), line: start.line };
   return { end, start };
+}
+
+/** Preserves loose null comparison semantics while evaluating the input once. */
+export function isNullish(value: unknown): value is null | undefined {
+  return value === null || value === undefined;
 }

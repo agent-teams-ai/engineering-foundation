@@ -1,21 +1,20 @@
 // Adapted from typescript-eslint 8.59.1 (MIT). See THIRD_PARTY_NOTICES.md and eslint-syntax-provenance.json.
 import { AST_NODE_TYPES, AST_TOKEN_TYPES } from "../ast.js";
 
-import { createRule } from '../helpers/index.js';
+import { createRule } from "../helpers/index.js";
 
 export default createRule({
-  name: 'prefer-namespace-keyword',
+  name: "prefer-namespace-keyword",
   meta: {
-    type: 'suggestion',
+    type: "suggestion",
     docs: {
       description:
-        'Require using `namespace` keyword over `module` keyword to declare custom TypeScript modules',
-      recommended: 'recommended',
+        "Require using `namespace` keyword over `module` keyword to declare custom TypeScript modules",
+      recommended: "recommended",
     },
-    fixable: 'code',
+    fixable: "code",
     messages: {
-      useNamespace:
-        "Use 'namespace' instead of 'module' to declare custom TypeScript modules.",
+      useNamespace: "Use 'namespace' instead of 'module' to declare custom TypeScript modules.",
     },
     schema: [],
   },
@@ -30,15 +29,12 @@ export default createRule({
         // Get tokens of the declaration header.
         const moduleType = context.sourceCode.getTokenBefore(node.id);
 
-        if (
-          moduleType?.type === AST_TOKEN_TYPES.Identifier &&
-          moduleType.value === 'module'
-        ) {
+        if (moduleType?.type === AST_TOKEN_TYPES.Identifier && moduleType.value === "module") {
           context.report({
             node,
-            messageId: 'useNamespace',
+            messageId: "useNamespace",
             fix(fixer) {
-              return fixer.replaceText(moduleType, 'namespace');
+              return fixer.replaceText(moduleType, "namespace");
             },
           });
         }

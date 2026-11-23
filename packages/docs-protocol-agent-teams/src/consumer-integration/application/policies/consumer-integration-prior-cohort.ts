@@ -191,21 +191,23 @@ function trustedCurrentCohort(input: {
   readonly stateSource: string;
   readonly managedStateBytes: Uint8Array;
 }): TrustedPriorCohort | undefined {
-  const { desired, snapshot, catalog, record, recordedDesired, stateSource, managedStateBytes } = input;
+  const { desired, snapshot, catalog, record, recordedDesired, stateSource, managedStateBytes } =
+    input;
   const skill = Buffer.from(CANONICAL_DOCS_SKILL_V2, "utf8");
   const caller = Buffer.from(canonicalCallerWorkflow(desired.cohort), "utf8");
   const routeDigest = digestBytes(Buffer.from(canonicalManagedRoute(desired.skillPath), "utf8"));
   const scriptsDigest = canonicalDocsScriptsDigest(desired.profilePath);
-  const currentState = recordedDesired === undefined
-    ? undefined
-    : canonicalManagedState(recordedDesired, {
-        skillDigest: digestBytes(skill),
-        callerWorkflowDigest: digestBytes(caller),
-        assetCatalogDigest: catalog.catalogDigest,
-        transitionCatalogDigest: catalog.transitionCatalogDigest,
-        agentsRouteDigest: routeDigest,
-        docsScriptsDigest: scriptsDigest,
-      });
+  const currentState =
+    recordedDesired === undefined
+      ? undefined
+      : canonicalManagedState(recordedDesired, {
+          skillDigest: digestBytes(skill),
+          callerWorkflowDigest: digestBytes(caller),
+          assetCatalogDigest: catalog.catalogDigest,
+          transitionCatalogDigest: catalog.transitionCatalogDigest,
+          agentsRouteDigest: routeDigest,
+          docsScriptsDigest: scriptsDigest,
+        });
   if (
     currentState !== stateSource ||
     !matchesCurrentCatalog(desired, catalog, record, skill, caller) ||
@@ -233,9 +235,12 @@ function matchesCurrentSourceShape(
   source: CurrentSourceExecutor,
 ): boolean {
   return (
-    canonicalConsumerIntegrationJson(record["packages"]) === canonicalConsumerIntegrationJson(source.packages) &&
-    canonicalConsumerIntegrationJson(record["schemas"]) === canonicalConsumerIntegrationJson(source.schemas) &&
-    canonicalConsumerIntegrationJson(record["runtime"]) === canonicalConsumerIntegrationJson(source.runtime)
+    canonicalConsumerIntegrationJson(record["packages"]) ===
+      canonicalConsumerIntegrationJson(source.packages) &&
+    canonicalConsumerIntegrationJson(record["schemas"]) ===
+      canonicalConsumerIntegrationJson(source.schemas) &&
+    canonicalConsumerIntegrationJson(record["runtime"]) ===
+      canonicalConsumerIntegrationJson(source.runtime)
   );
 }
 
@@ -258,7 +263,8 @@ function matchesCurrentSourceWitness(input: {
     inputDigest(snapshot.skill) === source.skillDigest &&
     inputDigest(snapshot.callerWorkflow) === source.callerWorkflowDigest &&
     managedRouteDigest(snapshot.agents) === source.agentsRouteDigest &&
-    manifestScriptsDigest(snapshot.packageManifest, desired.profilePath) === source.docsScriptsDigest
+    manifestScriptsDigest(snapshot.packageManifest, desired.profilePath) ===
+      source.docsScriptsDigest
   );
 }
 
@@ -271,7 +277,11 @@ function currentSourceExecutor(input: {
 }): CurrentSourceExecutor | undefined {
   const { desired, snapshot, catalog, record, recordedDesired } = input;
   const assets = record["assets"] as Record<string, unknown> | undefined;
-  if (assets === undefined || recordedDesired === undefined || typeof record["cohortId"] !== "string") {
+  if (
+    assets === undefined ||
+    recordedDesired === undefined ||
+    typeof record["cohortId"] !== "string"
+  ) {
     return undefined;
   }
   const sources = catalog.currentSourceExecutors.filter(
@@ -298,17 +308,28 @@ export function trustedPriorCohort(
     const { stateDigest, ...body } = record;
     if (
       typeof stateDigest !== "string" ||
-      stateDigest !== digestBytes(Buffer.from(canonicalConsumerIntegrationJson({
-        domain: "agent-teams.docs-protocol.managed-state/v1",
-        body,
-      }), "utf8")) ||
+      stateDigest !==
+        digestBytes(
+          Buffer.from(
+            canonicalConsumerIntegrationJson({
+              domain: "agent-teams.docs-protocol.managed-state/v1",
+              body,
+            }),
+            "utf8",
+          ),
+        ) ||
       `${canonicalConsumerIntegrationJson(record)}\n` !== stateSource
     ) {
       return undefined;
     }
     const recordedDesired = desiredAtRecordedRepository(desired, record);
     const current = trustedCurrentCohort({
-      desired, snapshot, catalog, record, recordedDesired, stateSource,
+      desired,
+      snapshot,
+      catalog,
+      record,
+      recordedDesired,
+      stateSource,
       managedStateBytes: snapshot.managedState.bytes,
     });
     if (current !== undefined) {

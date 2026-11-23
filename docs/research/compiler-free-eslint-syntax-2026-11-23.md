@@ -381,3 +381,16 @@ JSON value to the earlier exact optional peer declaration. Bun 1.4.3 and pnpm
 inputs; both lockfiles remain byte-identical because the resolved peer is unchanged.
 The published Foundation 3.1.0 selected dependency-declaration check passes; the
 current source producer full gate remains a separate required CI result.
+
+Actual frozen Bun installation then exposed a distinct installed-graph checker
+gap: ordinary dependencies resolved workspace catalogs, but peer inspection sent
+the raw catalog selector to SemVer. Both peer-inspection paths now use the
+existing catalog resolver with the actual canonical workspace-origin flag.
+Registry packages still cannot borrow workspace catalogs. Existing optional,
+required, identity, version, canonical-root and engine checks remain intact.
+A maintained regression first reproduced the failure, then the full seven-case
+installed-guard group passed with zero skips, including default/named catalogs,
+wrong versions, absent required peers, missing catalogs and registry-origin
+rejection. Explicit-file cleanup and the inherited strict native tooling project
+pass. Terminal native job logs were reconciled before requesting the next matrix;
+no other distinct completed failure remained.

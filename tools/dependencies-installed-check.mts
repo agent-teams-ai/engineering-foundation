@@ -335,11 +335,14 @@ async function inspectPeers(
   issuer: string,
   manifest: Manifest,
   workspacePeers: ReadonlyMap<string, { readonly path: string; readonly version: string }>,
+  authority: BunRootProjection,
+  workspaceIssuer: boolean,
 ): Promise<readonly PeerAssignment[]> {
   const assignments: PeerAssignment[] = [];
   for (const [name, range] of Object.entries(manifest.peerDependencies ?? {})) {
-    const workspacePeer = range.startsWith("workspace:") ? workspacePeers.get(name) : undefined;
-    const normalized = peerRange(range, workspacePeer?.version, `${name} peer from ${issuer}`);
+    const selected = catalogSpec(name, range, authority, workspaceIssuer);
+    const workspacePeer = selected.startsWith("workspace:") ? workspacePeers.get(name) : undefined;
+    const normalized = peerRange(selected, workspacePeer?.version, `${name} peer from ${issuer}`);
     const optional = manifest.peerDependenciesMeta?.[name]?.optional === true;
     const installed = await resolveInstalled(canonicalRoot, issuer, name);
     if (installed === undefined) {
@@ -421,7 +424,14 @@ export async function inspectInstalledDependencies(
     }
     const issuerCoordinate = coordinate(manifest, relative(canonicalRoot, issuer) || "root");
     checkEngine(manifest, issuerCoordinate, nodeVersion, bunVersion);
-    const peers = await inspectPeers(canonicalRoot, issuer, manifest, workspacePeers);
+    const peers = await inspectPeers(
+      canonicalRoot,
+      issuer,
+      manifest,
+      workspacePeers,
+      authority,
+      workspaceIssuers.has(issuer),
+    );
     for (const peer of peers) {
       peerAssignments.add(`${issuerCoordinate} -> ${peer.name}@${peer.range}=${peer.resolution}`);
       if (peer.resolution !== "missing-optional") {
@@ -459,6 +469,8 @@ export async function inspectInstalledDependencies(
         installed,
         installedManifest,
         workspacePeers,
+        authority,
+        workspaceIssuers.has(installed),
       );
       const peerProjection = targetPeers
         .map((peer) => `${peer.name}@${peer.range}=${peer.resolution}`)

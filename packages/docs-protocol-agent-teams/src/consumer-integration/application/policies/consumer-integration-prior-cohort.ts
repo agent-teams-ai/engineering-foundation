@@ -189,8 +189,9 @@ function trustedCurrentCohort(input: {
   readonly record: Record<string, unknown>;
   readonly recordedDesired: ConsumerIntegrationDesiredStateV1 | undefined;
   readonly stateSource: string;
+  readonly managedStateBytes: Uint8Array;
 }): TrustedPriorCohort | undefined {
-  const { desired, snapshot, catalog, record, recordedDesired, stateSource } = input;
+  const { desired, snapshot, catalog, record, recordedDesired, stateSource, managedStateBytes } = input;
   const skill = Buffer.from(CANONICAL_DOCS_SKILL_V2, "utf8");
   const caller = Buffer.from(canonicalCallerWorkflow(desired.cohort), "utf8");
   const routeDigest = digestBytes(Buffer.from(canonicalManagedRoute(desired.skillPath), "utf8"));
@@ -212,6 +213,9 @@ function trustedCurrentCohort(input: {
   ) {
     return undefined;
   }
+  if (snapshot.skill.state !== "file" || snapshot.callerWorkflow.state !== "file") {
+    return undefined;
+  }
   return {
     cohortId: desired.cohort.cohortId,
     allowedTargetCohortIds: [],
@@ -220,7 +224,7 @@ function trustedCurrentCohort(input: {
     callerWorkflow: snapshot.callerWorkflow.bytes,
     agentsRouteDigest: routeDigest,
     docsScriptsDigest: scriptsDigest,
-    managedState: snapshot.managedState.bytes,
+    managedState: managedStateBytes,
   };
 }
 
@@ -303,7 +307,10 @@ export function trustedPriorCohort(
       return undefined;
     }
     const recordedDesired = desiredAtRecordedRepository(desired, record);
-    const current = trustedCurrentCohort({ desired, snapshot, catalog, record, recordedDesired, stateSource });
+    const current = trustedCurrentCohort({
+      desired, snapshot, catalog, record, recordedDesired, stateSource,
+      managedStateBytes: snapshot.managedState.bytes,
+    });
     if (current !== undefined) {
       return current;
     }

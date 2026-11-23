@@ -24,6 +24,7 @@ function consumerManifest(foundationVersion, packageManager) {
       "spec:mutation": "consumer-owned-mutation-tests",
     },
     devDependencies: {
+      eslint: "catalog:",
       [foundationPackage]: foundationVersion,
       "jsonc-parser": "catalog:",
       oxlint: "catalog:",
@@ -43,7 +44,7 @@ async function writeInstallManifests(input) {
   });
   await writeFile(
     join(input.consumerRoot, "pnpm-workspace.yaml"),
-    `packages:\n  - "packages/*"\noverrides:\n  "@agent-teams/engineering-foundation": ${JSON.stringify(input.foundationVersion)}\n  "@agent-teams/document-authoring": ${JSON.stringify(input.documentAuthoringArchiveFileSpecifier)}\n  "@agent-teams/repository-mutation": ${JSON.stringify(input.mutationArchiveFileSpecifier)}\n  "stack-toolchain": ${JSON.stringify(input.stackToolchainArchiveFileSpecifier)}\ncatalogMode: strict\ncatalog:\n  jsonc-parser: 3.3.1\n  oxlint: ${input.toolingVersions.oxlint}\n  oxlint-tsgolint: ${input.toolingVersions.oxlintTsgolint}\n  typescript: ${input.toolingVersions.typescript}\n`,
+    `packages:\n  - "packages/*"\noverrides:\n  "@agent-teams/engineering-foundation": ${JSON.stringify(input.foundationVersion)}\n  "@agent-teams/document-authoring": ${JSON.stringify(input.documentAuthoringArchiveFileSpecifier)}\n  "@agent-teams/repository-mutation": ${JSON.stringify(input.mutationArchiveFileSpecifier)}\n  "stack-toolchain": ${JSON.stringify(input.stackToolchainArchiveFileSpecifier)}\ncatalogMode: strict\ncatalog:\n  eslint: 10.3.0\n  jsonc-parser: 3.3.1\n  oxlint: ${input.toolingVersions.oxlint}\n  oxlint-tsgolint: ${input.toolingVersions.oxlintTsgolint}\n  typescript: ${input.toolingVersions.typescript}\n`,
     "utf8",
   );
 }
@@ -121,6 +122,7 @@ policies:
   reservedScopes:
     - "@agent-teams/"
   developmentOnlyPackages:
+    - eslint
     - oxlint
     - oxlint-tsgolint
     - typescript

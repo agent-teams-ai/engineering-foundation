@@ -1,5 +1,7 @@
 import { lstat, mkdir, readFile, realpath, symlink } from "node:fs/promises";
-import { dirname, isAbsolute, join, relative, sep } from "node:path";
+import { createRequire } from "node:module";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 import { parsePnpmWorkspaceAuthority, type BunRootProjection } from "./runtime-policy.mts";
 
 interface Manifest {
@@ -8,6 +10,41 @@ interface Manifest {
   readonly dependencies?: Readonly<Record<string, string>>;
   readonly devDependencies?: Readonly<Record<string, string>>;
   readonly optionalDependencies?: Readonly<Record<string, string>>;
+}
+type MetadataResolvers = ReadonlyMap<string, () => string>;
+
+function bootstrapMetadata(
+  root: string,
+  rootManifest: Manifest,
+  declarations: Readonly<Record<string, string>>,
+  authority: BunRootProjection,
+): MetadataResolvers {
+  const require = createRequire(join(root, "package.json"));
+  const available = new Map<string, () => string>([
+    [
+      "@typescript-eslint/scope-manager",
+      () => require.resolve("@typescript-eslint/scope-manager/package.json"),
+    ],
+    ["eslint", () => require.resolve("eslint/package.json")],
+    ["eslint-parser-oxc", () => require.resolve("eslint-parser-oxc/package.json")],
+  ]);
+  const admitted = new Map<string, () => string>();
+  for (const [name, resolveMetadata] of available) {
+    const rootSpec = rootManifest.devDependencies?.[name];
+    const sourceSpec = declarations[name];
+    if (rootSpec !== undefined && sourceSpec !== undefined) {
+      admitted.set(name, () => {
+        if (
+          admittedVersion(name, rootSpec, authority) !==
+          admittedVersion(name, sourceSpec, authority)
+        ) {
+          throw new Error(`Producer bootstrap declaration mismatch: ${name}`);
+        }
+        return resolveMetadata();
+      });
+    }
+  }
+  return admitted;
 }
 async function manifest(path: string): Promise<Manifest> {
   return JSON.parse(await readFile(join(path, "package.json"), "utf8")) as Manifest;
@@ -20,6 +57,7 @@ async function resolvePackage(
   root: string,
   issuer: string,
   name: string,
+  metadata: MetadataResolvers,
 ): Promise<string | undefined> {
   let current = issuer;
   while (contained(root, current)) {
@@ -29,6 +67,17 @@ async function resolvePackage(
       const physical = await realpath(candidate);
       if (!contained(join(root, "node_modules"), physical)) {
         throw new Error(`Producer dependency escapes installed graph: ${name}`);
+      }
+      const publicMetadata = current === root ? metadata.get(name)?.() : undefined;
+      if (publicMetadata !== undefined) {
+        const resolvedMetadata = await realpath(publicMetadata);
+        const expectedMetadata = join(physical, "package.json");
+        if (resolvedMetadata !== expectedMetadata) {
+          throw new Error(
+            `Producer bootstrap metadata identity mismatch: ${name}; expected ${expectedMetadata}, resolved ${resolvedMetadata}`,
+          );
+        }
+        return dirname(resolvedMetadata);
       }
       return physical;
     }
@@ -47,6 +96,31 @@ function admittedVersion(name: string, spec: string, authority: BunRootProjectio
     throw new Error(`Producer dependency requires an exact admitted version: ${name}`);
   }
   return version;
+}
+
+async function resolveHostCore(
+  root: string,
+  declarations: Readonly<Record<string, string>>,
+  authority: BunRootProjection,
+  metadata: MetadataResolvers,
+): Promise<string | undefined> {
+  const hostSpec = declarations.eslint;
+  if (hostSpec === undefined || !metadata.has("eslint")) {
+    return undefined;
+  }
+  const host = await resolvePackage(root, root, "eslint", metadata);
+  if (host === undefined) {
+    return undefined;
+  }
+  const observed = await manifest(host);
+  if (
+    observed.name !== "eslint" ||
+    observed.version !== admittedVersion("eslint", hostSpec, authority) ||
+    observed.dependencies?.["@eslint/core"] === undefined
+  ) {
+    throw new Error("Producer type dependency requires its exact declared ESLint host.");
+  }
+  return resolvePackage(root, host, "@eslint/core", metadata);
 }
 
 /** The registry consumer remains installed; only its shadowed producer receives dependency links. */
@@ -79,11 +153,17 @@ export async function projectProducerSourceDependencies(directory: string): Prom
     ...sourceManifest.devDependencies,
     ...sourceManifest.optionalDependencies,
   };
+  const metadata = bootstrapMetadata(root, rootManifest, declarations, authority);
   const planned: { name: string; target: string }[] = [];
   for (const [name, spec] of Object.entries(declarations)) {
     const version = admittedVersion(name, spec, authority);
-    const existing = await resolvePackage(root, source, name);
-    const target = existing ?? (await resolvePackage(root, installed, name));
+    const existing = await resolvePackage(root, source, name, metadata);
+    const target =
+      existing ??
+      (await resolvePackage(root, installed, name, metadata)) ??
+      (name === "@eslint/core"
+        ? await resolveHostCore(root, declarations, authority, metadata)
+        : undefined);
     if (target === undefined) {
       if (sourceManifest.optionalDependencies?.[name] !== undefined) {
         continue;
@@ -107,4 +187,13 @@ export async function projectProducerSourceDependencies(directory: string): Prom
       throw new Error(`Producer dependency link changed: ${name}`);
     }
   }
+}
+
+if (process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const cliArguments = process.argv.slice(2);
+  const root = cliArguments[0];
+  if (cliArguments.length !== 1 || root === undefined || !isAbsolute(root)) {
+    throw new Error("Usage: producer-source-dependencies.ts <absolute-profile-root>");
+  }
+  await projectProducerSourceDependencies(root);
 }

@@ -21,7 +21,7 @@ catalog:
   "@modelcontextprotocol/server": 2.0.0
   "@openai/codex": 0.146.0
   "@types/node": 24.13.3
-  '@types/proper-lockfile': 4.1.4
+  "@types/proper-lockfile": 4.1.4
   ajv: 8.20.0
   ajv-formats: 3.0.1
   c8: 12.0.0
@@ -50,6 +50,10 @@ catalog:
   verdaccio: 6.10.6
   vfile: 6.0.3
   yaml: 2.9.0
+  "@eslint/core": 1.2.1
+  "@typescript-eslint/scope-manager": 8.73.0
+  eslint: 10.3.0
+  eslint-parser-oxc: 0.1.1
 
 minimumReleaseAge: 0
 

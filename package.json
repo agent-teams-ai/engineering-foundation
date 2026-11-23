@@ -49,7 +49,11 @@
       "unist-util-visit": "5.1.0",
       "verdaccio": "6.10.6",
       "vfile": "6.0.3",
-      "yaml": "2.9.0"
+      "yaml": "2.9.0",
+      "@eslint/core": "1.2.1",
+      "@typescript-eslint/scope-manager": "8.73.0",
+      "eslint": "10.3.0",
+      "eslint-parser-oxc": "0.1.1"
     },
     "catalogs": {}
   },
@@ -140,9 +144,12 @@
     "@modelcontextprotocol/server": "catalog:",
     "@openai/codex": "catalog:",
     "@types/node": "catalog:",
+    "@typescript-eslint/scope-manager": "catalog:",
     "ajv": "catalog:",
     "c8": "catalog:",
     "esbuild": "catalog:",
+    "eslint": "catalog:",
+    "eslint-parser-oxc": "catalog:",
     "fast-check": "catalog:",
     "knip": "catalog:",
     "node-or-bun": "catalog:",
@@ -208,7 +215,11 @@
     "unist-util-visit": "5.1.0",
     "verdaccio": "6.10.6",
     "vfile": "6.0.3",
-    "yaml": "2.9.0"
+    "yaml": "2.9.0",
+    "@eslint/core": "1.2.1",
+    "@typescript-eslint/scope-manager": "8.73.0",
+    "eslint": "10.3.0",
+    "eslint-parser-oxc": "0.1.1"
   },
   "catalogs": {},
   "nx": {}

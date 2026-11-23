@@ -66,38 +66,50 @@ function isCanonicalUtcSeconds(value: unknown): boolean {
     new Date(milliseconds).toISOString().replace(".000", "") === value
   );
 }
+function isPlainJsonScalar(candidate: unknown): boolean {
+  if (candidate === null || typeof candidate === "boolean") {
+    return true;
+  }
+  if (typeof candidate === "number") {
+    return Number.isSafeInteger(candidate);
+  }
+  if (typeof candidate !== "string") {
+    return false;
+  }
+  if (candidate.length > 4096 || candidate.includes("\u0000")) {
+    throw new TypeError("Consumer input contains an invalid or overlong string.");
+  }
+  return true;
+}
+
+function assertPlainJsonContainer(
+  candidate: unknown,
+  seen: Set<object>,
+): asserts candidate is object {
+  if (typeof candidate !== "object" || candidate === null || seen.has(candidate)) {
+    throw new TypeError("Consumer input must be acyclic plain JSON data.");
+  }
+  seen.add(candidate);
+  const prototype: unknown = Object.getPrototypeOf(candidate);
+  if (prototype !== Object.prototype && prototype !== Array.prototype && prototype !== null) {
+    throw new TypeError("Consumer input must use plain JSON objects and arrays.");
+  }
+  if (Object.getOwnPropertySymbols(candidate).length > 0) {
+    throw new TypeError("Consumer input must not contain symbol properties.");
+  }
+}
+
 export function assertPlainBoundedJson(value: unknown): void {
   let remaining = 2048;
   const seen = new Set<object>();
-  // oxlint-disable-next-line complexity
   const visit = (candidate: unknown, depth: number): void => {
     if (--remaining < 0 || depth > 16) {
       throw new TypeError("Consumer input exceeds bounded JSON limits.");
     }
-    if (
-      candidate === null ||
-      typeof candidate === "boolean" ||
-      (typeof candidate === "number" && Number.isSafeInteger(candidate))
-    ) {
+    if (isPlainJsonScalar(candidate)) {
       return;
     }
-    if (typeof candidate === "string") {
-      if (candidate.length > 4096 || candidate.includes("\u0000")) {
-        throw new TypeError("Consumer input contains an invalid or overlong string.");
-      }
-      return;
-    }
-    if (typeof candidate !== "object" || seen.has(candidate)) {
-      throw new TypeError("Consumer input must be acyclic plain JSON data.");
-    }
-    seen.add(candidate);
-    const prototype: unknown = Object.getPrototypeOf(candidate);
-    if (prototype !== Object.prototype && prototype !== Array.prototype && prototype !== null) {
-      throw new TypeError("Consumer input must use plain JSON objects and arrays.");
-    }
-    if (Object.getOwnPropertySymbols(candidate).length > 0) {
-      throw new TypeError("Consumer input must not contain symbol properties.");
-    }
+    assertPlainJsonContainer(candidate, seen);
     for (const [key, descriptor] of Object.entries(Object.getOwnPropertyDescriptors(candidate))) {
       if (Array.isArray(candidate) && key === "length") {
         continue;

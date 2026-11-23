@@ -1,0 +1,80 @@
+import { isNullish } from "../source-helpers.js";
+// Adapted from typescript-eslint 8.59.1 (MIT). See THIRD_PARTY_NOTICES.md and eslint-syntax-provenance.json.
+import type * as TSESTree from "../ast.js";
+
+import { AST_NODE_TYPES } from "../ast.js";
+
+import { createRule, isDefinitionFile } from "../helpers/index.js";
+
+type Options = [
+  {
+    allowDeclarations?: boolean;
+    allowDefinitionFiles?: boolean;
+  },
+];
+type MessageIds = "moduleSyntaxIsPreferred";
+
+export default createRule<Options, MessageIds>({
+  name: "no-namespace",
+  meta: {
+    type: "suggestion",
+    docs: {
+      description: "Disallow TypeScript namespaces",
+      recommended: "recommended",
+    },
+    messages: {
+      moduleSyntaxIsPreferred: "ES2015 module syntax is preferred over namespaces.",
+    },
+    schema: [
+      {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          allowDeclarations: {
+            type: "boolean",
+            description: "Whether to allow `declare` with custom TypeScript namespaces.",
+          },
+          allowDefinitionFiles: {
+            type: "boolean",
+            description:
+              "Whether to allow `declare` with custom TypeScript namespaces inside definition files.",
+          },
+        },
+      },
+    ],
+  },
+  defaultOptions: [
+    {
+      allowDeclarations: false,
+      allowDefinitionFiles: true,
+    },
+  ],
+  create(context, [{ allowDeclarations, allowDefinitionFiles }]) {
+    return {
+      "TSModuleDeclaration[global!=true][id.type!='Literal']"(
+        node: TSESTree.TSModuleDeclaration,
+      ): void {
+        if (
+          node.parent.type === AST_NODE_TYPES.TSModuleDeclaration ||
+          (allowDefinitionFiles === true && isDefinitionFile(context.filename)) ||
+          (allowDeclarations === true && isDeclaration(node))
+        ) {
+          return;
+        }
+
+        context.report({
+          node,
+          messageId: "moduleSyntaxIsPreferred",
+        });
+      },
+    };
+  },
+});
+
+function isDeclaration(node: TSESTree.Node): boolean {
+  if (node.type === AST_NODE_TYPES.TSModuleDeclaration && node.declare) {
+    return true;
+  }
+
+  return !isNullish(node.parent) && isDeclaration(node.parent);
+}

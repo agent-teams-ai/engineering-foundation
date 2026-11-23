@@ -54,6 +54,8 @@
     "tests/local-mode-bun.test.ts",
     "packages/stack-toolchain/tests/**/*.ts",
     "scripts/packed-stack-toolchain-qualification.ts",
+    "scripts/packed-eslint-syntax-qualification.ts",
+    "scripts/packed-eslint-syntax-installation.ts",
     "packages/docs-protocol/tests/support/**/*.ts",
     "scripts/pack-stage-versions.ts",
     "scripts/pack-stage-stable-file.ts",

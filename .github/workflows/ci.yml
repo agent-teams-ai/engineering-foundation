@@ -23,8 +23,8 @@ concurrency:
     ${{ github.event_name == 'pull_request'
         && ((github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) && format('foundation-pr-{0}-{1}-{2}', github.event.pull_request.number, github.event.pull_request.head.sha, github.event.pull_request.base.sha)
             || format('foundation-ci-unrequested-{0}', github.run_id))
-        || format('foundation-ci-{0}-{1}', github.event_name, github.ref) }}
-  cancel-in-progress: true
+        || format('foundation-ci-{0}-{1}-{2}', github.event_name, github.sha, github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   shadow-classifier:

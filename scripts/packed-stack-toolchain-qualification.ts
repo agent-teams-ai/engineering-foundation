@@ -4,6 +4,7 @@ import { readFile, writeFile, mkdir, mkdtemp, symlink } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { createRequire } from "node:module";
 import { runCommand } from "./pack-test-support.mjs";
+import { qualifyInstalledEslintSyntax } from "./packed-eslint-syntax-qualification.ts";
 
 function doctorRecord(value: unknown): Record<string, unknown> {
   assert.ok(value !== null && typeof value === "object" && !Array.isArray(value));
@@ -392,4 +393,5 @@ export async function qualifyInstalledStackToolchain(consumerRoot: string): Prom
     await assert.rejects(readFile(join(root, "formatter-marker")), /ENOENT/u);
   }
   await qualifyInstalledLiteralFormat(root, cli);
+  await qualifyInstalledEslintSyntax(consumerRoot);
 }

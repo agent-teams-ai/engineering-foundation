@@ -334,12 +334,14 @@ async function inspectPeers(
   canonicalRoot: string,
   issuer: string,
   manifest: Manifest,
-  workspacePeers: ReadonlyMap<string, { readonly path: string; readonly version: string }>,
+  context: DependencyContext,
 ): Promise<readonly PeerAssignment[]> {
+  const { authority, workspaceIssuer, workspacePackages: workspacePeers } = context;
   const assignments: PeerAssignment[] = [];
   for (const [name, range] of Object.entries(manifest.peerDependencies ?? {})) {
-    const workspacePeer = range.startsWith("workspace:") ? workspacePeers.get(name) : undefined;
-    const normalized = peerRange(range, workspacePeer?.version, `${name} peer from ${issuer}`);
+    const selected = catalogSpec(name, range, authority, workspaceIssuer);
+    const workspacePeer = selected.startsWith("workspace:") ? workspacePeers.get(name) : undefined;
+    const normalized = peerRange(selected, workspacePeer?.version, `${name} peer from ${issuer}`);
     const optional = manifest.peerDependenciesMeta?.[name]?.optional === true;
     const installed = await resolveInstalled(canonicalRoot, issuer, name);
     if (installed === undefined) {
@@ -421,7 +423,13 @@ export async function inspectInstalledDependencies(
     }
     const issuerCoordinate = coordinate(manifest, relative(canonicalRoot, issuer) || "root");
     checkEngine(manifest, issuerCoordinate, nodeVersion, bunVersion);
-    const peers = await inspectPeers(canonicalRoot, issuer, manifest, workspacePeers);
+    const context: DependencyContext = {
+      authority,
+      workspaceIssuer: workspaceIssuers.has(issuer),
+      workspacePackages: workspacePeers,
+      lockedTags,
+    };
+    const peers = await inspectPeers(canonicalRoot, issuer, manifest, context);
     for (const peer of peers) {
       peerAssignments.add(`${issuerCoordinate} -> ${peer.name}@${peer.range}=${peer.resolution}`);
       if (peer.resolution !== "missing-optional") {
@@ -434,12 +442,7 @@ export async function inspectInstalledDependencies(
     }
     for (const [name, declared] of dependencyDeclarations(manifest, workspaceIssuers.has(issuer))) {
       const optional = Object.hasOwn(manifest.optionalDependencies ?? {}, name);
-      const admitted = dependencyAdmission(name, declared, manifest, {
-        authority,
-        workspaceIssuer: workspaceIssuers.has(issuer),
-        workspacePackages: workspacePeers,
-        lockedTags,
-      });
+      const admitted = dependencyAdmission(name, declared, manifest, context);
       const installed = await resolveInstalled(canonicalRoot, issuer, name);
       if (installed === undefined) {
         if (!optional) {
@@ -454,12 +457,10 @@ export async function inspectInstalledDependencies(
       checkDependency(name, admitted, installed, installedManifest);
       const targetCoordinate = coordinate(installedManifest, name);
       checkEngine(installedManifest, targetCoordinate, nodeVersion, bunVersion);
-      const targetPeers = await inspectPeers(
-        canonicalRoot,
-        installed,
-        installedManifest,
-        workspacePeers,
-      );
+      const targetPeers = await inspectPeers(canonicalRoot, installed, installedManifest, {
+        ...context,
+        workspaceIssuer: workspaceIssuers.has(installed),
+      });
       const peerProjection = targetPeers
         .map((peer) => `${peer.name}@${peer.range}=${peer.resolution}`)
         .join(",");

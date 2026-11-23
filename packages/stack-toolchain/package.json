@@ -18,7 +18,9 @@
     "LICENSE",
     "CHANGELOG.md",
     "toolchain-manifest.json",
-    "presets"
+    "presets",
+    "THIRD_PARTY_NOTICES.md",
+    "eslint-syntax-provenance.json"
   ],
   "type": "module",
   "sideEffects": false,
@@ -38,7 +40,11 @@
     "./presets/oxlint/maintainability-tests.json": "./presets/oxlint/maintainability-tests.json",
     "./presets/oxlint/maintainability.json": "./presets/oxlint/maintainability.json",
     "./presets/oxlint/type-aware.json": "./presets/oxlint/type-aware.json",
-    "./presets/oxlint/node.json": "./presets/oxlint/node.json"
+    "./presets/oxlint/node.json": "./presets/oxlint/node.json",
+    "./eslint-syntax": {
+      "types": "./dist/eslint-syntax.d.ts",
+      "import": "./dist/eslint-syntax.js"
+    }
   },
   "publishConfig": {
     "access": "public",
@@ -50,6 +56,9 @@
     "test": "node --test tests/*.test.ts"
   },
   "dependencies": {
+    "@eslint/core": "catalog:",
+    "@typescript-eslint/scope-manager": "catalog:",
+    "eslint-parser-oxc": "catalog:",
     "jsonc-parser": "catalog:",
     "node-or-bun": "catalog:",
     "oxfmt": "catalog:",
@@ -58,7 +67,16 @@
     "typescript": "catalog:"
   },
   "devDependencies": {
-    "@types/node": "catalog:"
+    "@types/node": "catalog:",
+    "eslint": "catalog:"
+  },
+  "peerDependencies": {
+    "eslint": "catalog:"
+  },
+  "peerDependenciesMeta": {
+    "eslint": {
+      "optional": true
+    }
   },
   "optionalDependencies": {
     "bun": "catalog:",

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import {
   lstat,
   mkdir,
@@ -12,6 +13,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import { projectProducerSourceDependencies } from "../tools/producer-source-dependencies.ts";
 
 for (const variant of ["valid", "missing", "mismatch", "escape", "foreign"] as const) {
@@ -233,5 +235,75 @@ for (const variant of [
       }
     }
     assert.equal(await readlink(join(root, "node_modules/stack-toolchain")), consumerBefore);
+  });
+}
+
+function runProjection(root: string, args: readonly string[]) {
+  return spawnSync(
+    process.execPath,
+    [fileURLToPath(new URL("../tools/producer-source-dependencies.ts", import.meta.url)), ...args],
+    { cwd: root, env: process.env, encoding: "utf8", timeout: 10_000, shell: false },
+  );
+}
+
+test("producer projection CLI uses a fresh runtime and preserves metadata-only admission", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "producer-cli-TEST # "));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const fixture = await bootstrapFixture(root, "valid");
+  const registryBefore = await readlink(join(root, "node_modules/stack-toolchain"));
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const result = runProjection(root, [root]);
+    assert.equal(result.error, undefined);
+    assert.equal(result.signal, null);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(
+      await realpath(join(fixture.source, "node_modules/@eslint/core")),
+      await realpath(fixture.core),
+    );
+    assert.equal(
+      await realpath(join(fixture.source, "node_modules/fixture-parser")),
+      await realpath(fixture.fixtureParser),
+    );
+  }
+  assert.equal(await readlink(join(root, "node_modules/stack-toolchain")), registryBefore);
+});
+
+for (const variant of ["core-mismatch", "metadata-substitution"] as const) {
+  test(`producer projection CLI propagates real child rejection: ${variant}`, async (t) => {
+    const root = await mkdtemp(join(tmpdir(), "producer-cli-reject-TEST-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const fixture = await bootstrapFixture(root, variant);
+    const result = runProjection(root, [root]);
+    assert.equal(result.error, undefined);
+    assert.equal(result.signal, null);
+    assert.equal(typeof result.status, "number");
+    assert.notEqual(result.status, 0);
+    assert.match(
+      result.stderr,
+      /Producer (?:bootstrap metadata )?(?:dependency )?identity mismatch/u,
+    );
+    if (variant === "metadata-substitution") {
+      const scope = await realpath(join(root, "node_modules/@typescript-eslint/scope-manager"));
+      assert.ok(result.stderr.includes(`expected ${join(scope, "package.json")}`));
+      assert.ok(result.stderr.includes(`resolved ${join(scope, "other.json")}`));
+    }
+    for (const name of ["fixture-parser", "@eslint/core"]) {
+      assert.equal(await lstat(join(fixture.source, "node_modules", name)).catch(() => null), null);
+    }
+    assert.doesNotMatch(result.stderr, /BOOTSTRAP_IMPLEMENTATION_EXECUTED/u);
+  });
+}
+
+for (const variant of ["missing", "empty", "relative", "extra"] as const) {
+  test(`producer projection CLI rejects malformed arguments: ${variant}`, async (t) => {
+    const root = await mkdtemp(join(tmpdir(), "producer-cli-args-TEST-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const args = { missing: [], empty: [""], relative: ["."], extra: [root, "extra"] }[variant];
+    const result = runProjection(root, args);
+    assert.equal(result.error, undefined);
+    assert.equal(result.signal, null);
+    assert.equal(typeof result.status, "number");
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /Usage: producer-source-dependencies\.ts <absolute-profile-root>/u);
   });
 }

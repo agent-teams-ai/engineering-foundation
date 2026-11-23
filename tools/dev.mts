@@ -1,4 +1,3 @@
-import { projectProducerSourceDependencies } from "./producer-source-dependencies.ts";
 import {
   prepareProfileProjection,
   projectPackageManager,
@@ -235,7 +234,15 @@ async function install(profile: Profile): Promise<number> {
     return status;
   }
   if (profile === "bun") {
-    await projectProducerSourceDependencies(profileRoot);
+    // The installer changed the graph; resolve its metadata in a fresh admitted runtime.
+    const projectionStatus = await run(
+      command,
+      [resolve(profileRoot, "tools/producer-source-dependencies.ts"), profileRoot],
+      profileRoot,
+    );
+    if (projectionStatus !== 0) {
+      return projectionStatus;
+    }
   }
   if (profile === "bun") {
     const initialization = [

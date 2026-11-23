@@ -1,6 +1,7 @@
 import { lstat, mkdir, readFile, realpath, symlink } from "node:fs/promises";
 import { createRequire } from "node:module";
-import { dirname, isAbsolute, join, relative, sep } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 import { parsePnpmWorkspaceAuthority, type BunRootProjection } from "./runtime-policy.mts";
 
 interface Manifest {
@@ -70,8 +71,11 @@ async function resolvePackage(
       const publicMetadata = current === root ? metadata.get(name)?.() : undefined;
       if (publicMetadata !== undefined) {
         const resolvedMetadata = await realpath(publicMetadata);
-        if (resolvedMetadata !== join(physical, "package.json")) {
-          throw new Error(`Producer bootstrap metadata identity mismatch: ${name}`);
+        const expectedMetadata = join(physical, "package.json");
+        if (resolvedMetadata !== expectedMetadata) {
+          throw new Error(
+            `Producer bootstrap metadata identity mismatch: ${name}; expected ${expectedMetadata}, resolved ${resolvedMetadata}`,
+          );
         }
         return dirname(resolvedMetadata);
       }
@@ -183,4 +187,13 @@ export async function projectProducerSourceDependencies(directory: string): Prom
       throw new Error(`Producer dependency link changed: ${name}`);
     }
   }
+}
+
+if (process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const cliArguments = process.argv.slice(2);
+  const root = cliArguments[0];
+  if (cliArguments.length !== 1 || root === undefined || !isAbsolute(root)) {
+    throw new Error("Usage: producer-source-dependencies.ts <absolute-profile-root>");
+  }
+  await projectProducerSourceDependencies(root);
 }

@@ -431,3 +431,24 @@ implementation is initialized. Real Bun and pnpm regeneration plus frozen
 lock-only validation remove only the redundant root core importer entries; all
 package versions and the resolved dependency graph are unchanged. The ordinary
 full native matrix and packed release remain independent acceptance gates.
+
+Fresh PR feedback then completed its real frozen Bun installation but rejected a
+bootstrap metadata identity. The synthetic metadata fixtures passed in both Node
+and Bun. A controlled real-package probe isolated the installation boundary: the
+original helper loaded before a cold frozen Bun install failed subsequent package
+resolution, while a fresh process using the identical helper and unchanged graph
+passed. That resolution exception and CI's returned-path inequality are recorded
+as distinct symptoms, rather than treating a probe as the complete CI failure.
+
+The Bun installation driver now starts the projection in a fresh instance of its
+already admitted runtime after installation succeeds. It passes the explicit
+absolute profile root and propagates the existing child error, signal and nonzero
+exit handling before package initialization or inventory checks. Every metadata,
+version, physical-identity and containment guard remains; a metadata inequality
+now reports both compared paths. The existing helper's direct CLI rejects missing,
+empty, relative and extra arguments. All 22 maintained cases pass in Node 26 and
+Bun 1.4.3, including real child rejection, no partial links, idempotence and a root
+containing a space and `#`. The cold/warm real frozen probe also passes the new CLI
+and rejects a mismatched private producer declaration without changing its lock or
+installed metadata. Strict native tooling and the unchanged root source policy
+pass; the next ordinary installation and complete native matrix remain required.

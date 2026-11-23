@@ -371,3 +371,13 @@ controls. An independent path containing a space and `#` reproduces the raw-path
 rejection and accepts its file URL; the complete existing emitted-source public
 helper passes under that parent path. Its strict native project also passes.
 The ordinary Windows lane remains the required native witness.
+
+The next complete Linux static lane passed whole typed lint and strict projects,
+then found that the source optional ESLint peer declaration must use the
+repository catalog. It now uses `catalog:` with the existing exact 10.3.0 entry.
+The ordinary canonical publish-manifest function produces a byte-equivalent
+JSON value to the earlier exact optional peer declaration. Bun 1.4.3 and pnpm
+11.20.0 regenerate and frozen-revalidate both real lockfiles with all installation
+inputs; both lockfiles remain byte-identical because the resolved peer is unchanged.
+The published Foundation 3.1.0 selected dependency-declaration check passes; the
+current source producer full gate remains a separate required CI result.

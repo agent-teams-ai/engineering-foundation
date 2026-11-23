@@ -71,7 +71,7 @@
     "eslint": "catalog:"
   },
   "peerDependencies": {
-    "eslint": "10.3.0"
+    "eslint": "catalog:"
   },
   "peerDependenciesMeta": {
     "eslint": {

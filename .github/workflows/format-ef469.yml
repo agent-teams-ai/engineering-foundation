@@ -1,0 +1,43 @@
+name: Format Foundation E2E patch (one-off)
+on:
+  push:
+    branches: [ci/format-ef469-20261123]
+permissions:
+  contents: read
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26.11.1
+          package-manager-cache: false
+      - name: Install exact repo-pinned formatter in disposable tool directory
+        run: npm install --prefix "$RUNNER_TEMP/format-tool" --ignore-scripts --no-audit --no-fund --no-save oxfmt@0.74.0
+      - name: Format only two bounded source files and verify
+        shell: bash
+        run: |
+          set -euo pipefail
+          binary="$RUNNER_TEMP/format-tool/node_modules/.bin/oxfmt"
+          files=(
+            packages/docs-protocol-agent-teams/src/consumer-integration/application/policies/consumer-integration-desired-state.ts
+            packages/docs-protocol-agent-teams/src/consumer-integration/application/policies/consumer-integration-prior-cohort.ts
+          )
+          "$binary" --write "${files[@]}"
+          "$binary" --check "${files[@]}"
+          git diff --stat -- "${files[@]}"
+          for file in "${files[@]}"; do
+            echo "FORMAT_START:$file"
+            base64 -w0 "$file"
+            echo
+            echo "FORMAT_END:$file"
+          done
+      - name: Verify no unrelated source changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git diff --name-only | wc -l)" -eq 2

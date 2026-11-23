@@ -6,14 +6,11 @@ import type {
   AssignmentPattern,
   BaseNode,
   BlockStatement,
-  ClassDeclaration,
   ClassDeclarationWithOptionalName,
-  ClassExpression,
   ExportNamedDeclarationWithoutSourceWithMultiple,
   ExportNamedDeclarationWithoutSourceWithSingle,
   ExportSpecifier,
   Expression,
-  FunctionDeclaration,
   FunctionDeclarationWithName,
   FunctionDeclarationWithOptionalName,
   Identifier,
@@ -28,36 +25,20 @@ import type {
   StringLiteral,
   TSDeclareFunction,
   TSEnumDeclaration,
-  TSImportEqualsDeclaration,
   TSInterfaceDeclaration,
   TSModuleBlock,
   TSModuleDeclaration,
-  TSNamespaceExportDeclaration,
   TSQualifiedName,
   TSTypeAliasDeclaration,
   ThisExpression,
   VariableDeclaration,
 } from "../ast.js";
 
-export type DeclarationStatement =
-  | ClassDeclaration
-  | ClassExpression
-  | ExportAllDeclaration
-  | ExportDefaultDeclaration
-  | ExportNamedDeclaration
-  | FunctionDeclaration
-  | TSDeclareFunction
-  | TSEnumDeclaration
-  | TSImportEqualsDeclaration
-  | TSInterfaceDeclaration
-  | TSModuleDeclaration
-  | TSNamespaceExportDeclaration
-  | TSTypeAliasDeclaration;
 export interface Decorator extends BaseNode {
   type: AST_NODE_TYPES.Decorator;
   expression: LeftHandSideExpression;
 }
-export type DefaultExportDeclarations =
+type DefaultExportDeclarations =
   | ClassDeclarationWithOptionalName
   | Expression
   | FunctionDeclarationWithName
@@ -108,7 +89,6 @@ export interface ExportAllDeclaration extends BaseNode {
   source: StringLiteral;
 }
 export type ExportAndImportKind = "type" | "value";
-export type ExportDeclaration = DefaultExportDeclarations | NamedExportDeclarations;
 export interface ExportDefaultDeclaration extends BaseNode {
   type: AST_NODE_TYPES.ExportDefaultDeclaration;
   /**
@@ -166,16 +146,13 @@ export interface ExportNamedDeclarationBase extends BaseNode {
    */
   specifiers: ExportSpecifier[];
 }
-export interface ExportNamedDeclarationWithSource extends ExportNamedDeclarationBase {
+interface ExportNamedDeclarationWithSource extends ExportNamedDeclarationBase {
   declaration: null;
   source: StringLiteral;
 }
-export interface ExportNamedDeclarationWithSource {
+interface ExportNamedDeclarationWithSource {
   parent: BlockStatement | Program | TSModuleBlock;
 }
-export type ExportNamedDeclarationWithoutSource =
-  | ExportNamedDeclarationWithoutSourceWithMultiple
-  | ExportNamedDeclarationWithoutSourceWithSingle;
 /**
  * Exporting names from the current module.
  * ```

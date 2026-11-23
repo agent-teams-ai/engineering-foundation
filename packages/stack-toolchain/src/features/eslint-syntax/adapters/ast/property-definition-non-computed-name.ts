@@ -88,7 +88,7 @@ export interface PunctuatorToken extends BaseToken {
   type: AST_TOKEN_TYPES.Punctuator;
   value: ValueOf<PunctuatorTokenToText>;
 }
-export interface PunctuatorTokenToText extends AssignmentOperatorToText {
+interface PunctuatorTokenToText extends AssignmentOperatorToText {
   AmpersandAmpersandToken: "&&";
   AmpersandToken: "&";
   AsteriskAsteriskToken: "**";

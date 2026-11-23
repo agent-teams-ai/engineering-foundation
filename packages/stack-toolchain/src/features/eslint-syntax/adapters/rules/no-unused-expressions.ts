@@ -5,7 +5,6 @@ import { AST_NODE_TYPES } from "../ast.js";
 import { createRule } from "../helpers/index.js";
 import { unusedExpressionCore as baseRule } from "../unused-expression-core.js";
 import type { MessageIds, Options } from "../unused-expression-core.js";
-export type { MessageIds, Options } from "../unused-expression-core.js";
 
 const defaultOptions: Options = [
   {

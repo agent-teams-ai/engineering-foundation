@@ -6,13 +6,13 @@ import { AST_NODE_TYPES } from "../ast.js";
 
 import * as util from "../helpers/index.js";
 
-export type Options = [
+type Options = [
   {
     allow?: string[];
     allowAsImport?: boolean;
   },
 ];
-export type MessageIds = "noRequireImports";
+type MessageIds = "noRequireImports";
 
 export default util.createRule<Options, MessageIds>({
   name: "no-require-imports",

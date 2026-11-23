@@ -5,11 +5,11 @@ import { AST_NODE_TYPES } from "../ast.js";
 
 import { createRule } from "../helpers/index.js";
 
-export type AllowInterfaces = "always" | "never" | "with-single-extends";
+type AllowInterfaces = "always" | "never" | "with-single-extends";
 
-export type AllowObjectTypes = "always" | "never";
+type AllowObjectTypes = "always" | "never";
 
-export type Options = [
+type Options = [
   {
     allowInterfaces?: AllowInterfaces;
     allowObjectTypes?: AllowObjectTypes;
@@ -17,7 +17,7 @@ export type Options = [
   },
 ];
 
-export type MessageIds =
+type MessageIds =
   | "noEmptyInterface"
   | "noEmptyInterfaceWithSuper"
   | "noEmptyObject"

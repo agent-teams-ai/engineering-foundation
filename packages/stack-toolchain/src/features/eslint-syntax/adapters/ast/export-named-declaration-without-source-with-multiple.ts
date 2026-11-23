@@ -94,22 +94,22 @@ export interface ExportNamedDeclarationWithoutSourceWithSingle {
 export type ExportSpecifier =
   | ExportSpecifierWithIdentifierLocal
   | ExportSpecifierWithStringOrLiteralLocal;
-export interface ExportSpecifierBase extends BaseNode {
+interface ExportSpecifierBase extends BaseNode {
   type: AST_NODE_TYPES.ExportSpecifier;
   exported: Identifier | StringLiteral;
   exportKind: ExportKind;
   local: Identifier | StringLiteral;
 }
-export interface ExportSpecifierWithIdentifierLocal extends ExportSpecifierBase {
+interface ExportSpecifierWithIdentifierLocal extends ExportSpecifierBase {
   local: Identifier;
 }
-export interface ExportSpecifierWithIdentifierLocal {
+interface ExportSpecifierWithIdentifierLocal {
   parent: ExportNamedDeclaration;
 }
-export interface ExportSpecifierWithStringOrLiteralLocal extends ExportSpecifierBase {
+interface ExportSpecifierWithStringOrLiteralLocal extends ExportSpecifierBase {
   local: Identifier | StringLiteral;
 }
-export interface ExportSpecifierWithStringOrLiteralLocal {
+interface ExportSpecifierWithStringOrLiteralLocal {
   parent: ExportNamedDeclaration;
 }
 export type Expression =
@@ -159,8 +159,8 @@ export interface ForInStatement extends BaseNode {
   left: ForInitialiser;
   right: Expression;
 }
-export type ForInitialiser = Expression | LetOrConstOrVarDeclaration;
-export type ForOfInitialiser = Expression | LetOrConstOrVarDeclaration | UsingInForOfDeclaration;
+type ForInitialiser = Expression | LetOrConstOrVarDeclaration;
+type ForOfInitialiser = Expression | LetOrConstOrVarDeclaration | UsingInForOfDeclaration;
 export interface ForOfStatement extends BaseNode {
   type: AST_NODE_TYPES.ForOfStatement;
   await: boolean;

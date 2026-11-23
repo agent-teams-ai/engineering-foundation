@@ -159,7 +159,7 @@ export type LetOrConstOrVarDeclarator =
   | VariableDeclaratorDefiniteAssignment
   | VariableDeclaratorMaybeInit
   | VariableDeclaratorNoInit;
-export interface LetOrVarDeclaredDeclaration extends LetOrConstOrVarDeclarationBase {
+interface LetOrVarDeclaredDeclaration extends LetOrConstOrVarDeclarationBase {
   /**
    * In a `let` declaration, the declarators must not have definite assignment
    * assertions or initializers.
@@ -174,7 +174,7 @@ export interface LetOrVarDeclaredDeclaration extends LetOrConstOrVarDeclarationB
   declare: true;
   kind: "let" | "var";
 }
-export interface LetOrVarNonDeclaredDeclaration extends LetOrConstOrVarDeclarationBase {
+interface LetOrVarNonDeclaredDeclaration extends LetOrConstOrVarDeclarationBase {
   /**
    * In a `let`/`var` declaration, the declarators may have definite assignment
    * assertions or initializers, but not both.

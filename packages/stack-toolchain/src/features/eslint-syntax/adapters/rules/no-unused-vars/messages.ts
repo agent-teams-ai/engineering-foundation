@@ -54,7 +54,7 @@ export function defToVariableType(state: RuleState, def: Definition): DefToVaria
   }
 }
 
-export function getVariableDescription(
+function getVariableDescription(
   state: RuleState,
   variableType: VariableType,
 ): {

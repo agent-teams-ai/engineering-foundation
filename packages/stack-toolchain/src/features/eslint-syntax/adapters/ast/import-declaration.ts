@@ -5,14 +5,10 @@ import type {
   AST_TOKEN_TYPES,
   BaseNode,
   BaseToken,
-  DoWhileStatement,
   ExportAllDeclaration,
   ExportAndImportKind,
   ExportNamedDeclaration,
   Expression,
-  ForInStatement,
-  ForOfStatement,
-  ForStatement,
   Identifier,
   ImportAttribute,
   ImportClause,
@@ -24,7 +20,6 @@ import type {
   JSXText,
   Literal,
   StringLiteral,
-  WhileStatement,
 } from "../ast.js";
 
 export interface ImportDeclaration extends BaseNode {
@@ -113,12 +108,6 @@ export interface ImportSpecifier extends BaseNode {
 export interface ImportSpecifier {
   parent: ExportAllDeclaration | ExportNamedDeclaration | ImportDeclaration;
 }
-export type IterationStatement =
-  | DoWhileStatement
-  | ForInStatement
-  | ForOfStatement
-  | ForStatement
-  | WhileStatement;
 export interface JSXAttribute extends BaseNode {
   type: AST_NODE_TYPES.JSXAttribute;
   name: JSXIdentifier | JSXNamespacedName;
@@ -127,7 +116,7 @@ export interface JSXAttribute extends BaseNode {
 export interface JSXAttribute {
   parent: JSXOpeningElement;
 }
-export type JSXChild = JSXElement | JSXExpression | JSXFragment | JSXText;
+type JSXChild = JSXElement | JSXExpression | JSXFragment | JSXText;
 export interface JSXClosingElement extends BaseNode {
   type: AST_NODE_TYPES.JSXClosingElement;
   name: JSXTagNameExpression;
@@ -150,7 +139,7 @@ export interface JSXElement extends BaseNode {
 export interface JSXEmptyExpression extends BaseNode {
   type: AST_NODE_TYPES.JSXEmptyExpression;
 }
-export type JSXExpression = JSXExpressionContainer | JSXSpreadChild;
+type JSXExpression = JSXExpressionContainer | JSXSpreadChild;
 export interface JSXExpressionContainer extends BaseNode {
   type: AST_NODE_TYPES.JSXExpressionContainer;
   expression: Expression | JSXEmptyExpression;

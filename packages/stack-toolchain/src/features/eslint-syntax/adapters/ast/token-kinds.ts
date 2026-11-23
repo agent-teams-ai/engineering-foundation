@@ -41,16 +41,16 @@ export enum AST_TOKEN_TYPES {
 }
 export type Accessibility = "private" | "protected" | "public";
 export type AccessorProperty = AccessorPropertyComputedName | AccessorPropertyNonComputedName;
-export interface AccessorPropertyComputedName extends PropertyDefinitionComputedNameBase {
+interface AccessorPropertyComputedName extends PropertyDefinitionComputedNameBase {
   type: AST_NODE_TYPES.AccessorProperty;
 }
-export interface AccessorPropertyComputedName {
+interface AccessorPropertyComputedName {
   parent: ClassBody;
 }
-export interface AccessorPropertyNonComputedName extends PropertyDefinitionNonComputedNameBase {
+interface AccessorPropertyNonComputedName extends PropertyDefinitionNonComputedNameBase {
   type: AST_NODE_TYPES.AccessorProperty;
 }
-export interface AccessorPropertyNonComputedName {
+interface AccessorPropertyNonComputedName {
   parent: ClassBody;
 }
 export interface ArrayExpression extends BaseNode {
@@ -70,7 +70,7 @@ export interface ArrayPattern extends BaseNode {
 export type ArrowFunctionExpression =
   | ArrowFunctionExpressionWithBlockBody
   | ArrowFunctionExpressionWithExpressionBody;
-export interface ArrowFunctionExpressionBase extends BaseNode {
+interface ArrowFunctionExpressionBase extends BaseNode {
   type: AST_NODE_TYPES.ArrowFunctionExpression;
   async: boolean;
   body: BlockStatement | Expression;
@@ -81,11 +81,11 @@ export interface ArrowFunctionExpressionBase extends BaseNode {
   returnType: TSTypeAnnotation | undefined | null;
   typeParameters: TSTypeParameterDeclaration | undefined | null;
 }
-export interface ArrowFunctionExpressionWithBlockBody extends ArrowFunctionExpressionBase {
+interface ArrowFunctionExpressionWithBlockBody extends ArrowFunctionExpressionBase {
   body: BlockStatement;
   expression: false;
 }
-export interface ArrowFunctionExpressionWithExpressionBody extends ArrowFunctionExpressionBase {
+interface ArrowFunctionExpressionWithExpressionBody extends ArrowFunctionExpressionBase {
   body: Expression;
   expression: true;
 }
@@ -167,7 +167,7 @@ export interface BinaryOperatorToText {
   SlashToken: "/";
 }
 export type BindingName = BindingPattern | Identifier;
-export type BindingPattern = ArrayPattern | ObjectPattern;
+type BindingPattern = ArrayPattern | ObjectPattern;
 export interface BlockComment extends BaseToken {
   type: AST_TOKEN_TYPES.Block;
 }

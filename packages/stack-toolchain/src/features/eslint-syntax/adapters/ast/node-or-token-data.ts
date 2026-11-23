@@ -4,29 +4,21 @@ import type {
   AST_NODE_TYPES,
   AST_TOKEN_TYPES,
   Accessibility,
-  ArrayExpression,
   ArrayPattern,
   AssignmentPattern,
   BaseNode,
   BaseToken,
   BindingName,
   ClassBody,
-  ClassExpression,
   Comment,
   Decorator,
   ExportAllDeclaration,
   ExportDefaultDeclaration,
   ExportNamedDeclaration,
   Expression,
-  FunctionExpression,
   Identifier,
   ImportDeclaration,
-  JSXElement,
-  JSXFragment,
-  JSXOpeningElement,
   LiteralBase,
-  LiteralExpression,
-  MetaProperty,
   PropertyDefinitionNonComputedName,
   PropertyName,
   PropertyNameComputed,
@@ -36,15 +28,11 @@ import type {
   SourceLocation,
   SpreadElement,
   Statement,
-  Super,
   TSEmptyBodyFunctionExpression,
   TSImportEqualsDeclaration,
   TSNamespaceExportDeclaration,
-  TSNullKeyword,
   TSParameterProperty,
   TSTypeAnnotation,
-  TemplateLiteral,
-  ThisExpression,
   Token,
 } from "../ast.js";
 
@@ -75,8 +63,7 @@ export interface ObjectExpression extends BaseNode {
   type: AST_NODE_TYPES.ObjectExpression;
   properties: ObjectLiteralElement[];
 }
-export type ObjectLiteralElement = Property | SpreadElement;
-export type ObjectLiteralElementLike = ObjectLiteralElement;
+type ObjectLiteralElement = Property | SpreadElement;
 export interface ObjectPattern extends BaseNode {
   type: AST_NODE_TYPES.ObjectPattern;
   decorators: Decorator[];
@@ -84,10 +71,6 @@ export interface ObjectPattern extends BaseNode {
   properties: (Property | RestElement)[];
   typeAnnotation: TSTypeAnnotation | undefined | null;
 }
-export type OptionalRangeAndLoc<T> = {
-  loc?: SourceLocation;
-  range?: Range;
-} & Pick<T, Exclude<keyof T, "loc" | "range">>;
 export type Parameter =
   | ArrayPattern
   | AssignmentPattern
@@ -110,23 +93,6 @@ export interface Position {
    */
   line: number;
 }
-export type PrimaryExpression =
-  | ArrayExpression
-  | ArrayPattern
-  | ClassExpression
-  | FunctionExpression
-  | Identifier
-  | JSXElement
-  | JSXFragment
-  | JSXOpeningElement
-  | LiteralExpression
-  | MetaProperty
-  | ObjectExpression
-  | ObjectPattern
-  | Super
-  | TemplateLiteral
-  | ThisExpression
-  | TSNullKeyword;
 export interface PrivateIdentifier extends BaseNode {
   type: AST_NODE_TYPES.PrivateIdentifier;
   name: string;
@@ -172,11 +138,11 @@ export interface PropertyBase extends BaseNode {
   shorthand: boolean;
   value: AssignmentPattern | BindingName | Expression | TSEmptyBodyFunctionExpression;
 }
-export interface PropertyComputedName extends PropertyBase {
+interface PropertyComputedName extends PropertyBase {
   computed: true;
   key: PropertyNameComputed;
 }
-export interface PropertyComputedName {
+interface PropertyComputedName {
   parent: ObjectExpression | ObjectPattern;
 }
 export type PropertyDefinition = PropertyDefinitionComputedName | PropertyDefinitionNonComputedName;
@@ -194,10 +160,10 @@ export interface PropertyDefinitionBase extends BaseNode {
   typeAnnotation: TSTypeAnnotation | undefined | null;
   value: Expression | null;
 }
-export interface PropertyDefinitionComputedName extends PropertyDefinitionComputedNameBase {
+interface PropertyDefinitionComputedName extends PropertyDefinitionComputedNameBase {
   type: AST_NODE_TYPES.PropertyDefinition;
 }
-export interface PropertyDefinitionComputedName {
+interface PropertyDefinitionComputedName {
   parent: ClassBody;
 }
 export interface PropertyDefinitionComputedNameBase extends PropertyDefinitionBase {

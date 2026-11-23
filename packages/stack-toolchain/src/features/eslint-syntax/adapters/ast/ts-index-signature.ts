@@ -116,7 +116,7 @@ export interface TSMappedType extends BaseNode {
   typeAnnotation: TypeNode | undefined | null;
 }
 export type TSMethodSignature = TSMethodSignatureComputedName | TSMethodSignatureNonComputedName;
-export interface TSMethodSignatureBase extends BaseNode {
+interface TSMethodSignatureBase extends BaseNode {
   type: AST_NODE_TYPES.TSMethodSignature;
   accessibility: Accessibility | undefined;
   computed: boolean;
@@ -129,18 +129,18 @@ export interface TSMethodSignatureBase extends BaseNode {
   static: boolean;
   typeParameters: TSTypeParameterDeclaration | undefined | null;
 }
-export interface TSMethodSignatureComputedName extends TSMethodSignatureBase {
+interface TSMethodSignatureComputedName extends TSMethodSignatureBase {
   computed: true;
   key: PropertyNameComputed;
 }
-export interface TSMethodSignatureComputedName {
+interface TSMethodSignatureComputedName {
   parent: TSInterfaceBody | TSTypeLiteral;
 }
-export interface TSMethodSignatureNonComputedName extends TSMethodSignatureBase {
+interface TSMethodSignatureNonComputedName extends TSMethodSignatureBase {
   computed: false;
   key: PropertyNameNonComputed;
 }
-export interface TSMethodSignatureNonComputedName {
+interface TSMethodSignatureNonComputedName {
   parent: TSInterfaceBody | TSTypeLiteral;
 }
 export interface TSModuleBlock extends BaseNode {

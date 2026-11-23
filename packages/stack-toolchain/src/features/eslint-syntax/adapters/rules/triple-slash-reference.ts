@@ -5,14 +5,14 @@ import { AST_NODE_TYPES, AST_TOKEN_TYPES } from "../ast.js";
 
 import { createRule, nullThrows } from "../helpers/index.js";
 
-export type Options = [
+type Options = [
   {
     lib?: "always" | "never";
     path?: "always" | "never";
     types?: "always" | "never" | "prefer-import";
   },
 ];
-export type MessageIds = "tripleSlashReference";
+type MessageIds = "tripleSlashReference";
 
 export default createRule<Options, MessageIds>({
   name: "triple-slash-reference",

@@ -19,7 +19,7 @@ import type {
   TypeNode,
 } from "../ast.js";
 
-export interface TSPropertySignatureBase extends BaseNode {
+interface TSPropertySignatureBase extends BaseNode {
   type: AST_NODE_TYPES.TSPropertySignature;
   accessibility: Accessibility | undefined;
   computed: boolean;
@@ -150,17 +150,17 @@ export interface TSTypeParameterInstantiation extends BaseNode {
   params: TypeNode[];
 }
 export type TSTypePredicate = TSTypePredicateNoAsserts | TSTypePredicateWithAsserts;
-export interface TSTypePredicateBase extends BaseNode {
+interface TSTypePredicateBase extends BaseNode {
   type: AST_NODE_TYPES.TSTypePredicate;
   asserts: boolean;
   parameterName: Identifier | TSThisType;
   typeAnnotation: TSTypeAnnotation | null;
 }
-export interface TSTypePredicateNoAsserts extends TSTypePredicateBase {
+interface TSTypePredicateNoAsserts extends TSTypePredicateBase {
   asserts: false;
   typeAnnotation: TSTypeAnnotation;
 }
-export interface TSTypePredicateWithAsserts extends TSTypePredicateBase {
+interface TSTypePredicateWithAsserts extends TSTypePredicateBase {
   asserts: true;
 }
 export interface TSTypeQuery extends BaseNode {

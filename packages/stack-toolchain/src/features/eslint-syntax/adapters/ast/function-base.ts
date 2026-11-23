@@ -91,7 +91,7 @@ export interface FunctionBase extends BaseNode {
   typeParameters: TSTypeParameterDeclaration | undefined | null;
 }
 export type FunctionDeclaration = FunctionDeclarationWithName | FunctionDeclarationWithOptionalName;
-export interface FunctionDeclarationBase extends FunctionBase {
+interface FunctionDeclarationBase extends FunctionBase {
   type: AST_NODE_TYPES.FunctionDeclaration;
   body: BlockStatement;
   declare: false;

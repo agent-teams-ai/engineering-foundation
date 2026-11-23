@@ -78,7 +78,7 @@ export function ambientListeners(state: RuleState): TSESLint.RuleListener {
   };
 }
 
-export function checkForOverridingExportStatements(
+function checkForOverridingExportStatements(
   state: RuleState,
   node: ModuleDeclarationWithBody | TSESTree.Program,
 ): boolean {
@@ -100,7 +100,7 @@ export function checkForOverridingExportStatements(
   return false;
 }
 
-export function ambientDeclarationSelector(parent: string): string {
+function ambientDeclarationSelector(parent: string): string {
   return [
     // Types are ambiently exported
     `${parent} > :matches(${[
@@ -118,7 +118,7 @@ export function ambientDeclarationSelector(parent: string): string {
   ].join(", ");
 }
 
-export function markDeclarationChildAsUsed(state: RuleState, node: DeclarationSelectorNode): void {
+function markDeclarationChildAsUsed(state: RuleState, node: DeclarationSelectorNode): void {
   const { context } = state;
 
   const identifiers: TSESTree.Identifier[] = [];
@@ -164,12 +164,12 @@ export function markDeclarationChildAsUsed(state: RuleState, node: DeclarationSe
   }
 }
 
-export function visitPattern(node: TSESTree.Node, cb: (node: TSESTree.Identifier) => void): void {
+function visitPattern(node: TSESTree.Node, cb: (node: TSESTree.Identifier) => void): void {
   const visitor = new PatternVisitor({}, node, cb);
   visitor.visit(node);
 }
 
-export function hasOverridingExportStatement(body: TSESTree.ProgramStatement[]): boolean {
+function hasOverridingExportStatement(body: TSESTree.ProgramStatement[]): boolean {
   for (const statement of body) {
     if (
       (statement.type === AST_NODE_TYPES.ExportNamedDeclaration &&
@@ -191,7 +191,7 @@ export function hasOverridingExportStatement(body: TSESTree.ProgramStatement[]):
   return false;
 }
 
-export function getStatementsOfNode(
+function getStatementsOfNode(
   block: ModuleDeclarationWithBody | TSESTree.Program,
 ): TSESTree.ProgramStatement[] {
   if (block.type === AST_NODE_TYPES.Program) {

@@ -7,13 +7,13 @@ import { AST_NODE_TYPES } from "../ast.js";
 
 import { createRule } from "../helpers/index.js";
 
-export type Options = [
+type Options = [
   {
     fixToUnknown?: boolean;
     ignoreRestArgs?: boolean;
   },
 ];
-export type MessageIds = "suggestNever" | "suggestPropertyKey" | "suggestUnknown" | "unexpectedAny";
+type MessageIds = "suggestNever" | "suggestPropertyKey" | "suggestUnknown" | "unexpectedAny";
 
 export default createRule<Options, MessageIds>({
   name: "no-explicit-any",

@@ -18,7 +18,7 @@ import type {
   TypeNode,
 } from "../ast.js";
 
-export interface TSModuleDeclarationBase extends BaseNode {
+interface TSModuleDeclarationBase extends BaseNode {
   type: AST_NODE_TYPES.TSModuleDeclaration;
   /**
    * The body of the module.
@@ -76,11 +76,11 @@ export interface TSModuleDeclarationGlobal extends TSModuleDeclarationBase {
   id: Identifier;
   kind: "global";
 }
-export type TSModuleDeclarationKind = "global" | "module" | "namespace";
+type TSModuleDeclarationKind = "global" | "module" | "namespace";
 export type TSModuleDeclarationModule =
   | TSModuleDeclarationModuleWithIdentifierId
   | TSModuleDeclarationModuleWithStringId;
-export interface TSModuleDeclarationModuleBase extends TSModuleDeclarationBase {
+interface TSModuleDeclarationModuleBase extends TSModuleDeclarationBase {
   kind: "module";
 }
 /**
@@ -89,12 +89,12 @@ export interface TSModuleDeclarationModuleBase extends TSModuleDeclarationBase {
  * module A {}
  * ```
  */
-export interface TSModuleDeclarationModuleWithIdentifierId extends TSModuleDeclarationModuleBase {
+interface TSModuleDeclarationModuleWithIdentifierId extends TSModuleDeclarationModuleBase {
   body: TSModuleBlock;
   id: Identifier;
   kind: "module";
 }
-export type TSModuleDeclarationModuleWithStringId =
+type TSModuleDeclarationModuleWithStringId =
   | TSModuleDeclarationModuleWithStringIdDeclared
   | TSModuleDeclarationModuleWithStringIdNotDeclared;
 /**
@@ -104,7 +104,7 @@ export type TSModuleDeclarationModuleWithStringId =
  * module 'foo';
  * ```
  */
-export interface TSModuleDeclarationModuleWithStringIdDeclared extends TSModuleDeclarationModuleBase {
+interface TSModuleDeclarationModuleWithStringIdDeclared extends TSModuleDeclarationModuleBase {
   body?: TSModuleBlock | null;
   declare: true;
   id: StringLiteral;
@@ -116,7 +116,7 @@ export interface TSModuleDeclarationModuleWithStringIdDeclared extends TSModuleD
  * module 'foo' {}
  * ```
  */
-export interface TSModuleDeclarationModuleWithStringIdNotDeclared extends TSModuleDeclarationModuleBase {
+interface TSModuleDeclarationModuleWithStringIdNotDeclared extends TSModuleDeclarationModuleBase {
   body: TSModuleBlock;
   declare: false;
   id: StringLiteral;

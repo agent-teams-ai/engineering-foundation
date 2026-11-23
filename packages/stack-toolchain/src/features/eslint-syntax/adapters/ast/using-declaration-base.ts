@@ -12,7 +12,7 @@ import type {
   UsingDeclaration,
 } from "../ast.js";
 
-export interface UsingDeclarationBase extends BaseNode {
+interface UsingDeclarationBase extends BaseNode {
   type: AST_NODE_TYPES.VariableDeclaration;
   /**
    * This value will always be `false`
@@ -29,7 +29,7 @@ export interface UsingDeclarationBase extends BaseNode {
    */
   kind: "await using" | "using";
 }
-export type UsingDeclarator = UsingInForOfDeclarator | UsingInNormalContextDeclarator;
+type UsingDeclarator = UsingInForOfDeclarator | UsingInNormalContextDeclarator;
 export interface UsingInForOfDeclaration extends UsingDeclarationBase {
   /**
    * The variables declared by this declaration.
@@ -41,12 +41,12 @@ export interface UsingInForOfDeclaration extends UsingDeclarationBase {
    */
   declarations: [UsingInForOfDeclarator];
 }
-export interface UsingInForOfDeclarator extends VariableDeclaratorBase {
+interface UsingInForOfDeclarator extends VariableDeclaratorBase {
   definite: false;
   id: Identifier;
   init: null;
 }
-export interface UsingInForOfDeclarator {
+interface UsingInForOfDeclarator {
   parent: VariableDeclaration;
 }
 export interface UsingInNormalContextDeclaration extends UsingDeclarationBase {
@@ -61,18 +61,18 @@ export interface UsingInNormalContextDeclaration extends UsingDeclarationBase {
    */
   declarations: UsingInNormalContextDeclarator[];
 }
-export interface UsingInNormalContextDeclarator extends VariableDeclaratorBase {
+interface UsingInNormalContextDeclarator extends VariableDeclaratorBase {
   definite: false;
   id: Identifier;
   init: Expression;
 }
-export interface UsingInNormalContextDeclarator {
+interface UsingInNormalContextDeclarator {
   parent: VariableDeclaration;
 }
 export type ValueOf<T> = T[keyof T];
 export type VariableDeclaration = LetOrConstOrVarDeclaration | UsingDeclaration;
 export type VariableDeclarator = LetOrConstOrVarDeclarator | UsingDeclarator;
-export interface VariableDeclaratorBase extends BaseNode {
+interface VariableDeclaratorBase extends BaseNode {
   type: AST_NODE_TYPES.VariableDeclarator;
   /**
    * Whether there's definite assignment assertion (`let x!: number`).
@@ -125,15 +125,15 @@ export interface WithStatement extends BaseNode {
   object: Expression;
 }
 export type YieldExpression = YieldNoStarExpression | YieldStarExpression;
-export interface YieldExpressionBase extends BaseNode {
+interface YieldExpressionBase extends BaseNode {
   type: AST_NODE_TYPES.YieldExpression;
   argument: Expression | null;
   delegate: boolean;
 }
-export interface YieldNoStarExpression extends YieldExpressionBase {
+interface YieldNoStarExpression extends YieldExpressionBase {
   delegate: false;
 }
-export interface YieldStarExpression extends YieldExpressionBase {
+interface YieldStarExpression extends YieldExpressionBase {
   argument: Expression;
   delegate: true;
 }

@@ -53,21 +53,21 @@ interface DefinitionBase<
   readonly isVariableDefinition: boolean;
 }
 
-export interface CatchClauseDefinition extends DefinitionBase<
+interface CatchClauseDefinition extends DefinitionBase<
   DefinitionType.CatchClause,
   TSESTree.CatchClause,
   null,
   TSESTree.Identifier
 > {}
 
-export interface ClassNameDefinition extends DefinitionBase<
+interface ClassNameDefinition extends DefinitionBase<
   DefinitionType.ClassName,
   TSESTree.ClassDeclaration | TSESTree.ClassExpression,
   null,
   TSESTree.Identifier
 > {}
 
-export interface FunctionNameDefinition extends DefinitionBase<
+interface FunctionNameDefinition extends DefinitionBase<
   DefinitionType.FunctionName,
   | TSESTree.FunctionDeclaration
   | TSESTree.FunctionExpression
@@ -77,7 +77,7 @@ export interface FunctionNameDefinition extends DefinitionBase<
   TSESTree.Identifier
 > {}
 
-export interface ImplicitGlobalVariableDefinition extends DefinitionBase<
+interface ImplicitGlobalVariableDefinition extends DefinitionBase<
   DefinitionType.ImplicitGlobalVariable,
   NodeWithParent,
   null,
@@ -94,7 +94,7 @@ export interface ImportBindingDefinition extends DefinitionBase<
   TSESTree.Identifier
 > {}
 
-export interface ParameterDefinition extends DefinitionBase<
+interface ParameterDefinition extends DefinitionBase<
   DefinitionType.Parameter,
   | TSESTree.ArrowFunctionExpression
   | TSESTree.FunctionDeclaration
@@ -112,28 +112,28 @@ export interface ParameterDefinition extends DefinitionBase<
   readonly rest: boolean;
 }
 
-export interface TSEnumMemberDefinition extends DefinitionBase<
+interface TSEnumMemberDefinition extends DefinitionBase<
   DefinitionType.TSEnumMember,
   TSESTree.TSEnumMember,
   null,
   TSESTree.Identifier | TSESTree.StringLiteral
 > {}
 
-export interface TSEnumNameDefinition extends DefinitionBase<
+interface TSEnumNameDefinition extends DefinitionBase<
   DefinitionType.TSEnumName,
   TSESTree.TSEnumDeclaration,
   null,
   TSESTree.Identifier
 > {}
 
-export interface TSModuleNameDefinition extends DefinitionBase<
+interface TSModuleNameDefinition extends DefinitionBase<
   DefinitionType.TSModuleName,
   TSESTree.TSModuleDeclaration,
   null,
   TSESTree.Identifier
 > {}
 
-export interface TypeDefinition extends DefinitionBase<
+interface TypeDefinition extends DefinitionBase<
   DefinitionType.Type,
   | TSESTree.TSInterfaceDeclaration
   | TSESTree.TSMappedType
@@ -143,7 +143,7 @@ export interface TypeDefinition extends DefinitionBase<
   TSESTree.Identifier
 > {}
 
-export interface VariableDefinition extends DefinitionBase<
+interface VariableDefinition extends DefinitionBase<
   DefinitionType.Variable,
   TSESTree.VariableDeclarator,
   TSESTree.VariableDeclaration,

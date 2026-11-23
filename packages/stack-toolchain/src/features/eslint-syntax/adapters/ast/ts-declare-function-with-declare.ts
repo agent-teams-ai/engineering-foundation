@@ -109,7 +109,7 @@ export interface TSHeritageBase extends BaseNode {
 export type TSImportEqualsDeclaration =
   | TSImportEqualsNamespaceDeclaration
   | TSImportEqualsRequireDeclaration;
-export interface TSImportEqualsDeclarationBase extends BaseNode {
+interface TSImportEqualsDeclarationBase extends BaseNode {
   type: AST_NODE_TYPES.TSImportEqualsDeclaration;
   /**
    * The locally imported name.
@@ -131,7 +131,7 @@ export interface TSImportEqualsDeclarationBase extends BaseNode {
    */
   moduleReference: Identifier | TSExternalModuleReference | TSQualifiedName;
 }
-export interface TSImportEqualsNamespaceDeclaration extends TSImportEqualsDeclarationBase {
+interface TSImportEqualsNamespaceDeclaration extends TSImportEqualsDeclarationBase {
   /**
    * The kind of the import.
    */
@@ -145,7 +145,7 @@ export interface TSImportEqualsNamespaceDeclaration extends TSImportEqualsDeclar
    */
   moduleReference: Identifier | TSQualifiedName;
 }
-export interface TSImportEqualsRequireDeclaration extends TSImportEqualsDeclarationBase {
+interface TSImportEqualsRequireDeclaration extends TSImportEqualsDeclarationBase {
   /**
    * The kind of the import.
    */

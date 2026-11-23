@@ -4,20 +4,7 @@ import type * as TSESTree from "./ast.js";
 import { ScopeType, type Definition } from "./scope-contract.js";
 
 export { DefinitionType, ScopeType } from "./scope-contract.js";
-export type {
-  CatchClauseDefinition,
-  ClassNameDefinition,
-  Definition,
-  FunctionNameDefinition,
-  ImplicitGlobalVariableDefinition,
-  ImportBindingDefinition,
-  ParameterDefinition,
-  TSEnumMemberDefinition,
-  TSEnumNameDefinition,
-  TSModuleNameDefinition,
-  TypeDefinition,
-  VariableDefinition,
-} from "./scope-contract.js";
+export type { Definition, ImportBindingDefinition } from "./scope-contract.js";
 
 export interface ScopeVariable {
   readonly defs: Definition[];

@@ -5,13 +5,13 @@ import { AST_NODE_TYPES } from "../ast.js";
 
 import { createRule } from "../helpers/index.js";
 
-export type Options = [
+type Options = [
   {
     allowDestructuring?: boolean;
     allowedNames?: string[];
   },
 ];
-export type MessageIds = "thisAssignment" | "thisDestructure";
+type MessageIds = "thisAssignment" | "thisDestructure";
 
 export default createRule<Options, MessageIds>({
   name: "no-this-alias",

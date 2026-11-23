@@ -3,7 +3,6 @@
 import type {
   AST_NODE_TYPES,
   AST_TOKEN_TYPES,
-  AwaitExpression,
   BaseNode,
   BaseToken,
   BlockStatement,
@@ -15,7 +14,6 @@ import type {
   JSXIdentifierToken,
   JSXTextToken,
   KeywordToken,
-  LeftHandSideExpression,
   NullToken,
   NumericToken,
   PrivateIdentifierToken,
@@ -73,11 +71,6 @@ import type {
   UsingInNormalContextDeclaration,
 } from "../ast.js";
 
-export type TSUnaryExpression =
-  | AwaitExpression
-  | LeftHandSideExpression
-  | UnaryExpression
-  | UpdateExpression;
 export interface TSUndefinedKeyword extends BaseNode {
   type: AST_NODE_TYPES.TSUndefinedKeyword;
 }
@@ -113,7 +106,7 @@ export interface TemplateLiteral extends BaseNode {
   expressions: Expression[];
   quasis: TemplateElement[];
 }
-export interface TemplateToken extends BaseToken {
+interface TemplateToken extends BaseToken {
   type: AST_TOKEN_TYPES.Template;
 }
 export interface ThisExpression extends BaseNode {
@@ -203,7 +196,7 @@ export type UnaryExpression =
   | UnaryExpressionPlus
   | UnaryExpressionTypeof
   | UnaryExpressionVoid;
-export interface UnaryExpressionBase extends BaseNode {
+interface UnaryExpressionBase extends BaseNode {
   type: AST_NODE_TYPES.UnaryExpression;
   argument: Expression;
   operator: string;
@@ -213,16 +206,16 @@ export interface UnaryExpressionBase extends BaseNode {
    */
   prefix: true;
 }
-export type UnaryExpressionBitwiseNot = UnaryExpressionSpecific<"~">;
-export type UnaryExpressionDelete = UnaryExpressionSpecific<"delete">;
+type UnaryExpressionBitwiseNot = UnaryExpressionSpecific<"~">;
+type UnaryExpressionDelete = UnaryExpressionSpecific<"delete">;
 export type UnaryExpressionMinus = UnaryExpressionSpecific<"-">;
-export type UnaryExpressionNot = UnaryExpressionSpecific<"!">;
+type UnaryExpressionNot = UnaryExpressionSpecific<"!">;
 export type UnaryExpressionPlus = UnaryExpressionSpecific<"+">;
-export interface UnaryExpressionSpecific<T extends string> extends UnaryExpressionBase {
+interface UnaryExpressionSpecific<T extends string> extends UnaryExpressionBase {
   operator: T;
 }
-export type UnaryExpressionTypeof = UnaryExpressionSpecific<"typeof">;
-export type UnaryExpressionVoid = UnaryExpressionSpecific<"void">;
+type UnaryExpressionTypeof = UnaryExpressionSpecific<"typeof">;
+type UnaryExpressionVoid = UnaryExpressionSpecific<"void">;
 export interface UpdateExpression extends BaseNode {
   type: AST_NODE_TYPES.UpdateExpression;
   argument: Expression;

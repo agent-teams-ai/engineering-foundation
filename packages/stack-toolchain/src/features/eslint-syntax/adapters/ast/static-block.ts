@@ -64,18 +64,18 @@ export interface SymmetricBinaryExpression extends BaseNode {
 export type TSAbstractAccessorProperty =
   | TSAbstractAccessorPropertyComputedName
   | TSAbstractAccessorPropertyNonComputedName;
-export interface TSAbstractAccessorPropertyComputedName extends PropertyDefinitionComputedNameBase {
+interface TSAbstractAccessorPropertyComputedName extends PropertyDefinitionComputedNameBase {
   type: AST_NODE_TYPES.TSAbstractAccessorProperty;
   value: null;
 }
-export interface TSAbstractAccessorPropertyComputedName {
+interface TSAbstractAccessorPropertyComputedName {
   parent: ClassBody;
 }
-export interface TSAbstractAccessorPropertyNonComputedName extends PropertyDefinitionNonComputedNameBase {
+interface TSAbstractAccessorPropertyNonComputedName extends PropertyDefinitionNonComputedNameBase {
   type: AST_NODE_TYPES.TSAbstractAccessorProperty;
   value: null;
 }
-export interface TSAbstractAccessorPropertyNonComputedName {
+interface TSAbstractAccessorPropertyNonComputedName {
   parent: ClassBody;
 }
 export interface TSAbstractKeyword extends BaseNode {
@@ -84,33 +84,33 @@ export interface TSAbstractKeyword extends BaseNode {
 export type TSAbstractMethodDefinition =
   | TSAbstractMethodDefinitionComputedName
   | TSAbstractMethodDefinitionNonComputedName;
-export interface TSAbstractMethodDefinitionComputedName extends MethodDefinitionComputedNameBase {
+interface TSAbstractMethodDefinitionComputedName extends MethodDefinitionComputedNameBase {
   type: AST_NODE_TYPES.TSAbstractMethodDefinition;
 }
-export interface TSAbstractMethodDefinitionComputedName {
+interface TSAbstractMethodDefinitionComputedName {
   parent: ClassBody;
 }
-export interface TSAbstractMethodDefinitionNonComputedName extends MethodDefinitionNonComputedNameBase {
+interface TSAbstractMethodDefinitionNonComputedName extends MethodDefinitionNonComputedNameBase {
   type: AST_NODE_TYPES.TSAbstractMethodDefinition;
 }
-export interface TSAbstractMethodDefinitionNonComputedName {
+interface TSAbstractMethodDefinitionNonComputedName {
   parent: ClassBody;
 }
 export type TSAbstractPropertyDefinition =
   | TSAbstractPropertyDefinitionComputedName
   | TSAbstractPropertyDefinitionNonComputedName;
-export interface TSAbstractPropertyDefinitionComputedName extends PropertyDefinitionComputedNameBase {
+interface TSAbstractPropertyDefinitionComputedName extends PropertyDefinitionComputedNameBase {
   type: AST_NODE_TYPES.TSAbstractPropertyDefinition;
   value: null;
 }
-export interface TSAbstractPropertyDefinitionComputedName {
+interface TSAbstractPropertyDefinitionComputedName {
   parent: ClassBody;
 }
-export interface TSAbstractPropertyDefinitionNonComputedName extends PropertyDefinitionNonComputedNameBase {
+interface TSAbstractPropertyDefinitionNonComputedName extends PropertyDefinitionNonComputedNameBase {
   type: AST_NODE_TYPES.TSAbstractPropertyDefinition;
   value: null;
 }
-export interface TSAbstractPropertyDefinitionNonComputedName {
+interface TSAbstractPropertyDefinitionNonComputedName {
   parent: ClassBody;
 }
 export interface TSAnyKeyword extends BaseNode {
@@ -184,7 +184,7 @@ export interface TSDeclareFunctionBase extends FunctionBase {
  * This can either be an overload signature or a declaration in an ambient context
  * (e.g. `module`)
  */
-export interface TSDeclareFunctionNoDeclare extends TSDeclareFunctionBase {
+interface TSDeclareFunctionNoDeclare extends TSDeclareFunctionBase {
   declare: false;
   /**
    * - TS1221: Generators are not allowed in an ambient context.

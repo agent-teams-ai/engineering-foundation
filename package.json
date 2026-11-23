@@ -141,7 +141,6 @@
     "@ast-grep/cli": "catalog:",
     "@changesets/changelog-github": "catalog:",
     "@changesets/cli": "catalog:",
-    "@eslint/core": "catalog:",
     "@modelcontextprotocol/server": "catalog:",
     "@openai/codex": "catalog:",
     "@types/node": "catalog:",

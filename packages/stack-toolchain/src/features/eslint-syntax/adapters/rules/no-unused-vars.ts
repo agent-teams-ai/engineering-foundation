@@ -6,7 +6,6 @@ import { translateOptions } from "./no-unused-vars/options.js";
 import { ambientListeners } from "./no-unused-vars/ambient.js";
 import { programExit } from "./no-unused-vars/exit.js";
 import type { MessageIds, Options, RuleState } from "./no-unused-vars/contracts.js";
-export type { MessageIds, Options } from "./no-unused-vars/contracts.js";
 
 export default createRule<Options, MessageIds>({
   name: "no-unused-vars",

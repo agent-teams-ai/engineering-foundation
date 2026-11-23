@@ -6,13 +6,13 @@ import { AST_NODE_TYPES } from "../ast.js";
 
 import { createRule, isDefinitionFile } from "../helpers/index.js";
 
-export type Options = [
+type Options = [
   {
     allowDeclarations?: boolean;
     allowDefinitionFiles?: boolean;
   },
 ];
-export type MessageIds = "moduleSyntaxIsPreferred";
+type MessageIds = "moduleSyntaxIsPreferred";
 
 export default createRule<Options, MessageIds>({
   name: "no-namespace",

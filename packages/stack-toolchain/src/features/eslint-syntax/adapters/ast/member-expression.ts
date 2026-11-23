@@ -31,18 +31,18 @@ import type {
 } from "../ast.js";
 
 export type MemberExpression = MemberExpressionComputedName | MemberExpressionNonComputedName;
-export interface MemberExpressionBase extends BaseNode {
+interface MemberExpressionBase extends BaseNode {
   computed: boolean;
   object: Expression;
   optional: boolean;
   property: Expression | Identifier | PrivateIdentifier;
 }
-export interface MemberExpressionComputedName extends MemberExpressionBase {
+interface MemberExpressionComputedName extends MemberExpressionBase {
   type: AST_NODE_TYPES.MemberExpression;
   computed: true;
   property: Expression;
 }
-export interface MemberExpressionNonComputedName extends MemberExpressionBase {
+interface MemberExpressionNonComputedName extends MemberExpressionBase {
   type: AST_NODE_TYPES.MemberExpression;
   computed: false;
   property: Identifier | PrivateIdentifier;
@@ -65,20 +65,20 @@ export interface MethodDefinitionBase extends BaseNode {
   static: boolean;
   value: FunctionExpression | TSEmptyBodyFunctionExpression;
 }
-export interface MethodDefinitionComputedName extends MethodDefinitionComputedNameBase {
+interface MethodDefinitionComputedName extends MethodDefinitionComputedNameBase {
   type: AST_NODE_TYPES.MethodDefinition;
 }
-export interface MethodDefinitionComputedName {
+interface MethodDefinitionComputedName {
   parent: ClassBody;
 }
 export interface MethodDefinitionComputedNameBase extends MethodDefinitionBase {
   computed: true;
   key: PropertyNameComputed;
 }
-export interface MethodDefinitionNonComputedName extends ClassMethodDefinitionNonComputedNameBase {
+interface MethodDefinitionNonComputedName extends ClassMethodDefinitionNonComputedNameBase {
   type: AST_NODE_TYPES.MethodDefinition;
 }
-export interface MethodDefinitionNonComputedName {
+interface MethodDefinitionNonComputedName {
   parent: ClassBody;
 }
 export interface MethodDefinitionNonComputedNameBase extends MethodDefinitionBase {

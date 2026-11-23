@@ -43,6 +43,7 @@
         "scripts/*.mjs",
         "scripts/*.ts",
         "scripts/feature-modules/commands.mjs",
+        "tools/producer-source-dependencies.ts",
         "tests/**/*.mjs",
         "tests/**/*.ts"
       ],

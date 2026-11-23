@@ -45,10 +45,7 @@ function assertToken(
   return token;
 }
 
-export function areAllSpecifiersUnused(
-  state: RuleState,
-  decl: TSESTree.ImportDeclaration,
-): boolean {
+function areAllSpecifiersUnused(state: RuleState, decl: TSESTree.ImportDeclaration): boolean {
   const { context, reportedUnusedVariables } = state;
 
   return context.sourceCode.getDeclaredVariables(decl).every((variable) => {
@@ -56,7 +53,7 @@ export function areAllSpecifiersUnused(
   });
 }
 
-export function removeNodeWithTrailingNewline(
+function removeNodeWithTrailingNewline(
   state: RuleState,
   fixer: TSESLint.RuleFixer,
   node: TSESTree.Node,

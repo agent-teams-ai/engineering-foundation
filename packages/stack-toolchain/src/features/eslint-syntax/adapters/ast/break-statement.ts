@@ -54,12 +54,12 @@ export interface CatchClause extends BaseNode {
 export interface CatchClause {
   parent: TryStatement;
 }
-export type ChainElement = CallExpression | MemberExpression | TSNonNullExpression;
+type ChainElement = CallExpression | MemberExpression | TSNonNullExpression;
 export interface ChainExpression extends BaseNode {
   type: AST_NODE_TYPES.ChainExpression;
   expression: ChainElement;
 }
-export interface ClassBase extends BaseNode {
+interface ClassBase extends BaseNode {
   /**
    * Whether the class is an abstract class.
    * @example
@@ -121,7 +121,7 @@ export interface ClassBody {
   parent: ClassDeclaration | ClassExpression;
 }
 export type ClassDeclaration = ClassDeclarationWithName | ClassDeclarationWithOptionalName;
-export interface ClassDeclarationBase extends ClassBase {
+interface ClassDeclarationBase extends ClassBase {
   type: AST_NODE_TYPES.ClassDeclaration;
 }
 /**
@@ -142,7 +142,7 @@ export interface ClassDeclarationWithName extends ClassDeclarationBase {
 export interface ClassDeclarationWithOptionalName extends ClassDeclarationBase {
   id: Identifier | null;
 }
-export type ClassElement =
+type ClassElement =
   | AccessorProperty
   | MethodDefinition
   | PropertyDefinition

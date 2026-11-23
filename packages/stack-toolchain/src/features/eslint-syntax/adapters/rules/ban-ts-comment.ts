@@ -8,9 +8,9 @@ import { createRule, getStringLength, nullThrows } from "../helpers/index.js";
 
 const defaultMinimumDescriptionLength = 3;
 
-export type DirectiveConfig = boolean | "allow-with-description" | { descriptionFormat: string };
+type DirectiveConfig = boolean | "allow-with-description" | { descriptionFormat: string };
 
-export interface OptionsShape {
+interface OptionsShape {
   minimumDescriptionLength?: number;
   "ts-check"?: DirectiveConfig;
   "ts-expect-error"?: DirectiveConfig;
@@ -18,9 +18,9 @@ export interface OptionsShape {
   "ts-nocheck"?: DirectiveConfig;
 }
 
-export type Options = [OptionsShape];
+type Options = [OptionsShape];
 
-export type MessageIds =
+type MessageIds =
   | "replaceTsIgnoreWithTsExpectError"
   | "tsDirectiveComment"
   | "tsDirectiveCommentDescriptionNotMatchPattern"

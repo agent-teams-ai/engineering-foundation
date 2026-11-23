@@ -243,3 +243,34 @@ The documented changed check requires the source-owned Bun 1.4.3 installation
 and build, including when launched from Node. Its ordinary preparation remains
 required before those gates can be claimed; the isolated Node diagnostic profile
 is a separate documented route, not a renamed changed-check result.
+
+## Reconstructed source checkpoint
+
+The implementation was reconstructed in an isolated checkout after the temporary
+working tree was lost. The first native strict compilation exposed a declaration
+boundary the one-rule prototype had not established: the published
+`@typescript-eslint/types@8.73.0` declarations import the classic `SyntaxKind`
+and `Program` APIs from the TypeScript root. Native TypeScript 7.0.2 does not
+export those APIs. No old compiler, unchecked declaration bypass, ambient
+compiler shim or dependency override is admitted.
+
+The implementation retains the actual parser's ESTree type contract privately,
+including the host's parent-node relationships. Its internal operator maps keep
+the identical literal value unions without referencing compiler enum keys.
+Compiler/parser-options declarations are outside this syntax-only contract.
+Raw Oxc types were inspected but cannot represent the parser's normalized AST
+without changing the retained rule contract.
+
+The public parser and scope modules are loaded through their normal package
+entrypoints. Narrow runtime boundary checks require the exact published versions,
+expected methods and constructors, and one physical scope-manager instance shared
+with the parser. The original Visitor, PatternVisitor and ImplicitLibVariable
+constructors are retained. Public package declarations expose ordinary ESLint
+types; legacy compiler declarations do not enter the source or consumer graph.
+
+The complete Stack Toolchain source project currently passes native TypeScript
+7.0.2 with its unchanged strict, exact-optional, indexed-access and declaration
+checks. Runtime semantic fixtures, complete inventories, both real lockfiles,
+packed consumers, required full CI and independent final-source review remain
+pending at this checkpoint. This is durable source recovery, not release or
+consumer qualification.

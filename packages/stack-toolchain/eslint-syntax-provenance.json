@@ -1,0 +1,301 @@
+{
+  "upstream": {
+    "repository": "https://github.com/typescript-eslint/typescript-eslint",
+    "version": "8.59.1",
+    "commit": "52457932e5507b5ca01e720a541f3f8d01e09b9d",
+    "license": "MIT"
+  },
+  "files": [
+    {
+      "source": "packages/eslint-plugin/src/rules/triple-slash-reference.ts",
+      "destination": "src/features/eslint-syntax/rules/triple-slash-reference.ts",
+      "gitBlob": "e79c77a454c10e20ef72052856f28a16f87329cb",
+      "sha256": "37bc2602839dacc26a96175b930c1145ff3db4605218561ae6cd2e26bf74d6d9",
+      "modifications": [
+        "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
+        "Retained decision logic; checked array/scope invariants for strict indexed access."
+      ]
+    },
+    {
+      "source": "packages/eslint-plugin/src/rules/prefer-namespace-keyword.ts",
+      "destination": "src/features/eslint-syntax/rules/prefer-namespace-keyword.ts",
+      "gitBlob": "4192bec216df789a9b073cb86997d9cfb77bbdf1",
+      "sha256": "6953f049dd3c689326ac359e398a700f8a5bb2d930b66fe256dc0321b158315e",
+      "modifications": [
+        "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
+        "Retained decision logic; checked array/scope invariants for strict indexed access."
+      ]
+    },
+    {
+      "source": "packages/eslint-plugin/src/rules/prefer-as-const.ts",
+      "destination": "src/features/eslint-syntax/rules/prefer-as-const.ts",
+      "gitBlob": "eb0a1e12008e7dd4011426566e0915cbdd88f5c8",
+      "sha256": "61f8060d162c024bb28c2dd048d925808b3dc116f8aaabc1117b5b1486e2773c",
+      "modifications": [
+        "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
+        "Retained decision logic; checked array/scope invariants for strict indexed access."
+      ]
+    },
+    {
+      "source": "packages/eslint-plugin/src/rules/no-wrapper-object-types.ts",
+      "destination": "src/features/eslint-syntax/rules/no-wrapper-object-types.ts",
+      "gitBlob": "d587d1871c9b0b59745498adfb6242a10810fa73",
+      "sha256": "bfd3e012c5a023cc33595fcb1617bd0190bf51d60549dc9518629bc9b478c312",
+      "modifications": [
+        "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
+        "Retained decision logic; checked array/scope invariants for strict indexed access."
+      ]
+    },
+    {
+      "source": "packages/eslint-plugin/src/rules/no-unused-vars.ts",
+      "destination": "src/features/eslint-syntax/rules/no-unused-vars.ts",
+      "gitBlob": "7121a2a2b45e9c96ead796a5a3ad26a64baa0b66",
+      "sha256": "fbbed0518e549629df0a39eca500d0a020dcee8916551730b278c6e4141409e4",
+      "modifications": [
+        "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
+        "Retained decision logic; checked array/scope invariants for strict indexed access."
+      ]
+    },
+    {
+      "source": "packages/eslint-plugin/src/rules/no-unused-expressions.ts",
+      "destination": "src/features/eslint-syntax/rules/no-unused-expressions.ts",
+      "gitBlob": "8496ceee707d038ffd8153b26214b5278b8c2a90",
+      "sha256": "3c9370b85981e671e4b5f64d312c687ba191b56d28a3e5f35f03893a66fc9e2b",
+      "modifications": [
+        "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
+        "Retained decision logic; checked array/scope invariants for strict indexed access."
+      ]
+    },
+    {
+      "source": "packages/eslint-plugin/src/rules/no-unsafe-function-type.ts",
+      "destination": "src/features/eslint-syntax/rules/no-unsafe-function-type.ts",
+      "gitBlob": "e5d1ab273550bddb4aa385917d8605da503d44c7",
+      "sha256": "b6c7e68cb338f02693f66f68489350cf0ddca7d8fa1d4b5045a5621ddd5336b8",
+      "modifications": [
+        "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
+        "Retained decision logic; checked array/scope invariants for strict indexed access."
+      ]
+    },
+    {
+      "source": "packages/eslint-plugin/src/rules/no-unsafe-declaration-merging.ts",
+      "destination": "src/features/eslint-syntax/rules/no-unsafe-declaration-merging.ts",
+      "gitBlob": "3a605e81ea53bcc37c34b7982e9b8d1f44914173",
+      "sha256": "f1f3284338433be5b0f90ca6fa8cbcec30aa33d7104cf8736c9dcd5dff13854a",
+      "modifications": [
+        "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
+        "Retained decision logic; checked array/scope invariants for strict indexed access."
+      ]
+    },
+    {
+      "source": "packages/eslint-plugin/src/rules/no-unnecessary-type-constraint.ts",
+      "destination": "src/features/eslint-syntax/rules/no-unnecessary-type-constraint.ts",
+      "gitBlob": "493e93e9687720def7f7a23a3b9d1d200576da15",
+      "sha256": "1b5c3117fd5f69169687589870e9eaf2479359ee985c33a02a8b5d9551921e11",
+      "modifications": [
+        "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
+        "Retained decision logic; checked array/scope invariants for strict indexed access."
+      ]
+    },
+    {
+      "source": "packages/eslint-plugin/src/rules/no-this-alias.ts",
+      "destination": "src/features/eslint-syntax/rules/no-this-alias.ts",
+      "gitBlob": "3db6a87ef932804bc37497691f943d2f4e1d2eb8",
+      "sha256": "75d2413729fcd80df63fc7d783583e3950444f7844ca566d49ed8979036a8110",
+      "modifications": [
+        "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
+        "Retained decision logic; checked array/scope invariants for strict indexed access."
+      ]
+    },
+    {
+      "source": "packages/eslint-plugin/src/rules/no-require-imports.ts",
+      "destination": "src/features/eslint-syntax/rules/no-require-imports.ts",
+      "gitBlob": "3836e06f82a4bca5eab840b87fead6dbe70b24f2",
+      "sha256": "9f4cd541b84ad482cffa686e4574e660ba6ed136bb879170d24e61a86e95ddd7",
+      "modifications": [
+        "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
+        "Retained decision logic; checked array/scope invariants for strict indexed access."
+      ]
+    },
+    {
+      "source": "packages/eslint-plugin/src/rules/no-non-null-asserted-optional-chain.ts",
+      "destination": "src/features/eslint-syntax/rules/no-non-null-asserted-optional-chain.ts",
+      "gitBlob": "efc8fc26cf5a736a77bd23a076cf9bd4a8228391",
+      "sha256": "617a387f3bc4644e6f18d3fe7ab316ed2df0578ef8b0eb50ba866a95ef9657bc",
+      "modifications": [
+        "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
+        "Retained decision logic; checked array/scope invariants for strict indexed access."
+      ]
+    },
+    {
+      "source": "packages/eslint-plugin/src/rules/no-namespace.ts",
+      "destination": "src/features/eslint-syntax/rules/no-namespace.ts",
+      "gitBlob": "02421a25dea9a86c3e0615e12999fefac3f5234b",
+      "sha256": "94a176d39bbd4871344406332113ddbc0d81a5dcea0f77d1c3be52fc694f9e9b",
+      "modifications": [
+        "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
+        "Retained decision logic; checked array/scope invariants for strict indexed access."
+      ]
+    },
+    {
+      "source": "packages/eslint-plugin/src/rules/no-misused-new.ts",
+      "destination": "src/features/eslint-syntax/rules/no-misused-new.ts",
+      "gitBlob": "46c8462ff59af4e47acceed36cc5b1a949f83c65",
+      "sha256": "f1e0242cd37010cd0c265e46ed778cd9b4620bca72174043b58db79391c4b6ae",
+      "modifications": [
+        "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
+        "Retained decision logic; checked array/scope invariants for strict indexed access."
+      ]
+    },
+    {
+      "source": "packages/eslint-plugin/src/rules/no-extra-non-null-assertion.ts",
+      "destination": "src/features/eslint-syntax/rules/no-extra-non-null-assertion.ts",
+      "gitBlob": "fbeb009d2ba3ced83a114d709c333164257933db",
+      "sha256": "239fc6d208273f11adf7a71b40930409ae8457d35669951ccd6b6d31fdabca2f",
+      "modifications": [
+        "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
+        "Retained decision logic; checked array/scope invariants for strict indexed access."
+      ]
+    },
+    {
+      "source": "packages/eslint-plugin/src/rules/no-explicit-any.ts",
+      "destination": "src/features/eslint-syntax/rules/no-explicit-any.ts",
+      "gitBlob": "27079fac7184e33a4b4a735df57b996ab0bf2701",
+      "sha256": "a4d7845c4ea6cda948dfcdb844b331e8c31ade1e2297f48edf2c209e697f2972",
+      "modifications": [
+        "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
+        "Retained decision logic; checked array/scope invariants for strict indexed access."
+      ]
+    },
+    {
+      "source": "packages/eslint-plugin/src/rules/no-empty-object-type.ts",
+      "destination": "src/features/eslint-syntax/rules/no-empty-object-type.ts",
+      "gitBlob": "0e5815d4e19e7fda9534b9e19a601227db7ccc1f",
+      "sha256": "c4542d02091d6ca99848304f7b28db78479d9e3cd93b9777e71cb94d785da4cf",
+      "modifications": [
+        "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
+        "Retained decision logic; checked array/scope invariants for strict indexed access."
+      ]
+    },
+    {
+      "source": "packages/eslint-plugin/src/rules/no-duplicate-enum-values.ts",
+      "destination": "src/features/eslint-syntax/rules/no-duplicate-enum-values.ts",
+      "gitBlob": "d8f7b7d950d32446d6a23b0f9abd136cd23aa335",
+      "sha256": "2802b29a49dc4138f4e5312e877b10abe07ca33a2deda6d839995b78cf980827",
+      "modifications": [
+        "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
+        "Retained decision logic; checked array/scope invariants for strict indexed access."
+      ]
+    },
+    {
+      "source": "packages/eslint-plugin/src/rules/no-array-constructor.ts",
+      "destination": "src/features/eslint-syntax/rules/no-array-constructor.ts",
+      "gitBlob": "93b4256066a4b836e61f1c9d8eebba2830948784",
+      "sha256": "2c470dc0437c5211985affcca1388c85fac23382dd03a921523be78b44f0a823",
+      "modifications": [
+        "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
+        "Retained decision logic; checked array/scope invariants for strict indexed access."
+      ]
+    },
+    {
+      "source": "packages/eslint-plugin/src/rules/ban-ts-comment.ts",
+      "destination": "src/features/eslint-syntax/rules/ban-ts-comment.ts",
+      "gitBlob": "7cd707ed742bc4274ada4a4176620dc918c02104",
+      "sha256": "0c1d9dea4d603338f98b835dd681afccf4748d86c79e977b71a27f982c3c0acb",
+      "modifications": [
+        "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
+        "Retained decision logic; checked array/scope invariants for strict indexed access."
+      ]
+    },
+    {
+      "source": "packages/eslint-plugin/src/util/collectUnusedVariables.ts",
+      "destination": "src/features/eslint-syntax/helpers/collectUnusedVariables.ts",
+      "gitBlob": "d4b768797c6f537d7faff8acb4414be7156f6e5a",
+      "sha256": "ff4c9b92f012eda718cf3902f6c1c2058f68fc4a15db653558cda741969296ec",
+      "modifications": [
+        "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
+        "Retained decision logic; checked array/scope invariants for strict indexed access."
+      ]
+    },
+    {
+      "source": "packages/eslint-plugin/src/util/getStringLength.ts",
+      "destination": "src/features/eslint-syntax/helpers/getStringLength.ts",
+      "gitBlob": "1140216a6bf2a4f23518da046c59ebc1b5fb94bb",
+      "sha256": "0961136640830f509baae2604333006708ecda8d51ef7f261d34aca58e594da9",
+      "modifications": [
+        "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
+        "Retained decision logic; checked array/scope invariants for strict indexed access."
+      ]
+    },
+    {
+      "source": "packages/eslint-plugin/src/util/getStaticStringValue.ts",
+      "destination": "src/features/eslint-syntax/helpers/getStaticStringValue.ts",
+      "gitBlob": "d7c2425b203bf3e509a95b42d1feb4a37fde9ea9",
+      "sha256": "be413c0945e85202a41f846f4811be54c090dd7011086ed25fc9b7b3c294118a",
+      "modifications": [
+        "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
+        "Retained decision logic; checked array/scope invariants for strict indexed access."
+      ]
+    },
+    {
+      "source": "packages/eslint-plugin/src/util/isNullLiteral.ts",
+      "destination": "src/features/eslint-syntax/helpers/isNullLiteral.ts",
+      "gitBlob": "a54aec1725a8c7c075db2a9b1120499a97a4e2a3",
+      "sha256": "c06da7943a744f0c30a6812124f16ba267507e2dc502e89e3a321a4f274d8c50",
+      "modifications": [
+        "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
+        "Retained decision logic; checked array/scope invariants for strict indexed access."
+      ]
+    },
+    {
+      "source": "packages/eslint-plugin/src/util/escapeRegExp.ts",
+      "destination": "src/features/eslint-syntax/helpers/escapeRegExp.ts",
+      "gitBlob": "ac2071cb86d1447e01d138811d4d002ffd953679",
+      "sha256": "9c96283d39dca277fc6067f85929070f956b32e7542e4033d210bb8cc7d83941",
+      "modifications": [
+        "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
+        "Retained decision logic; checked array/scope invariants for strict indexed access."
+      ]
+    },
+    {
+      "source": "packages/eslint-plugin/src/util/isTypeImport.ts",
+      "destination": "src/features/eslint-syntax/helpers/isTypeImport.ts",
+      "gitBlob": "b1c88d813a7d2d7811175b18ad21c13e40a9e476",
+      "sha256": "9f4a4d52754f0d94eff2737f60bcce20a22148e739854d7623a8771537eb9450",
+      "modifications": [
+        "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
+        "Retained decision logic; checked array/scope invariants for strict indexed access."
+      ]
+    },
+    {
+      "source": "packages/eslint-plugin/src/util/referenceContainsTypePredicate.ts",
+      "destination": "src/features/eslint-syntax/helpers/referenceContainsTypePredicate.ts",
+      "gitBlob": "f9b300f9de4bb972db8e359e4a6564c58de53efa",
+      "sha256": "33b8cc2bc5532ca89a7822657289f1c87818d845b72bf2942d394d66b6013b67",
+      "modifications": [
+        "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
+        "Retained decision logic; checked array/scope invariants for strict indexed access."
+      ]
+    },
+    {
+      "source": "packages/eslint-plugin/src/util/referenceContainsTypeQuery.ts",
+      "destination": "src/features/eslint-syntax/helpers/referenceContainsTypeQuery.ts",
+      "gitBlob": "2d5a42a102e293a3d1ede2da7e20c072898c9a2a",
+      "sha256": "512dfbe852b658a35a5353938aa1b887cc1293aa13723cfb988db21a4ebd86ce",
+      "modifications": [
+        "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
+        "Retained decision logic; checked array/scope invariants for strict indexed access."
+      ]
+    }
+  ],
+  "typeContract": {
+    "package": "@typescript-eslint/types",
+    "version": "8.73.0",
+    "sourceSha256": "e6b518302b08f6c1f430177f9d2cae55bb5a64be522de032573e33113d51a24e",
+    "parentContractSha256": "e81484fc62d5e6add90882339bb2cdba0c87b85ca4002add438d0771ce2fdfa7",
+    "modifications": [
+      "Retain the ESTree AST and parser-host parent relationships as private TypeScript source.",
+      "Replace compiler-enum keys in internal operator maps with identifier keys; preserve every literal operator-value union.",
+      "Exclude legacy Program/parser-options/compiler declarations."
+    ]
+  }
+}

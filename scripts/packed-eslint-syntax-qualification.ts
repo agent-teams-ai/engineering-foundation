@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, join, resolve, sep } from "node:path";
+import { pathToFileURL } from "node:url";
 import { runCommand } from "./pack-test-support.mjs";
 
 const legacyTripwire = `
@@ -126,7 +127,7 @@ function diagnosticOutput(error: unknown): string {
 async function qualifyRuntime(root: string): Promise<void> {
   await writeFile(join(root, "deny-legacy.ts"), legacyTripwire);
   await writeFile(join(root, "runtime.mjs"), runtimeConsumer);
-  const guarded = ["--import", join(root, "deny-legacy.ts")];
+  const guarded = ["--import", pathToFileURL(join(root, "deny-legacy.ts")).href];
   const runtime = await runCommand(process.execPath, [...guarded, "runtime.mjs"], root);
   assert.match(runtime.stdout, /packed-eslint-syntax-runtime: PASS/u);
   for (const expression of [
@@ -149,7 +150,13 @@ async function qualifyLazyRoot(root: string): Promise<void> {
   `;
   await runCommand(
     process.execPath,
-    ["--import", join(root, "deny-syntax.ts"), "--input-type=module", "-e", program],
+    [
+      "--import",
+      pathToFileURL(join(root, "deny-syntax.ts")).href,
+      "--input-type=module",
+      "-e",
+      program,
+    ],
     root,
   );
 }

@@ -362,3 +362,12 @@ also requires assignment to `Linter.Parser`. The exact TS2322, source path,
 nonzero exit and non-signal assertions remain. The existing helper passes against
 the emitted source package; real packed/registry and native-platform runs remain
 separate required evidence.
+
+The subsequent Windows packed quality-coverage lane reached a distinct preload
+portability failure: Node interprets an absolute drive path passed to `--import`
+as an unsupported URL scheme. Both preload arguments now use Node's
+`pathToFileURL(...).href`, preserving the same deny-only hooks and all negative
+controls. An independent path containing a space and `#` reproduces the raw-path
+rejection and accepts its file URL; the complete existing emitted-source public
+helper passes under that parent path. Its strict native project also passes.
+The ordinary Windows lane remains the required native witness.

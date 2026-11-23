@@ -231,8 +231,9 @@ export async function verifyInstalledEslintSyntaxArtifacts(
     "Permission is hereby granted",
     "Copyright (c) 2019 typescript-eslint",
     "Copyright OpenJS Foundation",
-  ])
+  ]) {
     assert.ok(notices.includes(text), text);
+  }
   const ledger = record(JSON.parse(provenance));
   const upstream = record(ledger["upstream"]);
   assert.equal(upstream["version"], "8.59.1");

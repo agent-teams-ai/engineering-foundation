@@ -51,7 +51,9 @@ async function qualifyInstallation(
     const devDependencies: Record<string, string> = {
       "stack-toolchain": input.artifact.archiveFileSpecifier,
     };
-    if (explicitHost) devDependencies["eslint"] = "10.3.0";
+    if (explicitHost) {
+      devDependencies["eslint"] = "10.3.0";
+    }
     await writeFile(
       join(root, "package.json"),
       JSON.stringify({
@@ -79,7 +81,9 @@ async function qualifyInstallation(
     );
     await verifyInstalledEslintSyntaxArtifacts(root, expected);
     await qualifyInstalledEslintRoot(root);
-    if (explicitHost) await qualifyInstalledEslintSyntax(root);
+    if (explicitHost) {
+      await qualifyInstalledEslintSyntax(root);
+    }
     // The parser has a mandatory peer; no explicit host does not mean no installed host.
     process.stdout.write(
       JSON.stringify({

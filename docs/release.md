@@ -582,6 +582,32 @@ train still requires fresh state review and exact immutable reuse before an
 owner-controlled continuation; availability alone does not complete the
 GitHub reconciliation or required public consumer qualification.
 
+### FMS 0.4.0 forward recovery
+
+Release run [`45279346093`, attempt 1](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/45279346093)
+published FMS `0.4.0` from protected commit
+`5d1d6417e830e9773f55bea32062583176368759`, then refused it before the next
+publication because its registry attestation contained only the npm publish
+statement. The version metadata advertised SLSA, but both the literal advertised
+endpoint and the publisher's encoded endpoint lacked that statement. The pinned
+npm `11.19.0` audit verified the publish bundle; the unchanged source-provenance
+admission rejected the missing SLSA bundle. This is missing proof, not evidence
+of a different source identity or a confirmed transient registry incident.
+The [retained refusal evidence](research/evidence/fms-0.4.0-publication-refusal-2026-11-23.json)
+preserves the failed run, immutable artifact identity and observed proof.
+
+The forward recovery Changeset selects a new FMS patch with the same public API
+and runtime behavior. It does not overwrite, unpublish or deprecate `0.4.0`, and
+it does not change release guards. Official version planning and the protected
+source and generated release PRs must prove the exact version impact. Previously
+qualified packages from `5d1d6417` may be reused only after the ordinary complete
+artifact and cryptographic checks prove their protected-main ancestry. The
+unpublished `stack-toolchain@0.3.0` keeps its existing version and qualified
+package bytes. Neither the recovery intent nor a merged version PR proves
+publication: the new FMS artifact and the complete resulting release graph still
+require normal OIDC publication, source-bound SLSA, final tags and consumer
+qualification.
+
 Every pull request that changes a published package must include a normal
 Changeset. CI enforces this with the official `changeset status` command against
 the pull request's exact base commit. Repository-only tests, CI configuration,

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/engineering-foundation",
-  "packageVersion": "3.1.0",
+  "packageVersion": "4.0.0",
   "status": "release-candidate",
   "wildcardExports": [
     {
@@ -42,6 +42,8 @@
         "schemas/quality-source-coverage/v2.schema.json",
         "schemas/quality-source-coverage/v3.schema.json",
         "schemas/quality-source-coverage/v4.schema.json",
+        "schemas/quality-source-coverage/v5.schema.json",
+        "schemas/quality-source-topology/v1.schema.json",
         "schemas/quality-suppression-governance/v1.schema.json",
         "schemas/repository-agent-workflow/v1.schema.json",
         "schemas/repository-agent-workflow/v2.schema.json",
@@ -467,6 +469,26 @@
       "discriminators": {
         "schemaVersion": {
           "const": 4
+        }
+      }
+    },
+    {
+      "path": "schemas/quality-source-coverage/v5.schema.json",
+      "id": "https://schemas.agent-teams.ai/engineering-foundation/quality-source-coverage/v5",
+      "digest": "sha256:f95162698b2d476423230dd79878025a3c664c7202a1596ebf9ca52ca14ab400",
+      "discriminators": {
+        "schemaVersion": {
+          "const": 5
+        }
+      }
+    },
+    {
+      "path": "schemas/quality-source-topology/v1.schema.json",
+      "id": "https://schemas.agent-teams.ai/engineering-foundation/quality-source-topology/v1",
+      "digest": "sha256:debb6e02ae23a1d315dc49f7d73de2098ed5821ffbdbf8cedbe54284b81a80dd",
+      "discriminators": {
+        "schemaVersion": {
+          "const": 1
         }
       }
     },

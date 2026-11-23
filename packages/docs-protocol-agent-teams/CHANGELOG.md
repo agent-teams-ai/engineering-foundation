@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.6.2
+
+### Patch Changes
+
+- [#463](https://github.com/agent-teams-ai/engineering-foundation/pull/463) [`1fb1656`](https://github.com/agent-teams-ai/engineering-foundation/commit/1fb16560e6972909e68fb36b9b005bf16273cbea) Thanks [@777genius](https://github.com/777genius)! - Bound documentation input reads by the bytes actually consumed and reject nonregular inputs without blocking on POSIX FIFOs. Recheck the final named file against the observed file identity and retain required, optional, containment, encoding, and single-link policies.
+
+- [#470](https://github.com/agent-teams-ai/engineering-foundation/pull/470) [`9f7f091`](https://github.com/agent-teams-ai/engineering-foundation/commit/9f7f091121da4486301d1cb7444373d9fa67cfac) Thanks [@777genius](https://github.com/777genius)! - Preserve the exact bounded consumer JSON and prior-Cohort trust checks while
+  splitting their complexity into explicit scalar, container, catalog and durable
+  witness guards. Retire the two expired waiver directives without reducing
+  input limits or accepting unauthenticated evidence.
+- Updated dependencies [[`1fb1656`](https://github.com/agent-teams-ai/engineering-foundation/commit/1fb16560e6972909e68fb36b9b005bf16273cbea), [`942b616`](https://github.com/agent-teams-ai/engineering-foundation/commit/942b616a4b79b9509a6a89d36205d7b1788d0928)]:
+  - @agent-teams/docs-protocol@0.6.7
+  - @agent-teams/repository-mutation@0.5.0
+
 ## 0.6.1
 
 ### Patch Changes

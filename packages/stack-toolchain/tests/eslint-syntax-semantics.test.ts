@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { Linter } from "eslint";
-import { applyDefault } from "../dist/features/eslint-syntax/create-rule.js";
+import { applyDefault } from "../dist/features/eslint-syntax/adapters/create-rule.js";
 import {
   applyEdit,
   expectReports,

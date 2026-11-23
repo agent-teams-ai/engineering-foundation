@@ -4535,12 +4535,12 @@ boundaries:
       runtimeReferences: []
   - id: stack-toolchain.eslint-syntax
     roots:
-      - packages/stack-toolchain/src/features/eslint-syntax
+      - packages/stack-toolchain/src/features/eslint-syntax/adapters
     entrypoints:
-      - packages/stack-toolchain/src/features/eslint-syntax/index.ts
-      - packages/stack-toolchain/src/features/eslint-syntax/create-rule.ts
-      - packages/stack-toolchain/src/features/eslint-syntax/scope-runtime.ts
-      - packages/stack-toolchain/src/features/eslint-syntax/rule-contract.ts
+      - packages/stack-toolchain/src/features/eslint-syntax/adapters/index.ts
+      - packages/stack-toolchain/src/features/eslint-syntax/adapters/create-rule.ts
+      - packages/stack-toolchain/src/features/eslint-syntax/adapters/scope-runtime.ts
+      - packages/stack-toolchain/src/features/eslint-syntax/adapters/rule-contract.ts
     allow:
       boundaries: []
       packages:

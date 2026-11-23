@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
 import type { Linter } from "eslint";
-import { assertSameScopeModule, assertScopeResolution, isRecord } from "./scope-runtime.js";
+import { assertScopeResolution, isAdmittedScopeManager, isRecord } from "./scope-runtime.js";
 
 interface NativeParser {
   parseForESLint(code: string, options?: unknown): unknown;
@@ -40,8 +40,6 @@ if (!isNativeParser(nativeParser)) {
   throw new Error("The qualified native parser API is missing.");
 }
 const parseForESLint = nativeParser.parseForESLint.bind(nativeParser);
-const parserScope: unknown = parserRequire("@typescript-eslint/scope-manager");
-assertSameScopeModule(parserScope);
 
 /** Preserves the native parser result; ESLint owns traversal, scopes and parents. */
 export const parser: Linter.Parser = {
@@ -57,6 +55,9 @@ export const parser: Linter.Parser = {
       !isRecord(result["services"])
     ) {
       throw new Error("The qualified native parser returned an invalid ESLint result.");
+    }
+    if (!isAdmittedScopeManager(result["scopeManager"])) {
+      throw new Error("The native parser returned a foreign scope-manager instance.");
     }
     return {
       ast: result["ast"],

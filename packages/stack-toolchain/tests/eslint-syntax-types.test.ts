@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 
 const require = createRequire(import.meta.url);
 const contract = fileURLToPath(
-  new URL("../src/features/eslint-syntax/rule-contract.ts", import.meta.url),
+  new URL("../src/features/eslint-syntax/adapters/rule-contract.ts", import.meta.url),
 );
 const prelude = `import type { RuleContext, RuleListener } from ${JSON.stringify(contract)};\ndeclare const context: RuleContext<"known", []>;\n`;
 

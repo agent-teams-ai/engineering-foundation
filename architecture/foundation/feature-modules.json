@@ -2217,7 +2217,7 @@
           "layers": [
             {
               "role": "adapters",
-              "roots": ["packages/stack-toolchain/src/features/eslint-syntax"]
+              "roots": ["packages/stack-toolchain/src/features/eslint-syntax/adapters"]
             }
           ],
           "testRoots": [

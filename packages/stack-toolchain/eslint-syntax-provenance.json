@@ -8,7 +8,7 @@
   "files": [
     {
       "source": "packages/eslint-plugin/src/rules/triple-slash-reference.ts",
-      "destination": "src/features/eslint-syntax/rules/triple-slash-reference.ts",
+      "destination": "src/features/eslint-syntax/adapters/rules/triple-slash-reference.ts",
       "gitBlob": "e79c77a454c10e20ef72052856f28a16f87329cb",
       "sha256": "37bc2602839dacc26a96175b930c1145ff3db4605218561ae6cd2e26bf74d6d9",
       "modifications": [
@@ -19,7 +19,7 @@
     },
     {
       "source": "packages/eslint-plugin/src/rules/prefer-namespace-keyword.ts",
-      "destination": "src/features/eslint-syntax/rules/prefer-namespace-keyword.ts",
+      "destination": "src/features/eslint-syntax/adapters/rules/prefer-namespace-keyword.ts",
       "gitBlob": "4192bec216df789a9b073cb86997d9cfb77bbdf1",
       "sha256": "6953f049dd3c689326ac359e398a700f8a5bb2d930b66fe256dc0321b158315e",
       "modifications": [
@@ -30,7 +30,7 @@
     },
     {
       "source": "packages/eslint-plugin/src/rules/prefer-as-const.ts",
-      "destination": "src/features/eslint-syntax/rules/prefer-as-const.ts",
+      "destination": "src/features/eslint-syntax/adapters/rules/prefer-as-const.ts",
       "gitBlob": "eb0a1e12008e7dd4011426566e0915cbdd88f5c8",
       "sha256": "61f8060d162c024bb28c2dd048d925808b3dc116f8aaabc1117b5b1486e2773c",
       "modifications": [
@@ -41,7 +41,7 @@
     },
     {
       "source": "packages/eslint-plugin/src/rules/no-wrapper-object-types.ts",
-      "destination": "src/features/eslint-syntax/rules/no-wrapper-object-types.ts",
+      "destination": "src/features/eslint-syntax/adapters/rules/no-wrapper-object-types.ts",
       "gitBlob": "d587d1871c9b0b59745498adfb6242a10810fa73",
       "sha256": "bfd3e012c5a023cc33595fcb1617bd0190bf51d60549dc9518629bc9b478c312",
       "modifications": [
@@ -62,21 +62,21 @@
         "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
       ],
       "destinations": [
-        "src/features/eslint-syntax/rules/no-unused-vars.ts",
-        "src/features/eslint-syntax/rules/no-unused-vars/ambient.ts",
-        "src/features/eslint-syntax/rules/no-unused-vars/contracts.ts",
-        "src/features/eslint-syntax/rules/no-unused-vars/exit.ts",
-        "src/features/eslint-syntax/rules/no-unused-vars/import-fixes.ts",
-        "src/features/eslint-syntax/rules/no-unused-vars/messages.ts",
-        "src/features/eslint-syntax/rules/no-unused-vars/metadata.ts",
-        "src/features/eslint-syntax/rules/no-unused-vars/options.ts",
-        "src/features/eslint-syntax/rules/no-unused-vars/report.ts",
-        "src/features/eslint-syntax/rules/no-unused-vars/selection.ts"
+        "src/features/eslint-syntax/adapters/rules/no-unused-vars.ts",
+        "src/features/eslint-syntax/adapters/rules/no-unused-vars/ambient.ts",
+        "src/features/eslint-syntax/adapters/rules/no-unused-vars/contracts.ts",
+        "src/features/eslint-syntax/adapters/rules/no-unused-vars/exit.ts",
+        "src/features/eslint-syntax/adapters/rules/no-unused-vars/import-fixes.ts",
+        "src/features/eslint-syntax/adapters/rules/no-unused-vars/messages.ts",
+        "src/features/eslint-syntax/adapters/rules/no-unused-vars/metadata.ts",
+        "src/features/eslint-syntax/adapters/rules/no-unused-vars/options.ts",
+        "src/features/eslint-syntax/adapters/rules/no-unused-vars/report.ts",
+        "src/features/eslint-syntax/adapters/rules/no-unused-vars/selection.ts"
       ]
     },
     {
       "source": "packages/eslint-plugin/src/rules/no-unused-expressions.ts",
-      "destination": "src/features/eslint-syntax/rules/no-unused-expressions.ts",
+      "destination": "src/features/eslint-syntax/adapters/rules/no-unused-expressions.ts",
       "gitBlob": "8496ceee707d038ffd8153b26214b5278b8c2a90",
       "sha256": "3c9370b85981e671e4b5f64d312c687ba191b56d28a3e5f35f03893a66fc9e2b",
       "modifications": [
@@ -87,7 +87,7 @@
     },
     {
       "source": "packages/eslint-plugin/src/rules/no-unsafe-function-type.ts",
-      "destination": "src/features/eslint-syntax/rules/no-unsafe-function-type.ts",
+      "destination": "src/features/eslint-syntax/adapters/rules/no-unsafe-function-type.ts",
       "gitBlob": "e5d1ab273550bddb4aa385917d8605da503d44c7",
       "sha256": "b6c7e68cb338f02693f66f68489350cf0ddca7d8fa1d4b5045a5621ddd5336b8",
       "modifications": [
@@ -98,7 +98,7 @@
     },
     {
       "source": "packages/eslint-plugin/src/rules/no-unsafe-declaration-merging.ts",
-      "destination": "src/features/eslint-syntax/rules/no-unsafe-declaration-merging.ts",
+      "destination": "src/features/eslint-syntax/adapters/rules/no-unsafe-declaration-merging.ts",
       "gitBlob": "3a605e81ea53bcc37c34b7982e9b8d1f44914173",
       "sha256": "f1f3284338433be5b0f90ca6fa8cbcec30aa33d7104cf8736c9dcd5dff13854a",
       "modifications": [
@@ -109,7 +109,7 @@
     },
     {
       "source": "packages/eslint-plugin/src/rules/no-unnecessary-type-constraint.ts",
-      "destination": "src/features/eslint-syntax/rules/no-unnecessary-type-constraint.ts",
+      "destination": "src/features/eslint-syntax/adapters/rules/no-unnecessary-type-constraint.ts",
       "gitBlob": "493e93e9687720def7f7a23a3b9d1d200576da15",
       "sha256": "1b5c3117fd5f69169687589870e9eaf2479359ee985c33a02a8b5d9551921e11",
       "modifications": [
@@ -120,7 +120,7 @@
     },
     {
       "source": "packages/eslint-plugin/src/rules/no-this-alias.ts",
-      "destination": "src/features/eslint-syntax/rules/no-this-alias.ts",
+      "destination": "src/features/eslint-syntax/adapters/rules/no-this-alias.ts",
       "gitBlob": "3db6a87ef932804bc37497691f943d2f4e1d2eb8",
       "sha256": "75d2413729fcd80df63fc7d783583e3950444f7844ca566d49ed8979036a8110",
       "modifications": [
@@ -131,7 +131,7 @@
     },
     {
       "source": "packages/eslint-plugin/src/rules/no-require-imports.ts",
-      "destination": "src/features/eslint-syntax/rules/no-require-imports.ts",
+      "destination": "src/features/eslint-syntax/adapters/rules/no-require-imports.ts",
       "gitBlob": "3836e06f82a4bca5eab840b87fead6dbe70b24f2",
       "sha256": "9f4cd541b84ad482cffa686e4574e660ba6ed136bb879170d24e61a86e95ddd7",
       "modifications": [
@@ -142,7 +142,7 @@
     },
     {
       "source": "packages/eslint-plugin/src/rules/no-non-null-asserted-optional-chain.ts",
-      "destination": "src/features/eslint-syntax/rules/no-non-null-asserted-optional-chain.ts",
+      "destination": "src/features/eslint-syntax/adapters/rules/no-non-null-asserted-optional-chain.ts",
       "gitBlob": "efc8fc26cf5a736a77bd23a076cf9bd4a8228391",
       "sha256": "617a387f3bc4644e6f18d3fe7ab316ed2df0578ef8b0eb50ba866a95ef9657bc",
       "modifications": [
@@ -153,7 +153,7 @@
     },
     {
       "source": "packages/eslint-plugin/src/rules/no-namespace.ts",
-      "destination": "src/features/eslint-syntax/rules/no-namespace.ts",
+      "destination": "src/features/eslint-syntax/adapters/rules/no-namespace.ts",
       "gitBlob": "02421a25dea9a86c3e0615e12999fefac3f5234b",
       "sha256": "94a176d39bbd4871344406332113ddbc0d81a5dcea0f77d1c3be52fc694f9e9b",
       "modifications": [
@@ -164,7 +164,7 @@
     },
     {
       "source": "packages/eslint-plugin/src/rules/no-misused-new.ts",
-      "destination": "src/features/eslint-syntax/rules/no-misused-new.ts",
+      "destination": "src/features/eslint-syntax/adapters/rules/no-misused-new.ts",
       "gitBlob": "46c8462ff59af4e47acceed36cc5b1a949f83c65",
       "sha256": "f1e0242cd37010cd0c265e46ed778cd9b4620bca72174043b58db79391c4b6ae",
       "modifications": [
@@ -175,7 +175,7 @@
     },
     {
       "source": "packages/eslint-plugin/src/rules/no-extra-non-null-assertion.ts",
-      "destination": "src/features/eslint-syntax/rules/no-extra-non-null-assertion.ts",
+      "destination": "src/features/eslint-syntax/adapters/rules/no-extra-non-null-assertion.ts",
       "gitBlob": "fbeb009d2ba3ced83a114d709c333164257933db",
       "sha256": "239fc6d208273f11adf7a71b40930409ae8457d35669951ccd6b6d31fdabca2f",
       "modifications": [
@@ -186,7 +186,7 @@
     },
     {
       "source": "packages/eslint-plugin/src/rules/no-explicit-any.ts",
-      "destination": "src/features/eslint-syntax/rules/no-explicit-any.ts",
+      "destination": "src/features/eslint-syntax/adapters/rules/no-explicit-any.ts",
       "gitBlob": "27079fac7184e33a4b4a735df57b996ab0bf2701",
       "sha256": "a4d7845c4ea6cda948dfcdb844b331e8c31ade1e2297f48edf2c209e697f2972",
       "modifications": [
@@ -197,7 +197,7 @@
     },
     {
       "source": "packages/eslint-plugin/src/rules/no-empty-object-type.ts",
-      "destination": "src/features/eslint-syntax/rules/no-empty-object-type.ts",
+      "destination": "src/features/eslint-syntax/adapters/rules/no-empty-object-type.ts",
       "gitBlob": "0e5815d4e19e7fda9534b9e19a601227db7ccc1f",
       "sha256": "c4542d02091d6ca99848304f7b28db78479d9e3cd93b9777e71cb94d785da4cf",
       "modifications": [
@@ -208,7 +208,7 @@
     },
     {
       "source": "packages/eslint-plugin/src/rules/no-duplicate-enum-values.ts",
-      "destination": "src/features/eslint-syntax/rules/no-duplicate-enum-values.ts",
+      "destination": "src/features/eslint-syntax/adapters/rules/no-duplicate-enum-values.ts",
       "gitBlob": "d8f7b7d950d32446d6a23b0f9abd136cd23aa335",
       "sha256": "2802b29a49dc4138f4e5312e877b10abe07ca33a2deda6d839995b78cf980827",
       "modifications": [
@@ -219,7 +219,7 @@
     },
     {
       "source": "packages/eslint-plugin/src/rules/no-array-constructor.ts",
-      "destination": "src/features/eslint-syntax/rules/no-array-constructor.ts",
+      "destination": "src/features/eslint-syntax/adapters/rules/no-array-constructor.ts",
       "gitBlob": "93b4256066a4b836e61f1c9d8eebba2830948784",
       "sha256": "2c470dc0437c5211985affcca1388c85fac23382dd03a921523be78b44f0a823",
       "modifications": [
@@ -230,7 +230,7 @@
     },
     {
       "source": "packages/eslint-plugin/src/rules/ban-ts-comment.ts",
-      "destination": "src/features/eslint-syntax/rules/ban-ts-comment.ts",
+      "destination": "src/features/eslint-syntax/adapters/rules/ban-ts-comment.ts",
       "gitBlob": "7cd707ed742bc4274ada4a4176620dc918c02104",
       "sha256": "0c1d9dea4d603338f98b835dd681afccf4748d86c79e977b71a27f982c3c0acb",
       "modifications": [
@@ -250,13 +250,13 @@
         "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
       ],
       "destinations": [
-        "src/features/eslint-syntax/helpers/collectUnusedVariables.ts",
-        "src/features/eslint-syntax/helpers/unused-reference-classification.ts"
+        "src/features/eslint-syntax/adapters/helpers/collectUnusedVariables.ts",
+        "src/features/eslint-syntax/adapters/helpers/unused-reference-classification.ts"
       ]
     },
     {
       "source": "packages/eslint-plugin/src/util/getStringLength.ts",
-      "destination": "src/features/eslint-syntax/helpers/getStringLength.ts",
+      "destination": "src/features/eslint-syntax/adapters/helpers/getStringLength.ts",
       "gitBlob": "1140216a6bf2a4f23518da046c59ebc1b5fb94bb",
       "sha256": "0961136640830f509baae2604333006708ecda8d51ef7f261d34aca58e594da9",
       "modifications": [
@@ -267,7 +267,7 @@
     },
     {
       "source": "packages/eslint-plugin/src/util/getStaticStringValue.ts",
-      "destination": "src/features/eslint-syntax/helpers/getStaticStringValue.ts",
+      "destination": "src/features/eslint-syntax/adapters/helpers/getStaticStringValue.ts",
       "gitBlob": "d7c2425b203bf3e509a95b42d1feb4a37fde9ea9",
       "sha256": "be413c0945e85202a41f846f4811be54c090dd7011086ed25fc9b7b3c294118a",
       "modifications": [
@@ -278,7 +278,7 @@
     },
     {
       "source": "packages/eslint-plugin/src/util/isNullLiteral.ts",
-      "destination": "src/features/eslint-syntax/helpers/isNullLiteral.ts",
+      "destination": "src/features/eslint-syntax/adapters/helpers/isNullLiteral.ts",
       "gitBlob": "a54aec1725a8c7c075db2a9b1120499a97a4e2a3",
       "sha256": "c06da7943a744f0c30a6812124f16ba267507e2dc502e89e3a321a4f274d8c50",
       "modifications": [
@@ -289,7 +289,7 @@
     },
     {
       "source": "packages/eslint-plugin/src/util/escapeRegExp.ts",
-      "destination": "src/features/eslint-syntax/helpers/escapeRegExp.ts",
+      "destination": "src/features/eslint-syntax/adapters/helpers/escapeRegExp.ts",
       "gitBlob": "ac2071cb86d1447e01d138811d4d002ffd953679",
       "sha256": "9c96283d39dca277fc6067f85929070f956b32e7542e4033d210bb8cc7d83941",
       "modifications": [
@@ -300,7 +300,7 @@
     },
     {
       "source": "packages/eslint-plugin/src/util/isTypeImport.ts",
-      "destination": "src/features/eslint-syntax/helpers/isTypeImport.ts",
+      "destination": "src/features/eslint-syntax/adapters/helpers/isTypeImport.ts",
       "gitBlob": "b1c88d813a7d2d7811175b18ad21c13e40a9e476",
       "sha256": "9f4a4d52754f0d94eff2737f60bcce20a22148e739854d7623a8771537eb9450",
       "modifications": [
@@ -311,7 +311,7 @@
     },
     {
       "source": "packages/eslint-plugin/src/util/referenceContainsTypePredicate.ts",
-      "destination": "src/features/eslint-syntax/helpers/referenceContainsTypePredicate.ts",
+      "destination": "src/features/eslint-syntax/adapters/helpers/referenceContainsTypePredicate.ts",
       "gitBlob": "f9b300f9de4bb972db8e359e4a6564c58de53efa",
       "sha256": "33b8cc2bc5532ca89a7822657289f1c87818d845b72bf2942d394d66b6013b67",
       "modifications": [
@@ -322,7 +322,7 @@
     },
     {
       "source": "packages/eslint-plugin/src/util/referenceContainsTypeQuery.ts",
-      "destination": "src/features/eslint-syntax/helpers/referenceContainsTypeQuery.ts",
+      "destination": "src/features/eslint-syntax/adapters/helpers/referenceContainsTypeQuery.ts",
       "gitBlob": "2d5a42a102e293a3d1ede2da7e20c072898c9a2a",
       "sha256": "512dfbe852b658a35a5353938aa1b887cc1293aa13723cfb988db21a4ebd86ce",
       "modifications": [
@@ -357,32 +357,32 @@
       }
     ],
     "destinations": [
-      "src/features/eslint-syntax/ast.ts",
-      "src/features/eslint-syntax/ast/break-statement.ts",
-      "src/features/eslint-syntax/ast/declaration-statement.ts",
-      "src/features/eslint-syntax/ast/export-named-declaration-without-source-with-multiple.ts",
-      "src/features/eslint-syntax/ast/function-base.ts",
-      "src/features/eslint-syntax/ast/import-declaration.ts",
-      "src/features/eslint-syntax/ast/jsx-member-expression.ts",
-      "src/features/eslint-syntax/ast/member-expression.ts",
-      "src/features/eslint-syntax/ast/node-kinds.ts",
-      "src/features/eslint-syntax/ast/node-or-token-data.ts",
-      "src/features/eslint-syntax/ast/node.ts",
-      "src/features/eslint-syntax/ast/property-definition-non-computed-name.ts",
-      "src/features/eslint-syntax/ast/static-block.ts",
-      "src/features/eslint-syntax/ast/token-kinds.ts",
-      "src/features/eslint-syntax/ast/ts-declare-function-with-declare.ts",
-      "src/features/eslint-syntax/ast/ts-index-signature.ts",
-      "src/features/eslint-syntax/ast/ts-module-declaration-base.ts",
-      "src/features/eslint-syntax/ast/ts-property-signature-base.ts",
-      "src/features/eslint-syntax/ast/ts-unary-expression.ts",
-      "src/features/eslint-syntax/ast/using-declaration-base.ts"
+      "src/features/eslint-syntax/adapters/ast.ts",
+      "src/features/eslint-syntax/adapters/ast/break-statement.ts",
+      "src/features/eslint-syntax/adapters/ast/declaration-statement.ts",
+      "src/features/eslint-syntax/adapters/ast/export-named-declaration-without-source-with-multiple.ts",
+      "src/features/eslint-syntax/adapters/ast/function-base.ts",
+      "src/features/eslint-syntax/adapters/ast/import-declaration.ts",
+      "src/features/eslint-syntax/adapters/ast/jsx-member-expression.ts",
+      "src/features/eslint-syntax/adapters/ast/member-expression.ts",
+      "src/features/eslint-syntax/adapters/ast/node-kinds.ts",
+      "src/features/eslint-syntax/adapters/ast/node-or-token-data.ts",
+      "src/features/eslint-syntax/adapters/ast/node.ts",
+      "src/features/eslint-syntax/adapters/ast/property-definition-non-computed-name.ts",
+      "src/features/eslint-syntax/adapters/ast/static-block.ts",
+      "src/features/eslint-syntax/adapters/ast/token-kinds.ts",
+      "src/features/eslint-syntax/adapters/ast/ts-declare-function-with-declare.ts",
+      "src/features/eslint-syntax/adapters/ast/ts-index-signature.ts",
+      "src/features/eslint-syntax/adapters/ast/ts-module-declaration-base.ts",
+      "src/features/eslint-syntax/adapters/ast/ts-property-signature-base.ts",
+      "src/features/eslint-syntax/adapters/ast/ts-unary-expression.ts",
+      "src/features/eslint-syntax/adapters/ast/using-declaration-base.ts"
     ]
   },
   "selectedContracts": [
     {
       "source": "packages/utils/src/eslint-utils/RuleCreator.ts",
-      "destination": "src/features/eslint-syntax/create-rule.ts",
+      "destination": "src/features/eslint-syntax/adapters/create-rule.ts",
       "sha256": "7a012904daea0c8911757a21414ad4dac502d2257468101e77bab5f151a7bf1d",
       "gitBlob": "84b964adc5cc6bca82f6b126fb7046fec8f95ae7",
       "retained": ["RuleCreator/createRule default application and public metadata URL"],
@@ -392,7 +392,7 @@
     },
     {
       "source": "packages/utils/src/eslint-utils/applyDefault.ts",
-      "destination": "src/features/eslint-syntax/create-rule.ts",
+      "destination": "src/features/eslint-syntax/adapters/create-rule.ts",
       "sha256": "5354f3c036651f5c7e352c8b7b436b01ca7a0e6c4cc99c26070f504f1c643941",
       "gitBlob": "567d47c8ede98474762f1164392bbdd6f05402f0",
       "retained": ["applyDefault"],
@@ -402,7 +402,7 @@
     },
     {
       "source": "packages/utils/src/eslint-utils/deepMerge.ts",
-      "destination": "src/features/eslint-syntax/create-rule.ts",
+      "destination": "src/features/eslint-syntax/adapters/create-rule.ts",
       "sha256": "c46ece3a84ed9cefb70d116488c1421f53db97ccf02f2ae205bc387a9eb885a1",
       "gitBlob": "a323d14a8e60b375d25a308728267aa8f563f146",
       "retained": ["deepMerge/isObjectNotArray"],
@@ -412,7 +412,7 @@
     },
     {
       "source": "packages/utils/src/eslint-utils/nullThrows.ts",
-      "destination": "src/features/eslint-syntax/source-helpers.ts",
+      "destination": "src/features/eslint-syntax/adapters/source-helpers.ts",
       "sha256": "0c8c8a5d4f368979b27ca0d7edcec8bd183aaa99c9ea0c00c69bb7fae14dec04",
       "gitBlob": "163d9278ff91cb34fe8c8818eb5ff7c5a87742ab",
       "retained": ["nullThrows/NullThrowsReasons"],
@@ -422,7 +422,7 @@
     },
     {
       "source": "packages/utils/src/ast-utils/predicates.ts",
-      "destination": "src/features/eslint-syntax/source-helpers.ts",
+      "destination": "src/features/eslint-syntax/adapters/source-helpers.ts",
       "sha256": "1ffc05c4bac80d8fad631f0c7fcc1b5b6d562eebd3ff898f874e68946f9e1731",
       "gitBlob": "8e3e02142b7cda0f054730affe8eaae38c4070e3",
       "retained": ["isFunction/isLoop"],
@@ -432,7 +432,7 @@
     },
     {
       "source": "packages/utils/src/ast-utils/eslint-utils/predicates.ts",
-      "destination": "src/features/eslint-syntax/source-helpers.ts",
+      "destination": "src/features/eslint-syntax/adapters/source-helpers.ts",
       "sha256": "401f66e935565b2af899251075a3af72ef94704aa96470c793931a1b36e24dd2",
       "gitBlob": "afa813460ca3568cf21ebe4a8f9bcd21ae127976",
       "retained": ["isOpeningParenToken/isClosingParenToken public predicate contract"],
@@ -442,7 +442,7 @@
     },
     {
       "source": "packages/utils/src/ast-utils/eslint-utils/scopeAnalysis.ts",
-      "destination": "src/features/eslint-syntax/source-helpers.ts",
+      "destination": "src/features/eslint-syntax/adapters/source-helpers.ts",
       "sha256": "9da70984e8da322b2a9b4c8205987d9e785edc4761e58199b41fb43bfe11b639",
       "gitBlob": "1f7af13dd3cb1d4c97d903aee25e190e7b23348e",
       "retained": ["findVariable string-name public contract; local scope.set/upper traversal"],
@@ -452,7 +452,7 @@
     },
     {
       "source": "packages/eslint-plugin/src/util/scopeUtils.ts",
-      "destination": "src/features/eslint-syntax/source-helpers.ts",
+      "destination": "src/features/eslint-syntax/adapters/source-helpers.ts",
       "sha256": "1dd97f76fcd02879b4f1a6c0c28961d3fd05c9694684d612938e94728e3721c1",
       "gitBlob": "b350a74121066271dd3bdc8e73b18e0c04126341",
       "retained": ["isReferenceToGlobalFunction"],
@@ -462,7 +462,7 @@
     },
     {
       "source": "packages/eslint-plugin/src/util/misc.ts",
-      "destination": "src/features/eslint-syntax/source-helpers.ts",
+      "destination": "src/features/eslint-syntax/adapters/source-helpers.ts",
       "sha256": "7a7c5abc89ca475ff7be1a471016fce24d1d3942128e4720463fa0d7f46a90db",
       "gitBlob": "a39235e17aad619e21d5f88dd8237a0be835ec35",
       "retained": ["isDefinitionFile; exact extension strings replace compiler enum values"],
@@ -472,7 +472,7 @@
     },
     {
       "source": "packages/eslint-plugin/src/util/astUtils.ts",
-      "destination": "src/features/eslint-syntax/source-helpers.ts",
+      "destination": "src/features/eslint-syntax/adapters/source-helpers.ts",
       "sha256": "5a4611c552da6676994c93a0ad2d5c352b8df2f6ccade0b9144bc6c39b17f5d7",
       "gitBlob": "10c9b75e9947c4df6b1f5dfd1be96c689dac44df",
       "retained": ["getNameLocationInGlobalDirectiveComment"],
@@ -482,7 +482,7 @@
     },
     {
       "source": "packages/eslint-plugin/src/configs/flat/base.ts",
-      "destination": "src/features/eslint-syntax/index.ts",
+      "destination": "src/features/eslint-syntax/adapters/index.ts",
       "sha256": "6ab92b2f1677329ccfbe1160dff94d0fd8577e00f9e3377ea823113bc32ebb3c",
       "gitBlob": "6ad1eaa62b837434abd5cdefa4d180ba6cfdd1bb",
       "retained": ["base flat config shape"],
@@ -492,7 +492,7 @@
     },
     {
       "source": "packages/eslint-plugin/src/configs/flat/eslint-recommended.ts",
-      "destination": "src/features/eslint-syntax/index.ts",
+      "destination": "src/features/eslint-syntax/adapters/index.ts",
       "sha256": "509e5a814dcb25da9253f2b673a4a5fcfeda4c6256e1b35feaa727ede17d2ea8",
       "gitBlob": "15af2e07d561fb31ef73276ebe2231aebae92d53",
       "retained": ["TypeScript override file scope"],
@@ -502,7 +502,7 @@
     },
     {
       "source": "packages/eslint-plugin/src/configs/eslint-recommended-raw.ts",
-      "destination": "src/features/eslint-syntax/index.ts",
+      "destination": "src/features/eslint-syntax/adapters/index.ts",
       "sha256": "e8549262e5d563b8b1a02ad946280020b443cbc9e61b7a0848783a2d43d22259",
       "gitBlob": "c9f3fb5c9729ade8f1336ab0e1953c25ff639e5f",
       "retained": ["core rule levels"],
@@ -512,7 +512,7 @@
     },
     {
       "source": "packages/eslint-plugin/src/configs/flat/recommended.ts",
-      "destination": "src/features/eslint-syntax/index.ts",
+      "destination": "src/features/eslint-syntax/adapters/index.ts",
       "sha256": "b3b4a16bc495a51a683df2812efc1fe42db1f81c301b0951a96d0d9300c2a0db",
       "gitBlob": "1e74e334941062b51b3e5ebe153b1c158cfe3ffd",
       "retained": ["twenty recommended syntax rule levels and core duplicate disables"],
@@ -572,13 +572,13 @@
         "source": "lib/rules/no-unused-expressions.js",
         "sha256": "a05ab1c6d1b6783fa4dbb74c082babc9b1bda87759c45fda93f4ed3a5b143fbc",
         "gitBlob": "3c530e6effb28a100a31704375e0b9ede7a442e2",
-        "destination": "src/features/eslint-syntax/unused-expression-core.ts"
+        "destination": "src/features/eslint-syntax/adapters/unused-expression-core.ts"
       },
       {
         "source": "lib/rules/utils/ast-utils.js",
         "sha256": "3a28d87e6f37ca262068b5eab60d988ef5acc4b2bef4f1a6ef3b8a3c2b2103ee",
         "gitBlob": "06f28f914d630b872dcbd41569910656b8dcd939",
-        "destination": "src/features/eslint-syntax/unused-expression-core.ts"
+        "destination": "src/features/eslint-syntax/adapters/unused-expression-core.ts"
       }
     ],
     "retained": [
@@ -737,18 +737,19 @@
       }
     ],
     "destinations": [
-      "src/features/eslint-syntax/scope-contract.ts",
-      "src/features/eslint-syntax/scope-runtime.ts"
+      "src/features/eslint-syntax/adapters/scope-contract.ts",
+      "src/features/eslint-syntax/adapters/scope-runtime.ts"
     ],
     "modifications": [
       "Model only consumed public scope/reference/variable methods and discriminated definition shapes.",
       "Load checked public runtime constructors after exact manifest admission; never synthesize or copy constructor implementations.",
-      "Require the parser to resolve the same physical scope module before parser initialization."
+      "Require the parser to resolve the same physical scope module before parser initialization.",
+      "Require the actual parser result to retain the admitted original ScopeManager constructor identity; preserve the earlier version and physical-resolution checks before parser initialization."
     ]
   },
   "authoredBoundaries": [
-    "src/features/eslint-syntax/parser-runtime.ts",
-    "src/features/eslint-syntax/rule-contract.ts",
+    "src/features/eslint-syntax/adapters/parser-runtime.ts",
+    "src/features/eslint-syntax/adapters/rule-contract.ts",
     "src/eslint-syntax.ts"
   ],
   "licenseSources": [

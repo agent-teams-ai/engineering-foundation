@@ -57,6 +57,15 @@ mandatory ESLint peer, so a lazy root entry does not promise an ESLint-free
 dependency installation. Parser/scope package versions and a shared physical
 scope-manager instance are checked before the parser initializes. An invalid
 graph fails admission instead of silently substituting a parser or constructor.
+The parser declares `^8.69.0` scope-manager and visitor-key dependencies; the
+qualified installed graph resolves those dependencies, and the scope manager's
+types/visitor-key dependencies, to **8.73.0**. This release does not qualify other
+versions admitted by those transitive ranges. Fresh dependency resolution can
+select a different graph and fail admission. Keep the actual qualified graph in
+a real lockfile, use frozen installs, and requalify dependency updates. The npm
+and pnpm packed-consumer gates inspect that graph and preserve their generated
+locks through frozen reinstalls; no dependency override is embedded in the
+published package.
 
 This is syntax linting: no compiler `Program`, semantic type information or
 typed ESLint rule support is exposed. Native parsing reports malformed source as

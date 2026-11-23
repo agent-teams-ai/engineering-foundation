@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { parser } from "../dist/eslint-syntax.js";
-import { ImplicitLibVariable } from "../dist/features/eslint-syntax/scope-runtime.js";
+import { ImplicitLibVariable } from "../dist/features/eslint-syntax/adapters/scope-runtime.js";
 
 function record(value: unknown): Record<string, unknown> {
   assert.ok(value !== null && typeof value === "object" && !Array.isArray(value));

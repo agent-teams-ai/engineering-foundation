@@ -149,10 +149,13 @@ if (!isRecord(scopeModule)) {
 const visitor = scopeModule["Visitor"];
 const patternVisitor = scopeModule["PatternVisitor"];
 const implicitLibVariable = scopeModule["ImplicitLibVariable"];
+const scopeManager = scopeModule["ScopeManager"];
 if (
   !isVisitorConstructor(visitor) ||
   !isPatternVisitorConstructor(patternVisitor) ||
-  !isInstanceIdentity(implicitLibVariable)
+  !isInstanceIdentity(implicitLibVariable) ||
+  !isInstanceIdentity(scopeManager) ||
+  !hasPrototypeMethods(scopeManager, ["acquire", "getDeclaredVariables"])
 ) {
   throw new Error("The qualified scope-manager constructor contract is missing.");
 }
@@ -161,6 +164,12 @@ if (
 export const Visitor = visitor;
 export const PatternVisitor = patternVisitor;
 export const ImplicitLibVariable = implicitLibVariable;
+const admittedScopeManager = scopeManager;
+
+/** Checks the actual native result without loading a second issuer's module. */
+export function isAdmittedScopeManager(value: unknown): value is ScopeManager {
+  return value instanceof admittedScopeManager;
+}
 
 export function assertScopeResolution(candidateRequire: NodeJS.Require): void {
   const candidateManifest: unknown = JSON.parse(
@@ -174,19 +183,6 @@ export function assertScopeResolution(candidateRequire: NodeJS.Require): void {
   ) {
     throw new Error(
       "The parser must resolve the same qualified scope-manager before initialization.",
-    );
-  }
-}
-
-export function assertSameScopeModule(other: unknown): void {
-  if (
-    !isRecord(other) ||
-    other["Visitor"] !== visitor ||
-    other["PatternVisitor"] !== patternVisitor ||
-    other["ImplicitLibVariable"] !== implicitLibVariable
-  ) {
-    throw new Error(
-      "The parser and retained rules must share one physical scope-manager instance.",
     );
   }
 }

@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { pathToFileURL } from "node:url";
 
 const scopeApi =
-  "class Visitor { visit() {} visitPattern() {} } class PatternVisitor { visit() {} } class ImplicitLibVariable {} module.exports = { Visitor, PatternVisitor, ImplicitLibVariable };";
+  "class Visitor { visit() {} visitPattern() {} } class PatternVisitor { visit() {} } class ImplicitLibVariable {} class ScopeManager { acquire() {} getDeclaredVariables() {} } module.exports = { Visitor, PatternVisitor, ImplicitLibVariable, ScopeManager };";
 
 interface FixtureOptions {
   scopeVersion?: string;
@@ -14,6 +14,7 @@ interface FixtureOptions {
   duplicateScope?: boolean;
   invalidScopeApi?: boolean;
   invalidParserApi?: boolean;
+  foreignScopeResult?: boolean;
 }
 
 function packageFixture(root: string, name: string, version: string, source: string): void {
@@ -31,7 +32,7 @@ function admissionFixture(options: FixtureOptions): string {
   writeFileSync(join(root, "package.json"), '{"type":"module"}');
   for (const name of ["parser-runtime.js", "scope-runtime.js", "scope-contract.js"]) {
     copyFileSync(
-      new URL(`../dist/features/eslint-syntax/${name}`, import.meta.url),
+      new URL(`../dist/features/eslint-syntax/adapters/${name}`, import.meta.url),
       join(root, name),
     );
   }
@@ -50,7 +51,9 @@ function admissionFixture(options: FixtureOptions): string {
     marker("parser-started") +
       (options.invalidParserApi
         ? "module.exports = {};"
-        : "module.exports = { parseForESLint() { return {}; } };"),
+        : options.foreignScopeResult
+          ? "module.exports = { parseForESLint() { return { ast: { type: 'Program' }, scopeManager: {}, visitorKeys: {}, services: {} }; } };"
+          : "module.exports = { parseForESLint() { return {}; } };"),
   );
   if (options.duplicateScope) {
     packageFixture(
@@ -61,6 +64,24 @@ function admissionFixture(options: FixtureOptions): string {
     );
   }
   return root;
+}
+
+function expectRejection(root: string, error: RegExp, parse = false): void {
+  const result = spawnSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      parse
+        ? 'const { parser } = await import("./parser-runtime.js"); parser.parseForESLint("value;");'
+        : 'await import("./parser-runtime.js");',
+    ],
+    { cwd: root, encoding: "utf8", timeout: 30_000 },
+  );
+  assert.ifError(result.error);
+  assert.equal(result.signal, null);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, error);
 }
 
 const rejected = [
@@ -91,13 +112,10 @@ const rejected = [
 ] satisfies { name: string; options: FixtureOptions; error: RegExp; scopeStarted: boolean }[];
 
 for (const fixture of rejected) {
-  void test(`admission rejects ${fixture.name} before parser or divergent scope initialization`, async () => {
+  void test(`admission rejects ${fixture.name} before parser or divergent scope initialization`, () => {
     const root = admissionFixture(fixture.options);
     try {
-      await assert.rejects(
-        import(pathToFileURL(join(root, "parser-runtime.js")).href),
-        fixture.error,
-      );
+      expectRejection(root, fixture.error);
       assert.equal(existsSync(join(root, "scope-started")), fixture.scopeStarted);
       assert.equal(existsSync(join(root, "parser-started")), false);
       assert.equal(existsSync(join(root, "duplicate-started")), false);
@@ -107,14 +125,23 @@ for (const fixture of rejected) {
   });
 }
 
-void test("admission validates the public parser API after qualified initialization", async () => {
+void test("admission validates the public parser API after qualified initialization", () => {
   const root = admissionFixture({ invalidParserApi: true });
   try {
-    await assert.rejects(
-      import(pathToFileURL(join(root, "parser-runtime.js")).href),
-      /native parser API is missing/u,
-    );
+    expectRejection(root, /native parser API is missing/u);
     assert.equal(existsSync(join(root, "parser-started")), true);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+void test("admission rejects a foreign scope-manager result after qualified initialization", () => {
+  const root = admissionFixture({ foreignScopeResult: true });
+  try {
+    expectRejection(root, /foreign scope-manager instance/u, true);
+    assert.equal(existsSync(join(root, "scope-started")), true);
+    assert.equal(existsSync(join(root, "parser-started")), true);
+    assert.equal(existsSync(join(root, "duplicate-started")), false);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

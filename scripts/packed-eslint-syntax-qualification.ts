@@ -84,6 +84,35 @@ async function installedVersion(manifest: string, name: string): Promise<string>
   return version;
 }
 
+async function verifyInstalledSyntaxGraph(stackManifest: string): Promise<void> {
+  const stack = createRequire(stackManifest);
+  const parserManifest = await realpath(stack.resolve("eslint-parser-oxc/package.json"));
+  assert.equal(await installedVersion(parserManifest, "eslint-parser-oxc"), "0.1.1");
+  const parser = createRequire(parserManifest);
+  const scopeManifest = await realpath(
+    stack.resolve("@typescript-eslint/scope-manager/package.json"),
+  );
+  assert.equal(
+    scopeManifest,
+    await realpath(parser.resolve("@typescript-eslint/scope-manager/package.json")),
+    "Parser and retained rules must resolve the same physical scope package",
+  );
+  assert.equal(
+    await realpath(stack.resolve("@typescript-eslint/scope-manager")),
+    await realpath(parser.resolve("@typescript-eslint/scope-manager")),
+    "Parser and retained rules must resolve the same physical scope entry",
+  );
+  assert.equal(await installedVersion(scopeManifest, "@typescript-eslint/scope-manager"), "8.73.0");
+  const scope = createRequire(scopeManifest);
+  for (const [issuer, name] of [
+    [parser, "@typescript-eslint/visitor-keys"],
+    [scope, "@typescript-eslint/types"],
+    [scope, "@typescript-eslint/visitor-keys"],
+  ] as const) {
+    assert.equal(await installedVersion(issuer.resolve(`${name}/package.json`), name), "8.73.0");
+  }
+}
+
 function diagnosticOutput(error: unknown): string {
   assert.ok(error instanceof Error && "stdout" in error && "stderr" in error);
   assert.ok("signal" in error && error.signal === null, "Signal termination is not a diagnostic");
@@ -213,6 +242,9 @@ export async function verifyInstalledEslintSyntaxArtifacts(
   const modules = await realpath(join(consumerRoot, "node_modules"));
   assert.ok(manifest.startsWith(modules + sep), "Candidate must resolve from this installation");
   assert.equal(await installedVersion(manifest, "stack-toolchain"), expected.packageVersion);
+  // Parser 0.1.1 publishes ranges for these dependencies. Qualification records
+  // the actual manager-resolved graph without overrides or implementation loads.
+  await verifyInstalledSyntaxGraph(manifest);
   const metadata = record(JSON.parse(await readFile(manifest, "utf8")));
   assert.equal(metadata["license"], "Apache-2.0");
   const dependencies = record(metadata["dependencies"]);

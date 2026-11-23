@@ -114,7 +114,11 @@ export function assertPlainBoundedJson(value: unknown): void {
       if (Array.isArray(candidate) && key === "length") {
         continue;
       }
-      if (descriptor.get !== undefined || descriptor.set !== undefined || descriptor.enumerable !== true) {
+      if (
+        descriptor.get !== undefined ||
+        descriptor.set !== undefined ||
+        descriptor.enumerable !== true
+      ) {
         throw new TypeError("Consumer input must not contain accessors or hidden properties.");
       }
       visit(descriptor.value, depth + 1);

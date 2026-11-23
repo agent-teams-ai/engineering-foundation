@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/document-authoring",
-  "packageVersion": "0.3.6",
+  "packageVersion": "0.3.7",
   "extractorVersion": "typescript-native/7.0.2",
   "entrypoints": [
     {

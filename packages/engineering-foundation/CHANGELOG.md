@@ -1,5 +1,41 @@
 # @agent-teams/engineering-foundation
 
+## 4.0.0
+
+### Major Changes
+
+- [#465](https://github.com/agent-teams-ai/engineering-foundation/pull/465) [`942b616`](https://github.com/agent-teams-ai/engineering-foundation/commit/942b616a4b79b9509a6a89d36205d7b1788d0928) Thanks [@777genius](https://github.com/777genius)! - Replace quality source-coverage profiles v1–v4 with v5's architecture-neutral
+  topology and one captured invocation. Execution no longer rereads a profile to
+  select different lint/project inputs; bounded consumer-file verification rejects
+  persistent changes before success and preserves the admitted report version.
+
+  Move FMS topology projection to the opt-in package's pure `./quality-topology`
+  export, preserve historical schema artifacts and provide the v5 migration guide.
+  Existing consumers may retain their previous pinned major until they migrate.
+
+### Patch Changes
+
+- [#466](https://github.com/agent-teams-ai/engineering-foundation/pull/466) [`e38d844`](https://github.com/agent-teams-ai/engineering-foundation/commit/e38d8444f74cceef37c366f4e28ed1918b214d4a) Thanks [@777genius](https://github.com/777genius)! - Preserve foreign installed entries, substituted local-state markers, and unowned
+  temporary files during local-mode recovery. Require operation-scoped physical
+  custody before marker replacement or cleanup, retain both operation and
+  finalization failures, and keep the existing local-mode protocol and public ports.
+  An orphan backup with an unproven or local installed entry now requires manual
+  reconciliation; an absent destination remains automatically recoverable, and
+  independently proven registry state still completes without deleting that entry.
+
+  Parse command arguments once for both admission and failure output. Respect `--`
+  when interpreting JSON output intent and move buffered command preparation and
+  execution behind their existing application boundary. Preserve delegated command
+  owners, cancellation lifetimes, lazy error observation, and public CLI envelopes.
+
+- [#463](https://github.com/agent-teams-ai/engineering-foundation/pull/463) [`1fb1656`](https://github.com/agent-teams-ai/engineering-foundation/commit/1fb16560e6972909e68fb36b9b005bf16273cbea) Thanks [@777genius](https://github.com/777genius)! - Reobserve SDK growth workspace inputs before publishing a report, including ordered export conditions, and preserve the prior report when inputs change or become unavailable. Validate discovered source path identities, honor cancellation after asynchronous reads, and avoid repeated traversal of overlapping roots. Preserve the selected workspace declaration configuration version in success and failure reports.
+
+  Republish Feature Module Standard with the corresponding exact Foundation development dependency in its canonical package manifest.
+
+- Updated dependencies [[`942b616`](https://github.com/agent-teams-ai/engineering-foundation/commit/942b616a4b79b9509a6a89d36205d7b1788d0928)]:
+  - @agent-teams/repository-mutation@0.5.0
+  - @agent-teams/document-authoring@0.3.7
+
 ## 3.1.0
 
 ### Minor Changes

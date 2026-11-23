@@ -1,5 +1,20 @@
 # Stack Toolchain
 
+## 0.3.0
+
+### Minor Changes
+
+- [#470](https://github.com/agent-teams-ai/engineering-foundation/pull/470) [`9f7f091`](https://github.com/agent-teams-ai/engineering-foundation/commit/9f7f091121da4486301d1cb7444373d9fa67cfac) Thanks [@777genius](https://github.com/777genius)! - Add the lazy `stack-toolchain/eslint-syntax` public export with the twenty retained TypeScript syntax rules, native Oxc parser and recommended ESLint configuration. Preserve consumer policy, directives, fixes and suggestions without initializing a TypeScript compiler.
+
+- [#462](https://github.com/agent-teams-ai/engineering-foundation/pull/462) [`b66641c`](https://github.com/agent-teams-ai/engineering-foundation/commit/b66641cad3e4ff2042872a8a1b66214cc775d5d2) Thanks [@777genius](https://github.com/777genius)! - Add opt-in native cleanup presets and an explicit-file `fix` command and `fixFiles`
+  API. Reuse the installed process owner and literal input protections while keeping
+  ordinary checks read-only. Default cleanup performs two bounded syntax fixes
+  and existing formatting without typed fixers, JavaScript plugins, import sorting,
+  Git discovery or automatic activation in consumer repositories.
+
+  Keep `prefer-const` diagnostic-only by default: direct eval can write local and
+  loop bindings that native binding analysis does not see.
+
 ## 0.2.0
 
 ### Minor Changes

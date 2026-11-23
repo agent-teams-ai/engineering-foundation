@@ -30,15 +30,6 @@ import type {
 export interface ImportDeclaration extends BaseNode {
   type: AST_NODE_TYPES.ImportDeclaration;
   /**
-   * The assertions declared for the export.
-   * @example
-   * ```ts
-   * import * from 'mod' assert \{ type: 'json' \};
-   * ```
-   * @deprecated Replaced with {@link `attributes`}.
-   */
-  assertions: ImportAttribute[];
-  /**
    * The attributes declared for the export.
    * @example
    * ```ts
@@ -86,15 +77,6 @@ export interface ImportDefaultSpecifier {
 }
 export interface ImportExpression extends BaseNode {
   type: AST_NODE_TYPES.ImportExpression;
-  /**
-   * The attributes declared for the dynamic import.
-   * @example
-   * ```ts
-   * import('mod', \{ assert: \{ type: 'json' \} \});
-   * ```
-   * @deprecated Replaced with {@link `options`}.
-   */
-  attributes: Expression | null;
   /**
    * The options bag declared for the dynamic import.
    * @example

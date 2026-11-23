@@ -80,7 +80,7 @@ export function isReferenceToGlobalFunction(
   const reference = sourceCode
     .getScope(node)
     .references.find((ref) => ref.identifier.name === calleeName);
-  return !reference?.resolved?.defs.length;
+  return (reference?.resolved?.defs.length ?? 0) === 0;
 }
 
 export function isDefinitionFile(fileName: string): boolean {

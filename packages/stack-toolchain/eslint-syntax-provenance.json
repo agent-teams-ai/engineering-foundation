@@ -47,7 +47,8 @@
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
         "Retained decision logic; checked array/scope invariants for strict indexed access.",
-        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules.",
+        "Make nullable boolean/string/length truthiness explicit without changing accepted option values, reporting or edits."
       ]
     },
     {
@@ -59,7 +60,8 @@
         "Retained decision logic; checked array/scope invariants for strict indexed access.",
         "Separate unchanged metadata, option translation, reporting, import edits and ambient handling into typed modules; pass per-rule state explicitly.",
         "Separate selection branches while preserving explicit-global, array-ignore, class, catch, parameter, ordinary-variable, using-declaration, rest-sibling and late-use order.",
-        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules.",
+        "Make nullable option truthiness explicit and express special message categories with ordered predicates; retain empty-pattern behavior, the inline-global guard and all diagnostics/fixes."
       ],
       "destinations": [
         "src/features/eslint-syntax/adapters/rules/no-unused-vars.ts",
@@ -82,7 +84,8 @@
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
         "Retained decision logic; checked array/scope invariants for strict indexed access.",
-        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules.",
+        "Make nullable boolean/string/length truthiness explicit without changing accepted option values, reporting or edits."
       ]
     },
     {
@@ -115,7 +118,8 @@
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
         "Retained decision logic; checked array/scope invariants for strict indexed access.",
-        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules.",
+        "Make nullable boolean/string/length truthiness explicit without changing accepted option values, reporting or edits."
       ]
     },
     {
@@ -126,7 +130,8 @@
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
         "Retained decision logic; checked array/scope invariants for strict indexed access.",
-        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules.",
+        "Make nullable boolean/string/length truthiness explicit without changing accepted option values, reporting or edits."
       ]
     },
     {
@@ -137,7 +142,8 @@
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
         "Retained decision logic; checked array/scope invariants for strict indexed access.",
-        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules.",
+        "Make nullable boolean/string/length truthiness explicit without changing accepted option values, reporting or edits."
       ]
     },
     {
@@ -159,7 +165,8 @@
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
         "Retained decision logic; checked array/scope invariants for strict indexed access.",
-        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules.",
+        "Make nullable boolean/string/length truthiness explicit without changing accepted option values, reporting or edits."
       ]
     },
     {
@@ -170,7 +177,8 @@
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
         "Retained decision logic; checked array/scope invariants for strict indexed access.",
-        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules.",
+        "Replace intentionally partial switches with ordered predicates preserving branch order and the original fallback."
       ]
     },
     {
@@ -192,7 +200,8 @@
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
         "Retained decision logic; checked array/scope invariants for strict indexed access.",
-        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules.",
+        "Make nullable boolean/string/length truthiness explicit without changing accepted option values, reporting or edits."
       ]
     },
     {
@@ -203,7 +212,8 @@
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
         "Retained decision logic; checked array/scope invariants for strict indexed access.",
-        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules.",
+        "Make nullable boolean/string/length truthiness explicit without changing accepted option values, reporting or edits."
       ]
     },
     {
@@ -214,7 +224,8 @@
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
         "Retained decision logic; checked array/scope invariants for strict indexed access.",
-        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules.",
+        "Replace intentionally partial switches with ordered predicates preserving branch order and the original fallback."
       ]
     },
     {
@@ -247,7 +258,8 @@
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
         "Retained decision logic; checked array/scope invariants for strict indexed access.",
         "Keep original Visitor, PatternVisitor and ImplicitLibVariable runtime identities; separate pure reference-classification functions without changing the shared program cache.",
-        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules.",
+        "Bind private method aliases to their owning visitor instance and express partial reference classification with ordered predicates; retain original constructors, traversal and per-program caches."
       ],
       "destinations": [
         "src/features/eslint-syntax/adapters/helpers/collectUnusedVariables.ts",
@@ -273,7 +285,8 @@
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
         "Retained decision logic; checked array/scope invariants for strict indexed access.",
-        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules.",
+        "Replace intentionally partial switches with ordered predicates preserving branch order and the original fallback."
       ]
     },
     {
@@ -317,7 +330,8 @@
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
         "Retained decision logic; checked array/scope invariants for strict indexed access.",
-        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules.",
+        "Replace intentionally partial switches with ordered predicates preserving branch order and the original fallback."
       ]
     },
     {
@@ -328,7 +342,8 @@
       "modifications": [
         "Public pure AST/scope imports; typed public ESLint contract; Node ESM extensions.",
         "Retained decision logic; checked array/scope invariants for strict indexed access.",
-        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules."
+        "Hoist capture-free functions and use single-evaluation null-or-undefined predicates where required by existing source lint rules.",
+        "Replace intentionally partial switches with ordered predicates preserving branch order and the original fallback."
       ]
     }
   ],
@@ -341,7 +356,8 @@
       "Retain the ESTree AST and parser-host parent relationships as private TypeScript source.",
       "Replace compiler-enum keys in internal operator maps with identifier keys; preserve every literal operator-value union.",
       "Exclude legacy Program/parser-options/compiler declarations.",
-      "Retain native null for absent child properties and use type-only declaration partitions to meet source maintainability budgets."
+      "Retain native null for absent child properties and use type-only declaration partitions to meet source maintainability budgets.",
+      "Omit deprecated import/export assertions, dynamic-import attributes, enum members, import-type argument and mapped-type typeParameter aliases absent from the qualified native AST; retain native computed, prefix and global fields, and native null for mapped readonly and absent expression directives."
     ],
     "artifactIntegrity": "sha512-O/1ytYzflF16QDKXx4/qOXg1IuZp+n7hr9t+S0nv7N/2Tl8rJiNCshztV1gcSUvHbPtoX3+zmNbtSAyVbzxVfw==",
     "sources": [
@@ -587,7 +603,8 @@
     ],
     "modifications": [
       "Use public typed host contracts and a constant membership set for always-disallowed node kinds; preserve unknown-kind fallthrough.",
-      "No private ESLint source imports at runtime."
+      "No private ESLint source imports at runtime.",
+      "Use the matching private string-enum constants and ordered partial predicates, with explicit optional-boolean checks; preserve every original side-effect and directive decision."
     ]
   },
   "scopeContract": {
@@ -744,7 +761,9 @@
       "Model only consumed public scope/reference/variable methods and discriminated definition shapes.",
       "Load checked public runtime constructors after exact manifest admission; never synthesize or copy constructor implementations.",
       "Require the parser to resolve the same physical scope module before parser initialization.",
-      "Require the actual parser result to retain the admitted original ScopeManager constructor identity; preserve the earlier version and physical-resolution checks before parser initialization."
+      "Require the actual parser result to retain the admitted original ScopeManager constructor identity; preserve the earlier version and physical-resolution checks before parser initialization.",
+      "Admit explicit undefined in ESLint-added inline-global-comment metadata, matching ESLint 10.3 SourceCode assignment and preserving the original report guard.",
+      "Bind the retained private visitor method aliases to their own visitor instance; preserve original public Visitor/PatternVisitor/ImplicitLibVariable/ScopeManager constructors and per-program caches."
     ]
   },
   "authoredBoundaries": [

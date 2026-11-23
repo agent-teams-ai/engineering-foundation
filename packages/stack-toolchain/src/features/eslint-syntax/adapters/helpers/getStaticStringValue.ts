@@ -18,33 +18,27 @@ import { isNullLiteral } from "./isNullLiteral.js";
  * @returns String value if it can be determined. Otherwise, `null`.
  */
 export function getStaticStringValue(node: TSESTree.Node): string | null {
-  switch (node.type) {
-    case AST_NODE_TYPES.Literal:
-      if (node.value === null) {
-        if (isNullLiteral(node)) {
-          return String(node.value); // "null"
-        }
-        if ("regex" in node) {
-          return `/${node.regex.pattern}/${node.regex.flags}`;
-        }
-
-        if ("bigint" in node) {
-          return node.bigint;
-        }
-
-        // Otherwise, this is an unknown literal. The function will return null.
-      } else {
-        return String(node.value);
+  if (node.type === AST_NODE_TYPES.Literal) {
+    if (node.value === null) {
+      if (isNullLiteral(node)) {
+        return String(node.value); // "null"
       }
-      break;
-
-    case AST_NODE_TYPES.TemplateLiteral:
-      if (node.expressions.length === 0 && node.quasis.length === 1) {
-        return nullThrows(node.quasis[0], "Static template must have one quasi.").value.cooked;
+      if ("regex" in node) {
+        return `/${node.regex.pattern}/${node.regex.flags}`;
       }
-      break;
 
-    // no default
+      if ("bigint" in node) {
+        return node.bigint;
+      }
+
+      // Otherwise, this is an unknown literal. The function will return null.
+    } else {
+      return String(node.value);
+    }
+  } else if (node.type === AST_NODE_TYPES.TemplateLiteral) {
+    if (node.expressions.length === 0 && node.quasis.length === 1) {
+      return nullThrows(node.quasis[0], "Static template must have one quasi.").value.cooked;
+    }
   }
 
   return null;

@@ -31,40 +31,40 @@ class UnusedVarsVisitor extends Visitor {
    */
   private static readonly RESULTS_CACHE = new WeakMap<TSESTree.Program, VariableAnalysis>();
 
-  protected ClassDeclaration = this.visitClass;
+  protected ClassDeclaration = this.visitClass.bind(this);
 
-  protected ClassExpression = this.visitClass;
+  protected ClassExpression = this.visitClass.bind(this);
 
-  protected ForInStatement = this.visitForInForOf;
+  protected ForInStatement = this.visitForInForOf.bind(this);
 
-  protected ForOfStatement = this.visitForInForOf;
+  protected ForOfStatement = this.visitForInForOf.bind(this);
 
   //#region HELPERS
 
-  protected FunctionDeclaration = this.visitFunction;
+  protected FunctionDeclaration = this.visitFunction.bind(this);
 
-  protected FunctionExpression = this.visitFunction;
-  protected MethodDefinition = this.visitSetter;
-  protected Property = this.visitSetter;
+  protected FunctionExpression = this.visitFunction.bind(this);
+  protected MethodDefinition = this.visitSetter.bind(this);
+  protected Property = this.visitSetter.bind(this);
 
-  protected TSCallSignatureDeclaration = this.visitFunctionTypeSignature;
+  protected TSCallSignatureDeclaration = this.visitFunctionTypeSignature.bind(this);
 
-  protected TSConstructorType = this.visitFunctionTypeSignature;
+  protected TSConstructorType = this.visitFunctionTypeSignature.bind(this);
 
-  protected TSConstructSignatureDeclaration = this.visitFunctionTypeSignature;
+  protected TSConstructSignatureDeclaration = this.visitFunctionTypeSignature.bind(this);
 
-  protected TSDeclareFunction = this.visitFunctionTypeSignature;
+  protected TSDeclareFunction = this.visitFunctionTypeSignature.bind(this);
 
-  protected TSEmptyBodyFunctionExpression = this.visitFunctionTypeSignature;
+  protected TSEmptyBodyFunctionExpression = this.visitFunctionTypeSignature.bind(this);
 
   //#endregion HELPERS
 
   //#region VISITORS
   // NOTE - This is a simple visitor - meaning it does not support selectors
 
-  protected TSFunctionType = this.visitFunctionTypeSignature;
+  protected TSFunctionType = this.visitFunctionTypeSignature.bind(this);
 
-  protected TSMethodSignature = this.visitFunctionTypeSignature;
+  protected TSMethodSignature = this.visitFunctionTypeSignature.bind(this);
 
   readonly #scopeManager: Scope.ScopeManager;
 

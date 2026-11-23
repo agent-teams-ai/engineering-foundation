@@ -154,7 +154,7 @@ export default createRule<Options, MessageIds>({
       TSAnyKeyword(node): void {
         const isKeyofAny = isNodeWithinKeyofAny(node);
 
-        if (ignoreRestArgs && isNodeDescendantOfRestElementInFunction(node)) {
+        if (ignoreRestArgs === true && isNodeDescendantOfRestElementInFunction(node)) {
           return;
         }
 
@@ -182,7 +182,7 @@ export default createRule<Options, MessageIds>({
               ],
         };
 
-        if (fixToUnknown) {
+        if (fixToUnknown === true) {
           fixOrSuggest.fix = isKeyofAny
             ? createPropertyKeyFixer(node)
             : (fixer) => fixer.replaceText(node, "unknown");

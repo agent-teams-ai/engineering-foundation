@@ -16,7 +16,6 @@ import type {
   TSTypeAnnotation,
   TSTypeParameterDeclaration,
   TSTypeParameterInstantiation,
-  TypeNode,
 } from "../ast.js";
 
 export interface TSDeclareFunctionWithDeclare extends TSDeclareFunctionBase {
@@ -71,11 +70,6 @@ export interface TSEnumDeclaration extends BaseNode {
    * The enum name.
    */
   id: Identifier;
-  /**
-   * The enum members.
-   * @deprecated Use {@link body} instead.
-   */
-  members: TSEnumMember[];
 }
 export interface TSEnumMember extends BaseNode {
   type: AST_NODE_TYPES.TSEnumMember;
@@ -166,8 +160,6 @@ export interface TSImportEqualsRequireDeclaration extends TSImportEqualsDeclarat
 }
 export interface TSImportType extends BaseNode {
   type: AST_NODE_TYPES.TSImportType;
-  /** @deprecated Use {@link `source`} instead. */
-  argument: TypeNode;
   options: ObjectExpression | null;
   qualifier: EntityName | null;
   source: StringLiteral;

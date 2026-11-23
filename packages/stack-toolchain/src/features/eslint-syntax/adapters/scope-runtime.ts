@@ -28,7 +28,7 @@ export interface ScopeVariable {
   readonly scope: Scope;
   readonly isTypeVariable?: boolean;
   readonly isValueVariable?: boolean;
-  eslintExplicitGlobalComments?: TSESTree.Comment[];
+  eslintExplicitGlobalComments?: TSESTree.Comment[] | undefined;
 }
 
 export interface Reference {

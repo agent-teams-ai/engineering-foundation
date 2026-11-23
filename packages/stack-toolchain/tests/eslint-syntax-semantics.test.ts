@@ -92,6 +92,36 @@ void test("unused-variable options retain rest siblings, caught errors and ignor
   expectReports("no-unused-vars", "/* global «unused» */", ["unusedVar"], [], "fixture.js");
 });
 
+void test("unused configured globals tolerate explicit undefined inline-comment metadata", () => {
+  const config = ruleConfig("no-unused-vars");
+  config.languageOptions = {
+    ...config.languageOptions,
+    globals: { configured: "readonly" },
+  };
+  const linter = new Linter();
+  assert.deepEqual(
+    linter.verify("export const ready = 1;", [config], { filename: "fixture.ts" }),
+    [],
+  );
+  const { code, spans } = markedSource("/* global «configured» */");
+  const messages = linter.verify(code, [config], { filename: "fixture.ts" });
+  assert.deepEqual(
+    messages.map(({ ruleId, messageId, line, column, endLine, endColumn }) => ({
+      ruleId,
+      messageId,
+      line,
+      column,
+      endLine,
+      endColumn,
+    })),
+    spans.map((span) => ({
+      ruleId: "@typescript-eslint/no-unused-vars",
+      messageId: "unusedVar",
+      ...span,
+    })),
+  );
+});
+
 void test("unused-expression options preserve all branches and native TypeScript wrappers", () => {
   for (const code of [
     "condition && call();",

@@ -93,15 +93,14 @@ function getTypeReferenceName(
   node: TSESTree.EntityName | TSESTree.TSTypeAnnotation | TSESTree.TypeNode | null | undefined,
 ): string | null {
   if (node) {
-    switch (node.type) {
-      case AST_NODE_TYPES.TSTypeAnnotation:
-        return getTypeReferenceName(node.typeAnnotation);
-      case AST_NODE_TYPES.TSTypeReference:
-        return getTypeReferenceName(node.typeName);
-      case AST_NODE_TYPES.Identifier:
-        return node.name;
-      default:
-        break;
+    if (node.type === AST_NODE_TYPES.TSTypeAnnotation) {
+      return getTypeReferenceName(node.typeAnnotation);
+    }
+    if (node.type === AST_NODE_TYPES.TSTypeReference) {
+      return getTypeReferenceName(node.typeName);
+    }
+    if (node.type === AST_NODE_TYPES.Identifier) {
+      return node.name;
     }
   }
   return null;

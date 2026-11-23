@@ -236,8 +236,8 @@ contracts with runtime fixtures, not inferred by a new selector engine.
 | Parser admission and one-rule strict prototype                               | Complete in the bounded Linux scope above.                                                                                                                            |
 | Plan and public owner navigation                                             | Committed before implementation in the existing draft PR.                                                                                                             |
 | All twenty retained rules, native parser admission and strict type boundary  | Implemented; exact-source Node 26.11.1 / TypeScript 7.0.2 source and test projects pass.                                                                              |
-| Independent rule, semantic, parser, admission, load and declaration fixtures | 51/51 pass on Linux x64 with zero skipped tests; exact diagnostics, fixes, suggestions and rejecting controls included.                                               |
-| Source budgets and scoped cleanup                                            | Existing syntax and maintainability presets report zero diagnostics; source-owned explicit-file cleanup completes.                                                    |
+| Independent rule, semantic, parser, admission, load and declaration fixtures | 53/53 pass on Linux x64 with zero skipped tests; exact diagnostics, fixes, suggestions and rejecting controls included.                                               |
+| Source budgets and scoped cleanup                                            | Existing syntax, typed-lint and maintainability presets report zero diagnostics; source-owned explicit-file cleanup completes.                                        |
 | Dependencies, metadata and real manager lockfiles                            | Implemented; both locks generated with admitted managers and all tracked install inputs; frozen lock-only revalidation passes. Installation is a separate gate.       |
 | Foundation changed/fast/workflow-security preflight and packed consumers     | Pending ordinary exact-runtime producer preparation; not replaced by the focused checks.                                                                              |
 | Independent final-source review and complete native CI                       | Parser/scope admission, retained rules and final unused-variable modularization reviewed without an outstanding blocking finding; complete native CI remains pending. |
@@ -331,3 +331,34 @@ initialization sentinels, and add an independent foreign-manager rejection.
 These changes introduce no dependency-edge exception or policy relaxation.
 Focused strict source and test projects and all 51 runtime fixtures pass on the
 corrected working source; final producer and native CI gates remain required.
+
+The first explicitly requested full matrix identified 74 typed-lint findings in
+retained source after the complete PR feedback gate had passed. The correction
+keeps the required rules: optional boolean/string/length truthiness is explicit,
+partial syntax classifiers retain their ordered fallback, the core uses the
+matching string-enum constants, and private visitor aliases bind their original
+instance. All rule decisions, diagnostics and edits remain covered by the
+independent fixtures. The focused typed preset was verified byte-for-byte against
+the integrity-checked registry Stack 0.1.0 artifact before running native
+Oxlint 1.83.0 with oxlint-tsgolint 7.0.2001.
+
+Final contract review also removed nine deprecated aliases absent from the native
+AST, retained actual enum/member/module compatibility fields, and admitted native
+null for mapped readonly and absent expression directives. ESLint explicitly
+assigns undefined inline-global-comment metadata, so the scope declaration admits
+that state and the original guard remains. Literal parser-shape and configured-
+global fixtures cover these boundaries. The first explicit directive check
+incorrectly excluded undefined only; the runtime fixture rejected that null
+regression, and the corrected string guard passes. Failed receipts are retained.
+The corrected strict source/test projects, typed lint and 53 runtime cases pass
+in the bounded Linux profile; these results do not replace the full native matrix.
+
+The installed Linux npm and macOS pnpm producer paths reached the new public
+runtime before rejecting the negative type fixture: ESLint's generic
+`Linter.Config` admits open language options, so assigning its parser slot a
+number was not a valid rejecting oracle. The fixture now imports the actual
+published parser and assigns a number to `typeof parser`; the positive fixture
+also requires assignment to `Linter.Parser`. The exact TS2322, source path,
+nonzero exit and non-signal assertions remain. The existing helper passes against
+the emitted source package; real packed/registry and native-platform runs remain
+separate required evidence.

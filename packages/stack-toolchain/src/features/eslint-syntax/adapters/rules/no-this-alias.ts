@@ -58,7 +58,7 @@ export default createRule<Options, MessageIds>({
         node: TSESTree.AssignmentExpression | TSESTree.VariableDeclarator,
       ): void {
         const id = node.type === AST_NODE_TYPES.VariableDeclarator ? node.id : node.left;
-        if (allowDestructuring && id.type !== AST_NODE_TYPES.Identifier) {
+        if (allowDestructuring === true && id.type !== AST_NODE_TYPES.Identifier) {
           return;
         }
 

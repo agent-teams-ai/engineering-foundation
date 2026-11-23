@@ -66,7 +66,7 @@ function ignoredArrayElement(
   if (
     (def.name.parent.type === AST_NODE_TYPES.ArrayPattern || refUsedInArrayPatterns) &&
     def.name.type === AST_NODE_TYPES.Identifier &&
-    state.options.destructuredArrayIgnorePattern?.test(def.name.name)
+    state.options.destructuredArrayIgnorePattern?.test(def.name.name) === true
   ) {
     reportIgnored(state, variable, used, VariableType.ArrayDestructure);
     return true;
@@ -86,7 +86,7 @@ function ignoredParameter(
   }
   if (
     def.name.type === AST_NODE_TYPES.Identifier &&
-    options.argsIgnorePattern?.test(def.name.name)
+    options.argsIgnorePattern?.test(def.name.name) === true
   ) {
     reportIgnored(state, variable, used, VariableType.Parameter);
     return true;
@@ -109,7 +109,7 @@ function ignoredDefinition(
     if (options.caughtErrors === "none") {
       return true;
     }
-    if (options.caughtErrorsIgnorePattern?.test(def.name.name)) {
+    if (options.caughtErrorsIgnorePattern?.test(def.name.name) === true) {
       reportIgnored(state, variable, used, VariableType.CatchClause);
       return true;
     }
@@ -117,7 +117,7 @@ function ignoredDefinition(
     return ignoredParameter(state, def, variable, used);
   } else if (
     def.name.type === AST_NODE_TYPES.Identifier &&
-    options.varsIgnorePattern?.test(def.name.name)
+    options.varsIgnorePattern?.test(def.name.name) === true
   ) {
     // Enum members are intrinsically marked used, so their names must not produce this report.
     if (def.type !== DefinitionType.TSEnumMember) {

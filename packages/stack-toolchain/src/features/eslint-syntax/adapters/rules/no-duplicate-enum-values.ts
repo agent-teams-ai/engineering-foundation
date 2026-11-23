@@ -23,26 +23,24 @@ export default createRule({
   defaultOptions: [],
   create(context) {
     function getMemberValue(initializer: TSESTree.Expression): number | string | undefined {
-      switch (true) {
-        case isStringLiteral(initializer):
-        case isNumberLiteral(initializer):
-          return initializer.value;
-        case isSupportedUnary(initializer): {
-          const inner = Number(getMemberValue(initializer.argument));
-          if (Number.isNaN(inner)) {
-            return undefined;
-          }
-
-          return initializer.operator === "-" ? -inner : inner;
-        }
-        case isStaticTemplateLiteral(initializer):
-          return (
-            nullThrows(initializer.quasis[0], "Static template must have one quasi.").value
-              .cooked ?? undefined
-          );
-        default:
-          return undefined;
+      if (isStringLiteral(initializer) || isNumberLiteral(initializer)) {
+        return initializer.value;
       }
+      if (isSupportedUnary(initializer)) {
+        const inner = Number(getMemberValue(initializer.argument));
+        if (Number.isNaN(inner)) {
+          return undefined;
+        }
+
+        return initializer.operator === "-" ? -inner : inner;
+      }
+      if (isStaticTemplateLiteral(initializer)) {
+        return (
+          nullThrows(initializer.quasis[0], "Static template must have one quasi.").value.cooked ??
+          undefined
+        );
+      }
+      return undefined;
     }
 
     return {

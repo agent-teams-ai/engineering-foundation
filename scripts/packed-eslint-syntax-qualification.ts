@@ -63,6 +63,7 @@ console.log("packed-eslint-syntax-runtime: PASS");
 const publicTypeConsumer = `
 import { configs, parser, plugin } from "stack-toolchain/eslint-syntax";
 import type { Linter } from "eslint";
+export const syntaxParser: Linter.Parser = parser;
 export const configuration: Linter.Config[] = [
   ...configs.recommended,
   { languageOptions: { parser }, plugins: { retained: plugin } },
@@ -175,7 +176,7 @@ async function qualifyPublicTypes(root: string, compiler: string): Promise<void>
   await runCommand(process.execPath, args, root);
   await writeFile(
     join(root, "negative.ts"),
-    'import type { Linter } from "eslint";\nconst invalid: Linter.Config = { languageOptions: { parser: 42 } };\nvoid invalid;\n',
+    'import { parser } from "stack-toolchain/eslint-syntax";\nconst invalid: typeof parser = 42;\nvoid invalid;\n',
   );
   await writeFile(
     join(root, "tsconfig.json"),

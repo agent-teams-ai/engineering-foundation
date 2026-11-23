@@ -87,15 +87,6 @@ export type EntityName = Identifier | ThisExpression | TSQualifiedName;
 export interface ExportAllDeclaration extends BaseNode {
   type: AST_NODE_TYPES.ExportAllDeclaration;
   /**
-   * The assertions declared for the export.
-   * @example
-   * ```ts
-   * export * from 'mod' assert \{ type: 'json' \};
-   * ```
-   * @deprecated Replaced with {@link `attributes`}.
-   */
-  assertions: ImportAttribute[];
-  /**
    * The attributes declared for the export.
    * @example
    * ```ts
@@ -139,16 +130,6 @@ export type ExportNamedDeclaration =
   | ExportNamedDeclarationWithSource;
 export interface ExportNamedDeclarationBase extends BaseNode {
   type: AST_NODE_TYPES.ExportNamedDeclaration;
-  /**
-   * The assertions declared for the export.
-   * @example
-   * ```ts
-   * export { foo } from 'mod' assert \{ type: 'json' \};
-   * ```
-   * This will be an empty array if `source` is `null`
-   * @deprecated Replaced with {@link `attributes`}.
-   */
-  assertions: ImportAttribute[];
   /**
    * The attributes declared for the export.
    * @example

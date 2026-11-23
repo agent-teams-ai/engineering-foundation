@@ -46,6 +46,7 @@ void test("native absent children retain their actual null shape without normali
     ["FunctionDeclaration", "returnType"],
     ["TSDeclareFunction", "body"],
     ["PropertyDefinition", "typeAnnotation"],
+    ["ExpressionStatement", "directive"],
   ] as const;
   for (const [type, property] of checks) {
     const node = all.find((candidate) => candidate["type"] === type);
@@ -53,6 +54,64 @@ void test("native absent children retain their actual null shape without normali
     assert.equal(node[property], null, `${type}.${property}`);
   }
   assert.deepEqual(result["services"], {});
+});
+
+void test("native syntax fields omit deprecated aliases while retaining real compatibility fields", () => {
+  const result = parse(
+    [
+      'import value from "one" with { type: "json" };',
+      'export * from "two" with { type: "json" };',
+      "export { value };",
+      'export { remote } from "three";',
+      'export type Imported = import("four").Value;',
+      "export type Mapped<T> = { [K in keyof T]: T[K] };",
+      "export enum Choice { One }",
+      'void import("five");',
+      "!value;",
+      "declare namespace N { type X = string; }",
+      "declare global { interface Window { x: number; } }",
+    ].join("\n"),
+  );
+  const all = nodes(result["ast"]);
+  for (const [type, alias] of [
+    ["TSImportType", "argument"],
+    ["TSEnumDeclaration", "members"],
+    ["TSMappedType", "typeParameter"],
+    ["ImportDeclaration", "assertions"],
+    ["ExportAllDeclaration", "assertions"],
+    ["ExportNamedDeclaration", "assertions"],
+    ["ImportExpression", "attributes"],
+  ] as const) {
+    const matches = all.filter((node) => node["type"] === type);
+    assert.ok(matches.length > 0, type);
+    for (const node of matches) {
+      assert.equal(alias in node, false, `${type}.${alias}`);
+    }
+  }
+  const importType = all.find((node) => node["type"] === "TSImportType");
+  assert.ok(importType);
+  assert.equal(record(importType["source"])["value"], "four");
+  const mapped = all.find((node) => node["type"] === "TSMappedType");
+  assert.ok(mapped);
+  assert.equal(record(mapped["key"])["name"], "K");
+  assert.equal(mapped["optional"], false);
+  assert.equal(mapped["readonly"], null);
+  const member = all.find((node) => node["type"] === "TSEnumMember");
+  assert.ok(member);
+  assert.equal(member["computed"], false);
+  const unary = all.find((node) => node["type"] === "UnaryExpression");
+  assert.ok(unary);
+  assert.equal(unary["prefix"], true);
+  for (const [kind, global] of [
+    ["namespace", false],
+    ["global", true],
+  ] as const) {
+    const module = all.find(
+      (node) => node["type"] === "TSModuleDeclaration" && node["kind"] === kind,
+    );
+    assert.ok(module, kind);
+    assert.equal(module["global"], global);
+  }
 });
 
 void test("native library variables preserve the admitted nominal constructor identity", () => {

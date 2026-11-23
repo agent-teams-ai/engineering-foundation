@@ -313,30 +313,27 @@ function isStorableFunction(funcNode: TSESTree.Node, rhsNode: TSESTree.Node): bo
   let parent = funcNode.parent;
 
   while (parent && isInside(parent, rhsNode)) {
-    switch (parent.type) {
-      case AST_NODE_TYPES.SequenceExpression:
-        if (parent.expressions[parent.expressions.length - 1] !== node) {
-          return false;
-        }
-        break;
-
-      case AST_NODE_TYPES.CallExpression:
-      case AST_NODE_TYPES.NewExpression:
-        return parent.callee !== node;
-
-      case AST_NODE_TYPES.AssignmentExpression:
-      case AST_NODE_TYPES.TaggedTemplateExpression:
-      case AST_NODE_TYPES.YieldExpression:
-        return true;
-
-      default:
-        if (parent.type.endsWith("Statement") || parent.type.endsWith("Declaration")) {
-          /*
-           * If it encountered statements, this is a complex pattern.
-           * Since analyzing complex patterns is hard, this returns `true` to avoid false positive.
-           */
-          return true;
-        }
+    if (parent.type === AST_NODE_TYPES.SequenceExpression) {
+      if (parent.expressions[parent.expressions.length - 1] !== node) {
+        return false;
+      }
+    } else if (
+      parent.type === AST_NODE_TYPES.CallExpression ||
+      parent.type === AST_NODE_TYPES.NewExpression
+    ) {
+      return parent.callee !== node;
+    } else if (
+      parent.type === AST_NODE_TYPES.AssignmentExpression ||
+      parent.type === AST_NODE_TYPES.TaggedTemplateExpression ||
+      parent.type === AST_NODE_TYPES.YieldExpression
+    ) {
+      return true;
+    } else if (parent.type.endsWith("Statement") || parent.type.endsWith("Declaration")) {
+      /*
+       * If it encountered statements, this is a complex pattern.
+       * Since analyzing complex patterns is hard, this returns `true` to avoid false positive.
+       */
+      return true;
     }
 
     node = parent;

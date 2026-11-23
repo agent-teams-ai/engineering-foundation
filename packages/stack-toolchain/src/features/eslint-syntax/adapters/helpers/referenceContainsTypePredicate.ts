@@ -7,15 +7,11 @@ import { AST_NODE_TYPES } from "../ast.js";
  * Recursively checks whether a given reference is used in a type predicate (e.g., `arg is string`)
  */
 export function referenceContainsTypePredicate(node: TSESTree.Node): boolean {
-  switch (node.type) {
-    case AST_NODE_TYPES.TSTypePredicate:
-      return true;
-
-    case AST_NODE_TYPES.TSQualifiedName:
-    case AST_NODE_TYPES.Identifier:
-      return referenceContainsTypePredicate(node.parent);
-
-    default:
-      return false;
+  if (node.type === AST_NODE_TYPES.TSTypePredicate) {
+    return true;
   }
+  if (node.type === AST_NODE_TYPES.TSQualifiedName || node.type === AST_NODE_TYPES.Identifier) {
+    return referenceContainsTypePredicate(node.parent);
+  }
+  return false;
 }

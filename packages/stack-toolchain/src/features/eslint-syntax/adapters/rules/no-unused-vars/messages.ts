@@ -63,31 +63,28 @@ export function getVariableDescription(
 } {
   const { options } = state;
 
-  switch (variableType) {
-    case VariableType.ArrayDestructure:
-      return {
-        pattern: options.destructuredArrayIgnorePattern?.toString(),
-        variableDescription: "elements of array destructuring",
-      };
-
-    case VariableType.CatchClause:
-      return {
-        pattern: options.caughtErrorsIgnorePattern?.toString(),
-        variableDescription: "caught errors",
-      };
-
-    case VariableType.Parameter:
-      return {
-        pattern: options.argsIgnorePattern?.toString(),
-        variableDescription: "args",
-      };
-
-    default:
-      return {
-        pattern: options.varsIgnorePattern?.toString(),
-        variableDescription: "vars",
-      };
+  if (variableType === VariableType.ArrayDestructure) {
+    return {
+      pattern: options.destructuredArrayIgnorePattern?.toString(),
+      variableDescription: "elements of array destructuring",
+    };
   }
+  if (variableType === VariableType.CatchClause) {
+    return {
+      pattern: options.caughtErrorsIgnorePattern?.toString(),
+      variableDescription: "caught errors",
+    };
+  }
+  if (variableType === VariableType.Parameter) {
+    return {
+      pattern: options.argsIgnorePattern?.toString(),
+      variableDescription: "args",
+    };
+  }
+  return {
+    pattern: options.varsIgnorePattern?.toString(),
+    variableDescription: "vars",
+  };
 }
 
 export function getDefinedMessageData(
@@ -103,7 +100,7 @@ export function getDefinedMessageData(
       defToVariableType(state, def).type,
     );
 
-    if (pattern && variableDescription) {
+    if (pattern !== undefined && pattern.length > 0 && variableDescription.length > 0) {
       additionalMessageData = `. Allowed unused ${variableDescription} must match ${pattern}`;
     }
   }
@@ -128,7 +125,7 @@ export function getAssignedMessageData(
       defToVariableType(state, def).type,
     );
 
-    if (pattern && variableDescription) {
+    if (pattern !== undefined && pattern.length > 0 && variableDescription.length > 0) {
       additionalMessageData = `. Allowed unused ${variableDescription} must match ${pattern}`;
     }
   }
@@ -149,7 +146,7 @@ export function getUsedIgnoredMessageData(
 
   let additionalMessageData = "";
 
-  if (pattern && variableDescription) {
+  if (pattern !== undefined && pattern.length > 0 && variableDescription.length > 0) {
     additionalMessageData = `. Used ${variableDescription} must not match ${pattern}`;
   }
 

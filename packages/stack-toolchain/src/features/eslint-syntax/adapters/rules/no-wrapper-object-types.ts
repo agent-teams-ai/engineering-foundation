@@ -40,7 +40,8 @@ export default createRule({
     ): void {
       const typeName = node.type === AST_NODE_TYPES.Identifier && node.name;
       if (
-        !typeName ||
+        typeName === false ||
+        typeName.length === 0 ||
         !classNames.has(typeName) ||
         !isReferenceToGlobalFunction(typeName, node, context.sourceCode)
       ) {

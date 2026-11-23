@@ -2,6 +2,7 @@
 // Source and helper provenance are recorded in eslint-syntax-provenance.json.
 import type { RulesMeta } from "@eslint/core";
 import type * as TSESTree from "./ast.js";
+import { AST_NODE_TYPES } from "./ast.js";
 import type { RuleContext } from "./rule-contract.js";
 import { isFunction } from "./source-helpers.js";
 
@@ -20,17 +21,17 @@ function isDirectivePrologue(node: TSESTree.ExpressionStatement): boolean {
   const parent = node.parent;
   if (
     !(
-      parent.type === "Program" ||
-      parent.type === "TSModuleBlock" ||
-      (parent.type === "BlockStatement" && isFunction(parent.parent))
+      parent.type === AST_NODE_TYPES.Program ||
+      parent.type === AST_NODE_TYPES.TSModuleBlock ||
+      (parent.type === AST_NODE_TYPES.BlockStatement && isFunction(parent.parent))
     )
   ) {
     return false;
   }
   for (const sibling of parent.body) {
     if (
-      sibling.type !== "ExpressionStatement" ||
-      sibling.expression.type !== "Literal" ||
+      sibling.type !== AST_NODE_TYPES.ExpressionStatement ||
+      sibling.expression.type !== AST_NODE_TYPES.Literal ||
       typeof sibling.expression.value !== "string"
     ) {
       return false;
@@ -91,29 +92,33 @@ export const unusedExpressionCore = {
       if (alwaysDisallowed.has(node.type)) {
         return true;
       }
-      switch (node.type) {
-        case "ChainExpression":
-        case "TSAsExpression":
-        case "TSTypeAssertion":
-        case "TSNonNullExpression":
-        case "TSInstantiationExpression":
-          return isDisallowed(node.expression);
-        case "ConditionalExpression":
-          return allowTernary
-            ? isDisallowed(node.consequent) || isDisallowed(node.alternate)
-            : true;
-        case "LogicalExpression":
-          return allowShortCircuit ? isDisallowed(node.right) : true;
-        case "JSXElement":
-        case "JSXFragment":
-          return enforceForJSX === true;
-        case "TaggedTemplateExpression":
-          return !allowTaggedTemplates;
-        case "UnaryExpression":
-          return node.operator !== "void" && node.operator !== "delete";
-        default:
-          return false;
+      if (
+        node.type === AST_NODE_TYPES.ChainExpression ||
+        node.type === AST_NODE_TYPES.TSAsExpression ||
+        node.type === AST_NODE_TYPES.TSTypeAssertion ||
+        node.type === AST_NODE_TYPES.TSNonNullExpression ||
+        node.type === AST_NODE_TYPES.TSInstantiationExpression
+      ) {
+        return isDisallowed(node.expression);
       }
+      if (node.type === AST_NODE_TYPES.ConditionalExpression) {
+        return allowTernary === true
+          ? isDisallowed(node.consequent) || isDisallowed(node.alternate)
+          : true;
+      }
+      if (node.type === AST_NODE_TYPES.LogicalExpression) {
+        return allowShortCircuit === true ? isDisallowed(node.right) : true;
+      }
+      if (node.type === AST_NODE_TYPES.JSXElement || node.type === AST_NODE_TYPES.JSXFragment) {
+        return enforceForJSX === true;
+      }
+      if (node.type === AST_NODE_TYPES.TaggedTemplateExpression) {
+        return allowTaggedTemplates !== true;
+      }
+      if (node.type === AST_NODE_TYPES.UnaryExpression) {
+        return node.operator !== "void" && node.operator !== "delete";
+      }
+      return false;
     }
 
     return {
@@ -121,7 +126,7 @@ export const unusedExpressionCore = {
         if (
           isDisallowed(node.expression) &&
           typeof node.directive !== "string" &&
-          !(ignoreDirectives && isDirectivePrologue(node))
+          !(ignoreDirectives === true && isDirectivePrologue(node))
         ) {
           context.report({ node, messageId: "unusedExpression" });
         }

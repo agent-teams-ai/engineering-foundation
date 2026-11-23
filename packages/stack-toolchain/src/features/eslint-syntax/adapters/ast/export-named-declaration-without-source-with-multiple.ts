@@ -55,11 +55,6 @@ import type {
 export interface ExportNamedDeclarationWithoutSourceWithMultiple extends ExportNamedDeclarationBase {
   /**
    * This will always be an empty array.
-   * @deprecated Replaced with {@link `attributes`}.
-   */
-  assertions: ImportAttribute[];
-  /**
-   * This will always be an empty array.
    */
   attributes: ImportAttribute[];
   declaration: null;
@@ -76,11 +71,6 @@ export interface ExportNamedDeclarationWithoutSourceWithMultiple {
   parent: BlockStatement | Program | TSModuleBlock;
 }
 export interface ExportNamedDeclarationWithoutSourceWithSingle extends ExportNamedDeclarationBase {
-  /**
-   * This will always be an empty array.
-   * @deprecated Replaced with {@link `attributes`}.
-   */
-  assertions: ImportAttribute[];
   /**
    * This will always be an empty array.
    */
@@ -160,7 +150,7 @@ export type Expression =
   | YieldExpression;
 export interface ExpressionStatement extends BaseNode {
   type: AST_NODE_TYPES.ExpressionStatement;
-  directive: string | undefined;
+  directive: string | undefined | null;
   expression: Expression;
 }
 export interface ForInStatement extends BaseNode {

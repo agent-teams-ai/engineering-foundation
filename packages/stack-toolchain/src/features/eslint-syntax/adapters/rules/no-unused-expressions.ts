@@ -48,7 +48,10 @@ export default createRule<Options, MessageIds>({
 
     return {
       ExpressionStatement(node): void {
-        if (node.directive || isValidExpression(node.expression)) {
+        if (
+          (typeof node.directive === "string" && node.directive.length > 0) ||
+          isValidExpression(node.expression)
+        ) {
           return;
         }
 

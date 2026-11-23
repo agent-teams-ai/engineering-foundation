@@ -31,19 +31,25 @@ export function translateOptions(firstOption: Options[0]): TranslatedOptions {
     options.reportUsedIgnorePattern =
       firstOption.reportUsedIgnorePattern ?? options.reportUsedIgnorePattern;
 
-    if (firstOption.varsIgnorePattern) {
+    if (firstOption.varsIgnorePattern !== undefined && firstOption.varsIgnorePattern.length > 0) {
       options.varsIgnorePattern = new RegExp(firstOption.varsIgnorePattern, "u");
     }
 
-    if (firstOption.argsIgnorePattern) {
+    if (firstOption.argsIgnorePattern !== undefined && firstOption.argsIgnorePattern.length > 0) {
       options.argsIgnorePattern = new RegExp(firstOption.argsIgnorePattern, "u");
     }
 
-    if (firstOption.caughtErrorsIgnorePattern) {
+    if (
+      firstOption.caughtErrorsIgnorePattern !== undefined &&
+      firstOption.caughtErrorsIgnorePattern.length > 0
+    ) {
       options.caughtErrorsIgnorePattern = new RegExp(firstOption.caughtErrorsIgnorePattern, "u");
     }
 
-    if (firstOption.destructuredArrayIgnorePattern) {
+    if (
+      firstOption.destructuredArrayIgnorePattern !== undefined &&
+      firstOption.destructuredArrayIgnorePattern.length > 0
+    ) {
       options.destructuredArrayIgnorePattern = new RegExp(
         firstOption.destructuredArrayIgnorePattern,
         "u",

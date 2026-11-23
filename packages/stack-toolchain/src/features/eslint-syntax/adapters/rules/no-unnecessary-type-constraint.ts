@@ -58,7 +58,7 @@ export default createRule({
         );
       }
 
-      if (constraint) {
+      if (constraint !== undefined && constraint.length > 0) {
         context.report({
           node,
           messageId: "unnecessaryConstraint",

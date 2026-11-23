@@ -140,7 +140,7 @@ export function report(
       return {};
     }
 
-    if (useAutofix) {
+    if (useAutofix === true) {
       return { fix };
     }
 

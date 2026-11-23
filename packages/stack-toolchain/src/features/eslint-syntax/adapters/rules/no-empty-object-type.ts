@@ -82,12 +82,15 @@ export default createRule<Options, MessageIds>({
     },
   ],
   create(context, [{ allowInterfaces, allowObjectTypes, allowWithName }]) {
-    const allowWithNameTester = allowWithName ? new RegExp(allowWithName, "u") : undefined;
+    const allowWithNameTester =
+      allowWithName !== undefined && allowWithName.length > 0
+        ? new RegExp(allowWithName, "u")
+        : undefined;
 
     return {
       ...(allowInterfaces !== "always" && {
         TSInterfaceDeclaration(node): void {
-          if (allowWithNameTester?.test(node.id.name)) {
+          if (allowWithNameTester?.test(node.id.name) === true) {
             return;
           }
 
@@ -111,7 +114,7 @@ export default createRule<Options, MessageIds>({
               node: node.id,
               messageId: "noEmptyInterface",
               data: { option: "allowInterfaces" },
-              ...(!mergedWithClassDeclaration && {
+              ...(mergedWithClassDeclaration !== true && {
                 suggest: ["object", "unknown"].map((replacement) => ({
                   messageId: "replaceEmptyInterface",
                   data: { replacement },
@@ -132,7 +135,7 @@ export default createRule<Options, MessageIds>({
           context.report({
             node: node.id,
             messageId: "noEmptyInterfaceWithSuper",
-            ...(!mergedWithClassDeclaration && {
+            ...(mergedWithClassDeclaration !== true && {
               suggest: [
                 {
                   messageId: "replaceEmptyInterfaceWithSuper",

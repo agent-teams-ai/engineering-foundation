@@ -112,10 +112,8 @@ export interface TSMappedType extends BaseNode {
   key: Identifier;
   nameType: TypeNode | null;
   optional: boolean | "+" | "-" | undefined;
-  readonly: boolean | "+" | "-" | undefined;
+  readonly: boolean | "+" | "-" | undefined | null;
   typeAnnotation: TypeNode | undefined | null;
-  /** @deprecated Use {@link `constraint`} and {@link `key`} instead. */
-  typeParameter: TSTypeParameter;
 }
 export type TSMethodSignature = TSMethodSignatureComputedName | TSMethodSignatureNonComputedName;
 export interface TSMethodSignatureBase extends BaseNode {

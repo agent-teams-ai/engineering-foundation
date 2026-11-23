@@ -47,8 +47,8 @@ export default util.createRule<Options, MessageIds>({
   create(context, options) {
     const allowAsImport = options[0].allowAsImport;
     const allowPatterns = options[0].allow?.map((pattern) => new RegExp(pattern, "u"));
-    function isImportPathAllowed(importPath: string): boolean | undefined {
-      return allowPatterns?.some((pattern) => importPath.match(pattern));
+    function isImportPathAllowed(importPath: string): boolean {
+      return allowPatterns?.some((pattern) => importPath.match(pattern)) ?? false;
     }
 
     return {
@@ -62,7 +62,7 @@ export default util.createRule<Options, MessageIds>({
         const variable = ASTUtils.findVariable(context.sourceCode.getScope(node), "require");
         // ignore non-global require usage as it's something user-land custom instead
         // of the commonjs standard
-        if (!variable?.identifiers.length) {
+        if ((variable?.identifiers.length ?? 0) === 0) {
           context.report({
             node,
             messageId: "noRequireImports",
@@ -76,7 +76,10 @@ export default util.createRule<Options, MessageIds>({
             return;
           }
         }
-        if (allowAsImport && node.parent.type === AST_NODE_TYPES.TSImportEqualsDeclaration) {
+        if (
+          allowAsImport === true &&
+          node.parent.type === AST_NODE_TYPES.TSImportEqualsDeclaration
+        ) {
           return;
         }
         context.report({

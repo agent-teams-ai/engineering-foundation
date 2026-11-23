@@ -2126,9 +2126,11 @@ test("CI concurrency isolates pull request checks from attester dispatches", asy
   );
   assert.equal(
     ci.concurrency.group,
-    "${{ github.event_name == 'pull_request'\n    && ((github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) && format('foundation-pr-{0}-{1}-{2}', github.event.pull_request.number, github.event.pull_request.head.sha, github.event.pull_request.base.sha)\n        || format('foundation-ci-unrequested-{0}', github.run_id))\n    || format('foundation-ci-{0}-{1}', github.event_name, github.ref) }}",
+    "${{ github.event_name == 'pull_request'\n    && ((github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) && format('foundation-pr-{0}-{1}-{2}', github.event.pull_request.number, github.event.pull_request.head.sha, github.event.pull_request.base.sha)\n        || format('foundation-ci-unrequested-{0}', github.run_id))\n    || format('foundation-ci-{0}-{1}-{2}', github.event_name, github.sha, github.run_id) }}",
   );
-  assert.equal(ci.concurrency["cancel-in-progress"], true);
+  assert.equal(ci.concurrency["cancel-in-progress"], "${{ github.event_name == 'pull_request' }}");
+  // Every main/merge-queue source gets a distinct run group; only identical
+  // full-PR head/base requests can supersede each other.
 });
 
 function assertReleaseProfileSteps(releaseJob) {

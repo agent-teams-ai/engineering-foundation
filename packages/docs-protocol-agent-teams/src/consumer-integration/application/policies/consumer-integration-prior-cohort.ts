@@ -145,7 +145,141 @@ function matchesObservedCatalogEvidence(input: {
   );
 }
 
-// oxlint-disable-next-line complexity
+type CurrentSourceExecutor = ConsumerAssetCatalogV1["currentSourceExecutors"][number];
+
+function matchesCurrentCatalog(
+  desired: ConsumerIntegrationDesiredStateV1,
+  catalog: ConsumerAssetCatalogV1,
+  record: Record<string, unknown>,
+  skill: Uint8Array,
+  caller: Uint8Array,
+): boolean {
+  return (
+    record["cohortId"] === desired.cohort.cohortId &&
+    desired.cohort.assets.skillDigest === digestBytes(skill) &&
+    desired.cohort.assets.callerWorkflowDigest === digestBytes(caller) &&
+    desired.cohort.assets.assetCatalogDigest === catalog.catalogDigest &&
+    desired.cohort.assets.transitionCatalogDigest === catalog.transitionCatalogDigest
+  );
+}
+
+function matchesCurrentFiles(input: {
+  readonly desired: ConsumerIntegrationDesiredStateV1;
+  readonly snapshot: ConsumerIntegrationSnapshot;
+  readonly skill: Uint8Array;
+  readonly caller: Uint8Array;
+  readonly routeDigest: ConsumerIntegrationDigest;
+  readonly scriptsDigest: ConsumerIntegrationDigest;
+}): boolean {
+  const { desired, snapshot, skill, caller, routeDigest, scriptsDigest } = input;
+  return (
+    inputDigest(snapshot.skill) === digestBytes(skill) &&
+    inputDigest(snapshot.callerWorkflow) === digestBytes(caller) &&
+    managedRouteDigest(snapshot.agents) === routeDigest &&
+    manifestScriptsDigest(snapshot.packageManifest, desired.profilePath) === scriptsDigest &&
+    snapshot.skill.state === "file" &&
+    snapshot.callerWorkflow.state === "file"
+  );
+}
+
+function trustedCurrentCohort(input: {
+  readonly desired: ConsumerIntegrationDesiredStateV1;
+  readonly snapshot: ConsumerIntegrationSnapshot;
+  readonly catalog: ConsumerAssetCatalogV1;
+  readonly record: Record<string, unknown>;
+  readonly recordedDesired: ConsumerIntegrationDesiredStateV1 | undefined;
+  readonly stateSource: string;
+}): TrustedPriorCohort | undefined {
+  const { desired, snapshot, catalog, record, recordedDesired, stateSource } = input;
+  const skill = Buffer.from(CANONICAL_DOCS_SKILL_V2, "utf8");
+  const caller = Buffer.from(canonicalCallerWorkflow(desired.cohort), "utf8");
+  const routeDigest = digestBytes(Buffer.from(canonicalManagedRoute(desired.skillPath), "utf8"));
+  const scriptsDigest = canonicalDocsScriptsDigest(desired.profilePath);
+  const currentState = recordedDesired === undefined
+    ? undefined
+    : canonicalManagedState(recordedDesired, {
+        skillDigest: digestBytes(skill),
+        callerWorkflowDigest: digestBytes(caller),
+        assetCatalogDigest: catalog.catalogDigest,
+        transitionCatalogDigest: catalog.transitionCatalogDigest,
+        agentsRouteDigest: routeDigest,
+        docsScriptsDigest: scriptsDigest,
+      });
+  if (
+    currentState !== stateSource ||
+    !matchesCurrentCatalog(desired, catalog, record, skill, caller) ||
+    !matchesCurrentFiles({ desired, snapshot, skill, caller, routeDigest, scriptsDigest })
+  ) {
+    return undefined;
+  }
+  return {
+    cohortId: desired.cohort.cohortId,
+    allowedTargetCohortIds: [],
+    schemas: desired.cohort.schemas,
+    skill: snapshot.skill.bytes,
+    callerWorkflow: snapshot.callerWorkflow.bytes,
+    agentsRouteDigest: routeDigest,
+    docsScriptsDigest: scriptsDigest,
+    managedState: snapshot.managedState.bytes,
+  };
+}
+
+function matchesCurrentSourceShape(
+  record: Record<string, unknown>,
+  source: CurrentSourceExecutor,
+): boolean {
+  return (
+    canonicalConsumerIntegrationJson(record["packages"]) === canonicalConsumerIntegrationJson(source.packages) &&
+    canonicalConsumerIntegrationJson(record["schemas"]) === canonicalConsumerIntegrationJson(source.schemas) &&
+    canonicalConsumerIntegrationJson(record["runtime"]) === canonicalConsumerIntegrationJson(source.runtime)
+  );
+}
+
+function matchesCurrentSourceWitness(input: {
+  readonly desired: ConsumerIntegrationDesiredStateV1;
+  readonly snapshot: ConsumerIntegrationSnapshot;
+  readonly catalog: ConsumerAssetCatalogV1;
+  readonly assets: Record<string, unknown>;
+  readonly source: CurrentSourceExecutor;
+}): boolean {
+  const { desired, snapshot, catalog, assets, source } = input;
+  return (
+    assets["skillDigest"] === source.skillDigest &&
+    assets["callerWorkflowDigest"] === source.callerWorkflowDigest &&
+    assets["assetCatalogDigest"] === source.assetCatalogDigest &&
+    assets["assetCatalogDigest"] === catalog.catalogDigest &&
+    assets["transitionCatalogDigest"] === catalog.transitionCatalogDigest &&
+    assets["agentsRouteDigest"] === source.agentsRouteDigest &&
+    assets["docsScriptsDigest"] === source.docsScriptsDigest &&
+    inputDigest(snapshot.skill) === source.skillDigest &&
+    inputDigest(snapshot.callerWorkflow) === source.callerWorkflowDigest &&
+    managedRouteDigest(snapshot.agents) === source.agentsRouteDigest &&
+    manifestScriptsDigest(snapshot.packageManifest, desired.profilePath) === source.docsScriptsDigest
+  );
+}
+
+function currentSourceExecutor(input: {
+  readonly desired: ConsumerIntegrationDesiredStateV1;
+  readonly snapshot: ConsumerIntegrationSnapshot;
+  readonly catalog: ConsumerAssetCatalogV1;
+  readonly record: Record<string, unknown>;
+  readonly recordedDesired: ConsumerIntegrationDesiredStateV1 | undefined;
+}): CurrentSourceExecutor | undefined {
+  const { desired, snapshot, catalog, record, recordedDesired } = input;
+  const assets = record["assets"] as Record<string, unknown> | undefined;
+  if (assets === undefined || recordedDesired === undefined || typeof record["cohortId"] !== "string") {
+    return undefined;
+  }
+  const sources = catalog.currentSourceExecutors.filter(
+    (source) =>
+      matchesCurrentSourceShape(record, source) &&
+      matchesCurrentSourceWitness({ desired, snapshot, catalog, assets, source }),
+  );
+  return sources.length === 1 ? sources[0] : undefined;
+}
+
+// Preserve the original three disjoint trust routes: exact current managed
+// state, catalogued prior Cohort, or one uniquely matching source executor.
 export function trustedPriorCohort(
   desired: ConsumerIntegrationDesiredStateV1,
   snapshot: ConsumerIntegrationSnapshot,
@@ -160,63 +294,18 @@ export function trustedPriorCohort(
     const { stateDigest, ...body } = record;
     if (
       typeof stateDigest !== "string" ||
-      stateDigest !==
-        digestBytes(
-          Buffer.from(
-            canonicalConsumerIntegrationJson({
-              domain: "agent-teams.docs-protocol.managed-state/v1",
-              body,
-            }),
-            "utf8",
-          ),
-        ) ||
+      stateDigest !== digestBytes(Buffer.from(canonicalConsumerIntegrationJson({
+        domain: "agent-teams.docs-protocol.managed-state/v1",
+        body,
+      }), "utf8")) ||
       `${canonicalConsumerIntegrationJson(record)}\n` !== stateSource
     ) {
       return undefined;
     }
     const recordedDesired = desiredAtRecordedRepository(desired, record);
-    const currentSkill = Buffer.from(CANONICAL_DOCS_SKILL_V2, "utf8");
-    const currentCaller = Buffer.from(canonicalCallerWorkflow(desired.cohort), "utf8");
-    const currentRouteDigest = digestBytes(
-      Buffer.from(canonicalManagedRoute(desired.skillPath), "utf8"),
-    );
-    const currentScriptsDigest = canonicalDocsScriptsDigest(desired.profilePath);
-    const currentState =
-      recordedDesired === undefined
-        ? undefined
-        : canonicalManagedState(recordedDesired, {
-            skillDigest: digestBytes(currentSkill),
-            callerWorkflowDigest: digestBytes(currentCaller),
-            assetCatalogDigest: catalog.catalogDigest,
-            transitionCatalogDigest: catalog.transitionCatalogDigest,
-            agentsRouteDigest: currentRouteDigest,
-            docsScriptsDigest: currentScriptsDigest,
-          });
-    if (
-      record["cohortId"] === desired.cohort.cohortId &&
-      desired.cohort.assets.skillDigest === digestBytes(currentSkill) &&
-      desired.cohort.assets.callerWorkflowDigest === digestBytes(currentCaller) &&
-      desired.cohort.assets.assetCatalogDigest === catalog.catalogDigest &&
-      desired.cohort.assets.transitionCatalogDigest === catalog.transitionCatalogDigest &&
-      currentState === stateSource &&
-      inputDigest(snapshot.skill) === digestBytes(currentSkill) &&
-      inputDigest(snapshot.callerWorkflow) === digestBytes(currentCaller) &&
-      managedRouteDigest(snapshot.agents) === currentRouteDigest &&
-      manifestScriptsDigest(snapshot.packageManifest, desired.profilePath) ===
-        currentScriptsDigest &&
-      snapshot.skill.state === "file" &&
-      snapshot.callerWorkflow.state === "file"
-    ) {
-      return {
-        cohortId: desired.cohort.cohortId,
-        allowedTargetCohortIds: [],
-        schemas: desired.cohort.schemas,
-        skill: snapshot.skill.bytes,
-        callerWorkflow: snapshot.callerWorkflow.bytes,
-        agentsRouteDigest: currentRouteDigest,
-        docsScriptsDigest: currentScriptsDigest,
-        managedState: snapshot.managedState.bytes,
-      };
+    const current = trustedCurrentCohort({ desired, snapshot, catalog, record, recordedDesired, stateSource });
+    if (current !== undefined) {
+      return current;
     }
     const prior = catalog.directTargetBundles.find(
       ({ cohort }) => cohort.cohortId === record["cohortId"],
@@ -241,35 +330,7 @@ export function trustedPriorCohort(
         managedState: snapshot.managedState.bytes,
       };
     }
-    const technicalRecordedDesired = desiredAtRecordedRepository(desired, record);
-    const assets = record["assets"] as Record<string, unknown> | undefined;
-    const sources =
-      assets === undefined ||
-      technicalRecordedDesired === undefined ||
-      typeof record["cohortId"] !== "string"
-        ? []
-        : catalog.currentSourceExecutors.filter(
-            (candidate) =>
-              canonicalConsumerIntegrationJson(record["packages"]) ===
-                canonicalConsumerIntegrationJson(candidate.packages) &&
-              canonicalConsumerIntegrationJson(record["schemas"]) ===
-                canonicalConsumerIntegrationJson(candidate.schemas) &&
-              canonicalConsumerIntegrationJson(record["runtime"]) ===
-                canonicalConsumerIntegrationJson(candidate.runtime) &&
-              assets["skillDigest"] === candidate.skillDigest &&
-              assets["callerWorkflowDigest"] === candidate.callerWorkflowDigest &&
-              assets["assetCatalogDigest"] === candidate.assetCatalogDigest &&
-              assets["assetCatalogDigest"] === catalog.catalogDigest &&
-              assets["transitionCatalogDigest"] === catalog.transitionCatalogDigest &&
-              assets["agentsRouteDigest"] === candidate.agentsRouteDigest &&
-              assets["docsScriptsDigest"] === candidate.docsScriptsDigest &&
-              inputDigest(snapshot.skill) === candidate.skillDigest &&
-              inputDigest(snapshot.callerWorkflow) === candidate.callerWorkflowDigest &&
-              managedRouteDigest(snapshot.agents) === candidate.agentsRouteDigest &&
-              manifestScriptsDigest(snapshot.packageManifest, desired.profilePath) ===
-                candidate.docsScriptsDigest,
-          );
-    const source = sources.length === 1 ? sources[0] : undefined;
+    const source = currentSourceExecutor({ desired, snapshot, catalog, record, recordedDesired });
     if (
       source === undefined ||
       snapshot.skill.state !== "file" ||

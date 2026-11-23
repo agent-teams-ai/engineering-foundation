@@ -22,6 +22,16 @@ The initial profiles are `typescript-node` and `typescript-bun`. Additional
 profiles require a real consumer. Unrelated language toolchains belong in
 separate packages rather than mandatory dependencies of every installation.
 
+### Planned ESLint syntax export
+
+The [bounded ESLint syntax plan](../../docs/research/compiler-free-eslint-syntax-2026-11-23.md)
+proposes a typed `stack-toolchain/eslint-syntax` export for an existing ESLint 10
+host, retaining twenty syntax rules without initializing a TypeScript compiler.
+This export is not implemented or released. The parser and one-rule prototypes
+are limited evidence; complete rule, packed artifact and consumer qualification
+remain pending. Consumers would retain their file scope, globals, ignores and
+rule policy. The existing Oxlint CLI contract remains separately owned.
+
 ## Commands
 
 | Command                    | Responsibility                                                  |

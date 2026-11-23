@@ -305,6 +305,80 @@ void test("installed guard admits explicit alias, catalog and global override co
   }
 });
 
+void test("installed guard resolves catalog peers only for their declared workspace origin", async () => {
+  const root = await ownedTemporaryRoot("TEST-installed-catalog-peer-");
+  const workspace =
+    'packages:\n  - "packages/*"\ncatalog:\n  catalogpeer: 10.3.0\ncatalogs:\n  host:\n    catalogpeer: 10.3.0\n';
+  const adapter = join(root, "packages/adapter");
+  const host = join(root, "node_modules/catalogpeer");
+  const adapterManifest = {
+    name: "adapter",
+    version: "1.0.0",
+    peerDependencies: { catalogpeer: "catalog:host" },
+    peerDependenciesMeta: { catalogpeer: { optional: true } },
+  };
+  try {
+    await writeFile(join(root, "pnpm-workspace.yaml"), workspace);
+    await installedManifest(root, {
+      name: "catalog-peer-root",
+      version: "1.0.0",
+      dependencies: { adapter: "workspace:*" },
+      peerDependencies: { catalogpeer: "catalog:" },
+      peerDependenciesMeta: { catalogpeer: { optional: true } },
+    });
+    await installedManifest(adapter, adapterManifest);
+    await installedManifest(host, { name: "catalogpeer", version: "10.3.0" });
+    await symlink(adapter, join(root, "node_modules/adapter"), "junction");
+    const installed = await inspectInstalledDependencies(root);
+    assert.deepEqual(installed.peerAssignments, [
+      "adapter@1.0.0 -> catalogpeer@10.3.0=catalogpeer@10.3.0",
+      "catalog-peer-root@1.0.0 -> catalogpeer@10.3.0=catalogpeer@10.3.0",
+    ]);
+    assert.deepEqual(installed.packageContexts, [
+      "catalog-peer-root@1.0.0 -> adapter@adapter@1.0.0 [catalogpeer@10.3.0=catalogpeer@10.3.0]",
+    ]);
+    await installedManifest(host, { name: "catalogpeer", version: "10.4.0" });
+    await assert.rejects(inspectInstalledDependencies(root), /Incompatible installed peer/u);
+    await rm(host, { recursive: true });
+    assert.deepEqual((await inspectInstalledDependencies(root)).peerAssignments, [
+      "adapter@1.0.0 -> catalogpeer@10.3.0=missing-optional",
+      "catalog-peer-root@1.0.0 -> catalogpeer@10.3.0=missing-optional",
+    ]);
+    await installedManifest(adapter, { ...adapterManifest, peerDependenciesMeta: {} });
+    await assert.rejects(
+      inspectInstalledDependencies(root),
+      /Required peer dependency is unresolved/u,
+    );
+    await installedManifest(adapter, adapterManifest);
+    await writeFile(
+      join(root, "pnpm-workspace.yaml"),
+      'packages:\n  - "packages/*"\ncatalog:\n  catalogpeer: 10.3.0\n',
+    );
+    await assert.rejects(
+      inspectInstalledDependencies(root),
+      /Dependency catalog declaration is missing: catalogpeer@catalog:host/u,
+    );
+    await writeFile(join(root, "pnpm-workspace.yaml"), workspace);
+    await installedManifest(root, {
+      name: "catalog-peer-root",
+      version: "1.0.0",
+      dependencies: { "registry-host": "1.0.0" },
+    });
+    await installedManifest(join(root, "node_modules/registry-host"), {
+      name: "registry-host",
+      version: "1.0.0",
+      peerDependencies: { catalogpeer: "catalog:" },
+      peerDependenciesMeta: { catalogpeer: { optional: true } },
+    });
+    await assert.rejects(
+      inspectInstalledDependencies(root),
+      /Registry dependency cannot borrow a workspace catalog: catalogpeer/u,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 void test("installed workspace dependencies require their declared physical workspace", async () => {
   const root = await ownedTemporaryRoot("normal-workspace-admission-");
   const provider = join(root, "packages/example");

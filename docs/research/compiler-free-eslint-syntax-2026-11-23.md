@@ -394,3 +394,14 @@ wrong versions, absent required peers, missing catalogs and registry-origin
 rejection. Explicit-file cleanup and the inherited strict native tooling project
 pass. Terminal native job logs were reconciled before requesting the next matrix;
 no other distinct completed failure remained.
+
+Full fast lint then exposed the installed-checker change crossing existing file
+size and parameter budgets, and its new case crossing the older test file budget.
+The checker now shares its existing read-only dependency context with peer
+inspection; target inspection still overrides the actual physical workspace
+origin. The new case moved alongside the existing catalog-admission tests, using
+that suite's maintained fixture helpers. All assertions and both suite registrations
+remain. The exact unchanged root lint policy now passes all 85 changed producer
+JavaScript/TypeScript files, including size, arity and complexity checks. The
+inherited strict tooling project and all 12 installed dependency/peer cases pass
+with zero skips. These local policy gates precede the next complete native request.

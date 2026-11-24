@@ -82,7 +82,7 @@
       "project": ["*.ts"]
     },
     "packages/stack-toolchain": {
-      "ignoreDependencies": ["oxfmt"]
+      "ignoreDependencies": ["oxfmt", "@typescript-eslint/visitor-keys"]
     }
   }
 }

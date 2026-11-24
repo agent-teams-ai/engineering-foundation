@@ -52,6 +52,7 @@
       "yaml": "2.9.0",
       "@eslint/core": "1.2.1",
       "@typescript-eslint/scope-manager": "8.73.0",
+      "@typescript-eslint/visitor-keys": "8.73.0",
       "eslint": "10.3.0",
       "eslint-parser-oxc": "0.1.1"
     },
@@ -218,6 +219,7 @@
     "yaml": "2.9.0",
     "@eslint/core": "1.2.1",
     "@typescript-eslint/scope-manager": "8.73.0",
+    "@typescript-eslint/visitor-keys": "8.73.0",
     "eslint": "10.3.0",
     "eslint-parser-oxc": "0.1.1"
   },

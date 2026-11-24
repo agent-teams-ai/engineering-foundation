@@ -58,6 +58,7 @@
   "dependencies": {
     "@eslint/core": "catalog:",
     "@typescript-eslint/scope-manager": "catalog:",
+    "@typescript-eslint/visitor-keys": "catalog:",
     "eslint-parser-oxc": "catalog:",
     "jsonc-parser": "catalog:",
     "node-or-bun": "catalog:",

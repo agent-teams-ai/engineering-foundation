@@ -1,0 +1,244 @@
+{
+  "schemaVersion": 1,
+  "scope": "Historical failed publication and read-only registry/provenance observation; not admission of FMS 0.4.0 or qualification of a future release.",
+  "protectedSourceCommit": "5d1d6417e830e9773f55bea32062583176368759",
+  "qualifiedSourceTree": "fa1571131b5ef507b330f307db45459326af2427",
+  "release": {
+    "url": "https://github.com/agent-teams-ai/engineering-foundation/actions/runs/45279346093",
+    "attempt": 1,
+    "publisherJobId": 138059378693,
+    "conclusion": "failure",
+    "failureAt": "2026-11-23T22:57:09.0313798Z",
+    "diagnostic": "Ordered release refused: @agent-teams/feature-module-standard@0.4.0 provenance is absent or is not bound to the reviewed source",
+    "fullJobLogSha256": "1f5c8c7afc5afba53793581d248627246a4ffdd834496c3aba5cc13af11b9c91"
+  },
+  "artifact": {
+    "name": "@agent-teams/feature-module-standard",
+    "version": "0.4.0",
+    "tarball": "https://registry.npmjs.org/@agent-teams/feature-module-standard/-/feature-module-standard-0.4.0.tgz",
+    "bytes": 56547,
+    "sha256": "f22cbffa71b55a81c8eec48bc3e65195a344dd4b5839e3ff6274b3f0a7d4fe73",
+    "integrity": "sha512-Q9cRtuzffmmnPU93Ab3MMYtELccz6xHsyhCh5w7LHpnQsoEaDpwX1rPplonofu1DssAifGor/l3dN5ODzsHBbQ=="
+  },
+  "qualifiedArchiveObservation": {
+    "sameAsProtectedPublisherQualifiedArchive": true,
+    "completeCanonicalPackedManifestEqual": true,
+    "latestTagExact": true,
+    "sourceRecordSha256": "4203d4e19c480ab3c85708f130f618b5dc6d90bf7809063178df1972fb3b9006"
+  },
+  "registryObservation": {
+    "observedAt": "2026-11-23T23:14:26Z",
+    "literalAdvertisedUrl": "https://registry.npmjs.org/-/npm/v1/attestations/@agent-teams%2ffeature-module-standard@0.4.0",
+    "metadataAdvertisedProvenance": {
+      "predicateType": "https://slsa.dev/provenance/v1"
+    },
+    "responseSha256": "bd77533263c6d9e595b130997f895859f56f6e9cf9d97a2c52238aef8f52bd2b",
+    "responseHeaders": {
+      "date": "Mon, 23 Nov 2026 23:14:26 GMT",
+      "age": "874",
+      "cf-cache-status": "HIT",
+      "last-modified": "Mon, 23 Nov 2026 22:59:52 GMT",
+      "cache-control": "public, max-age=31557600"
+    },
+    "response": {
+      "attestations": [
+        {
+          "predicateType": "https://github.com/npm/attestation/tree/main/specs/publish/v0.1",
+          "bundle": {
+            "mediaType": "application/vnd.dev.sigstore.bundle+json;version=0.2",
+            "verificationMaterial": {
+              "publicKey": {
+                "hint": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+              },
+              "tlogEntries": [
+                {
+                  "logIndex": "4059415220",
+                  "logId": {
+                    "keyId": "wNI9atQGlz+VWfO6LRygH4QUfY/8W4RFwiT5i5WRgB0="
+                  },
+                  "kindVersion": {
+                    "kind": "dsse",
+                    "version": "0.0.1"
+                  },
+                  "integratedTime": "1795474611",
+                  "inclusionPromise": {
+                    "signedEntryTimestamp": "MEQCIFd8KUKiWmTSnRwiy9/kOTegWMiFDfgeVokfMOKD9WpjAiASTAL2/fmljcSOoBVWoo8GPEXPbtYBW2XjDtkN6AWufg=="
+                  },
+                  "inclusionProof": {
+                    "logIndex": "3937510958",
+                    "rootHash": "+z1wA+mQuIe2qS1kmj7FxFl2FjVD772WM77HyKqZda0=",
+                    "treeSize": "3937510992",
+                    "hashes": [
+                      "uZ1xE8fpWRhcsW1ceBkjFi5lnqmQWEFtN8zjhay3plQ=",
+                      "khGuYzN0tT6QtquFJi+5i2PKbTXUeKB+kr4mWb38lns=",
+                      "nJ6dSLriqWES/KmPYSAvrBNYiMz9EdkB0ZcGMm0ExWI=",
+                      "wyObJB6OV9QKLqlSp8NUKV3ZsuHey3O6G3ZLU7FWJfE=",
+                      "IgmtY6a/o/5ObGSobJRQUEDY+65BwIW4cqkgILRdlPA=",
+                      "ZzDu1w5CimcQL40p0a3+VotgXig3NooUuO96IHDVrGw=",
+                      "eC9mnXocC6d8jyQsEQ36b1hYoikcSIe3nDItPtUiU4U=",
+                      "ts70G2ul4h8/VZM6q+J6XSX3tiYfTUGbc3Cn7fPI+yM=",
+                      "zlcPmjYrnFnCfiYnRjIqkKFB6LMLEkqC+boRTxhPNGw=",
+                      "ULnyYBfbP0RWv84MzEFt+yLPvbArxixf0o1MpsFKCwE=",
+                      "XEbMTSvSg0nvCv1mLmhMMgqQzwhAXMGsLpvfXhiYPyk=",
+                      "aK2zX4nTpPap8nYVyuwW0qd/5nOrUHeZ/TNHuBbKHY4=",
+                      "g9IdWBCiIn7+2/9lKrJax0LRHNUmolIqTGR6cHo16Vw=",
+                      "m7UXPvU2fcMvwJp4IRs9hNHRp2GZJxK2km8aZe/ZfaY=",
+                      "SGZtu71G3CmYAyW9vdqoGzEBMT8hN5okTfpU8aSzKYw=",
+                      "DAMYFnaORvJsyZhh+gEhYVUHXJFhwT+J6Jqd/8VxegE=",
+                      "XYkf+Vk9hVBebwq5KRpgAFIE2Jk4aAgO1jFr22tSd4k=",
+                      "k0+Z1T6dI0Tgluh54oO/hnxtuoW22MqFIjVTPYeUJGU=",
+                      "1DaDKzrCNNBhmSdY5vFjz+NpAmxmYfYEgBCdPLrMP1A=",
+                      "xH/DCseLHr9eKoYT8qsORZK7zVdEGYWHuVtsVrD95wY="
+                    ],
+                    "checkpoint": {
+                      "envelope": "rekor.sigstore.dev - 1193050959916656506\n3937510992\n+z1wA+mQuIe2qS1kmj7FxFl2FjVD772WM77HyKqZda0=\n\n\u2014 rekor.sigstore.dev wNI9ajBEAiADlvC+1ypFKJS9yfqNBQ1cSotqY3H0ii3OYnx+j4AoCwIgBu6+qvgvBEEhQuMtKzLT5HZ/EL9UnOUNU0Z0QHE1x1s=\n"
+                    }
+                  },
+                  "canonicalizedBody": "eyJhcGlWZXJzaW9uIjoiMC4wLjEiLCJraW5kIjoiZHNzZSIsInNwZWMiOnsiZW52ZWxvcGVIYXNoIjp7ImFsZ29yaXRobSI6InNoYTI1NiIsInZhbHVlIjoiYWUwMmQxNmYwYzU0NDY2ODUwZGIzOWEyNWViYjRhZjFmNWM0N2ZjNmMyNWJiYjNjMjE4MDI3OGE1ZWQ5OTc2ZSJ9LCJwYXlsb2FkSGFzaCI6eyJhbGdvcml0aG0iOiJzaGEyNTYiLCJ2YWx1ZSI6IjFjYTBmZjAyNGFjM2I3YTQ5ODM1MTA5NDgwYzFkZWE3YmZmMmJhMzI0OGQ1MjZlMmVmYzMyZThmY2IzNGYyOTcifSwic2lnbmF0dXJlcyI6W3sic2lnbmF0dXJlIjoiTUVVQ0lRQ0RzNlJFcmlYN2o5M3NERmlHZlU4UEpqZW1YdUg2RTh3YWREVEhFbnBmMXdJZ1ZPL0EzN3VwdzhWRTdrRTY1ZU1yMUhJQ3B5K1ZUNy9lcXZqZGFEVWY1S0E9IiwidmVyaWZpZXIiOiJMUzB0TFMxQ1JVZEpUaUJRVlVKTVNVTWdTMFZaTFMwdExTMEtUVVpyZDBWM1dVaExiMXBKZW1vd1EwRlJXVWxMYjFwSmVtb3dSRUZSWTBSUlowRkZXVFpaWVRkWEt5czNZVlZRZW5aTlZISmxla2cyV1dONE0yTXJTQXBQUzFsRFkwNUhlV0pLV2xORFNuRXZabVEzVVdFNGRYVkJTM1JrU1d0VlVYUlJhVVZMUlZKb1FXMUZOV3hOVFVwb1VEaFBhMFJQWVRKblBUMEtMUzB0TFMxRlRrUWdVRlZDVEVsRElFdEZXUzB0TFMwdENnPT0ifV19fQ=="
+                }
+              ],
+              "timestampVerificationData": {
+                "rfc3161Timestamps": []
+              }
+            },
+            "dsseEnvelope": {
+              "payload": "eyJfdHlwZSI6Imh0dHBzOi8vaW4tdG90by5pby9TdGF0ZW1lbnQvdjAuMSIsInN1YmplY3QiOlt7Im5hbWUiOiJwa2c6bnBtLyU0MGFnZW50LXRlYW1zL2ZlYXR1cmUtbW9kdWxlLXN0YW5kYXJkQDAuNC4wIiwiZGlnZXN0Ijp7InNoYTUxMiI6IjQzZDcxMWI2ZWNkZjdlNjlhNzNkNGY3NzAxYmRjYzMxOGI0NDJkYzczM2ViMTFlY2NhMTBhMWU3MGVjYjFlOTlkMGIyODExYTBlOWMxN2Q2YjNlOTk2ODllODdlZWQ0M2IyYzAyMjdjNmEyYmZlNWRkZDM3OTM4M2NlYzFjMTZkIn19XSwicHJlZGljYXRlVHlwZSI6Imh0dHBzOi8vZ2l0aHViLmNvbS9ucG0vYXR0ZXN0YXRpb24vdHJlZS9tYWluL3NwZWNzL3B1Ymxpc2gvdjAuMSIsInByZWRpY2F0ZSI6eyJuYW1lIjoiQGFnZW50LXRlYW1zL2ZlYXR1cmUtbW9kdWxlLXN0YW5kYXJkIiwidmVyc2lvbiI6IjAuNC4wIiwicmVnaXN0cnkiOiJodHRwczovL3JlZ2lzdHJ5Lm5wbWpzLm9yZyJ9fQ==",
+              "payloadType": "application/vnd.in-toto+json",
+              "signatures": [
+                {
+                  "sig": "MEUCIQCDs6REriX7j93sDFiGfU8PJjemXuH6E8wadDTHEnpf1wIgVO/A37upw8VE7kE65eMr1HICpy+VT7/eqvjdaDUf5KA=",
+                  "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+                }
+              ]
+            }
+          },
+          "signedAccessSignatureUrl": ""
+        }
+      ]
+    },
+    "encodedPublisherUrlHadSameResponse": true
+  },
+  "signatureObservation": {
+    "tool": "npm",
+    "version": "11.19.0",
+    "nodeVersion": "26.11.1",
+    "command": [
+      "npm",
+      "audit",
+      "signatures",
+      "--json",
+      "--include-attestations",
+      "--prefer-online",
+      "--registry=https://registry.npmjs.org/"
+    ],
+    "completedAt": "2026-11-23T23:07:42.988386+00:00",
+    "exitCode": 0,
+    "fullAuditSha256": "29d128d100d79004d63d72e035cca407ffb028cc522051066a814cb73b8507e2",
+    "invalid": [],
+    "missing": [],
+    "exactPackageVerifiedEntry": {
+      "name": "@agent-teams/feature-module-standard",
+      "version": "0.4.0",
+      "location": "node_modules/@agent-teams/feature-module-standard",
+      "registry": "https://registry.npmjs.org/",
+      "attestations": {
+        "url": "https://registry.npmjs.org/-/npm/v1/attestations/@agent-teams%2ffeature-module-standard@0.4.0",
+        "provenance": {
+          "predicateType": "https://slsa.dev/provenance/v1"
+        }
+      },
+      "attestationBundles": [
+        {
+          "predicateType": "https://github.com/npm/attestation/tree/main/specs/publish/v0.1",
+          "bundle": {
+            "mediaType": "application/vnd.dev.sigstore.bundle+json;version=0.2",
+            "verificationMaterial": {
+              "publicKey": {
+                "hint": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+              },
+              "tlogEntries": [
+                {
+                  "logIndex": "4059415220",
+                  "logId": {
+                    "keyId": "wNI9atQGlz+VWfO6LRygH4QUfY/8W4RFwiT5i5WRgB0="
+                  },
+                  "kindVersion": {
+                    "kind": "dsse",
+                    "version": "0.0.1"
+                  },
+                  "integratedTime": "1795474611",
+                  "inclusionPromise": {
+                    "signedEntryTimestamp": "MEQCIFd8KUKiWmTSnRwiy9/kOTegWMiFDfgeVokfMOKD9WpjAiASTAL2/fmljcSOoBVWoo8GPEXPbtYBW2XjDtkN6AWufg=="
+                  },
+                  "inclusionProof": {
+                    "logIndex": "3937510958",
+                    "rootHash": "+z1wA+mQuIe2qS1kmj7FxFl2FjVD772WM77HyKqZda0=",
+                    "treeSize": "3937510992",
+                    "hashes": [
+                      "uZ1xE8fpWRhcsW1ceBkjFi5lnqmQWEFtN8zjhay3plQ=",
+                      "khGuYzN0tT6QtquFJi+5i2PKbTXUeKB+kr4mWb38lns=",
+                      "nJ6dSLriqWES/KmPYSAvrBNYiMz9EdkB0ZcGMm0ExWI=",
+                      "wyObJB6OV9QKLqlSp8NUKV3ZsuHey3O6G3ZLU7FWJfE=",
+                      "IgmtY6a/o/5ObGSobJRQUEDY+65BwIW4cqkgILRdlPA=",
+                      "ZzDu1w5CimcQL40p0a3+VotgXig3NooUuO96IHDVrGw=",
+                      "eC9mnXocC6d8jyQsEQ36b1hYoikcSIe3nDItPtUiU4U=",
+                      "ts70G2ul4h8/VZM6q+J6XSX3tiYfTUGbc3Cn7fPI+yM=",
+                      "zlcPmjYrnFnCfiYnRjIqkKFB6LMLEkqC+boRTxhPNGw=",
+                      "ULnyYBfbP0RWv84MzEFt+yLPvbArxixf0o1MpsFKCwE=",
+                      "XEbMTSvSg0nvCv1mLmhMMgqQzwhAXMGsLpvfXhiYPyk=",
+                      "aK2zX4nTpPap8nYVyuwW0qd/5nOrUHeZ/TNHuBbKHY4=",
+                      "g9IdWBCiIn7+2/9lKrJax0LRHNUmolIqTGR6cHo16Vw=",
+                      "m7UXPvU2fcMvwJp4IRs9hNHRp2GZJxK2km8aZe/ZfaY=",
+                      "SGZtu71G3CmYAyW9vdqoGzEBMT8hN5okTfpU8aSzKYw=",
+                      "DAMYFnaORvJsyZhh+gEhYVUHXJFhwT+J6Jqd/8VxegE=",
+                      "XYkf+Vk9hVBebwq5KRpgAFIE2Jk4aAgO1jFr22tSd4k=",
+                      "k0+Z1T6dI0Tgluh54oO/hnxtuoW22MqFIjVTPYeUJGU=",
+                      "1DaDKzrCNNBhmSdY5vFjz+NpAmxmYfYEgBCdPLrMP1A=",
+                      "xH/DCseLHr9eKoYT8qsORZK7zVdEGYWHuVtsVrD95wY="
+                    ],
+                    "checkpoint": {
+                      "envelope": "rekor.sigstore.dev - 1193050959916656506\n3937510992\n+z1wA+mQuIe2qS1kmj7FxFl2FjVD772WM77HyKqZda0=\n\n\u2014 rekor.sigstore.dev wNI9ajBEAiADlvC+1ypFKJS9yfqNBQ1cSotqY3H0ii3OYnx+j4AoCwIgBu6+qvgvBEEhQuMtKzLT5HZ/EL9UnOUNU0Z0QHE1x1s=\n"
+                    }
+                  },
+                  "canonicalizedBody": "eyJhcGlWZXJzaW9uIjoiMC4wLjEiLCJraW5kIjoiZHNzZSIsInNwZWMiOnsiZW52ZWxvcGVIYXNoIjp7ImFsZ29yaXRobSI6InNoYTI1NiIsInZhbHVlIjoiYWUwMmQxNmYwYzU0NDY2ODUwZGIzOWEyNWViYjRhZjFmNWM0N2ZjNmMyNWJiYjNjMjE4MDI3OGE1ZWQ5OTc2ZSJ9LCJwYXlsb2FkSGFzaCI6eyJhbGdvcml0aG0iOiJzaGEyNTYiLCJ2YWx1ZSI6IjFjYTBmZjAyNGFjM2I3YTQ5ODM1MTA5NDgwYzFkZWE3YmZmMmJhMzI0OGQ1MjZlMmVmYzMyZThmY2IzNGYyOTcifSwic2lnbmF0dXJlcyI6W3sic2lnbmF0dXJlIjoiTUVVQ0lRQ0RzNlJFcmlYN2o5M3NERmlHZlU4UEpqZW1YdUg2RTh3YWREVEhFbnBmMXdJZ1ZPL0EzN3VwdzhWRTdrRTY1ZU1yMUhJQ3B5K1ZUNy9lcXZqZGFEVWY1S0E9IiwidmVyaWZpZXIiOiJMUzB0TFMxQ1JVZEpUaUJRVlVKTVNVTWdTMFZaTFMwdExTMEtUVVpyZDBWM1dVaExiMXBKZW1vd1EwRlJXVWxMYjFwSmVtb3dSRUZSWTBSUlowRkZXVFpaWVRkWEt5czNZVlZRZW5aTlZISmxla2cyV1dONE0yTXJTQXBQUzFsRFkwNUhlV0pLV2xORFNuRXZabVEzVVdFNGRYVkJTM1JrU1d0VlVYUlJhVVZMUlZKb1FXMUZOV3hOVFVwb1VEaFBhMFJQWVRKblBUMEtMUzB0TFMxRlRrUWdVRlZDVEVsRElFdEZXUzB0TFMwdENnPT0ifV19fQ=="
+                }
+              ],
+              "timestampVerificationData": {
+                "rfc3161Timestamps": []
+              }
+            },
+            "dsseEnvelope": {
+              "payload": "eyJfdHlwZSI6Imh0dHBzOi8vaW4tdG90by5pby9TdGF0ZW1lbnQvdjAuMSIsInN1YmplY3QiOlt7Im5hbWUiOiJwa2c6bnBtLyU0MGFnZW50LXRlYW1zL2ZlYXR1cmUtbW9kdWxlLXN0YW5kYXJkQDAuNC4wIiwiZGlnZXN0Ijp7InNoYTUxMiI6IjQzZDcxMWI2ZWNkZjdlNjlhNzNkNGY3NzAxYmRjYzMxOGI0NDJkYzczM2ViMTFlY2NhMTBhMWU3MGVjYjFlOTlkMGIyODExYTBlOWMxN2Q2YjNlOTk2ODllODdlZWQ0M2IyYzAyMjdjNmEyYmZlNWRkZDM3OTM4M2NlYzFjMTZkIn19XSwicHJlZGljYXRlVHlwZSI6Imh0dHBzOi8vZ2l0aHViLmNvbS9ucG0vYXR0ZXN0YXRpb24vdHJlZS9tYWluL3NwZWNzL3B1Ymxpc2gvdjAuMSIsInByZWRpY2F0ZSI6eyJuYW1lIjoiQGFnZW50LXRlYW1zL2ZlYXR1cmUtbW9kdWxlLXN0YW5kYXJkIiwidmVyc2lvbiI6IjAuNC4wIiwicmVnaXN0cnkiOiJodHRwczovL3JlZ2lzdHJ5Lm5wbWpzLm9yZyJ9fQ==",
+              "payloadType": "application/vnd.in-toto+json",
+              "signatures": [
+                {
+                  "sig": "MEUCIQCDs6REriX7j93sDFiGfU8PJjemXuH6E8wadDTHEnpf1wIgVO/A37upw8VE7kE65eMr1HICpy+VT7/eqvjdaDUf5KA=",
+                  "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+                }
+              ]
+            }
+          },
+          "signedAccessSignatureUrl": ""
+        }
+      ]
+    },
+    "maintainedSourceAdmission": {
+      "name": "@agent-teams/feature-module-standard",
+      "version": "0.4.0",
+      "status": "rejected",
+      "diagnostic": "npm audit did not cryptographically verify signature and provenance for @agent-teams/feature-module-standard@0.4.0."
+    },
+    "meaning": "npm exit zero verifies the returned publish statement; the maintained admission rejects the absent verified SLSA bundle."
+  },
+  "independentReview": {
+    "custodyReviewSha256": "786e8d3d7bed9e291354ef7c111a721671b864dc3e62b41ba34dda768436ad16",
+    "sourceAdmissionReplaySha256": "f491f1984baee5e56d0642ff0f36cb867b2d27679082ccea71ffc860b0600e0c",
+    "finding": "Eight other existing wave artifacts pass complete reuse proof; FMS has zero raw and zero npm-verified SLSA statements and remains unqualified."
+  },
+  "limits": [
+    "No conflicting source identity is established by a missing SLSA statement.",
+    "No transient propagation cause or registry outage is established.",
+    "No failed run, raw DSSE payload or standalone npm exit code is relabeled as successful release qualification.",
+    "No overwrite, unpublish, deprecation, workflow retry, tag mutation or registry repair was performed in this diagnosis."
+  ]
+}

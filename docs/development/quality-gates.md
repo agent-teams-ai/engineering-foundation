@@ -548,7 +548,7 @@ module-system boundary is introduced.
 
 ## Foundation-first growth review (proposed)
 
-The [organization ecosystem vision](https://github.com/agent-teams-ai/.github/blob/bb7b1c00f18a8c532681f286afa51dda954469b4/docs/architecture/ecosystem-vision.md) expects many independent
+The [organization ecosystem vision](https://github.com/agent-teams-ai/.github/blob/main/docs/architecture/ecosystem-vision.md) expects many independent
 consumers and eventual codebase growth across products to tens of millions
 of lines. This is a planning target, not current measured capacity. Retain
 the accepted library-first ADR-0061 and existing safety gates; evaluate

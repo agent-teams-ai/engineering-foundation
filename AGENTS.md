@@ -3,6 +3,8 @@
 This repository owns reusable engineering tooling. It does not own any consuming
 repository's business architecture.
 
+For cross-product planning, read the [Foundation-first ecosystem vision](https://github.com/agent-teams-ai/.github/blob/bb7b1c00f18a8c532681f286afa51dda954469b4/docs/architecture/ecosystem-vision.md) as owner direction and navigation. It does not change this repository's exact adopted standards or make Foundation a product runtime dependency.
+
 Hard rules:
 
 - never import this package from production runtime code;

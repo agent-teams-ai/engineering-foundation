@@ -1,5 +1,12 @@
 # Stack Toolchain
 
+## 0.3.1
+
+### Patch Changes
+
+- [#473](https://github.com/agent-teams-ai/engineering-foundation/pull/473) [`c4b0576`](https://github.com/agent-teams-ai/engineering-foundation/commit/c4b0576f4ca935446d44bf97db92aafc99d8fcd5) Thanks [@777genius](https://github.com/777genius)! - Pin the parser's visitor-keys dependency to the qualified 8.73.0 scope cohort so
+  fresh npm and pnpm consumers preserve the same syntax graph without overrides.
+
 ## 0.3.0
 
 ### Minor Changes

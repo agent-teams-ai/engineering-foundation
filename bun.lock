@@ -142,7 +142,7 @@
     },
     "packages/feature-module-standard": {
       "name": "@agent-teams/feature-module-standard",
-      "version": "0.4.0",
+      "version": "0.4.1",
       "devDependencies": {
         "@agent-teams/engineering-foundation": "workspace:*",
         "typescript": "catalog:",

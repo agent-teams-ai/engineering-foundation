@@ -554,11 +554,30 @@ of lines. This is a planning target, not current measured capacity. Retain
 the accepted library-first ADR-0061 and existing safety gates; evaluate
 scalability before expanding product implementations.
 
-| Alternative | Reliability /10 | Complexity /10 | Confidence /10 | Incremental implementation and test LOC |
-| --- | ---: | ---: | ---: | ---: |
-| Federated owner scopes, dependency-aware checks and exact evidence reuse | 9 | 6 | 9 | 2,000–6,000 |
-| One global analyzer/build graph for every consumer | 7 | 8 | 8 | 3,000–8,000 |
-| Independent full checks with no shared impact/evidence mechanism | 8 | 5 | 8 | 1,000–3,000 initially |
+| Alternative | Reliability /10 | Complexity /10 | Fitness confidence /10 | Production/integration LOC (P) | Tests/fixtures LOC (T) | Engineer-days |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Federated owner scopes, dependency-aware checks and exact evidence reuse | 9 | 6 | 9 | 800–2,400 | 1,200–3,600 | 10–30 |
+| One shared analyzer/build graph across the inventoried consumer scopes | 7 | 8 | 8 | 1,200–3,200 | 1,800–4,800 | 15–45 |
+| Independent full checks with no shared impact/evidence mechanism | 8 | 5 | 8 | 400–1,200 | 600–1,800 | 5–15 |
+
+These are preliminary incremental estimates for the same bounded first
+comparison: existing checkers/toolchains, one existing consumer and disposable
+qualification fixtures. They cover handwritten tooling integration, input/evidence
+binding, invalidation or full-check instrumentation, and negative/consumer
+fixtures. They exclude generated, vendored and documentation bytes, new native
+or compiler implementations, new infrastructure/deployment, and ecosystem-wide
+adoption. The shared-graph row does not estimate a complete global analyzer.
+Independent full checks already exist: its range applies only if the comparison
+needs additional qualification or instrumentation; retaining sufficient existing
+coverage needs zero P/T. This documentation change itself has P = T = 0.
+
+Time assumes one experienced engineer, existing prerequisites and focused review.
+Sizing confidence is 3/10 until the capability/seam inventory is complete;
+re-estimate before implementing any option. The ranges are planning judgments,
+not measured results, a delivery promise or additive budgets. Fitness confidence
+is separate from sizing confidence. Reliability scores compare correct check
+invalidation within this bounded source/check scope; all scores are ordinal
+judgments, not availability guarantees or proof of the codebase-scale target.
 
 The first is the leading hypothesis; first inventory existing changed-check,
 source graph, public API, documentation, packed-consumer and CI input-proof
@@ -568,6 +587,14 @@ Foundation observes the applicable source/check contract and does not own
 product graphs. Consumers keep their own architecture policy. A private
 implementation edit should not invalidate unrelated packages unless it changes
 their actual qualification inputs.
+
+Federation's strongest counterexample is an undiscovered shared input: a cached
+result can look current while omitting an affected owner. A shared graph can
+expose that input but increases central coupling and over-invalidation risk.
+Full checks avoid impact-selection errors at the cost of repeated work. Compare
+each against the same complete full-check baseline and measured input changes.
+Keep that baseline authoritative during migration; admit scoped reuse only
+after complete invalidation evidence, with full fallback for unknown inputs.
 
 Qualification candidates: independent scoped builds, graph boundary and
 public-surface changes, deletions/renames, changed config or toolchain,

@@ -546,6 +546,49 @@ and disables scripts for packing. Package tests do not import repository tooling
 modules across their package source boundaries; no source-DAG exception or new
 module-system boundary is introduced.
 
+## Foundation-first growth review (proposed)
+
+The [organization ecosystem vision](https://github.com/agent-teams-ai/.github/blob/bb7b1c00f18a8c532681f286afa51dda954469b4/docs/architecture/ecosystem-vision.md) expects many independent
+consumers and eventual codebase growth across products to tens of millions
+of lines. This is a planning target, not current measured capacity. Retain
+the accepted library-first ADR-0061 and existing safety gates; evaluate
+scalability before expanding product implementations.
+
+| Alternative | Reliability /10 | Complexity /10 | Confidence /10 | Incremental implementation and test LOC |
+| --- | ---: | ---: | ---: | ---: |
+| Federated owner scopes, dependency-aware checks and exact evidence reuse | 9 | 6 | 9 | 2,000–6,000 |
+| One global analyzer/build graph for every consumer | 7 | 8 | 8 | 3,000–8,000 |
+| Independent full checks with no shared impact/evidence mechanism | 8 | 5 | 8 | 1,000–3,000 initially |
+
+The first is the leading hypothesis; first inventory existing changed-check,
+source graph, public API, documentation, packed-consumer and CI input-proof
+capabilities. No new optimizer or graph authority is authorized here. Separate
+source dependency, compiler, composition, deployment and execution graphs;
+Foundation observes the applicable source/check contract and does not own
+product graphs. Consumers keep their own architecture policy. A private
+implementation edit should not invalidate unrelated packages unless it changes
+their actual qualification inputs.
+
+Qualification candidates: independent scoped builds, graph boundary and
+public-surface changes, deletions/renames, changed config or toolchain,
+transitive dependency changes, cross-scope invalidation, concurrent edits,
+cache corruption or stale evidence, full-check fallback on uncertainty,
+measured cold/incremental time and memory. Prove complete scope coverage and
+negative controls before reusing an earlier result. Extend existing
+qualification/performance fixtures rather than inventing a central analyzer.
+Representative sizes and budgets require owner review and actual measurements.
+
+Review qualified package cohorts separately: genuinely independent lint and
+development tooling should be upgradeable independently; tightly coupled Docs
+Protocol/mutation packages retain compatible, verified closures. Compare
+independent package releases with qualified compatible cohorts and coordinated
+all-consumer upgrades. The preferred direction is independent releases with
+bounded cohorts only where needed. Current cohort rules remain authoritative;
+do not loosen physical-resolution, provenance, compiler or release checks.
+Use the existing central cohort route and a real consumer canary to resolve
+incompatible closures. No package pin, policy or execution behavior changes
+in this planning note.
+
 ## Feature ownership and complete production scope
 
 `pnpm quality:scope:check` retains EF-specific inventory, language, ambient-rule coverage and exact ambient exception validation. The [shared quality capability](../reference/quality-source-coverage.md) owns independent source/suppression coverage and actual Oxlint selection: `quality:coverage:scope` runs in the fast gate, and `lint:typed` runs the full CLI once in the full gate. `pnpm architecture:features:check` executes the [local adoption](../architecture/feature-module-standard.md) guard, including actual source edges. Both run in `check` and `check:fast`; unresolved ownership migrations fail closed. Typed lint covers every production `src`, including packaged qualification code, with unchanged rules and thresholds.

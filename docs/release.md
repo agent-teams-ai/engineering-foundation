@@ -602,11 +602,14 @@ it does not change release guards. Official version planning and the protected
 source and generated release PRs must prove the exact version impact. Previously
 qualified packages from `5d1d6417` may be reused only after the ordinary complete
 artifact and cryptographic checks prove their protected-main ancestry. The
-unpublished `stack-toolchain@0.3.0` keeps its existing version and qualified
-package bytes. Neither the recovery intent nor a merged version PR proves
-publication: the new FMS artifact and the complete resulting release graph still
-require normal OIDC publication, source-bound SLSA, final tags and consumer
-qualification.
+FMS-only recovery left the unpublished `stack-toolchain@0.3.0` unchanged.
+Subsequent fresh packed pnpm qualification found that the parser's ranged
+visitor-keys dependency could resolve outside the qualified `8.73.0` scope
+cohort. A separate normal Stack patch Changeset adds the artifact-owned exact
+visitor-keys pin; official versioning must select its new patch and qualify the
+complete resulting graph. Neither recovery intent nor a merged version PR proves
+publication: both new artifacts still require normal OIDC publication,
+source-bound SLSA, final tags and consumer qualification.
 
 Every pull request that changes a published package must include a normal
 Changeset. CI enforces this with the official `changeset status` command against

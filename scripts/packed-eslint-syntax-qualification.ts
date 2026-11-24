@@ -259,6 +259,8 @@ export async function verifyInstalledEslintSyntaxArtifacts(
   assert.equal(dependencies["typescript"], "7.0.2");
   assert.equal(dependencies["eslint-parser-oxc"], "0.1.1");
   assert.equal(dependencies["@typescript-eslint/scope-manager"], "8.73.0");
+  // This artifact-owned pin constrains the parser's range without a direct runtime import.
+  assert.equal(dependencies["@typescript-eslint/visitor-keys"], "8.73.0");
   assert.equal(dependencies["@eslint/core"], "1.2.1");
   assert.equal(record(metadata["peerDependencies"])["eslint"], "10.3.0");
   assert.equal(record(record(metadata["peerDependenciesMeta"])["eslint"])["optional"], true);

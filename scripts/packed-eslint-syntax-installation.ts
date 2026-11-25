@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { runNpmCommand } from "./pack-test-support.mjs";
+import { qualifyInstalledEffectOptionality } from "./packed-effect-diagnostics-qualification.ts";
 import {
   qualifyInstalledEslintRoot,
   qualifyInstalledEslintSyntax,
@@ -81,6 +82,9 @@ async function qualifyInstallation(
     );
     await verifyInstalledEslintSyntaxArtifacts(root, expected);
     await qualifyInstalledEslintRoot(root);
+    if (manager === "npm" && !explicitHost) {
+      await qualifyInstalledEffectOptionality(root);
+    }
     if (explicitHost) {
       await qualifyInstalledEslintSyntax(root);
     }

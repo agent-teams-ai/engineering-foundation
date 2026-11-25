@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "repository": "https://github.com/agent-teams-ai/get-modular",
+  "commit": "330c28dbea1a3de812d3aee5ddb71ef829dee347",
+  "sourcePath": "tests/qualification/consumer-fixtures/growth/generate.ts",
+  "gitBlob": "fd53a3e60ff7215e1d3b99bc3597375874b01fba",
+  "license": {
+    "spdx": "Apache-2.0",
+    "path": "LICENSE",
+    "gitBlob": "261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64"
+  },
+  "retention": "Byte-exact upstream source and license; do not mechanically reformat.",
+  "scope": "N100 compiler-cost fixture only. This Promise-based source is not Effect runtime scale evidence."
+}

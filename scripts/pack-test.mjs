@@ -21,6 +21,7 @@ import {
   runPackageQualificationPhases,
 } from "./package-qualification-groups.mts";
 import { createPackedConsumerFixture } from "./packed-consumer-fixture.mjs";
+import { prepareEffectFixtureDependencies } from "./effect-fixture-dependencies.ts";
 import { verifyPackedConsumer } from "./packed-consumer-e2e.mjs";
 import { verifyPackedCiInputProof } from "./packed-ci-input-proof.mts";
 import { verifyPackedFeatureModuleStandard } from "./packed-feature-module-standard.mjs";
@@ -76,7 +77,7 @@ function packageManagerVersion(repositoryManifest) {
  * @param {import("./package-qualification-groups.mts").PackedQualificationGroup | undefined} [group]
  */
 export function qualifyPackedConsumers(handle, group) {
-  packageQualificationPhaseIds("packed", group);
+  const selectedPhases = packageQualificationPhaseIds("packed", group);
   return runQualifiedArtifactConsumer(
     handle,
     "packed",
@@ -99,9 +100,13 @@ export function qualifyPackedConsumers(handle, group) {
       const docsProtocolAdapterArtifact = artifacts["@agent-teams/docs-protocol-agent-teams"];
       const docsProtocolMcpArtifact = artifacts["@agent-teams/docs-protocol-mcp"];
       let fixture;
+      let effectDependencies;
       const getFixture = async () => {
-        fixture ??= await timedPhase("packed consumer fixture", async () =>
-          createPackedConsumerFixture({
+        fixture ??= await timedPhase("packed consumer fixture", async () => {
+          if (selectedPhases.includes("quality coverage")) {
+            effectDependencies = await prepareEffectFixtureDependencies(temporaryRoot);
+          }
+          return createPackedConsumerFixture({
             archiveFileSpecifier: artifact.archiveFileSpecifier,
             stackToolchainArchiveFileSpecifier: artifacts["stack-toolchain"].archiveFileSpecifier,
             consumerRoot: join(temporaryRoot, "consumer"),
@@ -110,8 +115,9 @@ export function qualifyPackedConsumers(handle, group) {
             packageManager,
             runPnpm,
             toolingVersions: await toolingVersions(),
-          }),
-        );
+            effectDependencies,
+          });
+        });
         return fixture;
       };
       const consumerPhase = (id, run) => ({
@@ -197,7 +203,10 @@ export function qualifyPackedConsumers(handle, group) {
           }),
         ),
         consumerPhase("quality coverage", async (current) => {
-          await qualifyInstalledStackToolchain(current.consumerRoot);
+          await qualifyInstalledStackToolchain(current.consumerRoot, {
+            effectDependencies,
+            measureGrowth: effectDependencies !== undefined,
+          });
           await qualifyPackedEslintInstallations({
             artifact: artifacts["stack-toolchain"],
             packageManager,

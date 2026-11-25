@@ -69,6 +69,10 @@
     "packed-docs-consumer-integration.ts",
     "packed-local-mode-e2e.ts",
     "packed-local-mode-command.ts",
-    "packed-local-mode-custody.ts"
+    "packed-local-mode-custody.ts",
+    "effect-fixture-dependencies.ts",
+    "packed-effect-diagnostics-qualification.ts",
+    "packed-effect-diagnostics-fixtures.ts",
+    "packed-effect-diagnostics-growth.ts"
   ]
 }

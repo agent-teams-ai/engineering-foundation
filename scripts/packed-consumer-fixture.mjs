@@ -1,6 +1,8 @@
 import { writeScaffoldingTypeConsumer } from "./packed-scaffolding-type-consumer.ts";
+import { assertInstalledEffectFixtureDependencies } from "./effect-fixture-dependencies.ts";
+import assert from "node:assert/strict";
 import { createRequire } from "node:module";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 import { canonicalDigest, readJson, syntheticDigest, writeJson } from "./pack-test-support.mjs";
@@ -11,7 +13,7 @@ import { preparePackedNativePublicApiBaseline } from "./packed-consumer-native-p
 const foundationPackage = "@agent-teams/engineering-foundation";
 const identitySource = "export function identity(value: string): string {\n  return value;\n}\n";
 
-function consumerManifest(foundationVersion, packageManager) {
+function consumerManifest(foundationVersion, packageManager, effectDependencies) {
   return {
     name: "foundation-pack-consumer",
     version: "0.0.0",
@@ -30,21 +32,29 @@ function consumerManifest(foundationVersion, packageManager) {
       oxlint: "catalog:",
       "oxlint-tsgolint": "catalog:",
       typescript: "catalog:",
+      ...Object.fromEntries(
+        Object.keys(effectDependencies?.pins ?? {}).map((name) => [name, "catalog:"]),
+      ),
     },
   };
 }
 
 async function writeInstallManifests(input) {
   await writeJson(join(input.consumerRoot, "package.json"), {
-    ...consumerManifest(input.foundationVersion, input.packageManager),
+    ...consumerManifest(input.foundationVersion, input.packageManager, input.effectDependencies),
     devDependencies: {
-      ...consumerManifest(input.foundationVersion, input.packageManager).devDependencies,
+      ...consumerManifest(input.foundationVersion, input.packageManager, input.effectDependencies)
+        .devDependencies,
       "stack-toolchain": input.stackToolchainArchiveFileSpecifier,
     },
   });
   await writeFile(
     join(input.consumerRoot, "pnpm-workspace.yaml"),
-    `packages:\n  - "packages/*"\noverrides:\n  "@agent-teams/engineering-foundation": ${JSON.stringify(input.foundationVersion)}\n  "@agent-teams/document-authoring": ${JSON.stringify(input.documentAuthoringArchiveFileSpecifier)}\n  "@agent-teams/repository-mutation": ${JSON.stringify(input.mutationArchiveFileSpecifier)}\n  "stack-toolchain": ${JSON.stringify(input.stackToolchainArchiveFileSpecifier)}\ncatalogMode: strict\ncatalog:\n  eslint: 10.3.0\n  jsonc-parser: 3.3.1\n  oxlint: ${input.toolingVersions.oxlint}\n  oxlint-tsgolint: ${input.toolingVersions.oxlintTsgolint}\n  typescript: ${input.toolingVersions.typescript}\n`,
+    `packages:\n  - "packages/*"\noverrides:\n  "@agent-teams/engineering-foundation": ${JSON.stringify(input.foundationVersion)}\n  "@agent-teams/document-authoring": ${JSON.stringify(input.documentAuthoringArchiveFileSpecifier)}\n  "@agent-teams/repository-mutation": ${JSON.stringify(input.mutationArchiveFileSpecifier)}\n  "stack-toolchain": ${JSON.stringify(input.stackToolchainArchiveFileSpecifier)}\ncatalogMode: strict\ncatalog:\n  eslint: 10.3.0\n  jsonc-parser: 3.3.1\n  oxlint: ${input.toolingVersions.oxlint}\n  oxlint-tsgolint: ${input.toolingVersions.oxlintTsgolint}\n  typescript: ${input.toolingVersions.typescript}\n${Object.entries(
+      input.effectDependencies?.pins ?? {},
+    )
+      .map(([name, version]) => `  ${JSON.stringify(name)}: ${JSON.stringify(version)}\n`)
+      .join("")}`,
     "utf8",
   );
 }
@@ -55,6 +65,12 @@ async function installPackedPackage(input) {
     foundationVersion: input.archiveFileSpecifier,
   });
   await input.runPnpm(["install", "--ignore-scripts", "--no-frozen-lockfile"], input.consumerRoot);
+  if (input.effectDependencies !== undefined) {
+    const lock = await readFile(join(input.consumerRoot, "pnpm-lock.yaml"));
+    await input.runPnpm(["install", "--ignore-scripts", "--frozen-lockfile"], input.consumerRoot);
+    assert.deepEqual(await readFile(join(input.consumerRoot, "pnpm-lock.yaml")), lock);
+    await assertInstalledEffectFixtureDependencies(input.consumerRoot, input.effectDependencies);
+  }
   const { stdout: versionOutput } = await input.runPnpm(
     ["--reporter=silent", "exec", "agent-teams-foundation", "--version"],
     input.consumerRoot,
@@ -69,16 +85,17 @@ async function installPackedPackage(input) {
     join(input.consumerRoot, "node_modules", "stack-toolchain", "package.json"),
   );
   await writeJson(join(input.consumerRoot, "package.json"), {
-    ...consumerManifest(packedManifest.version, input.packageManager),
+    ...consumerManifest(packedManifest.version, input.packageManager, input.effectDependencies),
     devDependencies: {
-      ...consumerManifest(packedManifest.version, input.packageManager).devDependencies,
+      ...consumerManifest(packedManifest.version, input.packageManager, input.effectDependencies)
+        .devDependencies,
       "stack-toolchain": stackManifest.version,
     },
   });
   return packedManifest;
 }
 
-async function writeFoundationConfiguration(consumerRoot) {
+async function writeFoundationConfiguration(consumerRoot, effectDependencies) {
   await mkdir(join(consumerRoot, "architecture", "foundation"), { recursive: true });
   await writeFile(
     join(consumerRoot, "foundation.config.yaml"),
@@ -126,7 +143,9 @@ policies:
     - oxlint
     - oxlint-tsgolint
     - typescript
-  exactRegistryDevelopmentOnlyPackages:
+${Object.keys(effectDependencies?.pins ?? {})
+  .map((name) => `    - ${JSON.stringify(name)}\n`)
+  .join("")}  exactRegistryDevelopmentOnlyPackages:
     - "@agent-teams/engineering-foundation"
     - stack-toolchain
 `,
@@ -463,7 +482,7 @@ export async function createPackedConsumerFixture(input) {
   const packedManifest = await installPackedPackage(input);
   await writeScaffoldingTypeConsumer(input.consumerRoot);
   const toolEntrypoints = resolveConsumerToolEntrypoints(input.consumerRoot);
-  await writeFoundationConfiguration(input.consumerRoot);
+  await writeFoundationConfiguration(input.consumerRoot, input.effectDependencies);
   await writeDocumentationFixture(input.consumerRoot);
   const jsonContract = await writeJsonContractFixture(input.consumerRoot);
   await mkdir(join(input.consumerRoot, "src"), { recursive: true });

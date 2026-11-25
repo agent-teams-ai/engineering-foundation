@@ -1,6 +1,6 @@
 # Optional Effect diagnostics in Stack Toolchain
 
-Date: 2026-11-25. Status: two plan-review rounds complete; implementation has not started. Owner:
+Date: 2026-11-25. Status: two plan-review rounds complete; implementation and code review in progress. Owner:
 Stack Toolchain. Delivery: one Draft PR, two independent plan-review rounds,
 implementation and installed E2E, independent code review, exact-head full CI,
 owner squash and post-merge verification. Package publication remains the
@@ -137,6 +137,11 @@ explicit leaf-project contract instead of implementing TypeScript inheritance:
    Installed third-party declarations are not consumer suppression policy.
    Actual unstable use with next-line off and wildcard skip-file directives
    must reject as policy input failures.
+   Implementation review additionally identified that the pinned upstream
+   runner skips declaration files. Reject consumer-local `.d.ts`, `.d.mts`
+   and `.d.cts` sources, whether selected directly or imported, rather than
+   imply Effect coverage for them. Installed declarations remain type-resolution
+   inputs. This bounded restriction requires no declaration parser.
 5. Every selected project is checked. The report preserves its inventory and
    outcome; cancellation, timeout, incomplete output or incomplete cleanup is
    failure. Do not classify an arbitrary nonzero exit as an expected diagnostic.
@@ -319,7 +324,7 @@ protection or the existing GitHub Free workflow-source trust limitation.
 - [x] Initial written plan and explicit excluded scope.
 - [x] Round 1 critique applied.
 - [x] Round 2 critique applied; implementation scope frozen.
-- [ ] Shared command and installed consumers implemented.
+- [x] Shared command and installed consumers implemented; native execution pending.
 - [ ] N100 bounded compiler-cost observation retained.
 - [ ] Independent final code review and fixes complete.
 - [ ] Exact-head required full CI passed.
@@ -373,3 +378,30 @@ malformed compiler inventory rejects instead of falling back to root files;
 signature verification stays in fixture acquisition, never a network prerequisite
 of the public check API. No new general resolver, suppression engine, plugin
 registry, snapshot framework or installation orchestrator is admitted.
+
+
+### Implementation review in progress
+
+The first independent production review found two material gaps: local declaration
+files are skipped by the upstream Effect rule runner, and ordinary multiline
+TypeScript diagnostics were classified as tool failures. The first is corrected
+with explicit local-declaration refusal (including imports), portable cases and
+an installed negative. The second is being qualified through a real nested
+assignment diagnostic followed by another selected project. Unknown output and
+crash tails must still reject.
+
+Independent installed-consumer review also required ordinary typecheck, lint and
+format to run in the existing no-Effect installation, alongside root import and
+doctor. Those assertions now share that installation and its Effect-resolution
+blocking hook. Acquisition review required explicit development-dependency
+inclusion even under a production environment; both frozen public install and
+signature verification now request it.
+
+Source build, strict script typecheck and the initial Stack strict typecheck
+passed. The subsequent focused run passes 21 checks after fixing two test-harness
+issues (JSONC null-prototype records and Node test-runner stdout capture). These
+are local source observations, not installed-native qualification. The native
+acquisition attempt exhausted this shared workspace's temporary filesystem;
+its incomplete payload was removed. No compiler or successful signature audit
+is claimed for that attempt. Full packed and hermetic-registry qualification
+remain required on the PR's final head.

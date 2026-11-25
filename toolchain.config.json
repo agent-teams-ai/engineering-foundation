@@ -38,6 +38,7 @@
       "tests",
       "toolchain.config.json",
       "tsconfig.quality.json",
+      "!tests/fixtures/effect-diagnostics/growth/generate.ts",
       "!packages/docs-protocol-agent-teams/assets/catalog.json",
       "!packages/docs-protocol-agent-teams/assets/docs-protocol.yml",
       "!packages/docs-protocol-agent-teams/assets/history/sha256-097df9fe1b90ab45f73389c8b69736f8a54d4199b09536d586222b5a7f0fbb09/caller.yml",

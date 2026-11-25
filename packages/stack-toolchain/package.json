@@ -20,7 +20,9 @@
     "toolchain-manifest.json",
     "presets",
     "THIRD_PARTY_NOTICES.md",
-    "eslint-syntax-provenance.json"
+    "eslint-syntax-provenance.json",
+    "EFFECT.md",
+    "effect-toolchain-manifest.json"
   ],
   "type": "module",
   "sideEffects": false,
@@ -44,6 +46,10 @@
     "./eslint-syntax": {
       "types": "./dist/eslint-syntax.d.ts",
       "import": "./dist/eslint-syntax.js"
+    },
+    "./effect": {
+      "types": "./dist/effect.d.ts",
+      "import": "./dist/effect.js"
     }
   },
   "publishConfig": {

@@ -4499,6 +4499,16 @@ boundaries:
       packages: []
       builtins: []
       runtimeReferences: []
+  - id: stack-toolchain.effect.application
+    roots:
+      - packages/stack-toolchain/src/features/toolchain-execution/application/effect-policy.ts
+    entrypoints:
+      - packages/stack-toolchain/src/features/toolchain-execution/application/effect-policy.ts
+    allow:
+      boundaries: []
+      packages: []
+      builtins: []
+      runtimeReferences: []
   - id: stack-toolchain.execution.adapters
     roots:
       - packages/stack-toolchain/src/features/toolchain-execution/adapters/cleanup-cli.ts
@@ -4510,6 +4520,9 @@ boundaries:
       - packages/stack-toolchain/src/features/toolchain-execution/adapters/format-files.ts
       - packages/stack-toolchain/src/features/toolchain-execution/adapters/process.ts
       - packages/stack-toolchain/src/features/toolchain-execution/adapters/run-cli.ts
+      - packages/stack-toolchain/src/features/toolchain-execution/adapters/effect-check.ts
+      - packages/stack-toolchain/src/features/toolchain-execution/adapters/effect-files.ts
+      - packages/stack-toolchain/src/features/toolchain-execution/adapters/effect-cli.ts
     entrypoints:
       - packages/stack-toolchain/src/features/toolchain-execution/adapters/cleanup-cli.ts
       - packages/stack-toolchain/src/features/toolchain-execution/adapters/cleanup-files.ts
@@ -4519,15 +4532,20 @@ boundaries:
       - packages/stack-toolchain/src/features/toolchain-execution/adapters/executables.ts
       - packages/stack-toolchain/src/features/toolchain-execution/adapters/process.ts
       - packages/stack-toolchain/src/features/toolchain-execution/adapters/run-cli.ts
+      - packages/stack-toolchain/src/features/toolchain-execution/adapters/effect-check.ts
+      - packages/stack-toolchain/src/features/toolchain-execution/adapters/effect-files.ts
+      - packages/stack-toolchain/src/features/toolchain-execution/adapters/effect-cli.ts
     allow:
       boundaries:
         - stack-toolchain.typecheck.application
+        - stack-toolchain.effect.application
       packages:
         - jsonc-parser
         - node-or-bun
       builtins:
         - node:crypto
         - node:fs
+        - node:fs/promises
         - node:os
         - node:module
         - node:path
@@ -4563,6 +4581,20 @@ boundaries:
     allow:
       boundaries:
         - stack-toolchain.eslint-syntax
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: stack-toolchain.effect.module
+    roots:
+      - packages/stack-toolchain/src/effect.ts
+    entrypoints:
+      - packages/stack-toolchain/src/effect.ts
+    packageExports:
+      - ./effect
+    allow:
+      boundaries:
+        - stack-toolchain.execution.adapters
+        - stack-toolchain.effect.application
       packages: []
       builtins: []
       runtimeReferences: []
@@ -4602,6 +4634,8 @@ boundaries:
         - stack-toolchain.eslint-syntax
         - stack-toolchain.eslint-syntax.module
         - stack-toolchain.execution.adapters
+        - stack-toolchain.effect.application
+        - stack-toolchain.effect.module
         - stack-toolchain.module
         - stack-toolchain.typecheck.application
       packages:

@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "repository": "https://github.com/agent-teams-ai/engineering-research",
+  "commit": "c99f19835ca3e80c5a7268f8bf42f089418e1cf0",
+  "path": "evidence/experiments/effect-diagnostics-2026-11-24",
+  "expectationsGitBlob": "9b4c8e4ee6632a33e649a2346ccafbfb0080be4e",
+  "note": "Original source bytes and independently authored expected diagnostics are retained. Installed projects enforce both rules as errors; this joint Effect4.1.4 cohort is newly qualified.",
+  "cases": [
+    {
+      "id": "stable-effect",
+      "source": "import * as Effect from \"effect/Effect\";\n\nexport const stableValue = Effect.succeed(42);\n",
+      "sourceGitBlob": "0306a023784f3912cac608b9ceb0e0eca4a1aac1",
+      "expectedExit": 0,
+      "expected": [],
+      "allowedUnstableApis": []
+    },
+    {
+      "id": "ordinary-type-error",
+      "source": "// Intentional TypeScript negative: the assignment must report TS2322.\nexport const count: number = \"wrong\";\n",
+      "sourceGitBlob": "0cd079bef527221bd180dea57e6b7333aa7c0062",
+      "expectedExit": "diagnostics",
+      "expected": [
+        {
+          "file": "fixtures/ordinary-type-error.ts",
+          "line": 2,
+          "code": 2322,
+          "category": "error"
+        }
+      ],
+      "allowedUnstableApis": []
+    },
+    {
+      "id": "unused-import",
+      "source": "import { get } from \"effect/http/HttpClient\";\n",
+      "sourceGitBlob": "6077807dcad87711e586a9ba692bae196310eb65",
+      "expectedExit": 0,
+      "expected": [],
+      "allowedUnstableApis": []
+    },
+    {
+      "id": "actual-unstable",
+      "source": "import { get } from \"effect/http/HttpClient\";\n\nexport const request = get(\"https://example.invalid\");\n",
+      "sourceGitBlob": "a56fbc323b7391713a2bf80d6938d2206303474c",
+      "expectedExit": "diagnostics",
+      "expected": [
+        {
+          "file": "fixtures/actual-unstable.ts",
+          "line": 3,
+          "code": 377136,
+          "category": "error"
+        }
+      ],
+      "allowedUnstableApis": []
+    },
+    {
+      "id": "aliases",
+      "source": "import { get as renamedGet } from \"effect/http/HttpClient\";\n\nconst localGet = renamedGet;\nexport const renamedRequest = renamedGet(\"https://example.invalid\");\nexport const localRequest = localGet(\"https://example.invalid\");\n",
+      "sourceGitBlob": "2bf70b8c43ed05b89fc16debaf4083c94b8253fe",
+      "expectedExit": "diagnostics",
+      "expected": [
+        {
+          "file": "fixtures/aliases.ts",
+          "line": 3,
+          "code": 377136,
+          "category": "error"
+        },
+        {
+          "file": "fixtures/aliases.ts",
+          "line": 4,
+          "code": 377136,
+          "category": "error"
+        },
+        {
+          "file": "fixtures/aliases.ts",
+          "line": 5,
+          "code": 377136,
+          "category": "error"
+        }
+      ],
+      "allowedUnstableApis": []
+    },
+    {
+      "id": "stable-leak",
+      "source": "import type { HttpClient } from \"effect/http/HttpClient\";\n\n/** @stability stable */\nexport interface StableClientPort {\n  readonly client: HttpClient;\n}\n",
+      "sourceGitBlob": "1808a92c8ee6836e9fa7fd63f731523dcc858fa8",
+      "expectedExit": "diagnostics",
+      "expected": [
+        {
+          "file": "fixtures/stable-leak.ts",
+          "line": 4,
+          "code": 377137,
+          "category": "error"
+        }
+      ],
+      "allowedUnstableApis": []
+    },
+    {
+      "id": "structural-port",
+      "source": "import type * as Effect from \"effect/Effect\";\n\nexport type EffectVersionAnchor = Effect.Effect<void>;\n\n/** @stability stable */\nexport interface StablePort {\n  readonly read: (key: string) => Promise<string>;\n}\n",
+      "sourceGitBlob": "3c57462f0890c307f83cd98317984e63a2d4ca73",
+      "expectedExit": 0,
+      "expected": [],
+      "allowedUnstableApis": []
+    },
+    {
+      "id": "exact-allowlist",
+      "source": "import { get as renamedGet, post } from \"effect/http/HttpClient\";\nimport * as HttpClient from \"effect/http/HttpClient\";\n\nconst localGet = renamedGet;\nexport const aliasedRequest = localGet(\"https://example.invalid\");\nexport const namespacedRequest = HttpClient.get(\"https://example.invalid\");\nexport const rejectedSibling = post(\"https://example.invalid\");\n",
+      "sourceGitBlob": "bf40c928961e75afd15ecadfd54a0833e3b78811",
+      "expectedExit": "diagnostics",
+      "expected": [
+        {
+          "file": "fixtures/exact-allowlist.ts",
+          "line": 7,
+          "code": 377136,
+          "category": "error"
+        }
+      ],
+      "allowedUnstableApis": ["effect/http/HttpClient#get"]
+    }
+  ]
+}

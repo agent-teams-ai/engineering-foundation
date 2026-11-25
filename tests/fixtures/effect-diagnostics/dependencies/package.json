@@ -1,0 +1,13 @@
+{
+  "name": "foundation-effect-diagnostics-fixture",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@effect/tsgo-linux-x64": "0.73.4",
+    "@get-modular/assembly": "0.8.0",
+    "@get-modular/core": "0.8.0",
+    "@get-modular/effect": "0.1.1",
+    "effect": "4.1.4"
+  }
+}

@@ -11,15 +11,19 @@ async function dispatch(args: readonly string[], signal: AbortSignal): Promise<n
   if (command === "fix") {
     return runCleanupCli(values, signal);
   }
+  if (command === "effect:check") {
+    const { runEffectCli } = await import("./effect-cli.js");
+    return runEffectCli(values, signal);
+  }
   if (isHelp(args)) {
     process.stdout.write(
-      "Usage: stack-toolchain typecheck|lint|format:check|compile|doctor|fix [--json] [--config path]\nCompile: stack-toolchain compile --project path | --build path...\nFix: stack-toolchain fix [--json] [--lint-config path] -- file...\n",
+      "Usage: stack-toolchain typecheck|lint|format:check|compile|doctor|fix|effect:check [--json] [--config path]\nCompile: stack-toolchain compile --project path | --build path...\nFix: stack-toolchain fix [--json] [--lint-config path] -- file...\nEffect: stack-toolchain effect:check [--json] --project path [--project path...]\n",
     );
     return 0;
   }
   if (!["typecheck", "lint", "format:check", "compile", "doctor"].includes(command ?? "")) {
     process.stderr.write(
-      "Usage: stack-toolchain typecheck|lint|format:check|compile|doctor|fix [--json] [--config path]\n",
+      "Usage: stack-toolchain typecheck|lint|format:check|compile|doctor|fix|effect:check [--json] [--config path]\n",
     );
     return 2;
   }

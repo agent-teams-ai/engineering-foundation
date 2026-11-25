@@ -595,10 +595,18 @@ reported. The next complete hosted matrix must supply the missing qualification.
 ### Second hosted run: delivery corrections and frozen-client decision
 
 [Run 45666515807](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/45666515807)
-checks head `a3a24cc4aaf7b5ce0041c6601d34c1f067d0c9ad` on the same
-`fac03920e50ebde038ae415edeb7aa9e3d610ada` base. Linux static, all Linux
-test lanes and coverage, Windows quality-coverage and actual macOS native
-execution passed. This is not a successful complete matrix.
+checked head `a3a24cc4aaf7b5ce0041c6601d34c1f067d0c9ad` on the same
+`fac03920e50ebde038ae415edeb7aa9e3d610ada` base. It completed on
+2026-11-25 at 18:16:06 UTC: all 35 jobs are terminal, with 29 successes,
+five failures and one cancellation. Linux static, every Linux test lane and
+coverage, every Windows test/package/registry lane and actual macOS native
+execution passed. The five failures comprise the two Linux causes below and
+three dependent aggregates. The macOS `pnpm-docs` job was cancelled before
+runner allocation (`runner_id=0`, no steps); the API supplied no cause.
+All eight raw Linux coverage artifacts exist, are unexpired at inspection and
+bind to this run's head. Neither Linux owner reached the emitted native corpus
+observation. This is not a successful complete matrix or evidence for a later
+source head.
 
 The [packed owner](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/45666515807/job/139391652556)
 reached the new qualifier, then its CommonJS `require.resolve` probe rejected
@@ -659,8 +667,9 @@ before executing the additional client, including its version probe:
 
 - Official `npm@10.9.11`, with committed exact manifest/lock and SHA-512 integrity.
 - Successful cryptographic registry-signature verification of that exact input
-  by the existing trusted npm client; metadata containing a signature is not
-  enough. Reject missing/invalid signature evidence or unexpected dependencies.
+  by the documented verifier in the existing trusted npm installation, as
+  refined below; signature metadata alone is not enough. Reject missing or
+  invalid signature evidence and unexpected dependencies.
 - Scripts-disabled acquisition in disposable storage, contained package/CLI
   paths, the supported Node runtime and bounded execution.
 - An explicit receipt for **npm 11 initial installation followed by npm 10
@@ -676,3 +685,52 @@ this limit and must not report generic `provenanceVerified: true`. The original
 five-package verifier and its SLSA/publish-attestation requirements are unchanged,
 as are dependency review, SBOM and release gates. Independent review permits this
 distinct design; actual signature admission and execution remain to be observed.
+
+### Auxiliary verifier refinement after independent reporter review
+
+The initial CLI-audit proposal was examined before any npm 10 execution.
+In npm 11, JSON `verified` entries identify attestation results, not every
+registry-signature result. Empty `invalid`/`missing` arrays therefore cannot
+establish the required positive binding. The actual private installation has
+one npm package and 195 bundled packages; the signature walker does not
+exclude bundled nodes. A positive aggregate count alone would not identify
+which artifact was verified. Auditing the whole bundled tree twice adds work
+unrelated to this one auxiliary package and may constrain historical bundles.
+
+Use the existing trusted npm installation's documented
+[`pacote.manifest` signature verification](https://github.com/npm/pacote/blob/v21.5.1/README.md)
+for the exact `npm@10.9.11` artifact. The
+[official verifier](https://github.com/npm/pacote/blob/v21.5.1/lib/registry.js)
+checks the signed name/version/integrity message, matching registry key and key
+expiry. npm's own
+[signature command](https://github.com/npm/cli/blob/v11.20.0/lib/utils/verify-signatures.js)
+uses this API and explicitly supports the official HTTPS registry-key endpoint.
+This is a package-scoped invocation of upstream verification, not a new
+cryptographic implementation or a successful CLI-audit claim.
+
+Before implementation, independent review requires the following bounded
+protocol:
+
+- Resolve `pacote` only from the already trusted npm 11 installation, verify
+  its contained module path and inspected version, and record both versions.
+  Never load the copy bundled in the unverified npm 10 candidate.
+- Fetch keys only from the fixed official registry HTTPS endpoint, with a
+  deadline, response-byte bound, validated key fields and no redirect to an
+  arbitrary host. Use upstream's key-to-PEM mapping.
+- Call the official manifest API with fixed exact package/version, registry,
+  `verifySignatures: true`, registry-scoped keys and bounded network/cache
+  options. Caller or environment options cannot disable verification.
+- Require the returned name, version, archive URL and SHA-512 integrity to
+  match the committed input, and require nonempty verified signature results.
+  Missing keys/signatures, invalid signatures or any mismatch reject before
+  the candidate's version probe or other code execution.
+- Keep scripts-disabled installation, immutable lock and archive identity,
+  contained executable, supported runtime, mismatch rejection control and
+  unchanged consumer-lock assertion from the admission decision above.
+
+The generated lock was produced through the existing npm client and the
+scripts-disabled installation completed locally. Bounded whole-tree CLI-audit
+attempts ended with SIGKILL before producing a successful receipt; npm 10 was
+not executed. The refined official verifier and frozen reinstall still require
+actual execution evidence. The five-package Effect verifier, provenance scope,
+product tool pins and release checks are unchanged.

@@ -1,6 +1,6 @@
 # Optional Effect diagnostics in Stack Toolchain
 
-Date: 2026-11-25. Status: plan; implementation has not started. Owner:
+Date: 2026-11-25. Status: two plan-review rounds complete; implementation has not started. Owner:
 Stack Toolchain. Delivery: one Draft PR, two independent plan-review rounds,
 implementation and installed E2E, independent code review, exact-head full CI,
 owner squash and post-merge verification. Package publication remains the
@@ -111,19 +111,36 @@ explicit leaf-project contract instead of implementing TypeScript inheritance:
 1. The selected local JSON/JSONC project explicitly declares exactly one Effect
    plugin. It is enabled, both unstable-use and stable-API-leak rules are errors,
    and error findings cannot be ignored in the compiler exit status.
-2. Consumer exceptions name exact upstream exports. If file overrides are
-   admitted, they may change only exact allowances, not disable required rules
-   or weaken severity. Preserve replacement semantics. Unqualified policy shapes
-   reject with a bounded configuration error rather than being guessed.
+2. Consumer exceptions name exact upstream exports. The first profile rejects
+   file overrides and represents SDK/backend/frontend policy by separately
+   selected standalone leaf projects. This keeps matching with the compiler
+   and avoids a custom glob or suppression engine. Each selected project has
+   an explicit exact allowlist; wildcards and unknown policy options reject.
+   The already researched override shape remains a later additive choice.
 3. The actual qualified compiler resolves inherited ordinary TypeScript options.
-   Require strict/noEmit, no noCheck or skipLibCheck, nonempty real source roots
-   and no project references in this first standalone profile. Reject omitted
-   or escaping source/config paths under the declared root policy. Relative
-   file semantics must be qualified; do not create temporary rewritten tsconfigs.
-4. Every selected project is checked. The report preserves its inventory and
+   Require strict/noEmit, no disabled strict-family suboptions, no noCheck or
+   skipLibCheck, nonempty real source roots and no project references. Selected
+   leaf configs and all consumer source files belong to the declared real source
+   root. The compiler's complete source-list probe, not just showConfig roots,
+   supplies imported local files too. Installed dependency declarations and
+   paired standard libraries belong to their separately admitted physical
+   installation boundary. The existing sibling fixture's node_modules link is
+   admitted through its real installation, not treated as escaping local source.
+   Ordinary inherited config resolution remains the compiler's responsibility;
+   there is no claim of an independent whole inheritance-chain audit. Do not
+   create a config/import resolver or temporary rewritten tsconfigs.
+4. This strict optional profile admits exceptions only through its explicit
+   exact-export config. Reject the reserved token `@effect-diagnostics` in all
+   admitted consumer source files before checking, including imported local
+   files. The lexical refusal deliberately also catches token text in a string;
+   document this conservative restriction. Do not reinterpret directive syntax.
+   Installed third-party declarations are not consumer suppression policy.
+   Actual unstable use with next-line off and wildcard skip-file directives
+   must reject as policy input failures.
+5. Every selected project is checked. The report preserves its inventory and
    outcome; cancellation, timeout, incomplete output or incomplete cleanup is
    failure. Do not classify an arbitrary nonzero exit as an expected diagnostic.
-5. API leakage is annotation-driven in the upstream rule: the retained positive
+6. API leakage is annotation-driven in the upstream rule: the retained positive
    and negative public-contract examples explicitly use `@stability stable`.
    This does not automatically close all package exports, deep imports or FMS
    boundaries; those remain with their existing checks.
@@ -141,12 +158,21 @@ Initial native profile: Linux x64, `@effect/tsgo-linux-x64@0.73.4`, reported
 Keep the published package and adjacent standard declarations intact. Resolve
 from the consumer installation through the existing physical-containment
 approach, enforce the exact package/executable identity before running it, and
-reject unsupported platforms before compiler execution. Never run the rejected
+reject unsupported platforms before compiler execution. Retain and verify the
+already-qualified 108 paired standard-library filenames/digests as well as the
+selected binary; missing/replaced libraries reject. Do not hash or execute the
+package's unrelated bundled variants. Never run the rejected
 JS wrapper, setup/patch command, TypeScript 5/6 or a private compiler fork.
 
 All subprocesses use the existing node-or-bun execution/custody mechanism with
 one overall deadline and cancellation. Version/config probes consume that same
-budget. Known six-digit diagnostics and warning behavior need explicit handling;
+budget. Typecheck uses the fixed flags `--noEmit --pretty false --incremental
+true --tsBuildInfoFile <os.devNull>`; no build/watch mode or caller flags.
+Version, effective-config and complete-source-list probes use closed flag sets.
+An incremental/composite fixture with an explicit build-info path must prove
+that source/config bytes stay unchanged and that no build-info output appears.
+This needs a fixture assertion, not a new snapshot framework.
+Known six-digit diagnostics and warning behavior need explicit handling;
 unknown output, crashes, signals and capture/cleanup failures cannot become a
 successful policy result. Keep ordinary typecheck's existing qualified semantics.
 
@@ -161,10 +187,48 @@ installed qualification uses exact public dependencies:
 | `effect` | 4.1.4, matching the GM adapter's exact peer |
 
 Registry metadata/SRI and decoded provenance were inspected; this alone is not
-cryptographic verification. Frozen installations, actual package identity and
-the official npm signatures/provenance verifier must pass before native fixture
-execution. Retain the actual result and do not invent unpublished attestations.
+cryptographic verification. A private fixture manifest and real npm lock own
+these four pins plus the native compiler pin, with no root/Stack dependency
+addition. Only Linux x64 prepares this cohort using the existing npm command
+runner, `npm ci --ignore-scripts` and the official public-registry signatures /
+provenance verifier. Retain exact upstream names, versions, lock/SRI identities,
+verifier result and installed payload binding before any compiler execution.
 Do not force the research pilot's Effect 4.1.5 into GM's exact 4.1.4 peer graph.
+
+One small fixture-only preparation helper supplies both existing installation
+owners. It does not build/pack candidates or become another orchestrator:
+
+- Packed owner: `scripts/pack-test.mjs` prepares the exact public cohort before
+  `createPackedConsumerFixture`; its existing manifest/catalog writer receives
+  the selected exact fixture dependencies before installation. Preserve a real
+  lock and frozen reinstall before the existing manifest normalization from
+  tarball specs to published versions. Retain the cohort declarations in that
+  normalized manifest and bind the same verified upstream payload.
+- Registry owner: `scripts/registry-install-e2e.mjs` receives the acquired
+  dependency roots in its existing closure/seeding flow and inserts exact pins
+  into the selected Linux `foundation-full` consumer manifest before install.
+  Supplemental upstream roots enter both the closure's collected seed set and
+  traversal queue; they never become candidate targets or packageNames.
+  Keep `uplinks: {}` and existing real-lock integrity/payload assertions. Add a
+  scoped `npm ci --ignore-scripts` reinstall for that Linux consumer before
+  execution. The shared qualifier never installs from public npm in this phase.
+  Only this Linux cohort raises Verdaccio's publication-body limit to 256 MB,
+  because the complete native archive needs more than its current 64 MB limit.
+- Public upstream signature evidence precedes repack/reseed. Local Verdaccio
+  publications and the unpublished Stack candidate have their existing artifact
+  and payload evidence; neither inherits original public npm attestations.
+  Existing reseeding adjusts publishConfig.executableFiles in a disposable
+  manifest. Record that known normalization; compare executable/library bytes
+  exactly rather than claiming unchanged entire package.json or archive SRI.
+- Ordinary optionality is proved in the existing independently installed
+  no-Effect Stack consumer, before any cohort addition there. Do not substitute
+  a consumer already containing Effect as evidence of absence.
+
+Unsupported hosts receive no Linux fixture dependency. Their ordinary installed
+Stack checks, public API/types and explicit unsupported-platform refusal remain
+in the existing portable inventory. Positive native execution is required in
+existing Linux package and registry owners, with no new globally omitted test
+file, workflow or installer authority.
 
 ## E2E and the useful scope extension
 
@@ -185,11 +249,12 @@ contracts without Node ambient types; it is not browser execution.
 | Ordinary TypeScript | Valid source passes; TS2322 still fails through the public entry |
 | Effect use | Stable use and bare unused import pass; actual/aliased unstable use rejects |
 | Public surface | Owned structural port passes; annotated stable signature leaking an unstable type rejects |
-| Narrow allowance | Allowed adapter export passes; adjacent export/outside source still rejects |
-| Activation | Explicit policy passes; missing, disabled, downgraded or conflicting policy rejects |
-| Tool admission | Exact contained executable passes; absent/wrong pin/hash/outside path/unsupported platform rejects |
+| Narrow allowance | Allowed adapter export passes; adjacent export and separately selected SDK/frontend policy still reject |
+| Activation | Explicit policy passes; missing, disabled, downgraded, conflicting or source-suppressed policy rejects |
+| Tool admission | Exact contained executable and paired libraries pass; absent/wrong pin/hash/library/outside path/unsupported platform rejects |
 | Execution | Expected diagnostics are distinct from timeout, cancellation, crash, unknown output and incomplete capture/cleanup |
-| Optionality | Ordinary Stack entry and commands remain usable without any Effect installation |
+| Input preservation | Incremental/composite check leaves sources/configs unchanged and creates no requested build-info output |
+| Optionality | Independent ordinary Stack consumer remains usable without any Effect installation |
 | Installed delivery | Packed and registry-installed candidate expose the same API/types/CLI; no source links repair missing payload |
 
 Reuse the Research corpus and its independently authored expectations where
@@ -200,10 +265,16 @@ For the requested modest scope increase, reuse GM's byte-exact test generator
 `tests/qualification/consumer-fixtures/growth/generate.ts` at commit
 `330c28dbea1a3de812d3aee5ddb71ef829dee347`, Git blob
 `fd53a3e60ff7215e1d3b99bc3597375874b01fba`, with source/license provenance and
-strict typecheck. Do not reimplement its algorithm or fetch moving source in CI.
-Use N100 (703 generated TS files), one ordinary baseline and one Effect-enabled
-pass plus a separate enforcement canary. Record exact inputs, compiler identities,
-wall times and memory only if actually collected. This is a bounded compiler
+strict typecheck. Its pinned license is Apache-2.0; preserve source/license
+provenance and original bytes. Do not reimplement its algorithm or fetch moving
+source in CI. Use N100 and independently assert exactly 703 generated TS files,
+with the actual effective input inventory. Compare exact stock TypeScript 7.0.2
+against the selected Effect-native 7.0.2 on the same unchanged sources, not the
+normal tsrs-first fallback. Run one pair only in the Linux packed owner; registry
+and other native lanes do not multiply the sample. A separate small enforcement
+canary is outside the 703-file input and its invocation is recorded separately.
+Record exact input hashes, compiler identities, wall times and memory only if
+actually collected. This is a bounded compiler
 cost sample on a Promise-based GM graph, not Effect runtime scale or a production
 SLO. Existing GM N500/N1000 receipts remain separate; enlarge this sample only
 if a concrete unresolved question requires it.
@@ -246,8 +317,8 @@ protection or the existing GitHub Free workflow-source trust limitation.
 
 - [x] Fresh source/ownership/CI and published dependency inventory.
 - [x] Initial written plan and explicit excluded scope.
-- [ ] Round 1 critique applied.
-- [ ] Round 2 critique applied; implementation scope frozen.
+- [x] Round 1 critique applied.
+- [x] Round 2 critique applied; implementation scope frozen.
 - [ ] Shared command and installed consumers implemented.
 - [ ] N100 bounded compiler-cost observation retained.
 - [ ] Independent final code review and fixes complete.
@@ -258,3 +329,47 @@ Review receipts and measured outcomes will be linked here as they occur. Plans,
 decoded metadata, local checks, hosted qualification and registry publication
 are distinct claims. The next agent continues from these checked items and the
 PR's actual head; it does not replay the already completed Research pilot.
+
+### Round 1 receipt
+
+Three independent read-only roles reviewed initial plan commit
+`edc92b4482e75ba17514687319146142fa47dadd`, Git blob
+`640db5123ff301b2c565c86df91b1f60ede4283d`, SHA-256
+`b4cef9b552de3dfc59afa85bad0af9b6b86483d7eb287bfeaf744bdf8fa655a3`.
+All returned **revise before implementation**. Their material findings and
+applied decisions are:
+
+| Role / finding | Applied revision |
+| --- | --- |
+| Architecture/process A1 | Reserve source diagnostic-directive token; inspect imported local source through the compiler inventory; no suppression parser |
+| Architecture/process A2 | Fixed devNull build-info flags and input-preservation fixture |
+| Architecture/process A3 | Reject file overrides initially; exact per-project allowances, effective strict-family checks and distinct physical boundaries |
+| Architecture/process A4 | Verify retained paired-library inventory as well as native binary |
+| Installed-consumer I1 / delivery D1 | Explicit pre-install owners, one Linux-only fixture metadata authority, no-Effect optionality consumer and portable refusal |
+| Installed-consumer I2 / delivery D2 | Public signatures before hermetic seed; bind payloads and keep candidate/local registry claims separate |
+| Installed-consumer I3 | Stock 7.0.2 paired baseline, independent 703-file census and separate canary; one Linux packed sample |
+| Installed-consumer I4 | Real source root and installed dependency closure use distinct containment checks |
+
+Source-directive behavior was checked in the pinned upstream
+[parser](https://github.com/Effect-TS/tsgo/blob/aa2db44499067a798028cff9d3b1b9ca1e156f57/internal/directives/parser.go)
+and [rule runner](https://github.com/Effect-TS/tsgo/blob/aa2db44499067a798028cff9d3b1b9ca1e156f57/internal/rulerunner/diagnostics.go).
+Review itself did not execute a bypass fixture. Round 2 must check these revised
+choices, particularly installed dependency acquisition and admitted source scope.
+
+### Round 2 receipt and frozen scope
+
+The same three independent roles reviewed revised plan SHA-256
+`832afb8ad945861202c7aba1199c367ef1cccf5c61939cfd234138bea95d2a61`.
+Architecture/process returned **approved for implementation** with A1-A4 closed.
+Installed-consumer and delivery reviewers approved after the concrete corrections
+now applied above: seed supplemental roots themselves, add the scoped frozen
+reinstall at the correct manifest phase, and raise only the Linux cohort's
+registry body limit. The known reseed manifest normalization is explicit.
+No unresolved plan blocker remains. These reviews preceded implementation.
+
+Implementation guardrails: actual runtime input/read/output/deadline bounds;
+reports distinguish selected, attempted, completed and unattempted projects;
+malformed compiler inventory rejects instead of falling back to root files;
+signature verification stays in fixture acquisition, never a network prerequisite
+of the public check API. No new general resolver, suppression engine, plugin
+registry, snapshot framework or installation orchestrator is admitted.

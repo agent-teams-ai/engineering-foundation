@@ -71,6 +71,7 @@
     "packed-local-mode-command.ts",
     "packed-local-mode-custody.ts",
     "effect-fixture-dependencies.ts",
+    "packed-consumer-installation.ts",
     "packed-effect-diagnostics-qualification.ts",
     "packed-effect-diagnostics-fixtures.ts",
     "packed-effect-diagnostics-growth.ts"

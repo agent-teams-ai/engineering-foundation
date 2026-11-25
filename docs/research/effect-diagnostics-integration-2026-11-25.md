@@ -386,9 +386,11 @@ The first independent production review found two material gaps: local declarati
 files are skipped by the upstream Effect rule runner, and ordinary multiline
 TypeScript diagnostics were classified as tool failures. The first is corrected
 with explicit local-declaration refusal (including imports), portable cases and
-an installed negative. The second is being qualified through a real nested
-assignment diagnostic followed by another selected project. Unknown output and
-crash tails must still reject.
+an installed negative. The second now has a bounded English message-chain
+classifier and an installed nested-assignment fixture followed by another
+selected project. Its portable positive and crash-tail controls pass; actual
+native qualification remains pending. Unknown message families still fail
+conservatively with their raw output retained.
 
 Independent installed-consumer review also required ordinary typecheck, lint and
 format to run in the existing no-Effect installation, alongside root import and
@@ -397,11 +399,49 @@ blocking hook. Acquisition review required explicit development-dependency
 inclusion even under a production environment; both frozen public install and
 signature verification now request it.
 
-Source build, strict script typecheck and the initial Stack strict typecheck
-passed. The subsequent focused run passes 21 checks after fixing two test-harness
+Source build, strict script typecheck and Stack strict typecheck passed.
+The subsequent focused run passes 27 checks after fixing two test-harness
 issues (JSONC null-prototype records and Node test-runner stdout capture). These
 are local source observations, not installed-native qualification. The native
 acquisition attempt exhausted this shared workspace's temporary filesystem;
 its incomplete payload was removed. No compiler or successful signature audit
 is claimed for that attempt. Full packed and hermetic-registry qualification
 remain required on the PR's final head.
+
+Inventory review corrected the derived source topology through its existing
+generator. The retained GM generator has one exact formatter exclusion to
+preserve its upstream Git blob; its strict typecheck and runtime blob comparison
+remain required. No source/test inventory or coverage boundary was removed.
+The guide's copyable SDK project now uses the same explicit declaration libraries
+as the installed qualification. Ordinary lint findings are fixed in source;
+complexity/size limits are not waived for the new route.
+
+
+### Scope reassessment and local gates
+
+Physical line counts after review fixes are 867 in five new production files
+(plus the thin existing CLI dispatch), 1,062 in four portable test files, and
+1,057 in the four private acquisition/installed-qualification helpers. A further
+111-line helper moves an existing packed-consumer installation block out of its
+oversized fixture writer; it does not add a second installation owner. These
+counts exclude retained corpus/generator/license bytes, manifests and guides.
+
+The implementation is larger than the planning ranges, especially its installed
+qualification. The additional cost is explicit: complete imported-source and
+paired-library admission, original-package signature/payload evidence before
+hermetic reseeding, independent no-Effect checks, source preservation, multiline
+diagnostic controls and one reused growth observation. The scope retains one
+public operation, one compiler cohort, one process owner and the existing two
+installation routes. It adds no compiler abstraction framework, plugin registry,
+config resolver, runtime service container or additional CI workflow. Independent
+final review must reassess this measured scope, not treat the original estimate
+as a quota or silently relabel fixture work as free.
+
+After those source fixes, required `check:fast` passes (50,995 ms), including
+strict projects, complete test inventories and source topology. Focused runtime
+checks pass 27/27, production typed lint passes, and workflow security checks
+pass. Final code review, installed native observations and exact-head full CI
+remain separate acceptance items. Live delivery receipts belong to
+[the single PR #476](https://github.com/agent-teams-ai/engineering-foundation/pull/476)
+so the final merge and post-merge checks do not require a self-referencing source
+commit.

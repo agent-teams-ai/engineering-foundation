@@ -93,7 +93,7 @@ async function payload(root: string): Promise<PayloadFile[]> {
       });
     }
   }
-  return files.sort((left, right) =>
+  return files.toSorted((left, right) =>
     left.path < right.path ? -1 : left.path > right.path ? 1 : 0,
   );
 }
@@ -103,14 +103,16 @@ function normalizedManifest(
   actual: Record<string, unknown>,
   expected: EffectFixtureDependencyRoot,
 ): Record<string, unknown> {
-  if (canonicalDigest(actual) === canonicalDigest(expected.manifest)) return actual;
+  if (canonicalDigest(actual) === canonicalDigest(expected.manifest)) {
+    return actual;
+  }
   const publish = { ...record(actual["publishConfig"]) };
   assert.deepEqual(
-    [...(publish["executableFiles"] as unknown[])].sort(),
+    (publish["executableFiles"] as readonly unknown[]).toSorted(),
     expected.files
       .filter((file) => file.executable)
       .map((file) => file.path)
-      .sort(),
+      .toSorted(),
     "Registry seed executableFiles differs from the observed upstream executable inventory",
   );
   const original = expected.manifest["publishConfig"];
@@ -130,6 +132,10 @@ function normalizedManifest(
   return { ...actual, publishConfig: publish };
 }
 
+function withoutManifest(files: readonly PayloadFile[]): readonly PayloadFile[] {
+  return files.filter((file) => file.path !== "package.json");
+}
+
 /** No installation: binds the installed consumer to the verified public input payloads. */
 export async function assertInstalledEffectFixtureDependencies(
   consumerRoot: string,
@@ -144,8 +150,6 @@ export async function assertInstalledEffectFixtureDependencies(
       canonicalDigest(expected.manifest),
     );
     const observed = await payload(root);
-    const withoutManifest = (files: readonly PayloadFile[]) =>
-      files.filter((file) => file.path !== "package.json");
     assert.deepEqual(
       withoutManifest(observed),
       withoutManifest(expected.files),
@@ -158,21 +162,23 @@ export async function assertInstalledEffectFixtureDependencies(
 export async function prepareEffectFixtureDependencies(
   temporaryRoot: string,
 ): Promise<EffectFixtureDependencies | undefined> {
-  if (process.platform !== "linux" || process.arch !== "x64") return undefined;
+  if (process.platform !== "linux" || process.arch !== "x64") {
+    return undefined;
+  }
   const root = join(temporaryRoot, "effect-fixture-dependencies");
   await mkdir(root);
   const manifestBytes = await readFile(new URL("package.json", fixture));
   const lockBytes = await readFile(new URL("package-lock.json", fixture));
   const pins = record(json(manifestBytes)["devDependencies"]);
-  assert.deepEqual(Object.keys(pins).sort(), [...packageNames].sort());
+  assert.deepEqual(Object.keys(pins).toSorted(), packageNames.toSorted());
   for (const version of Object.values(pins)) {
     assert.equal(typeof version, "string");
     assert.match(String(version), /^\d+\.\d+\.\d+$/u);
   }
   const locked = record(json(lockBytes)["packages"]);
   assert.deepEqual(
-    Object.keys(locked).sort(),
-    ["", ...packageNames.map((name) => `node_modules/${name}`)].sort(),
+    Object.keys(locked).toSorted(),
+    ["", ...packageNames.map((name) => `node_modules/${name}`)].toSorted(),
   );
   await writeFile(join(root, "package.json"), manifestBytes);
   await writeFile(join(root, "package-lock.json"), lockBytes);

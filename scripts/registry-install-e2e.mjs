@@ -417,8 +417,7 @@ async function createConsumerAttempt(
   registryUrl,
   matrixEntry,
   attempt,
-  temporaryRoot,
-  effectDependencies,
+  { temporaryRoot, effectDependencies },
 ) {
   const { cacheRoot, clientRoot, consumerRoot, userConfigPath } = registryInstallAttemptPaths(
     join(temporaryRoot, "consumer-matrix", matrixEntry.id),
@@ -466,14 +465,10 @@ async function installConsumer(
         rm(context.consumerRoot, { force: true, recursive: true }),
       ]),
     createAttempt: (attempt) =>
-      createConsumerAttempt(
-        targets,
-        registryUrl,
-        matrixEntry,
-        attempt,
+      createConsumerAttempt(targets, registryUrl, matrixEntry, attempt, {
         temporaryRoot,
         effectDependencies,
-      ),
+      }),
     onRetry: ({ attempt, delayMs, timeoutMs }) => {
       process.stdout.write(
         `Registry E2E install retry attempt=${attempt} delayMs=${delayMs} timeoutMs=${timeoutMs}.\n`,

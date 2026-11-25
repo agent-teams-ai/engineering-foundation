@@ -139,6 +139,18 @@ source-list probes and semantic checks share that budget. All subprocesses use
 the existing node-or-bun owner. Incomplete capture, uncertain cleanup, crashes
 and unknown output cannot become expected source diagnostics or success.
 
+The initial limits are 64 selected projects, 50,000 compiler-listed files per
+project, a 1 MiB leaf config, 4 MiB per local source file and 256 MiB of local
+source bytes per project. The default total budget is five minutes; callers can
+set a positive integer up to 2,147,483,647 milliseconds. These are defensive
+execution limits, not measured application-size or latency guarantees.
+
+Output classification supports the qualified English TypeScript message-chain
+families, with two-space indentation, at most 32 levels, 128 continuations per
+primary diagnostic and 8,192 characters per line. Other message shapes remain
+visible in raw output and fail as an execution error. The checker therefore
+fails conservatively if an unfamiliar diagnostic format is encountered.
+
 ## Stable boundaries and exceptions
 
 `unstableApiUsage` diagnoses use of an unstable export. A bare unused import is

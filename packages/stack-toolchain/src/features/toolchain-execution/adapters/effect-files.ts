@@ -7,6 +7,7 @@ import { getNodeValue, parseTree, type Node, type ParseError } from "jsonc-parse
 import {
   EffectCheckFailure,
   effectObject,
+  effectHasControls,
   requireEffect,
   type EffectToolVersions,
 } from "../application/effect-policy.js";
@@ -59,7 +60,9 @@ export async function readEffectFile(
     while (length < bytes.length) {
       live();
       const result = await handle.read(bytes, length, bytes.length - length, length);
-      if (result.bytesRead === 0) break;
+      if (result.bytesRead === 0) {
+        break;
+      }
       length += result.bytesRead;
     }
     const after = await handle.stat();
@@ -73,6 +76,19 @@ export async function readEffectFile(
     await handle.close();
   }
 }
+function inspectEffectJson(node: Node, depth: number): void {
+  requireEffect(depth <= 64, "EFFECT_CONFIG_DEPTH");
+  const keys = new Set<unknown>();
+  for (const child of node.children ?? []) {
+    if (node.type === "object") {
+      const key: unknown = child.children?.[0]?.value;
+      requireEffect(typeof key === "string" && !keys.has(key), "EFFECT_CONFIG_DUPLICATE_KEY");
+      keys.add(key);
+    }
+    inspectEffectJson(child, depth + 1);
+  }
+}
+
 export function parseEffectJson(bytes: Uint8Array): unknown {
   let source: string;
   try {
@@ -83,19 +99,7 @@ export function parseEffectJson(bytes: Uint8Array): unknown {
   const errors: ParseError[] = [];
   const tree = parseTree(source, errors, { allowTrailingComma: true });
   requireEffect(tree !== undefined && errors.length === 0, "EFFECT_CONFIG_JSON");
-  const inspect = (node: Node, depth: number): void => {
-    requireEffect(depth <= 64, "EFFECT_CONFIG_DEPTH");
-    const keys = new Set<unknown>();
-    for (const child of node.children ?? []) {
-      if (node.type === "object") {
-        const key: unknown = child.children?.[0]?.value;
-        requireEffect(typeof key === "string" && !keys.has(key), "EFFECT_CONFIG_DUPLICATE_KEY");
-        keys.add(key);
-      }
-      inspect(child, depth + 1);
-    }
-  };
-  inspect(tree, 0);
+  inspectEffectJson(tree, 0);
   return getNodeValue(tree) as unknown;
 }
 
@@ -194,8 +198,9 @@ export async function admitEffectCompiler(
     if (
       error instanceof EffectCheckFailure &&
       ["cancelled", "execution-failed"].includes(error.outcome)
-    )
+    ) {
       throw error;
+    }
     throw new EffectCheckFailure(
       "tool-incompatible",
       error instanceof Error ? error.message : "EFFECT_NATIVE_INVALID",
@@ -232,11 +237,10 @@ export async function effectSourceInventory(
   if (
     lines.length === 0 ||
     lines.length > 50_000 ||
-    lines.some(
-      (line) => line.length > 4096 || !path.isAbsolute(line) || /[\u0000-\u001f]/u.test(line),
-    )
-  )
+    lines.some((line) => line.length > 4096 || !path.isAbsolute(line) || effectHasControls(line))
+  ) {
     throw new EffectCheckFailure("execution-failed", "EFFECT_SOURCE_INVENTORY");
+  }
   const hashes = new Map<string, string>();
   const seen = new Set<string>();
   let bytesRead = 0;
@@ -245,7 +249,9 @@ export async function effectSourceInventory(
     const filename = await fs.realpath(line);
     requireEffect(!seen.has(filename), "EFFECT_SOURCE_DUPLICATE");
     seen.add(filename);
-    if (tool.libraries.has(filename)) continue;
+    if (tool.libraries.has(filename)) {
+      continue;
+    }
     if (effectInside(tool.installation, filename)) {
       requireEffect(/\.d\.(?:ts|mts|cts)$/u.test(filename), "EFFECT_DEPENDENCY_SOURCE");
       continue;
@@ -273,6 +279,6 @@ export async function effectSourceInventory(
     hashes,
     sourceFiles: [...hashes.keys()]
       .map((filename) => path.relative(root, filename).split(path.sep).join("/"))
-      .sort(),
+      .toSorted(),
   };
 }

@@ -54,6 +54,70 @@ export async function checkEffectProjects(input: EffectCheckInput): Promise<Effe
   return checkEffectProjectsWith(input, dependencies);
 }
 
+interface EffectProjectAttempt {
+  readonly project: string;
+  sourceFiles: readonly string[];
+}
+
+async function checkEffectProject(
+  attempt: EffectProjectAttempt,
+  filename: string,
+  execution: {
+    readonly root: string;
+    readonly tool: EffectNativeTool;
+    readonly live: EffectLiveCheck;
+    readonly invoke: (args: readonly string[]) => Promise<ProcessRunResult>;
+  },
+): Promise<EffectProjectResult> {
+  const { root, tool, live, invoke } = execution;
+  const leaf = await readEffectFile(filename, 1024 * 1024, live);
+  validateEffectPolicy(parseEffectJson(leaf));
+  const config = await invoke(["--showConfig", "--pretty", "false", "--project", filename]);
+  if (config.exitCode !== 0 || config.signal !== null || config.stderr !== "") {
+    throw new EffectCheckFailure("invalid-input", "EFFECT_CONFIG_PROBE");
+  }
+  const roots: string[] = [];
+  for (const file of validateEffectConfiguration(parseEffectJson(Buffer.from(config.stdout)))) {
+    roots.push(await effectLocalPath(root, path.resolve(path.dirname(filename), file)));
+  }
+  const checkFlags = [
+    "--noEmit",
+    "--pretty",
+    "false",
+    "--incremental",
+    "true",
+    "--tsBuildInfoFile",
+    devNull,
+    "--project",
+    filename,
+  ];
+  const listed = await invoke(["--listFilesOnly", ...checkFlags]);
+  if (listed.exitCode !== 0 || listed.signal !== null || listed.stderr !== "") {
+    throw new EffectCheckFailure("execution-failed", "EFFECT_SOURCE_PROBE");
+  }
+  const inventory = await effectSourceInventory(listed.stdout, root, roots, tool, live);
+  attempt.sourceFiles = inventory.sourceFiles;
+  const checked = await invoke(checkFlags);
+  const result = classifyEffectOutput(checked);
+  const snapshots: readonly (readonly [string, string])[] = [
+    [filename, effectHash(leaf)],
+    ...inventory.hashes,
+  ];
+  for (const [file, hash] of snapshots) {
+    requireEffect(
+      effectHash(await readEffectFile(file, 4 * 1024 * 1024, live)) === hash,
+      "EFFECT_INPUT_CHANGED",
+    );
+  }
+  return {
+    project: attempt.project,
+    ...result,
+    sourceFiles: attempt.sourceFiles,
+    stdout: checked.stdout,
+    stderr: checked.stderr,
+  };
+}
+
 export async function checkEffectProjectsWith(
   rawInput: EffectCheckInput,
   ports: EffectCheckDependencies,
@@ -62,8 +126,7 @@ export async function checkEffectProjectsWith(
   let input: Required<EffectCheckInput> | undefined;
   let versions: EffectToolVersions | null = null;
   const projects: EffectProjectResult[] = [];
-  let activeProject: string | undefined;
-  let sourceFiles: readonly string[] = [];
+  let activeProject: EffectProjectAttempt | undefined;
   let last: Pick<ProcessRunResult, "stdout" | "stderr"> = { stdout: "", stderr: "" };
   const report = (outcome: EffectCheckOutcome, reason?: string): EffectCheckReport => ({
     schemaVersion: 1,
@@ -89,13 +152,17 @@ export async function checkEffectProjectsWith(
     const { signal: callerSignal, budgetMs } = input;
     const deadline = started + budgetMs;
     const live = (): void => {
-      if (callerSignal.aborted) throw new EffectCheckFailure("cancelled", "EFFECT_CANCELLED");
-      if (ports.now() >= deadline)
+      if (callerSignal.aborted) {
+        throw new EffectCheckFailure("cancelled", "EFFECT_CANCELLED");
+      }
+      if (ports.now() >= deadline) {
         throw new EffectCheckFailure("execution-failed", "EFFECT_DEADLINE");
+      }
     };
     live();
-    if (ports.platform !== "linux" || ports.arch !== "x64")
+    if (ports.platform !== "linux" || ports.arch !== "x64") {
       throw new EffectCheckFailure("tool-unavailable", "EFFECT_UNSUPPORTED_PLATFORM");
+    }
     const signal = AbortSignal.any([callerSignal, AbortSignal.timeout(budgetMs)]);
     const root = await fs.realpath(input.cwd);
     requireEffect((await fs.stat(root)).isDirectory(), "EFFECT_ROOT");
@@ -122,58 +189,19 @@ export async function checkEffectProjectsWith(
       version.signal !== null ||
       version.stderr !== "" ||
       version.stdout.trim() !== tool.reportedVersion
-    )
+    ) {
       throw new EffectCheckFailure("tool-incompatible", "EFFECT_REPORTED_VERSION");
+    }
     const seenProjects = new Set<string>();
     for (const project of input.projects) {
-      activeProject = project;
-      sourceFiles = [];
+      activeProject = { project, sourceFiles: [] };
       last = { stdout: "", stderr: "" };
       const filename = await effectLocalPath(root, path.join(root, project));
       requireEffect(!seenProjects.has(filename), "EFFECT_PROJECT_DUPLICATE");
       seenProjects.add(filename);
-      const leaf = await readEffectFile(filename, 1024 * 1024, live);
-      validateEffectPolicy(parseEffectJson(leaf));
-      const config = await invoke(["--showConfig", "--pretty", "false", "--project", filename]);
-      if (config.exitCode !== 0 || config.signal !== null || config.stderr !== "")
-        throw new EffectCheckFailure("invalid-input", "EFFECT_CONFIG_PROBE");
-      const roots: string[] = [];
-      for (const file of validateEffectConfiguration(parseEffectJson(Buffer.from(config.stdout))))
-        roots.push(await effectLocalPath(root, path.resolve(path.dirname(filename), file)));
-      const checkFlags = [
-        "--noEmit",
-        "--pretty",
-        "false",
-        "--incremental",
-        "true",
-        "--tsBuildInfoFile",
-        devNull,
-        "--project",
-        filename,
-      ];
-      const listed = await invoke(["--listFilesOnly", ...checkFlags]);
-      if (listed.exitCode !== 0 || listed.signal !== null || listed.stderr !== "")
-        throw new EffectCheckFailure("execution-failed", "EFFECT_SOURCE_PROBE");
-      const inventory = await effectSourceInventory(listed.stdout, root, roots, tool, live);
-      sourceFiles = inventory.sourceFiles;
-      const checked = await invoke(checkFlags);
-      const result = classifyEffectOutput(checked);
-      const snapshots: readonly (readonly [string, string])[] = [
-        [filename, effectHash(leaf)],
-        ...inventory.hashes,
-      ];
-      for (const [file, hash] of snapshots)
-        requireEffect(
-          effectHash(await readEffectFile(file, 4 * 1024 * 1024, live)) === hash,
-          "EFFECT_INPUT_CHANGED",
-        );
-      projects.push({
-        project,
-        ...result,
-        sourceFiles,
-        stdout: checked.stdout,
-        stderr: checked.stderr,
-      });
+      projects.push(
+        await checkEffectProject(activeProject, filename, { root, tool, live, invoke }),
+      );
       activeProject = undefined;
     }
     live();
@@ -181,7 +209,9 @@ export async function checkEffectProjectsWith(
       projects.some((project) => project.status === "diagnostics") ? "diagnostics" : "passed",
     );
   } catch (error) {
-    if (isProcessRuntimeError(error) && error.output !== null) last = error.output;
+    if (isProcessRuntimeError(error) && error.output !== null) {
+      last = error.output;
+    }
     const outcome =
       input?.signal.aborted === true
         ? "cancelled"
@@ -196,15 +226,16 @@ export async function checkEffectProjectsWith(
           : error instanceof Error
             ? error.message
             : "EFFECT_EXECUTION_FAILED";
-    if (activeProject !== undefined)
+    if (activeProject !== undefined) {
       projects.push({
-        project: activeProject,
+        project: activeProject.project,
         status: "failed",
-        sourceFiles,
+        sourceFiles: activeProject.sourceFiles,
         diagnosticCodes: [],
         ...last,
         reason,
       });
+    }
     return report(outcome, reason);
   }
 }

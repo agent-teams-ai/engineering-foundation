@@ -77,8 +77,9 @@ async function cli(root: string, entry: string, projects: readonly string[], exi
     ...projects.flatMap((path) => ["--project", path]),
   ];
   let result: { stdout: string; stderr: string };
-  if (exitCode === 0) result = await runCommand(process.execPath, args, root);
-  else {
+  if (exitCode === 0) {
+    result = await runCommand(process.execPath, args, root);
+  } else {
     let error: unknown;
     try {
       await runCommand(process.execPath, args, root);
@@ -453,10 +454,11 @@ export async function qualifyInstalledEffectDiagnostics(
   assert.ok(installed.resolve("stack-toolchain/effect").includes("node_modules"));
   const cases = await corpus();
   const projects: string[] = [];
-  for (const entry of cases)
+  for (const entry of cases) {
     projects.push(
       await writeEffectProject(root, `corpus/${entry.id}`, entry.source, entry.allowedUnstableApis),
     );
+  }
   const report = await api(root, projects);
   const details = assertReport(report, "diagnostics", 1);
   assert.deepEqual(details["selected"], projects);

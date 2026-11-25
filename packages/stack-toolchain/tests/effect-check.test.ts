@@ -60,8 +60,9 @@ async function fixture(t: TestContext) {
     },
     files: ["./main.ts"],
   };
-  for (const file of ["one.json", "two.json"])
+  for (const file of ["one.json", "two.json"]) {
     await fs.writeFile(path.join(cwd, file), JSON.stringify(config));
+  }
   const calls: Request[] = [];
   let clock = 0;
   let admitted = 0;
@@ -73,11 +74,15 @@ async function fixture(t: TestContext) {
     budgetMs: 1000,
   };
   const answer = (request: Request): ProcessRunResult => {
-    if (request.args.includes("--version"))
+    if (request.args.includes("--version")) {
       return result({ stdout: "Version 7.0.2+effect-tsgo.0.73.4\n" });
-    if (request.args.includes("--showConfig")) return result({ stdout: JSON.stringify(config) });
-    if (request.args.includes("--listFilesOnly"))
+    }
+    if (request.args.includes("--showConfig")) {
+      return result({ stdout: JSON.stringify(config) });
+    }
+    if (request.args.includes("--listFilesOnly")) {
       return result({ stdout: source + "\n" + imported + "\n" });
+    }
     return result();
   };
   const ports: EffectCheckDependencies = {
@@ -132,8 +137,9 @@ test("all selected projects complete after diagnostics, using the same mandatory
           ["--version", "--showConfig", "--listFilesOnly"].includes(flag),
         ) &&
         request.args.at(-1) === path.join(f.input.cwd, "one.json")
-      )
+      ) {
         return result({ exitCode: 1, stdout: diagnostic });
+      }
       return f.answer(request);
     },
   };
@@ -149,7 +155,7 @@ test("all selected projects complete after diagnostics, using the same mandatory
   assert.deepEqual(report.details.unattempted, []);
   assert.equal(f.calls.length, 7);
   assert.equal(new Set(f.calls.map((call) => call.command)).size, 1);
-  for (const call of f.calls.filter((call) => call.args.includes("--noEmit"))) {
+  for (const call of f.calls.filter((request) => request.args.includes("--noEmit"))) {
     assert.equal(call.args[call.args.indexOf("--tsBuildInfoFile") + 1], devNull);
     assert.equal(call.args[call.args.indexOf("--incremental") + 1], "true");
     assert.equal(call.strictUtf8, true);
@@ -239,8 +245,9 @@ test("probe failures and crash output cannot be mistaken for policy findings", a
     const report = await checkEffectProjectsWith(f.input, {
       ...f.ports,
       execute: async (request) => {
-        if (request.args[0] === failingFlag)
+        if (request.args[0] === failingFlag) {
           return result({ exitCode: 1, stdout: diagnostic + "  runtime.gopanic()\n" });
+        }
         return f.answer(request);
       },
     });
@@ -287,10 +294,11 @@ test("process failures retain their bounded evidence and never trigger another e
     const report = await checkEffectProjectsWith(f.input, {
       ...f.ports,
       execute: async (request) => {
-        if (request.args[0] === "--noEmit")
+        if (request.args[0] === "--noEmit") {
           throw new ProcessRuntimeError(code, "controlled failure", {
             output: { stdout: diagnostic, stderr: "" },
           });
+        }
         return f.answer(request);
       },
     });
@@ -336,8 +344,9 @@ test("source changes during a successful check cannot yield a successful report"
   const report = await checkEffectProjectsWith(f.input, {
     ...f.ports,
     execute: async (request) => {
-      if (request.args[0] === "--noEmit")
+      if (request.args[0] === "--noEmit") {
         await fs.writeFile(f.imported, "export const changed = true;");
+      }
       return f.answer(request);
     },
   });

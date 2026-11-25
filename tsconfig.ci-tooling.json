@@ -225,6 +225,7 @@
     "tests/support/command-host-fixture.ts",
     "tests/local-mode-settlement.test.ts",
     "scripts/effect-fixture-dependencies.ts",
+    "scripts/packed-consumer-installation.ts",
     "scripts/packed-effect-diagnostics-qualification.ts",
     "scripts/packed-effect-diagnostics-fixtures.ts",
     "scripts/packed-effect-diagnostics-growth.ts",

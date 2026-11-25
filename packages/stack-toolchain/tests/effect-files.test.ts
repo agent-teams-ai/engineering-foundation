@@ -205,11 +205,12 @@ test("the complete inventory checks imported local sources and keeps dependency 
     );
   }
   await fs.writeFile(imported, "export const value = 42;");
-  for (const malformed of ["", "main.ts\n", "error TS2322: not an inventory\n"])
+  for (const malformed of ["", "main.ts\n", "error TS2322: not an inventory\n"]) {
     await assert.rejects(
       effectSourceInventory(malformed, root, [entry], tool, live),
       /EFFECT_SOURCE_INVENTORY/u,
     );
+  }
   await assert.rejects(
     effectSourceInventory(entry + "\n" + entry, root, [entry], tool, live),
     /EFFECT_SOURCE_DUPLICATE/u,

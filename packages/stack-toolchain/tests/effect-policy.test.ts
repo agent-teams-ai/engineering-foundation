@@ -39,8 +39,9 @@ test("Effect policy admits only explicitly enabled exact-export exceptions", () 
     { allowedUnstableApis: ["effect/http/HttpClient#get", "effect/http/HttpClient#get"] },
     { allowedUnstableApis: ["effect/../HttpClient#get"] },
     { allowedUnstableApis: Array.from({ length: 257 }, (_, index) => `effect/Foo#member${index}`) },
-  ])
+  ]) {
     assert.throws(() => validateEffectPolicy(policy({ ...plugin(), ...change })), /EFFECT_POLICY/u);
+  }
   for (const value of [
     null,
     {},
@@ -90,11 +91,12 @@ test("effective strict options and complete roots are independent of leaf plugin
       /EFFECT_TYPESCRIPT_SCOPE/u,
     );
   }
-  for (const files of [[], [1], [""], ["bad\nfile.ts"], "main.ts"])
+  for (const files of [[], [1], [""], ["bad\nfile.ts"], "main.ts"]) {
     assert.throws(
       () => validateEffectConfiguration({ ...config, files }),
       /EFFECT_TYPESCRIPT_FILES/u,
     );
+  }
   assert.throws(
     () => validateEffectConfiguration({ ...config, references: [] }),
     /EFFECT_TYPESCRIPT_SCOPE/u,
@@ -175,6 +177,101 @@ test("six-digit errors and warnings remain diagnostics only with a qualified exi
       "  unqualified continuation",
       "unrecognized banner",
     ].map((line) => ({ stdout: valid.stdout + line + "\n" })),
-  ])
+  ]) {
     assert.throws(() => classifyEffectOutput({ ...valid, ...change }), /EFFECT_EXECUTION_OUTPUT/u);
+  }
+});
+
+test("ordinary TypeScript message chains preserve primary codes and bounded tree depth", () => {
+  const stdout = [
+    "nested.ts(2,14): error TS2322: Type '{ response: { count: string; }; }' is not assignable to type '{ response: { count: number; }; }'.",
+    "  The types of 'response.count' are incompatible between these types.",
+    "    Type 'string' is not assignable to type 'number'.",
+    "overload.ts(4,1): error TS2769: No overload matches this call.",
+    "  Overload 1 of 2, '(value: number): void', gave the following error.",
+    "    Argument of type 'string' is not assignable to parameter of type 'number'.",
+    "  Overload 2 of 2, '(value: boolean): void', gave the following error.",
+    "    Argument of type 'string' is not assignable to parameter of type 'boolean'.",
+    "effect.ts(1,1): error TS377136: unstable export",
+    "",
+  ].join("\n");
+  for (const output of [stdout, stdout.replaceAll("\n", "\r\n")]) {
+    assert.deepEqual(
+      classifyEffectOutput({ stdout: output, stderr: "", exitCode: 1, signal: null }),
+      {
+        status: "diagnostics",
+        diagnosticCodes: [2322, 2769, 377136],
+      },
+    );
+  }
+  for (const message of [
+    "The types returned by 'read' are incompatible between these types.",
+    "Types of property 'count' are incompatible.",
+    "Types of parameters 'left' and 'right' are incompatible.",
+    "Property 'read' is missing in type 'Empty'.",
+    "Property 'read' is missing in type 'Empty' but required in type 'Port'.",
+    "Type 'Source' provides no match for the signature '(value: number): void'.",
+    "Index signature for type 'string' is missing in type 'Source'.",
+    "'string' and 'number' index signatures are incompatible.",
+    "'string' index signatures are incompatible.",
+    "Target signature provides too few arguments. Expected 2 or more, but got 1.",
+    "Call signature return types 'string' and 'number' are incompatible.",
+  ]) {
+    assert.equal(
+      classifyEffectOutput({
+        stdout: `error TS2322: incompatible types\n  ${message}\n`,
+        stderr: "",
+        exitCode: 2,
+        signal: null,
+      }).status,
+      "diagnostics",
+    );
+  }
+});
+
+test("unframed, malformed, excessive and crash-tailed chains remain execution failures", () => {
+  const header = "main.ts(1,1): error TS2322: incompatible types\n";
+  const message = "Type 'string' is not assignable to type 'number'.";
+  for (const stdout of [
+    `  ${message}\n`,
+    `${header}\n  ${message}\n`,
+    `${header}    ${message}\n`,
+    `${header}   ${message}\n`,
+    `${header}\t${message}\n`,
+    `${header}  ${message}\n      ${message}\n`,
+    `${header}${Array.from({ length: 33 }, (_, index) => `${"  ".repeat(index + 1)}${message}\n`).join("")}`,
+    `${header}${`  ${message}\n`.repeat(129)}`,
+    `${header}  Type '${"x".repeat(8192)}' is not assignable to type 'number'.\n`,
+    `${header}  Type 'string' is not assignable to type 'number'. panic: crash\n`,
+    `${header}  Type 'foo'bar' is not assignable to type 'number'.\n`,
+    `main.ts(1,1): error TS377136: unstable export\n  ${message}\n`,
+    ...[
+      "panic: failure",
+      "fatal error: failure",
+      "runtime.gopanic()",
+      "at nativeCheck()",
+      "unqualified continuation",
+    ].map((line) => `${header}  ${message}\n  ${line}\n`),
+  ]) {
+    assert.throws(
+      () => classifyEffectOutput({ stdout, stderr: "", exitCode: 1, signal: null }),
+      /EFFECT_EXECUTION_OUTPUT/u,
+    );
+  }
+  const deepest =
+    header +
+    Array.from({ length: 32 }, (_, index) => `${"  ".repeat(index + 1)}${message}\n`).join("");
+  assert.equal(
+    classifyEffectOutput({ stdout: deepest, stderr: "", exitCode: 1, signal: null }).status,
+    "diagnostics",
+  );
+  assert.equal(
+    classifyEffectOutput({
+      stdout: header + `  ${message}\n`.repeat(128),
+      stderr: "",
+      exitCode: 1,
+      signal: null,
+    }).status,
+    "diagnostics",
+  );
 });

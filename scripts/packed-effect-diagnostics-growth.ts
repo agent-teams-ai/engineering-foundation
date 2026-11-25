@@ -18,8 +18,9 @@ async function sourceInventory(directory: string, base = directory): Promise<rea
   const files: string[] = [];
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     const path = join(directory, entry.name);
-    if (entry.isDirectory()) files.push(...(await sourceInventory(path, base)));
-    else {
+    if (entry.isDirectory()) {
+      files.push(...(await sourceInventory(path, base)));
+    } else {
       assert.ok(
         entry.isFile() && entry.name.endsWith(".ts"),
         "Growth input must be ordinary TS source",
@@ -32,7 +33,9 @@ async function sourceInventory(directory: string, base = directory): Promise<rea
 
 async function sourcesDigest(root: string, files: readonly string[]): Promise<string> {
   const observations = [];
-  for (const file of files) observations.push([file, digest(await readFile(join(root, file)))]);
+  for (const file of files) {
+    observations.push([file, digest(await readFile(join(root, file)))]);
+  }
   return digest(JSON.stringify(observations));
 }
 

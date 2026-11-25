@@ -55,8 +55,10 @@ export class EffectCheckFailure extends Error {
     this.outcome = outcome;
   }
 }
-export function requireEffect(condition: unknown, reason: string): asserts condition {
-  if (!condition) throw new EffectCheckFailure("invalid-input", reason);
+export function requireEffect(condition: boolean, reason: string): asserts condition {
+  if (!condition) {
+    throw new EffectCheckFailure("invalid-input", reason);
+  }
 }
 export function effectObject(value: unknown): Record<string, unknown> {
   requireEffect(
@@ -64,6 +66,16 @@ export function effectObject(value: unknown): Record<string, unknown> {
     "EFFECT_CONFIG_OBJECT",
   );
   return value as Record<string, unknown>;
+}
+
+export function effectHasControls(value: string): boolean {
+  for (let index = 0; index < value.length; index++) {
+    const code = value.charCodeAt(index);
+    if (code < 32 || code === 127) {
+      return true;
+    }
+  }
+  return false;
 }
 
 export function effectInputs(input: EffectCheckInput): Required<EffectCheckInput> {
@@ -76,7 +88,7 @@ export function effectInputs(input: EffectCheckInput): Required<EffectCheckInput
     typeof input.cwd === "string" &&
       input.cwd.length > 0 &&
       input.cwd.length <= 4096 &&
-      !/[\u0000-\u001f]/u.test(input.cwd),
+      !effectHasControls(input.cwd),
     "EFFECT_ROOT",
   );
   requireEffect(input.signal instanceof AbortSignal, "EFFECT_SIGNAL");
@@ -91,7 +103,10 @@ export function effectInputs(input: EffectCheckInput): Required<EffectCheckInput
   );
   const projects = input.projects.map((project) => {
     requireEffect(
-      typeof project === "string" && project.length <= 4096 && !/[\\:\u0000-\u001f]/u.test(project),
+      typeof project === "string" &&
+        project.length <= 4096 &&
+        !/[\\:]/u.test(project) &&
+        !effectHasControls(project),
       "EFFECT_PROJECT_PATH",
     );
     const normalized = project.replace(/^\.\//u, "");
@@ -196,11 +211,42 @@ export function validateEffectConfiguration(value: unknown): readonly string[] {
           typeof file === "string" &&
           file.length > 0 &&
           file.length <= 4096 &&
-          !/[\u0000-\u001f]/u.test(file),
+          !effectHasControls(file),
       ),
     "EFFECT_TYPESCRIPT_FILES",
   );
   return files as string[];
+}
+
+// Native 7.0.2 prints message-chain children with two spaces per depth:
+// microsoft/typescript-go@2bd066d87f5bafd315be9f40889d0a60b9e58e0b,
+// internal/diagnosticwriter/diagnosticwriter.go, flattenDiagnosticMessageChain.
+// Admit these English message families only. Quoted fields cannot contain a
+// quote/newline; unfamiliar messages retain their raw output as execution failures.
+const effectChainMessages = [
+  /^(?:Type '[^']+' is not assignable to type|Argument of type '[^']+' is not assignable to parameter of type) '[^']+'\.$/u,
+  /^The types (?:of|returned by) '[^']+' are incompatible between these types\.$/u,
+  /^Types of (?:property '[^']+'|parameters '[^']+' and '[^']+') are incompatible\.$/u,
+  /^Property '[^']+' is missing in type '[^']+'(?: but required in type '[^']+')?\.$/u,
+  /^Type '[^']+' provides no match for the signature '[^']+'\.$/u,
+  /^(?:Index signature for type '[^']+' is missing in type '[^']+'|'[^']+'(?: and '[^']+')? index signatures are incompatible)\.$/u,
+  /^(?:Overload [1-9]\d* of [1-9]\d*, '[^']+', gave the following error|Target signature provides too few arguments\. Expected \d+ or more, but got \d+|Call signature return types '[^']+' and '[^']+' are incompatible)\.$/u,
+];
+
+function effectContinuationDepth(line: string, previousDepth: number): number | null {
+  const continuation = /^( {2,64})(\S.*)$/u.exec(line);
+  if (continuation === null) {
+    return null;
+  }
+  const depth = continuation[1]!.length / 2;
+  if (
+    !Number.isInteger(depth) ||
+    depth > previousDepth + 1 ||
+    !effectChainMessages.some((message) => message.test(continuation[2]!))
+  ) {
+    return null;
+  }
+  return depth;
 }
 
 export function classifyEffectOutput(result: {
@@ -209,17 +255,41 @@ export function classifyEffectOutput(result: {
   readonly exitCode: number | null;
   readonly signal: string | null;
 }): { readonly status: "passed" | "diagnostics"; readonly diagnosticCodes: readonly number[] } {
-  if (result.signal !== null || result.stderr !== "")
+  if (result.signal !== null || result.stderr !== "") {
     throw new EffectCheckFailure("execution-failed", "EFFECT_EXECUTION_OUTPUT");
-  if (result.exitCode === 0 && result.stdout.trim() === "")
-    return { status: "passed", diagnosticCodes: [] };
-  const codes: number[] = [];
-  for (const line of result.stdout.split(/\r?\n/u).filter((part) => part.trim() !== "")) {
-    const diagnostic = /^(?:.+\(\d+,\d+\): )?(?:error|warning) TS(\d{4,6}): .+/u.exec(line);
-    if (diagnostic !== null) codes.push(Number(diagnostic[1]));
-    else throw new EffectCheckFailure("execution-failed", "EFFECT_EXECUTION_OUTPUT");
   }
-  if (![1, 2].includes(result.exitCode ?? -1) || codes.length === 0)
+  if (result.exitCode === 0 && result.stdout.trim() === "") {
+    return { status: "passed", diagnosticCodes: [] };
+  }
+  const codes: number[] = [];
+  let chainAllowed = false;
+  let depth = 0;
+  let continuationCount = 0;
+  for (const line of result.stdout.split(/\r?\n/u)) {
+    if (line === "") {
+      chainAllowed = false;
+      continue;
+    }
+    if (line.length > 8192 || effectHasControls(line)) {
+      throw new EffectCheckFailure("execution-failed", "EFFECT_EXECUTION_OUTPUT");
+    }
+    const diagnostic = /^(?:.+\(\d+,\d+\): )?(?:error|warning) TS(\d{4,6}): .+/u.exec(line);
+    if (diagnostic !== null) {
+      const code = Number(diagnostic[1]);
+      codes.push(code);
+      chainAllowed = code < 100_000;
+      depth = 0;
+      continuationCount = 0;
+      continue;
+    }
+    const nextDepth = effectContinuationDepth(line, depth);
+    if (!chainAllowed || nextDepth === null || ++continuationCount > 128) {
+      throw new EffectCheckFailure("execution-failed", "EFFECT_EXECUTION_OUTPUT");
+    }
+    depth = nextDepth;
+  }
+  if (![1, 2].includes(result.exitCode ?? -1) || codes.length === 0) {
     throw new EffectCheckFailure("execution-failed", "EFFECT_EXECUTION_OUTPUT");
-  return { status: "diagnostics", diagnosticCodes: [...new Set(codes)].sort((a, b) => a - b) };
+  }
+  return { status: "diagnostics", diagnosticCodes: [...new Set(codes)].toSorted((a, b) => a - b) };
 }

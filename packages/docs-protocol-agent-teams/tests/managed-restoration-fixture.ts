@@ -106,6 +106,7 @@ const forbidden = async (): Promise<never> => {
 function fixtureSourceImages(
   current: ReturnType<typeof desired>,
   historical: { readonly skill: Uint8Array; readonly callerWorkflow: Uint8Array },
+  sourceNodePin: "24.21.0\n" | "26.11.1\n",
 ) {
   const manifest = Buffer.from(
     `${JSON.stringify(
@@ -113,7 +114,12 @@ function fixtureSourceImages(
         name: "TEST-retained-generation3",
         private: true,
         packageManager: "pnpm@11.20.0",
-        engines: { node: current.cohort.runtime.node },
+        engines: {
+          node:
+            sourceNodePin === "26.11.1\n"
+              ? ">=24.21.0 <25 || >=26.11.1 <27"
+              : current.cohort.runtime.node,
+        },
         scripts: canonicalDocsScripts(current.profilePath),
         devDependencies: Object.fromEntries(
           ["docsProtocol", "docsProtocolAgentTeams", "engineeringFoundation"].map((key) => {
@@ -134,7 +140,7 @@ function fixtureSourceImages(
     ["package.json", manifest],
     ["pnpm-lock.yaml", lock(current.cohort)],
     ["AGENTS.md", Buffer.from(canonicalManagedRoute(current.skillPath))],
-    [".node-version", Buffer.from("24.21.0\n")],
+    [".node-version", Buffer.from(sourceNodePin)],
     [current.skillPath, Buffer.from(historical.skill)],
     [current.callerWorkflowPath, Buffer.from(historical.callerWorkflow)],
     [
@@ -151,7 +157,10 @@ function fixtureSourceImages(
   return { manifest, originals, routeDigest, docsScriptsDigest };
 }
 
-export async function retainedFixture(t: TestContext) {
+export async function retainedFixture(
+  t: TestContext,
+  sourceNodePin: "24.21.0\n" | "26.11.1\n" = "24.21.0\n",
+) {
   const disposable = await mkdtemp(join(tmpdir(), "TEST-managed-retained3-"));
   const root = join(disposable, "consumer");
   await mkdir(root);
@@ -188,6 +197,7 @@ export async function retainedFixture(t: TestContext) {
   const { manifest, originals, routeDigest, docsScriptsDigest } = fixtureSourceImages(
     current,
     historical,
+    sourceNodePin,
   );
   for (const [path, bytes] of originals) {
     await mkdir(dirname(join(root, path)), { recursive: true });
@@ -236,13 +246,13 @@ export async function retainedFixture(t: TestContext) {
       })),
   });
   const proofPath = join(disposable, "selected.json");
-  const prepare = () =>
+  const prepare = (selectedPlan = plan) =>
     managedRestorationRecorder(authority)({
       consumerRoot: root,
       sourceRevision,
       current,
       target: target.cohort,
-      plan,
+      plan: selectedPlan,
       proofPath,
     });
   const activation: string[] = [];
@@ -250,7 +260,7 @@ export async function retainedFixture(t: TestContext) {
     restoreCommittedAndVerifyManaged: async (options) => {
       assert.equal(
         await readFile(join(options.consumerRoot, ".node-version"), "utf8"),
-        "24.21.0\n",
+        sourceNodePin,
       );
     },
     verifyManagedRuntime: async () => {},
@@ -267,7 +277,7 @@ export async function retainedFixture(t: TestContext) {
       activation.push("target");
     },
     restoreAndVerifyManaged: async () => {
-      assert.equal(await readFile(join(root, ".node-version"), "utf8"), "24.21.0\n");
+      assert.equal(await readFile(join(root, ".node-version"), "utf8"), sourceNodePin);
       activation.push("origin");
     },
   };
@@ -285,6 +295,8 @@ export async function retainedFixture(t: TestContext) {
     root,
     current,
     target,
+    sourceNodePin,
+    plan,
     originals,
     postimages,
     authority,

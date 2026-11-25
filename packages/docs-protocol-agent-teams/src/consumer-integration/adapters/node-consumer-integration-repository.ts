@@ -380,7 +380,7 @@ async function assertQualifiedLockfile(
   return observation;
 }
 
-async function assertPreservedSourcePin(
+export async function assertPreservedSourcePin(
   root: string,
   revision: string | undefined,
   observation: ConsumerIntegrationFileObservation,
@@ -389,7 +389,10 @@ async function assertPreservedSourcePin(
     observation.state !== "file" ||
     !Buffer.from(observation.bytes).equals(Buffer.from("26.11.1\n"))
   ) {
-    return;
+    throw new ConsumerIntegrationNodeError(
+      "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED",
+      "Preserved Node 26 pin must retain its exact original bytes.",
+    );
   }
   if (revision === undefined) {
     throw new ConsumerIntegrationNodeError(
@@ -477,7 +480,11 @@ async function readManagedConsumerIntegrationInput(
     assertNestedAgentsAuthority(topology, desired.governedDocsRoots);
     assertGitHubRuntimeIdentity(desired);
     nodeVersion = await assertQualifiedPnpmRoot(root, desired, admission);
-    if (admission === "generation2-source") {
+    if (
+      admission === "generation2-source" &&
+      nodeVersion.state === "file" &&
+      Buffer.from(nodeVersion.bytes).equals(Buffer.from("26.11.1\n"))
+    ) {
       await assertPreservedSourcePin(root, repositoryHead, nodeVersion);
     }
     lockfile = await assertQualifiedLockfile(root, desired);

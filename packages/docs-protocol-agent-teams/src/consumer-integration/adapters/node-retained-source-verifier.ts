@@ -1,5 +1,9 @@
 import type { ConsumerIntegrationDesiredStateV3 } from "../domain/model.js";
-import type { ConsumerIntegrationLifecyclePorts } from "../application/use-cases/run-consumer-integration.js";
+import type {
+  ConsumerIntegrationInputReader,
+  ConsumerAssetCatalogReader,
+  ConsumerIntegrationPlanningPorts,
+} from "../application-api.js";
 import { compileConsumerIntegration } from "../application/use-cases/plan-consumer-integration.js";
 import { canonicalConsumerIntegrationJson } from "../application/policies/consumer-integration-assets.js";
 import { ConsumerIntegrationNodeError } from "./consumer-integration-node-error.js";
@@ -10,9 +14,11 @@ export type RetainedGeneration2SourceVerifier = (options: {
 }) => Promise<void>;
 
 /** Observes source data with the retained controller; never loads consumer executable code. */
-export function createRetainedGeneration2SourceVerifier(
-  ports: Pick<ConsumerIntegrationLifecyclePorts, "input" | "assets" | "planning">,
-): RetainedGeneration2SourceVerifier {
+export function createRetainedGeneration2SourceVerifier(ports: {
+  readonly input: ConsumerIntegrationInputReader;
+  readonly assets: ConsumerAssetCatalogReader;
+  readonly planning: ConsumerIntegrationPlanningPorts;
+}): RetainedGeneration2SourceVerifier {
   return async (options) => {
     const input = await ports.input.read({ consumerRoot: options.consumerRoot });
     if (

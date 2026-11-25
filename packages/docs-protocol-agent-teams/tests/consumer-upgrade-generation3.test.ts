@@ -35,6 +35,32 @@ import {
   fixture,
 } from "./consumer-upgrade-generation3-fixture.ts";
 
+import { nodeManagedGeneration2SourceInputReader } from "../dist/consumer-integration/adapters/node-consumer-integration-repository.js";
+import { retainedFixture } from "./managed-restoration-fixture.ts";
+
+void test("retained source reader independently binds the physical controller runtime", async (t) => {
+  const source = await retainedFixture(t, "26.11.1\n");
+  const observation = nodeManagedGeneration2SourceInputReader.read({ consumerRoot: source.root });
+  if (process.versions.node === "24.21.0" && process.platform !== "win32") {
+    assert.deepEqual((await observation).desired, source.current);
+    t.diagnostic(
+      "Exact Node24 source observation; recovery is qualified by its separate Node24 suites.",
+    );
+  } else {
+    assert.notEqual(
+      process.versions.node,
+      "24.21.0",
+      "Windows refusal observation uses the default Node26 interpreter.",
+    );
+    await assert.rejects(observation, { code: "DOCS_CONSUMER_UNSUPPORTED_NODE" });
+    t.diagnostic(
+      `Actual Node${process.versions.node} refused before staging; no positive recovery claim.`,
+    );
+  }
+  assert.equal(await readFile(join(source.root, ".node-version"), "utf8"), "26.11.1\n");
+  assert.deepEqual(source.activation, []);
+});
+
 void test("profile4 ordinary check/plan/apply runs the actual cohort3 manifest planner without historical catalogs", async (t) => {
   const root = await mkdtemp(join(tmpdir(), "TEST-managed-lifecycle3-"));
   t.after(() => rm(root, { recursive: true, force: true }));

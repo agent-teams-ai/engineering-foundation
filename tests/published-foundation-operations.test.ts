@@ -13,6 +13,13 @@ import {
   withPublishedCompilerFloor,
 } from "../scripts/published-foundation-imports.ts";
 import { executePublishedFoundationOperation } from "../scripts/published-foundation-operations.ts";
+import {
+  nodeConsumerIntegrationInputReader,
+  nodeManagedGeneration2SourceInputReader,
+} from "../packages/docs-protocol-agent-teams/dist/consumer-integration/adapters/node-consumer-integration-repository.js";
+import { packageConsumerAssetCatalogReader } from "../packages/docs-protocol-agent-teams/dist/consumer-integration/adapters/package-consumer-asset-catalog.js";
+import { createRetainedGeneration2SourceVerifier } from "../packages/docs-protocol-agent-teams/dist/consumer-integration/adapters/node-retained-source-verifier.js";
+import { retainedFixture } from "../packages/docs-protocol-agent-teams/tests/managed-restoration-fixture.ts";
 
 async function temporary(t: TestContext): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), "published-operation-safety-"));
@@ -328,3 +335,77 @@ test("compiler floor passes original builtin behavior and releases its guard aft
     "four",
   );
 });
+
+test(
+  process.platform === "win32"
+    ? "guarded retained source observation [Windows runtime refusal]"
+    : "retained source observation uses original data without evaluating consumer executables or old compilers",
+  async (context) => {
+    for (const sourceNodePin of ["24.21.0\n", "26.11.1\n"] as const) {
+      await context.test(`source pin ${sourceNodePin.trim()}`, async (nested) => {
+        const fixture = await retainedFixture(nested, sourceNodePin);
+        const sentinel = join(fixture.disposable, "consumer-executable-evaluated.txt");
+        // These are rejecting TEST sentinels, not published package substitutes
+        // and not a positive registry-installation qualification.
+        for (const [name, version] of [
+          ["@agent-teams/engineering-foundation", fixture.current.cohort.packages.engineeringFoundation.version],
+          ["@agent-teams/docs-protocol-agent-teams", fixture.current.cohort.packages.docsProtocolAgentTeams.version],
+          ["typescript", "5.9.3"],
+        ]) {
+          assert.ok(name && version);
+          const directory = join(fixture.root, "node_modules", ...name.split("/"));
+          await mkdir(join(directory, "dist"), { recursive: true });
+          await writeFile(
+            join(directory, "package.json"),
+            JSON.stringify({ name, version, type: "module", exports: "./dist/index.js" }),
+          );
+          const poison = `${name === "@agent-teams/engineering-foundation" ? "import 'typescript';\n" : ""}import { writeFileSync } from 'node:fs';\nwriteFileSync(${JSON.stringify(sentinel)}, 'unexpected evaluation');\nthrow new Error('TEST_CONSUMER_EXECUTION_FORBIDDEN');\n`;
+          await writeFile(join(directory, "dist", "index.js"), poison);
+          await writeFile(join(directory, "dist", "cli.js"), poison);
+        }
+        await withPublishedCompilerFloor(async () => {
+          if (process.platform === "win32") {
+            assert.equal(process.versions.node.split(".")[0], "26");
+            await assert.rejects(
+              nodeManagedGeneration2SourceInputReader.read({ consumerRoot: fixture.root }),
+              { code: "DOCS_CONSUMER_UNSUPPORTED_NODE" },
+            );
+            nested.diagnostic("Windows default Node26 refusal only; no positive retained source qualification.");
+            return;
+          }
+          assert.equal(process.versions.node, "24.21.0");
+          const input = await nodeManagedGeneration2SourceInputReader.read({ consumerRoot: fixture.root });
+          assert.deepEqual(input.desired, fixture.current);
+          await createRetainedGeneration2SourceVerifier({
+            input: nodeManagedGeneration2SourceInputReader,
+            assets: packageConsumerAssetCatalogReader,
+            planning: fixture.planning,
+          })({ consumerRoot: fixture.root, current: fixture.current });
+          if (sourceNodePin === "26.11.1\n") {
+            await assert.rejects(
+              nodeConsumerIntegrationInputReader.read({ consumerRoot: fixture.root }),
+              { code: "DOCS_CONSUMER_NODE_VERSION_GATE_INVALID" },
+            );
+            await assert.rejects(
+              Reflect.apply(nodeConsumerIntegrationInputReader.read, undefined, [
+                { consumerRoot: fixture.root }, "generation2-source",
+              ]),
+              { code: "DOCS_CONSUMER_NODE_VERSION_GATE_INVALID" },
+            );
+          } else {
+            assert.deepEqual(
+              (await nodeConsumerIntegrationInputReader.read({ consumerRoot: fixture.root })).desired,
+              fixture.current,
+            );
+          }
+        });
+        await assert.rejects(readFile(sentinel), { code: "ENOENT" });
+        for (const [path, bytes] of fixture.originals) {
+          assert.deepEqual(await readFile(join(fixture.root, path)), bytes, path);
+        }
+        assert.deepEqual(fixture.activation, []);
+        await assert.rejects(readFile(fixture.options.proofPath), { code: "ENOENT" });
+      });
+    }
+  },
+);

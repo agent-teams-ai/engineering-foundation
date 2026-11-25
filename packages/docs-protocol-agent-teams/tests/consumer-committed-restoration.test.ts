@@ -1,7 +1,7 @@
 import { acquireMutationLease, releaseMutationLease } from "@agent-teams/repository-mutation/node";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, lstat, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import test from "node:test";
 import type { TestContext } from "node:test";
@@ -13,22 +13,53 @@ import {
 import { restoreCommittedManagedConsumer } from "../dist/consumer-integration/adapters/node-managed-committed-restoration.js";
 import { fixtureGit as git, retainedFixture, revision } from "./managed-restoration-fixture.ts";
 
-async function published(t: TestContext) {
-  const f = await retainedFixture(t);
-  if (process.versions.node !== "24.21.0") {
+async function published(t: TestContext, sourceNodePin: "24.21.0\n" | "26.11.1\n") {
+  const f = await retainedFixture(t, sourceNodePin);
+  if (process.platform === "win32") {
+    assert.equal(process.versions.node.split(".")[0], "26");
     await assert.rejects(f.prepare(), /actual Node24\.21\.0/u);
+    t.diagnostic("Windows default Node26 refusal only; no positive committed rollback claim.");
     return;
   }
+  assert.equal(
+    process.versions.node,
+    "24.21.0",
+    "Positive committed rollback requires the physical Node24.21.0 test route.",
+  );
+  t.diagnostic(
+    `controller=${process.versions.node}; source-pin=${sourceNodePin.trim()}; TEST activation ports`,
+  );
   const prepared = await f.prepare();
   const forward = finalizeManagedConsumerRestoration({ ...f.options, expect: prepared.digest }, f);
-  if (process.platform === "win32") {
-    await assert.rejects(forward, { code: "KNOWN_FILE_APPLY_UNSUPPORTED" });
-    return;
-  }
-  assert.equal((await forward).outcome, "upgraded");
+  const result = await forward;
+  assert.equal(result.outcome, "upgraded");
+  assert.ok(result.receipt);
+  assert.equal(
+    result.receipt.operations.some(({ path }) => path === ".node-version"),
+    sourceNodePin === "24.21.0\n",
+  );
   return { ...f, prepared };
 }
 type Fixture = NonNullable<Awaited<ReturnType<typeof published>>>;
+function scenario(
+  name: string,
+  run: (context: TestContext, fixture: Fixture) => Promise<void>,
+): void {
+  for (const sourceNodePin of ["24.21.0\n", "26.11.1\n"] as const) {
+    const identity = sourceNodePin === "24.21.0\n"
+      ? name
+      : `${name} [preserved host Node26]`;
+    void test(
+      process.platform === "win32" ? `${identity} [Windows runtime refusal]` : identity,
+      async (context) => {
+        const fixture = await published(context, sourceNodePin);
+        if (fixture !== undefined) {
+          await run(context, fixture);
+        }
+      },
+    );
+  }
+}
 function options(f: Fixture, root = f.root, label = "current-selection") {
   return {
     consumerRoot: root,
@@ -58,6 +89,7 @@ async function assertBytes(root: string, images: ReadonlyMap<string, Buffer>) {
   for (const [path, bytes] of images) {
     assert.deepEqual(await readFile(join(root, path)), bytes, path);
   }
+  assert.equal((await lstat(join(root, ".node-version"))).mode & 0o777, 0o644);
 }
 function child(script: string) {
   return new Promise<{
@@ -84,19 +116,25 @@ function child(script: string) {
     ).once("error", reject);
   });
 }
-const freshSourceScript = (root: string) => `
+const freshSourceScript = (root: string, fixture: Fixture) => `
 const assert=(await import('node:assert/strict')).default;
-const {checkConsumerIntegration}=await import(${JSON.stringify(new URL("../dist/consumer-integration/composition/node-consumer-integration.js", import.meta.url).href)});
 assert.equal(process.versions.node,'24.21.0');
+${fixture.sourceNodePin === "26.11.1\n" ? `
+const {createRetainedGeneration2SourceVerifier}=await import(${JSON.stringify(new URL("../dist/consumer-integration/adapters/node-retained-source-verifier.js", import.meta.url).href)});
+const {nodeManagedGeneration2SourceInputReader}=await import(${JSON.stringify(new URL("../dist/consumer-integration/adapters/node-consumer-integration-repository.js", import.meta.url).href)});
+const {packageConsumerAssetCatalogReader}=await import(${JSON.stringify(new URL("../dist/consumer-integration/adapters/package-consumer-asset-catalog.js", import.meta.url).href)});
+const {consumerIntegrationPlanningPorts:sourcePlanning}=await import(${JSON.stringify(new URL("../dist/consumer-integration/composition/consumer-integration-planner.js", import.meta.url).href)});
+await createRetainedGeneration2SourceVerifier({input:nodeManagedGeneration2SourceInputReader,assets:packageConsumerAssetCatalogReader,planning:sourcePlanning})({consumerRoot:${JSON.stringify(root)},current:${JSON.stringify(fixture.current)}});
+console.error('TEST_RETAINED_SOURCE_DATA_VERIFIED');
+` : `
+const {checkConsumerIntegration}=await import(${JSON.stringify(new URL("../dist/consumer-integration/composition/node-consumer-integration.js", import.meta.url).href)});
 const observed=await checkConsumerIntegration({consumerRoot:${JSON.stringify(root)}});
 assert.equal(observed.outcome,'current',JSON.stringify(observed));
+console.error('TEST_LEGACY_SOURCE_CHECK_CURRENT');
+`}
 `;
 
-void test("merged target admits a fresh root, refuses overlapping Host changes, and restores only managed files", async (t) => {
-  const f = await published(t);
-  if (f === undefined) {
-    return;
-  }
+scenario("merged target admits a fresh root, refuses overlapping Host changes, and restores only managed files", async (_t, f) => {
   committedTarget(f);
   await assert.rejects(
     restoreManagedConsumerIntegration(
@@ -140,7 +178,7 @@ void test("merged target admits a fresh root, refuses overlapping Host changes, 
   const foreign = options(f, current);
   await assert.rejects(
     restoreCommittedManagedConsumer(foreign, f),
-    /committed managed postimage changed/u,
+    /committed managed postimage changed|committed target runtime pin or mode differs/u,
   );
   assert.equal(
     await readFile(join(current, "host-business.txt"), "utf8"),
@@ -157,13 +195,17 @@ void test("merged target admits a fresh root, refuses overlapping Host changes, 
     sandbox: {
       ...f.sandbox,
       restoreCommittedAndVerifyManaged: async (input) => {
-        const checked = await child(freshSourceScript(input.consumerRoot));
+        const checked = await child(freshSourceScript(input.consumerRoot, f));
         assert.equal(checked.code, 0, checked.stderr || checked.stdout);
       },
     },
   });
   assert.equal(result.outcome, "restored");
   assert.equal(result.receipt?.outcome, "applied");
+  assert.equal(
+    result.receipt?.operations.some(({ path }) => path === ".node-version"),
+    f.sourceNodePin === "24.21.0\n",
+  );
   await assertBytes(current, f.originals);
   await assertBytes(f.root, untouched);
   assert.equal(
@@ -177,16 +219,20 @@ void test("merged target admits a fresh root, refuses overlapping Host changes, 
   assert.equal(repeated.receipt?.outcome, "already-satisfied");
 });
 
-void test("dirty targets, unknown lineage, stale HEAD and foreign committed managed bytes refuse without CAS", async (t) => {
-  const f = await published(t);
-  if (f === undefined) {
-    return;
-  }
+scenario("dirty targets, unknown lineage, stale HEAD and foreign committed managed bytes refuse without CAS", async (_t, f) => {
   committedTarget(f);
   const selected = options(f);
   let writes = 0;
+  let installations = 0;
   const ports = {
     ...f,
+    sandbox: {
+      ...f.sandbox,
+      restoreCommittedAndVerifyManaged: async (): Promise<never> => {
+        installations += 1;
+        throw new Error("Restoration installation must not run after refused current selection");
+      },
+    },
     apply: async (): Promise<never> => {
       writes += 1;
       throw new Error("CAS must not run");
@@ -212,11 +258,34 @@ void test("dirty targets, unknown lineage, stale HEAD and foreign committed mana
   commit(f.root, "test: foreign managed postimage");
   await assert.rejects(
     restoreCommittedManagedConsumer(options(f), ports),
-    /committed managed postimage changed/u,
+    /committed managed postimage changed|committed target runtime pin or mode differs/u,
   );
   assert.equal(await readFile(join(f.root, ".node-version"), "utf8"), "foreign\n");
   await writeFile(join(f.root, ".node-version"), manifest);
   commit(f.root, "test: restore owned target fixture image");
+  const pin = join(f.root, ".node-version");
+  await chmod(pin, 0o755);
+  commit(f.root, "test: foreign committed pin mode");
+  assert.equal((await lstat(pin)).mode & 0o777, 0o755);
+  await assert.rejects(
+    restoreCommittedManagedConsumer(options(f), ports),
+    /committed managed postimage changed|committed target runtime pin or mode differs/u,
+  );
+  assert.equal((await lstat(pin)).mode & 0o777, 0o755);
+  await chmod(pin, 0o644);
+  commit(f.root, "test: restore original pin mode");
+  await chmod(pin, 0o600);
+  assert.equal(
+    git(f.root, "diff", "--name-only"),
+    "",
+    "Git does not record non-executable permission drift",
+  );
+  await assert.rejects(
+    restoreCommittedManagedConsumer(options(f), ports),
+    /committed target runtime pin or mode differs/u,
+  );
+  assert.equal((await lstat(pin)).mode & 0o777, 0o600);
+  await chmod(pin, 0o644);
   git(f.root, "checkout", "--orphan", "TEST-unknown-lineage");
   commit(f.root, "test: copied target without original source ancestry");
   await assert.rejects(
@@ -224,14 +293,11 @@ void test("dirty targets, unknown lineage, stale HEAD and foreign committed mana
     /unknown original-source lineage/u,
   );
   assert.equal(writes, 0);
+  assert.equal(installations, 0);
   await assert.rejects(readFile(selected.selectionPath), { code: "ENOENT" });
 });
 
-void test("committed rollback cold-resumes its separately selected current intent before fresh Node24 check", async (t) => {
-  const f = await published(t);
-  if (f === undefined) {
-    return;
-  }
+scenario("committed rollback cold-resumes its separately selected current intent before fresh Node24 check", async (_t, f) => {
   committedTarget(f);
   const selected = options(f);
   const module = new URL(
@@ -250,7 +316,7 @@ console.error('TEST_CURRENT_RESTORE_STARTED');
 const result=await restoreCommittedManagedConsumer(${JSON.stringify({ ...selected, ...(selectionExpect === undefined ? {} : { selectionExpect }) })},{
  authority:{readManagedRestoration:async()=>({revision:${JSON.stringify(revision)},target:{repository:'agent-teams-ai/.github',path:'governance/docs-qualified-cohorts.json',revision:${JSON.stringify(revision)},cohort:origin}})},
  planning:consumerIntegrationPlanningPorts,
- sandbox:{verifyManagedRuntime:async()=>{console.error('TEST_CURRENT_RUNTIME_PREFLIGHT');},restoreCommittedAndVerifyManaged:async()=>{console.error('TEST_CURRENT_INVERSE_PUBLISHED');${selectionExpect === undefined ? "process.exit(73);" : freshSourceScript(f.root)}}}
+ sandbox:{verifyManagedRuntime:async()=>{console.error('TEST_CURRENT_RUNTIME_PREFLIGHT');},restoreCommittedAndVerifyManaged:async()=>{console.error('TEST_CURRENT_INVERSE_PUBLISHED');${selectionExpect === undefined ? "process.exit(73);" : freshSourceScript(f.root, f)}}}
 });console.log(JSON.stringify(result));`;
   const first = await child(script());
   assert.equal(first.code, 73, JSON.stringify(first));

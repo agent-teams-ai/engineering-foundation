@@ -79,7 +79,12 @@ existing qualified legacy Node 24 pin or the exact preserved `26.11.1\n` image;
 the preserved variant must equal the deterministic target pin. Observe actual
 controller Node 24.21.0 independently. Wrong/missing runtime, unsupported pin,
 symlink, dirty source, foreign managed bytes, stale authority and source drift
-must still refuse before package installation or consumer mutation.
+must refuse invalid initial source admission before staging. Reject a failed
+selected runtime or package-manager preflight before package installation.
+Re-observe source images and protected authority after staging and before
+real-consumer publication. Drift detected after publication prevents completion
+and follows the existing receipt-owned compensation/recovery rules; never claim
+that earlier staging or publication effects did not occur.
 
 The retained controller checks historical source data through existing pure
 planners and asset projections. It never initializes the old Foundation CLI or
@@ -120,8 +125,12 @@ tests only for these changed guarantees and credible failures:
    explicit retained 2-to-3 prepare route. Ordinary legacy commands still refuse.
 2. Preparation retains original pin bytes/mode and contains no pin mutation when
    target bytes are identical; all original/target bindings remain exact.
-3. Wrong controller/target Node, wrong pnpm, unsupported pin, dirty source,
-   altered assets and authority drift fail before effects.
+3. Wrong controller/target Node or pnpm fail their selected preflight before
+   package installation; invalid source pin, dirty source or altered assets
+   refuse initial admission. Source/authority drift during staging refuses
+   before real-consumer CAS. Drift after publication withholds completion and
+   preserves recovery evidence. Observe disposable installation, consumer
+   publication and activation as distinct effects.
 4. Actual forward publication, activation and target check pass with exact
    separately observed runtimes and real installed packages.
 5. Stop a child after publication before activation; a new controller resumes.
@@ -129,7 +138,11 @@ tests only for these changed guarantees and credible failures:
 6. Failed activation compensates only an authentic full owned write receipt.
    The restored pin, package/lock images and unrelated Host files match exactly.
 7. Original and later committed rollback pass; a separately committed changed
-   pin or changed pin mode refuses before inverse CAS and install.
+   pin or changed pin mode refuses before inverse CAS and install. Include a
+   committed target with actual or representative EF Host integration changes:
+   overlapping Host changes first refuse, their owner reverses them on the
+   unmerged rollback branch, and a fresh current selection restores only managed
+   files while preserving unrelated Host data.
 8. Changed source/target image, stale HEAD/tree, wrong retained controller/build,
    mixed images and unavailable authority retain their existing refusing cases.
 9. The retained source path demonstrably does not execute the old Foundation or
@@ -142,6 +155,16 @@ Run all new and affected positive recovery tests under actual Node 24.21.0 throu
 the existing selected executable route. Retain their Node 26 wrong-runtime
 coverage separately. Log the positive scenario identities and execution counts;
 an early-return refusal, skip or an absent test does not qualify recovery.
+
+`Cold` means a new process using separately retained exact controller/kernel
+builds and explicitly observed runtimes. Prepare and identify the required
+package-manager/package caches deliberately; do not rely on a running controller,
+in-memory ports or accidental ambient caches. Missing offline source-install
+material leaves an honest failed/incomplete recovery state. Reversing bytes alone
+is not completed restoration; there is no online fallback or old Foundation gate.
+The compiler-load guard spans the observed operation and relevant children, and
+any sticky denial fails that complete observation. Fault-point TEST ports prove
+recovery semantics separately from real installed-package/CLI evidence.
 
 Keep new maintained source/tests in ordinary `.ts`, the owning strict TS 7.0.2
 projects and existing complete inventories. Use focused tests while editing,
@@ -177,6 +200,9 @@ Independent implementation review must cover both effects and evidence claims.
 7. Adapt EF's Host-owned tooling to current Foundation quality v5 and supported
    Stack/FMS interfaces without dropping governed roots, tests or scripts.
    Preserve its Node 26 default and the original E1 code/evidence boundaries.
+   Recheck the committed rollback case against this final Host integration
+   shape, including owner reversal of overlapping fields before fresh selection.
+   The earlier pre-Host rollback probe alone does not qualify this final state.
 8. Complete EF's full ordinary gates, independent review, normal merge and
    actual-main checks plus a fresh online E1 observation. Finish the applicable
    Central canary/adoption observations using those actual merged-source proofs.
@@ -203,8 +229,9 @@ ordinal scores, not measured probabilities. Estimate confidence is 5/10.
 EF Host integration adds approximately 120–300 maintained configuration/tooling
 lines and 80–200 focused test lines, depending on actual published interfaces.
 
-The selected first route preserves Node 26 and reuses qualified effect/recovery
-mechanisms. Its strongest counterexample is that a permanent Node 24 default
+The selected first route preserves Node 26 and reuses Repository Mutation's
+qualified writer and the existing retained-controller implementation. This
+delivery qualifies the amended source, activation and restoration route. Its strongest counterexample is that a permanent Node 24 default
 could use existing admission with less new producer code; that changes the
 owner-selected outcome. The second route preserves generation2 but adds a
 persisted protocol unnecessarily. No alternative grants a weaker compiler floor,
@@ -215,7 +242,11 @@ publication proof or consumer gate.
 - Initial independent architecture and recovery audits found the target-reader,
   restored-old-CLI, unchanged-pin committed-rollback and Node 24 positive-test
   gaps. The design above includes them before implementation.
-- Written plan review round1: pending.
+- Written plan review round1: two independent architecture/recovery reviewers
+  reviewed exact source `b833b6f54a92aefeee221d8e3fd5a77785a20a63`. Both approved
+  the direction and requested phase-specific drift guarantees, post-Host
+  committed rollback, explicit cold/offline-cache semantics and precise
+  qualification wording. Those four bounded corrections are incorporated.
 - Written plan review round2: pending.
 - Producer implementation, publication, Central qualification and EF adoption:
   pending; earlier E1 and central preparation successes remain separate evidence.

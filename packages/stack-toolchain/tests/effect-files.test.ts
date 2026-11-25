@@ -169,8 +169,12 @@ test("the complete inventory checks imported local sources and keeps dependency 
     },
   };
   const output = [entry, imported, dependency].join("\n") + "\n";
-  const inventory = await effectSourceInventory(output, root, [entry], tool, live);
+  const inventory = await effectSourceInventory(output, root, [entry, imported], tool, live);
   assert.deepEqual(inventory.sourceFiles, ["imported.ts", "main.ts"]);
+  await assert.rejects(
+    effectSourceInventory(output, root, [entry], tool, live),
+    /EFFECT_SOURCE_ROOT_CLOSURE/u,
+  );
   for (const extension of ["d.ts", "d.mts", "d.cts"]) {
     const declaration = path.join(root, `local.${extension}`);
     await fs.writeFile(declaration, "export interface LocalDeclaration {}\n");
@@ -205,6 +209,20 @@ test("the complete inventory checks imported local sources and keeps dependency 
     );
   }
   await fs.writeFile(imported, "export const value = 42;");
+  for (const filename of [entry, imported]) {
+    const before = await fs.readFile(filename);
+    for (const source of [
+      "// @ts-nocheck\nexport const value = 1;",
+      'export const value = "@TS-NOCHECK";',
+    ]) {
+      await fs.writeFile(filename, source);
+      await assert.rejects(
+        effectSourceInventory(output, root, [entry, imported], tool, live),
+        /EFFECT_SOURCE_NOCHECK/u,
+      );
+    }
+    await fs.writeFile(filename, before);
+  }
   for (const malformed of ["", "main.ts\n", "error TS2322: not an inventory\n"]) {
     await assert.rejects(
       effectSourceInventory(malformed, root, [entry], tool, live),

@@ -117,7 +117,10 @@ explicit leaf-project contract instead of implementing TypeScript inheritance:
    and avoids a custom glob or suppression engine. Each selected project has
    an explicit exact allowlist; wildcards and unknown policy options reject.
    The already researched override shape remains a later additive choice.
-3. The actual qualified compiler resolves inherited ordinary TypeScript options.
+3. The actual qualified compiler resolves ordinary TypeScript options. The
+   implementation review narrowed this to flat standalone configs: selected
+   projects reject `extends` because the native compiler retains hidden inherited
+   Effect overrides, and `--showConfig` cannot expose the effective policy.
    Require strict/noEmit, no disabled strict-family suboptions, no noCheck or
    skipLibCheck, nonempty real source roots and no project references. Selected
    leaf configs and all consumer source files belong to the declared real source
@@ -126,15 +129,20 @@ explicit leaf-project contract instead of implementing TypeScript inheritance:
    paired standard libraries belong to their separately admitted physical
    installation boundary. The existing sibling fixture's node_modules link is
    admitted through its real installation, not treated as escaping local source.
-   Ordinary inherited config resolution remains the compiler's responsibility;
-   there is no claim of an independent whole inheritance-chain audit. Do not
-   create a config/import resolver or temporary rewritten tsconfigs.
+   Every local implementation file in that inventory must also be an explicit
+   effective canonical root through `files`/`include`; otherwise a workspace
+   import may be skipped as an external library. Reject logical symlink aliases
+   used as roots. Do not create a config/import resolver or temporary rewritten
+   tsconfigs to infer or repair scope.
 4. This strict optional profile admits exceptions only through its explicit
    exact-export config. Reject the reserved token `@effect-diagnostics` in all
    admitted consumer source files before checking, including imported local
    files. The lexical refusal deliberately also catches token text in a string;
    document this conservative restriction. Do not reinterpret directive syntax.
    Installed third-party declarations are not consumer suppression policy.
+   Reject case-insensitive `@ts-nocheck` too, because the compiler otherwise skips
+   the file before invoking Effect rules. Ordinary `@ts-ignore`/`@ts-expect-error`
+   do not suppress the pinned compiler's Effect diagnostic codes.
    Actual unstable use with next-line off and wildcard skip-file directives
    must reject as policy input failures.
    Implementation review additionally identified that the pinned upstream
@@ -419,9 +427,9 @@ complexity/size limits are not waived for the new route.
 
 ### Scope reassessment and local gates
 
-Physical line counts after review fixes are 867 in five new production files
-(plus the thin existing CLI dispatch), 1,062 in four portable test files, and
-1,057 in the four private acquisition/installed-qualification helpers. A further
+Physical line counts after review fixes are 874 in five new production files
+(plus the thin existing CLI dispatch), 1,161 in four portable test files, and
+1,207 in the four private acquisition/installed-qualification helpers. A further
 111-line helper moves an existing packed-consumer installation block out of its
 oversized fixture writer; it does not add a second installation owner. These
 counts exclude retained corpus/generator/license bytes, manifests and guides.
@@ -445,3 +453,52 @@ remain separate acceptance items. Live delivery receipts belong to
 [the single PR #476](https://github.com/agent-teams-ai/engineering-foundation/pull/476)
 so the final merge and post-merge checks do not require a self-referencing source
 commit.
+
+
+### Independent whole-change review: native activation gaps
+
+A reviewer who authored none of this change found three further native-specific
+false-success paths. Each is resolved through a bounded explicit input contract,
+not another compiler/configuration resolver:
+
+| Finding | Required correction and installed negative |
+| --- | --- |
+| A workspace import through `node_modules` can be marked external even after realpath points inside the consumer | Every local implementation file must be an effective canonical root; omitted workspace source rejects, explicitly rooted unstable source must produce TS377136 |
+| Case-insensitive `@ts-nocheck` prevents the compiler from invoking Effect rules | Reserve that token across all local source, including imports; root and imported actual-unstable fixtures must reject |
+| Effect file overrides from `extends` survive explicit leaf policy and are absent from `--showConfig` | Reject selected-config inheritance in this first profile; a parent override disabling both rules must not yield success |
+
+The first two conclusions follow the pinned TypeScript 7.0.2
+[files parser](https://github.com/microsoft/typescript-go/blob/2bd066d87f5bafd315be9f40889d0a60b9e58e0b/internal/compiler/filesparser.go)
+and [pragma parser](https://github.com/microsoft/typescript-go/blob/2bd066d87f5bafd315be9f40889d0a60b9e58e0b/internal/parser/parser.go).
+Canonical configured roots start at depth zero, and lower depth wins regardless
+of load order; only positive final depth marks an external-library source.
+Pragma names are case-folded before deciding whether the checker runs. The
+[Effect merge hook](https://github.com/Effect-TS/tsgo/blob/aa2db44499067a798028cff9d3b1b9ca1e156f57/internal/effectconfigraw/hooks.go)
+retains/appends parent overrides rather than clearing them.
+
+The useful next upstream question is an observable effective Effect policy or a
+qualified policy reset, which could enable ordinary inherited configs later.
+That investigation does not justify a custom inheritance engine in this PR.
+The guide states these first-profile limits explicitly; a finished application
+or arbitrary existing monorepo config is not assumed.
+
+The local changed-check route was attempted again after source fixes. Its isolated
+Node profile installed 706 packages from the existing store, then a child was
+terminated by SIGKILL during bootstrap. The bounded diagnostic log was retained;
+this is not a successful changed-check receipt. The shared workspace has limited
+memory/temporary capacity. Repeating that allocation without a changed condition
+adds no evidence; the complete required hosted matrix remains the delivery gate.
+
+
+All three activation corrections above are implemented in source and the
+portable suite now passes 30/30. The independent whole-change reviewer accepts
+the measured scope and owner separation: pure policy, existing process adapter,
+one shared installed qualifier and the cohesive extraction of an existing
+installation block. No additional material source issue was found in provenance,
+payload normalization, cancellation, exports or test inventories. The review
+remains provisional until it is bound to the frozen PR commit and the native
+controls have executed; source inspection is not substituted for that evidence.
+
+The complete `check:fast` route was rerun after all three activation fixes and
+passes in 52,442 ms; production typed lint also passes. This is the source
+snapshot submitted for hosted installed/native qualification.

@@ -103,6 +103,25 @@ test("effective strict options and complete roots are independent of leaf plugin
   );
 });
 
+test("standalone leaf policy rejects every extends form before inherited overrides can disable rules", () => {
+  const active = policy(plugin());
+  validateEffectPolicy(active);
+  for (const inherited of [
+    "./base.json",
+    "@shared/strict/tsconfig.json",
+    ["./first.json", "./second.json"],
+    [],
+    null,
+    {},
+    false,
+  ]) {
+    assert.throws(
+      () => validateEffectPolicy({ ...active, extends: inherited }),
+      (error: unknown) => error instanceof Error && error.message === "EFFECT_PROJECT_EXTENDS",
+    );
+  }
+});
+
 test("runtime input limits reject ambiguous paths, unbounded work and unknown controls", () => {
   const input = {
     cwd: "/consumer",

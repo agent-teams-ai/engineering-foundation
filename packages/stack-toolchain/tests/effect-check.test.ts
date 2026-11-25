@@ -58,7 +58,7 @@ async function fixture(t: TestContext) {
         },
       ],
     },
-    files: ["./main.ts"],
+    files: ["./main.ts", "./imported.ts"],
   };
   for (const file of ["one.json", "two.json"]) {
     await fs.writeFile(path.join(cwd, file), JSON.stringify(config));
@@ -176,6 +176,68 @@ test("valid source passes only after version, config, imported-source inventory 
     f.calls.slice(0, 4).map((call) => call.args[0]),
     ["--version", "--showConfig", "--listFilesOnly", "--noEmit"],
   );
+});
+
+test("every imported local source must also be an explicit effective root", async (t) => {
+  const f = await fixture(t);
+  f.config.files = ["./main.ts"];
+  await fs.writeFile(path.join(f.input.cwd, "one.json"), JSON.stringify(f.config));
+  const report = await checkEffectProjectsWith(f.input, f.ports);
+  assert.equal(report.details.outcome, "invalid-input");
+  assert.equal(report.details.reason, "EFFECT_SOURCE_ROOT_CLOSURE");
+  assert.equal(report.exitCode, 2);
+  assert.deepEqual(report.details.unattempted, ["two.json"]);
+  assert.deepEqual(
+    f.calls.map((call) => call.args[0]),
+    ["--version", "--showConfig", "--listFilesOnly"],
+  );
+  f.config.files = ["./main.ts", "./imported.ts"];
+  await fs.writeFile(path.join(f.input.cwd, "one.json"), JSON.stringify(f.config));
+  const complete = await checkEffectProjectsWith(f.input, f.ports);
+  assert.equal(complete.details.outcome, "passed");
+  assert.deepEqual(complete.details.projects[0]?.sourceFiles, ["imported.ts", "main.ts"]);
+});
+
+test("logical symlink and workspace-package roots reject before checking; canonical roots pass", async (t) => {
+  const f = await fixture(t);
+  const workspace = path.join(f.input.cwd, "workspace");
+  const local = path.join(workspace, "index.ts");
+  await fs.mkdir(workspace);
+  await fs.writeFile(local, "export const value = 42;");
+  await fs.mkdir(path.join(f.input.cwd, "node_modules"));
+  for (const alias of ["alias", "node_modules/linked"]) {
+    await fs.symlink(workspace, path.join(f.input.cwd, alias), "junction");
+    f.config.files = ["./main.ts", "./imported.ts", `./${alias}/index.ts`];
+    await fs.writeFile(path.join(f.input.cwd, "one.json"), JSON.stringify(f.config));
+    f.calls.length = 0;
+    const report = await checkEffectProjectsWith(f.input, f.ports);
+    assert.equal(report.details.outcome, "invalid-input");
+    assert.equal(report.details.reason, "EFFECT_SOURCE_ROOT_ALIAS");
+    assert.equal(report.exitCode, 2);
+    assert.deepEqual(
+      f.calls.map((call) => call.args[0]),
+      ["--version", "--showConfig"],
+    );
+    assert.deepEqual(report.details.unattempted, ["two.json"]);
+  }
+  f.config.files = ["./main.ts", "./imported.ts", "./workspace/index.ts"];
+  await fs.writeFile(path.join(f.input.cwd, "one.json"), JSON.stringify(f.config));
+  const canonical = await checkEffectProjectsWith(
+    { ...f.input, projects: ["one.json"] },
+    {
+      ...f.ports,
+      execute: async (request) =>
+        request.args.includes("--listFilesOnly")
+          ? result({ stdout: [f.source, f.imported, local].join("\n") + "\n" })
+          : f.answer(request),
+    },
+  );
+  assert.equal(canonical.details.outcome, "passed");
+  assert.deepEqual(canonical.details.projects[0]?.sourceFiles, [
+    "imported.ts",
+    "main.ts",
+    "workspace/index.ts",
+  ]);
 });
 
 test("invalid input, cancellation and unsupported platforms cannot start tool admission", async (t) => {

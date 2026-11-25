@@ -125,6 +125,7 @@ export function effectInputs(input: EffectCheckInput): Required<EffectCheckInput
 export function validateEffectPolicy(value: unknown): void {
   const config = effectObject(value);
   requireEffect(!Object.hasOwn(config, "references"), "EFFECT_PROJECT_REFERENCES");
+  requireEffect(!Object.hasOwn(config, "extends"), "EFFECT_PROJECT_EXTENDS");
   const plugins = effectObject(config["compilerOptions"])["plugins"];
   requireEffect(Array.isArray(plugins) && plugins.length === 1, "EFFECT_POLICY_PLUGIN");
   const plugin = effectObject(plugins[0]);

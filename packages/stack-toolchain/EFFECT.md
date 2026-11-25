@@ -71,9 +71,12 @@ For example, a portable SDK can use:
 }
 ```
 
-The real compiler resolves ordinary inherited TypeScript settings. The selected
-leaf contains the explicit Effect policy because this compiler's `--showConfig`
-output omits it. A clean compiler exit alone does not establish activation.
+The selected project is a flat standalone JSON/JSONC config: `extends` is not
+supported in this initial profile. The native compiler merges inherited Effect
+file overrides, and its `--showConfig` output omits them. An explicit leaf policy
+cannot reset that hidden inherited state. Rejecting inheritance makes activation
+reviewable without a second TypeScript config resolver. Ordinary Stack typecheck
+retains its existing config inheritance support.
 
 Use separate selected SDK, backend-adapter and frontend projects when allowances
 differ. An adapter can name an exact export such as
@@ -86,6 +89,14 @@ conflicting plugins, disabled diagnostics, weakened required severities and
 ignored Effect errors. Effective strict-family options may not be disabled.
 `noCheck`, `skipLibCheck` and project references are outside this strict
 standalone profile. Reference-graph builds remain separate consumer gates.
+
+The effective `files`/`include` selection must cover every consumer-local
+implementation source in the compiler's complete inventory, including imports
+from adjacent local packages. Spell those roots through their canonical paths,
+without file or directory symlink aliases. The native compiler can otherwise
+classify a workspace package reached through `node_modules` as an external
+library and skip its Effect rules. Explicit canonical roots prevent that skip.
+An imported local file omitted from the effective roots rejects the project.
 
 Consumer-local `.d.ts`, `.d.mts` and `.d.cts` files also reject, including when
 imported by an implementation file. The pinned upstream Effect runner skips
@@ -176,26 +187,32 @@ exports, source-dependency checks, runtime tests or review of that boundary.
 
 This strict profile permits exceptions through explicit project policy.
 Consumer source containing the reserved `@effect-diagnostics` token rejects,
-including local files imported by the selected project. The lexical rule also
-rejects that token inside a string. This conservative restriction closes upstream
-next-line/section/file suppressions without another directive parser. Installed
-third-party declarations are outside consumer suppression policy.
+including local files imported by the selected project. The case-insensitive
+`@ts-nocheck` token also rejects because it prevents the compiler from running
+Effect rules for the file. These lexical rules deliberately reject token text
+inside strings too. This conservative restriction closes upstream suppressions
+without another directive parser. Installed third-party declarations are outside
+consumer suppression policy. Ordinary `@ts-ignore`/`@ts-expect-error` retain their
+TypeScript meaning; the pinned Effect compiler excludes its own diagnostic codes
+from those directives.
 
 ## Accepted and rejected usage
 
-| Usage                                                 | Behavior                                                                       |
-| ----------------------------------------------------- | ------------------------------------------------------------------------------ |
-| Stable Effect use with explicit strict policy         | Checks with the selected native compiler                                       |
-| Ordinary TypeScript error                             | Fails as a diagnostic; no Effect-only filter hides it                          |
-| Used unstable export without an exact allowance       | Fails the required policy                                                      |
-| Annotated stable signature leaking an unstable type   | Fails the stable-surface rule                                                  |
-| Exact allowance in a selected adapter project         | Applies to that check; other selected projects retain their own policy         |
-| Missing/weakened policy or source directive           | Rejects activation                                                             |
-| Consumer-local declaration source                     | Rejects because the native Effect rules do not inspect it                      |
-| Missing/wrong compiler or replaced paired library     | Rejects before semantic checking                                               |
-| Consumer source/config escaping the declared root     | Rejects; installed declarations have a separate physical installation boundary |
-| Cancelled, timed-out or incompletely captured process | Fails without a successful partial result                                      |
-| Ordinary Stack use without Effect installed           | Keeps the existing command and dependency behavior                             |
+| Usage                                                                                 | Behavior                                                                             |
+| ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Stable Effect use with explicit strict policy                                         | Checks with the selected native compiler                                             |
+| Ordinary TypeScript error                                                             | Fails as a diagnostic; no Effect-only filter hides it                                |
+| Used unstable export without an exact allowance                                       | Fails the required policy                                                            |
+| Annotated stable signature leaking an unstable type                                   | Fails the stable-surface rule                                                        |
+| Exact allowance in a selected adapter project                                         | Applies to that check; other selected projects retain their own policy               |
+| Missing/weakened policy or source directive                                           | Rejects activation                                                                   |
+| Consumer-local declaration source                                                     | Rejects because the native Effect rules do not inspect it                            |
+| Imported local source omitted from effective roots, or a symlink alias used as a root | Rejects to preserve native Effect rule coverage                                      |
+| Selected config containing `extends`                                                  | Rejects because inherited Effect overrides cannot be independently observed or reset |
+| Missing/wrong compiler or replaced paired library                                     | Rejects before semantic checking                                                     |
+| Consumer source/config escaping the declared root                                     | Rejects; installed declarations have a separate physical installation boundary       |
+| Cancelled, timed-out or incompletely captured process                                 | Fails without a successful partial result                                            |
+| Ordinary Stack use without Effect installed                                           | Keeps the existing command and dependency behavior                                   |
 
 Checks force no emission and redirect incremental build information to the OS
 null device. They never enter build/watch mode or accept arbitrary compiler

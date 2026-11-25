@@ -78,7 +78,11 @@ async function checkEffectProject(
   }
   const roots: string[] = [];
   for (const file of validateEffectConfiguration(parseEffectJson(Buffer.from(config.stdout)))) {
-    roots.push(await effectLocalPath(root, path.resolve(path.dirname(filename), file)));
+    live();
+    const requested = path.resolve(path.dirname(filename), file);
+    const canonical = await effectLocalPath(root, requested);
+    requireEffect(requested === canonical, "EFFECT_SOURCE_ROOT_ALIAS");
+    roots.push(canonical);
   }
   const checkFlags = [
     "--noEmit",

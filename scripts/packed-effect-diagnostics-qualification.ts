@@ -10,6 +10,9 @@ import {
 } from "./effect-fixture-dependencies.ts";
 import { measureInstalledEffectGrowth } from "./packed-effect-diagnostics-growth.ts";
 import {
+  qualifyEffectFixturePolicies,
+  record,
+  rows,
   writeEffectBoundaryProjects,
   writeEffectProject,
 } from "./packed-effect-diagnostics-fixtures.ts";
@@ -30,16 +33,6 @@ interface CorpusCase {
   readonly sourceGitBlob: string;
   readonly expected: readonly ExpectedDiagnostic[];
   readonly allowedUnstableApis: readonly string[];
-}
-
-function record(value: unknown): Record<string, unknown> {
-  assert.ok(value !== null && typeof value === "object" && !Array.isArray(value));
-  return value as Record<string, unknown>;
-}
-
-function rows(value: unknown): readonly Record<string, unknown>[] {
-  assert.ok(Array.isArray(value));
-  return value.map(record);
 }
 
 function assertReport(value: unknown, outcome: string, exitCode: number) {
@@ -239,8 +232,7 @@ async function qualifyBoundaries(root: string): Promise<void> {
   ]);
   const sdk = await writeEffectProject(root, "sdk-denied", request);
   const frontend = await writeEffectProject(root, "frontend-denied", request, [], {
-    module: "ESNext",
-    moduleResolution: "Bundler",
+    compilerOptions: { module: "ESNext", moduleResolution: "Bundler" },
   });
   const boundaries = assertReport(await api(root, [adapter, sdk, frontend]), "diagnostics", 1);
   assert.deepEqual(
@@ -252,100 +244,6 @@ async function qualifyBoundaries(root: string): Promise<void> {
     ],
   );
   assert.deepEqual(boundaries["unattempted"], []);
-}
-
-async function qualifyMultilineDiagnostics(root: string): Promise<void> {
-  const source =
-    'const source = { response: { count: "wrong" } };\n' +
-    "export const result: { response: { count: number } } = source;\n";
-  const rejected = await writeEffectProject(root, "ordinary-chain", source);
-  const accepted = await writeEffectProject(
-    root,
-    "after-chain",
-    'export const ready: string = "checked";\n',
-  );
-  const before = await readFile(join(root, rejected));
-  const details = assertReport(await api(root, [rejected, accepted]), "diagnostics", 1);
-  assert.deepEqual(details["selected"], [rejected, accepted]);
-  assert.deepEqual(details["unattempted"], []);
-  const projects = rows(details["projects"]);
-  assert.deepEqual(
-    projects.map((project) => [project["project"], project["status"], project["diagnosticCodes"]]),
-    [
-      [rejected, "diagnostics", [2322]],
-      [accepted, "passed", []],
-    ],
-  );
-  const diagnostic = String(projects[0]?.["stdout"]);
-  assert.match(diagnostic, /index\.ts\(2,14\): error TS2322:/u);
-  assert.match(
-    diagnostic,
-    /\r?\n {2}The types of 'response\.count' are incompatible between these types\.\r?\n {4}Type 'string' is not assignable to type 'number'\./u,
-  );
-  assert.equal(projects[0]?.["stderr"], "");
-  assert.equal(projects[1]?.["stdout"], "");
-  assert.equal(projects[1]?.["stderr"], "");
-  assert.equal(await readFile(join(root, "ordinary-chain/index.ts"), "utf8"), source);
-  assert.deepEqual(await readFile(join(root, rejected)), before);
-}
-
-async function qualifyInputPolicy(root: string): Promise<void> {
-  const safe = 'export const ready: string = "ready";\n';
-  for (const [id, options] of [
-    ["missing-policy", { plugins: [] }],
-    ["unchecked", { noCheck: true }],
-    ["skipped-libraries", { skipLibCheck: true }],
-  ] as const) {
-    const project = await writeEffectProject(root, id, safe, [], options);
-    assertReport(await api(root, [project]), "invalid-input", 2);
-  }
-  const unstable = 'import { get } from "effect/http/HttpClient";\n';
-  const use = 'export const request = get("https://example.invalid");\n';
-  const suppressed = await writeEffectProject(
-    root,
-    "suppressed",
-    unstable + "// @effect-diagnostics-next-line unstableApiUsage:off\n" + use,
-  );
-  assertReport(await api(root, [suppressed]), "invalid-input", 2);
-  const imported = await writeEffectProject(
-    root,
-    "imported-suppression",
-    'import "./suppressed.ts";\n' + safe,
-  );
-  await writeFile(
-    join(root, "imported-suppression/suppressed.ts"),
-    "// @effect-diagnostics-skip-file *:off\n" + unstable + use,
-  );
-  assertReport(await api(root, [imported]), "invalid-input", 2);
-  const declarationProject = await writeEffectProject(
-    root,
-    "local-declaration",
-    'import type { LocalPort } from "./local.js";\n' +
-      'export const port: LocalPort = { value: "ready" };\n',
-  );
-  const declaration = "export interface LocalPort { readonly value: string; }\n";
-  await writeFile(join(root, "local-declaration/local.d.ts"), declaration);
-  const declarationFailure = assertReport(
-    await api(root, [declarationProject]),
-    "invalid-input",
-    2,
-  );
-  assert.equal(declarationFailure["reason"], "EFFECT_DECLARATION_SOURCE_UNSUPPORTED");
-  assert.equal(await readFile(join(root, "local-declaration/local.d.ts"), "utf8"), declaration);
-  const composite = await writeEffectProject(root, "incremental", safe, [], {
-    composite: true,
-    incremental: true,
-    tsBuildInfoFile: "unexpected.tsbuildinfo",
-  });
-  const config = await readFile(join(root, composite));
-  const source = await readFile(join(root, "incremental/index.ts"));
-  assertReport(await api(root, [composite]), "passed", 0);
-  assert.deepEqual(await readFile(join(root, composite)), config);
-  assert.deepEqual(await readFile(join(root, "incremental/index.ts")), source);
-  await assert.rejects(readFile(join(root, "incremental/unexpected.tsbuildinfo")), {
-    code: "ENOENT",
-  });
-  assertReport(await api(root, [composite], true), "cancelled", 130);
 }
 
 /** Reuse an independent ordinary Stack installation; no fixture installer here. */
@@ -478,8 +376,12 @@ export async function qualifyInstalledEffectDiagnostics(
   );
   assert.deepEqual(rows(cliNegative["projects"])[0]?.["diagnosticCodes"], [377136]);
   await qualifyBoundaries(root);
-  await qualifyMultilineDiagnostics(root);
-  await qualifyInputPolicy(root);
+  await qualifyEffectFixturePolicies(
+    root,
+    consumerRoot,
+    async (selectedProjects, outcome, exitCode, cancelled) =>
+      assertReport(await api(root, selectedProjects, cancelled), outcome, exitCode),
+  );
   const growth =
     options.measureGrowth === true ? await measureInstalledEffectGrowth(consumerRoot, root) : null;
   const receipt = {

@@ -269,12 +269,14 @@ export async function effectSourceInventory(
       throw new EffectCheckFailure("invalid-input", "EFFECT_SOURCE_UTF8");
     }
     requireEffect(!source.includes("@effect-diagnostics"), "EFFECT_SOURCE_DIRECTIVE");
+    requireEffect(!source.toLowerCase().includes("@ts-nocheck"), "EFFECT_SOURCE_NOCHECK");
     hashes.set(filename, effectHash(bytes));
   }
   requireEffect(
     hashes.size > 0 && roots.every((filename) => hashes.has(filename)),
     "EFFECT_SOURCE_ROOTS_MISSING",
   );
+  requireEffect(hashes.size === new Set(roots).size, "EFFECT_SOURCE_ROOT_CLOSURE");
   return {
     hashes,
     sourceFiles: [...hashes.keys()]

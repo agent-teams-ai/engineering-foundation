@@ -227,8 +227,22 @@ function assertManagedProfileRuntime(desired: ManagedSuccessorProfile): void {
 async function assertQualifiedPnpmRoot(
   root: string,
   desired: ConsumerIntegrationDesiredState,
-): Promise<void> {
-  if (desired.schemaVersion === 4) {
+  admission: "consumer" | "generation2-source",
+): Promise<ConsumerIntegrationFileObservation> {
+  if (admission === "generation2-source") {
+    if (desired.schemaVersion !== 3) {
+      throw new ConsumerIntegrationNodeError(
+        "DOCS_CONSUMER_PROFILE_INVALID",
+        "Retained generation2 source observation requires an explicit profile3/Cohort2 source.",
+      );
+    }
+    if (process.versions.node !== "24.21.0") {
+      throw new ConsumerIntegrationNodeError(
+        "DOCS_CONSUMER_UNSUPPORTED_NODE",
+        "Retained generation2 source observation requires actual Node 24.21.0.",
+      );
+    }
+  } else if (desired.schemaVersion === 4) {
     assertManagedProfileRuntime(desired);
   } else {
     assertLegacyNodeRuntime();
@@ -277,13 +291,17 @@ async function assertQualifiedPnpmRoot(
   const validNodePin =
     desired.schemaVersion === 4
       ? nodePin === `${desired.cohort.runtime.qualificationRuntime.nodeVersion}\n`
-      : nodePin !== undefined && /^24\.(?:1[89]|[2-9][0-9])\.[0-9]+\n?$/u.test(nodePin);
+      : nodePin !== undefined &&
+        (/^24\.(?:1[89]|[2-9][0-9])\.[0-9]+\n?$/u.test(nodePin) ||
+          (admission === "generation2-source" && nodePin === "26.11.1\n"));
   if (!validNodePin) {
     throw new ConsumerIntegrationNodeError(
       "DOCS_CONSUMER_NODE_VERSION_GATE_INVALID",
       desired.schemaVersion === 4
         ? ".node-version must pin the exact packed profile4 qualification Node coordinate."
-        : ".node-version must pin one exact Node version within >=24.18.0 <25.",
+        : admission === "generation2-source"
+          ? "Retained generation2 source requires its historical Node 24 pin or exact preserved Node 26.11.1 pin."
+          : ".node-version must pin one exact Node version within >=24.18.0 <25.",
     );
   }
   await readStableConsumerFile(root, "pnpm-lock.yaml", MAXIMUM_LOCKFILE_BYTES, true);
@@ -295,6 +313,7 @@ async function assertQualifiedPnpmRoot(
       );
     }
   }
+  return nodeVersion;
 }
 
 async function assertSnapshotStillStable(input: {
@@ -361,10 +380,49 @@ async function assertQualifiedLockfile(
   return observation;
 }
 
-async function readManagedConsumerIntegrationInput(options: {
-  readonly consumerRoot: string;
-  readonly integrationProfilePath?: string;
-}): Promise<{
+async function assertPreservedSourcePin(
+  root: string,
+  revision: string | undefined,
+  observation: ConsumerIntegrationFileObservation,
+): Promise<void> {
+  if (
+    observation.state !== "file" ||
+    !Buffer.from(observation.bytes).equals(Buffer.from("26.11.1\n"))
+  ) {
+    return;
+  }
+  if (revision === undefined) {
+    throw new ConsumerIntegrationNodeError(
+      "DOCS_CONSUMER_UPGRADE_GIT_INVALID",
+      "Preserved Node 26 source requires one exact committed Git HEAD.",
+    );
+  }
+  const entry = await executeGit(
+    root,
+    ["--no-replace-objects", "ls-tree", "-z", revision, "--", ".node-version"],
+    1024,
+  );
+  const match = /^(100644|100755) blob ([0-9a-f]{40})\t\.node-version\0$/u.exec(entry);
+  if (
+    match === null ||
+    observation.mode !== (match[1] === "100755" ? 0o755 : 0o644) ||
+    (await executeGit(root, ["--no-replace-objects", "cat-file", "blob", match[2]!], 128)) !==
+      "26.11.1\n"
+  ) {
+    throw new ConsumerIntegrationNodeError(
+      "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED",
+      "Preserved Node 26 pin bytes and mode must match the exact committed source image.",
+    );
+  }
+}
+
+async function readManagedConsumerIntegrationInput(
+  options: {
+    readonly consumerRoot: string;
+    readonly integrationProfilePath?: string;
+  },
+  admission: "consumer" | "generation2-source" = "consumer",
+): Promise<{
   readonly desired: ConsumerIntegrationDesiredState;
   readonly repositoryHead?: string;
   readonly root: string;
@@ -388,6 +446,7 @@ async function readManagedConsumerIntegrationInput(options: {
   }
   let desired: ConsumerIntegrationDesiredState;
   let lockfile: ConsumerIntegrationFileObservation;
+  let nodeVersion: ConsumerIntegrationFileObservation;
   try {
     const parsedRecord = parseJsonRecord(Buffer.from(profile.bytes).toString("utf8"));
     rejectPrototypeKeys(parsedRecord);
@@ -417,7 +476,10 @@ async function readManagedConsumerIntegrationInput(options: {
     }
     assertNestedAgentsAuthority(topology, desired.governedDocsRoots);
     assertGitHubRuntimeIdentity(desired);
-    await assertQualifiedPnpmRoot(root, desired);
+    nodeVersion = await assertQualifiedPnpmRoot(root, desired, admission);
+    if (admission === "generation2-source") {
+      await assertPreservedSourcePin(root, repositoryHead, nodeVersion);
+    }
     lockfile = await assertQualifiedLockfile(root, desired);
   } catch (error) {
     if (error instanceof ConsumerIntegrationNodeError) {
@@ -446,6 +508,18 @@ async function readManagedConsumerIntegrationInput(options: {
     managedState,
   };
   await assertSnapshotStillStable({ root, desired, snapshot });
+  if (
+    admission === "generation2-source" &&
+    !sameConsumerFileObservation(
+      nodeVersion,
+      await readStableConsumerFile(root, ".node-version", 128, true),
+    )
+  ) {
+    throw new ConsumerIntegrationNodeError(
+      "DOCS_CONSUMER_SNAPSHOT_UNSTABLE",
+      "Source Node pin changed while the retained source observation was assembled.",
+    );
+  }
   if ((await exactGitHead(root)) !== repositoryHead) {
     throw new ConsumerIntegrationNodeError(
       "DOCS_CONSUMER_SNAPSHOT_UNSTABLE",
@@ -479,5 +553,13 @@ export async function readConsumerIntegrationInput(options: {
 }
 
 export const nodeConsumerIntegrationInputReader: ConsumerIntegrationInputReader = Object.freeze({
-  read: readManagedConsumerIntegrationInput,
+  read: (options: Parameters<ConsumerIntegrationInputReader["read"]>[0]) =>
+    readManagedConsumerIntegrationInput(options),
 });
+
+/** Selected only by retained 2->3 preparation and its original-source verifier. */
+export const nodeManagedGeneration2SourceInputReader: ConsumerIntegrationInputReader =
+  Object.freeze({
+    read: (options: Parameters<ConsumerIntegrationInputReader["read"]>[0]) =>
+      readManagedConsumerIntegrationInput(options, "generation2-source"),
+  });

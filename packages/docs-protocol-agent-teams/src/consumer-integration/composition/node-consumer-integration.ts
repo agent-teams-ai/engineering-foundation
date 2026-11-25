@@ -20,16 +20,31 @@ import {
 } from "../application-api.js";
 import { foundationKnownFileTransaction } from "./known-file-transaction.js";
 import { githubCohortAuthorityReader } from "../adapters/github-cohort-authority-reader.js";
-import { nodeConsumerIntegrationInputReader } from "../adapters/node-consumer-integration-repository.js";
+import {
+  nodeConsumerIntegrationInputReader,
+  nodeManagedGeneration2SourceInputReader,
+} from "../adapters/node-consumer-integration-repository.js";
+import { createRetainedGeneration2SourceVerifier } from "../adapters/node-retained-source-verifier.js";
 import { packageConsumerAssetCatalogReader } from "../adapters/package-consumer-asset-catalog.js";
 import {
   nodeConsumerTargetLockfileReader,
-  nodeConsumerUpgradeSandbox,
+  NodeConsumerUpgradeSandbox,
 } from "../adapters/node-consumer-upgrade-sandbox.js";
 
 import { consumerIntegrationPlanningPorts } from "./consumer-integration-planner.js";
 
 export type { ConsumerIntegrationExecutionV1 } from "../application-api.js";
+
+const nodeConsumerUpgradeSandbox = Object.freeze(
+  new NodeConsumerUpgradeSandbox(
+    undefined,
+    createRetainedGeneration2SourceVerifier({
+      input: nodeManagedGeneration2SourceInputReader,
+      assets: packageConsumerAssetCatalogReader,
+      planning: consumerIntegrationPlanningPorts,
+    }),
+  ),
+);
 
 const useCases = createConsumerIntegrationUseCases({
   assets: packageConsumerAssetCatalogReader,
@@ -38,7 +53,7 @@ const useCases = createConsumerIntegrationUseCases({
   transaction: foundationKnownFileTransaction,
 });
 
-const upgrade = createConsumerUpgradeUseCase({
+const upgradePorts = {
   targetLockfile: nodeConsumerTargetLockfileReader,
   assets: packageConsumerAssetCatalogReader,
   authority: githubCohortAuthorityReader,
@@ -46,10 +61,18 @@ const upgrade = createConsumerUpgradeUseCase({
     ...consumerRestorationRecorder(githubCohortAuthorityReader),
     prepareManaged: managedRestorationRecorder(githubCohortAuthorityReader),
   },
-  input: nodeConsumerIntegrationInputReader,
   planning: consumerIntegrationPlanningPorts,
   sandbox: nodeConsumerUpgradeSandbox,
   transaction: foundationKnownFileTransaction,
+};
+
+const upgrade = createConsumerUpgradeUseCase({
+  ...upgradePorts,
+  input: nodeConsumerIntegrationInputReader,
+});
+const managedSourceUpgrade = createConsumerUpgradeUseCase({
+  ...upgradePorts,
+  input: nodeManagedGeneration2SourceInputReader,
 });
 
 export function checkConsumerIntegration(options: {
@@ -103,6 +126,14 @@ export function upgradeConsumerIntegrationToGeneration(options: {
   readonly prepare?: boolean;
   readonly to: string;
 }): Promise<RestorableConsumerUpgradeExecution> {
+  if (
+    options.sourceGeneration === 2 &&
+    options.targetGeneration === 3 &&
+    options.prepare === true &&
+    options.restorationProofPath !== undefined
+  ) {
+    return managedSourceUpgrade(options);
+  }
   return upgrade(options);
 }
 

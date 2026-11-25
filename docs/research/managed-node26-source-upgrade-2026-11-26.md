@@ -1,7 +1,7 @@
 # Managed upgrade preserving the consumer Node 26 default
 
-Date: 2026-11-26. Status: proposed implementation plan; owner outcome approved,
-two independent plan-review rounds and implementation qualification pending.
+Date: 2026-11-26. Status: approved implementation plan after two independent
+plan-review rounds; implementation and delivery qualification in progress.
 Producer base: `fac03920e50ebde038ae415edeb7aa9e3d610ada`.
 
 ## Assigned outcome and boundaries
@@ -76,7 +76,9 @@ with that reader; do not add another application implementation or public mode.
 Reuse the existing contained stable-file, source Git/tree, physical-root,
 package/lock, historical asset, policy and pending-state observations. Admit the
 existing qualified legacy Node 24 pin or the exact preserved `26.11.1\n` image;
-the preserved variant must equal the deterministic target pin. Observe actual
+the preserved variant must equal the deterministic target pin and its captured
+Git blob, with the physical mode matching the committed 100644/100755 mode.
+Observe actual
 controller Node 24.21.0 independently. Wrong/missing runtime, unsupported pin,
 symlink, dirty source, foreign managed bytes, stale authority and source drift
 must refuse invalid initial source admission before staging. Reject a failed
@@ -190,22 +192,34 @@ Independent implementation review must cover both effects and evidence claims.
    qualify and merge it normally, then wait for actual publication, provenance
    and public installation checks. No package is admitted from metadata alone.
 5. Collect actual new versions/SRIs, registry signatures, provenance and complete
-   compiler/runtime closure with existing Central helpers. Register and qualify
-   the bounded generation3 cohort and EF canary enrollment through normal
-   Central authority PRs. Preserve historical records and other consumers.
+   compiler/runtime closure with existing Central helpers. A registry/evidence
+   PR registers the bounded generation3 cohort as PUBLISHED_UNQUALIFIED, with EF
+   as its sole declared supporting canary. Its nonzero candidate digest binds
+   the immutable collected input packet, not a future self-referential event or
+   record. Use the existing base-owned cohort evidence workflow to append real
+   VERIFIED and QUALIFIED observations; that verifier does not require a future
+   CANARY event. Merge this qualified registry change normally. Preserve
+   historical records and other consumers.
 6. Retain the actually published external controller separately. Demonstrate
    forward preparation/finalization, cold resume and exact original/committed
    restoration in disposable EF copies. Only then perform the selected consumer
-   transition on its own branch.
+   transition on its own branch. Before hosted target qualification, merge a
+   separate policy-only PR that selects only EF's new desired cohort/generation3
+   and rollout_pending status. Preserve its observed stable31 proof until real
+   target adoption succeeds; use the existing admission-evidence route.
 7. Adapt EF's Host-owned tooling to current Foundation quality v5 and supported
    Stack/FMS interfaces without dropping governed roots, tests or scripts.
    Preserve its Node 26 default and the original E1 code/evidence boundaries.
    Recheck the committed rollback case against this final Host integration
    shape, including owner reversal of overlapping fields before fresh selection.
    The earlier pre-Host rollback probe alone does not qualify this final state.
-8. Complete EF's full ordinary gates, independent review, normal merge and
-   actual-main checks plus a fresh online E1 observation. Finish the applicable
-   Central canary/adoption observations using those actual merged-source proofs.
+8. Complete EF's full ordinary gates and its trusted Docs qualification workflow,
+   independent review, normal merge and actual-main checks plus a fresh online E1
+   observation. The existing qualification-v3 workflow also dispatches generation3
+   and must issue the genuine selected-cohort receipt. Finish Central's observed
+   adoption binding and a separate CANARY promotion using real merged-source
+   proofs. Do not substitute the producer registry-canary route: it binds the
+   producer repository identity and cannot qualify this EF-only enrollment.
 
 Existing unrelated producer PRs #458, #468, #469 and #476 are separate work.
 Read their relevant evidence to avoid duplication; do not merge them merely to
@@ -247,6 +261,14 @@ publication proof or consumer gate.
   the direction and requested phase-specific drift guarantees, post-Host
   committed rollback, explicit cold/offline-cache semantics and precise
   qualification wording. Those four bounded corrections are incorporated.
-- Written plan review round2: pending.
+- Written plan review round2: independent architecture and recovery/test
+  reviewers both returned APPROVE on exact source
+  `e2917d415ac8e270b83b2f9a6f678eb80c970ddf`, after verifying the four round1
+  corrections. Implementation started only after these approvals.
+- The independent publication/closure audit subsequently made the already
+  selected Central sequence explicit: registry qualification, disposable
+  controller evidence, EF desired-policy admission, trusted consumer target
+  qualification, and only then observed adoption/CANARY promotion. This adds no
+  new authority or execution mode.
 - Producer implementation, publication, Central qualification and EF adoption:
   pending; earlier E1 and central preparation successes remain separate evidence.

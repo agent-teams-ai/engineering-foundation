@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.1
+
+### Patch Changes
+
+- [#471](https://github.com/agent-teams-ai/engineering-foundation/pull/471) [`3e85941`](https://github.com/agent-teams-ai/engineering-foundation/commit/3e859413fcdcbf8a159fd4bad89a8b35b1ce83d5) Thanks [@777genius](https://github.com/777genius)! - Issue a new patch artifact for source provenance qualification after the 0.4.0
+  registry attestation exposed the npm publish statement without the required SLSA
+  statement. The public API and runtime behavior are unchanged. The earlier
+  immutable version remains unqualified; the new artifact must pass the ordinary
+  protected release and cryptographic provenance checks before admission.
+
 ## 0.4.0
 
 ### Minor Changes

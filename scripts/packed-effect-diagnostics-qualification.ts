@@ -226,7 +226,8 @@ async function qualifyBoundaries(root: string): Promise<void> {
   assert.equal(runtime.stdout, '"Status: foundation-ready"');
   assert.equal(runtime.stderr, "");
   const request =
-    'import { get } from "effect/http/HttpClient";\nexport const request = get("https://example.invalid");\n';
+    'import { get } from "effect/http/HttpClient";\n' +
+    'export const ready: boolean = Boolean(get("https://example.invalid"));\n';
   const adapter = await writeEffectProject(root, "backend-allowed", request, [
     "effect/http/HttpClient#get",
   ]);
@@ -364,6 +365,9 @@ export async function qualifyInstalledEffectDiagnostics(
     );
   }
   const report = await api(root, projects);
+  // Retain all eight observations before strict comparison: the retained pilot
+  // used separate rule profiles, while this installed profile enforces both.
+  process.stdout.write(`Installed Effect corpus observation: ${JSON.stringify(report)}\n`);
   const details = assertReport(report, "diagnostics", 1);
   assert.deepEqual(details["selected"], projects);
   assertDiagnostics(details, cases);
@@ -375,11 +379,13 @@ export async function qualifyInstalledEffectDiagnostics(
     libraryCount: 108,
   });
   assertReport(await cli(root, cliEntry, [control], 0), "passed", 0);
-  const cliNegative = assertReport(
-    await cli(root, cliEntry, ["corpus/actual-unstable/tsconfig.json"], 1),
-    "diagnostics",
-    1,
+  const usage = await writeEffectProject(
+    root,
+    "cli-unstable-usage",
+    'import { get } from "effect/http/HttpClient";\n' +
+      'export const ready: boolean = Boolean(get("https://example.invalid"));\n',
   );
+  const cliNegative = assertReport(await cli(root, cliEntry, [usage], 1), "diagnostics", 1);
   assert.deepEqual(rows(cliNegative["projects"])[0]?.["diagnosticCodes"], [377136]);
   await qualifyBoundaries(root);
   await qualifyEffectFixturePolicies(

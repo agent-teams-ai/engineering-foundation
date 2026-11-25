@@ -165,10 +165,15 @@ fails conservatively if an unfamiliar diagnostic format is encountered.
 ## Stable boundaries and exceptions
 
 `unstableApiUsage` diagnoses use of an unstable export. A bare unused import is
-not equivalent to using it. `apiStabilityLeak` covers the upstream rule's
-explicitly annotated stable API; qualification uses `@stability stable` on the
-public declaration. The rule does not infer every package's public contract
-from its exports map.
+not equivalent to using it. `apiStabilityLeak` inspects exported type surfaces;
+the pinned upstream rule treats an untagged export as stable. An explicit
+`@stability stable` annotation documents that intent but is not required to
+activate the check. This follows the pinned
+[export walker](https://github.com/Effect-TS/tsgo/blob/aa2db44499067a798028cff9d3b1b9ca1e156f57/internal/rules/api_stability_leak.go)
+and [stability defaults](https://github.com/Effect-TS/tsgo/blob/aa2db44499067a798028cff9d3b1b9ca1e156f57/internal/typeparser/api_stability.go).
+The rule does not infer every package's public contract from its exports map,
+and its bounded type analysis is not an independent proof that every possible
+TypeScript type surface is free of leaks.
 
 A consumer-owned structural port keeps adapter implementation types out of the
 public contract:
@@ -182,8 +187,11 @@ export interface DocumentSummary {
 ```
 
 Keep unstable implementation types inside the adapter and expose the stable
-owned shape at the boundary. An exact use allowance does not replace package
-exports, source-dependency checks, runtime tests or review of that boundary.
+owned shape at the boundary. Allowing `effect/http/HttpClient#get` permits that
+use; it does not permit a stable export to expose the returned unstable HTTP
+types. Map those types to the consumer-owned contract at the adapter boundary.
+An exact use allowance does not replace package exports, source-dependency
+checks, runtime tests or review of that boundary.
 
 This strict profile permits exceptions through explicit project policy.
 Consumer source containing the reserved `@effect-diagnostics` token rejects,

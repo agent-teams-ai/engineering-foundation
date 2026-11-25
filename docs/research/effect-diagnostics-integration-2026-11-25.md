@@ -153,9 +153,11 @@ explicit leaf-project contract instead of implementing TypeScript inheritance:
 5. Every selected project is checked. The report preserves its inventory and
    outcome; cancellation, timeout, incomplete output or incomplete cleanup is
    failure. Do not classify an arbitrary nonzero exit as an expected diagnostic.
-6. API leakage is annotation-driven in the upstream rule: the retained positive
-   and negative public-contract examples explicitly use `@stability stable`.
-   This does not automatically close all package exports, deep imports or FMS
+6. API leakage uses declared stability and the upstream default of stable for
+   untagged exports. The retained public-contract examples explicitly use
+   `@stability stable` to document intent, not to activate the rule. Exact use
+   allowances do not exempt exported types from the separate leak rule. This
+   does not automatically close all package exports, deep imports or FMS
    boundaries; those remain with their existing checks.
 
 The consumer owns which projects and exact exceptions it selects. The command
@@ -558,3 +560,38 @@ After these corrections, the complete local `check:fast` route passes in
 50,921 ms and the complete lint route passes, including strict typed lint and
 Foundation's source-coverage gate. These receipts cover the corrected source;
 they do not replace the next native installed qualification.
+
+### Joint-rule oracle distinction
+
+Targeted source review before the next native run found a distinction hidden
+by the original pilot's separate rule configurations. Its stable-leak fixture
+disabled unstable-use diagnostics, whereas the shared gate requires both rules.
+The pinned
+[usage visitor](https://github.com/Effect-TS/tsgo/blob/aa2db44499067a798028cff9d3b1b9ca1e156f57/internal/rules/stability_api_usage.go)
+also inspects type references. The
+[leak walker](https://github.com/Effect-TS/tsgo/blob/aa2db44499067a798028cff9d3b1b9ca1e156f57/internal/rules/api_stability_leak.go)
+checks every public export, and the
+[type parser](https://github.com/Effect-TS/tsgo/blob/aa2db44499067a798028cff9d3b1b9ca1e156f57/internal/typeparser/api_stability.go)
+defaults an untagged export to stable. A copied single-rule oracle therefore
+cannot be assumed to describe the joint profile, including usage fixtures that
+export inferred HTTP types.
+
+The original source bytes and original expected diagnostics remain retained.
+The installed qualifier now emits the whole bounded eight-case observation
+before exact assertions, so one native run can expose every joint-profile
+difference. No expected code/line set is weakened or generated from current
+output. Any revised joint oracle must record its distinct policy and independent
+reasoning, then pass a later actual native run.
+
+Separate allowance, workspace-root and CLI-use controls now export a stable
+boolean while retaining a real `get(...)` expression. This isolates the intended
+use/coverage check from public-type leakage without disabling either rule. The
+guide explains that an exact adapter allowance does not authorize leaking the
+unstable HTTP result through a stable SDK. These source-derived conclusions
+remain distinct from pending installed execution.
+
+The follow-up local fast-check attempt passed formatting, complete inventories,
+strict typecheck and source scope/topology, then its architecture-features child
+was terminated by SIGKILL (27,518 ms total). The full command did not pass on
+this follow-up snapshot; no source diagnostic or precise termination cause was
+reported. The next complete hosted matrix must supply the missing qualification.

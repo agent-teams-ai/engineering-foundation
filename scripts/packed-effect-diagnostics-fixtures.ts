@@ -240,9 +240,9 @@ async function qualifyWorkspaceRoots(
   );
   const source =
     'import { get } from "effect/http/HttpClient";\n' +
-    'export const request = get("https://example.invalid");\n';
+    'export const ready: boolean = Boolean(get("https://example.invalid"));\n';
   await writeFile(join(packageRoot, "index.ts"), source);
-  const main = `import { request } from "${name}";\nexport const application = request;\n`;
+  const main = `import { ready } from "${name}";\nexport const application = ready;\n`;
   const project = await writeEffectProject(root, "workspace-host", main);
   const before = await readFile(join(root, project));
   const completeProject = "workspace-host/complete.json";

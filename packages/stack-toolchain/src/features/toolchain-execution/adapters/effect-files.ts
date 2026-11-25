@@ -113,7 +113,7 @@ async function effectManifest(live: EffectLiveCheck): Promise<EffectNativeManife
       ),
     ),
   );
-  const libraries = effectObject(value["libraries"]);
+  const rawLibraries = effectObject(value["libraries"]);
   requireEffect(
     value["schemaVersion"] === 1 &&
       value["package"] === "@effect/tsgo-linux-x64" &&
@@ -125,17 +125,26 @@ async function effectManifest(live: EffectLiveCheck): Promise<EffectNativeManife
       /^[a-f0-9]{64}$/u.test(value["binarySha256"]),
     "EFFECT_NATIVE_MANIFEST",
   );
-  requireEffect(
-    Object.keys(libraries).length === 108 &&
-      Object.entries(libraries).every(
-        ([name, digest]) =>
-          /^lib(?:\.[a-z0-9]+)*\.d\.ts$/u.test(name) &&
-          typeof digest === "string" &&
-          /^[a-f0-9]{64}$/u.test(digest),
-      ),
-    "EFFECT_NATIVE_LIBRARIES",
-  );
-  return value as unknown as EffectNativeManifest;
+  requireEffect(Object.keys(rawLibraries).length === 108, "EFFECT_NATIVE_LIBRARIES");
+  const libraries: Record<string, string> = {};
+  for (const [name, digest] of Object.entries(rawLibraries)) {
+    requireEffect(
+      /^lib(?:\.[a-z0-9]+)*\.d\.ts$/u.test(name) &&
+        typeof digest === "string" &&
+        /^[a-f0-9]{64}$/u.test(digest),
+      "EFFECT_NATIVE_LIBRARIES",
+    );
+    libraries[name] = digest;
+  }
+  return {
+    package: value["package"],
+    version: value["version"],
+    typescript: value["typescript"],
+    reportedVersion: value["reportedVersion"],
+    binary: value["binary"],
+    binarySha256: value["binarySha256"],
+    libraries,
+  };
 }
 
 export async function admitEffectCompiler(

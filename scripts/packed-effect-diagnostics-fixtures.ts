@@ -165,7 +165,7 @@ async function qualifyInputPolicy(root: string, check: CheckInstalledEffectFixtu
     {
       id: "effect",
       direct: unstable + "// @effect-diagnostics-next-line unstableApiUsage:off\n" + use,
-      imported: "// @effect-diagnostics-skip-file *:off\n" + unstable + use,
+      imported: "// @effect-diagnostics *:skip-file\n" + unstable + use,
       reason: "EFFECT_SOURCE_DIRECTIVE",
     },
     {

@@ -336,16 +336,26 @@ export async function packPackage(entry, index, { temporaryRoot, runPnpm }) {
     const effectMemberBytes = new Map(
       admittedEffect
         ? entry.files.map((file) => {
-            assert.ok(file.size <= 333_854_566, "Effect member exceeds its verified package size");
+            assert.ok(
+              Number.isSafeInteger(file.size) && file.size >= 0 && file.size <= 333_854_566,
+              "Effect member exceeds its verified package size",
+            );
             return [file.path, file.size];
           })
         : [],
     );
+    const maximumBytes = admittedEffect
+      ? [...effectMemberBytes.values()].reduce((total, size) => total + size, 0)
+      : undefined;
+    if (admittedEffect) {
+      assert.equal(maximumBytes, 333_854_566, "Effect source copy must match its verified total");
+    }
+    const state = { entries: 0, bytes: 0, maximumBytes };
     await materializeStableTree(entry.root, seedSource, {
       allowLinks: false,
       excludedEntries: new Set(["node_modules"]),
       label: "Registry seed copy",
-      state: { entries: 0, bytes: 0 },
+      state,
       maximumMemberBytes: (candidate) =>
         admittedBun &&
         relative(entry.root, candidate).replaceAll("\\", "/") ===
@@ -357,14 +367,32 @@ export async function packPackage(entry, index, { temporaryRoot, runPnpm }) {
             ),
     });
     const manifestPath = join(seedSource, "package.json");
-    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-    await writeFile(
-      manifestPath,
-      JSON.stringify({
-        ...manifest,
-        publishConfig: { ...manifest.publishConfig, executableFiles },
-      }),
-    );
+    const originalManifest = await readFile(manifestPath);
+    const manifest = JSON.parse(originalManifest.toString("utf8"));
+    const normalizedManifest = JSON.stringify({
+      ...manifest,
+      publishConfig: { ...manifest.publishConfig, executableFiles },
+    });
+    if (admittedEffect) {
+      assert.equal(state.bytes, maximumBytes, "Effect source copy changed its verified total");
+      assert.equal(originalManifest.length, effectMemberBytes.get("package.json"));
+    }
+    await writeFile(manifestPath, normalizedManifest);
+    if (admittedEffect) {
+      // The source-copy budget describes original upstream bytes. Report the
+      // permitted manifest replacement separately, before installed payload binding.
+      process.stdout.write(
+        `${JSON.stringify({
+          event: "effect-registry-seed-normalization",
+          identity: entry.identity,
+          sourceBytes: state.bytes,
+          originalManifestBytes: originalManifest.length,
+          normalizedManifestBytes: Buffer.byteLength(normalizedManifest),
+          normalizedPayloadBytes:
+            state.bytes - originalManifest.length + Buffer.byteLength(normalizedManifest),
+        })}\n`,
+      );
+    }
   }
   await runPnpm(
     ["pack", "--pack-destination", destination, "--config.ignore-scripts=true"],

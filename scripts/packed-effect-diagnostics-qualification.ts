@@ -305,19 +305,25 @@ export async function qualifyInstalledEffectOptionality(consumerRoot: string): P
     consumerRoot,
   );
   assert.equal(ordinary.stderr, "");
+  const reports = rows(JSON.parse(ordinary.stdout));
   assert.deepEqual(
-    rows(JSON.parse(ordinary.stdout)).map((report) => [
-      report["command"],
-      report["status"],
-      report["exitCode"],
-    ]),
+    reports.map((report) => [report["command"], report["exitCode"]]),
     [
-      ["doctor", "passed", 0],
-      ["typecheck", "passed", 0],
-      ["lint", "passed", 0],
-      ["format:check", "passed", 0],
+      ["doctor", 0],
+      ["typecheck", 0],
+      ["lint", 0],
+      ["format:check", 0],
     ],
   );
+  for (const report of reports) {
+    // Ordinary typecheck retains its existing, separately qualified fallback.
+    // The optional Effect route must never substitute a stock compiler.
+    assert.ok(
+      report["status"] === "passed" ||
+        (report["command"] === "typecheck" && report["status"] === "passed-with-fallback"),
+      JSON.stringify(report),
+    );
+  }
   const project = await writeEffectProject(
     consumerRoot,
     "effect-absent",

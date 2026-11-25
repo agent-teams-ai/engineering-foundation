@@ -502,3 +502,59 @@ controls have executed; source inspection is not substituted for that evidence.
 The complete `check:fast` route was rerun after all three activation fixes and
 passes in 52,442 ms; production typed lint also passes. This is the source
 snapshot submitted for hosted installed/native qualification.
+
+### First hosted qualification findings
+
+[Full CI 45659578531](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/45659578531)
+was explicitly requested for head
+`c7145e3da2c0435eda488c631de6da09a8f536ca` on base
+`fac03920e50ebde038ae415edeb7aa9e3d610ada`. Its failures exposed three
+concrete integration corrections; this run does not qualify the corrected head.
+
+| Observed boundary | Finding and correction |
+| --- | --- |
+| [Linux static](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/45659578531/job/139365677350) | Foundation source coverage rejected the double `unknown` cast in native-manifest parsing. Build the result from individually validated values instead. The complete local lint route, including that gate, then passes. |
+| [Linux registry](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/45659578531/job/139365677224) | Public acquisition and signature/provenance verification passed for all five packages, but copying the native payload exceeded the ordinary 256 MiB aggregate staging limit. Supply an explicit bounded byte budget only after verifying this exact coordinate/SRI and its 333,854,566-byte inventory; require the copied total to match. |
+| [Windows packed consumer](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/45659578531/job/139369797515) | All four ordinary no-Effect commands returned exit zero. The fixture incorrectly rejected the existing `passed-with-fallback` status of ordinary typecheck. Accept that declared status only for this command; retain exact command order, zero exit codes and `passed` for doctor, lint and format. The Effect route still has no compiler fallback. |
+
+The public acquisition receipt used npm 11.20.0, completed in 5,157 ms, and
+verified the exact fixture manifest and lock digests
+`c1fd1874364a3771661e9238316bd5b03230526ef28640bd6ab98708ed10429b`
+and `0299a522c4c2d5ea6d65ef3b35ac3a5b752c2415492359a26307a7d05c6eef7d`.
+The observed payload census was:
+
+| Original public package | Files | Bytes |
+| --- | ---: | ---: |
+| `@effect/tsgo-linux-x64@0.73.4` | 588 | 333,854,566 |
+| `@get-modular/assembly@0.8.0` | 44 | 145,822 |
+| `@get-modular/core@0.8.0` | 52 | 217,883 |
+| `@get-modular/effect@0.1.1` | 19 | 86,178 |
+| `effect@4.1.4` | 3,058 | 58,073,105 |
+
+This is evidence about original public packages. It is not provenance for the
+local registry's repack or the unpublished Stack candidate, and does not prove
+that the native diagnostics or N100 measurement executed. The registry attempt
+stopped before those checks; the Linux package job depended on failed static
+qualification and was skipped.
+
+The staging correction extends the existing shared reservation state with one
+optional positive safe-integer bound. Ordinary stages retain their existing
+limit. Three small local regression cases pass: concurrent reservations under
+default/custom limits, aggregate tree acceptance/rejection at the byte boundary,
+and invalid untyped limits. The permitted `package.json` normalization is
+reported separately from the original copied total; installed payload binding
+remains required. This is narrow maintenance of the existing legacy registry
+owner, not a new packaging framework or a claim that that legacy file is fully
+strictly typed.
+
+Independent source review approved the manifest/staging correction and required
+the installed suppression fixture to use the real upstream
+`@effect-diagnostics *:skip-file` syntax; that correction is included. Final
+review must bind to the corrected commit, and a newly requested complete native
+matrix must establish installed diagnostics, ordinary optionality and growth
+observations before merge.
+
+After these corrections, the complete local `check:fast` route passes in
+50,921 ms and the complete lint route passes, including strict typed lint and
+Foundation's source-coverage gate. These receipts cover the corrected source;
+they do not replace the next native installed qualification.

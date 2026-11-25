@@ -47,7 +47,9 @@ function assertReport(value: unknown, outcome: string, exitCode: number) {
 }
 
 async function api(root: string, projects: readonly string[], cancelled = false) {
-  const script = `const { effectDiagnosticsContractVersion, checkEffectProjects } = await import("stack-toolchain/effect");
+  const script = `const entry = import.meta.resolve("stack-toolchain/effect");
+    if (!entry.startsWith("file:") || !entry.includes("/node_modules/")) throw new Error("Effect entry is not installed");
+    const { effectDiagnosticsContractVersion, checkEffectProjects } = await import("stack-toolchain/effect");
     if (effectDiagnosticsContractVersion !== 1) throw new Error("Missing Effect capability marker");
     const input = JSON.parse(process.argv[1]);
     const report = await checkEffectProjects({ cwd: process.cwd(), projects: input.projects,
@@ -339,7 +341,6 @@ export async function qualifyInstalledEffectDiagnostics(
   root: string,
   options: InstalledEffectQualificationOptions = {},
 ): Promise<void> {
-  const installed = createRequire(join(consumerRoot, "package.json"));
   const cliEntry = join(consumerRoot, "node_modules/stack-toolchain/dist/cli.js");
   await publicTypes(root, cliEntry);
   const control = await writeEffectProject(root, "control", 'export const ready = "ready";\n');
@@ -356,7 +357,6 @@ export async function qualifyInstalledEffectDiagnostics(
   );
   await assertInstalledEffectFixtureDependencies(consumerRoot, options.effectDependencies);
   await assertSingleDependencyGraph(consumerRoot);
-  assert.ok(installed.resolve("stack-toolchain/effect").includes("node_modules"));
   const cases = await corpus();
   const projects: string[] = [];
   for (const entry of cases) {

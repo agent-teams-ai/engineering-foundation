@@ -161,7 +161,7 @@ scenario(
       });
       await assert.rejects(
         f.prepare(noop),
-        /plan differs from deterministic managed write inventory/u,
+        /unchanged or ambiguously owned replacements are forbidden/u,
       );
       await assert.rejects(readFile(f.options.preparationPath), { code: "ENOENT" });
     }

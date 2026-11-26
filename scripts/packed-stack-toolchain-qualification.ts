@@ -5,6 +5,10 @@ import { dirname, join, resolve } from "node:path";
 import { createRequire } from "node:module";
 import { runCommand } from "./pack-test-support.mjs";
 import { qualifyInstalledEslintSyntax } from "./packed-eslint-syntax-qualification.ts";
+import {
+  qualifyInstalledEffectDiagnostics,
+  type InstalledEffectQualificationOptions,
+} from "./packed-effect-diagnostics-qualification.ts";
 
 function doctorRecord(value: unknown): Record<string, unknown> {
   assert.ok(value !== null && typeof value === "object" && !Array.isArray(value));
@@ -287,7 +291,10 @@ export async function createInstalledStackToolchainFixture(consumerRoot: string)
 }
 
 /** Runs only against an installed candidate in a disposable package consumer. */
-export async function qualifyInstalledStackToolchain(consumerRoot: string): Promise<void> {
+export async function qualifyInstalledStackToolchain(
+  consumerRoot: string,
+  effectOptions: InstalledEffectQualificationOptions = {},
+): Promise<void> {
   const root = await createInstalledStackToolchainFixture(consumerRoot);
   await writeFile(
     join(root, "package.json"),
@@ -394,4 +401,5 @@ export async function qualifyInstalledStackToolchain(consumerRoot: string): Prom
   }
   await qualifyInstalledLiteralFormat(root, cli);
   await qualifyInstalledEslintSyntax(consumerRoot);
+  await qualifyInstalledEffectDiagnostics(consumerRoot, root, effectOptions);
 }

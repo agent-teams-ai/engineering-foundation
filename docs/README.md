@@ -67,6 +67,10 @@ not repeat their rules.
 
 See the [Feature Module Standard adoption](architecture/feature-module-standard.md) for the local profile, commands and remaining layout migrations.
 
+## Active bounded delivery
+
+- [Optional Effect diagnostics integration](research/effect-diagnostics-integration-2026-11-25.md): plan for one optional Stack entry, installed GM/Effect consumers and a bounded compiler-cost sample; two plan-review rounds complete; implementation and qualification in progress.
+
 ## Document roles
 
 - `decisions/` records why a consequential choice was made and what it

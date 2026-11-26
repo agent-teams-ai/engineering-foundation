@@ -1,6 +1,9 @@
 // oxlint-disable max-lines -- The registry matrix remains one auditable disposable orchestration.
 import { materializeStableTree } from "./pack-artifact-stage-support.mjs";
+import { prepareEffectFixtureDependencies } from "./effect-fixture-dependencies.ts";
+import { prepareEffectRegistryFrozenClient } from "./effect-registry-frozen-client.ts";
 import { qualifyInstalledStackToolchain } from "./packed-stack-toolchain-qualification.ts";
+import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { lstat, mkdir, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
 import { availableParallelism } from "node:os";
@@ -143,14 +146,16 @@ async function resolveDependencyRoot(fromRoot, dependencyName) {
   }
 }
 
-async function collectRuntimeDependencyClosure() {
-  const collected = new Map();
+async function collectRuntimeDependencyClosure(supplementalRoots = []) {
+  // Supplemental public inputs are seed packages themselves, not candidate targets.
+  const collected = new Map(supplementalRoots.map((entry) => [entry.identity, entry]));
   const queued = await Promise.all(
     REGISTRY_QUALIFICATION_PACKAGES.map(async (releasePackage) => {
       const root = join(repositoryRoot, releasePackage.root);
       return { root, manifest: await readManifest(root) };
     }),
   );
+  queued.push(...supplementalRoots);
   for (let index = 0; index < queued.length; index += 1) {
     const current = queued[index];
     for (const dependency of dependencyNames(current.manifest)) {
@@ -193,16 +198,16 @@ async function createTargetArchives(artifacts) {
   );
 }
 
-async function startRegistry(temporaryRoot) {
+async function startRegistry(temporaryRoot, effectDependencies) {
   const { runServer } = await import("verdaccio");
   const configPath = join(temporaryRoot, "verdaccio.yaml");
   await writeFile(
     configPath,
     [
       "storage: ./storage",
-      // npm's JSON publication body includes the native compiler archive in base64.
-      // Its Darwin and Windows packages exceed Verdaccio's default 10 MB limit.
-      "max_body_size: 64mb",
+      // npm publishes base64 archives: the explicitly admitted Effect fixture is
+      // 130,041,154 compressed bytes; ordinary consumers retain the existing cap.
+      effectDependencies === undefined ? "max_body_size: 64mb" : "max_body_size: 256mb",
       "auth:",
       "  htpasswd:",
       "    file: ./htpasswd",
@@ -324,27 +329,71 @@ export async function packPackage(entry, index, { temporaryRoot, runPnpm }) {
       /^@oven\/bun-(?:darwin|linux|windows|freebsd)-(?:aarch64|x64)(?:-musl|-android)?$/u.test(
         sourceManifest.name,
       ) && sourceManifest.version === bunVersion;
+    const admittedEffect =
+      sourceManifest.name === "@effect/tsgo-linux-x64" &&
+      sourceManifest.version === "0.73.4" &&
+      entry.integrity ===
+        "sha512-/E7g/Dm9+WvYxkN4cfZSybJ+/qpoYU69W5OtRPTzBPEIAR85qbBaLvFO+JWtiKtMdidgDNbbqdwooSFH1duc8A==";
+    const effectMemberBytes = new Map(
+      admittedEffect
+        ? entry.files.map((file) => {
+            assert.ok(
+              Number.isSafeInteger(file.size) && file.size >= 0 && file.size <= 333_854_566,
+              "Effect member exceeds its verified package size",
+            );
+            return [file.path, file.size];
+          })
+        : [],
+    );
+    const maximumBytes = admittedEffect
+      ? [...effectMemberBytes.values()].reduce((total, size) => total + size, 0)
+      : undefined;
+    if (admittedEffect) {
+      assert.equal(maximumBytes, 333_854_566, "Effect source copy must match its verified total");
+    }
+    const state = { entries: 0, bytes: 0, maximumBytes };
     await materializeStableTree(entry.root, seedSource, {
       allowLinks: false,
       excludedEntries: new Set(["node_modules"]),
       label: "Registry seed copy",
-      state: { entries: 0, bytes: 0 },
+      state,
       maximumMemberBytes: (candidate) =>
         admittedBun &&
         relative(entry.root, candidate).replaceAll("\\", "/") ===
           `bin/${sourceManifest.name.includes("windows") ? "bun.exe" : "bun"}`
           ? 128 * 1024 * 1024
-          : 32 * 1024 * 1024,
+          : Math.max(
+              32 * 1024 * 1024,
+              effectMemberBytes.get(relative(entry.root, candidate).replaceAll("\\", "/")) ?? 0,
+            ),
     });
     const manifestPath = join(seedSource, "package.json");
-    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-    await writeFile(
-      manifestPath,
-      JSON.stringify({
-        ...manifest,
-        publishConfig: { ...manifest.publishConfig, executableFiles },
-      }),
-    );
+    const originalManifest = await readFile(manifestPath);
+    const manifest = JSON.parse(originalManifest.toString("utf8"));
+    const normalizedManifest = JSON.stringify({
+      ...manifest,
+      publishConfig: { ...manifest.publishConfig, executableFiles },
+    });
+    if (admittedEffect) {
+      assert.equal(state.bytes, maximumBytes, "Effect source copy changed its verified total");
+      assert.equal(originalManifest.length, effectMemberBytes.get("package.json"));
+    }
+    await writeFile(manifestPath, normalizedManifest);
+    if (admittedEffect) {
+      // The source-copy budget describes original upstream bytes. Report the
+      // permitted manifest replacement separately, before installed payload binding.
+      process.stdout.write(
+        `${JSON.stringify({
+          event: "effect-registry-seed-normalization",
+          identity: entry.identity,
+          sourceBytes: state.bytes,
+          originalManifestBytes: originalManifest.length,
+          normalizedManifestBytes: Buffer.byteLength(normalizedManifest),
+          normalizedPayloadBytes:
+            state.bytes - originalManifest.length + Buffer.byteLength(normalizedManifest),
+        })}\n`,
+      );
+    }
   }
   await runPnpm(
     ["pack", "--pack-destination", destination, "--config.ignore-scripts=true"],
@@ -392,7 +441,13 @@ async function verifyInstalledBufQualifier(installedRoot) {
   await verifyInstalledBufQualifierForPackage(installedRoot);
 }
 
-async function createConsumerAttempt(targets, registryUrl, matrixEntry, attempt, temporaryRoot) {
+async function createConsumerAttempt(
+  targets,
+  registryUrl,
+  matrixEntry,
+  attempt,
+  { temporaryRoot, effectDependencies },
+) {
   const { cacheRoot, clientRoot, consumerRoot, userConfigPath } = registryInstallAttemptPaths(
     join(temporaryRoot, "consumer-matrix", matrixEntry.id),
     attempt,
@@ -409,11 +464,14 @@ async function createConsumerAttempt(targets, registryUrl, matrixEntry, attempt,
         name: `foundation-registry-e2e-${matrixEntry.id}`,
         private: true,
         type: "module",
-        devDependencies: Object.fromEntries(
-          targets
-            .filter((target) => matrixEntry.packageNames.includes(target.manifest.name))
-            .map((target) => [target.manifest.name, target.manifest.version]),
-        ),
+        devDependencies: {
+          ...Object.fromEntries(
+            targets
+              .filter((target) => matrixEntry.packageNames.includes(target.manifest.name))
+              .map((target) => [target.manifest.name, target.manifest.version]),
+          ),
+          ...(matrixEntry.profile === "foundation-full" ? effectDependencies?.pins : {}),
+        },
       },
       null,
       2,
@@ -427,7 +485,7 @@ async function installConsumer(
   targets,
   registryUrl,
   matrixEntry,
-  { temporaryRoot, runPnpm, runNpm },
+  { temporaryRoot, runPnpm, runNpm, effectDependencies, effectFrozenClient },
 ) {
   return installRegistryConsumerWithRetry({
     cleanupAttempt: (context) =>
@@ -436,7 +494,10 @@ async function installConsumer(
         rm(context.consumerRoot, { force: true, recursive: true }),
       ]),
     createAttempt: (attempt) =>
-      createConsumerAttempt(targets, registryUrl, matrixEntry, attempt, temporaryRoot),
+      createConsumerAttempt(targets, registryUrl, matrixEntry, attempt, {
+        temporaryRoot,
+        effectDependencies,
+      }),
     onRetry: ({ attempt, delayMs, timeoutMs }) => {
       process.stdout.write(
         `Registry E2E install retry attempt=${attempt} delayMs=${delayMs} timeoutMs=${timeoutMs}.\n`,
@@ -460,6 +521,16 @@ async function installConsumer(
             context.consumerRoot,
             { timeoutMs, userConfigPath: context.userConfigPath },
           );
+          if (matrixEntry.profile === "foundation-full" && effectDependencies !== undefined) {
+            assert.ok(effectFrozenClient);
+            await effectFrozenClient.reinstall({
+              consumerRoot: context.consumerRoot,
+              registryUrl,
+              cacheRoot: context.cacheRoot,
+              userConfigPath: context.userConfigPath,
+              timeoutMs,
+            });
+          }
         } else {
           await runPnpm(
             [
@@ -597,7 +668,10 @@ async function verifyConsumer(targets, registryUrl, matrixEntry, commands) {
     if (installedFoundationRoot === undefined || installedAdapterRoot === undefined) {
       throw new Error("Installed Foundation qualification package is missing.");
     }
-    await qualifyInstalledStackToolchain(consumerRoot);
+    await qualifyInstalledStackToolchain(consumerRoot, {
+      effectDependencies: commands.effectDependencies,
+      measureGrowth: false,
+    });
     await verifyFoundationFeatures({
       consumerRoot,
       authoringVersion: authoringTarget.manifest.version,
@@ -679,7 +753,7 @@ async function qualifyRegistryMatrix(
  * @param {import("./package-qualification-groups.mts").RegistryQualificationGroup | undefined} [group]
  */
 export function qualifyRegistryConsumers(handle, group) {
-  packageQualificationPhaseIds("registry", group);
+  const selectedPhases = packageQualificationPhaseIds("registry", group);
   const matrix = registryQualificationMatrix();
   assertPackageQualificationPhaseIds(
     "registry",
@@ -696,6 +770,8 @@ export function qualifyRegistryConsumers(handle, group) {
       const commands = {
         temporaryRoot,
         runPnpm,
+        effectDependencies: undefined,
+        effectFrozenClient: undefined,
         runNpm: (args, cwd, options = {}) =>
           runRegistryNpm(args, cwd, {
             ...options,
@@ -708,11 +784,22 @@ export function qualifyRegistryConsumers(handle, group) {
         const targets = await runRegistryPhase("target-archive", () =>
           createTargetArchives(artifacts),
         );
-        const dependencies = await runRegistryPhase(
-          "dependency-closure",
-          collectRuntimeDependencyClosure,
+        if (selectedPhases.includes("npm-foundation")) {
+          commands.effectDependencies = await runRegistryPhase("effect-fixture-public-inputs", () =>
+            prepareEffectFixtureDependencies(temporaryRoot),
+          );
+          if (commands.effectDependencies !== undefined) {
+            commands.effectFrozenClient = await runRegistryPhase("effect-frozen-test-client", () =>
+              prepareEffectRegistryFrozenClient(temporaryRoot),
+            );
+          }
+        }
+        const dependencies = await runRegistryPhase("dependency-closure", () =>
+          collectRuntimeDependencyClosure(commands.effectDependencies?.roots ?? []),
         );
-        registry = await runRegistryPhase("registry-start", () => startRegistry(temporaryRoot));
+        registry = await runRegistryPhase("registry-start", () =>
+          startRegistry(temporaryRoot, commands.effectDependencies),
+        );
         npmUserConfigPath = await runRegistryPhase("registry-auth", () =>
           configureRegistryAuthentication(registry.registryUrl, temporaryRoot),
         );

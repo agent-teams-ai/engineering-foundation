@@ -38,6 +38,9 @@
     "packages/stack-toolchain/tests/cli.test.ts",
     "packages/stack-toolchain/tests/configuration.test.ts",
     "packages/stack-toolchain/tests/doctor.test.ts",
+    "packages/stack-toolchain/tests/effect-check.test.ts",
+    "packages/stack-toolchain/tests/effect-files.test.ts",
+    "packages/stack-toolchain/tests/effect-policy.test.ts",
     "packages/stack-toolchain/tests/eslint-syntax-admission.test.ts",
     "packages/stack-toolchain/tests/eslint-syntax-load.test.ts",
     "packages/stack-toolchain/tests/eslint-syntax-parser.test.ts",
@@ -73,7 +76,7 @@
   "derivedFrom": [
     {
       "path": "architecture/foundation/feature-modules.json",
-      "sha256": "00c194959a36fcb5d429aa5bb89d2b682a6845e74a7c330bd41e6c69d6b35fd5"
+      "sha256": "6712613c31f0682da2933608c8e96660ee1a239de9473e08b67cd1c68a54bf49"
     },
     {
       "path": "architecture/foundation/quality-source-coverage.yaml",

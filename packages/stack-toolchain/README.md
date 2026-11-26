@@ -19,7 +19,9 @@ Engineering Foundation, organization credentials, a module architecture or
 organization governance. Its source repository does not restrict its users.
 
 The initial profiles are `typescript-node` and `typescript-bun`. Additional
-profiles require a real consumer. Unrelated language toolchains belong in
+technical entries require independently wired consumer qualification. Disposable
+consumers can establish the bounded technical contract before products exist;
+production activation retains the consuming project's own acceptance gates. Unrelated language toolchains belong in
 separate packages rather than mandatory dependencies of every installation.
 
 ### Compiler-free ESLint syntax rules
@@ -79,16 +81,26 @@ Use a released package that exports this subpath; older **0.2.0** artifacts do
 not contain it. [Third-party notices](./THIRD_PARTY_NOTICES.md) and the shipped
 provenance ledger identify all retained upstream portions and adaptations.
 
+### Optional Effect diagnostics
+
+The separate `stack-toolchain/effect` API and `effect:check` CLI enforce an
+explicit Effect policy for selected standalone projects. Consumers install the
+exact native companion only when they select this Linux x64 profile. Ordinary
+Stack commands and their dependency graph remain unchanged. See
+[Effect diagnostics](EFFECT.md) for installation, strict policy examples,
+accepted/rejected usage, scope and qualification limits.
+
 ## Commands
 
-| Command                    | Responsibility                                                  |
-| -------------------------- | --------------------------------------------------------------- |
-| `typecheck`                | Read-only checking of configured standalone TypeScript projects |
-| `lint`                     | Run the pinned linter and selected technical preset             |
-| `format:check`             | Check formatting without changing files                         |
-| `compile --project <path>` | Compile with the pinned official TypeScript compiler            |
-| `compile --build <path>`   | Build a TypeScript reference graph explicitly                   |
-| `doctor`                   | Explain profile, tool versions and executable availability      |
+| Command                         | Responsibility                                                  |
+| ------------------------------- | --------------------------------------------------------------- |
+| `typecheck`                     | Read-only checking of configured standalone TypeScript projects |
+| `lint`                          | Run the pinned linter and selected technical preset             |
+| `format:check`                  | Check formatting without changing files                         |
+| `compile --project <path>`      | Compile with the pinned official TypeScript compiler            |
+| `compile --build <path>`        | Build a TypeScript reference graph explicitly                   |
+| `doctor`                        | Explain profile, tool versions and executable availability      |
+| `effect:check --project <path>` | Check an explicitly opted-in strict Effect policy               |
 
 `doctor --json` requires no consumer configuration and never installs or repairs
 tools. Its existing outer `schemaVersion: 1` report contains doctor details with

@@ -2166,12 +2166,14 @@
       "preferredFeatureRoot": "packages/stack-toolchain/src/features",
       "publicEntrypoints": [
         "packages/stack-toolchain/src/index.ts",
-        "packages/stack-toolchain/src/eslint-syntax.ts"
+        "packages/stack-toolchain/src/eslint-syntax.ts",
+        "packages/stack-toolchain/src/effect.ts"
       ],
       "moduleAssembly": [
         "packages/stack-toolchain/src/index.ts",
         "packages/stack-toolchain/src/cli.ts",
-        "packages/stack-toolchain/src/eslint-syntax.ts"
+        "packages/stack-toolchain/src/eslint-syntax.ts",
+        "packages/stack-toolchain/src/effect.ts"
       ],
       "generatedRoots": [],
       "exceptions": [],
@@ -2183,6 +2185,7 @@
             {
               "role": "application",
               "roots": [
+                "packages/stack-toolchain/src/features/toolchain-execution/application/effect-policy.ts",
                 "packages/stack-toolchain/src/features/toolchain-execution/application/typecheck.ts"
               ]
             },
@@ -2194,6 +2197,9 @@
                 "packages/stack-toolchain/src/features/toolchain-execution/adapters/commands.ts",
                 "packages/stack-toolchain/src/features/toolchain-execution/adapters/configuration.ts",
                 "packages/stack-toolchain/src/features/toolchain-execution/adapters/doctor.ts",
+                "packages/stack-toolchain/src/features/toolchain-execution/adapters/effect-check.ts",
+                "packages/stack-toolchain/src/features/toolchain-execution/adapters/effect-cli.ts",
+                "packages/stack-toolchain/src/features/toolchain-execution/adapters/effect-files.ts",
                 "packages/stack-toolchain/src/features/toolchain-execution/adapters/executables.ts",
                 "packages/stack-toolchain/src/features/toolchain-execution/adapters/format-files.ts",
                 "packages/stack-toolchain/src/features/toolchain-execution/adapters/process.ts",
@@ -2209,7 +2215,10 @@
             "packages/stack-toolchain/tests/format-files.test.ts",
             "packages/stack-toolchain/tests/lint-presets.test.ts",
             "packages/stack-toolchain/tests/process.test.ts",
-            "packages/stack-toolchain/tests/typecheck.test.ts"
+            "packages/stack-toolchain/tests/typecheck.test.ts",
+            "packages/stack-toolchain/tests/effect-policy.test.ts",
+            "packages/stack-toolchain/tests/effect-files.test.ts",
+            "packages/stack-toolchain/tests/effect-check.test.ts"
           ]
         },
         {
@@ -2218,7 +2227,9 @@
           "layers": [
             {
               "role": "adapters",
-              "roots": ["packages/stack-toolchain/src/features/eslint-syntax/adapters"]
+              "roots": [
+                "packages/stack-toolchain/src/features/eslint-syntax/adapters"
+              ]
             }
           ],
           "testRoots": [
@@ -2247,7 +2258,10 @@
         "packages/stack-toolchain/tests/eslint-syntax-rules.test.ts",
         "packages/stack-toolchain/tests/eslint-syntax-semantics.test.ts",
         "packages/stack-toolchain/tests/eslint-syntax-support.ts",
-        "packages/stack-toolchain/tests/eslint-syntax-types.test.ts"
+        "packages/stack-toolchain/tests/eslint-syntax-types.test.ts",
+        "packages/stack-toolchain/tests/effect-policy.test.ts",
+        "packages/stack-toolchain/tests/effect-files.test.ts",
+        "packages/stack-toolchain/tests/effect-check.test.ts"
       ]
     },
     {

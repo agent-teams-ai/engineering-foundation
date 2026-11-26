@@ -1,0 +1,9 @@
+{
+  "name": "foundation-effect-registry-frozen-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "npm": "10.9.11"
+  }
+}

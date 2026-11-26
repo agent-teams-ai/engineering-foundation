@@ -212,6 +212,8 @@ packages:
         declarationEntryPoint: packages/stack-toolchain/dist/index.d.ts
       - exportPath: "./eslint-syntax"
         declarationEntryPoint: packages/stack-toolchain/dist/eslint-syntax.d.ts
+      - exportPath: "./effect"
+        declarationEntryPoint: packages/stack-toolchain/dist/effect.d.ts
     nonTypeExports:
       - exportPath: "./package.json"
         kind: data

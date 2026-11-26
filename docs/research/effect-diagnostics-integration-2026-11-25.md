@@ -1,0 +1,852 @@
+# Optional Effect diagnostics in Stack Toolchain
+
+Date: 2026-11-25. Status: two plan-review rounds complete; implementation present;
+integrated qualification and review tracked in [PR #476](https://github.com/agent-teams-ai/engineering-foundation/pull/476).
+Owner: Stack Toolchain. Delivery: one Draft PR, two independent plan-review rounds,
+implementation and installed E2E, independent code review, exact-head full CI,
+owner squash and post-merge verification. Package publication remains the
+separately assigned release workstream.
+
+## Outcome and scope
+
+The owner requested the next shared Effect diagnostic integration, a Markdown
+plan reviewed and improved twice, and slightly more useful qualification than
+the initial small Linux pilot. The result must be usable before finished
+applications exist. Independently wired disposable consumers are the execution
+subjects; this delivery does not claim their adoption by production products.
+
+One explicit optional Stack entry checks standalone consumer TypeScript projects
+with the qualified native Effect compiler. When called, its selected Effect
+policy is mandatory: ordinary TypeScript success cannot substitute for it.
+The same built Stack artifact is checked through its installed API and CLI with
+the published GM/Effect cohort. A bounded existing 100-module fixture supplies
+one additional compiler-cost observation. This extra scope adds evidence, not
+a second compiler, generator, runtime or general plugin system.
+
+Excluded: changing ordinary typecheck fallback; making Effect a mandatory
+dependency of all Stack users; changing default EF/GM pins; application migration;
+runtime Effect dependency in Foundation; browser/Desktop execution claims;
+untrusted plugin isolation; distributed recovery; npm publication; a new CI
+workflow or admission protocol; production or million-line capacity claims.
+
+## Source and ownership packet
+
+Inspected source coordinates:
+
+- Foundation base `fac03920e50ebde038ae415edeb7aa9e3d610ada`, Stack 0.3.1.
+- GM `330c28dbea1a3de812d3aee5ddb71ef829dee347`.
+- Research `c99f19835ca3e80c5a7268f8bf42f089418e1cf0` and its
+  [completed native diagnostic experiment](https://github.com/agent-teams-ai/engineering-research/tree/c99f19835ca3e80c5a7268f8bf42f089418e1cf0/evidence/experiments/effect-diagnostics-2026-11-24).
+- Organization direction `a277e75589ab765272961a5e1eba6725d098bd89`, including
+  [Foundation-first](https://github.com/agent-teams-ai/.github/blob/a277e75589ab765272961a5e1eba6725d098bd89/docs/architecture/ecosystem-vision.md)
+  and the [quality standard](https://github.com/agent-teams-ai/.github/blob/a277e75589ab765272961a5e1eba6725d098bd89/docs/engineering-quality-standard.md).
+
+[ADR-0064](../decisions/0064-independent-stack-toolchain-package-boundary.md)
+owns shared tool execution; [ownership](../architecture/ownership.md) keeps
+consumer architecture and policy with consumers. This is an additive optional
+technical entry in that existing package, not a new Foundation capability or
+an amendment to frozen ADR-0061. The owner's explicit fixture-first direction
+governs this qualification; real product activation and its existing gates
+remain separate. Update the current Stack guide to name these distinct stages
+without rewriting historical accepted decisions.
+
+The current fallback stops at its first successful engine. Its diagnostic
+classifier recognizes four/five-digit ordinary error codes, while the inspected
+Effect codes have six digits. These are requirements for the new integration,
+not findings that the existing supported checker cohort is broken.
+
+## Compared implementation shapes
+
+All options promise the same narrow Linux x64 compiler-policy check; none
+promises runtime, browser, all-platform or hostile-input isolation. P means new
+handwritten production/integration LOC; T means new tests/fixtures beyond the
+retained upstream corpus. Engineer-days assume existing prerequisites and one
+experienced engineer with focused review. They are planning bounds, not a
+line-count target or delivery promise; generated, vendored, docs, package/native
+distribution and broad rollout work are excluded. U is fitness confidence,
+N expected reliability within this scope, C maintenance complexity (higher is
+worse). These are ordinal judgments, not measured availability.
+
+| Rank / shape                                                             |   P LOC |     T LOC | Engineer-days | U / N / C | Main tradeoff and rejecting evidence                                                                                                  |
+| ------------------------------------------------------------------------ | ------: | --------: | ------------: | --------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Optional typed Stack subpath plus a thin CLI route                    | 430-740 | 600-1,000 |           4-8 | 8 / 8 / 5 | Reuses package/process owners; must prove no resolution or installation cost for ordinary users and mandatory execution when selected |
+| 2. Optional typed Stack subpath, consumer-owned CLI/CI wrapper           | 340-570 |   450-800 |           3-6 | 7 / 8 / 4 | Smaller shared code; every consumer must correctly preserve cancellation, JSON and exit semantics; compare duplicate caller glue      |
+| 3. Separate optional Effect-check package using the same process library | 500-850 | 650-1,100 |          5-10 | 6 / 8 / 6 | Separates release cadence but adds another package/admission surface for a responsibility already owned by Stack                      |
+
+Choose option 1 under the user's current authorization if both review rounds
+confirm the bounded policy and package seam. Reassess if the implementation
+materially exceeds these ranges; do not fill a quota with abstractions. Estimate
+confidence is 6/10. Before later tool upgrades, compare a supported upstream
+launcher with the selected native route; the inspected 0.73.4 JavaScript
+launcher eagerly initializes TypeScript 5.9.3 and is not executable here.
+
+## Proposed public contract
+
+- Add `stack-toolchain/effect`, an explicit typed ESM entry with a capability
+  contract marker and one check function. An older release must fail to import
+  the new subpath rather than silently execute a different command.
+- Add a thin `effect:check` CLI route with explicit project paths and existing
+  text/JSON conventions. API and CLI call the same implementation.
+- Inputs are consumer root, a bounded nonempty ordered project list,
+  AbortSignal and bounded total time budget. No arbitrary executable path,
+  shell command, compiler flags, callback plugin or environment override.
+- Reports distinguish successful checking, policy diagnostics, invalid inputs,
+  unavailable/incompatible tool, execution failure and cancellation. Retain
+  observed codes/output within existing process bounds. No error-to-stock
+  fallback; no successful partial check.
+- Root imports, ordinary `typecheck`, `doctor`, lint and format do not resolve
+  or install Effect. The selected platform package is an explicit exact consumer
+  development dependency, not an npm optionalDependency installed for everyone.
+
+The new source stays under the existing toolchain-execution owner, with pure
+bounded policy validation separate from filesystem/process adapters and a thin
+outer entry. Extract only a genuinely shared execution/path helper, preserving
+existing behavior and tests. Do not impose a new directory layer for symmetry.
+
+## Policy activation and source coverage
+
+Native `--showConfig` omits Effect plugin settings in the qualified cohort.
+Therefore compiler exit zero alone cannot prove activation. Select a small
+explicit leaf-project contract instead of implementing TypeScript inheritance:
+
+1. The selected local JSON/JSONC project explicitly declares exactly one Effect
+   plugin. It is enabled, both unstable-use and stable-API-leak rules are errors,
+   and error findings cannot be ignored in the compiler exit status.
+2. Consumer exceptions name exact upstream exports. The first profile rejects
+   file overrides and represents SDK/backend/frontend policy by separately
+   selected standalone leaf projects. This keeps matching with the compiler
+   and avoids a custom glob or suppression engine. Each selected project has
+   an explicit exact allowlist; wildcards and unknown policy options reject.
+   The already researched override shape remains a later additive choice.
+3. The actual qualified compiler resolves ordinary TypeScript options. The
+   implementation review narrowed this to flat standalone configs: selected
+   projects reject `extends` because the native compiler retains hidden inherited
+   Effect overrides, and `--showConfig` cannot expose the effective policy.
+   Require strict/noEmit, no disabled strict-family suboptions, no noCheck or
+   skipLibCheck, nonempty real source roots and no project references. Selected
+   leaf configs and all consumer source files belong to the declared real source
+   root. The compiler's complete source-list probe, not just showConfig roots,
+   supplies imported local files too. Installed dependency declarations and
+   paired standard libraries belong to their separately admitted physical
+   installation boundary. The existing sibling fixture's node_modules link is
+   admitted through its real installation, not treated as escaping local source.
+   Every local implementation file in that inventory must also be an explicit
+   effective canonical root through `files`/`include`; otherwise a workspace
+   import may be skipped as an external library. Reject logical symlink aliases
+   used as roots. Do not create a config/import resolver or temporary rewritten
+   tsconfigs to infer or repair scope.
+4. This strict optional profile admits exceptions only through its explicit
+   exact-export config. Reject the reserved token `@effect-diagnostics` in all
+   admitted consumer source files before checking, including imported local
+   files. The lexical refusal deliberately also catches token text in a string;
+   document this conservative restriction. Do not reinterpret directive syntax.
+   Installed third-party declarations are not consumer suppression policy.
+   Reject case-insensitive `@ts-nocheck` too, because the compiler otherwise skips
+   the file before invoking Effect rules. Ordinary `@ts-ignore`/`@ts-expect-error`
+   do not suppress the pinned compiler's Effect diagnostic codes.
+   Actual unstable use with next-line off and wildcard skip-file directives
+   must reject as policy input failures.
+   Implementation review additionally identified that the pinned upstream
+   runner skips declaration files. Reject consumer-local `.d.ts`, `.d.mts`
+   and `.d.cts` sources, whether selected directly or imported, rather than
+   imply Effect coverage for them. Installed declarations remain type-resolution
+   inputs. This bounded restriction requires no declaration parser.
+5. Every selected project is checked. The report preserves its inventory and
+   outcome; cancellation, timeout, incomplete output or incomplete cleanup is
+   failure. Do not classify an arbitrary nonzero exit as an expected diagnostic.
+6. API leakage uses declared stability and the upstream default of stable for
+   untagged exports. The retained public-contract examples explicitly use
+   `@stability stable` to document intent, not to activate the rule. Exact use
+   allowances do not exempt exported types from the separate leak rule. This
+   does not automatically close all package exports, deep imports or FMS
+   boundaries; those remain with their existing checks.
+
+The consumer owns which projects and exact exceptions it selects. The command
+proves that declared scope, not an independently discovered whole repository.
+Tests must distinguish a missing/disabled policy from a valid policy with no
+findings. Reject duplicate/conflicting plugin declarations and ambiguous inputs.
+
+## Exact executable and dependency admission
+
+Initial native profile: Linux x64, `@effect/tsgo-linux-x64@0.73.4`, reported
+`7.0.2+effect-tsgo.0.73.4`; binary SHA-256
+`18b0b3fdac7d76b8c9b97e64c185ce8d92f2e13ab2307ae18a27fb11a62c045c`.
+Keep the published package and adjacent standard declarations intact. Resolve
+from the consumer installation through the existing physical-containment
+approach, enforce the exact package/executable identity before running it, and
+reject unsupported platforms before compiler execution. Retain and verify the
+already-qualified 108 paired standard-library filenames/digests as well as the
+selected binary; missing/replaced libraries reject. Do not hash or execute the
+package's unrelated bundled variants. Never run the rejected
+JS wrapper, setup/patch command, TypeScript 5/6 or a private compiler fork.
+
+All subprocesses use the existing node-or-bun execution/custody mechanism with
+one overall deadline and cancellation. Version/config probes consume that same
+budget. Typecheck uses the fixed flags `--noEmit --pretty false --incremental
+true --tsBuildInfoFile <os.devNull>`; no build/watch mode or caller flags.
+Version, effective-config and complete-source-list probes use closed flag sets.
+An incremental/composite fixture with an explicit build-info path must prove
+that source/config bytes stay unchanged and that no build-info output appears.
+This needs a fixture assertion, not a new snapshot framework.
+Known six-digit diagnostics and warning behavior need explicit handling;
+unknown output, crashes, signals and capture/cleanup failures cannot become a
+successful policy result. Keep ordinary typecheck's existing qualified semantics.
+
+No new runtime dependency on Effect is added to Stack or Foundation. The shared
+installed qualification uses exact public dependencies:
+
+| Fixture dependency      | Pin                                         |
+| ----------------------- | ------------------------------------------- |
+| `@get-modular/core`     | 0.8.0                                       |
+| `@get-modular/assembly` | 0.8.0                                       |
+| `@get-modular/effect`   | 0.1.1                                       |
+| `effect`                | 4.1.4, matching the GM adapter's exact peer |
+
+Registry metadata/SRI and decoded provenance were inspected; this alone is not
+cryptographic verification. A private fixture manifest and real npm lock own
+these four pins plus the native compiler pin, with no root/Stack dependency
+addition. Only Linux x64 prepares this cohort using the existing npm command
+runner, `npm ci --ignore-scripts` and the official public-registry signatures /
+provenance verifier. Retain exact upstream names, versions, lock/SRI identities,
+verifier result and installed payload binding before any compiler execution.
+Do not force the research pilot's Effect 4.1.5 into GM's exact 4.1.4 peer graph.
+
+One small fixture-only preparation helper supplies both existing installation
+owners. It does not build/pack candidates or become another orchestrator:
+
+- Packed owner: `scripts/pack-test.mjs` prepares the exact public cohort before
+  `createPackedConsumerFixture`; its existing manifest/catalog writer receives
+  the selected exact fixture dependencies before installation. Preserve a real
+  lock and frozen reinstall before the existing manifest normalization from
+  tarball specs to published versions. Retain the cohort declarations in that
+  normalized manifest and bind the same verified upstream payload.
+- Registry owner: `scripts/registry-install-e2e.mjs` receives the acquired
+  dependency roots in its existing closure/seeding flow and inserts exact pins
+  into the selected Linux `foundation-full` consumer manifest before install.
+  Supplemental upstream roots enter both the closure's collected seed set and
+  traversal queue; they never become candidate targets or packageNames.
+  Keep `uplinks: {}` and existing real-lock integrity/payload assertions. Add a
+  scoped `npm ci --ignore-scripts` reinstall for that Linux consumer before
+  execution. The shared qualifier never installs from public npm in this phase.
+  Only this Linux cohort raises Verdaccio's publication-body limit to 256 MB,
+  because the complete native archive needs more than its current 64 MB limit.
+- Public upstream signature evidence precedes repack/reseed. Local Verdaccio
+  publications and the unpublished Stack candidate have their existing artifact
+  and payload evidence; neither inherits original public npm attestations.
+  Existing reseeding adjusts publishConfig.executableFiles in a disposable
+  manifest. Record that known normalization; compare executable/library bytes
+  exactly rather than claiming unchanged entire package.json or archive SRI.
+- Ordinary optionality is proved in the existing independently installed
+  no-Effect Stack consumer, before any cohort addition there. Do not substitute
+  a consumer already containing Effect as evidence of absence.
+
+Unsupported hosts receive no Linux fixture dependency. Their ordinary installed
+Stack checks, public API/types and explicit unsupported-platform refusal remain
+in the existing portable inventory. Positive native execution is required in
+existing Linux package and registry owners, with no new globally omitted test
+file, workflow or installer authority.
+
+## E2E and the useful scope extension
+
+Reuse `scripts/packed-stack-toolchain-qualification.ts`, already reached by pack
+and hermetic-registry qualification. Extend it once through a small typed helper
+instead of adding a second build/pack/install orchestrator. Call the installed
+public API/subpath and CLI, never a checkout-only import. Preserve the existing
+package checks on all platforms; portable admission cases still execute in the
+full matrix, and unsupported Effect platforms report the declared refusal.
+
+The installed test consumer contains independently wired SDK, backend-adapter
+and frontend-shaped boundaries. Prove a useful in-memory GM+Effect result and
+one physical compatible dependency graph. Frontend-shaped means portable type
+contracts without Node ambient types; it is not browser execution.
+
+| Test family         | Distinguishing accepted/rejected observation                                                                                  |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Ordinary TypeScript | Valid source passes; TS2322 still fails through the public entry                                                              |
+| Effect use          | Stable use and bare unused import pass; actual/aliased unstable use rejects                                                   |
+| Public surface      | Owned structural port passes; annotated stable signature leaking an unstable type rejects                                     |
+| Narrow allowance    | Allowed adapter export passes; adjacent export and separately selected SDK/frontend policy still reject                       |
+| Activation          | Explicit policy passes; missing, disabled, downgraded, conflicting or source-suppressed policy rejects                        |
+| Tool admission      | Exact contained executable and paired libraries pass; absent/wrong pin/hash/library/outside path/unsupported platform rejects |
+| Execution           | Expected diagnostics are distinct from timeout, cancellation, crash, unknown output and incomplete capture/cleanup            |
+| Input preservation  | Incremental/composite check leaves sources/configs unchanged and creates no requested build-info output                       |
+| Optionality         | Independent ordinary Stack consumer remains usable without any Effect installation                                            |
+| Installed delivery  | Packed and registry-installed candidate expose the same API/types/CLI; no source links repair missing payload                 |
+
+Reuse the Research corpus and its independently authored expectations where
+applicable, preserving provenance. Add only tests that distinguish a real new
+integration risk; do not mirror internal functions with large trivial suites.
+
+For the requested modest scope increase, reuse GM's byte-exact test generator
+`tests/qualification/consumer-fixtures/growth/generate.ts` at commit
+`330c28dbea1a3de812d3aee5ddb71ef829dee347`, Git blob
+`fd53a3e60ff7215e1d3b99bc3597375874b01fba`, with source/license provenance and
+strict typecheck. Its pinned license is Apache-2.0; preserve source/license
+provenance and original bytes. Do not reimplement its algorithm or fetch moving
+source in CI. Use N100 and independently assert exactly 703 generated TS files,
+with the actual effective input inventory. Compare exact stock TypeScript 7.0.2
+against the selected Effect-native 7.0.2 on the same unchanged sources, not the
+normal tsrs-first fallback. Run one pair only in the Linux packed owner; registry
+and other native lanes do not multiply the sample. A separate small enforcement
+canary is outside the 703-file input and its invocation is recorded separately.
+Record exact input hashes, compiler identities, wall times and memory only if
+actually collected. This is a bounded compiler
+cost sample on a Promise-based GM graph, not Effect runtime scale or a production
+SLO. Existing GM N500/N1000 receipts remain separate; enlarge this sample only
+if a concrete unresolved question requires it.
+
+## Repository qualification and delivery
+
+New maintained source/tests/helpers are `.ts`, included in required strict
+projects. Package tests enter both test-shard and Windows-lane inventories.
+Update feature/source-dependency/topology/public-export inventories for owned
+files and the normal Stack Changeset. Preserve release-owned baselines,
+unrelated agent work, accepted standards and current default tool pins.
+
+1. Publish this coherent plan commit to one feature branch; open one Draft PR
+   after applicable pre-PR checks. Keep subsequent commits on that PR and push
+   each coherent commit promptly.
+2. Round 1: independent architecture/process and installed-consumer reviewers
+   challenge ownership, activation, false success and packaging. Record findings
+   and exact plan identity; revise the plan.
+3. Round 2: independently re-read the revised plan, check fixes and overengineering,
+   and close material findings before implementing.
+4. Implement the bounded public route and qualification, run owned-file cleanup,
+   changed/fast/security and focused checks. Keep source/artifact observations
+   separate. The supported Node profile is prepared by the repository tooling.
+5. Independent code and integration review; fix material findings and rerun only
+   affected verification plus required gates. Record actual LOC and limitations.
+6. Freeze final PR head/base, request its documented full CI once, and inspect
+   the complete Linux/Windows/macOS/Node matrix, coverage, CodeQL and identity.
+   Queued/skipped states are not successes. A moving head/base requires its own
+   evidence; no duplicate local full verify solely while CI is running.
+7. Record exact-head independent review in the PR, owner squash under existing
+   protection, then verify final attribution/tree and required post-merge CI.
+
+GitHub plugin is the available authorized transport; gh is installed but has no
+authenticated host in this environment. The documented single `ci:full` label
+request remains available for the final snapshot. Reconcile any uncertain write
+by reads; never blindly duplicate a label/request/merge. This does not alter
+protection or the existing GitHub Free workflow-source trust limitation.
+
+## Progress and review record
+
+- [x] Fresh source/ownership/CI and published dependency inventory.
+- [x] Initial written plan and explicit excluded scope.
+- [x] Round 1 critique applied.
+- [x] Round 2 critique applied; implementation scope frozen.
+- [x] Shared command and installed consumers implemented; native execution pending.
+- [ ] N100 bounded compiler-cost observation retained.
+- [ ] Independent final code review and fixes complete.
+- [ ] Exact-head required full CI passed.
+- [ ] Merge and final-main verification complete.
+
+Review receipts and measured outcomes will be linked here as they occur. Plans,
+decoded metadata, local checks, hosted qualification and registry publication
+are distinct claims. The next agent continues from these checked items and the
+PR's actual head; it does not replay the already completed Research pilot.
+
+### Round 1 receipt
+
+Three independent read-only roles reviewed initial plan commit
+`edc92b4482e75ba17514687319146142fa47dadd`, Git blob
+`640db5123ff301b2c565c86df91b1f60ede4283d`, SHA-256
+`b4cef9b552de3dfc59afa85bad0af9b6b86483d7eb287bfeaf744bdf8fa655a3`.
+All returned **revise before implementation**. Their material findings and
+applied decisions are:
+
+| Role / finding                      | Applied revision                                                                                                               |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Architecture/process A1             | Reserve source diagnostic-directive token; inspect imported local source through the compiler inventory; no suppression parser |
+| Architecture/process A2             | Fixed devNull build-info flags and input-preservation fixture                                                                  |
+| Architecture/process A3             | Reject file overrides initially; exact per-project allowances, effective strict-family checks and distinct physical boundaries |
+| Architecture/process A4             | Verify retained paired-library inventory as well as native binary                                                              |
+| Installed-consumer I1 / delivery D1 | Explicit pre-install owners, one Linux-only fixture metadata authority, no-Effect optionality consumer and portable refusal    |
+| Installed-consumer I2 / delivery D2 | Public signatures before hermetic seed; bind payloads and keep candidate/local registry claims separate                        |
+| Installed-consumer I3               | Stock 7.0.2 paired baseline, independent 703-file census and separate canary; one Linux packed sample                          |
+| Installed-consumer I4               | Real source root and installed dependency closure use distinct containment checks                                              |
+
+Source-directive behavior was checked in the pinned upstream
+[parser](https://github.com/Effect-TS/tsgo/blob/aa2db44499067a798028cff9d3b1b9ca1e156f57/internal/directives/parser.go)
+and [rule runner](https://github.com/Effect-TS/tsgo/blob/aa2db44499067a798028cff9d3b1b9ca1e156f57/internal/rulerunner/diagnostics.go).
+Review itself did not execute a bypass fixture. Round 2 must check these revised
+choices, particularly installed dependency acquisition and admitted source scope.
+
+### Round 2 receipt and frozen scope
+
+The same three independent roles reviewed revised plan SHA-256
+`832afb8ad945861202c7aba1199c367ef1cccf5c61939cfd234138bea95d2a61`.
+Architecture/process returned **approved for implementation** with A1-A4 closed.
+Installed-consumer and delivery reviewers approved after the concrete corrections
+now applied above: seed supplemental roots themselves, add the scoped frozen
+reinstall at the correct manifest phase, and raise only the Linux cohort's
+registry body limit. The known reseed manifest normalization is explicit.
+No unresolved plan blocker remains. These reviews preceded implementation.
+
+Implementation guardrails: actual runtime input/read/output/deadline bounds;
+reports distinguish selected, attempted, completed and unattempted projects;
+malformed compiler inventory rejects instead of falling back to root files;
+signature verification stays in fixture acquisition, never a network prerequisite
+of the public check API. No new general resolver, suppression engine, plugin
+registry, snapshot framework or installation orchestrator is admitted.
+
+### Implementation review in progress
+
+The first independent production review found two material gaps: local declaration
+files are skipped by the upstream Effect rule runner, and ordinary multiline
+TypeScript diagnostics were classified as tool failures. The first is corrected
+with explicit local-declaration refusal (including imports), portable cases and
+an installed negative. The second now has a bounded English message-chain
+classifier and an installed nested-assignment fixture followed by another
+selected project. Its portable positive and crash-tail controls pass; actual
+native qualification remains pending. Unknown message families still fail
+conservatively with their raw output retained.
+
+Independent installed-consumer review also required ordinary typecheck, lint and
+format to run in the existing no-Effect installation, alongside root import and
+doctor. Those assertions now share that installation and its Effect-resolution
+blocking hook. Acquisition review required explicit development-dependency
+inclusion even under a production environment; both frozen public install and
+signature verification now request it.
+
+Source build, strict script typecheck and Stack strict typecheck passed.
+The subsequent focused run passes 27 checks after fixing two test-harness
+issues (JSONC null-prototype records and Node test-runner stdout capture). These
+are local source observations, not installed-native qualification. The native
+acquisition attempt exhausted this shared workspace's temporary filesystem;
+its incomplete payload was removed. No compiler or successful signature audit
+is claimed for that attempt. Full packed and hermetic-registry qualification
+remain required on the PR's final head.
+
+Inventory review corrected the derived source topology through its existing
+generator. The retained GM generator has one exact formatter exclusion to
+preserve its upstream Git blob; its strict typecheck and runtime blob comparison
+remain required. No source/test inventory or coverage boundary was removed.
+The guide's copyable SDK project now uses the same explicit declaration libraries
+as the installed qualification. Ordinary lint findings are fixed in source;
+complexity/size limits are not waived for the new route.
+
+### Scope reassessment and local gates
+
+Physical line counts after review fixes are 874 in five new production files
+(plus the thin existing CLI dispatch), 1,161 in four portable test files, and
+1,207 in the four private acquisition/installed-qualification helpers. A further
+111-line helper moves an existing packed-consumer installation block out of its
+oversized fixture writer; it does not add a second installation owner. These
+counts exclude retained corpus/generator/license bytes, manifests and guides.
+
+The implementation is larger than the planning ranges, especially its installed
+qualification. The additional cost is explicit: complete imported-source and
+paired-library admission, original-package signature/payload evidence before
+hermetic reseeding, independent no-Effect checks, source preservation, multiline
+diagnostic controls and one reused growth observation. The scope retains one
+public operation, one compiler cohort, one process owner and the existing two
+installation routes. It adds no compiler abstraction framework, plugin registry,
+config resolver, runtime service container or additional CI workflow. Independent
+final review must reassess this measured scope, not treat the original estimate
+as a quota or silently relabel fixture work as free.
+
+After those source fixes, required `check:fast` passes (50,995 ms), including
+strict projects, complete test inventories and source topology. Focused runtime
+checks pass 27/27, production typed lint passes, and workflow security checks
+pass. Final code review, installed native observations and exact-head full CI
+remain separate acceptance items. Live delivery receipts belong to
+[the single PR #476](https://github.com/agent-teams-ai/engineering-foundation/pull/476)
+so the final merge and post-merge checks do not require a self-referencing source
+commit.
+
+### Independent whole-change review: native activation gaps
+
+A reviewer who authored none of this change found three further native-specific
+false-success paths. Each is resolved through a bounded explicit input contract,
+not another compiler/configuration resolver:
+
+| Finding                                                                                                         | Required correction and installed negative                                                                                                                     |
+| --------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A workspace import through `node_modules` can be marked external even after realpath points inside the consumer | Every local implementation file must be an effective canonical root; omitted workspace source rejects, explicitly rooted unstable source must produce TS377136 |
+| Case-insensitive `@ts-nocheck` prevents the compiler from invoking Effect rules                                 | Reserve that token across all local source, including imports; root and imported actual-unstable fixtures must reject                                          |
+| Effect file overrides from `extends` survive explicit leaf policy and are absent from `--showConfig`            | Reject selected-config inheritance in this first profile; a parent override disabling both rules must not yield success                                        |
+
+The first two conclusions follow the pinned TypeScript 7.0.2
+[files parser](https://github.com/microsoft/typescript-go/blob/2bd066d87f5bafd315be9f40889d0a60b9e58e0b/internal/compiler/filesparser.go)
+and [pragma parser](https://github.com/microsoft/typescript-go/blob/2bd066d87f5bafd315be9f40889d0a60b9e58e0b/internal/parser/parser.go).
+Canonical configured roots start at depth zero, and lower depth wins regardless
+of load order; only positive final depth marks an external-library source.
+Pragma names are case-folded before deciding whether the checker runs. The
+[Effect merge hook](https://github.com/Effect-TS/tsgo/blob/aa2db44499067a798028cff9d3b1b9ca1e156f57/internal/effectconfigraw/hooks.go)
+retains/appends parent overrides rather than clearing them.
+
+The useful next upstream question is an observable effective Effect policy or a
+qualified policy reset, which could enable ordinary inherited configs later.
+That investigation does not justify a custom inheritance engine in this PR.
+The guide states these first-profile limits explicitly; a finished application
+or arbitrary existing monorepo config is not assumed.
+
+The local changed-check route was attempted again after source fixes. Its isolated
+Node profile installed 706 packages from the existing store, then a child was
+terminated by SIGKILL during bootstrap. The bounded diagnostic log was retained;
+this is not a successful changed-check receipt. The shared workspace has limited
+memory/temporary capacity. Repeating that allocation without a changed condition
+adds no evidence; the complete required hosted matrix remains the delivery gate.
+
+All three activation corrections above are implemented in source and the
+portable suite now passes 30/30. The independent whole-change reviewer accepts
+the measured scope and owner separation: pure policy, existing process adapter,
+one shared installed qualifier and the cohesive extraction of an existing
+installation block. No additional material source issue was found in provenance,
+payload normalization, cancellation, exports or test inventories. The review
+remains provisional until it is bound to the frozen PR commit and the native
+controls have executed; source inspection is not substituted for that evidence.
+
+The complete `check:fast` route was rerun after all three activation fixes and
+passes in 52,442 ms; production typed lint also passes. This is the source
+snapshot submitted for hosted installed/native qualification.
+
+### First hosted qualification findings
+
+[Full CI 45659578531](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/45659578531)
+was explicitly requested for head
+`c7145e3da2c0435eda488c631de6da09a8f536ca` on base
+`fac03920e50ebde038ae415edeb7aa9e3d610ada`. Its failures exposed three
+concrete integration corrections; this run does not qualify the corrected head.
+
+| Observed boundary                                                                                                             | Finding and correction                                                                                                                                                                                                                                                                                                                                |
+| ----------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Linux static](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/45659578531/job/139365677350)            | Foundation source coverage rejected the double `unknown` cast in native-manifest parsing. Build the result from individually validated values instead. The complete local lint route, including that gate, then passes.                                                                                                                               |
+| [Linux registry](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/45659578531/job/139365677224)          | Public acquisition and signature/provenance verification passed for all five packages, but copying the native payload exceeded the ordinary 256 MiB aggregate staging limit. Supply an explicit bounded byte budget only after verifying this exact coordinate/SRI and its 333,854,566-byte inventory; require the copied total to match.             |
+| [Windows packed consumer](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/45659578531/job/139369797515) | All four ordinary no-Effect commands returned exit zero. The fixture incorrectly rejected the existing `passed-with-fallback` status of ordinary typecheck. Accept that declared status only for this command; retain exact command order, zero exit codes and `passed` for doctor, lint and format. The Effect route still has no compiler fallback. |
+
+The public acquisition receipt used npm 11.20.0, completed in 5,157 ms, and
+verified the exact fixture manifest and lock digests
+`c1fd1874364a3771661e9238316bd5b03230526ef28640bd6ab98708ed10429b`
+and `0299a522c4c2d5ea6d65ef3b35ac3a5b752c2415492359a26307a7d05c6eef7d`.
+The observed payload census was:
+
+| Original public package         | Files |       Bytes |
+| ------------------------------- | ----: | ----------: |
+| `@effect/tsgo-linux-x64@0.73.4` |   588 | 333,854,566 |
+| `@get-modular/assembly@0.8.0`   |    44 |     145,822 |
+| `@get-modular/core@0.8.0`       |    52 |     217,883 |
+| `@get-modular/effect@0.1.1`     |    19 |      86,178 |
+| `effect@4.1.4`                  | 3,058 |  58,073,105 |
+
+This is evidence about original public packages. It is not provenance for the
+local registry's repack or the unpublished Stack candidate, and does not prove
+that the native diagnostics or N100 measurement executed. The registry attempt
+stopped before those checks; the Linux package job depended on failed static
+qualification and was skipped.
+
+The staging correction extends the existing shared reservation state with one
+optional positive safe-integer bound. Ordinary stages retain their existing
+limit. Three small local regression cases pass: concurrent reservations under
+default/custom limits, aggregate tree acceptance/rejection at the byte boundary,
+and invalid untyped limits. The permitted `package.json` normalization is
+reported separately from the original copied total; installed payload binding
+remains required. This is narrow maintenance of the existing legacy registry
+owner, not a new packaging framework or a claim that that legacy file is fully
+strictly typed.
+
+Independent source review approved the manifest/staging correction and required
+the installed suppression fixture to use the real upstream
+`@effect-diagnostics *:skip-file` syntax; that correction is included. Final
+review must bind to the corrected commit, and a newly requested complete native
+matrix must establish installed diagnostics, ordinary optionality and growth
+observations before merge.
+
+After these corrections, the complete local `check:fast` route passes in
+50,921 ms and the complete lint route passes, including strict typed lint and
+Foundation's source-coverage gate. These receipts cover the corrected source;
+they do not replace the next native installed qualification.
+
+### Joint-rule oracle distinction
+
+Targeted source review before the next native run found a distinction hidden
+by the original pilot's separate rule configurations. Its stable-leak fixture
+disabled unstable-use diagnostics, whereas the shared gate requires both rules.
+The pinned
+[usage visitor](https://github.com/Effect-TS/tsgo/blob/aa2db44499067a798028cff9d3b1b9ca1e156f57/internal/rules/stability_api_usage.go)
+also inspects type references. The
+[leak walker](https://github.com/Effect-TS/tsgo/blob/aa2db44499067a798028cff9d3b1b9ca1e156f57/internal/rules/api_stability_leak.go)
+checks every public export, and the
+[type parser](https://github.com/Effect-TS/tsgo/blob/aa2db44499067a798028cff9d3b1b9ca1e156f57/internal/typeparser/api_stability.go)
+defaults an untagged export to stable. A copied single-rule oracle therefore
+cannot be assumed to describe the joint profile, including usage fixtures that
+export inferred HTTP types.
+
+The original source bytes and original expected diagnostics remain retained.
+The installed qualifier now emits the whole bounded eight-case observation
+before exact assertions, so one native run can expose every joint-profile
+difference. No expected code/line set is weakened or generated from current
+output. Any revised joint oracle must record its distinct policy and independent
+reasoning, then pass a later actual native run.
+
+Separate allowance, workspace-root and CLI-use controls now export a stable
+boolean while retaining a real `get(...)` expression. This isolates the intended
+use/coverage check from public-type leakage without disabling either rule. The
+guide explains that an exact adapter allowance does not authorize leaking the
+unstable HTTP result through a stable SDK. These source-derived conclusions
+remain distinct from pending installed execution.
+
+The follow-up local fast-check attempt passed formatting, complete inventories,
+strict typecheck and source scope/topology, then its architecture-features child
+was terminated by SIGKILL (27,518 ms total). The full command did not pass on
+this follow-up snapshot; no source diagnostic or precise termination cause was
+reported. The next complete hosted matrix must supply the missing qualification.
+
+### Second hosted run: delivery corrections and frozen-client decision
+
+[Run 45666515807](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/45666515807)
+checked head `a3a24cc4aaf7b5ce0041c6601d34c1f067d0c9ad` on the same
+`fac03920e50ebde038ae415edeb7aa9e3d610ada` base. It completed on
+2026-11-25 at 18:16:06 UTC: all 35 jobs are terminal, with 29 successes,
+five failures and one cancellation. Linux static, every Linux test lane and
+coverage, every Windows test/package/registry lane and actual macOS native
+execution passed. The five failures comprise the two Linux causes below and
+three dependent aggregates. The macOS `pnpm-docs` job was cancelled before
+runner allocation (`runner_id=0`, no steps); the API supplied no cause.
+All eight raw Linux coverage artifacts exist, are unexpired at inspection and
+bind to this run's head. Neither Linux owner reached the emitted native corpus
+observation. This is not a successful complete matrix or evidence for a later
+source head.
+
+The [packed owner](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/45666515807/job/139391652556)
+reached the new qualifier, then its CommonJS `require.resolve` probe rejected
+the intentionally ESM-only public entry. Move that probe into the existing ESM
+child using `import.meta.resolve`, retain an installed `file:` path assertion,
+then perform the actual import and capability-marker check. Product export
+conditions do not need changing. Independent review accepted this correction.
+
+The [registry owner](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/45666515807/job/139390132631)
+passed public input verification, the corrected native seed, candidate
+publication into the disposable registry and all four docs consumers. Native
+copy accounting observed 333,854,566 original bytes and an explicitly recorded
+manifest normalization from 1,126 to 914 bytes. Registry seeding completed in
+95,575 ms. The new frozen npm reinstall failed before native diagnostics.
+
+This is the upstream [npm optional-dependency regression #10193](https://github.com/npm/cli/issues/10193):
+npm 11 leaves unresolved optional packages as inert ideal-tree nodes, omits
+their versionless entries from its generated lock, then requires them during
+`ci` validation. The host-only hermetic mirror deliberately lacks other
+platforms' native archives. The consumer manifest did not change between
+installation and rejection. `--omit=optional` and lock-only regeneration do not
+repair this state. The proposed [upstream fix #10115](https://github.com/npm/cli/pull/10115)
+was still open when inspected; it is not an available released solution.
+
+Options were reassessed within the existing test-tooling owner. Estimates are
+incremental handwritten integration (P), tests (T), and focused engineer-days;
+generated locks, upstream package bytes and CI waiting are excluded. Scores are
+ordinal fitness/reliability/complexity judgments for this narrow fixture, not
+measured probabilities. Mirror estimates have lower confidence.
+
+| Option                                            | Incremental scope                                                                                | P / T LOC                   | Engineer-days                        | U / N / C                     |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------ | --------------------------- | ------------------------------------ | ----------------------------- |
+| Explicit official npm 10.9.11 frozen-test client  | One contained tooling input and one selected reinstall; keep npm 11 initial installation         | 110–180 / 90–150            | 1–2                                  | 8 / 8 / 3                     |
+| Complete authentic cross-platform registry inputs | Acquire and seed every unresolved optional native archive, retaining real payloads and integrity | 180–300 / 150–250           | 2–4                                  | 5 / 8 / 6                     |
+| Wait for a qualified upstream npm fix             | Retain the failing gate until an official supported release can replace this behavior            | 20–50 / 30–80 after release | 0.5–1 after an unknown external wait | 3 / 8 after qualification / 2 |
+
+Select the first option conditionally on actual tooling admission. The
+[official 10.9.11 maintenance release](https://github.com/npm/cli/releases/tag/v10.9.11)
+has the older correct optional-node removal behavior and declares Node 26
+compatibility through its engine range. This is an explicit test-client choice,
+not a silent retry after npm 11 fails. Ordinary development/release tools and
+the five-package Effect cohort retain their current owners and pins.
+
+The first proposal required an additional SLSA build attestation for this client.
+Inspection found registry signature metadata but no `dist.attestations`, and the
+official attestation endpoint returned 404. That proposal did not meet its own
+prerequisite; the client was not executed. An independent authority review then
+checked the actual scope of repository rules: the signature/provenance gate
+above owns the five-package Effect cohort; the
+[security baseline](../security/repository-security-baseline.md) requires npm
+provenance for declared publishable packages, while existing
+[managed test-tool provisioning](../reference/node26-managed-runtime-observation.md)
+has a distinct exact-version/integrity admission and explicitly limited claims.
+No repository-wide SLSA requirement for every auxiliary client was established.
+
+The reviewed, separate tooling admission therefore requires all of the following
+before executing the additional client, including its version probe:
+
+- Official `npm@10.9.11`, with committed exact manifest/lock and SHA-512 integrity.
+- Successful cryptographic registry-signature verification of that exact input
+  by the documented verifier in the existing trusted npm installation, as
+  refined below; signature metadata alone is not enough. Reject missing or
+  invalid signature evidence and unexpected dependencies.
+- Scripts-disabled acquisition in disposable storage, contained package/CLI
+  paths, the supported Node runtime and bounded execution.
+- An explicit receipt for **npm 11 initial installation followed by npm 10
+  frozen reinstallation**, with the original consumer lock unchanged byte for
+  byte and subsequent installed-payload/behavioral checks still required.
+- A genuine negative frozen-install control: a mismatched required dependency
+  version must reject without rewriting the lock before the valid reinstall.
+
+The client has **no demonstrated SLSA build provenance**. Registry verification
+authenticates the identity-to-archive-integrity binding; release/source context
+does not prove that archive was built from that source. The receipt must state
+this limit and must not report generic `provenanceVerified: true`. The original
+five-package verifier and its SLSA/publish-attestation requirements are unchanged,
+as are dependency review, SBOM and release gates. Independent review permits this
+distinct design; actual signature admission and execution remain to be observed.
+
+### Auxiliary verifier refinement after independent reporter review
+
+The initial CLI-audit proposal was examined before any npm 10 execution.
+In npm 11, JSON `verified` entries identify attestation results, not every
+registry-signature result. Empty `invalid`/`missing` arrays therefore cannot
+establish the required positive binding. The actual private installation has
+one npm package and 195 bundled packages; the signature walker does not
+exclude bundled nodes. A positive aggregate count alone would not identify
+which artifact was verified. Auditing the whole bundled tree twice adds work
+unrelated to this one auxiliary package and may constrain historical bundles.
+
+Use the existing trusted npm installation's documented
+[`pacote.manifest` signature verification](https://github.com/npm/pacote/blob/v21.5.1/README.md)
+for the exact `npm@10.9.11` artifact. The
+[official verifier](https://github.com/npm/pacote/blob/v21.5.1/lib/registry.js)
+checks the signed name/version/integrity message, matching registry key and key
+expiry. npm's own
+[signature command](https://github.com/npm/cli/blob/v11.20.0/lib/utils/verify-signatures.js)
+uses this API and explicitly supports the official HTTPS registry-key endpoint.
+This is a package-scoped invocation of upstream verification, not a new
+cryptographic implementation or a successful CLI-audit claim.
+
+Before implementation, independent review requires the following bounded
+protocol:
+
+- Resolve `pacote` only from the already trusted npm 11 installation, verify
+  its contained module path and inspected version, and record both versions.
+  Never load the copy bundled in the unverified npm 10 candidate.
+- Fetch keys only from the fixed official registry HTTPS endpoint, with a
+  deadline, response-byte bound, validated key fields and no redirect to an
+  arbitrary host. Use upstream's key-to-PEM mapping.
+- Call the official manifest API with fixed exact package/version, registry,
+  `verifySignatures: true`, registry-scoped keys and bounded network/cache
+  options. Caller or environment options cannot disable verification.
+- Require the returned name, version, archive URL and SHA-512 integrity to
+  match the committed input, and require nonempty verified signature results.
+  Missing keys/signatures, invalid signatures or any mismatch reject before
+  the candidate's version probe or other code execution.
+- Keep scripts-disabled installation, immutable lock and archive identity,
+  contained executable, supported runtime, mismatch rejection control and
+  unchanged consumer-lock assertion from the admission decision above.
+
+The generated lock was produced through the existing npm client and the
+scripts-disabled installation completed locally. Bounded whole-tree CLI-audit
+attempts ended with SIGKILL before producing a successful receipt; npm 10 was
+not executed. The refined official verifier and frozen reinstall still require
+actual execution evidence. The five-package Effect verifier, provenance scope,
+product tool pins and release checks are unchanged.
+
+### Native joint-rule discovery and separate oracle, 2026-11-26
+
+A bounded raw native probe now executed all eight retained source cases with
+both rules set to errors. It verified the full compressed archive SRIs through
+EOF, the original archive census, the selected compiler SHA-256 and all 108
+paired library digests before execution. It materialized 88,880,949 bytes:
+selected native compiler/library files and Effect 4.1.4. No JavaScript compiler
+launcher or older TypeScript implementation ran.
+
+The observed version is `Version 7.0.2+effect-tsgo.0.73.4`. All stderr values are
+empty. The ordered diagnostic counts are:
+
+| Case                | Exit | Diagnostics |
+| ------------------- | ---: | ----------: |
+| stable-effect       |    0 |           0 |
+| ordinary-type-error |    1 |           1 |
+| unused-import       |    0 |           0 |
+| actual-unstable     |    1 |           4 |
+| aliases             |    1 |           9 |
+| stable-leak         |    1 |           2 |
+| structural-port     |    0 |           0 |
+| exact-allowlist     |    1 |          10 |
+
+The 26 findings comprise 19 public-type leaks, six unstable uses and one
+ordinary TS2322 assignment error. Each exported HTTP result exposes
+`HttpClient`, `HttpClientError` and `HttpClientResponse`; the pinned
+[HTTP signatures](https://github.com/Effect-TS/effect/blob/289a53f7b1fc40049219c6e69022db2fb859c356/packages/effect/src/http/HttpClient.ts)
+and [leak walker](https://github.com/Effect-TS/tsgo/blob/aa2db44499067a798028cff9d3b1b9ca1e156f57/internal/rules/api_stability_leak.go)
+independently explain those distinct offenders. The exact `get` allowance
+continues to reject `post` and does not remove any public-type leak.
+
+An independent reviewer, with no authorship, checked the complete report,
+compiler/library hashes and all original source blobs at source head
+`653707efe6d4d020e4c6a10b3e297ff9265158ab`. The reviewer approved authoring a
+separate joint-profile oracle with precise line, column, code, message,
+multiplicity and ordering. `corpus.json` retains its original bytes and pilot
+expectations. `joint-expectations.json` is a distinct, statically authored
+baseline; the installed test does not derive expectations from its current
+compiler output.
+
+The executor disconnected again after that completed observation. The
+[retained observation record](evidence/effect-joint-observation-2026-11-26.txt)
+is explicitly a semantic reconstruction from the captured tool output, not a
+claim that its bytes match the lost local receipt. The original local receipt
+SHA-256 was `700d8afacefa365c6c544584445490770a2eb3e656009f86606c2eb8f8096e41`.
+
+This establishes raw diagnostic behavior, not full installed Stack/GM E2E.
+The five-package signature/provenance and installed-payload checks, public
+API/CLI boundaries, multiline/source-policy controls, N100 measurement and
+complete final-head CI still have to pass with the authored oracle. No runtime
+scale, production adoption or browser execution claim follows from this probe.
+
+### Auxiliary-client admission observed, 2026-11-26
+
+The separate exact client now passed the reviewed admission locally. The
+already admitted Node 26.11.1 / npm 11.20.0 installation loaded its contained
+`pacote@21.5.1`, performed official `verifySignatures: true` verification and
+matched the committed `npm@10.9.11` archive identity and SHA-512 integrity.
+Only after that success did scripts-disabled installation and the candidate
+version probe run. The probe returned `10.9.11`; the private lock remained
+byte-identical, SHA-256
+`feadaffb2aba001d8fcfb78b631429f5ef4674e2651787a6abf6359c224f384a`.
+The manifest SHA-256 is
+`ec11c6711df4afb78b2b902c23d07b8e63887751e2a51760e9522ceee8be5cc0`.
+The receipt explicitly records no demonstrated SLSA build provenance. This
+successful package-scoped verification is not a whole-tree CLI audit.
+
+Independent source review found no P1/P2 admission blocker and requested one
+restoration improvement: put the negative-lock write inside the existing
+`try/finally`. That fix is included. Five portable controls passed. The helper
+grew from the initial 110–180 LOC estimate to 382 formatted LOC, with
+125 LOC of tests, after aggregate CLI audit was replaced by the
+reviewed package-scoped verifier. This reassessment keeps the added code private
+to one registry-test client: fixed input validation, upstream signature
+verification, contained scripts-disabled installation and frozen-reinstall
+controls. It adds no shared verifier framework, package, workflow or product
+dependency. The original five-package signature/provenance owner is unchanged.
+
+Admission and a version probe do not qualify the consumer reinstall. The actual
+required-dependency mismatch refusal, valid byte-preserving frozen reinstall,
+installed Stack/GM/Effect behavior and final-head/base matrix remain acceptance
+requirements. Local setup also required the existing `tools/dev.mts install`
+producer-dependency projection; after using that owning route, native tool and
+dependency qualification and the source build passed without product changes.
+
+### Integrated review: tracing side effects and current-main union
+
+The actual npm 10 negative control subsequently rejected the required Effect
+version mismatch with `EUSAGE`, exit 1, no signal or timeout and confirmed child
+termination. The incorrect lock was not rewritten, and the original lock bytes
+were restored. A valid consumer reinstall and complete installed behavior still
+require the existing registry owner; this isolated refusal does not replace it.
+
+Independent whole-change review found one further P2 correctness defect in the
+read-only check. The pinned TypeScript 7 source accepts `generateTrace` in the
+leaf compiler options and starts tracing before the `listFilesOnly` branch.
+The tracing writer can truncate or create output independently of `noEmit`.
+The relevant upstream sources are
+[option admission](https://github.com/microsoft/typescript-go/blob/2bd066d87f5bafd315be9f40889d0a60b9e58e0b/internal/tsoptions/declscompiler.go),
+[execution ordering](https://github.com/microsoft/typescript-go/blob/2bd066d87f5bafd315be9f40889d0a60b9e58e0b/internal/execute/tsc.go),
+and the [tracing writer](https://github.com/microsoft/typescript-go/blob/2bd066d87f5bafd315be9f40889d0a60b9e58e0b/internal/tracing/tracing.go).
+This is a source-confirmed finding, not an executed destructive reproduction.
+Reject that option in the original leaf policy before any project probe;
+qualify early rejection and preservation of existing trace targets through the
+installed entry. Other profile options were not shown to activate from this
+config path, so this fix does not introduce an arbitrary compiler-option ban.
+
+Main advanced to `da1868240b96113582b508b0c15341c477d6334b` with the coordinated
+Node 26 upgrade and release changes. The integration retains those versions,
+unites both complete test inventories and regenerates topology with its existing
+owner. The canonical manifest check passed with 388 tests across eight shards;
+an independent reviewer verified exact inventory unions and both derived-input
+hashes. Final qualification must bind to the new main base, not the earlier
+`fac03920e50ebde038ae415edeb7aa9e3d610ada` runs.

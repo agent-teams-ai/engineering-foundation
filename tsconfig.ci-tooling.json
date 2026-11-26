@@ -8,12 +8,16 @@
     "moduleResolution": "NodeNext",
     "noEmit": true,
     "paths": {
-      "@agent-teams/ci-input-proof": ["./packages/ci-input-proof/src/index.ts"]
+      "@agent-teams/ci-input-proof": [
+        "./packages/ci-input-proof/src/index.ts"
+      ]
     },
     "skipLibCheck": true,
     "strict": true,
     "target": "ES2024",
-    "types": ["node"],
+    "types": [
+      "node"
+    ],
     "verbatimModuleSyntax": true
   },
   "include": [
@@ -219,6 +223,15 @@
     "tests/command-admission.test.ts",
     "tests/command-results.test.ts",
     "tests/support/command-host-fixture.ts",
-    "tests/local-mode-settlement.test.ts"
+    "tests/local-mode-settlement.test.ts",
+    "scripts/effect-fixture-dependencies.ts",
+    "scripts/packed-consumer-installation.ts",
+    "scripts/packed-effect-diagnostics-qualification.ts",
+    "scripts/packed-effect-diagnostics-fixtures.ts",
+    "scripts/packed-effect-diagnostics-growth.ts",
+    "tests/effect-fixture-dependencies.test.ts",
+    "tests/fixtures/effect-diagnostics/growth/generate.ts",
+    "scripts/effect-registry-frozen-client.ts",
+    "tests/effect-registry-frozen-client.test.ts"
   ]
 }

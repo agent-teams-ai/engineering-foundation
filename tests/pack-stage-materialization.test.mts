@@ -344,12 +344,11 @@ void test("stage I/O stops admission on undefined rejection and drains all start
 });
 
 // Before reservations, overlapping reads could each admit the same remaining bytes.
-void test("overlapping stable reads cannot exceed their shared stage byte budget", async (t) => {
+void test("overlapping stable reads cannot exceed their default or explicit stage byte budget", async (t) => {
   const root = await mkdtemp(join(tmpdir(), "stage-budget-TEST-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const paths = Array.from({ length: 8 }, (_, index) => join(root, `${index}.txt`));
   await Promise.all(paths.map((path) => writeFile(path, "1234")));
-  const state: StageByteState = { bytes: MAX_STAGE_BYTES - 4 };
   const identities = await Promise.all(
     paths.map(async (path) => ({
       physical: await realpath(path),
@@ -357,19 +356,73 @@ void test("overlapping stable reads cannot exceed their shared stage byte budget
       metadata: await lstat(path),
     })),
   );
-  const results = await Promise.allSettled(
-    paths.map((path, index) =>
-      readStableRegularFile(path, state, "Budget fixture", identities[index]),
-    ),
-  );
-  assert.equal(results.filter((result) => result.status === "fulfilled").length, 1);
-  for (const result of results) {
-    if (result.status === "rejected") {
-      assert.match(String(result.reason), /bounded byte limit/u);
+  const states: StageByteState[] = [
+    { bytes: MAX_STAGE_BYTES - 4 },
+    { bytes: 0, maximumBytes: 4 },
+    { bytes: MAX_STAGE_BYTES, maximumBytes: MAX_STAGE_BYTES + 4 },
+  ];
+  for (const state of states) {
+    const results = await Promise.allSettled(
+      paths.map((path, index) =>
+        readStableRegularFile(path, state, "Budget fixture", identities[index]),
+      ),
+    );
+    assert.equal(results.filter((result) => result.status === "fulfilled").length, 1);
+    for (const result of results) {
+      if (result.status === "rejected") {
+        assert.match(String(result.reason), /bounded byte limit/u);
+      }
     }
+    assert.equal(state.bytes, state.maximumBytes ?? MAX_STAGE_BYTES);
+    assert.equal(state.reservedBytes, 0);
   }
-  assert.equal(state.bytes, MAX_STAGE_BYTES);
-  assert.equal(state.reservedBytes, 0);
+});
+
+void test("tree materialization enforces the caller's aggregate bound across files", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "stage-explicit-budget-TEST-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const source = join(root, "source");
+  await mkdir(source);
+  await Promise.all(["a", "b"].map((name) => writeFile(join(source, name), "1234")));
+  for (const maximumBytes of [7, 8]) {
+    const state: StageByteState & { entries: number } = { bytes: 0, entries: 0, maximumBytes };
+    const destination = join(root, `destination-${maximumBytes}`);
+    const operation = materializeStableTree(source, destination, {
+      allowLinks: false,
+      excludedEntries: new Set<string>(),
+      label: "Explicit budget fixture",
+      state,
+      validatePhysical: undefined,
+    });
+    if (maximumBytes === 7) {
+      await assert.rejects(operation, /bounded byte limit/u);
+      assert.equal(state.bytes, 4);
+    } else {
+      await operation;
+      assert.equal(state.bytes, 8);
+      assert.equal(await readFile(join(destination, "a"), "utf8"), "1234");
+      assert.equal(await readFile(join(destination, "b"), "utf8"), "1234");
+    }
+    assert.equal(state.reservedBytes, 0);
+  }
+});
+
+void test("invalid explicit stage bounds reject before reserving file bytes", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "stage-invalid-budget-TEST-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const path = join(root, "source");
+  await writeFile(path, "1");
+  for (const maximumBytes of [null, Number.NaN, Infinity, -Infinity, 0, -1, 1.5, 2 ** 53, "8"]) {
+    const state: StageByteState = { bytes: 0 };
+    // Exercise untyped callers without weakening the public TypeScript contract.
+    Object.defineProperty(state, "maximumBytes", { value: maximumBytes });
+    await assert.rejects(
+      readStableRegularFile(path, state, "Invalid budget fixture"),
+      /bounded byte limit/u,
+    );
+    assert.equal(state.bytes, 0);
+    assert.equal(state.reservedBytes, undefined);
+  }
 });
 
 // Concurrent leaves must preserve exact bytes/modes and physically independent copies.

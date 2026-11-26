@@ -1,0 +1,478 @@
+Native Effect joint-rule diagnostic discovery, 2026-11-26
+
+This is a reconstructed evidence record, explicitly not the byte-exact original receipt.
+The raw diagnostic strings and measured values were retained in the successful command output.
+No installed-package E2E, new signature/provenance audit, N100 measurement, or CI qualification is claimed.
+
+{
+  "retention": {
+    "mode": "semantic reconstruction from successful recorded command output after executor became unavailable",
+    "originalLocalReceiptPath": "/tmp/ef-effect-observation-20261126/observation.json",
+    "originalLocalReceiptSha256": "700d8afacefa365c6c544584445490770a2eb3e656009f86606c2eb8f8096e41",
+    "byteIdentity": "The original SHA-256 identifies the previously written local receipt, not this reconstructed document. The complete original receipt bytes were not retained in tool stores.",
+    "rawOutput": "Every diagnostic line below was printed by the real native invocation and retained in tool output; empty outputs, exit codes and timings were also retained. Configurations and argv are reconstructed from the executed probe's deterministic construction."
+  },
+  "scope": "raw partial-artifact native diagnostic discovery; not installed E2E",
+  "sourceHead": "653707efe6d4d020e4c6a10b3e297ff9265158ab",
+  "artifacts": [
+    {
+      "name": "@effect/tsgo-linux-x64",
+      "version": "0.73.4",
+      "integrity": "sha512-/E7g/Dm9+WvYxkN4cfZSybJ+/qpoYU69W5OtRPTzBPEIAR85qbBaLvFO+JWtiKtMdidgDNbbqdwooSFH1duc8A==",
+      "compressedBytes": 130041154,
+      "originalFiles": 588,
+      "originalBytes": 333854566,
+      "materializedBytes": 30807844
+    },
+    {
+      "name": "effect",
+      "version": "4.1.4",
+      "integrity": "sha512-Tgrv/9FN+TZYyOn8XSli+fVqAfwDrDAkiX5Uu9vztINb675VTQdhD0gWI5Kzvhlh9QqzjZvw72iugqw5pwoghQ==",
+      "compressedBytes": 10584475,
+      "originalFiles": 3058,
+      "originalBytes": 58073105,
+      "materializedBytes": 58073105
+    }
+  ],
+  "version": "Version 7.0.2+effect-tsgo.0.73.4",
+  "binarySha256": "18b0b3fdac7d76b8c9b97e64c185ce8d92f2e13ab2307ae18a27fb11a62c045c",
+  "pairedLibraryCount": 108,
+  "nativeManifestSha256": "896ab2b8466db68603776b14a3639143973688b7036615fc9ef771a3bd6d9785",
+  "materializedBytes": 88880949,
+  "observations": [
+    {
+      "id": "stable-effect",
+      "sourceGitBlob": "0306a023784f3912cac608b9ceb0e0eca4a1aac1",
+      "config": {
+        "files": [
+          "index.ts"
+        ],
+        "compilerOptions": {
+          "strict": true,
+          "skipLibCheck": false,
+          "noEmit": true,
+          "target": "ES2024",
+          "module": "NodeNext",
+          "moduleResolution": "NodeNext",
+          "types": [],
+          "lib": [
+            "ES2024",
+            "ESNext.Disposable",
+            "ESNext.Promise",
+            "DOM"
+          ],
+          "allowImportingTsExtensions": true,
+          "plugins": [
+            {
+              "name": "@effect/language-service",
+              "diagnostics": true,
+              "includeSuggestionsInTsc": false,
+              "ignoreEffectWarningsInTscExitCode": false,
+              "ignoreEffectErrorsInTscExitCode": false,
+              "diagnosticSeverity": {
+                "unstableApiUsage": "error",
+                "apiStabilityLeak": "error"
+              },
+              "allowedUnstableApis": []
+            }
+          ]
+        }
+      },
+      "argv": [
+        "--project",
+        "/tmp/ef-effect-observation-20261126/corpus/stable-effect/tsconfig.json",
+        "--noEmit",
+        "--pretty",
+        "false",
+        "--incremental",
+        "true",
+        "--tsBuildInfoFile",
+        "/dev/null"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": "",
+      "durationMs": 1279
+    },
+    {
+      "id": "ordinary-type-error",
+      "sourceGitBlob": "0cd079bef527221bd180dea57e6b7333aa7c0062",
+      "config": {
+        "files": [
+          "index.ts"
+        ],
+        "compilerOptions": {
+          "strict": true,
+          "skipLibCheck": false,
+          "noEmit": true,
+          "target": "ES2024",
+          "module": "NodeNext",
+          "moduleResolution": "NodeNext",
+          "types": [],
+          "lib": [
+            "ES2024",
+            "ESNext.Disposable",
+            "ESNext.Promise",
+            "DOM"
+          ],
+          "allowImportingTsExtensions": true,
+          "plugins": [
+            {
+              "name": "@effect/language-service",
+              "diagnostics": true,
+              "includeSuggestionsInTsc": false,
+              "ignoreEffectWarningsInTscExitCode": false,
+              "ignoreEffectErrorsInTscExitCode": false,
+              "diagnosticSeverity": {
+                "unstableApiUsage": "error",
+                "apiStabilityLeak": "error"
+              },
+              "allowedUnstableApis": []
+            }
+          ]
+        }
+      },
+      "argv": [
+        "--project",
+        "/tmp/ef-effect-observation-20261126/corpus/ordinary-type-error/tsconfig.json",
+        "--noEmit",
+        "--pretty",
+        "false",
+        "--incremental",
+        "true",
+        "--tsBuildInfoFile",
+        "/dev/null"
+      ],
+      "exitCode": 1,
+      "stdout": "corpus/ordinary-type-error/index.ts(2,14): error TS2322: Type 'string' is not assignable to type 'number'.\n",
+      "stderr": "",
+      "durationMs": 345
+    },
+    {
+      "id": "unused-import",
+      "sourceGitBlob": "6077807dcad87711e586a9ba692bae196310eb65",
+      "config": {
+        "files": [
+          "index.ts"
+        ],
+        "compilerOptions": {
+          "strict": true,
+          "skipLibCheck": false,
+          "noEmit": true,
+          "target": "ES2024",
+          "module": "NodeNext",
+          "moduleResolution": "NodeNext",
+          "types": [],
+          "lib": [
+            "ES2024",
+            "ESNext.Disposable",
+            "ESNext.Promise",
+            "DOM"
+          ],
+          "allowImportingTsExtensions": true,
+          "plugins": [
+            {
+              "name": "@effect/language-service",
+              "diagnostics": true,
+              "includeSuggestionsInTsc": false,
+              "ignoreEffectWarningsInTscExitCode": false,
+              "ignoreEffectErrorsInTscExitCode": false,
+              "diagnosticSeverity": {
+                "unstableApiUsage": "error",
+                "apiStabilityLeak": "error"
+              },
+              "allowedUnstableApis": []
+            }
+          ]
+        }
+      },
+      "argv": [
+        "--project",
+        "/tmp/ef-effect-observation-20261126/corpus/unused-import/tsconfig.json",
+        "--noEmit",
+        "--pretty",
+        "false",
+        "--incremental",
+        "true",
+        "--tsBuildInfoFile",
+        "/dev/null"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": "",
+      "durationMs": 927
+    },
+    {
+      "id": "actual-unstable",
+      "sourceGitBlob": "a56fbc323b7391713a2bf80d6938d2206303474c",
+      "config": {
+        "files": [
+          "index.ts"
+        ],
+        "compilerOptions": {
+          "strict": true,
+          "skipLibCheck": false,
+          "noEmit": true,
+          "target": "ES2024",
+          "module": "NodeNext",
+          "moduleResolution": "NodeNext",
+          "types": [],
+          "lib": [
+            "ES2024",
+            "ESNext.Disposable",
+            "ESNext.Promise",
+            "DOM"
+          ],
+          "allowImportingTsExtensions": true,
+          "plugins": [
+            {
+              "name": "@effect/language-service",
+              "diagnostics": true,
+              "includeSuggestionsInTsc": false,
+              "ignoreEffectWarningsInTscExitCode": false,
+              "ignoreEffectErrorsInTscExitCode": false,
+              "diagnosticSeverity": {
+                "unstableApiUsage": "error",
+                "apiStabilityLeak": "error"
+              },
+              "allowedUnstableApis": []
+            }
+          ]
+        }
+      },
+      "argv": [
+        "--project",
+        "/tmp/ef-effect-observation-20261126/corpus/actual-unstable/tsconfig.json",
+        "--noEmit",
+        "--pretty",
+        "false",
+        "--incremental",
+        "true",
+        "--tsBuildInfoFile",
+        "/dev/null"
+      ],
+      "exitCode": 1,
+      "stdout": "corpus/actual-unstable/index.ts(3,14): error TS377137: `request` exposes `HttpClient`, an unstable API. effect(apiStabilityLeak)\ncorpus/actual-unstable/index.ts(3,14): error TS377137: `request` exposes `HttpClientError`, an unstable API. effect(apiStabilityLeak)\ncorpus/actual-unstable/index.ts(3,14): error TS377137: `request` exposes `HttpClientResponse`, an unstable API. effect(apiStabilityLeak)\ncorpus/actual-unstable/index.ts(3,24): error TS377136: `effect/http/HttpClient#get` is an unstable API. Breaking changes may happen between versions. effect(unstableApiUsage)\n",
+      "stderr": "",
+      "durationMs": 868
+    },
+    {
+      "id": "aliases",
+      "sourceGitBlob": "2bf70b8c43ed05b89fc16debaf4083c94b8253fe",
+      "config": {
+        "files": [
+          "index.ts"
+        ],
+        "compilerOptions": {
+          "strict": true,
+          "skipLibCheck": false,
+          "noEmit": true,
+          "target": "ES2024",
+          "module": "NodeNext",
+          "moduleResolution": "NodeNext",
+          "types": [],
+          "lib": [
+            "ES2024",
+            "ESNext.Disposable",
+            "ESNext.Promise",
+            "DOM"
+          ],
+          "allowImportingTsExtensions": true,
+          "plugins": [
+            {
+              "name": "@effect/language-service",
+              "diagnostics": true,
+              "includeSuggestionsInTsc": false,
+              "ignoreEffectWarningsInTscExitCode": false,
+              "ignoreEffectErrorsInTscExitCode": false,
+              "diagnosticSeverity": {
+                "unstableApiUsage": "error",
+                "apiStabilityLeak": "error"
+              },
+              "allowedUnstableApis": []
+            }
+          ]
+        }
+      },
+      "argv": [
+        "--project",
+        "/tmp/ef-effect-observation-20261126/corpus/aliases/tsconfig.json",
+        "--noEmit",
+        "--pretty",
+        "false",
+        "--incremental",
+        "true",
+        "--tsBuildInfoFile",
+        "/dev/null"
+      ],
+      "exitCode": 1,
+      "stdout": "corpus/aliases/index.ts(3,18): error TS377136: `effect/http/HttpClient#get` is an unstable API. Breaking changes may happen between versions. effect(unstableApiUsage)\ncorpus/aliases/index.ts(4,14): error TS377137: `renamedRequest` exposes `HttpClient`, an unstable API. effect(apiStabilityLeak)\ncorpus/aliases/index.ts(4,14): error TS377137: `renamedRequest` exposes `HttpClientError`, an unstable API. effect(apiStabilityLeak)\ncorpus/aliases/index.ts(4,14): error TS377137: `renamedRequest` exposes `HttpClientResponse`, an unstable API. effect(apiStabilityLeak)\ncorpus/aliases/index.ts(4,31): error TS377136: `effect/http/HttpClient#get` is an unstable API. Breaking changes may happen between versions. effect(unstableApiUsage)\ncorpus/aliases/index.ts(5,14): error TS377137: `localRequest` exposes `HttpClient`, an unstable API. effect(apiStabilityLeak)\ncorpus/aliases/index.ts(5,14): error TS377137: `localRequest` exposes `HttpClientError`, an unstable API. effect(apiStabilityLeak)\ncorpus/aliases/index.ts(5,14): error TS377137: `localRequest` exposes `HttpClientResponse`, an unstable API. effect(apiStabilityLeak)\ncorpus/aliases/index.ts(5,29): error TS377136: `effect/http/HttpClient#get` is an unstable API. Breaking changes may happen between versions. effect(unstableApiUsage)\n",
+      "stderr": "",
+      "durationMs": 903
+    },
+    {
+      "id": "stable-leak",
+      "sourceGitBlob": "1808a92c8ee6836e9fa7fd63f731523dcc858fa8",
+      "config": {
+        "files": [
+          "index.ts"
+        ],
+        "compilerOptions": {
+          "strict": true,
+          "skipLibCheck": false,
+          "noEmit": true,
+          "target": "ES2024",
+          "module": "NodeNext",
+          "moduleResolution": "NodeNext",
+          "types": [],
+          "lib": [
+            "ES2024",
+            "ESNext.Disposable",
+            "ESNext.Promise",
+            "DOM"
+          ],
+          "allowImportingTsExtensions": true,
+          "plugins": [
+            {
+              "name": "@effect/language-service",
+              "diagnostics": true,
+              "includeSuggestionsInTsc": false,
+              "ignoreEffectWarningsInTscExitCode": false,
+              "ignoreEffectErrorsInTscExitCode": false,
+              "diagnosticSeverity": {
+                "unstableApiUsage": "error",
+                "apiStabilityLeak": "error"
+              },
+              "allowedUnstableApis": []
+            }
+          ]
+        }
+      },
+      "argv": [
+        "--project",
+        "/tmp/ef-effect-observation-20261126/corpus/stable-leak/tsconfig.json",
+        "--noEmit",
+        "--pretty",
+        "false",
+        "--incremental",
+        "true",
+        "--tsBuildInfoFile",
+        "/dev/null"
+      ],
+      "exitCode": 1,
+      "stdout": "corpus/stable-leak/index.ts(4,18): error TS377137: `StableClientPort` exposes `HttpClient`, an unstable API. effect(apiStabilityLeak)\ncorpus/stable-leak/index.ts(5,20): error TS377136: `effect/http/HttpClient#HttpClient` is an unstable API. Breaking changes may happen between versions. effect(unstableApiUsage)\n",
+      "stderr": "",
+      "durationMs": 815
+    },
+    {
+      "id": "structural-port",
+      "sourceGitBlob": "3c57462f0890c307f83cd98317984e63a2d4ca73",
+      "config": {
+        "files": [
+          "index.ts"
+        ],
+        "compilerOptions": {
+          "strict": true,
+          "skipLibCheck": false,
+          "noEmit": true,
+          "target": "ES2024",
+          "module": "NodeNext",
+          "moduleResolution": "NodeNext",
+          "types": [],
+          "lib": [
+            "ES2024",
+            "ESNext.Disposable",
+            "ESNext.Promise",
+            "DOM"
+          ],
+          "allowImportingTsExtensions": true,
+          "plugins": [
+            {
+              "name": "@effect/language-service",
+              "diagnostics": true,
+              "includeSuggestionsInTsc": false,
+              "ignoreEffectWarningsInTscExitCode": false,
+              "ignoreEffectErrorsInTscExitCode": false,
+              "diagnosticSeverity": {
+                "unstableApiUsage": "error",
+                "apiStabilityLeak": "error"
+              },
+              "allowedUnstableApis": []
+            }
+          ]
+        }
+      },
+      "argv": [
+        "--project",
+        "/tmp/ef-effect-observation-20261126/corpus/structural-port/tsconfig.json",
+        "--noEmit",
+        "--pretty",
+        "false",
+        "--incremental",
+        "true",
+        "--tsBuildInfoFile",
+        "/dev/null"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": "",
+      "durationMs": 770
+    },
+    {
+      "id": "exact-allowlist",
+      "sourceGitBlob": "bf40c928961e75afd15ecadfd54a0833e3b78811",
+      "config": {
+        "files": [
+          "index.ts"
+        ],
+        "compilerOptions": {
+          "strict": true,
+          "skipLibCheck": false,
+          "noEmit": true,
+          "target": "ES2024",
+          "module": "NodeNext",
+          "moduleResolution": "NodeNext",
+          "types": [],
+          "lib": [
+            "ES2024",
+            "ESNext.Disposable",
+            "ESNext.Promise",
+            "DOM"
+          ],
+          "allowImportingTsExtensions": true,
+          "plugins": [
+            {
+              "name": "@effect/language-service",
+              "diagnostics": true,
+              "includeSuggestionsInTsc": false,
+              "ignoreEffectWarningsInTscExitCode": false,
+              "ignoreEffectErrorsInTscExitCode": false,
+              "diagnosticSeverity": {
+                "unstableApiUsage": "error",
+                "apiStabilityLeak": "error"
+              },
+              "allowedUnstableApis": [
+                "effect/http/HttpClient#get"
+              ]
+            }
+          ]
+        }
+      },
+      "argv": [
+        "--project",
+        "/tmp/ef-effect-observation-20261126/corpus/exact-allowlist/tsconfig.json",
+        "--noEmit",
+        "--pretty",
+        "false",
+        "--incremental",
+        "true",
+        "--tsBuildInfoFile",
+        "/dev/null"
+      ],
+      "exitCode": 1,
+      "stdout": "corpus/exact-allowlist/index.ts(5,14): error TS377137: `aliasedRequest` exposes `HttpClient`, an unstable API. effect(apiStabilityLeak)\ncorpus/exact-allowlist/index.ts(5,14): error TS377137: `aliasedRequest` exposes `HttpClientError`, an unstable API. effect(apiStabilityLeak)\ncorpus/exact-allowlist/index.ts(5,14): error TS377137: `aliasedRequest` exposes `HttpClientResponse`, an unstable API. effect(apiStabilityLeak)\ncorpus/exact-allowlist/index.ts(6,14): error TS377137: `namespacedRequest` exposes `HttpClient`, an unstable API. effect(apiStabilityLeak)\ncorpus/exact-allowlist/index.ts(6,14): error TS377137: `namespacedRequest` exposes `HttpClientError`, an unstable API. effect(apiStabilityLeak)\ncorpus/exact-allowlist/index.ts(6,14): error TS377137: `namespacedRequest` exposes `HttpClientResponse`, an unstable API. effect(apiStabilityLeak)\ncorpus/exact-allowlist/index.ts(7,14): error TS377137: `rejectedSibling` exposes `HttpClient`, an unstable API. effect(apiStabilityLeak)\ncorpus/exact-allowlist/index.ts(7,14): error TS377137: `rejectedSibling` exposes `HttpClientError`, an unstable API. effect(apiStabilityLeak)\ncorpus/exact-allowlist/index.ts(7,14): error TS377137: `rejectedSibling` exposes `HttpClientResponse`, an unstable API. effect(apiStabilityLeak)\ncorpus/exact-allowlist/index.ts(7,32): error TS377136: `effect/http/HttpClient#post` is an unstable API. Breaking changes may happen between versions. effect(unstableApiUsage)\n",
+      "stderr": "",
+      "durationMs": 905
+    }
+  ]
+}

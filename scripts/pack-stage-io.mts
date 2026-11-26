@@ -62,6 +62,8 @@ export const MAX_STAGE_BYTES = 256 * 1024 * 1024;
 export interface StageByteState {
   bytes: number;
   reservedBytes?: number;
+  /** A caller-owned, verified aggregate bound; ordinary stages keep the default. */
+  readonly maximumBytes?: number;
 }
 
 export interface StageByteReservation {
@@ -75,15 +77,18 @@ export function reserveStageBytes(
   label: string,
 ): StageByteReservation {
   const reserved = state.reservedBytes ?? 0;
+  const maximumBytes = state.maximumBytes === undefined ? MAX_STAGE_BYTES : state.maximumBytes;
 
   if (
+    !Number.isSafeInteger(maximumBytes) ||
     !Number.isSafeInteger(state.bytes) ||
     !Number.isSafeInteger(reserved) ||
     !Number.isSafeInteger(size) ||
+    maximumBytes <= 0 ||
     state.bytes < 0 ||
     reserved < 0 ||
     size < 0 ||
-    state.bytes + reserved + size > MAX_STAGE_BYTES
+    state.bytes + reserved + size > maximumBytes
   ) {
     throw new Error(`${label} exceeds its bounded byte limit.`);
   }

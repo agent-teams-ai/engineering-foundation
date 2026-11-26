@@ -16,6 +16,7 @@ import { ConsumerIntegrationNodeError } from "./consumer-integration-node-error.
 import { assertQualifiedPnpmLockfileV1 } from "./pnpm-lockfile-validator-v1.js";
 import { observeQualifiedPnpmLockfileV2 } from "./pnpm-lockfile-validator-v2.js";
 import { parseJsonRecord } from "./strict-json-record.js";
+import { assertQualifiedPnpmRoot } from "./node-consumer-integration-runtime.js";
 import {
   scanConsumerRepositoryTopology,
   type ConsumerRepositoryTopology,
@@ -184,119 +185,6 @@ export function assertGitHubRuntimeIdentity(
   }
 }
 
-function assertLegacyNodeRuntime(): void {
-  const [major, minor] = process.versions.node.split(".").map(Number);
-  if (major !== 24 || (minor ?? 0) < 18) {
-    throw new ConsumerIntegrationNodeError(
-      "DOCS_CONSUMER_UNSUPPORTED_NODE",
-      "Managed consumer check and plan require Node >=24.18.0 <25.",
-    );
-  }
-}
-
-function platformCoordinate(platform: NodeJS.Platform): "linux" | "macos" | "windows" {
-  if (platform === "darwin") {
-    return "macos";
-  }
-  if (platform === "linux" || platform === "win32") {
-    return platform === "win32" ? "windows" : "linux";
-  }
-  throw new ConsumerIntegrationNodeError(
-    "DOCS_CONSUMER_UNSUPPORTED_NODE",
-    `Managed consumer runtime platform is unsupported: ${platform}.`,
-  );
-}
-
-function assertManagedProfileRuntime(desired: ManagedSuccessorProfile): void {
-  const runtime = desired.cohort.runtime;
-  const expectedRangeMajor = runtime.selectedLane === "node-26-managed-qualified" ? 26 : 24;
-  const [major] = process.versions.node.split(".").map(Number);
-  if (
-    major !== expectedRangeMajor ||
-    process.versions.node !== runtime.qualificationRuntime.nodeVersion ||
-    platformCoordinate(process.platform) !== runtime.qualificationRuntime.platform ||
-    process.arch !== runtime.qualificationRuntime.architecture
-  ) {
-    throw new ConsumerIntegrationNodeError(
-      "DOCS_CONSUMER_UNSUPPORTED_NODE",
-      "Managed consumer runtime does not match the packed profile4 qualification coordinates.",
-    );
-  }
-}
-
-async function assertQualifiedPnpmRoot(
-  root: string,
-  desired: ConsumerIntegrationDesiredState,
-): Promise<void> {
-  if (desired.schemaVersion === 4) {
-    assertManagedProfileRuntime(desired);
-  } else {
-    assertLegacyNodeRuntime();
-  }
-  const manifestObservation = await readStableConsumerFile(
-    root,
-    "package.json",
-    MAXIMUM_MANIFEST_BYTES,
-    true,
-  );
-  if (manifestObservation.state !== "file") {
-    throw new Error("unreachable");
-  }
-  let manifest: Record<string, unknown>;
-  try {
-    manifest = parseJsonRecord(Buffer.from(manifestObservation.bytes).toString("utf8"));
-  } catch (error) {
-    throw new ConsumerIntegrationNodeError(
-      "DOCS_CONSUMER_MANIFEST_INVALID",
-      error instanceof Error ? error.message : "package.json is invalid.",
-      { cause: error },
-    );
-  }
-  const packageManager = manifest["packageManager"];
-  const expectedPackageManager =
-    desired.schemaVersion === 4
-      ? `pnpm@${desired.cohort.runtime.qualificationRuntime.pnpmVersion}`
-      : undefined;
-  const match =
-    desired.schemaVersion === 4
-      ? packageManager === expectedPackageManager
-      : typeof packageManager === "string" &&
-        /^pnpm@(11)\.([0-9]+)\.([0-9]+)(?:\+sha512\.[A-Za-z0-9+/=]+)?$/u.test(packageManager) &&
-        Number(/^pnpm@(11)\.([0-9]+)\.([0-9]+)/u.exec(packageManager)?.[2]) >= 17;
-  if (!match) {
-    throw new ConsumerIntegrationNodeError(
-      "DOCS_CONSUMER_UNSUPPORTED_PACKAGE_MANAGER",
-      desired.schemaVersion === 4
-        ? "Managed profile4 requires the exact packed pnpm qualification coordinate."
-        : "Managed consumer integration requires an exact root packageManager within >=11.17.0 <12.",
-    );
-  }
-  const nodeVersion = await readStableConsumerFile(root, ".node-version", 128, true);
-  const nodePin =
-    nodeVersion.state === "file" ? Buffer.from(nodeVersion.bytes).toString("utf8") : undefined;
-  const validNodePin =
-    desired.schemaVersion === 4
-      ? nodePin === `${desired.cohort.runtime.qualificationRuntime.nodeVersion}\n`
-      : nodePin !== undefined && /^24\.(?:1[89]|[2-9][0-9])\.[0-9]+\n?$/u.test(nodePin);
-  if (!validNodePin) {
-    throw new ConsumerIntegrationNodeError(
-      "DOCS_CONSUMER_NODE_VERSION_GATE_INVALID",
-      desired.schemaVersion === 4
-        ? ".node-version must pin the exact packed profile4 qualification Node coordinate."
-        : ".node-version must pin one exact Node version within >=24.18.0 <25.",
-    );
-  }
-  await readStableConsumerFile(root, "pnpm-lock.yaml", MAXIMUM_LOCKFILE_BYTES, true);
-  for (const path of ["package-lock.json", "yarn.lock", "bun.lock", "bun.lockb"]) {
-    if ((await readStableConsumerFile(root, path, 1024, false)).state !== "absent") {
-      throw new ConsumerIntegrationNodeError(
-        "DOCS_CONSUMER_UNSUPPORTED_PACKAGE_MANAGER",
-        `Multiple or unsupported package-manager evidence is present: ${path}.`,
-      );
-    }
-  }
-}
-
 async function assertSnapshotStillStable(input: {
   readonly root: string;
   readonly desired: ConsumerIntegrationDesiredState;
@@ -361,10 +249,52 @@ async function assertQualifiedLockfile(
   return observation;
 }
 
-async function readManagedConsumerIntegrationInput(options: {
-  readonly consumerRoot: string;
-  readonly integrationProfilePath?: string;
-}): Promise<{
+export async function assertPreservedSourcePin(
+  root: string,
+  revision: string | undefined,
+  observation: ConsumerIntegrationFileObservation,
+): Promise<void> {
+  if (
+    observation.state !== "file" ||
+    !Buffer.from(observation.bytes).equals(Buffer.from("26.11.1\n"))
+  ) {
+    throw new ConsumerIntegrationNodeError(
+      "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED",
+      "Preserved Node 26 pin must retain its exact original bytes.",
+    );
+  }
+  if (revision === undefined) {
+    throw new ConsumerIntegrationNodeError(
+      "DOCS_CONSUMER_UPGRADE_GIT_INVALID",
+      "Preserved Node 26 source requires one exact committed Git HEAD.",
+    );
+  }
+  const entry = await executeGit(
+    root,
+    ["--no-replace-objects", "ls-tree", "-z", revision, "--", ".node-version"],
+    1024,
+  );
+  const match = /^(100644|100755) blob ([0-9a-f]{40})\t\.node-version\0$/u.exec(entry);
+  if (
+    match === null ||
+    observation.mode !== (match[1] === "100755" ? 0o755 : 0o644) ||
+    (await executeGit(root, ["--no-replace-objects", "cat-file", "blob", match[2]!], 128)) !==
+      "26.11.1\n"
+  ) {
+    throw new ConsumerIntegrationNodeError(
+      "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED",
+      "Preserved Node 26 pin bytes and mode must match the exact committed source image.",
+    );
+  }
+}
+
+async function readManagedConsumerIntegrationInput(
+  options: {
+    readonly consumerRoot: string;
+    readonly integrationProfilePath?: string;
+  },
+  admission: "consumer" | "generation2-source" = "consumer",
+): Promise<{
   readonly desired: ConsumerIntegrationDesiredState;
   readonly repositoryHead?: string;
   readonly root: string;
@@ -388,6 +318,7 @@ async function readManagedConsumerIntegrationInput(options: {
   }
   let desired: ConsumerIntegrationDesiredState;
   let lockfile: ConsumerIntegrationFileObservation;
+  let nodeVersion: ConsumerIntegrationFileObservation;
   try {
     const parsedRecord = parseJsonRecord(Buffer.from(profile.bytes).toString("utf8"));
     rejectPrototypeKeys(parsedRecord);
@@ -417,7 +348,14 @@ async function readManagedConsumerIntegrationInput(options: {
     }
     assertNestedAgentsAuthority(topology, desired.governedDocsRoots);
     assertGitHubRuntimeIdentity(desired);
-    await assertQualifiedPnpmRoot(root, desired);
+    nodeVersion = await assertQualifiedPnpmRoot(root, desired, admission);
+    if (
+      admission === "generation2-source" &&
+      nodeVersion.state === "file" &&
+      Buffer.from(nodeVersion.bytes).equals(Buffer.from("26.11.1\n"))
+    ) {
+      await assertPreservedSourcePin(root, repositoryHead, nodeVersion);
+    }
     lockfile = await assertQualifiedLockfile(root, desired);
   } catch (error) {
     if (error instanceof ConsumerIntegrationNodeError) {
@@ -446,6 +384,18 @@ async function readManagedConsumerIntegrationInput(options: {
     managedState,
   };
   await assertSnapshotStillStable({ root, desired, snapshot });
+  if (
+    admission === "generation2-source" &&
+    !sameConsumerFileObservation(
+      nodeVersion,
+      await readStableConsumerFile(root, ".node-version", 128, true),
+    )
+  ) {
+    throw new ConsumerIntegrationNodeError(
+      "DOCS_CONSUMER_SNAPSHOT_UNSTABLE",
+      "Source Node pin changed while the retained source observation was assembled.",
+    );
+  }
   if ((await exactGitHead(root)) !== repositoryHead) {
     throw new ConsumerIntegrationNodeError(
       "DOCS_CONSUMER_SNAPSHOT_UNSTABLE",
@@ -479,5 +429,13 @@ export async function readConsumerIntegrationInput(options: {
 }
 
 export const nodeConsumerIntegrationInputReader: ConsumerIntegrationInputReader = Object.freeze({
-  read: readManagedConsumerIntegrationInput,
+  read: (options: Parameters<ConsumerIntegrationInputReader["read"]>[0]) =>
+    readManagedConsumerIntegrationInput(options),
 });
+
+/** Selected only by retained 2->3 preparation and its original-source verifier. */
+export const nodeManagedGeneration2SourceInputReader: ConsumerIntegrationInputReader =
+  Object.freeze({
+    read: (options: Parameters<ConsumerIntegrationInputReader["read"]>[0]) =>
+      readManagedConsumerIntegrationInput(options, "generation2-source"),
+  });

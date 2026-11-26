@@ -28,12 +28,14 @@ import {
 import { projectConsumerUpgradeFiles } from "./consumer-upgrade-file-projectors.js";
 import { extractHead } from "./node-consumer-upgrade-archive.js";
 import { ConsumerIntegrationNodeError } from "./consumer-integration-node-error.js";
+import type { RetainedGeneration2SourceVerifier } from "./node-retained-source-verifier.js";
 import {
   INTEGRATION_PROFILE_PATH,
   MAXIMUM_MANIFEST_BYTES,
   MAXIMUM_PROFILE_BYTES,
   MAXIMUM_WORKSPACE_BYTES,
   readStableConsumerFile,
+  sameConsumerFileObservation,
 } from "./node-consumer-repository-files.js";
 import {
   applyTargetIntegration,
@@ -112,9 +114,14 @@ async function projectUpgradeGeneration(
 
 export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
   readonly #environment: () => NodeJS.ProcessEnv;
+  readonly #verifyRetainedSource: RetainedGeneration2SourceVerifier | undefined;
 
-  public constructor(environment: () => NodeJS.ProcessEnv = consumerProcessEnvironment) {
+  public constructor(
+    environment: () => NodeJS.ProcessEnv = consumerProcessEnvironment,
+    verifyRetainedSource?: RetainedGeneration2SourceVerifier,
+  ) {
     this.#environment = environment;
+    this.#verifyRetainedSource = verifyRetainedSource;
   }
 
   private async prepareGeneration(options: {
@@ -332,6 +339,29 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
     readonly current: ConsumerIntegrationDesiredStateV3 | ManagedSuccessorProfile;
     readonly consumerRoot: string;
   }): Promise<void> {
+    const sourcePin = await readStableConsumerFile(
+      options.consumerRoot,
+      ".node-version",
+      128,
+      true,
+    );
+    const current = options.current;
+    let verifyRetained: (() => Promise<void>) | undefined;
+    if (
+      current.schemaVersion === 3 &&
+      sourcePin.state === "file" &&
+      Buffer.from(sourcePin.bytes).equals(Buffer.from("26.11.1\n"))
+    ) {
+      const verifier = this.#verifyRetainedSource;
+      if (verifier === undefined) {
+        throw new ConsumerIntegrationNodeError(
+          "DOCS_CONSUMER_UPGRADE_SOURCE_VERIFIER_REQUIRED",
+          "Preserved Node 26 source restoration requires its retained-controller verifier.",
+        );
+      }
+      verifyRetained = () => verifier({ consumerRoot: options.consumerRoot, current });
+      await verifyRetained();
+    }
     const run = await managedUpgradeRuntime(
       options.current.cohort,
       options.consumerRoot,
@@ -339,7 +369,22 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
       true,
     );
     await installCohort(options.consumerRoot, true, this.#environment, true, run);
-    await assertInstalledIntegrationCurrent(options.consumerRoot, run);
+    if (
+      !sameConsumerFileObservation(
+        sourcePin,
+        await readStableConsumerFile(options.consumerRoot, ".node-version", 128, true),
+      )
+    ) {
+      throw new ConsumerIntegrationNodeError(
+        "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED",
+        "Source Node pin changed during frozen restoration installation.",
+      );
+    }
+    if (verifyRetained !== undefined) {
+      await verifyRetained();
+    } else {
+      await assertInstalledIntegrationCurrent(options.consumerRoot, run);
+    }
   }
 
   public async restoreAndVerifyManaged(options: {
@@ -408,9 +453,5 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
     await assertCleanGitRoot(options.consumerRoot);
   }
 }
-
-export const nodeConsumerUpgradeSandbox: ConsumerUpgradeSandboxPort = Object.freeze(
-  new NodeConsumerUpgradeSandbox(),
-);
 
 export { nodeConsumerTargetLockfileReader } from "./node-consumer-target-lockfile.js";

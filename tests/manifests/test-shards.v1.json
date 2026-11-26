@@ -381,6 +381,7 @@
         "packages/docs-protocol-agent-teams/tests/consumer-upgrade-generation3.test.ts",
         "packages/docs-protocol-agent-teams/tests/consumer-managed-restoration.test.ts",
         "packages/docs-protocol-agent-teams/tests/consumer-committed-restoration.test.ts",
+        "packages/docs-protocol-agent-teams/tests/consumer-retained-source-verifier.test.ts",
         "packages/docs-protocol-agent-teams/tests/consumer-input-observation.test.ts",
         "packages/stack-toolchain/tests/effect-policy.test.ts",
         "packages/stack-toolchain/tests/effect-files.test.ts",

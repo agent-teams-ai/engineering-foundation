@@ -31,11 +31,26 @@ export const GENERATION2_LEGACY_TEST_FILES: readonly string[] = Object.freeze([
   "packages/docs-protocol-agent-teams/tests/consumer-integration-e2e.test.mjs",
 ]);
 
-export function partitionGeneration2Tests(files: readonly string[]): {
+// Retained-controller positive paths require exact Node24.21.0. Windows retains
+// explicitly named default-runtime refusal observations; managed mutation is unsupported.
+export const RETAINED_CONTROLLER_TEST_FILES: readonly string[] = Object.freeze([
+  "packages/docs-protocol-agent-teams/tests/consumer-managed-restoration.test.ts",
+  "packages/docs-protocol-agent-teams/tests/consumer-committed-restoration.test.ts",
+  "packages/docs-protocol-agent-teams/tests/consumer-retained-source-verifier.test.ts",
+  "tests/published-foundation-operations.test.ts",
+]);
+
+export function partitionGeneration2Tests(
+  files: readonly string[],
+  platform: NodeJS.Platform = process.platform,
+): {
   current: string[];
   legacy: string[];
 } {
-  const legacyFiles = new Set(GENERATION2_LEGACY_TEST_FILES);
+  const legacyFiles = new Set([
+    ...GENERATION2_LEGACY_TEST_FILES,
+    ...(platform === "win32" ? [] : RETAINED_CONTROLLER_TEST_FILES),
+  ]);
   const current: string[] = [];
   const legacy: string[] = [];
   for (const file of files) {

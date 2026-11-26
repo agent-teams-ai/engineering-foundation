@@ -86,7 +86,9 @@ export async function assertManagedRestorationEffects(input: {
           }),
         ),
       ) &&
-      /^24\.(?:1[89]|[2-9][0-9])\.[0-9]+\n?$/u.test(original(".node-version").toString("utf8")),
+      (/^24\.(?:1[89]|[2-9][0-9])\.[0-9]+\n?$/u.test(original(".node-version").toString("utf8")) ||
+        (projected.nodeVersion !== undefined &&
+          original(".node-version").equals(Buffer.from(projected.nodeVersion)))),
     "source managed assets or runtime pin are not exact.",
   );
   const sourceManifest = planPnpmManifestV2({

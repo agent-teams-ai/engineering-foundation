@@ -1,5 +1,32 @@
 # @agent-teams/engineering-foundation
 
+## 4.0.2
+
+### Patch Changes
+
+- [#479](https://github.com/agent-teams-ai/engineering-foundation/pull/479) [`8db5a6b`](https://github.com/agent-teams-ai/engineering-foundation/commit/8db5a6b9e34a54edd5a6aa8fbda70823c7005191) Thanks [@777genius](https://github.com/777genius)! - Request fresh coordinated package versions after the previous Node 26 managed-upgrade release could not complete verification of npm's publish attestation. This forward publication recovery preserves public APIs and runtime behavior. The ordinary publisher must verify the exact package bytes, registry signatures, and both provenance and publish attestations before the delivery can be accepted.
+
+- Updated dependencies [[`8db5a6b`](https://github.com/agent-teams-ai/engineering-foundation/commit/8db5a6b9e34a54edd5a6aa8fbda70823c7005191)]:
+  - @agent-teams/repository-mutation@0.5.2
+  - @agent-teams/document-authoring@0.3.9
+
+## 4.0.1
+
+### Patch Changes
+
+- [#477](https://github.com/agent-teams-ai/engineering-foundation/pull/477) [`8312b5f`](https://github.com/agent-teams-ai/engineering-foundation/commit/8312b5fc347f655686e0939d8781dd947afaeee1) Thanks [@777genius](https://github.com/777genius)! - Support the retained generation2-to3 upgrade for a consumer whose Node 26 host pin
+  already matches its target, preserving exact source and restoration evidence and
+  rejecting committed pin drift before rollback effects.
+
+  Publish a coherent current managed package family with fresh successful source-bound
+  release evidence after the earlier partial family publication. The explicit FMS
+  patch retains the changed packed Foundation development coordinate; the ordinary
+  version planner derives downstream dependency versions.
+
+- Updated dependencies [[`8312b5f`](https://github.com/agent-teams-ai/engineering-foundation/commit/8312b5fc347f655686e0939d8781dd947afaeee1)]:
+  - @agent-teams/repository-mutation@0.5.1
+  - @agent-teams/document-authoring@0.3.8
+
 ## 4.0.0
 
 ### Major Changes

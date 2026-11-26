@@ -486,6 +486,7 @@ boundaries:
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-restoration-preparation.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-restoration-scope.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-restoration.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-retained-source-verifier.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/agents-route-adapter-v1.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/bounded-repository-topology.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/cohort-v2-authority-validator.ts
@@ -499,6 +500,7 @@ boundaries:
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-clock.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-environment.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-integration-repository.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-integration-runtime.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-repository-files.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-restoration-evidence.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-restoration-finalization.ts
@@ -576,6 +578,7 @@ boundaries:
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-restoration.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-upgrade-sandbox.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-upgrade-target.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-retained-source-verifier.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/package-consumer-asset-catalog.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/pnpm-lockfile-validator-v1.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/pnpm-lockfile-validator-v2.ts
@@ -709,6 +712,7 @@ boundaries:
       - packages/docs-protocol-agent-teams/tests/consumer-input-observation.test.ts
       - packages/docs-protocol-agent-teams/tests/consumer-committed-restoration.test.ts
       - packages/docs-protocol-agent-teams/tests/consumer-managed-restoration.test.ts
+      - packages/docs-protocol-agent-teams/tests/consumer-retained-source-verifier.test.ts
       - packages/docs-protocol-agent-teams/tests/consumer-upgrade-generation3-fixture.ts
       - packages/docs-protocol-agent-teams/tests/public-managed-registry-canary-generation3-fixtures.ts
       - packages/docs-protocol-agent-teams/tests/consumer-upgrade-generation3.test.ts

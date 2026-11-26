@@ -1,6 +1,7 @@
 # Findings baseline write safety
 
-Status: implementation plan; source review and qualification pending.
+Status: baseline correction merged in PR #481; postmerge native qualification
+identified the bounded Windows fixture follow-up below.
 
 ## Outcome and scope
 
@@ -123,3 +124,61 @@ manifest bytes and therefore requires a new FMS version.
   native filesystem run. The repository fast gate and workflow-security checks
   pass. [PR #481](https://github.com/agent-teams-ai/engineering-foundation/pull/481)
   owns the final complete native CI, coverage and actual-main delivery receipts.
+
+## Postmerge Windows containment fixture follow-up
+
+Source: `8432a9737486384f894436bfd9242500e422fa5a` (the reviewed tree
+from #481). [Main CI 45871183163, attempt 1](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/45871183163)
+finished with 32 successful jobs and one primary failure, Windows D, propagated
+to `windows-check` and `full-ci`. Its unchanged
+`contains descendants of a non-Node Windows command` case rejected with
+`ProcessTimeoutError` after 5059.6157 ms against its 5000 ms execution limit.
+The exact delayed phase is not established. The same reviewed source tree passed
+that case before merge; this does not prove an external infrastructure fault.
+
+### Bounded correction and retained contract
+
+The fixture already permits 30 seconds for PID readiness, uses a 45-second
+Windows process deadline in its timeout case, and has a 65-second outer budget.
+The two positive parent-exit cases still use a separate five-second Windows
+execution allowance. Align those two requests with the existing
+`PROCESS_DEADLINE_MS`: 45 seconds on Windows and the unchanged one second on
+other platforms. The correction has two test-line replacements and no production,
+workflow, dependency, version, inventory or published artifact changes.
+
+These cases qualify successful parent exit and descendant containment, not a
+five-second launch-latency commitment. Both must still resolve successfully;
+a timeout or process failure remains a test failure. Keep the PID readiness
+bound, three-second process-tree disappearance check, outer timeout, cleanup,
+existing platform selection and all assertions unchanged. The long-lived child
+still outlives the execution allowance if containment does not terminate it.
+The existing independent timeout, cancellation and launch/cleanup failure cases
+remain mandatory. Do not add sleeps, retries, skip allowances or a timeout-error
+success path. Do not infer a production process-runner defect or change its
+deadline semantics from this fixture failure.
+
+This is narrow maintenance of an existing `.mjs` test: migrating the complete
+legacy process fixture would expand the correction. It adds no new JavaScript
+responsibility and leaves that existing type-coverage gap explicit. No Changeset
+is needed for this test-only correction.
+
+### Delivery and evidence
+
+1. Publish this plan and obtain two independent critiques before changing the
+   two execution allowances; record any accepted correction here.
+2. Run the existing focused process-runner suite on Linux and preserve its
+   intentional Windows-only skips. That run cannot qualify Windows behavior.
+3. Run explicit-file cleanup, changed/fast/workflow-security checks and obtain
+   an independent source review. Keep the full test inventories unchanged.
+4. Request the normal complete final-head/base CI once; require actual Windows
+   D execution of both parent-exit cases and its mandatory verifier, all native
+   lanes, coverage and required CodeQL. A further failure requires diagnosis,
+   not an automatic increase or rerun.
+5. Merge through the ordinary owner route and verify actual-main CI and CodeQL.
+   Any generated release candidate must follow its normal current-main owner
+   handoff; this follow-up does not authorize publication of the combined release.
+
+Review status: plan published for independent critique; implementation not yet
+started. Open PR #483 owns Effect browser qualification; #468 owns an optional
+test-integrity preset, and #469 owns CI concurrency/quality work. Their source
+owners and branches are not part of this bounded fixture correction.

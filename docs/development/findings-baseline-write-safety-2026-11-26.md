@@ -97,6 +97,10 @@ estimate confidence 7/10; roughly 2–4 focused engineer-days, not a calendar pr
 
 Use the normal patch Changeset. Publication remains owned by the existing
 release stream; this task does not rewrite its branch or change versions.
+Include the companion FMS patch intent: its canonical packed manifest retains
+the exact Foundation development dependency. Even though the compatible peer
+window stays unchanged, the next Foundation version changes those published
+manifest bytes and therefore requires a new FMS version.
 
 ## Critique and evidence record
 

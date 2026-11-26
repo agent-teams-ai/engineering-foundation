@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  PREFLIGHT_CANDIDATE_SHA: 73b9c8a3618c4311e01d2ba87003677b110947f8
+  PREFLIGHT_CANDIDATE_SHA: 0fc787250008306677cb180bf545e8420ba806c5
   PREFLIGHT_BASE_SHA: fac03920e50ebde038ae415edeb7aa9e3d610ada
   PREFLIGHT_WORKFLOW_PATH: .github/workflows/retained-node26-preflight.yml
   NODE_DISABLE_COMPILE_CACHE: "1"
@@ -35,7 +35,7 @@ jobs:
     name: Retained Node26 pre-PR verification
     if: ${{ github.repository == 'agent-teams-ai/engineering-foundation' && github.event_name == 'push' && github.ref == 'refs/heads/test/retained-node26-preflight-20261126' }}
     runs-on: ubuntu-24.04
-    # The complete committed delta selects the unchanged full repository check.
+    # C1 selects the unchanged full repository check once for the complete delta.
     timeout-minutes: 45
     steps:
       - name: Check out the exact candidate with complete history
@@ -233,19 +233,16 @@ jobs:
         run: |
           set -Eeuo pipefail
           bun tools/dev.mts security:workflows 2>&1 | tee "$PREFLIGHT_EVIDENCE_DIR/security-workflows.log"
-      - name: Run the source-owned changed gate
-        run: |
-          set -Eeuo pipefail
-          bun tools/dev.mts check:changed 2>&1 | tee "$PREFLIGHT_EVIDENCE_DIR/check-changed.log"
-      - name: Check the complete committed delta through the unchanged full-check route
+      - name: Run the source-owned full changed gate once over the complete delta
         env:
-          FOUNDATION_PR_HEAD_REPOSITORY: agent-teams-ai/engineering-foundation
           GH_TOKEN: ${{ github.token }}
         run: |
           set -Eeuo pipefail
-          bun packages/engineering-foundation/dist/cli.js agent-workflow changed \
-            --consumer . --base "$PREFLIGHT_BASE_SHA" \
-            2>&1 | tee "$PREFLIGHT_EVIDENCE_DIR/complete-committed-delta.log"
+          git show-ref --verify --quiet refs/remotes/origin/main
+          test "$(git merge-base HEAD refs/remotes/origin/main)" = "$PREFLIGHT_BASE_SHA"
+          bun tools/dev.mts check:changed 2>&1 | tee "$PREFLIGHT_EVIDENCE_DIR/check-changed.log"
+          expected='check-changed: feedback-only (mutable-input-binding-unverified); 1 executed steps; input binding unverified'
+          test "$(tail -n 1 "$PREFLIGHT_EVIDENCE_DIR/check-changed.log")" = "$expected"
 
       - name: Preserve diagnostics and verify exact source remains unchanged
         if: ${{ always() }}

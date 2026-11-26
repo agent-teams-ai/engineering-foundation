@@ -19,6 +19,7 @@ env:
   PREFLIGHT_CANDIDATE_SHA: c1dd4c72b9195b1ac4b29d81b7366426dd3b5e64
   PREFLIGHT_CANDIDATE_TREE: 7c5aa855506849040617e955861162dcd23ad9ab
   PREFLIGHT_BASE_SHA: bdfdf72c10994df939591b88a9dda5d7759cdc39
+  PREFLIGHT_LAUNCHER_PARENT_SHA: 72fecc96c8e37c342556103c61a9be556e8ab18b
   PREFLIGHT_BASE_TREE: 3dfd83f8129ec13af315929e4cc033979fd56b37
   PREFLIGHT_CHANGESET_PATH: .changeset/complete-node26-publication.md
   PREFLIGHT_CHANGESET_BLOB: 1890680f4adfa452c3235a5312a4489fa3433a5b
@@ -61,11 +62,17 @@ jobs:
           test "$(git ls-tree HEAD -- "$PREFLIGHT_CHANGESET_PATH")" = "100644 blob ${PREFLIGHT_CHANGESET_BLOB}"$'\t'"$PREFLIGHT_CHANGESET_PATH"
           test "$GITHUB_WORKFLOW_SHA" = "$GITHUB_SHA"
           test "$GITHUB_WORKFLOW_REF" = "$GITHUB_REPOSITORY/$PREFLIGHT_WORKFLOW_PATH@$GITHUB_REF"
-          test "$(git show -s --format=%P "$GITHUB_SHA")" = "$PREFLIGHT_BASE_SHA"
+          test "$(git show -s --format=%P "$GITHUB_SHA")" = "$PREFLIGHT_LAUNCHER_PARENT_SHA"
           test "$(git diff --name-status --no-renames "$PREFLIGHT_BASE_SHA" "$GITHUB_SHA")" = $'A\t'"$PREFLIGHT_WORKFLOW_PATH"
           preflight_workflow_blob="$(git rev-parse "${GITHUB_SHA}:${PREFLIGHT_WORKFLOW_PATH}")"
           test "$(git ls-tree "$GITHUB_SHA" -- "$PREFLIGHT_WORKFLOW_PATH")" = "100644 blob ${preflight_workflow_blob}"$'\t'"$PREFLIGHT_WORKFLOW_PATH"
           test "$(git rev-parse refs/remotes/origin/main)" = "$PREFLIGHT_BASE_SHA"
+          if git show-ref --verify --quiet refs/heads/main; then
+            test "$(git rev-parse refs/heads/main)" = "$PREFLIGHT_BASE_SHA"
+          else
+            git branch --no-track main "$PREFLIGHT_BASE_SHA"
+          fi
+          test "$(git rev-parse refs/heads/main)" = "$PREFLIGHT_BASE_SHA"
           git diff --exit-code
           git diff --cached --exit-code
           test -z "$(git ls-files --others --exclude-standard)"

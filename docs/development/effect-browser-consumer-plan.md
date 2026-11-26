@@ -1,6 +1,7 @@
 # Effect browser and consumer gates delivery plan
 
-Status: proposed on 2026-11-26; implementation has not started.
+Status: implementation-ready after two independent plan reviews and their
+recorded corrections on 2026-11-26. Runtime qualification is not yet complete.
 Owner: Engineering Foundation qualification maintainers.
 Delivery: one Draft PR, two independent plan-review rounds, implementation,
 independent code review, complete exact-head/base CI, owner squash and main CI.
@@ -66,7 +67,12 @@ Keep its signature/payload admission and hermetic registry evidence unchanged.
 
 Use existing esbuild 0.28.2 for a real browser bundle.
 The only proposed new development-only browser driver is playwright-core
-1.65.1: no dependency closure or embedded TypeScript compiler, Node >=20.
+1.65.1, Node >=20. Its manifest declares no npm dependencies, but its
+payload includes bundled utilities. Before executing the driver or installer,
+inspect the exact published payload and selected entrypoints for any executed
+TypeScript implementation; record artifact integrity and the admission result.
+Upstream build-only TypeScript 6.0.3 is not runtime evidence and must not be run.
+Do not assume an empty dependencies object proves absence of bundled compilers.
 Its upstream browsers.json pins Chromium/headless-shell revision 1255,
 browser version 159.0.8154.6. Install the pinned headless shell through its
 official installer. Record the driver and actual browser version in evidence.
@@ -77,9 +83,32 @@ runtime installation. Confirm native library requirements before selecting
 the existing hosted runner step.
 
 Every new implementation, test and tooling file is ordinary .ts and enters
-a strict required TypeScript >=7.0.2 project. Avoid Playwright Test, TS runtime
+a strict required TypeScript >=7.0.2 project. Repository integration scripts
+enter the existing strict tooling inventory; readable consumer fixture files
+enter their own complete flat project inventory and ordinary typecheck runs
+in both mandatory Linux installed-artifact routes before runtime execution.
+Copy the complete tracked fixture source inventory. Repository check:fast alone
+does not claim to typecheck this optional consumer; no root Effect runtime
+dependency is added merely for fixture type resolution. Avoid Playwright Test, TS runtime
 transpilers, floating pins and new runtime dependencies in Foundation.
 The repository retains its exact Node 26.11.1 / Bun 1.4.3 / pnpm 11.20.0 policy.
+The installed consumer explicitly declares the existing @types/node 24.13.3
+pin and its existing undici-types closure; package devDependencies do not
+transitively provide those types. Admit the browser driver separately without
+changing the already qualified five-package Effect fixture cohort.
+The browser harness lives in the consumer's scripts/check-runtime.ts route.
+Declare and acquire exact Playwright Core, esbuild and its selected native binary,
+plus Node types, as separate supplemental installed development inputs. Reuse
+the existing packed/registry supplemental-input owner; assert physical consumer
+installation resolution, with no fallback to producer node_modules.
+
+Published playwright-core payload inspected before first execution:
+archive SHA-256 6f5a60be62a4fddfbe7d10c448d8fbd54547da3358f2f8a04211440471ee863e;
+registry SHA-512 integrity was verified. The selected index.js and CLI install
+entry load bootstrap/coreBundle/utilsBundle. Their imports and bundled code were
+inspected; no executed TypeScript compiler/parser was identified in these
+selected routes. Optional Test/Vite/BiDi/Electron paths are not selected.
+This is bounded entrypoint admission, not a claim about every upstream tool.
 
 Runtime qualification is explicitly Linux x64 Chromium. Existing native
 matrix coverage remains intact; other platforms retain their applicable
@@ -100,39 +129,72 @@ embedding an entire application in generated source strings.
 - Tooling: build, required checks and browser driver; it is outside the
   production browser bundle and backend runtime dependency graph.
 
-Use the same installed SDK artifact where a same-artifact claim is made;
-otherwise explicitly report separate target builds. Do not call two instances
-of one configurable Host two independently implemented Hosts or public SPIs.
-The useful claim is backend/browser integration and execution of their actual
-shared SDK boundary, not a universal portability certification.
+Choose one actual disposable root package, with sdk, backend, frontend and
+scripts source folders. Import shared SDK source through its explicit public
+index.ts; include transitive SDK .ts files in each flat leaf's effective roots,
+as the existing Effect boundary fixture already does. SDK has its own strict
+leaf. Backend and browser use those same checked source bytes in their respective
+execution/build paths. No fixture SDK tarball, local declaration workaround,
+workspace alias or same-binary-artifact portability claim is introduced.
+The installed artifacts under qualification are the public Foundation/Stack/FMS
+and GM/Effect packages. Preserve physical installed-path assertions for them.
+
+This deliberately chooses the simpler source-boundary option over R1's suggested
+packed fixture SDK: the latter would add packaging/declaration mechanics without
+strengthening the selected consumer gate and network claim. A same-SDK-artifact
+claim would require that additional qualification, separately.
+Do not call two instances of one configurable Host two independently implemented
+Hosts or public SPIs. This proves actual backend/browser integration.
 
 A single toolchain.config.json.typecheck.projects list owns all compiler
 projects. Prefer sdk/backend/frontend plus one explicit tooling leaf if tooling
 cannot fit the strict Node leaf cleanly. No second Effect-project list.
 Every leaf is flat, strict and compatible with the supported Effect adapter
 profile: no extends, references, local declaration inputs or suppressions.
-SDK source ownership and imported implementation inputs must match the
-adapter's canonical root requirement; verify this before finalizing layout.
+List every imported local implementation in the appropriate leaf roots.
+Do not include generated local .d.ts files; these are unsupported by the adapter.
+Neutral source topology has one actual package root ['.'], not three invented
+package roots. The SDK/backend/frontend are source boundaries; tooling is
+explicitly development-only. Keep allowedUnstableApis empty in the baseline.
 
 Production source census/topology is owned by the existing FMS/source policy.
 Existing quality.source-coverage/v5 compares that independent census with
-the compiler projects. This is what detects an omitted project.
+the union of compiler inputs. Frontend implementation must be reachable only
+from the frontend leaf: the harness passes its build entry as a path, never
+imports frontend implementation/types into tooling. Shared DTOs belong in SDK.
+Deleting the frontend project must leave a retained frontend source uncovered
+and produce quality.source-coverage.type-context. A named leaf alone is not
+a required identity known to the generic coverage mechanism.
 
 ## Concrete wire contract
 
 Two independent fixture sessions, left and right. These identifiers are a
 test identity convention, not authentication or authorization.
 
-- GET /api/sessions/:id/snapshot returns sessionId, revision, completed.
 - POST /api/sessions/:id/advance performs one deterministic controlled change.
-- GET /api/sessions/:id/events returns NDJSON: ready, then future progress frames.
+- GET /api/sessions/:id/events returns NDJSON: ready, then complete progress states.
 
-Ready is emitted only after the subscription is actually acquired.
-Events are notifications without replay. After reconnect, the consumer obtains
-the authoritative snapshot and observes subsequent changes using an explicitly
-race-free handshake/order; a separate snapshot followed by subscription must
-not silently lose a change between those steps.
+Each session owns its own PubSub.sliding<Progress>({ capacity: 1, replay: 1 }).
+Publish the initial state before opening ingress. A request acquires its real
+subscription, emits ready, then consumes replay/current and subsequent states.
+Reconnect therefore obtains current state through the same subscription;
+there is no separate snapshot-then-subscribe race. The replay is a bounded
+latest-state mechanism, not durable event replay or an every-event guarantee.
+A slow observer may coalesce intermediate progress states.
+
+Use existing Effect synchronization for each session's short state/revision
+update and PubSub.publish, preserving monotonic publication and making the
+bounded update/publication step interruption-safe. Do not use publishUnsafe:
+it does not apply the sliding overflow strategy. SubscriptionRef is not selected
+because the inspected implementation uses an unbounded hub.
+Keep per-session hubs so a stalled left subscriber cannot block right's updates.
 Publication is not an acknowledgement of browser processing.
+
+The frontend accepts complete states for its own session, advances monotonically,
+and rejects corrupt or inconsistent duplicate revisions. Deterministically pause
+stream delivery, update the session, reconnect/subscribe and verify the latest
+state; separately update immediately after acquisition but before ready/frame
+delivery. These test acquisition/replay/ordering, not a new merge algorithm.
 
 Decode unknown wire values at the actual transport boundary with pinned Effect
 Schema. Keep named ordinary DTO types as the public contract. Validate session
@@ -154,15 +216,28 @@ Backend:
 5. Shutdown closes admission, cancels and awaits owned requests, then disposes
    the application runtime and closes the listener.
 
+Respect response.write() backpressure: false waits for drain using the same
+cancellation/response-close path. Remove drain/close/error listeners on settlement.
+Bound frame size and the owned application queue; kernel/network buffering is
+separate from the capacity-1 application source. Add a small controlled writable
+mechanism check proving that cancellation releases a request waiting for drain;
+label it separately from the real-browser network result.
 Do not use ordinary IncomingMessage.close as a proxy for response-stream
-disconnect. Remove the Host's own listeners when their owner settles.
+disconnect. ServerResponse.close also occurs after ordinary completion; use
+writableFinished or an owned terminal-state guard to distinguish premature
+termination. Remove the Host's own listeners when their owner settles.
 Bound shutdown and fail qualification if a child/request/resource remains.
 The qualification driver has a hard outer deadline and finally cleanup,
 covering configuration probes, native diagnostics, browser and HTTP children.
 The Effect API budget alone is not an aggregate deadline.
 
 Frontend:
-- Pass the actual native cancellation signal to fetch.
+- Acquire stable Effect.abortSignal before fetch inside Stream.unwrap; combine
+  that scoped signal with the per-promise signal. A per-promise signal alone
+  does not own the headers-to-reader gap or the response body's whole lifetime.
+  Use Stream.fromReadableStream's ordinary cancellation/lock-release behavior.
+  The researched HttpClient.withScope alternative is unstable at this pin;
+  this small stable adapter keeps the baseline allowance empty.
 - Own the ReadableStream reader in the same lifetime and release/cancel it.
 - Explicit Stop/unmount waits for settlement before reconnect constructs a
   fresh owner. Never reuse a disposed ManagedRuntime.
@@ -186,12 +261,22 @@ public entry, not backend internals or undeclared SDK deep entrypoints.
 
 Run the public Foundation Quality Gate Runner CLI. Its profile owns execution;
 it does not know which tasks this consumer requires. Add a small consumer-owned
-full-entry wrapper that verifies the fixture's canonical package-script routes,
-then requires the expected successful task identities in the QGR report.
+full-entry wrapper that verifies the fixture's canonical package-script routes
+and required profile task IDs before execution, then requires those successful
+task identities in the QGR report.
 This catches both a removed task and a script replaced with a no-op.
 Do not introduce a generic shell parser or import Foundation internal modules.
 This is omission/configuration-regression checking, not resistance against
 malicious modification of the qualification assertions themselves.
+
+The static coverage route grammar does not inspect QGR or JavaScript wrappers.
+Use a literal supported root chain:
+check = pnpm lint:typed && node scripts/check-full.ts;
+check:fast = pnpm quality:scope. lint:typed and quality:scope invoke the existing
+Foundation quality check (full and --scope-only respectively). Require this root
+chain in the fixture's wiring assertions. QGR then owns architecture, ordinary
+typecheck, Effect diagnostics and runtime qualification; runtime depends on all
+static tasks passing. No generic QGR traversal is added to source coverage.
 
 The required full entry covers ordinary typechecking, existing architecture
 checks/source coverage, Effect diagnostics and actual runtime qualification.
@@ -207,11 +292,12 @@ full route never recursively invokes the mutation suite.
 | Two sessions | Handwritten expected revisions/data; left changes never affect right |
 | Stop after ready | Native fetch abort settles, backend subscription releases, sibling still processes a new change |
 | Browser disconnect | Physical page close causes server request settlement and release; remaining page works |
-| Reconnect | Snapshot/subscription handshake has no gap; fresh owner sees authoritative value and later change |
+| Reconnect | Capacity-1 replay delivers latest state; controlled acquisition/update orderings preserve monotonic state |
 | Malformed/wrong-session frame | Real HTTP bytes cause browser protocol failure and cleanup; corrected counterpart passes |
 | Oversized/truncated frame | Bounded decoder rejects and owned resources settle, without buffering unbounded data |
 | Startup failure | Runtime acquisition failure produces no ready listener |
 | Shutdown | Admission stops, active streams settle, listener closes, application finalizers run exactly once |
+| Output backpressure | A controlled writable returning false is cancelled; drain/close listeners and request owner release |
 | Browser closure | esbuild metafile plus actual execution proves no backend, tooling, Foundation runtime or Node imports |
 | Omitted frontend project | Existing coverage gate names the retained uncovered production inputs |
 | Removed Effect task | Full-entry required-task assertion rejects incomplete profile |
@@ -222,7 +308,14 @@ full route never recursively invokes the mutation suite.
 | Public unstable type leak | Real SDK public signature yields API-leak diagnostic, not merely a nonzero exit |
 
 Mutations operate on the same installed consumer, restore in finally, and
-finish with a positive restored run. Do not use a bare unstable import as the
+finish with a positive restored run. Inspect the full report's intended failing
+task for mutations that reach QGR. Omitted-project rejection occurs in the
+leading lint:typed quality step, before QGR; assert its actual Foundation
+coverage report rather than requiring a nonexistent QGR report.
+Where QGR does not retain complete diagnostic output, invoke that same
+failed public check once against the unchanged mutant, capture its bounded JSON
+output and assert the specific diagnostic before restoration. This separate
+read-only diagnostic observation is not a substitute for full-route failure. Do not use a bare unstable import as the
 negative diagnostic. Inspect diagnostic category/code and project rather than
 accepting an unrelated syntax/compiler failure.
 
@@ -248,9 +341,13 @@ P2: run focused positive and rejecting checks, inspect actual cleanup,
 then independently review code, fix findings and rerun affected tests.
 Use task-scoped Stack cleanup, check:changed, check:fast and workflow-security
 checks. Reuse existing packed integration and registry foundation ownership;
-do not create a parallel browser CI framework. Keep a single designated
-positive browser lane and disclose where registry consumes the same gate
-without duplicating a Chromium launch unnecessarily.
+do not create a parallel browser CI framework. Select the existing Linux x64
+packed integration and registry foundation owners. Both execute the actual full
+consumer route, including Chromium, for their respective installed-artifact
+claim. No skipBrowser success mode exists. Negative static mutations cannot
+reach the dependent runtime task; only positive/restored full runs launch it.
+Other matrix rows retain their existing applicable scope and make no browser
+claim. Browser acquisition is a reusable setup within each owning job.
 
 P3: request complete full-ci on final head/base, await native matrix and coverage,
 record exact-head independent review, use the canonical owner squash route,
@@ -264,6 +361,30 @@ Link it from the Effect usage/quality-gates documentation.
 Correct the stale Effect-in-progress index wording only in this work's scope.
 Retain command outcomes, exact commits, dependency/browser identities,
 review findings/fixes and final CI links in this plan/PR.
+
+## Plan review R1
+
+Independent reviewer role: architecture and qualification critic.
+Verdict: changes required, corrected before R2.
+Five findings: exact reconnect semantics; full-route/registry browser ownership;
+HTTP backpressure and independent session sources; bundled driver admission;
+explicit SDK source/artifact boundary. The corrections above use existing
+sliding PubSub, literal static coverage routing, full Linux owner execution and
+one source-based fixture package. The packed SDK suggestion was deliberately
+not selected, with narrower source-integration claims recorded above.
+This is a plan review, not executed qualification.
+
+## Plan review R2
+
+Independent reviewer role: source-coverage and installed-consumer critic.
+Reviewed R1 revision SHA-256:
+24ce783065a96ae61e987dd3c5c4f244bf21e51b759bd02d74d0e25b4a24a199.
+Verdict: design sound; three bounded corrections required and recorded above:
+frontend-only compiler reachability and pre-QGR diagnostic ownership; explicit
+strict checking owner for every copied fixture .ts; exact supplemental installed
+browser/build/type closure. After these corrections the reviewer found no
+remaining architectural reason to delay implementation. Actual code review,
+positive/rejecting runtime qualification and CI remain required.
 
 Primary sources:
 - https://github.com/agent-teams-ai/engineering-foundation/pull/476

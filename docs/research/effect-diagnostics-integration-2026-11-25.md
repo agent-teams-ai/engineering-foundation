@@ -820,3 +820,33 @@ installed Stack/GM/Effect behavior and final-head/base matrix remain acceptance
 requirements. Local setup also required the existing `tools/dev.mts install`
 producer-dependency projection; after using that owning route, native tool and
 dependency qualification and the source build passed without product changes.
+
+### Integrated review: tracing side effects and current-main union
+
+The actual npm 10 negative control subsequently rejected the required Effect
+version mismatch with `EUSAGE`, exit 1, no signal or timeout and confirmed child
+termination. The incorrect lock was not rewritten, and the original lock bytes
+were restored. A valid consumer reinstall and complete installed behavior still
+require the existing registry owner; this isolated refusal does not replace it.
+
+Independent whole-change review found one further P2 correctness defect in the
+read-only check. The pinned TypeScript 7 source accepts `generateTrace` in the
+leaf compiler options and starts tracing before the `listFilesOnly` branch.
+The tracing writer can truncate or create output independently of `noEmit`.
+The relevant upstream sources are
+[option admission](https://github.com/microsoft/typescript-go/blob/2bd066d87f5bafd315be9f40889d0a60b9e58e0b/internal/tsoptions/declscompiler.go),
+[execution ordering](https://github.com/microsoft/typescript-go/blob/2bd066d87f5bafd315be9f40889d0a60b9e58e0b/internal/execute/tsc.go),
+and the [tracing writer](https://github.com/microsoft/typescript-go/blob/2bd066d87f5bafd315be9f40889d0a60b9e58e0b/internal/tracing/tracing.go).
+This is a source-confirmed finding, not an executed destructive reproduction.
+Reject that option in the original leaf policy before any project probe;
+qualify early rejection and preservation of existing trace targets through the
+installed entry. Other profile options were not shown to activate from this
+config path, so this fix does not introduce an arbitrary compiler-option ban.
+
+Main advanced to `da1868240b96113582b508b0c15341c477d6334b` with the coordinated
+Node 26 upgrade and release changes. The integration retains those versions,
+unites both complete test inventories and regenerates topology with its existing
+owner. The canonical manifest check passed with 388 tests across eight shards;
+an independent reviewer verified exact inventory unions and both derived-input
+hashes. Final qualification must bind to the new main base, not the earlier
+`fac03920e50ebde038ae415edeb7aa9e3d610ada` runs.

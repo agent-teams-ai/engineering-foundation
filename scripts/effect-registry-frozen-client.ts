@@ -109,7 +109,7 @@ export function assertFrozenClientInput(manifestValue: unknown, lockValue: unkno
 
 function contained(root: string, filename: string): void {
   const suffix = relative(root, filename);
-  assert.ok(suffix !== "" && suffix !== ".." && !suffix.startsWith(".." + "/"));
+  assert.ok(suffix !== "" && suffix !== ".." && !suffix.startsWith("../"));
   assert.ok(!isAbsolute(suffix));
 }
 

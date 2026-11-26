@@ -90,6 +90,10 @@ ignored Effect errors. Effective strict-family options may not be disabled.
 `noCheck`, `skipLibCheck` and project references are outside this strict
 standalone profile. Reference-graph builds remain separate consumer gates.
 
+`compilerOptions.generateTrace` is rejected before the first project probe.
+Native tracing writes files even with `noEmit` and `--listFilesOnly`, so it is
+outside this read-only diagnostic command. Run trace collection separately.
+
 The effective `files`/`include` selection must cover every consumer-local
 implementation source in the compiler's complete inventory, including imports
 from adjacent local packages. Spell those roots through their canonical paths,

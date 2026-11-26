@@ -301,6 +301,27 @@ test("missing leaf policy and suppressed imported source fail before semantic ch
   assert.equal(f.calls.length, 3);
 });
 
+test("trace generation rejects before any project probe can write output", async (t) => {
+  const f = await fixture(t);
+  await fs.writeFile(
+    path.join(f.input.cwd, "one.json"),
+    JSON.stringify({
+      ...f.config,
+      compilerOptions: { ...f.config.compilerOptions, generateTrace: "./trace-output" },
+    }),
+  );
+  const report = await checkEffectProjectsWith(f.input, f.ports);
+  assert.equal(report.exitCode, 2);
+  assert.equal(report.details.outcome, "invalid-input");
+  assert.equal(report.details.reason, "EFFECT_TYPESCRIPT_TRACE");
+  assert.equal(report.details.projects[0]?.status, "failed");
+  assert.deepEqual(report.details.unattempted, ["two.json"]);
+  assert.deepEqual(
+    f.calls.map((call) => call.args[0]),
+    ["--version"],
+  );
+});
+
 test("probe failures and crash output cannot be mistaken for policy findings", async (t) => {
   const f = await fixture(t);
   for (const failingFlag of ["--showConfig", "--listFilesOnly", "--noEmit"]) {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readFile, realpath, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, realpath, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import { runCommand } from "./pack-test-support.mjs";
@@ -242,6 +242,31 @@ async function publicTypes(root: string, cliEntry: string): Promise<void> {
   await writeFile(join(root, "public-types/index.ts"), positive);
 }
 
+async function qualifyTraceRejection(root: string, cliEntry: string): Promise<void> {
+  const target = join(root, "trace-output");
+  await mkdir(target);
+  const names = ["legend.json", "trace.json", "types_0.json"];
+  const retained = Buffer.from("preexisting trace target: preserve these bytes\n");
+  for (const name of names) {
+    await writeFile(join(target, name), retained);
+  }
+  const source = 'export const ready: string = "ready";\n';
+  const project = await writeEffectProject(root, "trace-rejection", source, [], {
+    compilerOptions: { generateTrace: target },
+  });
+  const config = await readFile(join(root, project));
+  for (const check of [() => api(root, [project]), () => cli(root, cliEntry, [project], 2)]) {
+    const details = assertReport(await check(), "invalid-input", 2);
+    assert.equal(details["reason"], "EFFECT_TYPESCRIPT_TRACE");
+    assert.deepEqual((await readdir(target)).toSorted(), names);
+    for (const name of names) {
+      assert.deepEqual(await readFile(join(target, name)), retained);
+    }
+    assert.deepEqual(await readFile(join(root, project)), config);
+    assert.equal(await readFile(join(root, "trace-rejection/index.ts"), "utf8"), source);
+  }
+}
+
 async function qualifyBoundaries(root: string): Promise<void> {
   const projects = await writeEffectBoundaryProjects(root);
   const report = await api(root, projects);
@@ -418,6 +443,7 @@ export async function qualifyInstalledEffectDiagnostics(
     libraryCount: 108,
   });
   assertReport(await cli(root, cliEntry, [control], 0), "passed", 0);
+  await qualifyTraceRejection(root, cliEntry);
   const usage = await writeEffectProject(
     root,
     "cli-unstable-usage",

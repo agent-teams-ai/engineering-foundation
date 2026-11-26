@@ -49,6 +49,8 @@
     "tests/support/ci-input-proof-collector-install.ts",
     "tests/sdk-json-record.test.ts",
     "tests/architecture-baseline-replacement.test.ts",
+    "tests/findings-baseline-write-safety.test.ts",
+    "tests/support/findings-baseline-writer.ts",
     "tools/git-environment.ts",
     "tools/profile-source.ts",
     "tools/repository-oxlint.ts",

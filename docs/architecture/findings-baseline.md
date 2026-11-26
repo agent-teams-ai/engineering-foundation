@@ -6,6 +6,10 @@ architecture fact from consumer-owned data (see
 
 ## Findings baseline
 
+The bounded [writer-safety plan](../development/findings-baseline-write-safety-2026-11-26.md)
+tracks the concurrent-prune and temporary-ownership correction and its exact
+qualification status.
+
 A findings baseline records the violations a repository already has, so that a
 rule can be enforced for new code before the old code is clean. It only
 shrinks.
@@ -23,6 +27,13 @@ shrinks.
   without a finding. It never adds or raises an entry, and it reports the new
   and worse findings it cannot accept.
 - `init` writes the first baseline and refuses when the file exists.
+- A writing `prune` holds the cooperative repository mutation lease through
+  exact-preimage checks, owned temporary promotion and finalization. Active or
+  interrupted mutations reject before publication; a no-op prune remains read-only.
+  Foreign temporaries survive cleanup. A finalization failure after publication
+  reports `FINDINGS_BASELINE_WRITE_UNCERTAIN`; inspect the baseline and mutation
+  evidence before retrying. This does not serialize editors that ignore the lease
+  or add a power-loss durability guarantee.
 - Each producer owns a rule namespace (`oxlint/...`) and verifies only its own
   entries. Other producers, for example checks a consumer runs in its own
   tests, use the pure functions of `@agent-teams/engineering-foundation/ratchet`

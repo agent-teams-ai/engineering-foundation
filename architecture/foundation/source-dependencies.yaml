@@ -2900,7 +2900,8 @@ boundaries:
     allow:
       boundaries:
         - capability.findings-baseline.application
-      packages: []
+      packages:
+        - "@agent-teams/repository-mutation"
       builtins:
         - node:fs/promises
         - node:path

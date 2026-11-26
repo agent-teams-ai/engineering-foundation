@@ -6,6 +6,10 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import test from "node:test";
+import {
+  acquireMutationLease,
+  releaseMutationLease,
+} from "../packages/repository-mutation/dist/node.js";
 import { copyPinnedToolchain } from "./features/quality-coverage/copied-toolchain.mjs";
 
 const cli = join(
@@ -136,6 +140,29 @@ test("a hand-edited baseline that is not canonical is rejected", async (t) => {
     '{"findingsBaseline":1}\n{"path":"src/big.ts","rule":"oxlint/eslint/max-lines","count":1,"max":600,"expires":"2027-01-01"}\n',
   );
   assert.equal((await diagnostics()).outcome, "invalid-input");
+});
+
+test("the public prune CLI refuses a held mutation lease only when it needs a write", async (t) => {
+  const { root, put, run, baseline } = await fixture(t);
+  assert.equal((await run("baseline", "init")).code, 0);
+  const before = await baseline();
+  const lease = await acquireMutationLease(root);
+  try {
+    const unchanged = await run("baseline", "prune");
+    assert.equal(unchanged.code, 0, JSON.stringify(unchanged));
+    assert.equal(await baseline(), before);
+    await put("src/big.ts", lines(4));
+    const refused = await run("baseline", "prune");
+    assert.notEqual(refused.code, 0);
+    assert.match(JSON.stringify(refused.output), /FINDINGS_BASELINE_LOCK_UNAVAILABLE/u);
+    assert.equal(await baseline(), before);
+  } finally {
+    await releaseMutationLease(lease);
+  }
+  const pruned = await run("baseline", "prune");
+  assert.equal(pruned.code, 0, JSON.stringify(pruned));
+  assert.equal(pruned.output.baseline.lowered, 1);
+  assert.match(await baseline(), /"max":4/u);
 });
 
 test("baseline requires --config and its rules are explained", async () => {

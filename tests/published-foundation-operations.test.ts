@@ -382,8 +382,14 @@ test(
         // These are rejecting TEST sentinels, not published package substitutes
         // and not a positive registry-installation qualification.
         for (const [name, version] of [
-          ["@agent-teams/engineering-foundation", fixture.current.cohort.packages.engineeringFoundation.version],
-          ["@agent-teams/docs-protocol-agent-teams", fixture.current.cohort.packages.docsProtocolAgentTeams.version],
+          [
+            "@agent-teams/engineering-foundation",
+            fixture.current.cohort.packages.engineeringFoundation.version,
+          ],
+          [
+            "@agent-teams/docs-protocol-agent-teams",
+            fixture.current.cohort.packages.docsProtocolAgentTeams.version,
+          ],
           ["typescript", "5.9.3"],
         ]) {
           assert.ok(name && version);
@@ -414,7 +420,9 @@ test(
             nodeManagedGeneration2SourceInputReader.read({ consumerRoot: fixture.root }),
             { code: "DOCS_CONSUMER_UNSUPPORTED_NODE" },
           );
-          nested.diagnostic("Windows default Node26 refusal only; no positive retained source qualification.");
+          nested.diagnostic(
+            "Windows default Node26 refusal only; no positive retained source qualification.",
+          );
         } else {
           assert.equal(process.versions.node, "24.21.0");
           const observed = await retainedSourceChild(fixture, "observe", compilerAlias);
@@ -443,13 +451,15 @@ test(
               );
               await assert.rejects(
                 Reflect.apply(nodeConsumerIntegrationInputReader.read, undefined, [
-                  { consumerRoot: fixture.root }, "generation2-source",
+                  { consumerRoot: fixture.root },
+                  "generation2-source",
                 ]),
                 { code: "DOCS_CONSUMER_NODE_VERSION_GATE_INVALID" },
               );
             } else {
               assert.deepEqual(
-                (await nodeConsumerIntegrationInputReader.read({ consumerRoot: fixture.root })).desired,
+                (await nodeConsumerIntegrationInputReader.read({ consumerRoot: fixture.root }))
+                  .desired,
                 fixture.current,
               );
             }

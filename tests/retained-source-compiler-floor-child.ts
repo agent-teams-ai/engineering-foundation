@@ -23,20 +23,20 @@ try {
         caughtDenial = true;
         process.stderr.write("TEST_RETAINED_SOURCE_COMPILER_DENIAL_CAUGHT\n");
       }
-      assert.equal(caughtDenial, true, "The synthetic compiler alias must be rejected before evaluation.");
+      assert.equal(
+        caughtDenial,
+        true,
+        "The synthetic compiler alias must be rejected before evaluation.",
+      );
     }
-    const { nodeManagedGeneration2SourceInputReader } = await import(
-      "../packages/docs-protocol-agent-teams/dist/consumer-integration/adapters/node-consumer-integration-repository.js"
-    );
-    const { createRetainedGeneration2SourceVerifier } = await import(
-      "../packages/docs-protocol-agent-teams/dist/consumer-integration/adapters/node-retained-source-verifier.js"
-    );
-    const { packageConsumerAssetCatalogReader } = await import(
-      "../packages/docs-protocol-agent-teams/dist/consumer-integration/adapters/package-consumer-asset-catalog.js"
-    );
-    const { consumerIntegrationPlanningPorts } = await import(
-      "../packages/docs-protocol-agent-teams/dist/consumer-integration/composition/consumer-integration-planner.js"
-    );
+    const { nodeManagedGeneration2SourceInputReader } =
+      await import("../packages/docs-protocol-agent-teams/dist/consumer-integration/adapters/node-consumer-integration-repository.js");
+    const { createRetainedGeneration2SourceVerifier } =
+      await import("../packages/docs-protocol-agent-teams/dist/consumer-integration/adapters/node-retained-source-verifier.js");
+    const { packageConsumerAssetCatalogReader } =
+      await import("../packages/docs-protocol-agent-teams/dist/consumer-integration/adapters/package-consumer-asset-catalog.js");
+    const { consumerIntegrationPlanningPorts } =
+      await import("../packages/docs-protocol-agent-teams/dist/consumer-integration/composition/consumer-integration-planner.js");
     const { desired } = await nodeManagedGeneration2SourceInputReader.read({ consumerRoot });
     assert.ok(desired.schemaVersion === 3);
     const selected: unknown = JSON.parse(selectedProfileJson);

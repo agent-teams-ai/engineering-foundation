@@ -23,10 +23,16 @@ function sourceScenario(name: string, run: (fixture: Fixture) => Promise<void>):
           { code: "DOCS_CONSUMER_UNSUPPORTED_NODE" },
         );
         await assertUnchanged(fixture);
-        context.diagnostic("Windows default Node26 refusal only; no positive source observation claim.");
+        context.diagnostic(
+          "Windows default Node26 refusal only; no positive source observation claim.",
+        );
         return;
       }
-      assert.equal(process.versions.node, "24.21.0", "Select the physical retained-controller test runtime.");
+      assert.equal(
+        process.versions.node,
+        "24.21.0",
+        "Select the physical retained-controller test runtime.",
+      );
       await run(fixture);
     },
   );
@@ -51,73 +57,88 @@ function verifier(fixture: Fixture) {
   });
 }
 
-sourceScenario("retained verifier compares the complete original profile before consulting assets", async (fixture) => {
-  let assetReads = 0;
-  const observe = createRetainedGeneration2SourceVerifier({
-    input: nodeManagedGeneration2SourceInputReader,
-    assets: {
-      read: async () => {
-        assetReads += 1;
-        return packageConsumerAssetCatalogReader.read();
+sourceScenario(
+  "retained verifier compares the complete original profile before consulting assets",
+  async (fixture) => {
+    let assetReads = 0;
+    const observe = createRetainedGeneration2SourceVerifier({
+      input: nodeManagedGeneration2SourceInputReader,
+      assets: {
+        read: async () => {
+          assetReads += 1;
+          return packageConsumerAssetCatalogReader.read();
+        },
       },
-    },
-    planning: fixture.planning,
-  });
-  const otherProfile = { ...fixture.current, profilePath: "architecture/foundation/other-docs.yaml" };
-  assert.deepEqual(otherProfile.cohort, fixture.current.cohort);
-  await assert.rejects(
-    observe({ consumerRoot: fixture.root, current: otherProfile }),
-    { code: "DOCS_CONSUMER_UPGRADE_SOURCE_NOT_CURRENT" },
-  );
-  assert.equal(assetReads, 0);
-  await observe({ consumerRoot: fixture.root, current: fixture.current });
-  assert.equal(assetReads, 1);
-  await assertUnchanged(fixture);
-});
+      planning: fixture.planning,
+    });
+    const otherProfile = {
+      ...fixture.current,
+      profilePath: "architecture/foundation/other-docs.yaml",
+    };
+    assert.deepEqual(otherProfile.cohort, fixture.current.cohort);
+    await assert.rejects(observe({ consumerRoot: fixture.root, current: otherProfile }), {
+      code: "DOCS_CONSUMER_UPGRADE_SOURCE_NOT_CURRENT",
+    });
+    assert.equal(assetReads, 0);
+    await observe({ consumerRoot: fixture.root, current: fixture.current });
+    assert.equal(assetReads, 1);
+    await assertUnchanged(fixture);
+  },
+);
 
-sourceScenario("retained verifier requires the real planner to observe current source assets and recovers", async (fixture) => {
-  const observe = verifier(fixture);
-  const skill = join(fixture.root, fixture.current.skillPath);
-  await writeFile(skill, "TEST consumer-edited managed skill\n");
-  const input = await nodeManagedGeneration2SourceInputReader.read({ consumerRoot: fixture.root });
-  assert.deepEqual(input.desired, fixture.current);
-  await assert.rejects(
-    observe({ consumerRoot: fixture.root, current: fixture.current }),
-    { code: "DOCS_CONSUMER_UPGRADE_SOURCE_NOT_CURRENT" },
-  );
-  await writeFile(skill, fixture.originals.get(fixture.current.skillPath)!);
-  await observe({ consumerRoot: fixture.root, current: fixture.current });
-  await assertUnchanged(fixture);
-});
+sourceScenario(
+  "retained verifier requires the real planner to observe current source assets and recovers",
+  async (fixture) => {
+    const observe = verifier(fixture);
+    const skill = join(fixture.root, fixture.current.skillPath);
+    await writeFile(skill, "TEST consumer-edited managed skill\n");
+    const input = await nodeManagedGeneration2SourceInputReader.read({
+      consumerRoot: fixture.root,
+    });
+    assert.deepEqual(input.desired, fixture.current);
+    await assert.rejects(observe({ consumerRoot: fixture.root, current: fixture.current }), {
+      code: "DOCS_CONSUMER_UPGRADE_SOURCE_NOT_CURRENT",
+    });
+    await writeFile(skill, fixture.originals.get(fixture.current.skillPath)!);
+    await observe({ consumerRoot: fixture.root, current: fixture.current });
+    await assertUnchanged(fixture);
+  },
+);
 
-sourceScenario("preserved source admission excludes successor profiles and unqualified Node pins", async (fixture) => {
-  const read = () => nodeManagedGeneration2SourceInputReader.read({ consumerRoot: fixture.root });
-  const profile = join(fixture.root, INTEGRATION_PROFILE_PATH);
-  await writeFile(profile, `${JSON.stringify(fixture.target, null, 2)}\n`);
-  await assert.rejects(read(), { code: "DOCS_CONSUMER_PROFILE_INVALID" });
-  await writeFile(profile, fixture.originals.get(INTEGRATION_PROFILE_PATH)!);
-  const pin = join(fixture.root, ".node-version");
-  for (const bytes of ["26.11.1", "26.11.1\r\n", "26.11.2\n", "25.9.0\n", "24.17.0\n"]) {
-    await writeFile(pin, bytes);
-    await assert.rejects(read(), { code: "DOCS_CONSUMER_NODE_VERSION_GATE_INVALID" });
-  }
-  await writeFile(pin, fixture.sourceNodePin);
-  assert.deepEqual((await read()).desired, fixture.current);
-  await assertUnchanged(fixture);
-});
+sourceScenario(
+  "preserved source admission excludes successor profiles and unqualified Node pins",
+  async (fixture) => {
+    const read = () => nodeManagedGeneration2SourceInputReader.read({ consumerRoot: fixture.root });
+    const profile = join(fixture.root, INTEGRATION_PROFILE_PATH);
+    await writeFile(profile, `${JSON.stringify(fixture.target, null, 2)}\n`);
+    await assert.rejects(read(), { code: "DOCS_CONSUMER_PROFILE_INVALID" });
+    await writeFile(profile, fixture.originals.get(INTEGRATION_PROFILE_PATH)!);
+    const pin = join(fixture.root, ".node-version");
+    for (const bytes of ["26.11.1", "26.11.1\r\n", "26.11.2\n", "25.9.0\n", "24.17.0\n"]) {
+      await writeFile(pin, bytes);
+      await assert.rejects(read(), { code: "DOCS_CONSUMER_NODE_VERSION_GATE_INVALID" });
+    }
+    await writeFile(pin, fixture.sourceNodePin);
+    assert.deepEqual((await read()).desired, fixture.current);
+    await assertUnchanged(fixture);
+  },
+);
 
-sourceScenario("preserved source pin rejects physical mode drift absent from the Git diff", async (fixture) => {
-  const pin = join(fixture.root, ".node-version");
-  await chmod(pin, 0o600);
-  assert.equal(git(fixture.root, "diff", "--name-only"), "");
-  await assert.rejects(
-    nodeManagedGeneration2SourceInputReader.read({ consumerRoot: fixture.root }),
-    { code: "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED" },
-  );
-  await chmod(pin, 0o644);
-  await verifier(fixture)({ consumerRoot: fixture.root, current: fixture.current });
-  await assertUnchanged(fixture);
-});
+sourceScenario(
+  "preserved source pin rejects physical mode drift absent from the Git diff",
+  async (fixture) => {
+    const pin = join(fixture.root, ".node-version");
+    await chmod(pin, 0o600);
+    assert.equal(git(fixture.root, "diff", "--name-only"), "");
+    await assert.rejects(
+      nodeManagedGeneration2SourceInputReader.read({ consumerRoot: fixture.root }),
+      { code: "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED" },
+    );
+    await chmod(pin, 0o644);
+    await verifier(fixture)({ consumerRoot: fixture.root, current: fixture.current });
+    await assertUnchanged(fixture);
+  },
+);
 
 test(
   process.platform === "win32"
@@ -132,7 +153,9 @@ test(
         { code: "DOCS_CONSUMER_UNSUPPORTED_NODE" },
       );
       await assertUnchanged(fixture);
-      context.diagnostic("Windows default Node26 refusal only; no positive Git-image binding claim.");
+      context.diagnostic(
+        "Windows default Node26 refusal only; no positive Git-image binding claim.",
+      );
       return;
     }
     assert.equal(process.versions.node, "24.21.0");

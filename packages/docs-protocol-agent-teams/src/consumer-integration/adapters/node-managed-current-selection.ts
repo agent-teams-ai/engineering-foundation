@@ -165,8 +165,11 @@ async function assertCurrentTargetNodePin(
     restorationGit(root, ["ls-tree", revision, "--", ".node-version"]),
   ]);
   const sourceMode = originalEntry.toString("utf8").split(" ")[0];
-  const expectedMode = sourceMode === "100644" ? 0o644 : sourceMode === "100755" ? 0o755 : undefined;
-  const expected = Buffer.from(`${preparation.targetCohort.runtime.qualificationRuntime.nodeVersion}\n`);
+  const expectedMode =
+    sourceMode === "100644" ? 0o644 : sourceMode === "100755" ? 0o755 : undefined;
+  const expected = Buffer.from(
+    `${preparation.targetCohort.runtime.qualificationRuntime.nodeVersion}\n`,
+  );
   requireRestoration(
     expectedMode !== undefined &&
       currentEntry.toString("utf8").split(" ")[0] === sourceMode &&

@@ -64,10 +64,8 @@ export async function startFixtureHost(options: HostOptions) {
     const program = route[2] === "advance"
       ? Effect.gen(function* () {
           const roots = yield* SessionRoots;
-          const value = yield* roots.api[id].advance;
-          response.setHeader("content-type", "application/json");
-          yield* writeFrame(response, JSON.stringify(value));
-          response.end();
+          yield* roots.api[id].advance;
+          response.writeHead(204).end();
         })
       : streamRequest(id, response, options);
     const settled = runtime.runPromiseExit(program, { signal: controller.signal }).then((exit) => {

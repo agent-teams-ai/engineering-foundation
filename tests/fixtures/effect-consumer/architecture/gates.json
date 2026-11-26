@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 2,
+  "profiles": [
+    {
+      "id": "full",
+      "packageManager": "pnpm",
+      "concurrency": 2,
+      "tasks": [
+        {
+          "id": "architecture:check",
+          "timeoutMs": 120000
+        },
+        {
+          "id": "typecheck",
+          "timeoutMs": 120000
+        },
+        {
+          "id": "effect:check",
+          "needs": [
+            "architecture:check"
+          ],
+          "timeoutMs": 150000
+        },
+        {
+          "id": "runtime:check",
+          "needs": [
+            "architecture:check",
+            "typecheck",
+            "effect:check"
+          ],
+          "timeoutMs": 120000
+        }
+      ]
+    }
+  ]
+}

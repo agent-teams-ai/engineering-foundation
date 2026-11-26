@@ -1,0 +1,136 @@
+{
+  "schemaVersion": 3,
+  "workspace": {
+    "kind": "pnpm",
+    "manifest": "pnpm-workspace.yaml"
+  },
+  "rootPackage": true,
+  "packageRoots": [],
+  "governedRoots": [
+    "sdk",
+    "backend",
+    "frontend",
+    "scripts"
+  ],
+  "boundaries": [
+    {
+      "id": "sdk",
+      "dependencyMode": "runtime",
+      "roots": [
+        "sdk"
+      ],
+      "entrypoints": [
+        "sdk/index.ts"
+      ],
+      "allow": {
+        "boundaries": [],
+        "packages": [
+          "effect",
+          "@get-modular/core",
+          "@get-modular/assembly",
+          "@get-modular/effect"
+        ],
+        "builtins": [],
+        "runtimeReferences": []
+      }
+    },
+    {
+      "id": "backend",
+      "dependencyMode": "runtime",
+      "roots": [
+        "backend"
+      ],
+      "entrypoints": [
+        "backend/index.ts"
+      ],
+      "allow": {
+        "boundaries": [
+          "sdk"
+        ],
+        "packages": [
+          "effect",
+          "@get-modular/core",
+          "@get-modular/assembly",
+          "@get-modular/effect"
+        ],
+        "builtins": [
+          "node:assert/strict",
+          "node:child_process",
+          "node:events",
+          "node:fs/promises",
+          "node:module",
+          "node:os",
+          "node:path",
+          "node:url",
+          "node:http",
+          "node:stream"
+        ],
+        "runtimeReferences": []
+      }
+    },
+    {
+      "id": "frontend",
+      "dependencyMode": "runtime",
+      "roots": [
+        "frontend"
+      ],
+      "entrypoints": [
+        "frontend/index.ts"
+      ],
+      "allow": {
+        "boundaries": [
+          "sdk"
+        ],
+        "packages": [
+          "effect",
+          "@get-modular/core",
+          "@get-modular/assembly",
+          "@get-modular/effect"
+        ],
+        "builtins": [],
+        "runtimeReferences": []
+      }
+    },
+    {
+      "id": "scripts",
+      "dependencyMode": "development",
+      "roots": [
+        "scripts"
+      ],
+      "entrypoints": [
+        "scripts/check-effect.ts",
+        "scripts/check-full.ts",
+        "scripts/check-runtime.ts"
+      ],
+      "allow": {
+        "boundaries": [
+          "sdk",
+          "backend"
+        ],
+        "packages": [
+          "effect",
+          "@get-modular/core",
+          "@get-modular/assembly",
+          "@get-modular/effect",
+          "@agent-teams/engineering-foundation",
+          "stack-toolchain",
+          "esbuild",
+          "playwright-core"
+        ],
+        "builtins": [
+          "node:assert/strict",
+          "node:child_process",
+          "node:events",
+          "node:fs/promises",
+          "node:module",
+          "node:os",
+          "node:path",
+          "node:url",
+          "node:http",
+          "node:stream"
+        ],
+        "runtimeReferences": []
+      }
+    }
+  ]
+}

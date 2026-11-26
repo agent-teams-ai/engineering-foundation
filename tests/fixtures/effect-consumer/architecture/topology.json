@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "censusRoots": [
+    "."
+  ],
+  "packageRoots": [
+    "."
+  ],
+  "sourceRoots": [
+    "sdk",
+    "backend",
+    "frontend"
+  ],
+  "testRoots": [],
+  "excludedRoots": [],
+  "toolingFiles": [
+    "scripts/check-effect.ts",
+    "scripts/check-full.ts",
+    "scripts/check-runtime.ts"
+  ]
+}

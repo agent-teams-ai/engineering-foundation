@@ -2,11 +2,11 @@ import { declareModule, defineContract, type CapabilitiesOf } from "@get-modular
 import { required } from "@get-modular/core";
 import { effectFor, implement } from "@get-modular/effect";
 import { Context, Effect, Stream } from "effect";
-import { ProtocolError, type Progress, type SessionId } from "../sdk/index.ts";
+import { ProtocolError, TransportError, type Progress, type SessionId } from "../sdk/index.ts";
 import { httpProgressClient, type ProgressClient } from "./client.ts";
 
 interface ProgressView {
-  readonly watch: (session: SessionId, display: (value: Progress) => void) => Effect.Effect<void, Error>;
+  readonly watch: (session: SessionId, display: (value: Progress) => void) => Effect.Effect<void, ProtocolError | TransportError>;
   readonly advance: ProgressClient["advance"];
 }
 const HttpPort = defineContract<ProgressClient>()({ id: "consumer/http", revision: 1 });

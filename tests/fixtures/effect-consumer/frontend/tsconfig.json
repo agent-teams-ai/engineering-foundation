@@ -1,0 +1,40 @@
+{
+  "files": [
+    "../sdk/codec.ts",
+    "../sdk/contract.ts",
+    "../sdk/index.ts",
+    "../frontend/client.ts",
+    "../frontend/index.ts",
+    "../frontend/session.ts"
+  ],
+  "compilerOptions": {
+    "strict": true,
+    "skipLibCheck": false,
+    "noEmit": true,
+    "target": "ES2024",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "types": [],
+    "lib": [
+      "ES2024",
+      "ESNext.Disposable",
+      "ESNext.Promise",
+      "DOM"
+    ],
+    "allowImportingTsExtensions": true,
+    "plugins": [
+      {
+        "name": "@effect/language-service",
+        "diagnostics": true,
+        "includeSuggestionsInTsc": false,
+        "ignoreEffectWarningsInTscExitCode": false,
+        "ignoreEffectErrorsInTscExitCode": false,
+        "diagnosticSeverity": {
+          "unstableApiUsage": "error",
+          "apiStabilityLeak": "error"
+        },
+        "allowedUnstableApis": []
+      }
+    ]
+  }
+}

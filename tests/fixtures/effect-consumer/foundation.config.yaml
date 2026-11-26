@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 2,
+  "project": {
+    "id": "effect-browser-consumer"
+  },
+  "capabilities": {
+    "architecture.source-dependencies": {
+      "configPath": "architecture/source.json"
+    },
+    "quality.source-coverage": {
+      "configPath": "architecture/quality.json"
+    },
+    "quality.gate-runner": {
+      "configPath": "architecture/gates.json"
+    }
+  }
+}

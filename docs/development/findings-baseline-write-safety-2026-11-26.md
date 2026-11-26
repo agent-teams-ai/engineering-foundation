@@ -198,7 +198,11 @@ ordinary PR/main full matrix below retains qualification ownership.
 Review status: independent process-lifecycle critique of
 `26bc67c3365b2139ebb0f986e7f996a47d681a94` accepted the two-line design.
 It required the single-observed-failure distinction, overlapping budget
-explanation and precise suite/verifier wording above. A second independent
-critique is pending; implementation has not started. Open PR #483 owns Effect browser qualification; #468 owns an optional
+explanation and precise suite/verifier wording above. Independent native-test
+review approved the revised plan at
+`10d5233360b855d766b07e379a3825b4539606c0` before implementation. Both reviews
+retained real descendant termination, finite budgets and ordinary final CI.
+Implementation changes only the two planned execution-allowance expressions;
+executable qualification and final source review remain pending. Open PR #483 owns Effect browser qualification; #468 owns an optional
 test-integrity preset, and #469 owns CI concurrency/quality work. Their source
 owners and branches are not part of this bounded fixture correction.

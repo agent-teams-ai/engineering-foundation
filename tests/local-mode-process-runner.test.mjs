@@ -301,7 +301,7 @@ test(
         command: process.execPath,
         args: [PARENT_EXITS_BEFORE_CHILD_PATH, pidPath],
         cwd: root,
-        timeoutMs: process.platform === "win32" ? 5_000 : 1_000,
+        timeoutMs: PROCESS_DEADLINE_MS,
       });
       const reported = await waitForPidFile(pidPath);
       processes = [reported.parent, reported.child];
@@ -334,7 +334,7 @@ test(
         command: "powershell.exe",
         args: ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script],
         cwd: root,
-        timeoutMs: 5_000,
+        timeoutMs: PROCESS_DEADLINE_MS,
       });
       const reported = await waitForPidFile(pidPath);
       processes = [reported.parent, reported.child];

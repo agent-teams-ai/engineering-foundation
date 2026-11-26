@@ -1,7 +1,8 @@
 # Optional Effect diagnostics in Stack Toolchain
 
-Date: 2026-11-25. Status: two plan-review rounds complete; implementation and code review in progress. Owner:
-Stack Toolchain. Delivery: one Draft PR, two independent plan-review rounds,
+Date: 2026-11-25. Status: two plan-review rounds complete; implementation present;
+integrated qualification and review tracked in [PR #476](https://github.com/agent-teams-ai/engineering-foundation/pull/476).
+Owner: Stack Toolchain. Delivery: one Draft PR, two independent plan-review rounds,
 implementation and installed E2E, independent code review, exact-head full CI,
 owner squash and post-merge verification. Package publication remains the
 separately assigned release workstream.
@@ -747,16 +748,16 @@ launcher or older TypeScript implementation ran.
 The observed version is `Version 7.0.2+effect-tsgo.0.73.4`. All stderr values are
 empty. The ordered diagnostic counts are:
 
-| Case | Exit | Diagnostics |
-| --- | ---: | ---: |
-| stable-effect | 0 | 0 |
-| ordinary-type-error | 1 | 1 |
-| unused-import | 0 | 0 |
-| actual-unstable | 1 | 4 |
-| aliases | 1 | 9 |
-| stable-leak | 1 | 2 |
-| structural-port | 0 | 0 |
-| exact-allowlist | 1 | 10 |
+| Case                | Exit | Diagnostics |
+| ------------------- | ---: | ----------: |
+| stable-effect       |    0 |           0 |
+| ordinary-type-error |    1 |           1 |
+| unused-import       |    0 |           0 |
+| actual-unstable     |    1 |           4 |
+| aliases             |    1 |           9 |
+| stable-leak         |    1 |           2 |
+| structural-port     |    0 |           0 |
+| exact-allowlist     |    1 |          10 |
 
 The 26 findings comprise 19 public-type leaks, six unstable uses and one
 ordinary TS2322 assignment error. Each exported HTTP result exposes
@@ -786,3 +787,36 @@ The five-package signature/provenance and installed-payload checks, public
 API/CLI boundaries, multiline/source-policy controls, N100 measurement and
 complete final-head CI still have to pass with the authored oracle. No runtime
 scale, production adoption or browser execution claim follows from this probe.
+
+### Auxiliary-client admission observed, 2026-11-26
+
+The separate exact client now passed the reviewed admission locally. The
+already admitted Node 26.11.1 / npm 11.20.0 installation loaded its contained
+`pacote@21.5.1`, performed official `verifySignatures: true` verification and
+matched the committed `npm@10.9.11` archive identity and SHA-512 integrity.
+Only after that success did scripts-disabled installation and the candidate
+version probe run. The probe returned `10.9.11`; the private lock remained
+byte-identical, SHA-256
+`feadaffb2aba001d8fcfb78b631429f5ef4674e2651787a6abf6359c224f384a`.
+The manifest SHA-256 is
+`ec11c6711df4afb78b2b902c23d07b8e63887751e2a51760e9522ceee8be5cc0`.
+The receipt explicitly records no demonstrated SLSA build provenance. This
+successful package-scoped verification is not a whole-tree CLI audit.
+
+Independent source review found no P1/P2 admission blocker and requested one
+restoration improvement: put the negative-lock write inside the existing
+`try/finally`. That fix is included. Five portable controls passed. The helper
+grew from the initial 110–180 LOC estimate to 382 formatted LOC, with
+125 LOC of tests, after aggregate CLI audit was replaced by the
+reviewed package-scoped verifier. This reassessment keeps the added code private
+to one registry-test client: fixed input validation, upstream signature
+verification, contained scripts-disabled installation and frozen-reinstall
+controls. It adds no shared verifier framework, package, workflow or product
+dependency. The original five-package signature/provenance owner is unchanged.
+
+Admission and a version probe do not qualify the consumer reinstall. The actual
+required-dependency mismatch refusal, valid byte-preserving frozen reinstall,
+installed Stack/GM/Effect behavior and final-head/base matrix remain acceptance
+requirements. Local setup also required the existing `tools/dev.mts install`
+producer-dependency projection; after using that owning route, native tool and
+dependency qualification and the source build passed without product changes.

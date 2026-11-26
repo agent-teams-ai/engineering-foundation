@@ -1,6 +1,7 @@
 // oxlint-disable max-lines -- The registry matrix remains one auditable disposable orchestration.
 import { materializeStableTree } from "./pack-artifact-stage-support.mjs";
 import { prepareEffectFixtureDependencies } from "./effect-fixture-dependencies.ts";
+import { prepareEffectRegistryFrozenClient } from "./effect-registry-frozen-client.ts";
 import { qualifyInstalledStackToolchain } from "./packed-stack-toolchain-qualification.ts";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -484,7 +485,7 @@ async function installConsumer(
   targets,
   registryUrl,
   matrixEntry,
-  { temporaryRoot, runPnpm, runNpm, effectDependencies },
+  { temporaryRoot, runPnpm, runNpm, effectDependencies, effectFrozenClient },
 ) {
   return installRegistryConsumerWithRetry({
     cleanupAttempt: (context) =>
@@ -521,22 +522,14 @@ async function installConsumer(
             { timeoutMs, userConfigPath: context.userConfigPath },
           );
           if (matrixEntry.profile === "foundation-full" && effectDependencies !== undefined) {
-            const lock = await readFile(join(context.consumerRoot, "package-lock.json"));
-            await runNpm(
-              [
-                "ci",
-                "--registry",
-                registryUrl,
-                "--ignore-scripts",
-                "--no-audit",
-                "--no-fund",
-                "--cache",
-                context.cacheRoot,
-              ],
-              context.consumerRoot,
-              { timeoutMs, userConfigPath: context.userConfigPath },
-            );
-            assert.deepEqual(await readFile(join(context.consumerRoot, "package-lock.json")), lock);
+            assert.ok(effectFrozenClient);
+            await effectFrozenClient.reinstall({
+              consumerRoot: context.consumerRoot,
+              registryUrl,
+              cacheRoot: context.cacheRoot,
+              userConfigPath: context.userConfigPath,
+              timeoutMs,
+            });
           }
         } else {
           await runPnpm(
@@ -778,6 +771,7 @@ export function qualifyRegistryConsumers(handle, group) {
         temporaryRoot,
         runPnpm,
         effectDependencies: undefined,
+        effectFrozenClient: undefined,
         runNpm: (args, cwd, options = {}) =>
           runRegistryNpm(args, cwd, {
             ...options,
@@ -794,6 +788,11 @@ export function qualifyRegistryConsumers(handle, group) {
           commands.effectDependencies = await runRegistryPhase("effect-fixture-public-inputs", () =>
             prepareEffectFixtureDependencies(temporaryRoot),
           );
+          if (commands.effectDependencies !== undefined) {
+            commands.effectFrozenClient = await runRegistryPhase("effect-frozen-test-client", () =>
+              prepareEffectRegistryFrozenClient(temporaryRoot),
+            );
+          }
         }
         const dependencies = await runRegistryPhase("dependency-closure", () =>
           collectRuntimeDependencyClosure(commands.effectDependencies?.roots ?? []),

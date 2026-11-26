@@ -104,6 +104,7 @@
     "command-admission.test.ts",
     "command-results.test.ts",
     "support/command-host-fixture.ts",
-    "local-mode-settlement.test.ts"
+    "local-mode-settlement.test.ts",
+    "effect-registry-frozen-client.test.ts"
   ]
 }

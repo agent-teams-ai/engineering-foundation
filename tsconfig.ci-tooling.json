@@ -230,6 +230,8 @@
     "scripts/packed-effect-diagnostics-fixtures.ts",
     "scripts/packed-effect-diagnostics-growth.ts",
     "tests/effect-fixture-dependencies.test.ts",
-    "tests/fixtures/effect-diagnostics/growth/generate.ts"
+    "tests/fixtures/effect-diagnostics/growth/generate.ts",
+    "scripts/effect-registry-frozen-client.ts",
+    "tests/effect-registry-frozen-client.test.ts"
   ]
 }

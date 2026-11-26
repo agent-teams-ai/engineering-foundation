@@ -18,6 +18,7 @@
   },
   "include": [
     "scripts/**/*.mts",
+    "scripts/release-audit-observation.ts",
     "scripts/release-bun-lock.ts",
     "scripts/release-candidate-host.ts",
     "scripts/release-candidate-observation.ts",

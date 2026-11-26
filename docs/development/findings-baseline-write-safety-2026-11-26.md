@@ -141,7 +141,9 @@ that case before merge; this does not prove an external infrastructure fault.
 The fixture already permits 30 seconds for PID readiness, uses a 45-second
 Windows process deadline in its timeout case, and has a 65-second outer budget.
 The two positive parent-exit cases still use a separate five-second Windows
-execution allowance. Align those two requests with the existing
+execution allowance. Only the non-Node case was observed failing; the other
+case is aligned with the same positive-containment budget, not a second
+reproduced failure. Align those two requests with the existing
 `PROCESS_DEADLINE_MS`: 45 seconds on Windows and the unchanged one second on
 other platforms. The correction has two test-line replacements and no production,
 workflow, dependency, version, inventory or published artifact changes.
@@ -152,8 +154,11 @@ a timeout or process failure remains a test failure. Keep the PID readiness
 bound, three-second process-tree disappearance check, outer timeout, cleanup,
 existing platform selection and all assertions unchanged. The long-lived child
 still outlives the execution allowance if containment does not terminate it.
-The existing independent timeout, cancellation and launch/cleanup failure cases
-remain mandatory. Do not add sleeps, retries, skip allowances or a timeout-error
+The readiness and execution budgets overlap because execution starts before
+PID waiting; they do not allow 75 seconds in sequence. The existing independent
+timeout, cancellation and launch/cleanup failure cases remain selected and must
+pass in the same native suite. This does not add named mandatory identities or
+change the existing mandatory-verifier contract. Do not add sleeps, retries, skip allowances or a timeout-error
 success path. Do not infer a production process-runner defect or change its
 deadline semantics from this fixture failure.
 
@@ -178,7 +183,10 @@ is needed for this test-only correction.
    Any generated release candidate must follow its normal current-main owner
    handoff; this follow-up does not authorize publication of the combined release.
 
-Review status: plan published for independent critique; implementation not yet
-started. Open PR #483 owns Effect browser qualification; #468 owns an optional
+Review status: independent process-lifecycle critique of
+`26bc67c3365b2139ebb0f986e7f996a47d681a94` accepted the two-line design.
+It required the single-observed-failure distinction, overlapping budget
+explanation and precise suite/verifier wording above. A second independent
+critique is pending; implementation has not started. Open PR #483 owns Effect browser qualification; #468 owns an optional
 test-integrity preset, and #469 owns CI concurrency/quality work. Their source
 owners and branches are not part of this bounded fixture correction.

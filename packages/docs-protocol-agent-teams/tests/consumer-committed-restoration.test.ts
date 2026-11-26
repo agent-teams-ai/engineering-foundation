@@ -116,6 +116,16 @@ function child(script: string) {
     ).once("error", reject);
   });
 }
+function assertSourceChildCompleted(result: Awaited<ReturnType<typeof child>>, fixture: Fixture) {
+  const diagnostic = JSON.stringify(result);
+  assert.equal(result.code, 0, diagnostic);
+  assert.equal(result.signal, null, diagnostic);
+  assert.equal(result.killed, false, diagnostic);
+  const marker = fixture.sourceNodePin === "26.11.1\n"
+    ? "TEST_RETAINED_SOURCE_DATA_VERIFIED"
+    : "TEST_LEGACY_SOURCE_CHECK_CURRENT";
+  assert.equal(result.stderr.split(/\r?\n/u).filter((line) => line === marker).length, 1, diagnostic);
+}
 const freshSourceScript = (root: string, fixture: Fixture) => `
 const assert=(await import('node:assert/strict')).default;
 assert.equal(process.versions.node,'24.21.0');
@@ -196,7 +206,7 @@ scenario("merged target admits a fresh root, refuses overlapping Host changes, a
       ...f.sandbox,
       restoreCommittedAndVerifyManaged: async (input) => {
         const checked = await child(freshSourceScript(input.consumerRoot, f));
-        assert.equal(checked.code, 0, checked.stderr || checked.stdout);
+        assertSourceChildCompleted(checked, f);
       },
     },
   });
@@ -258,7 +268,9 @@ scenario("dirty targets, unknown lineage, stale HEAD and foreign committed manag
   commit(f.root, "test: foreign managed postimage");
   await assert.rejects(
     restoreCommittedManagedConsumer(options(f), ports),
-    /committed managed postimage changed|committed target runtime pin or mode differs/u,
+    f.sourceNodePin === "26.11.1\n"
+      ? { code: "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED" }
+      : /committed managed postimage changed|committed target runtime pin or mode differs/u,
   );
   assert.equal(await readFile(join(f.root, ".node-version"), "utf8"), "foreign\n");
   await writeFile(join(f.root, ".node-version"), manifest);
@@ -269,7 +281,9 @@ scenario("dirty targets, unknown lineage, stale HEAD and foreign committed manag
   assert.equal((await lstat(pin)).mode & 0o777, 0o755);
   await assert.rejects(
     restoreCommittedManagedConsumer(options(f), ports),
-    /committed managed postimage changed|committed target runtime pin or mode differs/u,
+    f.sourceNodePin === "26.11.1\n"
+      ? { code: "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED" }
+      : /committed managed postimage changed|committed target runtime pin or mode differs/u,
   );
   assert.equal((await lstat(pin)).mode & 0o777, 0o755);
   await chmod(pin, 0o644);
@@ -282,7 +296,9 @@ scenario("dirty targets, unknown lineage, stale HEAD and foreign committed manag
   );
   await assert.rejects(
     restoreCommittedManagedConsumer(options(f), ports),
-    /committed target runtime pin or mode differs/u,
+    f.sourceNodePin === "26.11.1\n"
+      ? { code: "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED" }
+      : /committed target runtime pin or mode differs/u,
   );
   assert.equal((await lstat(pin)).mode & 0o777, 0o600);
   await chmod(pin, 0o644);
@@ -331,7 +347,7 @@ const result=await restoreCommittedManagedConsumer(${JSON.stringify({ ...selecte
     /differs from separately retained digest/u,
   );
   const resumed = await child(script(digest));
-  assert.equal(resumed.code, 0, JSON.stringify(resumed));
+  assertSourceChildCompleted(resumed, f);
   const result: unknown = JSON.parse(resumed.stdout);
   assert.ok(
     typeof result === "object" && result !== null && "outcome" in result && "receipt" in result,

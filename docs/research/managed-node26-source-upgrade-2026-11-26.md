@@ -207,8 +207,11 @@ Independent implementation review must cover both effects and evidence claims.
    separate policy-only PR that selects only EF's new desired cohort/generation3
    and rollout_pending status. Preserve its observed stable31 proof until real
    target adoption succeeds; use the existing admission-evidence route.
-7. Adapt EF's Host-owned tooling to current Foundation quality v5 and supported
-   Stack/FMS interfaces without dropping governed roots, tests or scripts.
+7. Adapt EF's Host-owned tooling to the published Foundation interfaces and
+   supported Stack TypeScript preset without dropping governed roots, tests or
+   scripts. EF does not activate source-coverage quality v5 or install FMS; this
+   transition does not introduce either adoption. Preserve its existing Node24
+   compatibility policy where the ordinary target profile permits Host ownership.
    Preserve its Node 26 default and the original E1 code/evidence boundaries.
    Recheck the committed rollback case against this final Host integration
    shape, including owner reversal of overlapping fields before fresh selection.

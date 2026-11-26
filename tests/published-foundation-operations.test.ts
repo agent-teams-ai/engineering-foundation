@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
 import fs from "node:fs";
 import { createRequire, syncBuiltinESMExports } from "node:module";
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test, { type TestContext } from "node:test";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import {
   inspectPublishedFoundationImports,
@@ -17,8 +18,6 @@ import {
   nodeConsumerIntegrationInputReader,
   nodeManagedGeneration2SourceInputReader,
 } from "../packages/docs-protocol-agent-teams/dist/consumer-integration/adapters/node-consumer-integration-repository.js";
-import { packageConsumerAssetCatalogReader } from "../packages/docs-protocol-agent-teams/dist/consumer-integration/adapters/package-consumer-asset-catalog.js";
-import { createRetainedGeneration2SourceVerifier } from "../packages/docs-protocol-agent-teams/dist/consumer-integration/adapters/node-retained-source-verifier.js";
 import { retainedFixture } from "../packages/docs-protocol-agent-teams/tests/managed-restoration-fixture.ts";
 
 async function temporary(t: TestContext): Promise<string> {
@@ -336,10 +335,45 @@ test("compiler floor passes original builtin behavior and releases its guard aft
   );
 });
 
+function retainedSourceChild(
+  fixture: Awaited<ReturnType<typeof retainedFixture>>,
+  mode: "observe" | "catch-denial",
+  compilerAlias: string,
+) {
+  return new Promise<{
+    code: number | null;
+    signal: NodeJS.Signals | null;
+    killed: boolean;
+    stdout: string;
+    stderr: string;
+  }>((resolve, reject) => {
+    execFile(
+      process.execPath,
+      [
+        fileURLToPath(new URL("./retained-source-compiler-floor-child.ts", import.meta.url)),
+        mode,
+        fixture.root,
+        JSON.stringify(fixture.current),
+        compilerAlias,
+      ],
+      { encoding: "utf8", timeout: 30_000, maxBuffer: 1024 * 1024 },
+      (error, stdout, stderr) => {
+        resolve({
+          code: error === null ? 0 : typeof error.code === "number" ? error.code : null,
+          signal: error?.signal ?? null,
+          killed: error?.killed ?? false,
+          stdout,
+          stderr,
+        });
+      },
+    ).once("error", reject);
+  });
+}
+
 test(
   process.platform === "win32"
     ? "guarded retained source observation [Windows runtime refusal]"
-    : "retained source observation uses original data without evaluating consumer executables or old compilers",
+    : "retained source observation enforces the compiler floor in its actual child process",
   async (context) => {
     for (const sourceNodePin of ["24.21.0\n", "26.11.1\n"] as const) {
       await context.test(`source pin ${sourceNodePin.trim()}`, async (nested) => {
@@ -363,42 +397,64 @@ test(
           await writeFile(join(directory, "dist", "index.js"), poison);
           await writeFile(join(directory, "dist", "cli.js"), poison);
         }
-        await withPublishedCompilerFloor(async () => {
-          if (process.platform === "win32") {
-            assert.equal(process.versions.node.split(".")[0], "26");
-            await assert.rejects(
-              nodeManagedGeneration2SourceInputReader.read({ consumerRoot: fixture.root }),
-              { code: "DOCS_CONSUMER_UNSUPPORTED_NODE" },
-            );
-            nested.diagnostic("Windows default Node26 refusal only; no positive retained source qualification.");
-            return;
-          }
+        const aliasDirectory = join(fixture.root, "node_modules", "compiler-alias");
+        await mkdir(aliasDirectory, { recursive: true });
+        await writeFile(
+          join(aliasDirectory, "package.json"),
+          '{"name":"typescript","version":"5.9.3","type":"module"}',
+        );
+        const compilerAlias = join(aliasDirectory, "index.js");
+        await writeFile(
+          compilerAlias,
+          `import { writeFileSync } from 'node:fs'; writeFileSync(${JSON.stringify(sentinel)}, 'unexpected alias evaluation'); throw new Error('TEST_COMPILER_ALIAS_EVALUATED');\n`,
+        );
+        if (process.platform === "win32") {
+          assert.equal(process.versions.node.split(".")[0], "26");
+          await assert.rejects(
+            nodeManagedGeneration2SourceInputReader.read({ consumerRoot: fixture.root }),
+            { code: "DOCS_CONSUMER_UNSUPPORTED_NODE" },
+          );
+          nested.diagnostic("Windows default Node26 refusal only; no positive retained source qualification.");
+        } else {
           assert.equal(process.versions.node, "24.21.0");
-          const input = await nodeManagedGeneration2SourceInputReader.read({ consumerRoot: fixture.root });
-          assert.deepEqual(input.desired, fixture.current);
-          await createRetainedGeneration2SourceVerifier({
-            input: nodeManagedGeneration2SourceInputReader,
-            assets: packageConsumerAssetCatalogReader,
-            planning: fixture.planning,
-          })({ consumerRoot: fixture.root, current: fixture.current });
-          if (sourceNodePin === "26.11.1\n") {
-            await assert.rejects(
-              nodeConsumerIntegrationInputReader.read({ consumerRoot: fixture.root }),
-              { code: "DOCS_CONSUMER_NODE_VERSION_GATE_INVALID" },
-            );
-            await assert.rejects(
-              Reflect.apply(nodeConsumerIntegrationInputReader.read, undefined, [
-                { consumerRoot: fixture.root }, "generation2-source",
-              ]),
-              { code: "DOCS_CONSUMER_NODE_VERSION_GATE_INVALID" },
-            );
-          } else {
-            assert.deepEqual(
-              (await nodeConsumerIntegrationInputReader.read({ consumerRoot: fixture.root })).desired,
-              fixture.current,
-            );
-          }
-        });
+          const observed = await retainedSourceChild(fixture, "observe", compilerAlias);
+          assert.equal(observed.code, 0, JSON.stringify(observed));
+          assert.equal(observed.signal, null, JSON.stringify(observed));
+          assert.equal(observed.killed, false, JSON.stringify(observed));
+          assert.equal(observed.stdout, "TEST_RETAINED_SOURCE_GUARDED_COMPLETE\n");
+          assert.equal(observed.stderr, "");
+          await assert.rejects(readFile(sentinel), { code: "ENOENT" });
+
+          const refused = await retainedSourceChild(fixture, "catch-denial", compilerAlias);
+          assert.equal(refused.code, 86, JSON.stringify(refused));
+          assert.equal(refused.signal, null, JSON.stringify(refused));
+          assert.equal(refused.killed, false, JSON.stringify(refused));
+          assert.equal(refused.stdout, "");
+          assert.equal(
+            refused.stderr,
+            "TEST_RETAINED_SOURCE_COMPILER_DENIAL_CAUGHT\nTEST_RETAINED_SOURCE_STICKY_GUARD_REFUSED\n",
+          );
+          await assert.rejects(readFile(sentinel), { code: "ENOENT" });
+          await withPublishedCompilerFloor(async () => {
+            if (sourceNodePin === "26.11.1\n") {
+              await assert.rejects(
+                nodeConsumerIntegrationInputReader.read({ consumerRoot: fixture.root }),
+                { code: "DOCS_CONSUMER_NODE_VERSION_GATE_INVALID" },
+              );
+              await assert.rejects(
+                Reflect.apply(nodeConsumerIntegrationInputReader.read, undefined, [
+                  { consumerRoot: fixture.root }, "generation2-source",
+                ]),
+                { code: "DOCS_CONSUMER_NODE_VERSION_GATE_INVALID" },
+              );
+            } else {
+              assert.deepEqual(
+                (await nodeConsumerIntegrationInputReader.read({ consumerRoot: fixture.root })).desired,
+                fixture.current,
+              );
+            }
+          });
+        }
         await assert.rejects(readFile(sentinel), { code: "ENOENT" });
         for (const [path, bytes] of fixture.originals) {
           assert.deepEqual(await readFile(join(fixture.root, path)), bytes, path);

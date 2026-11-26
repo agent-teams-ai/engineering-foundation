@@ -13,6 +13,7 @@
     "scripts/packed-consumer-public-api-audit-fixture.ts",
     "tests/public-api-native-migration*.test.ts",
     "scripts/published-foundation-*.ts",
-    "tests/published-foundation-operations.test.ts"
+    "tests/published-foundation-operations.test.ts",
+    "tests/retained-source-compiler-floor-child.ts"
   ]
 }

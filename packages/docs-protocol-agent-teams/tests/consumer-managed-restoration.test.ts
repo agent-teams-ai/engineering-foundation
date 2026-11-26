@@ -312,8 +312,11 @@ scenario("foreign postimage and unavailable recorded controller build refuse col
   await writeFile(join(f.root, ".node-version"), "foreign\n");
   await assert.rejects(
     finalizeManagedConsumerRestoration({ ...f.options, expect: prepared.digest }, f),
-    /current bytes or mode differ|repository contains unrelated edits/u,
+    f.sourceNodePin === "26.11.1\n"
+      ? { code: "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED" }
+      : /current bytes or mode differ|repository contains unrelated edits/u,
   );
+  assert.deepEqual(f.activation, []);
   assert.equal(await readFile(join(f.root, ".node-version"), "utf8"), "foreign\n");
   await writeFile(join(f.root, ".node-version"), f.originals.get(".node-version")!);
   const value: unknown = JSON.parse(await readFile(prepared.path, "utf8"));
@@ -405,26 +408,30 @@ scenario("failed live activation compensates only receipt-owned bytes and refuse
   await assert.rejects(operation, /TEST_ACTIVATION_FAILED/u);
   await assertImages(f, false);
   assert.deepEqual(f.activation, ["origin"]);
-  const foreign = await retainedFixture(_t, f.sourceNodePin);
-  const selected = await foreign.prepare();
-  await assert.rejects(
-    finalizeManagedConsumerRestoration(
-      { ...foreign.options, expect: selected.digest },
-      {
-        ...foreign,
-        sandbox: {
-          ...foreign.sandbox,
-          activateAndVerifyManaged: async () => {
-            await writeFile(join(foreign.root, ".node-version"), "foreign\n");
-            throw new Error("TEST_ACTIVATION_FAILED");
+  await _t.test("foreign postimage remains untouched after activation failure", async (context) => {
+    const foreign = await retainedFixture(context, f.sourceNodePin);
+    const selected = await foreign.prepare();
+    await assert.rejects(
+      finalizeManagedConsumerRestoration(
+        { ...foreign.options, expect: selected.digest },
+        {
+          ...foreign,
+          sandbox: {
+            ...foreign.sandbox,
+            activateAndVerifyManaged: async () => {
+              await writeFile(join(foreign.root, ".node-version"), "foreign\n");
+              throw new Error("TEST_ACTIVATION_FAILED");
+            },
           },
         },
-      },
-    ),
-    /current bytes or mode differ|repository contains unrelated edits/u,
-  );
-  assert.equal(await readFile(join(foreign.root, ".node-version"), "utf8"), "foreign\n");
-  assert.deepEqual(foreign.activation, []);
+      ),
+      f.sourceNodePin === "26.11.1\n"
+        ? { code: "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED" }
+        : /current bytes or mode differ|repository contains unrelated edits/u,
+    );
+    assert.equal(await readFile(join(foreign.root, ".node-version"), "utf8"), "foreign\n");
+    assert.deepEqual(foreign.activation, []);
+  });
 });
 
 scenario("cold finalization refuses a missing or wrong selected runtime before CAS publication", async (_t, f) => {
@@ -481,7 +488,9 @@ scenario("runtime preflight pin-byte and non-Git mode drift refuse before CAS pu
             },
           },
         ),
-        /current bytes or mode differ|repository contains unrelated edits/u,
+        f.sourceNodePin === "26.11.1\n"
+          ? { code: "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED" }
+          : /current bytes or mode differ|repository contains unrelated edits/u,
       );
       assert.equal(observations, 1);
       assert.equal(publications, 0);

@@ -27,8 +27,9 @@ jobs:
         run: |
           set -Eeuo pipefail
           diagnostic_base=bdfdf72c10994df939591b88a9dda5d7759cdc39
+          diagnostic_parent=fcffdfe28791920a7b8d93fbe6de770f93560066
           [[ "$(git rev-parse HEAD)" == "${GITHUB_SHA}" ]]
-          [[ "$(git show -s --format=%P HEAD)" == "${diagnostic_base}" ]]
+          [[ "$(git show -s --format=%P HEAD)" == "${diagnostic_parent}" ]]
           [[ "$(git diff --name-only "${diagnostic_base}" HEAD)" == $'.github/workflows/release-audit-observation.yml\nscripts/release-audit-observation.ts\ntsconfig.ci-tooling.json' ]]
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with: { bun-version: "1.4.3" }
@@ -64,7 +65,7 @@ jobs:
           const result = spawnSync(process.execPath, [admitted.entry, "--project", "tsconfig.ci-tooling.json", "--noEmit", "--pretty", "false"], { stdio: "inherit" });
           process.exit(result.status ?? 1);
           NODE
-      - name: Observe the six-package hosted signature sequence
+      - name: Observe hosted signatures and bounded official registry responses
         timeout-minutes: 12
         run: node scripts/release-audit-observation.ts
       - name: Retain exact diagnostic sources and public observations

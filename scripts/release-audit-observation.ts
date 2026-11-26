@@ -8,6 +8,7 @@ import { npmSignatureInstallArguments } from "./release-npm-command.ts";
 import { verifiedProvenanceFromNpmAudit } from "./release-publish-ordered-runtime.mjs";
 
 const SOURCE = "bdfdf72c10994df939591b88a9dda5d7759cdc39";
+const EXPECTED_PARENT = "fcffdfe28791920a7b8d93fbe6de770f93560066";
 const REPOSITORY = "agent-teams-ai/engineering-foundation";
 const BRANCH = "refs/heads/test/release-audit-observation-20261126";
 const INVOCATION = "https://github.com/" + REPOSITORY + "/actions/runs/45765345338/attempts/1";
@@ -30,7 +31,7 @@ const PINS = [
 ] as const;
 type Pin = (typeof PINS)[number];
 type ObjectValue = Record<string, unknown>;
-type FailureCode = "source" | "identity" | "deadline" | "process" | "json" | "metadata" | "unexpected";
+type FailureCode = "source" | "identity" | "deadline" | "process" | "json" | "metadata" | "http" | "redirect" | "size" | "unexpected";
 class ObservationFailure extends Error {
   readonly code: FailureCode;
   constructor(code: FailureCode) { super(code); this.code = code; }
@@ -40,7 +41,7 @@ const observations: ObjectValue[] = [];
 const report: ObjectValue = {
   kind: "release-audit-observation/v1",
   qualified: false,
-  scope: "six-package signature observation; not full publisher reproduction",
+  scope: "six-package signature and bounded registry HTTP observation; not full publisher reproduction",
   sourceRevision: SOURCE,
   originalInvocation: INVOCATION,
   startedAt: new Date().toISOString(),
@@ -105,9 +106,10 @@ async function sourceIdentity(): Promise<void> {
   requireValue(head.ok && parents.ok && paths.ok, "source");
   requireValue(/^[a-f0-9]{40}$/.test(head.stdout.trim()) &&
     head.stdout.trim() === process.env["GITHUB_SHA"] &&
-    parents.stdout.trim() === SOURCE &&
+    parents.stdout.trim() === EXPECTED_PARENT &&
     paths.stdout.trim() === SOURCE_FILES.join("\n"), "source");
   report["observationRevision"] = head.stdout.trim();
+  report["expectedParent"] = EXPECTED_PARENT;
   report["runId"] = process.env["GITHUB_RUN_ID"];
   report["runAttempt"] = process.env["GITHUB_RUN_ATTEMPT"];
   report["sourceFiles"] = await Promise.all(SOURCE_FILES.map(async path => ({
@@ -206,6 +208,101 @@ function auditShape(evidence: ObjectValue, pin: Pin): ObjectValue {
   };
 }
 
+async function registryHttpObservation(destination: string, observation: ObjectValue): Promise<void> {
+  const canonical = REGISTRY + "-/npm/v1/attestations/@agent-teams%2fengineering-foundation@4.0.1";
+  const ownerEncoded = REGISTRY + "-/npm/v1/attestations/%40agent-teams%2Fengineering-foundation@4.0.1";
+  const requests = [
+    { name: "canonical-normal", url: canonical, revalidate: false },
+    { name: "canonical-no-cache", url: canonical, revalidate: true },
+    { name: "canonical-after", url: canonical, revalidate: false },
+    { name: "owner-encoded-normal", url: ownerEncoded, revalidate: false },
+  ] as const;
+  const entries: ObjectValue[] = [];
+  observation["registryHttp"] = entries;
+  for (const [index, request] of requests.entries()) {
+    const entry: ObjectValue = {
+      name: request.name, qualified: false, transport: "native-fetch",
+      purpose: "diagnostic response only; not cryptographic publication evidence",
+      url: request.url, method: "GET", accept: "application/json",
+      cacheControl: request.revalidate ? "no-cache" : null,
+      startedAt: new Date().toISOString(),
+    };
+    entries.push(entry);
+    await saveReport();
+    const started = Date.now();
+    const remaining = deadline - started;
+    if (remaining <= 0) throw new ObservationFailure("deadline");
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), Math.min(20_000, remaining));
+    try {
+      const headers: Record<string, string> = { accept: "application/json" };
+      if (request.revalidate) headers["cache-control"] = "no-cache";
+      const response = await fetch(request.url, {
+        method: "GET", headers, redirect: "manual", credentials: "omit", signal: controller.signal,
+      });
+      entry["status"] = response.status;
+      const responseHeaders: Record<string, string> = {};
+      for (const name of ["date", "cache-control", "age", "etag", "last-modified",
+        "cf-cache-status", "cf-ray", "vary"]) {
+        const value = response.headers.get(name);
+        if (value !== null) responseHeaders[name] = value.slice(0, 512).replace(/[^\x20-\x7e]/g, "?");
+      }
+      entry["headers"] = responseHeaders;
+      requireValue(response.status < 300 || response.status >= 400, "redirect");
+      requireValue(response.status === 200 && response.url === request.url && response.body !== null, "http");
+      const length = response.headers.get("content-length");
+      requireValue(length === null || (/^\d+$/.test(length) && Number(length) <= 2 * 1024 * 1024), "size");
+      const reader = response.body.getReader();
+      const chunks: Uint8Array[] = [];
+      let size = 0;
+      try {
+        while (true) {
+          const chunk = await reader.read();
+          if (chunk.done) break;
+          size += chunk.value.byteLength;
+          entry["bodyBytes"] = size;
+          requireValue(size <= 2 * 1024 * 1024, "size");
+          chunks.push(chunk.value);
+        }
+      } finally {
+        reader.releaseLock();
+      }
+      const bytes = Buffer.concat(chunks);
+      let evidence: ObjectValue | undefined;
+      try { evidence = object(parsed(new TextDecoder("utf-8", { fatal: true }).decode(bytes))); }
+      catch { throw new ObservationFailure("json"); }
+      const bundles = evidence?.["attestations"];
+      requireValue(evidence !== undefined && Object.keys(evidence).join(",") === "attestations" &&
+        Array.isArray(bundles) && bundles.length <= 32 && bundles.every(value => {
+          const entry = object(value);
+          return typeof entry?.["predicateType"] === "string" &&
+            entry["predicateType"].length > 0 && entry["predicateType"].length <= 4096 &&
+            object(entry["bundle"]) !== undefined;
+        }), "metadata");
+      const predicates = array(bundles).map(value => string(object(value)?.["predicateType"]));
+      const file = "http-" + String(index + 1) + "-" + request.name + ".json";
+      await writeFile(join(destination, file), bytes);
+      entry["rawFile"] = file;
+      entry["rawDigest"] = digest(bytes);
+      entry["bodyBytes"] = bytes.byteLength;
+      entry["bundleCount"] = predicates.length;
+      entry["slsaBundleCount"] = predicates.filter(value => value === SLSA).length;
+      entry["publishBundleCount"] = predicates.filter(value => value === PUBLISH).length;
+      entry["bundlePredicates"] = predicates;
+      entry["outcome"] = "observed";
+    } catch (error) {
+      entry["outcome"] = "refused";
+      entry["failure"] = controller.signal.aborted ? "deadline"
+        : error instanceof ObservationFailure ? error.code : "http";
+    } finally {
+      clearTimeout(timer);
+      controller.abort();
+      entry["elapsedMs"] = Date.now() - started;
+      await saveReport();
+    }
+  }
+}
+
 async function observe(pin: Pin, index: number): Promise<void> {
   const folder = String(index + 1) + "-" + pin.name.split("/")[1];
   const destination = join(OUTPUT, folder);
@@ -221,6 +318,7 @@ async function observe(pin: Pin, index: number): Promise<void> {
     observation["install"] = install.summary;
     await saveReport();
     if (!install.ok) { observation["failure"] = "install-process"; return; }
+    if (pin.name === "@agent-teams/engineering-foundation") await registryHttpObservation(destination, observation);
     const audit = run("npm", ["audit", "signatures", "--json", "--include-attestations",
       "--prefer-online", "--registry=" + REGISTRY], root);
     observation["audit"] = audit.summary;

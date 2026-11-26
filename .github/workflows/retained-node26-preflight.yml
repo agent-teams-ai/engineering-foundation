@@ -1,0 +1,260 @@
+name: Retained Node26 preflight
+run-name: Retained Node26 preflight ${{ github.run_id }} (workflow ${{ github.sha }})
+
+on:
+  push:
+    branches: [test/retained-node26-preflight-20261126]
+
+# Diagnostic pre-PR execution only. This workflow does not qualify full-ci,
+# publish a package, create a PR, or supply release/cohort admission evidence.
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: retained-node26-preflight-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  PREFLIGHT_CANDIDATE_SHA: da816903b4fe40b32628978b11502eee6cb36773
+  PREFLIGHT_BASE_SHA: fac03920e50ebde038ae415edeb7aa9e3d610ada
+  PREFLIGHT_WORKFLOW_PATH: .github/workflows/retained-node26-preflight.yml
+  NODE_DISABLE_COMPILE_CACHE: "1"
+  NX_DAEMON: "false"
+  GIT_AUTHOR_NAME: Retained preflight TEST fixture
+  GIT_AUTHOR_EMAIL: test@example.invalid
+  GIT_COMMITTER_NAME: Retained preflight TEST fixture
+  GIT_COMMITTER_EMAIL: test@example.invalid
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  preflight:
+    name: Retained Node26 pre-PR verification
+    if: ${{ github.repository == 'agent-teams-ai/engineering-foundation' && github.event_name == 'push' && github.ref == 'refs/heads/test/retained-node26-preflight-20261126' }}
+    runs-on: ubuntu-24.04
+    # The complete committed delta selects the unchanged full repository check.
+    timeout-minutes: 45
+    steps:
+      - name: Check out the exact candidate with complete history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.PREFLIGHT_CANDIDATE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Bind candidate, base, and actual workflow identities
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse HEAD)" = "$PREFLIGHT_CANDIDATE_SHA"
+          git cat-file -e "${PREFLIGHT_BASE_SHA}^{commit}"
+          git merge-base --is-ancestor "$PREFLIGHT_BASE_SHA" "$PREFLIGHT_CANDIDATE_SHA"
+          git merge-base --is-ancestor "$PREFLIGHT_BASE_SHA" "$GITHUB_SHA"
+          git diff --exit-code
+          git diff --cached --exit-code
+          test -z "$(git ls-files --others --exclude-standard)"
+          preflight_evidence="$RUNNER_TEMP/retained-preflight-evidence"
+          preflight_temporary="$RUNNER_TEMP/retained-preflight-tmp"
+          mkdir -p "$preflight_evidence" "$preflight_temporary"
+          printf 'PREFLIGHT_EVIDENCE_DIR=%s\n' "$preflight_evidence" >> "$GITHUB_ENV"
+          printf 'TMPDIR=%s\n' "$preflight_temporary" >> "$GITHUB_ENV"
+          printf 'AGENT_TEAMS_FOUNDATION_SOURCE_ROOT=%s\n' "$GITHUB_WORKSPACE" >> "$GITHUB_ENV"
+          printf 'AGENT_TEAMS_FOUNDATION_SOURCE_SHA=%s\n' "$PREFLIGHT_CANDIDATE_SHA" >> "$GITHUB_ENV"
+          {
+            printf 'candidate=%s\n' "$PREFLIGHT_CANDIDATE_SHA"
+            printf 'candidate_tree=%s\n' "$(git rev-parse 'HEAD^{tree}')"
+            printf 'base=%s\n' "$PREFLIGHT_BASE_SHA"
+            printf 'event_sha=%s\n' "$GITHUB_SHA"
+            printf 'workflow_sha=%s\n' "$GITHUB_WORKFLOW_SHA"
+            printf 'workflow_ref=%s\n' "$GITHUB_WORKFLOW_REF"
+            printf 'run_id=%s\n' "$GITHUB_RUN_ID"
+            printf 'run_attempt=%s\n' "$GITHUB_RUN_ATTEMPT"
+          } | tee "$preflight_evidence/source-identities.txt"
+          git diff --stat "$PREFLIGHT_BASE_SHA" "$PREFLIGHT_CANDIDATE_SHA" > "$preflight_evidence/committed-delta.txt"
+          git show "${GITHUB_SHA}:${PREFLIGHT_WORKFLOW_PATH}" > "$preflight_evidence/executed-workflow.yml"
+
+      # Preserve the ordinary dependency-review/SBOM barrier before installing
+      # project dependencies or executing candidate tooling.
+      - name: Review dependency changes for the exact base and candidate
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          base-ref: ${{ env.PREFLIGHT_BASE_SHA }}
+          head-ref: ${{ env.PREFLIGHT_CANDIDATE_SHA }}
+          fail-on-severity: moderate
+          vulnerability-check: true
+          warn-only: false
+          comment-summary-in-pr: never
+      - name: Retain the candidate SBOM before installation
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          path: .
+          format: spdx-json
+          artifact-name: retained-preflight-sbom-${{ env.PREFLIGHT_CANDIDATE_SHA }}.spdx.json
+          output-file: ${{ runner.temp }}/retained-preflight-evidence/candidate-sbom.spdx.json
+          upload-release-assets: false
+
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        id: setup-pnpm
+        env:
+          pnpm_config_pm_on_fail: ignore
+        with:
+          version: "11.20.0"
+          install: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        id: setup-bun
+        with:
+          bun-version: "1.4.3"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24.21.0"
+      - name: Retain the physical Node24 controller and legacy test runtime
+        run: |
+          set -Eeuo pipefail
+          test "$(node --version)" = "v24.21.0"
+          preflight_node24="$(command -v node)"
+          printf 'PACK_TEST_GENERATION2_NODE=%s\n' "$preflight_node24" >> "$GITHUB_ENV"
+          printf 'MANAGED_TEST_NODE24_SOURCE=%s\n' "$preflight_node24" >> "$GITHUB_ENV"
+      # This is the existing historical managed-runtime TEST coordinate. It is
+      # distinct from the current source/default/retained target Node26.11.1.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "26.10.0"
+      - name: Retain the historical managed Node26 test coordinate
+        run: |
+          set -Eeuo pipefail
+          test "$(node --version)" = "v26.10.0"
+          printf 'MANAGED_TEST_NODE26_SOURCE=%s\n' "$(command -v node)" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - name: Bind the current Node26, Bun, and pnpm executables
+        env:
+          PREFLIGHT_BUN_EXECUTABLE: ${{ steps.setup-bun.outputs.bun-path }}
+          PREFLIGHT_PNPM_EXECUTABLE: ${{ steps.setup-pnpm.outputs.bin-dest }}/pnpm
+        run: |
+          set -Eeuo pipefail
+          test "$(node --version)" = "v26.11.1"
+          test "$("$PREFLIGHT_BUN_EXECUTABLE" --version)" = "1.4.3"
+          test "$("$PREFLIGHT_PNPM_EXECUTABLE" --pm-on-fail=ignore --version)" = "11.20.0"
+          printf 'AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE=%s\n' "$(command -v node)" >> "$GITHUB_ENV"
+          printf 'AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE=%s\n' "$PREFLIGHT_BUN_EXECUTABLE" >> "$GITHUB_ENV"
+          printf 'AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT=%s\n' "$PREFLIGHT_PNPM_EXECUTABLE" >> "$GITHUB_ENV"
+          {
+            printf 'node24=%s\n' "$("$PACK_TEST_GENERATION2_NODE" --version)"
+            printf 'managed_node26=%s\n' "$("$MANAGED_TEST_NODE26_SOURCE" --version)"
+            printf 'default_node=%s\n' "$(node --version)"
+            printf 'bun=%s\n' "$("$PREFLIGHT_BUN_EXECUTABLE" --version)"
+            printf 'pnpm=%s\n' "$("$PREFLIGHT_PNPM_EXECUTABLE" --pm-on-fail=ignore --version)"
+          } | tee "$PREFLIGHT_EVIDENCE_DIR/runtime-identities.txt"
+
+      - name: Provision the qualified npm migration verifier
+        run: |
+          set -Eeuo pipefail
+          npm install --global npm@11.19.0 --ignore-scripts
+          test "$(npm --version)" = "11.19.0"
+      - name: Install the source-owned Bun profile
+        run: |
+          set -Eeuo pipefail
+          test ! -d node_modules
+          bun tools/dev.mts install 2>&1 | tee "$PREFLIGHT_EVIDENCE_DIR/install.log"
+      - name: Build with the repository-admitted compiler
+        run: |
+          set -Eeuo pipefail
+          bun tools/dev.mts build 2>&1 | tee "$PREFLIGHT_EVIDENCE_DIR/build.log"
+      - name: Provision all existing managed-test prerequisites
+        run: |
+          set -Eeuo pipefail
+          node scripts/provision-managed-test-tools.mjs 2>&1 | tee "$PREFLIGHT_EVIDENCE_DIR/managed-test-provisioning.log"
+
+      - name: Diagnose explicit task-owned Stack cleanup and reject changed source
+        run: |
+          set -Eeuo pipefail
+          selected_files=(
+            packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-integration-repository.ts
+            packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-upgrade-sandbox.ts
+            packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-current-selection.ts
+            packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-restoration-preparation.ts
+            packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-restoration-scope.ts
+            packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-retained-source-verifier.ts
+            packages/docs-protocol-agent-teams/src/consumer-integration/composition/node-consumer-integration.ts
+            packages/docs-protocol-agent-teams/tests/consumer-committed-restoration.test.ts
+            packages/docs-protocol-agent-teams/tests/consumer-managed-restoration.test.ts
+            packages/docs-protocol-agent-teams/tests/consumer-retained-source-verifier.test.ts
+            packages/docs-protocol-agent-teams/tests/consumer-upgrade-generation3.test.ts
+            packages/docs-protocol-agent-teams/tests/managed-restoration-fixture.ts
+            scripts/generation2-node.mts
+            tests/generation2-node.test.mts
+            tests/published-foundation-operations.test.ts
+            tests/retained-source-compiler-floor-child.ts
+          )
+          cleanup_status=0
+          node packages/stack-toolchain/dist/cli.js fix --json -- "${selected_files[@]}" 2>&1 | tee "$PREFLIGHT_EVIDENCE_DIR/cleanup.log" || cleanup_status=$?
+          git diff --binary HEAD -- "${selected_files[@]}" > "$PREFLIGHT_EVIDENCE_DIR/cleanup.patch"
+          test "$cleanup_status" -eq 0
+          test ! -s "$PREFLIGHT_EVIDENCE_DIR/cleanup.patch"
+          git diff --exit-code HEAD
+
+      - name: Run physical Node24 cold recovery and compiler-floor scenarios
+        run: |
+          set -Eeuo pipefail
+          test "$("$PACK_TEST_GENERATION2_NODE" --version)" = "v24.21.0"
+          "$PACK_TEST_GENERATION2_NODE" --test --test-concurrency=1 --test-reporter=tap \
+            packages/docs-protocol-agent-teams/tests/consumer-managed-restoration.test.ts \
+            packages/docs-protocol-agent-teams/tests/consumer-committed-restoration.test.ts \
+            packages/docs-protocol-agent-teams/tests/consumer-retained-source-verifier.test.ts \
+            tests/published-foundation-operations.test.ts \
+            2>&1 | tee "$PREFLIGHT_EVIDENCE_DIR/focused-node24.tap"
+      - name: Run default Node26 routing and independent runtime-refusal scenarios
+        run: |
+          set -Eeuo pipefail
+          test "$(node --version)" = "v26.11.1"
+          node --test --test-concurrency=1 --test-reporter=tap \
+            tests/generation2-node.test.mts \
+            packages/docs-protocol-agent-teams/tests/consumer-upgrade-generation3.test.ts \
+            2>&1 | tee "$PREFLIGHT_EVIDENCE_DIR/focused-node26.tap"
+      - name: Run the required fast gate
+        run: |
+          set -Eeuo pipefail
+          bun tools/dev.mts check:fast 2>&1 | tee "$PREFLIGHT_EVIDENCE_DIR/check-fast.log"
+      - name: Run the required workflow security gate on the candidate
+        run: |
+          set -Eeuo pipefail
+          bun tools/dev.mts security:workflows 2>&1 | tee "$PREFLIGHT_EVIDENCE_DIR/security-workflows.log"
+      - name: Run the source-owned changed gate
+        run: |
+          set -Eeuo pipefail
+          bun tools/dev.mts check:changed 2>&1 | tee "$PREFLIGHT_EVIDENCE_DIR/check-changed.log"
+      - name: Check the complete committed delta through the unchanged full-check route
+        env:
+          FOUNDATION_PR_HEAD_REPOSITORY: agent-teams-ai/engineering-foundation
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          bun packages/engineering-foundation/dist/cli.js agent-workflow changed \
+            --consumer . --base "$PREFLIGHT_BASE_SHA" \
+            2>&1 | tee "$PREFLIGHT_EVIDENCE_DIR/complete-committed-delta.log"
+
+      - name: Preserve diagnostics and verify exact source remains unchanged
+        if: ${{ always() }}
+        run: |
+          set -Eeuo pipefail
+          preflight_evidence="$RUNNER_TEMP/retained-preflight-evidence"
+          mkdir -p "$preflight_evidence"
+          git diff --binary HEAD > "$preflight_evidence/final-source.patch"
+          git --no-optional-locks status --porcelain=v1 --untracked-files=all > "$preflight_evidence/final-source-status.txt"
+          test "$(git rev-parse HEAD)" = "$PREFLIGHT_CANDIDATE_SHA"
+          test ! -s "$preflight_evidence/final-source.patch"
+          test ! -s "$preflight_evidence/final-source-status.txt"
+      - name: Upload diagnostic evidence for this candidate and actual workflow run
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: retained-preflight-${{ env.PREFLIGHT_CANDIDATE_SHA }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/retained-preflight-evidence
+            .worker-tmp/check-changed-*.log
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 7

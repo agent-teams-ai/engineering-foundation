@@ -135,11 +135,11 @@ test("a pre-existing PID temporary survives the findings write", async (t) => {
   const foreign = `${current.candidate}.${process.pid}.tmp`;
   await writeFile(foreign, "another operation's bytes", { flag: "wx" });
   const outcome = await current.store.replace(current.root, current.path, smaller, original).then(
-    () => undefined,
+    () => null,
     (error: unknown) => error,
   );
   assert.equal(await readFile(foreign, "utf8"), "another operation's bytes");
-  assert.equal(outcome, undefined);
+  assert.equal(outcome, null);
   assert.equal(await readFile(current.candidate, "utf8"), smaller);
 });
 

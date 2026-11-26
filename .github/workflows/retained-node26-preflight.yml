@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  PREFLIGHT_CANDIDATE_SHA: 02340e3e802c8b186e0b494a990606e496bd10c8
+  PREFLIGHT_CANDIDATE_SHA: 405724905d81c330894be26e6f6d08ee254bd071
   PREFLIGHT_BASE_SHA: fac03920e50ebde038ae415edeb7aa9e3d610ada
   PREFLIGHT_WORKFLOW_PATH: .github/workflows/retained-node26-preflight.yml
   NODE_DISABLE_COMPILE_CACHE: "1"

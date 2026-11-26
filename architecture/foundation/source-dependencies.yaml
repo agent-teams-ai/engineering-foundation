@@ -500,6 +500,7 @@ boundaries:
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-clock.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-environment.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-integration-repository.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-integration-runtime.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-repository-files.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-restoration-evidence.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-restoration-finalization.ts

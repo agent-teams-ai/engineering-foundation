@@ -1,10 +1,10 @@
 import { consumerIntegrationPlanningPorts } from "../dist/consumer-integration/composition/consumer-integration-planner.js";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import type { TestContext } from "node:test";
+import test, { type TestContext } from "node:test";
 import { compileKnownFileTransactionPlan } from "@agent-teams/repository-mutation";
 import type {
   ConsumerUpgradeAuthorityV2,
@@ -308,4 +308,47 @@ export async function retainedFixture(
   };
 }
 
+type Fixture = Awaited<ReturnType<typeof retainedFixture>>;
+
+export function retainedScenario(
+  name: string,
+  run: (context: TestContext, fixture: Fixture) => Promise<void>,
+): void {
+  for (const sourceNodePin of ["24.21.0\n", "26.11.1\n"] as const) {
+    const identity = sourceNodePin === "24.21.0\n" ? name : `${name} [preserved host Node26]`;
+    void test(
+      process.platform === "win32" ? `${identity} [Windows runtime refusal]` : identity,
+      async (context) => {
+        const fixture = await retainedFixture(context, sourceNodePin);
+        if (process.platform === "win32") {
+          assert.equal(process.versions.node.split(".")[0], "26");
+          await assert.rejects(fixture.prepare(), /actual Node24\.21\.0/u);
+          await assertRetainedImages(fixture, false);
+          assert.deepEqual(fixture.activation, []);
+          context.diagnostic(
+            "Windows default Node26 refusal only; no positive mutation or recovery claim.",
+          );
+          return;
+        }
+        assert.equal(
+          process.versions.node,
+          "24.21.0",
+          "Positive retained-controller cases require the selected physical Node24.21.0 test route.",
+        );
+        context.diagnostic(
+          `controller=${process.versions.node}; source-pin=${sourceNodePin.trim()}; TEST activation ports`,
+        );
+        await run(context, fixture);
+      },
+    );
+  }
+}
+export async function assertRetainedImages(f: Fixture, target: boolean) {
+  for (const [path, bytes] of target ? f.postimages : f.originals) {
+    assert.deepEqual(await readFile(join(f.root, path)), bytes, path);
+  }
+  if (process.platform !== "win32") {
+    assert.equal((await lstat(join(f.root, ".node-version"))).mode & 0o777, 0o644);
+  }
+}
 export { git as fixtureGit };

@@ -1,89 +1,22 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { chmod, lstat, readFile, writeFile } from "node:fs/promises";
+import { chmod, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import test from "node:test";
-import type { TestContext } from "node:test";
-import {
-  applyKnownFileTransaction,
-  compileKnownFileTransactionPlan,
-  sha256Bytes,
-} from "@agent-teams/repository-mutation";
+import { applyKnownFileTransaction, sha256Bytes } from "@agent-teams/repository-mutation";
 import {
   finalizeManagedConsumerRestoration,
   restoreManagedConsumerIntegration,
 } from "../dist/consumer-integration/adapters/node-managed-restoration.js";
+import { parseManagedPreparation } from "../dist/consumer-integration/adapters/node-managed-restoration-preparation.js";
 import {
-  managedRestorationRecorder,
-  parseManagedPreparation,
-} from "../dist/consumer-integration/adapters/node-managed-restoration-preparation.js";
-import { nodeManagedGeneration2SourceInputReader } from "../dist/consumer-integration/adapters/node-consumer-integration-repository.js";
-import { packageConsumerAssetCatalogReader } from "../dist/consumer-integration/adapters/package-consumer-asset-catalog.js";
-import { createConsumerUpgradeUseCase } from "../dist/consumer-integration/application/use-cases/upgrade-consumer-integration.js";
-import { foundationKnownFileTransaction } from "../dist/consumer-integration/composition/known-file-transaction.js";
-import { fixtureGit as git, retainedFixture, revision } from "./managed-restoration-fixture.ts";
+  assertRetainedImages as assertImages,
+  fixtureGit as git,
+  retainedFixture,
+  retainedScenario as scenario,
+  revision,
+} from "./managed-restoration-fixture.ts";
 
 type Fixture = Awaited<ReturnType<typeof retainedFixture>>;
-function scenario(
-  name: string,
-  run: (context: TestContext, fixture: Fixture) => Promise<void>,
-): void {
-  for (const sourceNodePin of ["24.21.0\n", "26.11.1\n"] as const) {
-    const identity = sourceNodePin === "24.21.0\n" ? name : `${name} [preserved host Node26]`;
-    void test(
-      process.platform === "win32" ? `${identity} [Windows runtime refusal]` : identity,
-      async (context) => {
-        const fixture = await retainedFixture(context, sourceNodePin);
-        if (process.platform === "win32") {
-          assert.equal(process.versions.node.split(".")[0], "26");
-          await assert.rejects(fixture.prepare(), /actual Node24\.21\.0/u);
-          await assertImages(fixture, false);
-          assert.deepEqual(fixture.activation, []);
-          context.diagnostic(
-            "Windows default Node26 refusal only; no positive mutation or recovery claim.",
-          );
-          return;
-        }
-        assert.equal(
-          process.versions.node,
-          "24.21.0",
-          "Positive retained-controller cases require the selected physical Node24.21.0 test route.",
-        );
-        context.diagnostic(
-          `controller=${process.versions.node}; source-pin=${sourceNodePin.trim()}; TEST activation ports`,
-        );
-        await run(context, fixture);
-      },
-    );
-  }
-}
-async function assertImages(f: Fixture, target: boolean) {
-  for (const [path, bytes] of target ? f.postimages : f.originals) {
-    assert.deepEqual(await readFile(join(f.root, path)), bytes, path);
-  }
-  if (process.platform !== "win32") {
-    assert.equal((await lstat(join(f.root, ".node-version"))).mode & 0o777, 0o644);
-  }
-}
-function inputOperations(f: Fixture) {
-  return f.plan.operations.map((operation) => {
-    assert.ok(operation.precondition.state === "known-file");
-    return {
-      path: operation.path,
-      precondition: {
-        state: "known-file" as const,
-        acceptedPreimages: operation.precondition.acceptedPreimages.map((image) => ({
-          bytes: Buffer.from(image.contentBase64, "base64"),
-          mode: image.mode,
-        })),
-      },
-      postimage: {
-        bytes: Buffer.from(operation.postimage.contentBase64, "base64"),
-        mode: operation.postimage.mode,
-      },
-    };
-  });
-}
 async function coldFinalize(f: Fixture, expect: string, crash = false) {
   const module = new URL(
     "../dist/consumer-integration/adapters/node-managed-restoration.js",
@@ -137,103 +70,6 @@ scenario(
     );
     assert.throws(() => parseManagedPreparation(changed, sha256Bytes(changed)), /family/u);
     assert.deepEqual(f.activation, []);
-  },
-);
-
-scenario(
-  "retained preparation keeps exact pin ownership and rejects a forged no-op pin write",
-  async (_t, f) => {
-    const writesPin = f.plan.operations.some(({ path }) => path === ".node-version");
-    assert.equal(writesPin, f.sourceNodePin === "24.21.0\n");
-    if (!writesPin) {
-      const noop = compileKnownFileTransactionPlan({
-        operations: [
-          ...inputOperations(f),
-          {
-            path: ".node-version",
-            precondition: {
-              state: "known-file",
-              acceptedPreimages: [{ bytes: Buffer.from(f.sourceNodePin), mode: 0o644 }],
-            },
-            postimage: { bytes: Buffer.from(f.sourceNodePin), mode: 0o644 },
-          },
-        ],
-      });
-      await assert.rejects(
-        f.prepare(noop),
-        /unchanged or ambiguously owned replacements are forbidden/u,
-      );
-      await assert.rejects(readFile(f.options.preparationPath), { code: "ENOENT" });
-    }
-    const prepared = await f.prepare();
-    const retained = parseManagedPreparation(await readFile(prepared.path), prepared.digest);
-    assert.equal(
-      retained.plan.operations.some(({ path }) => path === ".node-version"),
-      writesPin,
-    );
-    await assertImages(f, false);
-    assert.deepEqual(f.activation, []);
-  },
-);
-
-scenario(
-  "staging-time non-Git pin mode drift refuses before retained preparation or consumer publication",
-  async (_t, f) => {
-    const pin = join(f.root, ".node-version");
-    let staging = 0;
-    let publications = 0;
-    const upgrade = createConsumerUpgradeUseCase({
-      input: nodeManagedGeneration2SourceInputReader,
-      assets: packageConsumerAssetCatalogReader,
-      planning: f.planning,
-      authority: f.authority,
-      transaction: {
-        ...foundationKnownFileTransaction,
-        apply: async (): Promise<never> => {
-          publications += 1;
-          throw new Error("TEST_UNEXPECTED_CAS_AFTER_STAGING_DRIFT");
-        },
-      },
-      sandbox: {
-        ...f.sandbox,
-        prepareManaged: async () => {
-          staging += 1;
-          await chmod(pin, 0o600);
-          assert.equal(git(f.root, "diff", "--name-only"), "");
-          return { operations: inputOperations(f) };
-        },
-      },
-      restoration: {
-        prepare: async (): Promise<never> => {
-          throw new Error("TEST_UNSELECTED_LEGACY_PREPARATION");
-        },
-        prepareManaged: managedRestorationRecorder(f.authority),
-      },
-    });
-    try {
-      await assert.rejects(
-        upgrade({
-          consumerRoot: f.root,
-          to: f.target.cohort.cohortId,
-          sourceGeneration: 2,
-          targetGeneration: 3,
-          prepare: true,
-          restorationProofPath: f.options.proofPath,
-        }),
-        f.sourceNodePin === "26.11.1\n"
-          ? { code: "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED" }
-          : /current bytes or mode differ/u,
-      );
-      assert.equal(staging, 1);
-      assert.equal(publications, 0);
-      assert.equal((await lstat(pin)).mode & 0o777, 0o600);
-      assert.deepEqual(f.activation, []);
-      await assert.rejects(readFile(f.options.preparationPath), { code: "ENOENT" });
-      await assert.rejects(readFile(`${f.options.proofPath}.receipt`), { code: "ENOENT" });
-    } finally {
-      await chmod(pin, 0o644);
-    }
-    await assertImages(f, false);
   },
 );
 

@@ -33,7 +33,11 @@ import {
 import { readRestorationEvidence } from "./node-consumer-restoration-selection.js";
 import { allowedUpgradePaths } from "./node-consumer-upgrade-source-proof.js";
 import { assertManagedRestorationEffects } from "./node-managed-restoration-scope.js";
-import { INTEGRATION_PROFILE_PATH } from "./node-consumer-repository-files.js";
+import {
+  INTEGRATION_PROFILE_PATH,
+  readStableConsumerFile,
+} from "./node-consumer-repository-files.js";
+import { assertPreservedSourcePin } from "./node-consumer-integration-repository.js";
 
 export function isCentralManagedAuthority(value: {
   readonly repository: unknown;
@@ -149,6 +153,13 @@ async function assertManagedPlanSource(root: string, preparation: ManagedGenerat
         await restorationGit(root, ["show", `${preparation.sourceRevision}:${path}`]),
       );
     }
+  }
+  if (originals.get(".node-version")?.equals(Buffer.from("26.11.1\n")) === true) {
+    await assertPreservedSourcePin(
+      root,
+      preparation.sourceRevision,
+      await readStableConsumerFile(root, ".node-version", 128, true),
+    );
   }
   for (const operation of preparation.plan.operations) {
     requireRestoration(

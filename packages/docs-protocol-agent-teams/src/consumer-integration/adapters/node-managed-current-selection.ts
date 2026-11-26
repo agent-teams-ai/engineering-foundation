@@ -152,6 +152,35 @@ async function committedInverse(
   return compileKnownFileTransactionPlan({ operations });
 }
 
+/** An unchanged pin is still owned admission evidence, not a no-op transaction write. */
+async function assertCurrentTargetNodePin(
+  root: string,
+  revision: string,
+  preparation: ManagedGenerationPreparation,
+): Promise<void> {
+  const [physical, committed, originalEntry, currentEntry] = await Promise.all([
+    readStableConsumerFile(root, ".node-version", 128, true),
+    restorationGit(root, ["show", `${revision}:.node-version`]),
+    restorationGit(root, ["ls-tree", preparation.sourceRevision, "--", ".node-version"]),
+    restorationGit(root, ["ls-tree", revision, "--", ".node-version"]),
+  ]);
+  const sourceMode = originalEntry.toString("utf8").split(" ")[0];
+  const expectedMode =
+    sourceMode === "100644" ? 0o644 : sourceMode === "100755" ? 0o755 : undefined;
+  const expected = Buffer.from(
+    `${preparation.targetCohort.runtime.qualificationRuntime.nodeVersion}\n`,
+  );
+  requireRestoration(
+    expectedMode !== undefined &&
+      currentEntry.toString("utf8").split(" ")[0] === sourceMode &&
+      committed.equals(expected) &&
+      physical.state === "file" &&
+      physical.mode === expectedMode &&
+      Buffer.from(physical.bytes).equals(expected),
+    "committed target runtime pin or mode differs from the retained source/target binding.",
+  );
+}
+
 export async function assertCurrentRestorationBinding(
   root: string,
   options: ManagedCommittedRestorationOptions,
@@ -212,6 +241,7 @@ async function assertCurrentTargetCurrent(
   preparation: ManagedGenerationPreparation,
   planning: ConsumerIntegrationPlanningPorts,
 ): Promise<void> {
+  await assertCurrentTargetNodePin(root, revision, preparation);
   const desired = await currentCommittedProfile(root, revision, preparation);
   const observation = (path: string, required = false) =>
     readStableConsumerFile(root, path, 32 * 1024 * 1024, required);
@@ -268,6 +298,7 @@ export async function prepareCurrentRestoration(
   const bound = await assertCurrentRestorationBinding(root, options, preparation);
   await assertCurrentTargetCurrent(root, options.currentRevision, preparation, planning);
   const sourceInventoryDigest = await restorationInventory(root);
+  await assertCurrentTargetNodePin(root, options.currentRevision, preparation);
   requireRestoration(
     (await assertCleanGitRoot(root)) === options.currentRevision,
     "current target changed during admission.",

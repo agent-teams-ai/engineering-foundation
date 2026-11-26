@@ -8,6 +8,7 @@ import test from "node:test";
 import {
   GENERATION2_LEGACY_TEST_FILES,
   GENERATION2_NODE_ENV,
+  RETAINED_CONTROLLER_TEST_FILES,
   generation2Minor,
   partitionGeneration2Tests,
   resolveGeneration2Node,
@@ -83,6 +84,30 @@ test("legacy generation2 suites are partitioned out of the default interpreter",
     partitionGeneration2Tests(legacy.map((file) => file.replaceAll("/", "\\"))).current,
     [],
   );
+});
+
+test("retained controller positives use Node24 while Windows keeps explicit runtime refusals", () => {
+  assert.deepEqual(RETAINED_CONTROLLER_TEST_FILES, [
+    "packages/docs-protocol-agent-teams/tests/consumer-managed-restoration.test.ts",
+    "packages/docs-protocol-agent-teams/tests/consumer-committed-restoration.test.ts",
+    "packages/docs-protocol-agent-teams/tests/consumer-retained-source-verifier.test.ts",
+    "tests/published-foundation-operations.test.ts",
+  ]);
+  const files = [
+    "tests/current.test.ts",
+    ...GENERATION2_LEGACY_TEST_FILES,
+    ...RETAINED_CONTROLLER_TEST_FILES,
+  ];
+  for (const platform of ["linux", "darwin"] as const) {
+    assert.deepEqual(partitionGeneration2Tests(files, platform), {
+      current: ["tests/current.test.ts"],
+      legacy: [...GENERATION2_LEGACY_TEST_FILES, ...RETAINED_CONTROLLER_TEST_FILES],
+    });
+  }
+  assert.deepEqual(partitionGeneration2Tests(files, "win32"), {
+    current: ["tests/current.test.ts", ...RETAINED_CONTROLLER_TEST_FILES],
+    legacy: [...GENERATION2_LEGACY_TEST_FILES],
+  });
 });
 
 test(

@@ -118,11 +118,13 @@ does not enable cross-generation execution or qualify a successor release.
 
 ## Candidate generation3 execution
 
-Unreleased source adds the explicit retained generation2-to3 transition and its
-selected original rollback. Published0.5.5 does not contain this path. It remains
-pending [ADR-0070](../../docs/decisions/0070-bounded-managed-generation3-execution.md),
-reviewed API/decision promotion, published controller retention and physical
-consumer qualification. Source tests do not grant activation authority.
+The explicit retained generation2-to3 transition and selected rollback follow
+accepted [ADR-0070](../../docs/decisions/0070-bounded-managed-generation3-execution.md).
+The source-preserving amendment follows
+[ADR-0075](../../docs/decisions/0075-retained-upgrade-preserving-source-node26-pin.md).
+The corrected successor still requires actual publication, retained-controller
+verification and physical consumer qualification. Source tests do not grant
+activation authority.
 
 Retain a separately verified successor controller installation outside the
 consumer and keep its exact package/kernel builds available through restoration.
@@ -134,18 +136,26 @@ real Node24.21.0/26.11.1 on Linux/x64 and the exact root pnpm pin; target pnpm
 is11.20.0. Target activation and source restoration install frozen and offline.
 No runtime or engine fallback is provided.
 
+For explicitly selected retained2-to3 preparation, the source host pin may already
+be the exact target `26.11.1\n` image. Preserve its bytes and committed Git mode;
+the actual controller still runs on Node24.21.0. The retained controller observes
+the original and restored managed data through its own historical projections,
+without executing the old consumer Foundation or compiler. This observation does
+not claim that the old installed CLI or full consumer gate passed. Target
+activation uses the installed profile4 CLI and its ordinary runtime checks.
+
 The existing CLI route is explicit (variables below are operator-selected exact
 paths, Cohort IDs and the separately retained preparation digest):
 
 ```sh
-"$NODE24" "$CONTROLLER/dist/cli.js" consumer upgrade --consumer "$CONSUMER" \
+"$NODE24" "$CONTROLLER/dist/cli.js" upgrade --consumer "$CONSUMER" \
   --to "$TARGET_COHORT" --source-generation 2 --target-generation 3 \
   --prepare --restoration-proof "$PROOF" --json
-"$NODE24" "$CONTROLLER/dist/cli.js" consumer finalize --consumer "$CONSUMER" \
+"$NODE24" "$CONTROLLER/dist/cli.js" finalize --consumer "$CONSUMER" \
   --from "$SOURCE_COHORT" --to "$TARGET_COHORT" \
   --source-generation 2 --target-generation 3 \
   --preparation "$PROOF.prepared" --expect "$PREPARATION_DIGEST" --proof "$PROOF" --json
-"$NODE24" "$CONTROLLER/dist/cli.js" consumer restore --consumer "$CONSUMER" \
+"$NODE24" "$CONTROLLER/dist/cli.js" restore --consumer "$CONSUMER" \
   --from "$TARGET_COHORT" --to "$SOURCE_COHORT" \
   --source-generation 3 --target-generation 2 \
   --preparation "$PROOF.prepared" --expect "$PREPARATION_DIGEST" --json
@@ -160,14 +170,14 @@ target and records completion only after check. Automatic failure compensation
 requires this live attempt's all-replaced receipt. Otherwise use explicit restore;
 foreign or mixed images refuse overwrite. A completed selection cannot republish
 after its deliberate rollback. Recover an active file transaction through the
-existing exact-kernel `consumer recover` route before finalize/restore.
+existing exact-kernel `recover` route before finalize/restore.
 
 For a committed/merged consumer, reverse overlapping Host Stack/scripts/quality
 changes through their owner on the **unmerged rollback PR branch** first. Select
 its current clean HEAD/tree and use the separate committed-target route:
 
 ```sh
-"$NODE24" "$CONTROLLER/dist/cli.js" consumer restore --consumer "$CONSUMER" \
+"$NODE24" "$CONTROLLER/dist/cli.js" restore --consumer "$CONSUMER" \
   --from "$TARGET_COHORT" --to "$SOURCE_COHORT" \
   --source-generation 3 --target-generation 2 \
   --preparation "$PROOF.prepared" --expect "$PREPARATION_DIGEST" \
@@ -182,7 +192,10 @@ profile changes refuse; the managed owner does not patch Host fields. The public
 `proofDigest` now identifies this retained current selection. If that file already
 exists, select its digest separately with `--selection-expect` to resume; an
 uncertain write is never repeated automatically. Cold resume re-observes honest
-idempotent receipts and runs the old source installation/check under Node24.
+idempotent receipts and runs frozen offline source installation under Node24,
+followed by the applicable source verification described above. A missing offline
+package or manager cache leaves restoration incomplete even if file reversal
+succeeded. A committed foreign pin or mode refuses before inverse publication.
 Moving HEAD, changing unrelated files or committing the rollback makes the old
 selection stale. Full consumer CI remains required after both owner reversals.
 

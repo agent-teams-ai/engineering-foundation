@@ -356,6 +356,11 @@
       "id": "ADR-0074",
       "path": "docs/decisions/0074-neutral-quality-inputs.md",
       "immutableDigest": "sha256:3b8ad8ab8bcd0d10684834682808dbb357b33b54aa8c7ffe2014cfd2327b1499"
+    },
+    {
+      "id": "ADR-0075",
+      "path": "docs/decisions/0075-retained-upgrade-preserving-source-node26-pin.md",
+      "immutableDigest": "sha256:b0e1aa02869087b973637cd7ffffcf9dcd3bc97150668d04c184a06090a26544"
     }
   ]
 }

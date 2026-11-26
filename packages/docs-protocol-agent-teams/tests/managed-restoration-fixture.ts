@@ -1,10 +1,10 @@
 import { consumerIntegrationPlanningPorts } from "../dist/consumer-integration/composition/consumer-integration-planner.js";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import type { TestContext } from "node:test";
+import test, { type TestContext } from "node:test";
 import { compileKnownFileTransactionPlan } from "@agent-teams/repository-mutation";
 import type {
   ConsumerUpgradeAuthorityV2,
@@ -106,6 +106,7 @@ const forbidden = async (): Promise<never> => {
 function fixtureSourceImages(
   current: ReturnType<typeof desired>,
   historical: { readonly skill: Uint8Array; readonly callerWorkflow: Uint8Array },
+  sourceNodePin: "24.21.0\n" | "26.11.1\n",
 ) {
   const manifest = Buffer.from(
     `${JSON.stringify(
@@ -113,7 +114,12 @@ function fixtureSourceImages(
         name: "TEST-retained-generation3",
         private: true,
         packageManager: "pnpm@11.20.0",
-        engines: { node: current.cohort.runtime.node },
+        engines: {
+          node:
+            sourceNodePin === "26.11.1\n"
+              ? ">=24.21.0 <25 || >=26.11.1 <27"
+              : current.cohort.runtime.node,
+        },
         scripts: canonicalDocsScripts(current.profilePath),
         devDependencies: Object.fromEntries(
           ["docsProtocol", "docsProtocolAgentTeams", "engineeringFoundation"].map((key) => {
@@ -134,7 +140,7 @@ function fixtureSourceImages(
     ["package.json", manifest],
     ["pnpm-lock.yaml", lock(current.cohort)],
     ["AGENTS.md", Buffer.from(canonicalManagedRoute(current.skillPath))],
-    [".node-version", Buffer.from("24.21.0\n")],
+    [".node-version", Buffer.from(sourceNodePin)],
     [current.skillPath, Buffer.from(historical.skill)],
     [current.callerWorkflowPath, Buffer.from(historical.callerWorkflow)],
     [
@@ -151,7 +157,10 @@ function fixtureSourceImages(
   return { manifest, originals, routeDigest, docsScriptsDigest };
 }
 
-export async function retainedFixture(t: TestContext) {
+export async function retainedFixture(
+  t: TestContext,
+  sourceNodePin: "24.21.0\n" | "26.11.1\n" = "24.21.0\n",
+) {
   const disposable = await mkdtemp(join(tmpdir(), "TEST-managed-retained3-"));
   const root = join(disposable, "consumer");
   await mkdir(root);
@@ -188,6 +197,7 @@ export async function retainedFixture(t: TestContext) {
   const { manifest, originals, routeDigest, docsScriptsDigest } = fixtureSourceImages(
     current,
     historical,
+    sourceNodePin,
   );
   for (const [path, bytes] of originals) {
     await mkdir(dirname(join(root, path)), { recursive: true });
@@ -236,13 +246,13 @@ export async function retainedFixture(t: TestContext) {
       })),
   });
   const proofPath = join(disposable, "selected.json");
-  const prepare = () =>
+  const prepare = (selectedPlan = plan) =>
     managedRestorationRecorder(authority)({
       consumerRoot: root,
       sourceRevision,
       current,
       target: target.cohort,
-      plan,
+      plan: selectedPlan,
       proofPath,
     });
   const activation: string[] = [];
@@ -250,7 +260,7 @@ export async function retainedFixture(t: TestContext) {
     restoreCommittedAndVerifyManaged: async (options) => {
       assert.equal(
         await readFile(join(options.consumerRoot, ".node-version"), "utf8"),
-        "24.21.0\n",
+        sourceNodePin,
       );
     },
     verifyManagedRuntime: async () => {},
@@ -267,7 +277,7 @@ export async function retainedFixture(t: TestContext) {
       activation.push("target");
     },
     restoreAndVerifyManaged: async () => {
-      assert.equal(await readFile(join(root, ".node-version"), "utf8"), "24.21.0\n");
+      assert.equal(await readFile(join(root, ".node-version"), "utf8"), sourceNodePin);
       activation.push("origin");
     },
   };
@@ -285,6 +295,8 @@ export async function retainedFixture(t: TestContext) {
     root,
     current,
     target,
+    sourceNodePin,
+    plan,
     originals,
     postimages,
     authority,
@@ -296,4 +308,47 @@ export async function retainedFixture(t: TestContext) {
   };
 }
 
+type Fixture = Awaited<ReturnType<typeof retainedFixture>>;
+
+export function retainedScenario(
+  name: string,
+  run: (context: TestContext, fixture: Fixture) => Promise<void>,
+): void {
+  for (const sourceNodePin of ["24.21.0\n", "26.11.1\n"] as const) {
+    const identity = sourceNodePin === "24.21.0\n" ? name : `${name} [preserved host Node26]`;
+    void test(
+      process.platform === "win32" ? `${identity} [Windows runtime refusal]` : identity,
+      async (context) => {
+        const fixture = await retainedFixture(context, sourceNodePin);
+        if (process.platform === "win32") {
+          assert.equal(process.versions.node.split(".")[0], "26");
+          await assert.rejects(fixture.prepare(), /actual Node24\.21\.0/u);
+          await assertRetainedImages(fixture, false);
+          assert.deepEqual(fixture.activation, []);
+          context.diagnostic(
+            "Windows default Node26 refusal only; no positive mutation or recovery claim.",
+          );
+          return;
+        }
+        assert.equal(
+          process.versions.node,
+          "24.21.0",
+          "Positive retained-controller cases require the selected physical Node24.21.0 test route.",
+        );
+        context.diagnostic(
+          `controller=${process.versions.node}; source-pin=${sourceNodePin.trim()}; TEST activation ports`,
+        );
+        await run(context, fixture);
+      },
+    );
+  }
+}
+export async function assertRetainedImages(f: Fixture, target: boolean) {
+  for (const [path, bytes] of target ? f.postimages : f.originals) {
+    assert.deepEqual(await readFile(join(f.root, path)), bytes, path);
+  }
+  if (process.platform !== "win32") {
+    assert.equal((await lstat(join(f.root, ".node-version"))).mode & 0o777, 0o644);
+  }
+}
 export { git as fixtureGit };

@@ -11,6 +11,8 @@ editing the accepted decision.
 
 ## Accepted
 
+- [ADR-0075: Retained Upgrade Preserving the Source Node 26 Pin](0075-retained-upgrade-preserving-source-node26-pin.md)
+
 - [ADR-0073: Coherent Managed pnpm Engine Projection](0073-coherent-managed-pnpm-engine-projection.md)
 
 - [ADR-0072: Explicit Stack Toolchain Literal Format API](0072-explicit-toolchain-literal-format-api.md)

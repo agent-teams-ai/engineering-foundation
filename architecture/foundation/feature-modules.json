@@ -888,6 +888,7 @@
           "testRoots": [
             "packages/docs-protocol-agent-teams/tests/consumer-committed-restoration.test.ts",
             "packages/docs-protocol-agent-teams/tests/consumer-managed-restoration.test.ts",
+            "packages/docs-protocol-agent-teams/tests/consumer-retained-source-verifier.test.ts",
             "packages/docs-protocol-agent-teams/tests/consumer-upgrade-generation3.test.ts",
             "packages/docs-protocol-agent-teams/tests/canonical-managed-state-v2.test.mjs",
             "packages/docs-protocol-agent-teams/tests/consumer-integration-authority-response-streaming.test.mjs",

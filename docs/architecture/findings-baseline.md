@@ -6,6 +6,10 @@ architecture fact from consumer-owned data (see
 
 ## Findings baseline
 
+The bounded [writer-safety plan](../development/findings-baseline-write-safety-2026-11-26.md)
+tracks the concurrent-prune and temporary-ownership correction and its exact
+qualification status.
+
 A findings baseline records the violations a repository already has, so that a
 rule can be enforced for new code before the old code is clean. It only
 shrinks.

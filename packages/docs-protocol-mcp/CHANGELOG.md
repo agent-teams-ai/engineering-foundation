@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.12
+
+### Patch Changes
+
+- [#479](https://github.com/agent-teams-ai/engineering-foundation/pull/479) [`8db5a6b`](https://github.com/agent-teams-ai/engineering-foundation/commit/8db5a6b9e34a54edd5a6aa8fbda70823c7005191) Thanks [@777genius](https://github.com/777genius)! - Request fresh coordinated package versions after the previous Node 26 managed-upgrade release could not complete verification of npm's publish attestation. This forward publication recovery preserves public APIs and runtime behavior. The ordinary publisher must verify the exact package bytes, registry signatures, and both provenance and publish attestations before the delivery can be accepted.
+
+- Updated dependencies [[`8db5a6b`](https://github.com/agent-teams-ai/engineering-foundation/commit/8db5a6b9e34a54edd5a6aa8fbda70823c7005191)]:
+  - @agent-teams/docs-protocol@0.6.9
+
 ## 0.2.11
 
 ### Patch Changes

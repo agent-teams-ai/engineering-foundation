@@ -734,3 +734,55 @@ attempts ended with SIGKILL before producing a successful receipt; npm 10 was
 not executed. The refined official verifier and frozen reinstall still require
 actual execution evidence. The five-package Effect verifier, provenance scope,
 product tool pins and release checks are unchanged.
+
+### Native joint-rule discovery and separate oracle, 2026-11-26
+
+A bounded raw native probe now executed all eight retained source cases with
+both rules set to errors. It verified the full compressed archive SRIs through
+EOF, the original archive census, the selected compiler SHA-256 and all 108
+paired library digests before execution. It materialized 88,880,949 bytes:
+selected native compiler/library files and Effect 4.1.4. No JavaScript compiler
+launcher or older TypeScript implementation ran.
+
+The observed version is `Version 7.0.2+effect-tsgo.0.73.4`. All stderr values are
+empty. The ordered diagnostic counts are:
+
+| Case | Exit | Diagnostics |
+| --- | ---: | ---: |
+| stable-effect | 0 | 0 |
+| ordinary-type-error | 1 | 1 |
+| unused-import | 0 | 0 |
+| actual-unstable | 1 | 4 |
+| aliases | 1 | 9 |
+| stable-leak | 1 | 2 |
+| structural-port | 0 | 0 |
+| exact-allowlist | 1 | 10 |
+
+The 26 findings comprise 19 public-type leaks, six unstable uses and one
+ordinary TS2322 assignment error. Each exported HTTP result exposes
+`HttpClient`, `HttpClientError` and `HttpClientResponse`; the pinned
+[HTTP signatures](https://github.com/Effect-TS/effect/blob/289a53f7b1fc40049219c6e69022db2fb859c356/packages/effect/src/http/HttpClient.ts)
+and [leak walker](https://github.com/Effect-TS/tsgo/blob/aa2db44499067a798028cff9d3b1b9ca1e156f57/internal/rules/api_stability_leak.go)
+independently explain those distinct offenders. The exact `get` allowance
+continues to reject `post` and does not remove any public-type leak.
+
+An independent reviewer, with no authorship, checked the complete report,
+compiler/library hashes and all original source blobs at source head
+`653707efe6d4d020e4c6a10b3e297ff9265158ab`. The reviewer approved authoring a
+separate joint-profile oracle with precise line, column, code, message,
+multiplicity and ordering. `corpus.json` retains its original bytes and pilot
+expectations. `joint-expectations.json` is a distinct, statically authored
+baseline; the installed test does not derive expectations from its current
+compiler output.
+
+The executor disconnected again after that completed observation. The
+[retained observation record](evidence/effect-joint-observation-2026-11-26.txt)
+is explicitly a semantic reconstruction from the captured tool output, not a
+claim that its bytes match the lost local receipt. The original local receipt
+SHA-256 was `700d8afacefa365c6c544584445490770a2eb3e656009f86606c2eb8f8096e41`.
+
+This establishes raw diagnostic behavior, not full installed Stack/GM E2E.
+The five-package signature/provenance and installed-payload checks, public
+API/CLI boundaries, multiline/source-policy controls, N100 measurement and
+complete final-head CI still have to pass with the authored oracle. No runtime
+scale, production adoption or browser execution claim follows from this probe.

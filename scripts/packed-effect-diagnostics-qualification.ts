@@ -24,7 +24,9 @@ export interface InstalledEffectQualificationOptions {
 
 interface ExpectedDiagnostic {
   readonly line: number;
+  readonly column: number;
   readonly code: number;
+  readonly message: string;
 }
 
 interface CorpusCase {
@@ -103,7 +105,28 @@ async function corpus(): Promise<readonly CorpusCase[]> {
   );
   assert.equal(value["schemaVersion"], 1);
   assert.equal(value["commit"], "c99f19835ca3e80c5a7268f8bf42f089418e1cf0");
-  return rows(value["cases"]).map((entry) => {
+  const joint = record(
+    JSON.parse(
+      await readFile(
+        new URL("../tests/fixtures/effect-diagnostics/joint-expectations.json", import.meta.url),
+        "utf8",
+      ),
+    ),
+  );
+  assert.equal(joint["schemaVersion"], 1);
+  assert.equal(joint["sourceCommit"], value["commit"]);
+  assert.deepEqual(joint["cohort"], {
+    native: "@effect/tsgo-linux-x64@0.73.4",
+    typescript: "7.0.2",
+    effect: "4.1.4",
+  });
+  assert.deepEqual(joint["policy"], { unstableApiUsage: "error", apiStabilityLeak: "error" });
+  const expectedCases = rows(joint["cases"]);
+  assert.deepEqual(
+    expectedCases.map((entry) => entry["id"]),
+    rows(value["cases"]).map((entry) => entry["id"]),
+  );
+  return rows(value["cases"]).map((entry, index) => {
     assert.equal(typeof entry["id"], "string");
     assert.equal(typeof entry["source"], "string");
     const source = String(entry["source"]);
@@ -114,11 +137,19 @@ async function corpus(): Promise<readonly CorpusCase[]> {
         .digest("hex"),
       entry["sourceGitBlob"],
     );
-    const expected = rows(entry["expected"]).map((diagnostic) => {
+    const expectedCase = expectedCases[index];
+    assert.ok(expectedCase);
+    const expected = rows(expectedCase["expected"]).map((diagnostic) => {
       assert.equal(typeof diagnostic["line"], "number");
+      assert.equal(typeof diagnostic["column"], "number");
       assert.equal(typeof diagnostic["code"], "number");
-      assert.equal(diagnostic["category"], "error");
-      return { line: Number(diagnostic["line"]), code: Number(diagnostic["code"]) };
+      assert.equal(typeof diagnostic["message"], "string");
+      return {
+        line: Number(diagnostic["line"]),
+        column: Number(diagnostic["column"]),
+        code: Number(diagnostic["code"]),
+        message: String(diagnostic["message"]),
+      };
     });
     assert.ok(Array.isArray(entry["allowedUnstableApis"]));
     const allowedUnstableApis = entry["allowedUnstableApis"].map((item: unknown) => {
@@ -150,13 +181,21 @@ function assertDiagnostics(details: Record<string, unknown>, cases: readonly Cor
     );
     assert.deepEqual(observed["sourceFiles"], [`corpus/${expected.id}/index.ts`]);
     assert.equal(observed["stderr"], "");
-    const diagnostics = [
-      ...String(observed["stdout"]).matchAll(/\((\d+),\d+\): error TS(\d+):/gu),
-    ].map((match) => ({ line: Number(match[1]), code: Number(match[2]) }));
-    assert.deepEqual(
-      diagnostics,
-      expected.expected.map(({ line, code }) => ({ line, code })),
-    );
+    const diagnostics = String(observed["stdout"])
+      .split(/\r?\n/u)
+      .filter((line) => line !== "")
+      .map((line) => {
+        const match = /^(.+)\((\d+),(\d+)\): error TS(\d+): (.+)$/u.exec(line);
+        assert.ok(match, `Unexpected corpus output: ${line}`);
+        assert.equal(match[1], `corpus/${expected.id}/index.ts`);
+        return {
+          line: Number(match[2]),
+          column: Number(match[3]),
+          code: Number(match[4]),
+          message: match[5],
+        };
+      });
+    assert.deepEqual(diagnostics, expected.expected);
   }
 }
 
@@ -365,8 +404,8 @@ export async function qualifyInstalledEffectDiagnostics(
     );
   }
   const report = await api(root, projects);
-  // Retain all eight observations before strict comparison: the retained pilot
-  // used separate rule profiles, while this installed profile enforces both.
+  // Retain all eight observations before strict comparison with the separately
+  // authored joint-rule oracle; the original pilot expectations stay unchanged.
   process.stdout.write(`Installed Effect corpus observation: ${JSON.stringify(report)}\n`);
   const details = assertReport(report, "diagnostics", 1);
   assert.deepEqual(details["selected"], projects);

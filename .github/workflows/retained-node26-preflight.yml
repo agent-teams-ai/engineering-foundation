@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  PREFLIGHT_CANDIDATE_SHA: 0fc787250008306677cb180bf545e8420ba806c5
+  PREFLIGHT_CANDIDATE_SHA: 076c3f227c83ad654b867d4af445d802944bcc61
   PREFLIGHT_BASE_SHA: fac03920e50ebde038ae415edeb7aa9e3d610ada
   PREFLIGHT_WORKFLOW_PATH: .github/workflows/retained-node26-preflight.yml
   NODE_DISABLE_COMPILE_CACHE: "1"
@@ -35,8 +35,9 @@ jobs:
     name: Retained Node26 pre-PR verification
     if: ${{ github.repository == 'agent-teams-ai/engineering-foundation' && github.event_name == 'push' && github.ref == 'refs/heads/test/retained-node26-preflight-20261126' }}
     runs-on: ubuntu-24.04
-    # C1 selects the unchanged full repository check once for the complete delta.
-    timeout-minutes: 45
+    # C1 retains both serial test selections and the complete package qualification.
+    # Reserve time after its bounded step for source integrity and diagnostics.
+    timeout-minutes: 200
     steps:
       - name: Check out the exact candidate with complete history
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -187,6 +188,8 @@ jobs:
             packages/docs-protocol-agent-teams/tests/managed-restoration-fixture.ts
             scripts/generation2-node.mts
             tests/generation2-node.test.mts
+            tests/package-boundary-agent-teams.test.mjs
+            tests/scaffolding-adversarial.test.mjs
             tests/published-foundation-operations.test.ts
             tests/retained-source-compiler-floor-child.ts
           )
@@ -225,6 +228,20 @@ jobs:
             tests/generation2-node.test.mts \
             packages/docs-protocol-agent-teams/tests/consumer-upgrade-generation3.test.ts \
             2>&1 | tee "$PREFLIGHT_EVIDENCE_DIR/focused-node26.tap"
+      - name: Verify complete boundary and socket suites under a long owned temporary path
+        timeout-minutes: 10
+        run: |
+          set -Eeuo pipefail
+          fixture_root="$(mktemp -d "$RUNNER_TEMP/retained-fixture-preflight.XXXXXX")"
+          trap 'rm -rf -- "$fixture_root"' EXIT
+          fixture_temporary="$fixture_root/source-owned-node-profile-with-a-deliberately-long-temporary-directory-for-posix-socket-regression-qualification"
+          test "${#fixture_temporary}" -gt 128
+          mkdir -p "$fixture_temporary"
+          TMPDIR="$fixture_temporary" TMP="$fixture_temporary" TEMP="$fixture_temporary" \
+            node scripts/run-selected-tests.mjs \
+            tests/package-boundary-agent-teams.test.mjs \
+            tests/scaffolding-adversarial.test.mjs \
+            2>&1 | tee "$PREFLIGHT_EVIDENCE_DIR/focused-boundary-socket.log"
       - name: Run the required fast gate
         run: |
           set -Eeuo pipefail
@@ -234,6 +251,7 @@ jobs:
           set -Eeuo pipefail
           bun tools/dev.mts security:workflows 2>&1 | tee "$PREFLIGHT_EVIDENCE_DIR/security-workflows.log"
       - name: Run the source-owned full changed gate once over the complete delta
+        timeout-minutes: 180
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

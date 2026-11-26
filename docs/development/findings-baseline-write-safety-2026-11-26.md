@@ -169,6 +169,18 @@ is needed for this test-only correction.
 
 ### Delivery and evidence
 
+The local installation terminated before qualification and its executor became
+unavailable. Run the remaining authoring commands in a separate temporary
+qualification branch with fixed commands and a full-SHA source checkout. Keep
+that helper outside the target PR, with pinned Actions/runtime inputs, no
+arbitrary-command inputs, no secrets, no remote writes and no publication.
+Selected cleanup may write only the disposable test file; require unchanged
+source bytes afterward. Run the existing built successor CLI
+`agent-workflow check-changed --consumer . --base <source-main-SHA>` with its
+normal Node 24 fixture and managed-tool prerequisites. Its mutable result remains
+feedback-only. Record the helper and source identities separately; the final
+ordinary PR/main full matrix below retains qualification ownership.
+
 1. Publish this plan and obtain two independent critiques before changing the
    two execution allowances; record any accepted correction here.
 2. Run the existing focused process-runner suite on Linux and preserve its

@@ -475,9 +475,9 @@ test(
   "rejects a Unix socket journal through the typed recovery path",
   { skip: process.platform === "win32", timeout: 10_000 },
   async () => {
-    const root = await mkdtemp(
-      join(process.platform === "darwin" ? "/tmp" : tmpdir(), "fs-socket-"),
-    );
+    // Unix socket addresses have a shorter bound than ordinary filesystem paths.
+    // Keep this fixture short even when CI selects a deeply nested TMPDIR.
+    const root = await mkdtemp(join("/tmp", "fs-socket-"));
     await cp(fixtureRoot, root, { recursive: true });
     const path = journalPath(root);
     const server = createServer();

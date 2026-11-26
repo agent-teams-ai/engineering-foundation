@@ -25,7 +25,7 @@ not a completed CLI or native-platform qualification.
 
 Reuse the public Repository Mutation Node mechanisms already depended on by
 Foundation: `acquireMutationLease`, `observeMutationState`,
-`retainMutationBarrierOnEvidence`, `releaseMutationLease`, and
+`retainMutationBarrier`, `retainMutationBarrierOnEvidence`, `releaseMutationLease`, and
 `observeAtomicFileReplacement`. Do not import another capability's private
 adapter or add a transaction framework, journal, dependency, or public API.
 
@@ -42,6 +42,8 @@ The filesystem owner will:
 5. Attempt identity-aware cleanup, physical-root observation, barrier retention
    and lease release even if an earlier finalization step fails. Preserve every
    failure and distinguish a possibly completed replacement from no effect.
+   If physical-root observation fails, explicitly retain the mutation barrier;
+   inspecting common evidence alone cannot establish a substituted root's identity.
 
 The guarantee is serialized supported cooperative writers and atomic visibility.
 An arbitrary editor that ignores the lease is outside that concurrency guarantee.
@@ -57,18 +59,24 @@ tests use ordinary `.ts` and the required TypeScript 7.0.2 route.
 | Case | Required observation |
 | --- | --- |
 | Ordinary replacement, including a root-level baseline | Exact expected successor bytes; resources and lease released |
-| Existing foreign temporary | Foreign bytes survive unchanged |
+| Existing foreign temporary or substitution of the owned temporary | Foreign bytes survive unchanged; substituted owned path is refused |
 | Two real writers starting from one baseline | At most one stale-preimage write succeeds; no raised/reintroduced entry |
 | Changed expected bytes | Typed conflict; current baseline preserved |
 | Held lease or interrupted common evidence | Refusal before publication; existing owner's evidence preserved |
 | Write/promotion/finalization failure | Owned cleanup only; later finalization still attempted; no false no-effect result |
+| Final physical-root observation fails | Original failure preserved and mutation barrier retained; no clean release |
 | Existing public CLI init/prune/check | Original shrink-only and input-error behavior retained |
-| Real CLI while mutation lease is held | Nonzero typed refusal and unchanged baseline; normal command works after release |
+| Real CLI while mutation lease is held and prune needs a write | Nonzero typed refusal and unchanged baseline; normal command works after release |
 
 Bind new portable tests into the existing strict project and Linux/Windows
 inventories; use the adopted native matrix and coverage authority. Fault seams
 remain narrow, preserve real filesystem effects, and use explicit barriers rather
 than sleeps. The original implementation must fail the new bug witnesses.
+The concurrent-process harness accepts a second writer's early lease refusal
+before its read callback, then releases the first writer; it must not wait for
+two reads after serialization is fixed. A no-op prune remains read-only and may
+succeed while a lease is held. Existing Repository Mutation tests retain ownership
+of low-level open/write failure qualification.
 
 ## Estimate and delivery
 
@@ -92,6 +100,9 @@ release stream; this task does not rewrite its branch or change versions.
 
 ## Critique and evidence record
 
-- Round 1: pending independent review of scope, ownership and failure handling.
+- Round 1: independent filesystem/concurrency reviewer accepted the bounded
+  ownership and reuse. Incorporated explicit barrier retention after physical-root
+  observation failure, a held-lease CLI case that actually changes bytes, foreign
+  temporary substitution, and a process barrier that accepts early lease refusal.
 - Round 2: pending review of the revised plan and explicit rejecting cases.
 - Implementation, independent review, native CI and main evidence: pending.

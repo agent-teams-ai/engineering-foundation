@@ -488,9 +488,7 @@ scenario("runtime preflight pin-byte and non-Git mode drift refuse before CAS pu
             },
           },
         ),
-        f.sourceNodePin === "26.11.1\n"
-          ? { code: "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED" }
-          : /current bytes or mode differ|repository contains unrelated edits/u,
+        /current bytes or mode differ|repository contains unrelated edits/u,
       );
       assert.equal(observations, 1);
       assert.equal(publications, 0);

@@ -197,6 +197,16 @@ jobs:
           test ! -s "$PREFLIGHT_EVIDENCE_DIR/cleanup.patch"
           git diff --exit-code HEAD
 
+      - name: Diagnose the source-owned quality topology projection
+        run: |
+          set -Eeuo pipefail
+          topology_path=architecture/foundation/quality-source-topology.json
+          node tools/quality-topology.ts --write 2>&1 | tee "$PREFLIGHT_EVIDENCE_DIR/topology-generation.log"
+          cp "$topology_path" "$PREFLIGHT_EVIDENCE_DIR/generated-quality-source-topology.json"
+          git diff --binary HEAD -- "$topology_path" > "$PREFLIGHT_EVIDENCE_DIR/topology.patch"
+          test ! -s "$PREFLIGHT_EVIDENCE_DIR/topology.patch"
+          git diff --exit-code HEAD
+
       - name: Run physical Node24 cold recovery and compiler-floor scenarios
         run: |
           set -Eeuo pipefail

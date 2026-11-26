@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.3.8
+
+### Patch Changes
+
+- [#477](https://github.com/agent-teams-ai/engineering-foundation/pull/477) [`8312b5f`](https://github.com/agent-teams-ai/engineering-foundation/commit/8312b5fc347f655686e0939d8781dd947afaeee1) Thanks [@777genius](https://github.com/777genius)! - Support the retained generation2-to3 upgrade for a consumer whose Node 26 host pin
+  already matches its target, preserving exact source and restoration evidence and
+  rejecting committed pin drift before rollback effects.
+
+  Publish a coherent current managed package family with fresh successful source-bound
+  release evidence after the earlier partial family publication. The explicit FMS
+  patch retains the changed packed Foundation development coordinate; the ordinary
+  version planner derives downstream dependency versions.
+
+- Updated dependencies [[`8312b5f`](https://github.com/agent-teams-ai/engineering-foundation/commit/8312b5fc347f655686e0939d8781dd947afaeee1)]:
+  - @agent-teams/repository-mutation@0.5.1
+
 ## 0.3.7
 
 ### Patch Changes

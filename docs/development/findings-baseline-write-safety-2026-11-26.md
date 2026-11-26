@@ -104,5 +104,14 @@ release stream; this task does not rewrite its branch or change versions.
   ownership and reuse. Incorporated explicit barrier retention after physical-root
   observation failure, a held-lease CLI case that actually changes bytes, foreign
   temporary substitution, and a process barrier that accepts early lease refusal.
-- Round 2: pending review of the revised plan and explicit rejecting cases.
-- Implementation, independent review, native CI and main evidence: pending.
+- Round 2: independent filesystem/concurrency reviewer approved the revised
+  plan at `e9ccdac950376a777939bc7683bd649a114918e3`; no further design blocker.
+- The two maintained native regression tests both fail against the unchanged
+  pre-fix build on Node 26.11.1: foreign-file loss (`ENOENT`) and a second stale
+  writer incorrectly returning success. They use real processes/files and no sleeps.
+- Implementation: the same two regressions now pass. The complete focused native
+  filesystem and public CLI suite passes 18/18 on Linux / Node 26.11.1, with no
+  failures, cancellations or skips. Strict TypeScript 7.0.2 checking of the test
+  project passes. The existing CLI fixture receives one bounded legacy JavaScript
+  test; the new process fixture and native suite are ordinary strict TypeScript.
+- Independent exact-head review, complete native CI and main evidence: pending.

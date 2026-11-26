@@ -15,6 +15,8 @@
     "public-docs-documented.test.ts",
     "sdk-json-record.test.ts",
     "architecture-baseline-replacement.test.ts",
+    "findings-baseline-write-safety.test.ts",
+    "support/findings-baseline-writer.ts",
     "repository-profile-lint.test.ts",
     "repository-profile-git.test.ts",
     "local-mode-bun.test.ts",

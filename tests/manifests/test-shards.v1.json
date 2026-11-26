@@ -175,6 +175,7 @@
         "packages/docs-protocol-agent-teams/tests/consumer-upgrade-archive.test.mjs",
         "tests/capability-public-api.test.mjs",
         "tests/findings-baseline-capability.test.mjs",
+        "tests/findings-baseline-write-safety.test.ts",
         "tests/agent-workflow-versioned-capability.test.mts",
         "tests/c1-agent-workflow-cli.test.mts",
         "tests/c1-agent-workflow-configuration.test.mts"

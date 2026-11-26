@@ -288,6 +288,7 @@
     ],
     "e": [
       "tests/findings-baseline-capability.test.mjs",
+      "tests/findings-baseline-write-safety.test.ts",
       "tests/foundation-transaction-observation.test.mjs",
       "tests/package-boundary-agent-teams.test.mjs",
       "tests/public-api-bootstrap.test.mjs",

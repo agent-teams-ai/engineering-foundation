@@ -42,7 +42,7 @@ async function input() {
   return { manifest, lock, bytes };
 }
 
-test("private verifier retains the observed release and ordinary npm bootstrap versions", () => {
+await test("private verifier retains the observed release and ordinary npm bootstrap versions", () => {
   assert.equal(
     assertFrozenClientBootstrap({ bootstrapVersion: "11.19.0", verifierVersion: "21.5.1" }),
     "11.19.0",
@@ -53,7 +53,7 @@ test("private verifier retains the observed release and ordinary npm bootstrap v
   );
 });
 
-test("private verifier rejects absent, unqualified and mismatched bootstrap observations", () => {
+await test("private verifier rejects absent, unqualified and mismatched bootstrap observations", () => {
   for (const value of [
     undefined,
     null,
@@ -73,7 +73,7 @@ test("private verifier rejects absent, unqualified and mismatched bootstrap obse
   }
 });
 
-test("private client input retains the genuine exact npm-generated lock", async () => {
+await test("private client input retains the genuine exact npm-generated lock", async () => {
   const { manifest, lock, bytes } = await input();
   assert.equal(
     createHash("sha256").update(bytes).digest("hex"),
@@ -82,7 +82,7 @@ test("private client input retains the genuine exact npm-generated lock", async 
   assertFrozenClientInput(manifest, lock);
 });
 
-test("private client input rejects extra dependencies and changed artifact identity", async () => {
+await test("private client input rejects extra dependencies and changed artifact identity", async () => {
   for (const kind of ["unbundled", "outside", "integrity", "manifest-script"]) {
     const { manifest, lock } = await input();
     const packages = record(lock["packages"]);
@@ -96,11 +96,13 @@ test("private client input rejects extra dependencies and changed artifact ident
     } else {
       record(manifest)["scripts"] = { postinstall: "unexpected" };
     }
-    assert.throws(() => assertFrozenClientInput(manifest, lock));
+    assert.throws(() => {
+      assertFrozenClientInput(manifest, lock);
+    });
   }
 });
 
-test("signature witness rejects absent, empty or inconsistent cryptographic-loop inputs", () => {
+await test("signature witness rejects absent, empty or inconsistent cryptographic-loop inputs", () => {
   const original = witness();
   assert.deepEqual(assertFrozenClientSignature(original), ["SHA256:fixture"]);
   for (const value of [
@@ -114,7 +116,7 @@ test("signature witness rejects absent, empty or inconsistent cryptographic-loop
   }
 });
 
-test("signature witness binds the exact package, archive and signed integrity", () => {
+await test("signature witness binds the exact package, archive and signed integrity", () => {
   const original = witness();
   for (const value of [
     { ...original, name: "another-package" },
@@ -129,7 +131,7 @@ test("signature witness binds the exact package, archive and signed integrity", 
   }
 });
 
-test("frozen mismatch evidence requires the actual required Effect lock refusal", () => {
+await test("frozen mismatch evidence requires the actual required Effect lock refusal", () => {
   const expected = {
     code: 1,
     signal: null,
@@ -152,6 +154,8 @@ test("frozen mismatch evidence requires the actual required Effect lock refusal"
       stderr: "npm error code EUSAGE\nnpm error Missing: @oven/bun-win32-x64@ from lock file\n",
     },
   ]) {
-    assert.throws(() => assertFrozenMismatchRejection(failure));
+    assert.throws(() => {
+      assertFrozenMismatchRejection(failure);
+    });
   }
 });

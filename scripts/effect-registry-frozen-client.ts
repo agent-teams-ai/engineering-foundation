@@ -46,6 +46,14 @@ function json(bytes: Buffer): Record<string, unknown> {
   return record(JSON.parse(bytes.toString("utf8")));
 }
 
+function commandOutput(value: unknown) {
+  const output = record(value);
+  const stdout = output["stdout"];
+  const stderr = output["stderr"];
+  assert.ok(typeof stdout === "string" && typeof stderr === "string");
+  return { stdout, stderr };
+}
+
 const digest = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 
 /** Admit the release and ordinary qualification bootstraps with their exact verifier. */
@@ -157,7 +165,7 @@ function isManifestVerifier(value: unknown): value is ManifestVerifier {
 }
 
 async function trustedVerifier(root: string) {
-  const found = await runCommand("which", ["npm"], root, { timeoutMs: 10_000 });
+  const found = commandOutput(await runCommand("which", ["npm"], root, { timeoutMs: 10_000 }));
   const requested = found.stdout.trim();
   assert.ok(isAbsolute(requested) && !/[\r\n]/u.test(requested));
   assert.equal(found.stderr, "");
@@ -333,11 +341,13 @@ export async function prepareEffectRegistryFrozenClient(
   await writeFile(join(root, "package-lock.json"), lockBytes);
   const environment = await privateEnvironment(root);
   const options = { environment, timeoutMs: commandTimeoutMs };
-  const verified = await runCommand(
-    node,
-    ["--max-old-space-size=512", fileURLToPath(import.meta.url), "--verify-signature", root],
-    root,
-    options,
+  const verified = commandOutput(
+    await runCommand(
+      node,
+      ["--max-old-space-size=512", fileURLToPath(import.meta.url), "--verify-signature", root],
+      root,
+      options,
+    ),
   );
   assert.equal(verified.stderr, "");
   const proof = record(JSON.parse(verified.stdout));
@@ -368,7 +378,7 @@ export async function prepareEffectRegistryFrozenClient(
   assert.equal(record(manifest["bin"])["npm"], "bin/npm-cli.js");
   const cli = await realpath(join(packageRoot, "bin/npm-cli.js"));
   contained(packageRoot, cli);
-  const observed = await runCommand(node, [cli, "--version"], root, options);
+  const observed = commandOutput(await runCommand(node, [cli, "--version"], root, options));
   assert.equal(observed.stdout.trim(), version);
   assert.equal(observed.stderr, "");
   const receipt = {
@@ -384,13 +394,11 @@ export async function prepareEffectRegistryFrozenClient(
   return { reinstall: (consumer) => reinstallFrozen(node, cli, consumer, bootstrapVersion) };
 }
 
-if (
-  process.argv[1] !== undefined &&
-  pathToFileURL(resolve(process.argv[1])).href === import.meta.url
-) {
+const entrypoint = process.argv.at(1);
+if (entrypoint !== undefined && pathToFileURL(resolve(entrypoint)).href === import.meta.url) {
   assert.equal(process.argv[2], "--verify-signature");
   assert.equal(process.argv.length, 4);
-  const root = process.argv[3];
+  const root = process.argv.at(3);
   assert.ok(root !== undefined && isAbsolute(root));
   process.stdout.write(JSON.stringify(await verifyOfficialSignature(root)));
 }

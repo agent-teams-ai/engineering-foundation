@@ -192,6 +192,10 @@ jobs:
           git diff --binary > "$EF70_QUALITY_ROOT/cleanup.diff"
           git diff --exit-code
           exit "$cleanup_status"
+      - name: Qualify workflow security
+        run: |
+          set -Eeuo pipefail
+          taskset -c "$EF70_CPUSET" bun tools/dev.mts security:workflows 2>&1 | tee "$EF70_QUALITY_ROOT/workflow-security.log"
       - name: Provision the unchanged frozen managed test tools
         run: |
           set -Eeuo pipefail
@@ -227,10 +231,6 @@ jobs:
         run: |
           set -Eeuo pipefail
           taskset -c "$EF70_CPUSET" bun tools/dev.mts check:fast 2>&1 | tee "$EF70_QUALITY_ROOT/check-fast.log"
-      - name: Qualify workflow security
-        run: |
-          set -Eeuo pipefail
-          taskset -c "$EF70_CPUSET" bun tools/dev.mts security:workflows 2>&1 | tee "$EF70_QUALITY_ROOT/workflow-security.log"
       - name: Capture bounded owner changed-check diagnostics
         if: ${{ always() }}
         shell: bash
@@ -404,9 +404,11 @@ jobs:
           runner_temp="$(realpath "$RUNNER_TEMP")"
           quality_root="${runner_temp}/ef70-quality-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           mkdir -m 700 "$quality_root"
-          printf 'EF70_QUALITY_ROOT=%s\n' "$quality_root" >> "$GITHUB_ENV"
-          printf 'EF70_EVIDENCE_ROOT=%s/ef70-evidence-%s-%s\n' "$runner_temp" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" >> "$GITHUB_ENV"
-          printf 'EF70_COMPILER_GUARD_LOG=%s/node-driver-guard.jsonl\n' "$quality_root" >> "$GITHUB_ENV"
+          {
+            printf 'EF70_QUALITY_ROOT=%s\n' "$quality_root"
+            printf 'EF70_EVIDENCE_ROOT=%s/ef70-evidence-%s-%s\n' "$runner_temp" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT"
+            printf 'EF70_COMPILER_GUARD_LOG=%s/node-driver-guard.jsonl\n' "$quality_root"
+          } >> "$GITHUB_ENV"
           selected_cpus="$(python3 -c 'import os; cpus=sorted(os.sched_getaffinity(0)); assert len(cpus)>=2; print(",".join(map(str,cpus[:2])))')"
           printf '%s\n' "$selected_cpus" > "$quality_root/cpuset.txt"
           printf 'EF70_CPUSET=%s\n' "$selected_cpus" >> "$GITHUB_ENV"

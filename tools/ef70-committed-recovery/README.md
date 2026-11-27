@@ -27,7 +27,7 @@ every new TypeScript source and test. Source feedback is not consumer admission.
 
 F comes only from the real EF push `github.sha`.
 C and the target cohort come from the admitted original artifact. The artifact
-must bind the published H2 source `6dace52e007d00a3df3974b75c1491f9e2648607`,
+must bind the published H2 source `f5754319322dc495aea080a679b66ea1994a75c2`,
 its actual successful preflight, the actual EF run/attempt and complete job/step
 census. Unknown future identities are not synthesized.
 

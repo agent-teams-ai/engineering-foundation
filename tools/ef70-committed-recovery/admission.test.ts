@@ -28,7 +28,7 @@ const expectedSteps = [
   "Check canonical adoption admission and failure contracts",
   "Check committed recovery admission and intake contracts",
 ];
-const h2 = "6dace52e007d00a3df3974b75c1491f9e2648607";
+const h2 = "f5754319322dc495aea080a679b66ea1994a75c2";
 test("actual caller binds the checkout and historical/current input tuples independently", () => {
   const originalFields = {
     harness_revision: h2,

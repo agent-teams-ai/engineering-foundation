@@ -234,6 +234,7 @@
     "tests/effect-fixture-dependencies.test.ts",
     "tests/fixtures/effect-diagnostics/growth/generate.ts",
     "scripts/effect-registry-frozen-client.ts",
-    "tests/effect-registry-frozen-client.test.ts"
+    "tests/effect-registry-frozen-client.test.ts",
+    "scripts/packed-documentation-local-references.ts"
   ]
 }

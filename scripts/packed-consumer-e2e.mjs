@@ -1,3 +1,4 @@
+import { verifyInstalledHistoricalMarkdown } from "./packed-documentation-local-references.ts";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -467,6 +468,10 @@ export async function verifyPackedConsumer(input) {
   await assertAdrPromotion(fixture);
   await assertPackedLegacyPublicApiBaseline(fixture, expectedCapabilityIds);
   await assertCapabilityCheck(fixture);
+  await verifyInstalledHistoricalMarkdown({
+    cliPath: fixture.toolEntrypoints.foundationCli,
+    consumerRoot: fixture.consumerRoot,
+  });
   await assertSourceGraphViolation(fixture);
   await assertJsonSchemaFormats(fixture);
   await assertExecutableSpecifications(fixture);

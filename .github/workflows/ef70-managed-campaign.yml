@@ -38,7 +38,7 @@ jobs:
       GIT_COMMITTER_NAME: iliya
       GIT_AUTHOR_EMAIL: iliyazelenkog@gmail.com
       GIT_COMMITTER_EMAIL: iliyazelenkog@gmail.com
-      EF70_PRODUCER_BASE: 7438b7ee4429dc7798cf2b18c81e6bc7788f0f5b
+      EF70_PRODUCER_BASE: 072ad02d76071e46e1232fc0b9ec354764413acb
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -168,6 +168,89 @@ jobs:
         run: |
           set -Eeuo pipefail
           taskset -c "$EF70_CPUSET" bun tools/dev.mts security:workflows 2>&1 | tee "$EF70_QUALITY_ROOT/workflow-security.log"
+      - name: Capture bounded owner changed-check diagnostics
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 - <<'PY'
+          import contextlib, hashlib, json, os, pathlib, stat
+
+          if "EF70_QUALITY_ROOT" not in os.environ:
+              print('{"status":"unavailable","reason":"quality root was not initialized"}')
+              raise SystemExit(0)
+          quality = pathlib.Path(os.environ["EF70_QUALITY_ROOT"])
+          expected = pathlib.Path(os.environ["RUNNER_TEMP"]).resolve(strict=True) / (
+              "ef70-quality-" + os.environ["GITHUB_RUN_ID"] + "-" + os.environ["GITHUB_RUN_ATTEMPT"]
+          )
+          if quality != expected or quality.resolve(strict=True) != quality:
+              raise RuntimeError("Unexpected quality diagnostics root")
+          source = pathlib.Path(os.environ["GITHUB_WORKSPACE"]).resolve(strict=True) / ".worker-tmp"
+          limit = 1024 * 1024
+          manifest = {"schemaVersion": 1, "status": "missing", "source": str(source),
+                      "ownerLogLimitBytes": limit, "maximumFiles": 16, "files": [],
+                      "scope": "Post-step byte observations; no stream-closure or qualification claim"}
+          with contextlib.ExitStack() as handles:
+              quality_fd = os.open(quality, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+              handles.callback(os.close, quality_fd)
+              if os.fstat(quality_fd).st_uid != os.geteuid():
+                  raise RuntimeError("Diagnostics root is not owned by this runner user")
+              os.mkdir("owner-changed-check", mode=0o700, dir_fd=quality_fd)
+              output_fd = os.open("owner-changed-check", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                                  dir_fd=quality_fd)
+              handles.callback(os.close, output_fd)
+
+              def retain(name, data):
+                  descriptor = os.open(name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                                       0o600, dir_fd=output_fd)
+                  with os.fdopen(descriptor, "wb") as output:
+                      output.write(data)
+
+              try:
+                  source_fd = os.open(source, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+                  handles.callback(os.close, source_fd)
+                  if os.fstat(source_fd).st_uid != os.geteuid():
+                      raise ValueError("Owner diagnostics directory has a different user")
+                  names = sorted(name for name in os.listdir(source_fd)
+                                 if name.startswith("check-changed-") and name.endswith(".log"))
+                  if len(names) > manifest["maximumFiles"]:
+                      raise ValueError("Owner diagnostics exceed the file-count bound")
+                  for name in names:
+                      record = {"name": name, "status": "unavailable"}
+                      manifest["files"].append(record)
+                      try:
+                          descriptor = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
+                                               dir_fd=source_fd)
+                          with os.fdopen(descriptor, "rb") as owner_log:
+                              before = os.fstat(owner_log.fileno())
+                              if (not stat.S_ISREG(before.st_mode) or before.st_nlink != 1
+                                      or before.st_uid != os.geteuid() or before.st_size > limit):
+                                  raise ValueError("Owner log is not an admitted bounded regular file")
+                              data = owner_log.read(limit + 1)
+                              after = os.fstat(owner_log.fileno())
+                          if len(data) > limit:
+                              raise ValueError("Owner log grew beyond its byte bound")
+                          retain(name, data)
+                          record.update({"status": "captured", "bytes": len(data),
+                                         "sha256": hashlib.sha256(data).hexdigest(),
+                                         "sourceSizeBefore": before.st_size, "sourceSizeAfter": after.st_size,
+                                         "metadataStable": (before.st_size, before.st_mtime_ns, before.st_ctime_ns)
+                                             == (after.st_size, after.st_mtime_ns, after.st_ctime_ns),
+                                         "retentionTruncationMarkerObserved": data.endswith(
+                                             b"\n[Diagnostic output truncated at 1 MiB.]\n")})
+                      except (OSError, ValueError) as error:
+                          record["reason"] = str(error)
+                  if names:
+                      manifest["status"] = "captured" if all(
+                          record["status"] == "captured" for record in manifest["files"]) else "unavailable"
+              except FileNotFoundError:
+                  manifest["reason"] = "Owner diagnostics directory is absent"
+              except (OSError, ValueError) as error:
+                  manifest["status"] = "unavailable"
+                  manifest["reason"] = str(error)
+              retain("manifest.json", (json.dumps(manifest, indent=2) + "\n").encode())
+          print(json.dumps(manifest))
+          PY
       - name: Retain actual producer preflight diagnostics
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

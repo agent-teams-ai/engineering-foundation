@@ -75,6 +75,7 @@
     "packed-effect-diagnostics-qualification.ts",
     "packed-effect-diagnostics-fixtures.ts",
     "packed-effect-diagnostics-growth.ts",
-    "effect-registry-frozen-client.ts"
+    "effect-registry-frozen-client.ts",
+    "packed-documentation-local-references.ts"
   ]
 }

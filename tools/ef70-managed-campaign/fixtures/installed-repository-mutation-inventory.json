@@ -1,0 +1,2125 @@
+{
+  "name": "@agent-teams/repository-mutation",
+  "version": "0.5.2",
+  "archiveSha256": "7232f641ad670abccd1af40262c2a49aa699d3dca1eea0598523c7c316e41ceb",
+  "files": [
+    {
+      "path": "LICENSE",
+      "mode": 420,
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "bytes": 11357
+    },
+    {
+      "path": "dist/repository-mutation/application-api.js",
+      "mode": 420,
+      "sha256": "d568a5cee18209515b1fee38ff18fda392d571552ad795d70943b8152cad33ab",
+      "bytes": 655
+    },
+    {
+      "path": "dist/transaction-coordination/application-api.js",
+      "mode": 420,
+      "sha256": "a656dacd2a78b801d3608fa6f88d75be83744c66da60c13b1077eb90243da7f8",
+      "bytes": 603
+    },
+    {
+      "path": "dist/canonical-json.js",
+      "mode": 420,
+      "sha256": "d6b41098b895d250db4af6ea6405987ecb728abe6eca9bdb4ab51c847ef14d26",
+      "bytes": 4882
+    },
+    {
+      "path": "dist/repository-mutation/application/policies/classify-known-file-recovery-transition.js",
+      "mode": 420,
+      "sha256": "032a519d7d53b0be03d8ffa8f47c359da3e2caaca9ce61a9c9cacc2ea8305c42",
+      "bytes": 963
+    },
+    {
+      "path": "dist/coordination.js",
+      "mode": 420,
+      "sha256": "b462a504e9e5360f28e40d0fde6e9ffc2914b4c7093c2fd9f18a708611f2cca1",
+      "bytes": 344
+    },
+    {
+      "path": "dist/repository-mutation/application/model/directory-materialization.js",
+      "mode": 420,
+      "sha256": "aa793a49be55b9b18600d9e52b25ad2079dcf8fa666d41e552eba6df50571e7f",
+      "bytes": 378
+    },
+    {
+      "path": "dist/transaction-coordination/application/errors.js",
+      "mode": 420,
+      "sha256": "0a8235fd981df8c90b3d98afe802abcdadbec51063569843077bf9483ed2fcb9",
+      "bytes": 253
+    },
+    {
+      "path": "dist/repository-mutation/application/model/exact-postimage.js",
+      "mode": 420,
+      "sha256": "bb7c8e527d9b220ef9c2712b499cca75080a04fc9c00b2e355bc3acddc78870a",
+      "bytes": 337
+    },
+    {
+      "path": "dist/transaction-coordination/application/file-observation.js",
+      "mode": 420,
+      "sha256": "9d68cb2fd2e8e17881645444f5f200423f22e53b36cc101a8eb10a3cb6bac8bf",
+      "bytes": 55
+    },
+    {
+      "path": "dist/index.js",
+      "mode": 420,
+      "sha256": "2e0b3a4b19d7112f335142fe0629319f2b4ea016457cdfc1d977ce17708b9987",
+      "bytes": 1695
+    },
+    {
+      "path": "dist/qualification/index.js",
+      "mode": 420,
+      "sha256": "a9771e0c5d45d53beff38b4d4ac20f529e252ee432c33f76200c90090b46a3cd",
+      "bytes": 1308
+    },
+    {
+      "path": "dist/transaction-coordination/adapters/node/installed-artifact-identity.js",
+      "mode": 420,
+      "sha256": "4131697201399f38f9b4615f4263362268638d41731cb5356283b4fa3d447a4c",
+      "bytes": 5247
+    },
+    {
+      "path": "dist/transaction-coordination/application/journal-slot-profile.js",
+      "mode": 420,
+      "sha256": "47907f766380623950791478d10f1cb38de64b5649429f0fe2c12413f4cbf6f6",
+      "bytes": 1100
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/known-file-coordination.js",
+      "mode": 420,
+      "sha256": "057c0cc5ec9cd8f4a6146283c24e1ba6e0db5c99ced69e6cfffebdcd7d25c6bc",
+      "bytes": 62
+    },
+    {
+      "path": "dist/repository-mutation/application/policies/known-file-mutation-admission.js",
+      "mode": 420,
+      "sha256": "091914c65e1ec1ffe8f3fb3e94f3d4e2090be4615098a99c4ae8420241830769",
+      "bytes": 3009
+    },
+    {
+      "path": "dist/repository-mutation/application/ports/known-file-mutation.js",
+      "mode": 420,
+      "sha256": "4499c1f514f6699dfaaabf4b28280d02441d757935d5a52b780938a4806f551b",
+      "bytes": 58
+    },
+    {
+      "path": "dist/repository-mutation/application/ports/known-file-observation.js",
+      "mode": 420,
+      "sha256": "1e545c0675224fc50b1e8be6417d0514f5a3a82431219b5636b4afeaad47e039",
+      "bytes": 61
+    },
+    {
+      "path": "dist/repository-mutation/application/policies/known-file-plan-admission.js",
+      "mode": 420,
+      "sha256": "80ed53a36da7c0902ac4540ce2c22faadaa05aca5daffaa9a610840d2f950975",
+      "bytes": 7483
+    },
+    {
+      "path": "dist/repository-mutation/application/policies/known-file-state-names.js",
+      "mode": 420,
+      "sha256": "6a45546476edb6f2362719758548ca30228df772cbeac417b13bdecdbce12ece",
+      "bytes": 713
+    },
+    {
+      "path": "dist/repository-mutation/application/policies/known-file-transaction-envelope.js",
+      "mode": 420,
+      "sha256": "ebbd5ec32f742bcea4cf853cf2505654bbcc51d57ed531aaecce178778bb59a0",
+      "bytes": 12639
+    },
+    {
+      "path": "dist/repository-mutation/application/model/known-file-transaction-error.js",
+      "mode": 420,
+      "sha256": "d6a475c4ddbfbaa52cfe4616008b21628e4d26a6dbe7cbe4a2dd8f3884dc278c",
+      "bytes": 450
+    },
+    {
+      "path": "dist/repository-mutation/application/model/known-file-transaction-journal.js",
+      "mode": 420,
+      "sha256": "ad84e83f9e533f27585698607f13ce0eec6ab0ff48ec5d94a5b96cd9ea11ef90",
+      "bytes": 480
+    },
+    {
+      "path": "dist/repository-mutation/application/policies/known-file-transaction-lease-release.js",
+      "mode": 420,
+      "sha256": "1050841bb51ad2c5fd2982375706c4968bbcbf4d003ba6f4545e5b4f87d790ab",
+      "bytes": 1270
+    },
+    {
+      "path": "dist/repository-mutation/application/policies/known-file-transaction-plan.js",
+      "mode": 420,
+      "sha256": "a5bd4fb318e87cded6180590b4f08d984bf50ed72b0bc269fae6ccc8cc1cf1fd",
+      "bytes": 6181
+    },
+    {
+      "path": "dist/repository-mutation/application/policies/known-file-transaction-receipt.js",
+      "mode": 420,
+      "sha256": "82b05140b8465bc49745f1d35533aa613001c64a9ed6ed2e8e63eb2f00224b22",
+      "bytes": 1257
+    },
+    {
+      "path": "dist/repository-mutation/application/model/known-file-transaction.js",
+      "mode": 420,
+      "sha256": "bd00d7a0c7ceb6920a75fc4c0a64192860a27bc1bd5714c5b4d07dc204480b08",
+      "bytes": 61
+    },
+    {
+      "path": "dist/repository-mutation/application/policies/known-file-wire-plan-admission.js",
+      "mode": 420,
+      "sha256": "a43e9ee8da7afa7e7bc0114e37c51f5dda0f40d980985614c2100e94b7f15501",
+      "bytes": 4946
+    },
+    {
+      "path": "dist/known-file.js",
+      "mode": 420,
+      "sha256": "2a63b496222dc97c3751b80001354c3edbc0fc1b55f7f1c6e001bebc988eb51e",
+      "bytes": 295
+    },
+    {
+      "path": "dist/transaction-coordination/application/ports/mutation-lease-port.js",
+      "mode": 420,
+      "sha256": "d4b769e05bad48540d72bc135c13f462cdc4f136bd99e8d64937539aea9b1a64",
+      "bytes": 58
+    },
+    {
+      "path": "dist/transaction-coordination/application/mutation-lease.js",
+      "mode": 420,
+      "sha256": "d14c8fc59066ca2045d4f75640c22eb8a193b81d83c395e286cc3c66453ccb20",
+      "bytes": 9941
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-absent-file-publication-private.js",
+      "mode": 420,
+      "sha256": "5223991e578b14244ea9383b8ee3eba24cd5c77a8c9ebc366cd90f6a26284102",
+      "bytes": 2929
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-absent-file-publication.js",
+      "mode": 420,
+      "sha256": "472e818082568c48a04bb3e84385f001ea23bd79f11b6ecc4a9848489e393375",
+      "bytes": 8433
+    },
+    {
+      "path": "dist/repository-mutation/composition/node-api.js",
+      "mode": 420,
+      "sha256": "c1a119e1f79c0b17f07e58e1c18013d3504a35cff746466d9719b94b715cf7b6",
+      "bytes": 331
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-atomic-file-replacement.js",
+      "mode": 420,
+      "sha256": "bbbbcc36b67816f301e38f47bda026380e79962fab1f6ff65c74e81836f591b2",
+      "bytes": 5174
+    },
+    {
+      "path": "dist/transaction-coordination/adapters/node/node-bounded-regular-file.js",
+      "mode": 420,
+      "sha256": "e2c8970201781bb782d0111faece406e1213eef5543be90199bf70ab93053d3c",
+      "bytes": 4538
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-cleanup-owned-temporary.js",
+      "mode": 420,
+      "sha256": "f5a9b53c44d2791408f1dd9ed49821a63a8e01eb5f26a5331ba7ab3e11daa967",
+      "bytes": 7419
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-create-and-bind-directory.js",
+      "mode": 420,
+      "sha256": "c7324a34db2263fa289c19c2f1bd3f5a06c3982cb3a48b784a82dec546cd8391",
+      "bytes": 891
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-directory-durability.js",
+      "mode": 420,
+      "sha256": "1c295ac8dd5d182f510d0e0638d9c763aafe540981b7dfdf91d0f26ce2624753",
+      "bytes": 1510
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-directory-materialization.js",
+      "mode": 420,
+      "sha256": "20a50d0f8ca11d8611f0c2d9969c0c9990b364cc76c87a314ffe1ea6c1e1ea24",
+      "bytes": 11111
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-existing-repository-ancestors.js",
+      "mode": 420,
+      "sha256": "c64670ee9d971edbf801f914e84597618ba415ae4f9ff4076da381252699595a",
+      "bytes": 2847
+    },
+    {
+      "path": "dist/transaction-coordination/adapters/node/node-journal-slot-evidence.js",
+      "mode": 420,
+      "sha256": "6b5efe2e667c411817a20dbda856861aebf9488c60a06ec7a1434ea3982eeb95",
+      "bytes": 4347
+    },
+    {
+      "path": "dist/transaction-coordination/adapters/node/node-journal-slot-store.js",
+      "mode": 420,
+      "sha256": "e97c6147821db6ecf4cfc404b7f0978ec05e91d2d631be9ba7351b9642858412",
+      "bytes": 14568
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-api.js",
+      "mode": 420,
+      "sha256": "10be695f69433fbd2b1c8f66a57a6929b205aa1fb1e9df86f4f7a6eeb6cac87f",
+      "bytes": 3572
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-apply-effects.js",
+      "mode": 420,
+      "sha256": "a521156c22fad5b17d757bafeb2805212ab969dadcdff1e8338bac8bcd030b93",
+      "bytes": 12914
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-apply-faults.js",
+      "mode": 420,
+      "sha256": "1414fa810ed63e023c1d49582ac7606d1f3235f9cf707df00d29a85be83fca84",
+      "bytes": 67
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-apply-observation.js",
+      "mode": 420,
+      "sha256": "4d53a21ad39a48bd2ff04eab40f9add13bdc99da11d2c7d11b26932356e845ce",
+      "bytes": 1855
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-apply-operation.js",
+      "mode": 420,
+      "sha256": "f7e8dc2f3b6a6a9f8bff57a207e66feac258c2d0f657ad962cbd096747f30047",
+      "bytes": 8087
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-apply-state.js",
+      "mode": 420,
+      "sha256": "bd202dbe42613f39e3dacdf81b81a029a0e45f367bcd405a381d9f180bdfb523",
+      "bytes": 1009
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-recovery-capture-directory.js",
+      "mode": 420,
+      "sha256": "e89774286f55bcbd00e61cc86b2ec3a96ba33e395a80ee11f886f722822d3f84",
+      "bytes": 1208
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-recovery-cleanup.js",
+      "mode": 420,
+      "sha256": "bec71069dad798188bed7de9ae44bad00adb133fc5e06f30433514c45779f660",
+      "bytes": 10024
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-recovery-executor.js",
+      "mode": 420,
+      "sha256": "6cefba7cb317c573327c853d14d2ea22c69f94de681c7ee48d08a99926771655",
+      "bytes": 1673
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-recovery-filesystem.js",
+      "mode": 420,
+      "sha256": "61102c7a229dc1646fe1c612007c6a7b4fd9d3eb219c069fffa3ef28fb110d86",
+      "bytes": 10427
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-recovery-observation.js",
+      "mode": 420,
+      "sha256": "f82a19dc06295861979599c7294f5ba3b00af625a1091a22a97638cf009c0cc3",
+      "bytes": 2646
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-recovery-preimage-captured-cleanup.js",
+      "mode": 420,
+      "sha256": "e62ce5df3e76a83e399f8a58ae455cf9fe894e1e8c062d9bd5064ef06d3e1e87",
+      "bytes": 4763
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-recovery-preimage-captured.js",
+      "mode": 420,
+      "sha256": "9d63448dba0ad3dc6727d2707a7bac50e5fb8207dd998d26bdfea540616aebcc",
+      "bytes": 13371
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-recovery-preimage.js",
+      "mode": 420,
+      "sha256": "80cf7a6892f82de3ad4c61ffa8fa43ac1e1848929f69830df337910939e2ba79",
+      "bytes": 10920
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-recovery-retirement.js",
+      "mode": 420,
+      "sha256": "3be22826b0a1e1e950f36abed33b6503f65baed3ab82c24c660b0f40e71b149a",
+      "bytes": 11095
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-recovery-state.js",
+      "mode": 420,
+      "sha256": "fd07565952aba0f59cae652ca84624475033701f0c74a4eb46e864c22d0393b1",
+      "bytes": 789
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-transaction-filesystem.js",
+      "mode": 420,
+      "sha256": "7ab09d07c5b42c9fb8c771102d0fa979b602d1196dd3557a87820dceec58c485",
+      "bytes": 7076
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-transaction-inspection.js",
+      "mode": 420,
+      "sha256": "6785c3c83925d04b09eceafc58d74fbc4026446f69d1919eb6dae071776113ec",
+      "bytes": 2366
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-transaction-journal-store.js",
+      "mode": 420,
+      "sha256": "cebddebf04d93d59ab903eee0cb6baf9d82d8e96e259f4b20cdfcdbafdd909e5",
+      "bytes": 10511
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-transaction-receipt.js",
+      "mode": 420,
+      "sha256": "bb1337a22ad7a73495e861c36e4fda9ab9f9b0669f2c280590bfc59d4b5c7532",
+      "bytes": 1730
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-transaction-recovery.js",
+      "mode": 420,
+      "sha256": "669127b3350f3b5f12b49b721816bb4356b195a78de088c913332771b0282b32",
+      "bytes": 4968
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-transaction.js",
+      "mode": 420,
+      "sha256": "c3911351dda34730be7c53ab108892172ef44644e474fa9733a1c72ef59b06a6",
+      "bytes": 7918
+    },
+    {
+      "path": "dist/composition/node-known-file.js",
+      "mode": 420,
+      "sha256": "83b5d17005d6779fd72b6af204f8ff07836a7b8730cdefe25983a7f777a06758",
+      "bytes": 3257
+    },
+    {
+      "path": "dist/transaction-coordination/composition/node-mutation-lease.js",
+      "mode": 420,
+      "sha256": "481d698dc75659900be573fc788d06c7ce12634f94a9ab1940b4402477593079",
+      "bytes": 413
+    },
+    {
+      "path": "dist/transaction-coordination/adapters/node/node-mutation-observation.js",
+      "mode": 420,
+      "sha256": "06b89856e938955fb1f4fbbf713b7c62df0dbaf2945428fa3ab545a53bb0387e",
+      "bytes": 5482
+    },
+    {
+      "path": "dist/transaction-coordination/adapters/node/node-operation-lock.js",
+      "mode": 420,
+      "sha256": "120ef099fd75be2bbb01e26c33d396b6ee5ea28601329f7e81d08304c3693484",
+      "bytes": 14770
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-prepare-exact-sibling-temporary.js",
+      "mode": 420,
+      "sha256": "5eae8daf719060b5f1a54445b9880ff89fcad3584be301fe4faf13a89039e6b9",
+      "bytes": 1289
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-publish-prepared-absent-file.js",
+      "mode": 420,
+      "sha256": "097c6105fe7579b462d47ec8d181fcdbe745e9fac9705f25a508230b4b5222c4",
+      "bytes": 2752
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-repository-path.js",
+      "mode": 420,
+      "sha256": "9dae6d962dafd91e84d13667ed86d3aff383320068aa0a4a383da3838831fd78",
+      "bytes": 335
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-retired-temporary-duplicates.js",
+      "mode": 420,
+      "sha256": "2ca827b5ed7f6a748b1bc3d2b6e1eee0fa170467304e1d702825473dcb1493c0",
+      "bytes": 5637
+    },
+    {
+      "path": "dist/transaction-coordination/adapters/node/node-state-directory.js",
+      "mode": 420,
+      "sha256": "a3c4fe1a5b6877c833efa69840fe2b569df49a11640d4e98610be1bbf247c0c3",
+      "bytes": 2996
+    },
+    {
+      "path": "dist/transaction-coordination/adapters/node/node-terminal-evidence-directory.js",
+      "mode": 420,
+      "sha256": "b9e95691c2c2fdc1717cbee970381fccd56789287689da05edb18ae99e91456f",
+      "bytes": 2343
+    },
+    {
+      "path": "dist/node.js",
+      "mode": 420,
+      "sha256": "2f46388d225759ad1b52bb5d9f3adf5505bdefb6ae1f52259b1b0ee17bba773f",
+      "bytes": 2859
+    },
+    {
+      "path": "dist/transaction-coordination/composition/node.js",
+      "mode": 420,
+      "sha256": "749af8f38b6c8db0b30108e3c1c7d46b298ac1ab08812ca95bd00bffb5ea71b8",
+      "bytes": 1018
+    },
+    {
+      "path": "dist/repository-mutation/application/ports/owned-temporary-cleanup-transition.js",
+      "mode": 420,
+      "sha256": "8a81396435e87dfb2c141be4247e99576af5311d1c7351c50c336af5139a2ad3",
+      "bytes": 73
+    },
+    {
+      "path": "dist/transaction-coordination/adapters/node/package-version.js",
+      "mode": 420,
+      "sha256": "f16cdb5e68d4d643c67249d924bcee20bf55f0d743e64e0f296eadefd69b5fbe",
+      "bytes": 475
+    },
+    {
+      "path": "dist/path-identity.js",
+      "mode": 420,
+      "sha256": "7fd970193e45511a78a2777de803b50bd55aebc814205768964b66123c43ba66",
+      "bytes": 52
+    },
+    {
+      "path": "dist/paths.js",
+      "mode": 420,
+      "sha256": "1d9d8b789410de9f10bddb335e14468b52943ad770b0e9033ebf27ae4bd973be",
+      "bytes": 156
+    },
+    {
+      "path": "dist/transaction-coordination/application/repository-mutation-envelope.js",
+      "mode": 420,
+      "sha256": "d5a47eb8fcd2e8259eb2dc097450ff8cdd050361e714a61773b1bfe4364f0154",
+      "bytes": 12698
+    },
+    {
+      "path": "dist/repository-mutation/application/model/repository-path.js",
+      "mode": 420,
+      "sha256": "5eb828ad817b22977a6ceb49363c595b19a3bc60bb7b6d1f7eee5d13de5c2a2d",
+      "bytes": 3286
+    },
+    {
+      "path": "dist/repository-mutation/application/ports/retired-temporary-inspection-budget.js",
+      "mode": 420,
+      "sha256": "4be39ee4f450aecf69ab5e76ce6fcc9558ac2ed9b32be6a70c252cf9d1814d86",
+      "bytes": 74
+    },
+    {
+      "path": "dist/serialization.js",
+      "mode": 420,
+      "sha256": "63b03c6e11a697ed26dba7934cb1e5ca2ac40998f963944e152090524f5b87ea",
+      "bytes": 221
+    },
+    {
+      "path": "dist/transaction-coordination/application/state-contract.js",
+      "mode": 420,
+      "sha256": "cb4af9e8de2cedfc76972393b494779c92b9ad9c6e2213f70cda95c14375f8cd",
+      "bytes": 507
+    },
+    {
+      "path": "dist/strict-json.js",
+      "mode": 420,
+      "sha256": "d5a87e829a8f265db4dcc4c6fd5f2a71b4696817407c86bc99b099c22a8b02fe",
+      "bytes": 3263
+    },
+    {
+      "path": "package.json",
+      "mode": 420,
+      "sha256": "7d4ff96ce6b4d87890a72c479d248ea31e68659a17700a9bb85644b57f45c5d0",
+      "bytes": 1695
+    },
+    {
+      "path": "schemas/known-file-transaction-plan/v1.schema.json",
+      "mode": 420,
+      "sha256": "ed9490e1d9a903f82853199cb69d8a196b7052ccf38f81c3546397291a0f3223",
+      "bytes": 2109
+    },
+    {
+      "path": "schemas/known-file-transaction-receipt/v1.schema.json",
+      "mode": 420,
+      "sha256": "92e6396923f76421ae8c63dc4187a4f9b391e8a06ae61772d5eea947041b884e",
+      "bytes": 1452
+    },
+    {
+      "path": "schemas/repository-mutation-transaction-envelope/v1.schema.json",
+      "mode": 420,
+      "sha256": "d5f51686dd7196b867072ed0e3415bcb43b6d65f6e4c88778a1a5417ee89feda",
+      "bytes": 1857
+    },
+    {
+      "path": "schemas/repository-mutation/known-file-transaction-plan/v1.schema.json",
+      "mode": 420,
+      "sha256": "1316943da981f5241a1d1c6fd51fbaab9ff0c049da9f2ab40055903423c023c5",
+      "bytes": 2129
+    },
+    {
+      "path": "schemas/repository-mutation/known-file-transaction-receipt/v1.schema.json",
+      "mode": 420,
+      "sha256": "e538343201c757a98337d9b796b9360d546c61181bef8baf07d21c936015267c",
+      "bytes": 1472
+    },
+    {
+      "path": "dist/repository-mutation/application-api.d.ts.map",
+      "mode": 420,
+      "sha256": "4929a9dea768866c511f1709de90601a8abf766356b66959b789fb9fab1f00af",
+      "bytes": 825
+    },
+    {
+      "path": "dist/transaction-coordination/application-api.d.ts.map",
+      "mode": 420,
+      "sha256": "6a31046f8a745e993495aca6cb4d3110dae75a2ac8dbdd000c40ddd384bbe93f",
+      "bytes": 629
+    },
+    {
+      "path": "dist/repository-mutation/application-api.js.map",
+      "mode": 420,
+      "sha256": "8c6c8bdf1670227a69d3bb062b8169ce2c8b117fe78a00f642e95a7d21c4d6c5",
+      "bytes": 409
+    },
+    {
+      "path": "dist/transaction-coordination/application-api.js.map",
+      "mode": 420,
+      "sha256": "5ebce095918727d1be2b568a81e99573707aaa0d64bc9c4f6cd983237ed6bb98",
+      "bytes": 421
+    },
+    {
+      "path": "dist/canonical-json.d.ts.map",
+      "mode": 420,
+      "sha256": "7d6f9f562579346acbdf0324497d05d314bded30f3005bdb221f508da9654324",
+      "bytes": 624
+    },
+    {
+      "path": "dist/canonical-json.js.map",
+      "mode": 420,
+      "sha256": "5c1adfeab702ca9db69d0f26df58feef6852d4a0daaeaaf79358009168f32e8a",
+      "bytes": 4917
+    },
+    {
+      "path": "dist/repository-mutation/application/policies/classify-known-file-recovery-transition.d.ts.map",
+      "mode": 420,
+      "sha256": "a836141c6db941f12ad31a07e517797afef440f987c495eb02f24961ed0d0153",
+      "bytes": 1029
+    },
+    {
+      "path": "dist/repository-mutation/application/policies/classify-known-file-recovery-transition.js.map",
+      "mode": 420,
+      "sha256": "a4460af9a08f7666cdd7f4e5e19ec8a3f669daf522a509ed023de61b52f99ae8",
+      "bytes": 796
+    },
+    {
+      "path": "dist/coordination.d.ts.map",
+      "mode": 420,
+      "sha256": "acafb17b6de95dadde08ef45714652239c67e1e64e370555e0c763713a10498d",
+      "bytes": 438
+    },
+    {
+      "path": "dist/coordination.js.map",
+      "mode": 420,
+      "sha256": "b13027bd05d91e83033465c7bb89af2f720ecfc0ef4e5e7d96fac826fd91e207",
+      "bytes": 238
+    },
+    {
+      "path": "dist/repository-mutation/application/model/directory-materialization.d.ts.map",
+      "mode": 420,
+      "sha256": "aab00af2c982efd70c5d1b3486da9ec54a29aacf96d18d994f5d5a49f59b3cca",
+      "bytes": 1348
+    },
+    {
+      "path": "dist/repository-mutation/application/model/directory-materialization.js.map",
+      "mode": 420,
+      "sha256": "6b8daedfa61327c088998d87f2198fc04a922ff4d4a6e79c1db6c6fa9390dd21",
+      "bytes": 486
+    },
+    {
+      "path": "dist/transaction-coordination/application/errors.d.ts.map",
+      "mode": 420,
+      "sha256": "04ce7aae452d9134c792177165cd9c1c4185ec94bf18b9469e7a902877f0692f",
+      "bytes": 365
+    },
+    {
+      "path": "dist/transaction-coordination/application/errors.js.map",
+      "mode": 420,
+      "sha256": "1bbe8b3fd141c3ee1184fc363cbfd5c9938cf70b5f6d73b4893d80d9f14c677a",
+      "bytes": 364
+    },
+    {
+      "path": "dist/repository-mutation/application/model/exact-postimage.d.ts.map",
+      "mode": 420,
+      "sha256": "cd748c1a0cee6cec664269a59806afda49a6a4aee4b7bf990ad879dbb4b64e97",
+      "bytes": 839
+    },
+    {
+      "path": "dist/repository-mutation/application/model/exact-postimage.js.map",
+      "mode": 420,
+      "sha256": "05d4591a29d12ddd978309858823f664996cabe63b5c22343dcd8a316ac48ba5",
+      "bytes": 450
+    },
+    {
+      "path": "dist/transaction-coordination/application/file-observation.d.ts.map",
+      "mode": 420,
+      "sha256": "340c23351b47e4109189c369f3c1e7c50a6ea3058c1fe14a940e4b30f094f10b",
+      "bytes": 320
+    },
+    {
+      "path": "dist/transaction-coordination/application/file-observation.js.map",
+      "mode": 420,
+      "sha256": "9c57ec4558eab8f9909a0ce1608b25e85081f6b7217553b3ed22e71746c4a4d9",
+      "bytes": 167
+    },
+    {
+      "path": "dist/index.d.ts.map",
+      "mode": 420,
+      "sha256": "1c159fc4f2dd4d403a7c46c30ec7b17c3ab69dcd8205a1b40138b83008ee5847",
+      "bytes": 1759
+    },
+    {
+      "path": "dist/qualification/index.d.ts.map",
+      "mode": 420,
+      "sha256": "1813731c56379e69a0273ad8067097d685f7e52d201423e924342f775cced26d",
+      "bytes": 1449
+    },
+    {
+      "path": "dist/index.js.map",
+      "mode": 420,
+      "sha256": "10bd3b7014aecc774e5487b9d1dc5689f53c89689eb3b715e34b210c37bf2b3c",
+      "bytes": 933
+    },
+    {
+      "path": "dist/qualification/index.js.map",
+      "mode": 420,
+      "sha256": "b7c4a07b48d4727fed395ffc001b3ad3b7b336ec9641408493db0f9f1296bbfa",
+      "bytes": 651
+    },
+    {
+      "path": "dist/transaction-coordination/adapters/node/installed-artifact-identity.d.ts.map",
+      "mode": 420,
+      "sha256": "46a7161d8e4df411a4562023c7a7441fd8839b0d543bbacc8601d7e2005b0204",
+      "bytes": 609
+    },
+    {
+      "path": "dist/transaction-coordination/adapters/node/installed-artifact-identity.js.map",
+      "mode": 420,
+      "sha256": "ef0e72876fdb9ae81fde0ec4e56c2e3a4a31d86c08a2c8aed2ff3e8bd4aaa30c",
+      "bytes": 5113
+    },
+    {
+      "path": "dist/transaction-coordination/application/journal-slot-profile.d.ts.map",
+      "mode": 420,
+      "sha256": "c654c9e5743bf9cff071fb7243c3988b0a95ebac296c97067ad426ca1291f0bd",
+      "bytes": 5228
+    },
+    {
+      "path": "dist/transaction-coordination/application/journal-slot-profile.js.map",
+      "mode": 420,
+      "sha256": "74a2b2c0cdef9e5dce7c3211742de0d59ea17838c8ebaea0ad7765f0db31d481",
+      "bytes": 1156
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/known-file-coordination.d.ts.map",
+      "mode": 420,
+      "sha256": "786e0f382b5ab82890fab59192ec2c229f20e41461749e08a86d917634f6e5b6",
+      "bytes": 1157
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/known-file-coordination.js.map",
+      "mode": 420,
+      "sha256": "ba8e370197e1361cf39df2307e9d8328cc7c481fe5157b61ef9ca9f20c822ac4",
+      "bytes": 181
+    },
+    {
+      "path": "dist/repository-mutation/application/policies/known-file-mutation-admission.d.ts.map",
+      "mode": 420,
+      "sha256": "0d7cf179a9843ce10d4d5f92d98f83e60c3a32b7310b71770b70720f21d04e11",
+      "bytes": 1650
+    },
+    {
+      "path": "dist/repository-mutation/application/policies/known-file-mutation-admission.js.map",
+      "mode": 420,
+      "sha256": "3f2f27dcaa61fa9b1cfc5b73f234fbdeb851722cdb5c26aa8a6e524c61367834",
+      "bytes": 2588
+    },
+    {
+      "path": "dist/repository-mutation/application/ports/known-file-mutation.d.ts.map",
+      "mode": 420,
+      "sha256": "d1e9538f50f6e336c530635df20517a5ed548dd4fc545995e84691dee492cee2",
+      "bytes": 1696
+    },
+    {
+      "path": "dist/repository-mutation/application/ports/known-file-mutation.js.map",
+      "mode": 420,
+      "sha256": "6a04722e50b1aef520f9edead3f13ddd79eb41bfd4d8e272c96ce09cc1134240",
+      "bytes": 177
+    },
+    {
+      "path": "dist/repository-mutation/application/ports/known-file-observation.d.ts.map",
+      "mode": 420,
+      "sha256": "67f1a08e9757dee0e0dfda4c35286b5f65e76795fad43d64a9498f76b187e572",
+      "bytes": 560
+    },
+    {
+      "path": "dist/repository-mutation/application/ports/known-file-observation.js.map",
+      "mode": 420,
+      "sha256": "6839752fce466c6012ee7e4245a1858f46a1787f0e8f16a7d69a147dcfa017c5",
+      "bytes": 183
+    },
+    {
+      "path": "dist/repository-mutation/application/policies/known-file-plan-admission.d.ts.map",
+      "mode": 420,
+      "sha256": "a058025c2c8a4bbbbee539b82f51f1d46b4c80afeb6a3f55ccb0a65a855c2dba",
+      "bytes": 1183
+    },
+    {
+      "path": "dist/repository-mutation/application/policies/known-file-plan-admission.js.map",
+      "mode": 420,
+      "sha256": "eac0e60cf064c6cdfcd96d896094aef2e46c62c64d92a31cca04670b6b8dddf4",
+      "bytes": 6915
+    },
+    {
+      "path": "dist/repository-mutation/application/policies/known-file-state-names.d.ts.map",
+      "mode": 420,
+      "sha256": "e17a18965bfaaba7185f0114e0c046ffc7b10be8b65a5f4826539e3e46732c44",
+      "bytes": 239
+    },
+    {
+      "path": "dist/repository-mutation/application/policies/known-file-state-names.js.map",
+      "mode": 420,
+      "sha256": "4e1b03044925133e3dbe8c69fb49b1e155a9f4b61644a1cc64f36d02dcaa9487",
+      "bytes": 517
+    },
+    {
+      "path": "dist/repository-mutation/application/policies/known-file-transaction-envelope.d.ts.map",
+      "mode": 420,
+      "sha256": "f93e2b60e672505475fa7f06cefe1c8f4f29ae614e1c6aeb07b36681ad601a98",
+      "bytes": 839
+    },
+    {
+      "path": "dist/repository-mutation/application/policies/known-file-transaction-envelope.js.map",
+      "mode": 420,
+      "sha256": "491a35a5307ceb3f7aa98c2e180bc0022d2cbc42742c1528a79209ac0fccdc55",
+      "bytes": 10525
+    },
+    {
+      "path": "dist/repository-mutation/application/model/known-file-transaction-error.d.ts.map",
+      "mode": 420,
+      "sha256": "aff39938ff814cfef5f559318fe5256e3a41b53027cec86ba21ee1539c7c119e",
+      "bytes": 409
+    },
+    {
+      "path": "dist/repository-mutation/application/model/known-file-transaction-error.js.map",
+      "mode": 420,
+      "sha256": "c9c201489e1de55e0a23d6f7656fba963d4c17eb262baefb2e4d4c7e9df1e8e0",
+      "bytes": 544
+    },
+    {
+      "path": "dist/repository-mutation/application/model/known-file-transaction-journal.d.ts.map",
+      "mode": 420,
+      "sha256": "a513c8d60e7bdfa31110f48e9b1b239770e8a485c0751ad717601467d11a7682",
+      "bytes": 2650
+    },
+    {
+      "path": "dist/repository-mutation/application/model/known-file-transaction-journal.js.map",
+      "mode": 420,
+      "sha256": "19e81903b2ab6d424187d9f0605c96bae590ca97c93a7cf0ebe950e2cb3e2392",
+      "bytes": 631
+    },
+    {
+      "path": "dist/repository-mutation/application/policies/known-file-transaction-lease-release.d.ts.map",
+      "mode": 420,
+      "sha256": "cea4efce4d11e47bfd4906ba664ca86b8a05f0fc67c4c31f4d9d858bbb30dd24",
+      "bytes": 668
+    },
+    {
+      "path": "dist/repository-mutation/application/policies/known-file-transaction-lease-release.js.map",
+      "mode": 420,
+      "sha256": "fc78c5c938041e7ffcf2e648875a5df314f1c1a3d6608485a59a451e37401e83",
+      "bytes": 1233
+    },
+    {
+      "path": "dist/repository-mutation/application/policies/known-file-transaction-plan.d.ts.map",
+      "mode": 420,
+      "sha256": "d28e7f4af403c7c2c335e494a0e9d42138ae166e99e046663e273979d0d09420",
+      "bytes": 518
+    },
+    {
+      "path": "dist/repository-mutation/application/policies/known-file-transaction-plan.js.map",
+      "mode": 420,
+      "sha256": "21131ef31dead5773f0fb85d22ebc7254f906cb121763bcd381e140a9028b9b3",
+      "bytes": 5482
+    },
+    {
+      "path": "dist/repository-mutation/application/policies/known-file-transaction-receipt.d.ts.map",
+      "mode": 420,
+      "sha256": "d85e3848512d288cc9d27a92ef2d14873c47810f76ace2e81d493edd812ce4fe",
+      "bytes": 456
+    },
+    {
+      "path": "dist/repository-mutation/application/policies/known-file-transaction-receipt.js.map",
+      "mode": 420,
+      "sha256": "ea4f677a9ac404b93ef93f55c49aa99137902729af49ac5ecb3273ccf47b6bce",
+      "bytes": 1185
+    },
+    {
+      "path": "dist/repository-mutation/application/model/known-file-transaction.d.ts.map",
+      "mode": 420,
+      "sha256": "aa84f6f824759df0e591e29bc21b6e1ce06074ea3c56327fc73ec00eee174905",
+      "bytes": 2058
+    },
+    {
+      "path": "dist/repository-mutation/application/model/known-file-transaction.js.map",
+      "mode": 420,
+      "sha256": "1515a252c2552ac3ebba813ebfb549ef546a052ce92bd5dc6115791018f9ec48",
+      "bytes": 183
+    },
+    {
+      "path": "dist/repository-mutation/application/policies/known-file-wire-plan-admission.d.ts.map",
+      "mode": 420,
+      "sha256": "c3cbfb08426cc951448798e93763dc2242e6d90279fddba1530a379e9a27b394",
+      "bytes": 326
+    },
+    {
+      "path": "dist/repository-mutation/application/policies/known-file-wire-plan-admission.js.map",
+      "mode": 420,
+      "sha256": "6396326786988bfabeb485f82f8baf8c34ce920f60aaa0b3d98d9e093f6cb68b",
+      "bytes": 4645
+    },
+    {
+      "path": "dist/known-file.d.ts.map",
+      "mode": 420,
+      "sha256": "0425c58081f6bfd7a60cc727ab32934eafdf2f7fbcb2786156bb63dca7363ed5",
+      "bytes": 435
+    },
+    {
+      "path": "dist/known-file.js.map",
+      "mode": 420,
+      "sha256": "aa02f93a4597a3214216d79acef135c12816379092866dcb5bccfb4094e4064c",
+      "bytes": 221
+    },
+    {
+      "path": "dist/transaction-coordination/application/ports/mutation-lease-port.d.ts.map",
+      "mode": 420,
+      "sha256": "b256dda8e5c04b345a8cbf14692f9f7def746466f67da81708b9cd1951195608",
+      "bytes": 803
+    },
+    {
+      "path": "dist/transaction-coordination/application/ports/mutation-lease-port.js.map",
+      "mode": 420,
+      "sha256": "68f2c385ef08011759a7b6b1e9a4020fbf7a78186c32474012d42794e08f4a7c",
+      "bytes": 182
+    },
+    {
+      "path": "dist/transaction-coordination/application/mutation-lease.d.ts.map",
+      "mode": 420,
+      "sha256": "3366740022ed6767f47aeeb7f3798dc7972bb952a4a2319d1511e7fb5cb13338",
+      "bytes": 1805
+    },
+    {
+      "path": "dist/transaction-coordination/application/mutation-lease.js.map",
+      "mode": 420,
+      "sha256": "e900043a1867eda22afc7d7c925b54f1652f8f6ea8f181dca8d2c69c702e5c85",
+      "bytes": 9366
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-absent-file-publication-private.d.ts.map",
+      "mode": 420,
+      "sha256": "3ac50d856729fc1681a0ba96528377886592d82fa4ba36bb300e17faf07f8612",
+      "bytes": 1372
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-absent-file-publication-private.js.map",
+      "mode": 420,
+      "sha256": "4dbb626fedf19064542bde673ab2a71806a6092a9b482e02077178a29de1a59e",
+      "bytes": 2746
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-absent-file-publication.d.ts.map",
+      "mode": 420,
+      "sha256": "a14b3dfdbc54d475a6ae66c831dc2681cd2f86b10a902bf61ba9ab7574e54ba4",
+      "bytes": 2114
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-absent-file-publication.js.map",
+      "mode": 420,
+      "sha256": "3c822db606b0ca0e9aaeb4da9803e5e9b0c56a31a37d97188deeefd8367661f3",
+      "bytes": 6594
+    },
+    {
+      "path": "dist/repository-mutation/composition/node-api.d.ts.map",
+      "mode": 420,
+      "sha256": "b1a2f6c0c49fc0b5ba279c603d3a6a161e7f5139636fe5d4dd07b72a76ab29ef",
+      "bytes": 867
+    },
+    {
+      "path": "dist/repository-mutation/composition/node-api.js.map",
+      "mode": 420,
+      "sha256": "714dab96b60a28fcaf1d837b4d8dfab616680d867405597246e6a34f67d057b8",
+      "bytes": 317
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-atomic-file-replacement.d.ts.map",
+      "mode": 420,
+      "sha256": "ba587175c5fa3e6f94953da588165ad25385934749ceb6ac60663577eb1fba0f",
+      "bytes": 1166
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-atomic-file-replacement.js.map",
+      "mode": 420,
+      "sha256": "3a10f09abb2f6d76f4ffa23e4675657a4be29da102e8b788f6673020deea7022",
+      "bytes": 4992
+    },
+    {
+      "path": "dist/transaction-coordination/adapters/node/node-bounded-regular-file.d.ts.map",
+      "mode": 420,
+      "sha256": "be7538ca4e852c297ab394d042e8265eb0b48568e9a60399f3b589fe831949f1",
+      "bytes": 1056
+    },
+    {
+      "path": "dist/transaction-coordination/adapters/node/node-bounded-regular-file.js.map",
+      "mode": 420,
+      "sha256": "2fbbad44be3d56142fa3ceea8b605a26f575672fb0924a40275e8964d2176d77",
+      "bytes": 4951
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-cleanup-owned-temporary.d.ts.map",
+      "mode": 420,
+      "sha256": "95028fea211db2b45bbb24a59be9076c0847d8ae5eb1b0dd15f4ee7499b5fbe3",
+      "bytes": 1514
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-cleanup-owned-temporary.js.map",
+      "mode": 420,
+      "sha256": "3a8aac2bf41e8126d482de4e2a9fab729cfed9f3d852bf5808a50402ea3999b1",
+      "bytes": 5902
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-create-and-bind-directory.d.ts.map",
+      "mode": 420,
+      "sha256": "1777922793cc3ebaf9ad153f480bac7d9c3d534f268e0dbd6182d2001ba853db",
+      "bytes": 874
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-create-and-bind-directory.js.map",
+      "mode": 420,
+      "sha256": "c6ee511ac8a9c5a602e721ae41c2d430f83b1dbba450dc5982d570789ac44a8e",
+      "bytes": 903
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-directory-durability.d.ts.map",
+      "mode": 420,
+      "sha256": "ae4477e79f9b33abdf2d11687e559c8cfb459ea57228be81bf9b96ea56fabc2c",
+      "bytes": 875
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-directory-durability.js.map",
+      "mode": 420,
+      "sha256": "555774f9269e33f01c125c83ff9c173722a00a7da4d8f03e2c855a08ec88f032",
+      "bytes": 1499
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-directory-materialization.d.ts.map",
+      "mode": 420,
+      "sha256": "676f3f87bc3bdf10571bee757e00b4e748eb26a99c1d0d299ad2fa8b1291d7b4",
+      "bytes": 1601
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-directory-materialization.js.map",
+      "mode": 420,
+      "sha256": "dfd5ca7a2b8768bd6a21ea886d9d6591ca3d4a608a74c6e628e0af933068a123",
+      "bytes": 9310
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-existing-repository-ancestors.d.ts.map",
+      "mode": 420,
+      "sha256": "5f22a2cbce079f8825ee864630105361d3f9977ac3964aabc145f7291b06940d",
+      "bytes": 970
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-existing-repository-ancestors.js.map",
+      "mode": 420,
+      "sha256": "7608843b803fe363feba2ab006e363cd11b1fe0b1bf5ad05eb575a4b231ea00f",
+      "bytes": 2816
+    },
+    {
+      "path": "dist/transaction-coordination/adapters/node/node-journal-slot-evidence.d.ts.map",
+      "mode": 420,
+      "sha256": "9f4055236f52b59fb25aa4502d65cd296e88eba13a3fc3a28fe0c08179f6bfb3",
+      "bytes": 1371
+    },
+    {
+      "path": "dist/transaction-coordination/adapters/node/node-journal-slot-evidence.js.map",
+      "mode": 420,
+      "sha256": "bf9124f0813e79a3e6e547b2a8f007c39739e6b86321626b25c33b38a60998a8",
+      "bytes": 4348
+    },
+    {
+      "path": "dist/transaction-coordination/adapters/node/node-journal-slot-store.d.ts.map",
+      "mode": 420,
+      "sha256": "57670cca780674f44f1f9305c751650566745a892c7ab8003f583401515b2a73",
+      "bytes": 770
+    },
+    {
+      "path": "dist/transaction-coordination/adapters/node/node-journal-slot-store.js.map",
+      "mode": 420,
+      "sha256": "22b12c13509b2855b3480822347021e9c65a024a75ae7136d55dcae3a785fd0f",
+      "bytes": 13584
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-api.d.ts.map",
+      "mode": 420,
+      "sha256": "263b8e128afce2b9efad680b7173f304b4505dda304452cf50d00dffcb289dd8",
+      "bytes": 1937
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-api.js.map",
+      "mode": 420,
+      "sha256": "4f6cf32f6ccd1fcb324904d87e63d6f12df30ad923baef03a24e6b657c84f86a",
+      "bytes": 2184
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-apply-effects.d.ts.map",
+      "mode": 420,
+      "sha256": "229bb78bade58ba423528d25f50177aca7e610e1593fc1409984c8551fa34191",
+      "bytes": 3517
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-apply-effects.js.map",
+      "mode": 420,
+      "sha256": "d87c71aa248047a18cebc6c99ef559c2d518b5c09e16e13f372871a80a95e6d5",
+      "bytes": 11354
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-apply-faults.d.ts.map",
+      "mode": 420,
+      "sha256": "7736d68a0c82aef38bc12241ba1a39aa92b1c73147bf1b2026465659ec6dd363",
+      "bytes": 752
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-apply-faults.js.map",
+      "mode": 420,
+      "sha256": "35ff549d90edd571b39641489020b5f1566b7f245d48566d96049e0ebd4ed8ab",
+      "bytes": 191
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-apply-observation.d.ts.map",
+      "mode": 420,
+      "sha256": "4256bb0be93f36af23c45302200208e65ccfca16b1e6f30f0f676af364f448db",
+      "bytes": 786
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-apply-observation.js.map",
+      "mode": 420,
+      "sha256": "8f2c9fdc2309d9e2586528cab3cdcaac58ab27300473483aca17071cf779e09d",
+      "bytes": 1721
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-apply-operation.d.ts.map",
+      "mode": 420,
+      "sha256": "65c81807251f8019efa95b178a0ce258bdd42899e9db70b8234998c413e9749d",
+      "bytes": 754
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-apply-operation.js.map",
+      "mode": 420,
+      "sha256": "ffa074e07f2cc8bfabbe89d6a1c6e0073a68a2fa5395544796f554792e1fc2a1",
+      "bytes": 7038
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-apply-state.d.ts.map",
+      "mode": 420,
+      "sha256": "0fa766c21baa282b57ed508871d80b5a40abd738c1e167b4cf793e38486bab8d",
+      "bytes": 691
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-apply-state.js.map",
+      "mode": 420,
+      "sha256": "b46c4aee0929ee77cd01a20539f4fe3bd1ef84bf5ad86dc5701b6602c100c06c",
+      "bytes": 1058
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-recovery-capture-directory.d.ts.map",
+      "mode": 420,
+      "sha256": "67cd662d86e6bf65547aa7921733fdae6b47f653f93072ae63142e1732354b42",
+      "bytes": 376
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-recovery-capture-directory.js.map",
+      "mode": 420,
+      "sha256": "5db5681521437ae3f5cdc8d77dbbd2dc3692acf7f59f44ba92e3677d9a571764",
+      "bytes": 1103
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-recovery-cleanup.d.ts.map",
+      "mode": 420,
+      "sha256": "569ac3e2f564fb9ba94a419924835c17ffe8b3f35ae170c0a547e687fcf73e25",
+      "bytes": 683
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-recovery-cleanup.js.map",
+      "mode": 420,
+      "sha256": "6b86955a31a5d243c5d7e2592d46747ac88fdee8cff11b23a8c9a1246955f308",
+      "bytes": 8283
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-recovery-executor.d.ts.map",
+      "mode": 420,
+      "sha256": "624ba4c34cfcfe399728768c51067e3ba8ffefae5db19eae9b126be2e6ca23b2",
+      "bytes": 1064
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-recovery-executor.js.map",
+      "mode": 420,
+      "sha256": "e923251368df8719e971a1f13118575933843585c9a114315aa11bd5563a15bd",
+      "bytes": 1455
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-recovery-filesystem.d.ts.map",
+      "mode": 420,
+      "sha256": "e9ac51014c00af0e1001dbf8d77e0e42f5f5ec442264c005f5b4e4e90269bd14",
+      "bytes": 1575
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-recovery-filesystem.js.map",
+      "mode": 420,
+      "sha256": "93976a9096840554e74aa1f7e2e18fffcdf12d4a8f27eb4ef0cb9a7fe0298a93",
+      "bytes": 8669
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-recovery-observation.d.ts.map",
+      "mode": 420,
+      "sha256": "47eec91c88742525b5a987cb0647b94a9fd163edc6dae2cdc53a3e10f5c39310",
+      "bytes": 1010
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-recovery-observation.js.map",
+      "mode": 420,
+      "sha256": "243cc0b6c24b7df42021b011084bce4ac3fb5f6152f7483b97138f63e311e939",
+      "bytes": 2084
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-recovery-preimage-captured-cleanup.d.ts.map",
+      "mode": 420,
+      "sha256": "cbfec07ad3b7272868457a061ff028ba8d6221b6af7c555b7ae779dac5781a00",
+      "bytes": 1532
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-recovery-preimage-captured-cleanup.js.map",
+      "mode": 420,
+      "sha256": "6e959a6b41b2f000fde31853c8530f513fb807a0bbd7115aa5af4a25776f7869",
+      "bytes": 3918
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-recovery-preimage-captured.d.ts.map",
+      "mode": 420,
+      "sha256": "c71e1f279174f0a179e7f77defec65de93b8785431c2d67c3749caf261201412",
+      "bytes": 1798
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-recovery-preimage-captured.js.map",
+      "mode": 420,
+      "sha256": "95ba8ba94000cfd02052dee4a4f5a586b4f080b17913c3a9fbb19f172b4cb7e8",
+      "bytes": 11282
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-recovery-preimage.d.ts.map",
+      "mode": 420,
+      "sha256": "a8ba79a093b0453957cf23277b7d9d94de25c8f59fdb97cb1e9037decc57c577",
+      "bytes": 875
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-recovery-preimage.js.map",
+      "mode": 420,
+      "sha256": "94addcc0f633d80bbf1b0e60b3a78531625d40d8e06e8213630fc7c1fe35f4bb",
+      "bytes": 8962
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-recovery-retirement.d.ts.map",
+      "mode": 420,
+      "sha256": "cc69c0d39e56fc5ecc8dfa7a14453e269d60f7e2e903e2ffbe990875452a6d08",
+      "bytes": 878
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-recovery-retirement.js.map",
+      "mode": 420,
+      "sha256": "27b20622251e01fb91d19d75a49237f249d373c6fcfbdec8303bebce72613491",
+      "bytes": 9748
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-recovery-state.d.ts.map",
+      "mode": 420,
+      "sha256": "7a1dc847b6022b0b69a010d15ee241fad27ccbd0be78ba8d4f89cb453fe45fc8",
+      "bytes": 916
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-recovery-state.js.map",
+      "mode": 420,
+      "sha256": "056187c100da9bd77eda467973d52a3c158fa2f300e789f42e559159ab98d582",
+      "bytes": 841
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-transaction-filesystem.d.ts.map",
+      "mode": 420,
+      "sha256": "db9f319bb4c9d6bfeab884cdab7dd61ebb8c6d39e536189365598cd5b032720f",
+      "bytes": 1792
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-transaction-filesystem.js.map",
+      "mode": 420,
+      "sha256": "c7215253fefed679e9b8f91463a1120187bb433f2c6b35b2c00ff5b03b28a184",
+      "bytes": 6656
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-transaction-inspection.d.ts.map",
+      "mode": 420,
+      "sha256": "6844d29ac552fb21a3dc70f5d23860d79cf159a01736f646dc73eeacf526225b",
+      "bytes": 748
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-transaction-inspection.js.map",
+      "mode": 420,
+      "sha256": "7cb672575e3a779beba6d1440758bdbf4afbdc4f3c8a15becb35902ec37caae1",
+      "bytes": 1813
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-transaction-journal-store.d.ts.map",
+      "mode": 420,
+      "sha256": "b3d142b7790d63033520a559b972729ce7a930d8e5787c545129682a1c9a6b78",
+      "bytes": 1368
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-transaction-journal-store.js.map",
+      "mode": 420,
+      "sha256": "4bdad19e13599ec7238880e6a926b73eef89831a2a4f34ff384c3108494aa31b",
+      "bytes": 8811
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-transaction-receipt.d.ts.map",
+      "mode": 420,
+      "sha256": "6da91f64c2cca1e76b0634061f8f5d7c1bd3d408e7b0b84f41102c361875b217",
+      "bytes": 368
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-transaction-receipt.js.map",
+      "mode": 420,
+      "sha256": "04ed9fe7b117848ca107ed854b9719f971168c27fbcb4ec264a701d0b8fc0af0",
+      "bytes": 1500
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-transaction-recovery.d.ts.map",
+      "mode": 420,
+      "sha256": "254f646242230b6b498a3823ba817e6b30eb78421af4f0a0b3d9b49af8cff9ee",
+      "bytes": 1202
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-transaction-recovery.js.map",
+      "mode": 420,
+      "sha256": "095db0cadb1bc17603a5de5dac297848970e1b894ff4164f5870fb7d9c2c8aa1",
+      "bytes": 4096
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-transaction.d.ts.map",
+      "mode": 420,
+      "sha256": "2cf87dbf8a6f67d8a38c7607a6017edf7590707a9d1e1a44b14f15b6bca43013",
+      "bytes": 1245
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-transaction.js.map",
+      "mode": 420,
+      "sha256": "bcc827fbe06ab5cc4eb4eaa03c12679725d50f68d7b9a8e1193661a508dc43bd",
+      "bytes": 6443
+    },
+    {
+      "path": "dist/composition/node-known-file.d.ts.map",
+      "mode": 420,
+      "sha256": "d1753cbc846db10b09a9048e98c85f4cdc4c5746a403969eef38196147848ab6",
+      "bytes": 3453
+    },
+    {
+      "path": "dist/composition/node-known-file.js.map",
+      "mode": 420,
+      "sha256": "70dfe335d406bfb79ac307f3f460641370ebd1062e75a789be6f56bf018c1c7c",
+      "bytes": 2082
+    },
+    {
+      "path": "dist/transaction-coordination/composition/node-mutation-lease.d.ts.map",
+      "mode": 420,
+      "sha256": "bd403d8929ce641ef24d6b2ea06708fac01ba00727ed4f18d528eaf85bfdb7b4",
+      "bytes": 293
+    },
+    {
+      "path": "dist/transaction-coordination/composition/node-mutation-lease.js.map",
+      "mode": 420,
+      "sha256": "1a830718054589e7c6d173d1a8bf1a144036315b1f1a6d5e5b4efbbe61d291ce",
+      "bytes": 408
+    },
+    {
+      "path": "dist/transaction-coordination/adapters/node/node-mutation-observation.d.ts.map",
+      "mode": 420,
+      "sha256": "802644be33c6cf032ecdd5dd182e85d39ba4400e209d724c54633588c951e1e1",
+      "bytes": 281
+    },
+    {
+      "path": "dist/transaction-coordination/adapters/node/node-mutation-observation.js.map",
+      "mode": 420,
+      "sha256": "8dbe93949def9680a0ee76da6d178648af3f0c9b26a633c1e240ecb06a5939c7",
+      "bytes": 5053
+    },
+    {
+      "path": "dist/transaction-coordination/adapters/node/node-operation-lock.d.ts.map",
+      "mode": 420,
+      "sha256": "bbfb6265ddafd5253d98d3ac1ea71c373f4f471497c6c58db7fa41d6c749d6b7",
+      "bytes": 660
+    },
+    {
+      "path": "dist/transaction-coordination/adapters/node/node-operation-lock.js.map",
+      "mode": 420,
+      "sha256": "9c83ab3e2593a567a9dc62b7ac7a60c3ed19ab9379ada61b30091be33477ee9f",
+      "bytes": 13109
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-prepare-exact-sibling-temporary.d.ts.map",
+      "mode": 420,
+      "sha256": "8ffc03a698c26f13a4cdb1d22b7b1c43ea7497805fd3483be701f94f5f6d109e",
+      "bytes": 1204
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-prepare-exact-sibling-temporary.js.map",
+      "mode": 420,
+      "sha256": "6c5b7386bf123ab6d6b3f92109bddf25a509e2e38e28cbe229f4f3dfd973ada5",
+      "bytes": 1303
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-publish-prepared-absent-file.d.ts.map",
+      "mode": 420,
+      "sha256": "58abcf50dad4aa838f095c71238eeba468686731ad087b8775dd65ed8a940417",
+      "bytes": 1671
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-publish-prepared-absent-file.js.map",
+      "mode": 420,
+      "sha256": "634c9f871446e6c87cd0000773f273711d1ec1bf509ea5629f1cca7263b91e58",
+      "bytes": 2307
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-repository-path.d.ts.map",
+      "mode": 420,
+      "sha256": "44adb18fc46a1954e5e75318bfe479e6d49ac9b7f125ac819c7d3833a0b9ea98",
+      "bytes": 251
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-repository-path.js.map",
+      "mode": 420,
+      "sha256": "e75065039a8bf784192cf5937888ec4d7f15b2b39217aeb6c8f5795ff9ab35fd",
+      "bytes": 496
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-retired-temporary-duplicates.d.ts.map",
+      "mode": 420,
+      "sha256": "7e86697343e95490bdc07b23c7f88898909ef027c0b20bd425ce0c6e5a6586ee",
+      "bytes": 609
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-retired-temporary-duplicates.js.map",
+      "mode": 420,
+      "sha256": "decd4f1ae9d66ff1355d34b073198f1f24b3e7a46fbcd9f92549011daff12a6c",
+      "bytes": 5662
+    },
+    {
+      "path": "dist/transaction-coordination/adapters/node/node-state-directory.d.ts.map",
+      "mode": 420,
+      "sha256": "5f0d53c9800ec0a63a5b199dd815b3ed5d891e11edd93dbc9cc1d0e38b258024",
+      "bytes": 477
+    },
+    {
+      "path": "dist/transaction-coordination/adapters/node/node-state-directory.js.map",
+      "mode": 420,
+      "sha256": "7e0366307f3cae0c17476c142f3efc6486145dd1826a69cd1e4f96cd5399e3af",
+      "bytes": 2575
+    },
+    {
+      "path": "dist/transaction-coordination/adapters/node/node-terminal-evidence-directory.d.ts.map",
+      "mode": 420,
+      "sha256": "fe63f947e2dec197c03f00e06f6d993025495191bf3ea706524254783e04ebe1",
+      "bytes": 986
+    },
+    {
+      "path": "dist/transaction-coordination/adapters/node/node-terminal-evidence-directory.js.map",
+      "mode": 420,
+      "sha256": "284aee1b3546006591585b6fe8b203449791d37a0809dd70e4e7a8820a215cba",
+      "bytes": 2436
+    },
+    {
+      "path": "dist/node.d.ts.map",
+      "mode": 420,
+      "sha256": "14634bc61ee45bbbf3f0421113a2c7da5913ebd9773575a910edd12144c11575",
+      "bytes": 2291
+    },
+    {
+      "path": "dist/transaction-coordination/composition/node.d.ts.map",
+      "mode": 420,
+      "sha256": "a23da70f22a036030d18e63bbd44cacd376b381eff4ae50ba2293f67219a5553",
+      "bytes": 688
+    },
+    {
+      "path": "dist/node.js.map",
+      "mode": 420,
+      "sha256": "39dfe7f5cc33ac84bd769b32decce057145d3a10963e65a11fd51b7be5640999",
+      "bytes": 1280
+    },
+    {
+      "path": "dist/transaction-coordination/composition/node.js.map",
+      "mode": 420,
+      "sha256": "efd0cba75331d95050d8d5e346522d58c073e358f45e9a6fead730e84349d17e",
+      "bytes": 627
+    },
+    {
+      "path": "dist/repository-mutation/application/ports/owned-temporary-cleanup-transition.d.ts.map",
+      "mode": 420,
+      "sha256": "cfff38afaa682ddb4abf26a301b6d49fbc89469eec2c43d825f25eb6ccae9f13",
+      "bytes": 348
+    },
+    {
+      "path": "dist/repository-mutation/application/ports/owned-temporary-cleanup-transition.js.map",
+      "mode": 420,
+      "sha256": "7eea4332714f50568ad05541db1f27d9ba2bc9840f4e897121a84abc1e7ad565",
+      "bytes": 207
+    },
+    {
+      "path": "dist/transaction-coordination/adapters/node/package-version.d.ts.map",
+      "mode": 420,
+      "sha256": "b44e79a30e90568298314cddf15461b2543ddbf4e02be31c82691edca26b4af2",
+      "bytes": 221
+    },
+    {
+      "path": "dist/transaction-coordination/adapters/node/package-version.js.map",
+      "mode": 420,
+      "sha256": "110a4940975014a7ea4a9f88c2883a13ab9e12839bb70674d5971ccc1d024d73",
+      "bytes": 581
+    },
+    {
+      "path": "dist/path-identity.d.ts.map",
+      "mode": 420,
+      "sha256": "7060afb32c58b6c4f4164d1823515598201da414c5baa32d2d4828873fb2a9be",
+      "bytes": 624
+    },
+    {
+      "path": "dist/path-identity.js.map",
+      "mode": 420,
+      "sha256": "c067edb67277535f92dd9f395f5d5e95763706c55dd75d9b1dccd84daf05bf60",
+      "bytes": 118
+    },
+    {
+      "path": "dist/paths.d.ts.map",
+      "mode": 420,
+      "sha256": "2f458ade4441a888e393a3f368a964e21dd7a13efd7e53c0f00b09682fbfeb23",
+      "bytes": 263
+    },
+    {
+      "path": "dist/paths.js.map",
+      "mode": 420,
+      "sha256": "638f82b8b10a0a236c77466f91aa2e5e14e0b7abfe509e9d19e266d0ee56116a",
+      "bytes": 159
+    },
+    {
+      "path": "dist/transaction-coordination/application/repository-mutation-envelope.d.ts.map",
+      "mode": 420,
+      "sha256": "602682b0640a8a3791563d4f44beb5943c8e33a52b425e59ebc0a60e44c46278",
+      "bytes": 1413
+    },
+    {
+      "path": "dist/transaction-coordination/application/repository-mutation-envelope.js.map",
+      "mode": 420,
+      "sha256": "3670683d82412c4ef4b363fc0a1ec976f2c152f09de4da3d09a66a978cd273c9",
+      "bytes": 11701
+    },
+    {
+      "path": "dist/repository-mutation/application/model/repository-path.d.ts.map",
+      "mode": 420,
+      "sha256": "76ad06fba164d0e79458c756bd1f0a61974cb300120f77fabc53d957d9ad1f64",
+      "bytes": 743
+    },
+    {
+      "path": "dist/repository-mutation/application/model/repository-path.js.map",
+      "mode": 420,
+      "sha256": "ec395ac3041bd3a65519f684954fb89ea36610818fffd153362a24d3f3fcce3f",
+      "bytes": 3341
+    },
+    {
+      "path": "dist/repository-mutation/application/ports/retired-temporary-inspection-budget.d.ts.map",
+      "mode": 420,
+      "sha256": "c142588a5e93ee75104f0705979b13f90b043a3e2fe5a36ef125a5e05d607418",
+      "bytes": 373
+    },
+    {
+      "path": "dist/repository-mutation/application/ports/retired-temporary-inspection-budget.js.map",
+      "mode": 420,
+      "sha256": "96f2e3c103692b456c013f673080e2d9e858e4ba05cbbe6b641d7716acab4355",
+      "bytes": 209
+    },
+    {
+      "path": "dist/serialization.d.ts.map",
+      "mode": 420,
+      "sha256": "42c902fd13b8631f23b744877ada3970fe2bccfa861a2fb4d33aa476f73a76d5",
+      "bytes": 359
+    },
+    {
+      "path": "dist/serialization.js.map",
+      "mode": 420,
+      "sha256": "84ed0470efc8a617cb850f38a19e1be2f0dff46c1bec766a772d65ac5f3e02de",
+      "bytes": 255
+    },
+    {
+      "path": "dist/transaction-coordination/application/state-contract.d.ts.map",
+      "mode": 420,
+      "sha256": "1377b5f3139eea429d9d88593bc569500fa491c71cdb6881c6be43606e695630",
+      "bytes": 392
+    },
+    {
+      "path": "dist/transaction-coordination/application/state-contract.js.map",
+      "mode": 420,
+      "sha256": "77b68059c890a3e9f56dd5d396a14b3aaa419ff23f1cf189351a6c9bb703f14a",
+      "bytes": 454
+    },
+    {
+      "path": "dist/strict-json.d.ts.map",
+      "mode": 420,
+      "sha256": "85c1ac997272dfae678369aef243dc25e4759aa0a18429ef778e364411c13a36",
+      "bytes": 321
+    },
+    {
+      "path": "dist/strict-json.js.map",
+      "mode": 420,
+      "sha256": "baa00b38573a5ce43b1df8173b3b2c5c7fff0db9e3b13f27266adf597fc74bb5",
+      "bytes": 3320
+    },
+    {
+      "path": "CHANGELOG.md",
+      "mode": 420,
+      "sha256": "504744f2577ebf2ef0237989cfe1779e66838e138aee89dc986134127770ef8b",
+      "bytes": 11221
+    },
+    {
+      "path": "README.md",
+      "mode": 420,
+      "sha256": "040fd3f3839a04a8eca511e26abd16434a54423cc8609eff76501f5b6e0e80fc",
+      "bytes": 6288
+    },
+    {
+      "path": "dist/repository-mutation/application-api.d.ts",
+      "mode": 420,
+      "sha256": "07c86c25e48b6b92ab3e04075c9daa5b41c7449099d5cda0b79f6fabd5c6ed9f",
+      "bytes": 1596
+    },
+    {
+      "path": "dist/transaction-coordination/application-api.d.ts",
+      "mode": 420,
+      "sha256": "70e3dcf556293e380a5969662dcc9f4b17c70855895a5df62136b87139543f45",
+      "bytes": 1004
+    },
+    {
+      "path": "dist/canonical-json.d.ts",
+      "mode": 420,
+      "sha256": "b4a2d805a2ea082fe824c6ab100d02c5860034ee87e81e009ce5db6410ce14dc",
+      "bytes": 654
+    },
+    {
+      "path": "dist/repository-mutation/application/policies/classify-known-file-recovery-transition.d.ts",
+      "mode": 420,
+      "sha256": "6cfb28a8b318d52fd48f86dddbc036c4ab4805767eb03204b6bbfec9e5f4341f",
+      "bytes": 1367
+    },
+    {
+      "path": "dist/coordination.d.ts",
+      "mode": 420,
+      "sha256": "8e5a7750c52ce08ea95981538f144f31203d82e4ed2632bc502ff0d783f4b050",
+      "bytes": 729
+    },
+    {
+      "path": "dist/repository-mutation/application/model/directory-materialization.d.ts",
+      "mode": 420,
+      "sha256": "d0755533a9671097aa84dbc27ebd3de4322d41a10d5e897b8010f4e17b1f3d6e",
+      "bytes": 1586
+    },
+    {
+      "path": "dist/transaction-coordination/application/errors.d.ts",
+      "mode": 420,
+      "sha256": "a69669ec477871aa77f1c8a49bf29b7dbdb8b430fdf117f6bd69790f43d600cf",
+      "bytes": 362
+    },
+    {
+      "path": "dist/repository-mutation/application/model/exact-postimage.d.ts",
+      "mode": 420,
+      "sha256": "1ddd2d2d42fc291372a43327b04f9095ed1b67a9af81cd3bbcdb2d46da53c6b3",
+      "bytes": 912
+    },
+    {
+      "path": "dist/transaction-coordination/application/file-observation.d.ts",
+      "mode": 420,
+      "sha256": "e5a82076b6b26e3be72d06b47ac0477cfea44a1a7d2e2dd6be7ebd3ea7e8f598",
+      "bytes": 242
+    },
+    {
+      "path": "dist/index.d.ts",
+      "mode": 420,
+      "sha256": "c90f6b34756a927e8493f23533fd8bdaaccf2653943f1a872b6c4fb52d0acb5f",
+      "bytes": 3440
+    },
+    {
+      "path": "dist/qualification/index.d.ts",
+      "mode": 420,
+      "sha256": "0c28ee1f5dbd4c4467ff101685ae7f00a27197a11de91694f128aea7f720fb6f",
+      "bytes": 3309
+    },
+    {
+      "path": "dist/transaction-coordination/adapters/node/installed-artifact-identity.d.ts",
+      "mode": 420,
+      "sha256": "9cc0712dd1e197cb45b0961e5170e6da2486a85aa3491800cef476dc5c8b1c0f",
+      "bytes": 828
+    },
+    {
+      "path": "dist/transaction-coordination/application/journal-slot-profile.d.ts",
+      "mode": 420,
+      "sha256": "5988ff7eebe2395aae54d3811c10c861cb34c8ac0ff3184259c93aca1b58f8c2",
+      "bytes": 6662
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/known-file-coordination.d.ts",
+      "mode": 420,
+      "sha256": "36483fd50f520ff3f4966c271d35683b55d39ee063a77ad1012b4c03aabb2334",
+      "bytes": 1380
+    },
+    {
+      "path": "dist/repository-mutation/application/policies/known-file-mutation-admission.d.ts",
+      "mode": 420,
+      "sha256": "0b02723fa09b0f39dfa0b98276c4af40ae237306168606dbed80f0c8445dad02",
+      "bytes": 1926
+    },
+    {
+      "path": "dist/repository-mutation/application/ports/known-file-mutation.d.ts",
+      "mode": 420,
+      "sha256": "e00731d73df40e88af5887856913577096dc4cdd69807e075dcefd71ffd7425c",
+      "bytes": 1921
+    },
+    {
+      "path": "dist/repository-mutation/application/ports/known-file-observation.d.ts",
+      "mode": 420,
+      "sha256": "e19d9d77b3516fe37c4ecd92d55750f1c399c9055d323040a9a8c3cc16703625",
+      "bytes": 527
+    },
+    {
+      "path": "dist/repository-mutation/application/policies/known-file-plan-admission.d.ts",
+      "mode": 420,
+      "sha256": "edeb42ccb3a4b2d6bfac675dc91f8e69d2ec6bcfccdbb01449636e23616d123d",
+      "bytes": 1304
+    },
+    {
+      "path": "dist/repository-mutation/application/policies/known-file-state-names.d.ts",
+      "mode": 420,
+      "sha256": "ca1c6aca4bd8ebbde48989d6c2fa1b86214d530cd16c6ca97b32dd22d0640409",
+      "bytes": 545
+    },
+    {
+      "path": "dist/repository-mutation/application/policies/known-file-transaction-envelope.d.ts",
+      "mode": 420,
+      "sha256": "39e91b4fb3ea38f7c68c6988a54bb1c73dfcc06884b1e7dfc179491eb998f376",
+      "bytes": 1105
+    },
+    {
+      "path": "dist/repository-mutation/application/model/known-file-transaction-error.d.ts",
+      "mode": 420,
+      "sha256": "85ac6c92c5232858c6b0fbd4f2da7fb897ae6b80a7ebd456f08153605e5de1c5",
+      "bytes": 325
+    },
+    {
+      "path": "dist/repository-mutation/application/model/known-file-transaction-journal.d.ts",
+      "mode": 420,
+      "sha256": "e5fa29a8451d89971fd45bce1c765b3169ad518a915bb4405915034309d7e97a",
+      "bytes": 3340
+    },
+    {
+      "path": "dist/repository-mutation/application/policies/known-file-transaction-lease-release.d.ts",
+      "mode": 420,
+      "sha256": "af39738cdb02b2a75ac2d1d09b24d8bee826a1d59efc74bd619a9735b564d06c",
+      "bytes": 750
+    },
+    {
+      "path": "dist/repository-mutation/application/policies/known-file-transaction-plan.d.ts",
+      "mode": 420,
+      "sha256": "8c71769d56fe3de666a530678c0ec33115a43cf70af499ca21ccffc64902c44f",
+      "bytes": 710
+    },
+    {
+      "path": "dist/repository-mutation/application/policies/known-file-transaction-receipt.d.ts",
+      "mode": 420,
+      "sha256": "530e0c37b9a88918304d1f4615e262675b999072fe3431194b104e40c748e5b8",
+      "bytes": 527
+    },
+    {
+      "path": "dist/repository-mutation/application/model/known-file-transaction.d.ts",
+      "mode": 420,
+      "sha256": "241a0ca24f2279854074c0d1f3a9596d1ae940d84fa343439f91ff311a62007b",
+      "bytes": 2254
+    },
+    {
+      "path": "dist/repository-mutation/application/policies/known-file-wire-plan-admission.d.ts",
+      "mode": 420,
+      "sha256": "e2026ea70478c8cbce521fc3b7fa6b878ca5dfc4e309f37c46de734f582f9527",
+      "bytes": 319
+    },
+    {
+      "path": "dist/known-file.d.ts",
+      "mode": 420,
+      "sha256": "a6de82ad017edc2987d32cf7ea21420b8a932e357373ec0a23db583a0350426e",
+      "bytes": 803
+    },
+    {
+      "path": "dist/transaction-coordination/application/ports/mutation-lease-port.d.ts",
+      "mode": 420,
+      "sha256": "a42e2f3370ba724ca2ccdae8cbd5d11fa3afe4626a1d85e5ba3b07ed3f213b48",
+      "bytes": 760
+    },
+    {
+      "path": "dist/transaction-coordination/application/mutation-lease.d.ts",
+      "mode": 420,
+      "sha256": "ea27101d5b77cc8062f7841acc1f00397e6f1fc6171fc5f902194611ce772ff4",
+      "bytes": 2056
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-absent-file-publication-private.d.ts",
+      "mode": 420,
+      "sha256": "43d1ff5b45a82bf515077928bfcab898cf1572711cc4ad5b488e8f25dc2f1ebd",
+      "bytes": 1641
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-absent-file-publication.d.ts",
+      "mode": 420,
+      "sha256": "f724038fc7127900b060340f881dde971b84d3ecd0493d4832222f2e264a1efe",
+      "bytes": 2709
+    },
+    {
+      "path": "dist/repository-mutation/composition/node-api.d.ts",
+      "mode": 420,
+      "sha256": "fa9acbc2dc84b9207c5e2ef4e8e13d6b6d8565b08a3110cd57bc28209a1c6018",
+      "bytes": 4905
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-atomic-file-replacement.d.ts",
+      "mode": 420,
+      "sha256": "2e50f78b1d231eeaf13029f16d3a8c5504a851e98cd92e0c7c773a265220988b",
+      "bytes": 1373
+    },
+    {
+      "path": "dist/transaction-coordination/adapters/node/node-bounded-regular-file.d.ts",
+      "mode": 420,
+      "sha256": "f5bdeee6311983819457731de085dfbe05845df6570415fec4a60eba885148b1",
+      "bytes": 1180
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-cleanup-owned-temporary.d.ts",
+      "mode": 420,
+      "sha256": "5ca3faa7f7560a4130e23b1565f9e63ef18b4532488bdb5de493eaf264da37c0",
+      "bytes": 1799
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-create-and-bind-directory.d.ts",
+      "mode": 420,
+      "sha256": "bfc7d2a8699cdb4d7b8647e22f4d6c87bc22671f220c0590a25a421a48456166",
+      "bytes": 870
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-directory-durability.d.ts",
+      "mode": 420,
+      "sha256": "290315f3a782f2c2c04941b9d2b2f7337a7f1f795853e2f9c9ae46c09ac327ea",
+      "bytes": 905
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-directory-materialization.d.ts",
+      "mode": 420,
+      "sha256": "abbb308d4db4194acbfd127cf5b07ad0582d0eef37a697b2ca72612fc00a802c",
+      "bytes": 1937
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-existing-repository-ancestors.d.ts",
+      "mode": 420,
+      "sha256": "c91d5b2475d31e4652a320fef7519dd5ce856a9bbb08d99d06e58355a12c9b7c",
+      "bytes": 979
+    },
+    {
+      "path": "dist/transaction-coordination/adapters/node/node-journal-slot-evidence.d.ts",
+      "mode": 420,
+      "sha256": "af2c227318d9c498e0be7405eb9c07e3786230f664355a5c6900250704415891",
+      "bytes": 1559
+    },
+    {
+      "path": "dist/transaction-coordination/adapters/node/node-journal-slot-store.d.ts",
+      "mode": 420,
+      "sha256": "abd43d73ecf84606a3246e0b4f865741a58f92b97735b3cc0ecf2e84e6650668",
+      "bytes": 1460
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-api.d.ts",
+      "mode": 420,
+      "sha256": "357260f0e7a4a3e3616133b70501f73952e52b66d0c6072c4fdb8bd5cc4ce2aa",
+      "bytes": 3587
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-apply-effects.d.ts",
+      "mode": 420,
+      "sha256": "1c956c3b3fbe881b419488dcb931138e9c7d4799ee5708e01644d58e4d14c457",
+      "bytes": 3964
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-apply-faults.d.ts",
+      "mode": 420,
+      "sha256": "8ffb8be9488b673dd0584b633a969e14a6ecb36b6b3798e00df30c8b9176a187",
+      "bytes": 1040
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-apply-observation.d.ts",
+      "mode": 420,
+      "sha256": "af3cee9df9ff322ee67b4a3b5d1b05deb7e2b84fa8e1d7e9da35c31b942d064c",
+      "bytes": 959
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-apply-operation.d.ts",
+      "mode": 420,
+      "sha256": "5ea0cf89082a370402094bf4c5ac9ffac0f8b8f422d287fb3c9a4a35f15fc531",
+      "bytes": 879
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-apply-state.d.ts",
+      "mode": 420,
+      "sha256": "ac7a2ef8e454d33ad2ef00c13466e08c8cefbb410c11ec43fbb94b2043ba81a7",
+      "bytes": 936
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-recovery-capture-directory.d.ts",
+      "mode": 420,
+      "sha256": "29d3cf589824ec3e9add481aa5a5ab2c8a6f98eb7a96204fcf57cb636562ced2",
+      "bytes": 302
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-recovery-cleanup.d.ts",
+      "mode": 420,
+      "sha256": "b1a9b887bb8d3ffce2de781ea11b3ea3ee00585c18c2466f64f8994480afa1e2",
+      "bytes": 796
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-recovery-executor.d.ts",
+      "mode": 420,
+      "sha256": "fc05369944326e19d1870341a267ca230b537bc7be1b003bbcb6a8b57ea8ea45",
+      "bytes": 1401
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-recovery-filesystem.d.ts",
+      "mode": 420,
+      "sha256": "26b63bb7d51e5c313411c500952cb021caef445455671402f9ac5af069b1a64e",
+      "bytes": 1765
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-recovery-observation.d.ts",
+      "mode": 420,
+      "sha256": "a4f872a442d2c1d1c8d8d76de7f8151370371203b3ba2951775c597abab9103b",
+      "bytes": 1498
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-recovery-preimage-captured-cleanup.d.ts",
+      "mode": 420,
+      "sha256": "ec6b033efd8f0cc48816eb3389a49ce6906c120356cce5c74d6671ffa1e186ba",
+      "bytes": 1708
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-recovery-preimage-captured.d.ts",
+      "mode": 420,
+      "sha256": "ead1f04f869df80fb0049e24f7b6f910febd02fefa781457a61209e23cbfed1b",
+      "bytes": 2196
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-recovery-preimage.d.ts",
+      "mode": 420,
+      "sha256": "5221771d66ae42e9d164432b019d44d97a4becf57be94f295e6f3b4a3b0e08ed",
+      "bytes": 1067
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-recovery-retirement.d.ts",
+      "mode": 420,
+      "sha256": "e9a83f97dc205ecee5ae900ff0993d007c5a010e0f58d5bb16491be25d582782",
+      "bytes": 1080
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-recovery-state.d.ts",
+      "mode": 420,
+      "sha256": "dd32055709e5f1586b0effb3db2a166b8445c5cf8b37aaa144ad08e0ee737049",
+      "bytes": 1225
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-transaction-filesystem.d.ts",
+      "mode": 420,
+      "sha256": "c8cd97baf5c15fabb6edd3b52463ee1acff060bca3e0136523725e26cabafdfe",
+      "bytes": 2117
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-transaction-inspection.d.ts",
+      "mode": 420,
+      "sha256": "42fd8cf695173bf4bb0736b6462ec2aaf74b26034807322e52bf32e1074305b0",
+      "bytes": 886
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-transaction-journal-store.d.ts",
+      "mode": 420,
+      "sha256": "515251a329b1726b655ac5dff4a5374d28677927f27e538b391acf37b7087004",
+      "bytes": 1705
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-transaction-receipt.d.ts",
+      "mode": 420,
+      "sha256": "a8ded6a1d0164fce1dccb0fd1ff90830ea6db5d5454feb51c4dec2af516e5c32",
+      "bytes": 402
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-transaction-recovery.d.ts",
+      "mode": 420,
+      "sha256": "d2f1030bad33e34bff92933e3f5ce14824a1033100bdb28a3fb2198965ebab92",
+      "bytes": 2062
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-known-file-transaction.d.ts",
+      "mode": 420,
+      "sha256": "435720379b188849e09542f73d0abb8ccb179927d8d6ad32c5931f633cc5f253",
+      "bytes": 2157
+    },
+    {
+      "path": "dist/composition/node-known-file.d.ts",
+      "mode": 420,
+      "sha256": "83572aa4986f92afb42052e4971fc58e44fa3559c3d6298dd553cf5810e12bf1",
+      "bytes": 4551
+    },
+    {
+      "path": "dist/transaction-coordination/composition/node-mutation-lease.d.ts",
+      "mode": 420,
+      "sha256": "782752b736d432357e4c95d7ddba9f6aeb9755a04e4005033a99960bb47b1a9b",
+      "bytes": 204
+    },
+    {
+      "path": "dist/transaction-coordination/adapters/node/node-mutation-observation.d.ts",
+      "mode": 420,
+      "sha256": "50204fdae26f4a40fbabfe818b479f0338b4fc1df65f3eff8bca66bd93ab90f0",
+      "bytes": 207
+    },
+    {
+      "path": "dist/transaction-coordination/adapters/node/node-operation-lock.d.ts",
+      "mode": 420,
+      "sha256": "e0082be24ec602e4201e20fb97e9fc3f1cc20f48171793d1cc2ab27f7685451e",
+      "bytes": 623
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-prepare-exact-sibling-temporary.d.ts",
+      "mode": 420,
+      "sha256": "db1f46a26b308b64a1418d78481f07cafeb978e48f3a83ef4c6446a8833ee8ca",
+      "bytes": 1310
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-publish-prepared-absent-file.d.ts",
+      "mode": 420,
+      "sha256": "8f664a15f9dbd7540615a4bce78490fcedf45b37e2464592dd4b9e7f116dcc2a",
+      "bytes": 1857
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-repository-path.d.ts",
+      "mode": 420,
+      "sha256": "856287315270248194c4ef8d56d85b5a6924729b4a3311fda822d42763b78969",
+      "bytes": 142
+    },
+    {
+      "path": "dist/repository-mutation/adapters/node/node-retired-temporary-duplicates.d.ts",
+      "mode": 420,
+      "sha256": "c1f952c352406f05f5d3128628eaf2a80dc793b58a2e1cba54da73b05d29cc48",
+      "bytes": 699
+    },
+    {
+      "path": "dist/transaction-coordination/adapters/node/node-state-directory.d.ts",
+      "mode": 420,
+      "sha256": "761922338eb57733e03e8802cfe854ebd873067eba85ddf3bcdf8c9bc127e14f",
+      "bytes": 710
+    },
+    {
+      "path": "dist/transaction-coordination/adapters/node/node-terminal-evidence-directory.d.ts",
+      "mode": 420,
+      "sha256": "e71623080997d0153ffb415bc66b9685b242bd682e1b318a47cace2786d1c6a7",
+      "bytes": 1108
+    },
+    {
+      "path": "dist/node.d.ts",
+      "mode": 420,
+      "sha256": "851f3a6ba01c3d5b699c87d0a67cfaa7a3de150c239f1f5f1275820c16dfbe72",
+      "bytes": 5037
+    },
+    {
+      "path": "dist/transaction-coordination/composition/node.d.ts",
+      "mode": 420,
+      "sha256": "5df10308e4de7288a8a4e34b4f50a10f4230d7570cc50fd35c167382e314f935",
+      "bytes": 1143
+    },
+    {
+      "path": "dist/repository-mutation/application/ports/owned-temporary-cleanup-transition.d.ts",
+      "mode": 420,
+      "sha256": "4296efd3db5f0e8e48689cf9d780a72eac736840055a53d24527b73a5eb313a9",
+      "bytes": 260
+    },
+    {
+      "path": "dist/transaction-coordination/adapters/node/package-version.d.ts",
+      "mode": 420,
+      "sha256": "ffb52653a0118598512ad6c6b02cbde5c710c047228d0553aca74c579f487805",
+      "bytes": 124
+    },
+    {
+      "path": "dist/path-identity.d.ts",
+      "mode": 420,
+      "sha256": "7f6d7854ba0535ba024f123593d3d2014f465d4ecb315015458ebffd25fe44bc",
+      "bytes": 520
+    },
+    {
+      "path": "dist/paths.d.ts",
+      "mode": 420,
+      "sha256": "320a55c927dbddcc134b2cfd896ac95c5ee6c08532cc546abf4d69621244c466",
+      "bytes": 336
+    },
+    {
+      "path": "dist/transaction-coordination/application/repository-mutation-envelope.d.ts",
+      "mode": 420,
+      "sha256": "5b352b98689042a38a750e1ca21b79750139c581a23134ac44af3b43077a0fec",
+      "bytes": 1800
+    },
+    {
+      "path": "dist/repository-mutation/application/model/repository-path.d.ts",
+      "mode": 420,
+      "sha256": "f80bb567af9d125e09aa96a53d3a591bb18aa7561a4bbf653d4ec0bdf7b4e410",
+      "bytes": 847
+    },
+    {
+      "path": "dist/repository-mutation/application/ports/retired-temporary-inspection-budget.d.ts",
+      "mode": 420,
+      "sha256": "0a912023238a17c7a8d5a55f6916baa0882da3d0cc411c78c5e2f581a2768cca",
+      "bytes": 345
+    },
+    {
+      "path": "dist/serialization.d.ts",
+      "mode": 420,
+      "sha256": "65f147338b1332c3497df510977cb03e4f143f1929f5a328d77d42e6dd9f9634",
+      "bytes": 369
+    },
+    {
+      "path": "dist/transaction-coordination/application/state-contract.d.ts",
+      "mode": 420,
+      "sha256": "c5536482a9309b76116bfced774566d07b700e2ea5a8de6659b167d52b1ae969",
+      "bytes": 547
+    },
+    {
+      "path": "dist/strict-json.d.ts",
+      "mode": 420,
+      "sha256": "04911bdab1566232256ac2f0a85a3aa398f59461a6a237adc3e9e17ba538006c",
+      "bytes": 308
+    }
+  ]
+}

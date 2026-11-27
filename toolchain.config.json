@@ -8,7 +8,8 @@
       "tsconfig.restoration-lock-inputs-tests.json",
       "tsconfig.restoration-lock-tests.json",
       "tsconfig.managed-runtime-tests.json",
-      "tsconfig.agent-workflow-tests.json"
+      "tsconfig.agent-workflow-tests.json",
+      "tsconfig.ef70-managed-campaign.json"
     ]
   },
   "lint": {
@@ -38,6 +39,16 @@
       "tests",
       "toolchain.config.json",
       "tsconfig.quality.json",
+      "tsconfig.ef70-managed-campaign.json",
+      "!tools/ef70-managed-campaign/fixtures/controller-package.json",
+      "!tools/ef70-managed-campaign/fixtures/controller-package-lock.json",
+      "!tools/ef70-managed-campaign/fixtures/controller-archive-integrity.json",
+      "!tools/ef70-managed-campaign/fixtures/installed-repository-mutation-inventory.json",
+      "!tools/ef70-managed-campaign/fixtures/installed-document-authoring-inventory.json",
+      "!tools/ef70-managed-campaign/fixtures/installed-docs-protocol-inventory.json",
+      "!tools/ef70-managed-campaign/fixtures/installed-docs-protocol-agent-teams-inventory.json",
+      "!tools/ef70-managed-campaign/fixtures/finite-execution.review-plan.json",
+      "!tools/ef70-managed-campaign/fixtures/host-checkpoint.patch",
       "!tests/fixtures/effect-diagnostics/growth/generate.ts",
       "!packages/docs-protocol-agent-teams/assets/catalog.json",
       "!packages/docs-protocol-agent-teams/assets/docs-protocol.yml",

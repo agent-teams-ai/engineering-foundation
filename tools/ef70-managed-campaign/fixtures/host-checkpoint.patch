@@ -1,0 +1,422 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index e1e25da..f184379 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -33,7 +33,7 @@ jobs:
+           node-version-file: .node-version
+       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+         with:
+-          version: 11.18.0
++          version: 11.20.0
+           cache: true
+       - run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile --engine-strict --strict-peer-dependencies
+       - run: pnpm check
+@@ -79,7 +79,7 @@ jobs:
+           node-version-file: .node-version
+       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+         with:
+-          version: 11.18.0
++          version: 11.20.0
+           cache: true
+       - run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile --engine-strict --strict-peer-dependencies
+       - run: pnpm docs:protocol:check
+@@ -116,7 +116,7 @@ jobs:
+           node-version-file: .node-version
+       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+         with:
+-          version: 11.18.0
++          version: 11.20.0
+           cache: true
+       - run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile --engine-strict --strict-peer-dependencies
+       - run: pnpm lockfile:peers:check
+@@ -148,7 +148,7 @@ jobs:
+           node-version-file: .node-version
+       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+         with:
+-          version: 11.18.0
++          version: 11.20.0
+           cache: true
+       - run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile --engine-strict --strict-peer-dependencies
+       - run: pnpm lockfile:peers:check
+@@ -175,7 +175,7 @@ jobs:
+           node-version-file: .node-version
+       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+         with:
+-          version: 11.18.0
++          version: 11.20.0
+           cache: true
+       - run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile --engine-strict --strict-peer-dependencies
+       - run: pnpm lockfile:peers:check
+diff --git a/.github/workflows/package-conformance.yml b/.github/workflows/package-conformance.yml
+index 82ada60..8eacba4 100644
+--- a/.github/workflows/package-conformance.yml
++++ b/.github/workflows/package-conformance.yml
+@@ -57,11 +57,18 @@ jobs:
+           node-version: 24.22.3
+       - name: Qualify the same artifact on the LMU consumer runtime
+         env:
++          EF_QUALIFICATION_ARTIFACT_INPUT_DIR: ${{ runner.temp }}/ef-qualified-packages
+           EF_QUALIFICATION_ARTIFACT_DIR: ${{ runner.temp }}/ef-qualified-packages-node24
+-        run: pnpm qualification:artifact-packed:check
++        run: |
++          node --test packages/node-artifact/qualification/native-process.qualification.ts packages/node-artifact/qualification/staging.qualification.ts
++          node tests/qualification/artifact/packed.qualification.ts
+       - name: Require identical tested artifacts across runtimes
+         shell: bash
+         run: cmp "$EF_QUALIFICATION_ARTIFACT_DIR/extension-foundation-node-artifact-0.0.0.tgz" "$RUNNER_TEMP/ef-qualified-packages-node24/extension-foundation-node-artifact-0.0.0.tgz"
++      - name: Restore the repository Host runtime
++        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
++        with:
++          node-version-file: .node-version
+       # Separate reviewed steps prevent candidate/test stdout from impersonating proof output.
+       - name: Core conformance proof
+         if: github.event_name == 'push'
+diff --git a/AGENTS.md b/AGENTS.md
+index 70321a4..6a4e055 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -136,9 +136,14 @@ does not publish a package or select a universal plugin interface.
+ ## Engineering Workflow
+ 
+ Engineering Foundation is an exact development dependency and must never enter
+-production dependencies. The supported tooling runtimes are Node 24.22.1 or newer
+-within Node 24, and Node 26.12.1 or newer within Node 26, with Node 26.12.1 as the default. Run `pnpm tooling:qualified:check` before
+-invoking installed Foundation commands. The old managed Foundation 1.7.2
++production dependencies. The repository Host selects Node 26.12.1 and pnpm
++11.20.0; its managed Node engine range is `>=26.12.1 <27`. Node 24.22.3 runs the
++retained upgrade/recovery controller and qualifies the same Host-built
++node-artifact archive in an external consumer. Package Conformance returns to
++the pinned Host runtime before emitting conformance proofs.
++
++Run `pnpm tooling:qualified:check` before invoking installed Foundation commands.
++The old managed Foundation 1.7.2
+ initializes an embedded TypeScript 5.9 compiler; its official transition must
+ finish before those gates may execute. Independent package checks use the
+ actual TypeScript 7.0.2 compiler. The [qualification report](docs/research/packaged-foundation-qualification-2026-11-26.md)
+diff --git a/tests/evidence-custody.test.mjs b/tests/evidence-custody.test.mjs
+index cae6b2a..11d7519 100644
+--- a/tests/evidence-custody.test.mjs
++++ b/tests/evidence-custody.test.mjs
+@@ -43,7 +43,7 @@ async function createRepositoryFixture(root) {
+     `${JSON.stringify({
+       name: "fixture",
+       private: true,
+-      packageManager: "pnpm@11.18.0",
++      packageManager: "pnpm@11.20.0",
+       repository: {
+         type: "git",
+         url: "git+https://github.com/agent-teams-ai/extension-foundation.git",
+@@ -1672,7 +1672,7 @@ captureTest("capture preserves required runtime bytes and decodes lastOutputSumm
+     clean: true,
+     platform: `${process.platform}/${process.arch}`,
+     nodeVersion: process.versions.node,
+-    pnpmVersion: "11.18.0",
++    pnpmVersion: "11.20.0",
+     capturedAt: "2026-08-26T01:00:00.000Z",
+   });
+   assert.equal(validateManifest(result.manifest).valid, true);
+diff --git a/tests/node-compatibility.test.mjs b/tests/node-compatibility.test.mjs
+index 56ab1d5..d927501 100644
+--- a/tests/node-compatibility.test.mjs
++++ b/tests/node-compatibility.test.mjs
+@@ -27,7 +27,7 @@ async function pnpmCliPath() {
+   const repositoryManifest = JSON.parse(
+     await readFile(join(repositoryRoot, "package.json"), "utf8"),
+   );
+-  assert.equal(repositoryManifest.packageManager, "pnpm@11.18.0");
++  assert.equal(repositoryManifest.packageManager, "pnpm@11.20.0");
+   const directories = [
+     ...(process.env.npm_execpath ? [dirname(process.env.npm_execpath)] : []),
+     ...(process.env.PATH ?? "").split(delimiter),
+@@ -175,7 +175,7 @@ async function pnpmCliPath() {
+             storePackage[0] !== "links" ||
+             storePackage[1] !== "@" ||
+             storePackage[2] !== "pnpm" ||
+-            storePackage[3] !== "11.18.0" ||
++            storePackage[3] !== "11.20.0" ||
+             !/^[a-zA-Z0-9_-]+$/u.test(storePackage[4]) ||
+             storePackage[5] !== "node_modules" ||
+             storePackage[6] !== "pnpm"
+@@ -251,7 +251,7 @@ test("pnpm CLI discovery skips file shims and resolves the pinned package", asyn
+   await writeFile(cli, "// pinned pnpm fixture\n");
+   await writeFile(
+     join(packageDirectory, "package.json"),
+-    JSON.stringify({ name: "pnpm", version: "11.18.0" }),
++    JSON.stringify({ name: "pnpm", version: "11.20.0" }),
+   );
+ 
+   // Corepack can supply npm_execpath while action-setup supplies a file shim on PATH.
+@@ -301,7 +301,7 @@ test("pnpm CLI discovery resolves action-setup's package-root bin layout", async
+   await writeFile(cli, "#!/usr/bin/env node\n// pinned pnpm fixture\n");
+   await writeFile(
+     join(binDirectory, "package.json"),
+-    JSON.stringify({ name: "pnpm", version: "11.18.0" }),
++    JSON.stringify({ name: "pnpm", version: "11.20.0" }),
+   );
+ 
+   const corepackCli = join(root, "corepack", "dist", "pnpm.js");
+@@ -320,7 +320,7 @@ test("pnpm CLI discovery resolves action-setup's package-root bin layout", async
+   await writeFile(cli, "#!/usr/bin/env node\n// pinned pnpm fixture\n");
+   await writeFile(
+     join(binDirectory, "package.json"),
+-    JSON.stringify({ name: "corepack", version: "11.18.0" }),
++    JSON.stringify({ name: "corepack", version: "11.20.0" }),
+   );
+   await assert.rejects(pnpmCliPath(), /Cannot resolve the pinned pnpm JavaScript CLI/u);
+   await writeFile(
+@@ -355,7 +355,7 @@ test("pnpm CLI discovery resolves action-setup's self-updated global/v11 CLI", a
+     "links",
+     "@",
+     "pnpm",
+-    "11.18.0",
++    "11.20.0",
+     "store-hash",
+     "node_modules",
+     "pnpm",
+@@ -374,7 +374,7 @@ test("pnpm CLI discovery resolves action-setup's self-updated global/v11 CLI", a
+   await mkdir(dirname(shim), { recursive: true });
+   await mkdir(dirname(corepackCli), { recursive: true });
+   await writeFile(cli, "#!/usr/bin/env node\n// pinned pnpm fixture\n");
+-  await writeFile(manifest, JSON.stringify({ name: "pnpm", version: "11.18.0" }));
++  await writeFile(manifest, JSON.stringify({ name: "pnpm", version: "11.20.0" }));
+   await writeFile(shim, `#!/bin/sh\n# cmd-shim-target=${cli}\n`);
+   await writeFile(corepackCli, "// Corepack fixture\n");
+   await writeFile(
+@@ -389,9 +389,9 @@ test("pnpm CLI discovery resolves action-setup's self-updated global/v11 CLI", a
+ 
+   await writeFile(manifest, JSON.stringify({ name: "pnpm", version: "11.17.0" }));
+   await assert.rejects(pnpmCliPath(), /Cannot resolve the pinned pnpm JavaScript CLI/u);
+-  await writeFile(manifest, JSON.stringify({ name: "corepack", version: "11.18.0" }));
++  await writeFile(manifest, JSON.stringify({ name: "corepack", version: "11.20.0" }));
+   await assert.rejects(pnpmCliPath(), /Cannot resolve the pinned pnpm JavaScript CLI/u);
+-  await writeFile(manifest, JSON.stringify({ name: "pnpm", version: "11.18.0" }));
++  await writeFile(manifest, JSON.stringify({ name: "pnpm", version: "11.20.0" }));
+   await writeFile(cli, "#!/bin/sh # node\n# shell shim\n");
+   await assert.rejects(pnpmCliPath(), /Cannot resolve the pinned pnpm JavaScript CLI/u);
+   await writeFile(cli, "#!/usr/bin/env node\n// pinned pnpm fixture\n");
+@@ -411,7 +411,7 @@ test("pnpm CLI discovery resolves action-setup's self-updated global/v11 CLI", a
+   await writeFile(join(unrelatedPackage, "bin", "pnpm.mjs"), "#!/usr/bin/env node\n");
+   await writeFile(
+     join(unrelatedPackage, "package.json"),
+-    JSON.stringify({ name: "pnpm", version: "11.18.0" }),
++    JSON.stringify({ name: "pnpm", version: "11.20.0" }),
+   );
+   await rm(packageRoot);
+   await symlink(unrelatedPackage, packageRoot, "dir");
+@@ -428,7 +428,7 @@ test("pnpm CLI discovery resolves action-setup's self-updated global/v11 CLI", a
+   await rm(cli);
+   await writeFile(cli, "#!/usr/bin/env node\n// pinned pnpm fixture\n");
+   const outsideManifest = join(root, "outside", "package.json");
+-  await writeFile(outsideManifest, JSON.stringify({ name: "pnpm", version: "11.18.0" }));
++  await writeFile(outsideManifest, JSON.stringify({ name: "pnpm", version: "11.20.0" }));
+   await rm(manifest);
+   await symlink(outsideManifest, manifest);
+   await assert.rejects(pnpmCliPath(), /Cannot resolve the pinned pnpm JavaScript CLI/u);
+@@ -450,14 +450,15 @@ test("runtime policy defaults to Node 26", async () => {
+   const manifest = JSON.parse(manifestText);
+ 
+   assert.equal(defaultVersion.trim(), "26.12.1");
+-  assert.equal(manifest.packageManager, "pnpm@11.18.0");
++  assert.equal(manifest.packageManager, "pnpm@11.20.0");
++  assert.deepEqual(manifest.engines, { node: ">=26.12.1 <27", pnpm: "11.20.0" });
+ });
+ 
+-test("pinned pnpm strictly installs the runtime policy under the executing Node 24 or 26", async (t) => {
++test("pinned pnpm strictly installs the repository Host policy under the executing Node 26", async (t) => {
+   const root = await mkdtemp(join(tmpdir(), "extension-supported-runtime-"));
+   t.after(() => rm(root, { recursive: true, force: true }));
+   const manifest = JSON.parse(await readFile(join(repositoryRoot, "package.json"), "utf8"));
+-  assert.ok([24, 26].includes(Number(process.versions.node.split(".")[0])));
++  assert.equal(Number(process.versions.node.split(".")[0]), 26);
+   await writeFile(
+     join(root, "pnpm-workspace.yaml"),
+     await readFile(join(repositoryRoot, "pnpm-workspace.yaml")),
+@@ -486,7 +487,7 @@ test("pinned pnpm strictly installs the runtime policy under the executing Node
+   assert.deepEqual(await readFile(join(root, "pnpm-lock.yaml")), lockfile);
+ });
+ 
+-test("pinned pnpm rejects Node 25 and 27 and versions below each supported minimum", async (t) => {
++test("pinned pnpm rejects Node 24, 25 and 27 and versions below the Host minimum", async (t) => {
+   const root = await mkdtemp(join(tmpdir(), "extension-rejected-runtime-"));
+   t.after(() => rm(root, { recursive: true, force: true }));
+   const manifest = JSON.parse(await readFile(join(repositoryRoot, "package.json"), "utf8"));
+@@ -506,7 +507,7 @@ test("pinned pnpm rejects Node 25 and 27 and versions below each supported minim
+   );
+   // pnpm's engine-policy input simulates unsupported versions without changing
+   // the actual test runtime or relaxing strictness. Positive installs use it unset.
+-  for (const version of ["24.22.0", "25.0.0", "26.12.0", "27.0.0"]) {
++  for (const version of ["24.22.0", "24.22.3", "25.0.0", "26.12.0", "27.0.0"]) {
+     await assert.rejects(
+       runPnpm(root, [
+         "install",
+@@ -520,7 +521,7 @@ test("pinned pnpm rejects Node 25 and 27 and versions below each supported minim
+         const output = `${error.stdout}\n${error.stderr}`;
+         assert.match(output, /ERR_PNPM_UNSUPPORTED_ENGINE/u);
+         assert.ok(output.includes(root));
+-        assert.ok(output.includes("Expected version: >=24.22.1 <25 || >=26.12.1 <27"));
++        assert.ok(output.includes("Expected version: >=26.12.1 <27"));
+         assert.ok(output.includes(`Got: ${version}`));
+         return true;
+       },
+@@ -544,7 +545,7 @@ test("pnpm 11 workspace engine policy rejects an incompatible local dependency",
+       name: "@agent-teams/engine-policy-fixture",
+       version: "1.0.0",
+       private: true,
+-      packageManager: "pnpm@11.18.0",
++      packageManager: "pnpm@11.20.0",
+       devDependencies: { "@agent-teams/incompatible-engine-fixture": "file:./incompatible" },
+     })}\n`,
+   );
+@@ -580,7 +581,7 @@ test("pnpm 11 workspace peer policy rejects an incompatible local dependency", a
+       name: "@agent-teams/peer-policy-fixture",
+       version: "1.0.0",
+       private: true,
+-      packageManager: "pnpm@11.18.0",
++      packageManager: "pnpm@11.20.0",
+       dependencies: { host: "file:./host", consumer: "file:./consumer" },
+     })}\n`,
+   );
+@@ -637,7 +638,7 @@ test("strict frozen install is followed by rejecting locked peer graph validatio
+       name: "@agent-teams/frozen-peer-policy-fixture",
+       version: "1.0.0",
+       private: true,
+-      packageManager: "pnpm@11.18.0",
++      packageManager: "pnpm@11.20.0",
+       dependencies: { host: "file:./host-1.0.0.tgz", consumer: "file:./consumer-1.0.0.tgz" },
+     })}\n`,
+   );
+diff --git a/tests/qualification/artifact/packed.qualification.ts b/tests/qualification/artifact/packed.qualification.ts
+index 1996531..8d368c6 100644
+--- a/tests/qualification/artifact/packed.qualification.ts
++++ b/tests/qualification/artifact/packed.qualification.ts
+@@ -1,9 +1,9 @@
+ import assert from "node:assert/strict";
+ import { generateKeyPairSync } from "node:crypto";
+ import { constants } from "node:fs";
+-import { copyFile, mkdir, mkdtemp, readFile, readdir, realpath, rm, symlink, writeFile } from "node:fs/promises";
++import { copyFile, lstat, mkdir, mkdtemp, readFile, readdir, realpath, rm, symlink, writeFile } from "node:fs/promises";
+ import { dirname, isAbsolute, join, sep } from "node:path";
+-import { arch, env, execPath, platform } from "node:process";
++import { arch, env, execPath, platform, versions } from "node:process";
+ import test from "node:test";
+ import { fileURLToPath } from "node:url";
+ import { createRegistryFixture, type SignedFixture } from "./registry-fixture.ts";
+@@ -12,6 +12,8 @@ import { releases, runFile, selectedTools, sha256 } from "./native-tools.ts";
+ 
+ const repository = fileURLToPath(new URL("../../../", import.meta.url));
+ const compiler = join(repository, "node_modules", "typescript", "bin", "tsc");
++const artifactName = "extension-foundation-node-artifact-0.0.0.tgz";
++const captureName = "node-artifact-campaign.json";
+ const object = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === "object" && !Array.isArray(value);
+ const source = `globalThis.efArtifactWitness.evaluations++;
+ export function publish(title) {
+@@ -20,9 +22,38 @@ export function publish(title) {
+ }
+ `;
+ 
+-async function pnpm(args: readonly string[], cwd: string): Promise<void> {
+-  const executable = env.npm_execpath;
+-  assert.ok(executable && isAbsolute(executable), "Run qualification through the repository's pinned pnpm");
++function parseCapture(value: unknown) {
++  assert.ok(object(value) && value.schemaVersion === 1);
++  assert.ok(typeof value.nodeVersion === "string" && typeof value.pnpmVersion === "string");
++  assert.ok(typeof value.pnpmExecutable === "string" && isAbsolute(value.pnpmExecutable));
++  assert.ok(typeof value.pnpmExecutableDigest === "string" && /^sha256:[a-f0-9]{64}$/u.test(value.pnpmExecutableDigest));
++  assert.ok(typeof value.archiveDigest === "string" && /^sha256:[a-f0-9]{64}$/u.test(value.archiveDigest));
++  return { nodeVersion: value.nodeVersion, pnpmVersion: value.pnpmVersion, pnpmExecutable: value.pnpmExecutable,
++    pnpmExecutableDigest: value.pnpmExecutableDigest, archiveDigest: value.archiveDigest };
++}
++
++async function observePnpm(executable: string, cwd: string, capture: ReturnType<typeof parseCapture> | undefined) {
++  assert.ok(isAbsolute(executable), "The campaign must capture the actual Host pnpm CLI");
++  const path = await realpath(executable);
++  assert.ok((await lstat(path)).isFile());
++  const selected: unknown = JSON.parse(await readFile(join(dirname(dirname(path)), "package.json"), "utf8"));
++  assert.ok(object(selected) && selected.name === "pnpm" && typeof selected.version === "string",
++    "The captured executable must belong to the actual pnpm package, not a launcher shim");
++  const manifest: unknown = JSON.parse(await readFile(join(repository, "package.json"), "utf8"));
++  assert.ok(object(manifest));
++  assert.equal(manifest.packageManager, `pnpm@${selected.version}`, "Use the current repository's exact package manager");
++  const digest = sha256(await readFile(path));
++  if (capture !== undefined) {
++    assert.equal(path, capture.pnpmExecutable);
++    assert.equal(selected.version, capture.pnpmVersion);
++    assert.equal(digest, capture.pnpmExecutableDigest, "Verify captured pnpm bytes before executing them on the consumer runtime");
++  }
++  const actual = await runFile(execPath, [path, "--version"], { cwd, timeout: 30_000, maxBuffer: 1024 * 1024 });
++  assert.equal(actual.stdout.trim(), selected.version, "The physical consumer runtime must execute the captured pnpm");
++  return { executable: path, version: selected.version, digest };
++}
++
++async function runPnpm(executable: string, args: readonly string[], cwd: string): Promise<void> {
+   await runFile(execPath, [executable, ...args], { cwd, timeout: 120_000, maxBuffer: 4 * 1024 * 1024 });
+ }
+ 
+@@ -30,6 +61,17 @@ test("packed Node artifact consumer verifies a real signed OCI closure before ty
+   assert.equal(platform, "linux", "Native qualification selects Linux x64; this campaign must not silently skip");
+   assert.equal(arch, "x64", "Native qualification selects Linux x64; this campaign must not silently skip");
+   assert.ok(env.EF_ARTIFACT_TOOLS_DIR, "Install the selected native releases and set EF_ARTIFACT_TOOLS_DIR");
++  const inputDirectory = env.EF_QUALIFICATION_ARTIFACT_INPUT_DIR;
++  assert.ok(inputDirectory === undefined || isAbsolute(inputDirectory));
++  const capture = inputDirectory === undefined ? undefined
++    : parseCapture(JSON.parse(await readFile(join(inputDirectory, captureName), "utf8")));
++  const hostNodeVersion = (await readFile(join(repository, ".node-version"), "utf8")).trim();
++  assert.ok(hostNodeVersion.startsWith("26."), "Build and pack belong to the repository's Node 26 Host");
++  assert.equal(versions.node, capture === undefined ? hostNodeVersion : "24.22.3",
++    "Run the Host or retained-archive consumer campaign on its actual selected Node runtime");
++  if (capture !== undefined) {
++    assert.equal(capture.nodeVersion, hostNodeVersion, "Reuse only the completed Host campaign");
++  }
+   const tools = await selectedTools(env.EF_ARTIFACT_TOOLS_DIR);
+   const metadata: unknown = JSON.parse(await readFile(join(repository, "node_modules", "typescript", "package.json"), "utf8"));
+   assert.ok(object(metadata) && typeof metadata.version === "string");
+@@ -46,15 +88,29 @@ test("packed Node artifact consumer verifies a real signed OCI closure before ty
+     try { await closeRegistry?.(); }
+     finally { await rm(temporary, { recursive: true, force: true }); }
+   });
++  const executable = capture?.pnpmExecutable ?? env.npm_execpath;
++  assert.ok(executable, "Run the Host campaign through pinned pnpm, or consume its recorded CLI");
++  const manager = await observePnpm(executable, temporary, capture);
++  const pnpm = (args: readonly string[], cwd: string) => runPnpm(manager.executable, args, cwd);
+   const archives = join(temporary, "archives");
+   await mkdir(archives);
+-  await pnpm(["--dir", "packages/node-artifact", "pack", "--pack-destination", archives], repository);
++  if (inputDirectory === undefined) {
++    await pnpm(["--dir", "packages/node-artifact", "pack", "--pack-destination", archives], repository);
++  } else {
++    const retained = join(inputDirectory, artifactName);
++    const retainedMetadata = await lstat(retained);
++    assert.ok(retainedMetadata.isFile() && !retainedMetadata.isSymbolicLink() && retainedMetadata.size <= 4 * 1024 * 1024);
++    await copyFile(retained, join(archives, artifactName), constants.COPYFILE_EXCL);
++  }
+   const names = (await readdir(archives)).filter(name => name.endsWith(".tgz"));
+   assert.equal(names.length, 1);
+   const name = names.at(0);
+   assert.ok(name);
+   const archive = join(archives, name);
+   const archiveDigest = sha256(await readFile(archive));
++  if (capture !== undefined) {
++    assert.equal(archiveDigest, capture.archiveDigest, "Consume the exact archive tested by the Host");
++  }
+   const registryDirectory = join(temporary, "publisher");
+   await mkdir(registryDirectory);
+   const registry = await createRegistryFixture(registryDirectory, tools);
+@@ -175,10 +231,16 @@ test("packed Node artifact consumer verifies a real signed OCI closure before ty
+   }
+   await registry.close();
+   closeRegistry = undefined;
++  assert.equal(sha256(await readFile(archive)), archiveDigest, "The tested archive must remain byte-exact throughout the campaign");
++  assert.equal(sha256(await readFile(manager.executable)), manager.digest, "The captured pnpm CLI must remain unchanged");
+   if (env.EF_QUALIFICATION_ARTIFACT_DIR !== undefined) {
+     assert.ok(isAbsolute(env.EF_QUALIFICATION_ARTIFACT_DIR));
+     await mkdir(env.EF_QUALIFICATION_ARTIFACT_DIR, { recursive: true });
+-    await copyFile(archive, join(env.EF_QUALIFICATION_ARTIFACT_DIR, "extension-foundation-node-artifact-0.0.0.tgz"), constants.COPYFILE_EXCL);
++    await copyFile(archive, join(env.EF_QUALIFICATION_ARTIFACT_DIR, artifactName), constants.COPYFILE_EXCL);
++    await writeFile(join(env.EF_QUALIFICATION_ARTIFACT_DIR, captureName), JSON.stringify({
++      schemaVersion: 1, nodeVersion: versions.node, pnpmExecutable: manager.executable, pnpmVersion: manager.version,
++      pnpmExecutableDigest: manager.digest, archiveDigest,
++    }, null, 2) + "\n", { flag: "wx" });
+   }
+-  context.diagnostic(`node-artifact archive ${archiveDigest}; TypeScript ${metadata.version}; ORAS ${releases.oras.version}; Cosign ${releases.cosign.version}; Distribution ${releases.registry.version}; ${failures.length} genuine signed/transport rejection cases passed`);
++  context.diagnostic(`node-artifact archive ${archiveDigest}; Node ${versions.node} (${execPath}); pnpm ${manager.version} (${manager.executable}); TypeScript ${metadata.version}; ORAS ${releases.oras.version}; Cosign ${releases.cosign.version}; Distribution ${releases.registry.version}; ${failures.length} genuine signed/transport rejection cases passed`);
+ });

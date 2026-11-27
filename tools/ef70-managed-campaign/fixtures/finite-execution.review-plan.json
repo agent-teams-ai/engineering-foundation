@@ -1,0 +1,277 @@
+{
+  "schemaVersion": 1,
+  "evidenceClass": "inert-reviewed-execution-plan",
+  "actualCampaignExecuted": false,
+  "sourceBaseline": {
+    "path": "/tmp/ef70-managed-real/baseline-8c16",
+    "head": "8c16e5dbf24d8a09d9f33fe7c3ee8f38bf74599c",
+    "tree": "026e5c38b568e4a0ff9aa3487f996671accc303a",
+    "trackedClean": true,
+    "origin": "https://github.com/agent-teams-ai/extension-foundation.git",
+    "nodePin": "26.12.1\n",
+    "nodePinMode": "0644",
+    "manager": "pnpm@11.18.0",
+    "manifestSha256": "d38ae9a847d63c66a7a968ab265839a5944a9f932de3d5a24467438c6e98b6ac",
+    "lockSha256": "abc88528117429ac3f5e84c57e7475965f0222ad848da689b65d0b72fb2465fb",
+    "observation": "Read-only source/metadata observation. Source cache prewarm is not a managed operation.",
+    "forbiddenExecution": "Installed old Foundation1.7.2 or its embedded compiler must never execute; source restoration uses the retained successor verifier."
+  },
+  "prerequisites": [
+    "Actual successful normal producer publication and Stage A signed/SLSA/archive verification; failed23acc origin cannot be reused.",
+    "Actual registered same candidate/record/closure, trusted verification and QUALIFIED event for EF1333298097. Re-read clean protected Central HEAD before every selected mutation.",
+    "After actual Q, the already authorized disposable EF qualification may precede E under ADR-0076 and ef-active-canary-boundary-c58-20261127.json, retaining fresh protected-main selection, exact EF canary membership and all controller guards. E is required before canonical EF adoption or its hosted consumer gate; current incompatible Orchestrator rollout blocks that separate enrollment/adoption, not these disposable cases.",
+    "Real retained public controller/kernel npm installation outside every consumer, unchanged lock/SRIs/builds, actual composed target lock selected by separately retained digest.",
+    "Physical Node24.22.3 controller and Node26.12.1 driver/target; Corepack0.36.0 with actual pnpm11.18 source and11.20 target cached. StrictTS7.0.2 observer/floor; no compiler/runtime substitution.",
+    "Each case is an owned fresh disposable root under /tmp/ef70-managed-real/case-*. New EF_CAMPAIGN_OUTPUT and guard path per invocation. Preserve same root/inode/preparation for forward resume; only committed restoration explicitly admits a new current root."
+  ],
+  "supported": {
+    "driver": [
+      "prepare",
+      "finalize",
+      "restore",
+      "restore-committed",
+      "check-target"
+    ],
+    "forwardCold": "cold-interruption.ts, operation cold-interrupt-finalize; requires actual receipt present and completion absent under stopped attributed controller.",
+    "committedCold": "cold-committed-interruption.ts SHA256 c3624a8833261614b836485d3dcc2df68759dace602f9deb16d4e52f28b92266; positive stopped direct runtime probe proves pre-install phase.",
+    "refusal": "refusal.ts SHA256 24504750e79797f5785c8121b9fd3cb4dc22a7f046da9925864fab24e143e80b is prepared and independently accepted by root after reading exact executable bytes and production owner guards. Full Stage B native TypeScript7.0.2 strict passed at 07:55:08. No actual CLI run.",
+    "limitation": "Ordinary driver is positive-only. Its own argument/context failure, timeout, signal or compiler guard denial is never a successful product-refusal case."
+  },
+  "invocation": {
+    "driver": "<actualNode26> /workspace/scratch/7e5625beb0a0/ef-managed-campaign/stage-b/driver.ts <actual-selected-operation.json>",
+    "controller": "<actualNode24> <actual-retained-public-cli> <one operation> --consumer <case> --json",
+    "selectionSource": "Start from existing selection.template.json; replace placeholders only with actual candidate/authority/lock/controller observations.",
+    "actualOutputs": "Retain raw stdout/stderr, status/signal, OS-reported actual CLI PID, selected argv/environment deltas, source/proof/artifact digests, before/after tracked bytes and modes, public RM barrier and complete local evidence snapshots. For negatives retain the actual failure issue and exact preserved fault. For foreign-image, completed-republish, host-overlap and stale-current-head only, require exactly one new genuine released-lease file plus necessary parent directories; bind its host/PID to this host and the actual spawned CLI PID, preserve every prior entry, and reject all journal/barrier/other deltas. Report that local evidence was appended, not unchanged. All other refusal cases require exact local evidence equality."
+  },
+  "cases": [
+    {
+      "id": "O",
+      "name": "Ordinary forward and original restoration",
+      "ready": "existing driver",
+      "steps": [
+        "Fresh8c16 case with real source installation -> prepare (fresh completion/prepared paths). Retain actual preparation bytes/digest; no .node-version operation.",
+        "finalize expectedReceiptOutcome=applied -> check-target -> a separate finalize expectedReceiptOutcome=already-satisfied. Require actual target activation/current and byte-identical existing completion/companion.",
+        "restore expectedReceiptOutcome=applied with same original preparation. Require exact original managed images/modes, source11.18 offline installation and preserved pin.",
+        "Actual refusal of finalize using this now deliberately rolled-back completed selection. A later adoption needs fresh preparation."
+      ],
+      "receipts": "Only actual CLI outputs provide applied/already-satisfied; initial companion remains authentic original ownership."
+    },
+    {
+      "id": "F",
+      "name": "Actual forward interruption and cold resume",
+      "ready": "existing cold fixture + driver; external process reconciliation",
+      "steps": [
+        "Fresh case -> prepare -> cold-interruption.ts with no prior receipt/completion.",
+        "Require actual attributed SIGKILL, genuine receipt/target images, absent completion. A missed window is failed evidence; preserve all files.",
+        "Inspect existing process/attempt/installation evidence. Controller-group death does not establish detached descendant death; use existing owner reconciliation.",
+        "Fresh process/evidence namespace -> finalize already-satisfied -> check-target -> restore applied. Same consumer root/preparation throughout."
+      ]
+    },
+    {
+      "id": "L",
+      "name": "Lost companion honesty",
+      "ready": "additional explicit loss orchestration; not supplied by current cold fixture",
+      "steps": [
+        "Fresh independently prepared case -> genuine F interruption and owner reconciliation, with actual target images and no completion.",
+        "If using an injected loss case, preserve original companion bytes/hash in external evidence and atomically quarantine the actual companion outside its selected pathname. Record this as deliberate external receipt loss, not a naturally captured pre-companion crash. Never edit/reconstruct receipt contents or remove completion.",
+        "Fresh ordinary finalize already-satisfied -> require newly produced companion and completion to contain honest already-satisfied ownership -> restore applied."
+      ],
+      "alternative": "An actual stopped pre-companion window may qualify natural loss if genuinely observed; current cold fixture cannot claim that window."
+    },
+    {
+      "id": "C",
+      "name": "Committed Host overlap refusal, owner reversal and preservation",
+      "ready": "driver + root-owned Git/Host orchestration",
+      "steps": [
+        "Independent fresh case -> prepare/finalize/check-target. Root commits actual managed outputs, then applies/commits reviewed actual Host changes.",
+        "Compute exact intersection of Host changed paths and actual preparation operations. Accepted db48 Host checkpoint changes6files; AGENTS.md is a likely overlap, but the actual plan is authoritative.",
+        "restore-committed against exact current HEAD/tree with fresh selection path must refuse unreversed overlapping managed postimages, preserve all Host work and leave no selection/CAS.",
+        "Host owner reverses only its overlapping effects through a normal reviewed commit, retaining unrelated Host/product changes. Observe new HEAD/tree and use a new current selection; never reuse old current coordinates.",
+        "Normal restore-committed applied -> verify original managed images, untouched unrelated current files, unchanged current HEAD/tree, source offline installation. A second call using exact actual selection digest must be already-satisfied."
+      ],
+      "currentRoot": "The public committed route admits a new clone/root when its actual current selection is freshly created. This does not make forward preparations transferable."
+    },
+    {
+      "id": "CC",
+      "name": "Positive-phase cold committed restoration",
+      "ready": "accepted committed cold fixture + driver",
+      "steps": [
+        "Before mutating C's reversed clean target, create a separately owned current clone from that exact committed tree and perform actual frozen target installation from warmed cache. Retain original preparation; this route admits the fresh current root.",
+        "Run cold-committed-interruption.ts with exact current HEAD/tree and fresh current selection. Require actual inverse images + public idle + live direct physical24/Corepack pnpm --version process in consumer, stopped and revalidated before kill.",
+        "Record actual current selection digest separately; inspect/reconcile observed process evidence.",
+        "New ordinary restore-committed with currentSelectionDigest and expectedReceiptOutcome=already-satisfied. Require real source offline installation and unchanged unrelated Host files/current HEAD/tree. No applied receipt is attributed to interrupted invocation."
+      ]
+    },
+    {
+      "id": "M1",
+      "name": "Missing target cache -> incomplete cold state -> explicit restoration",
+      "ready": "external isolated-cache orchestration + post-CAS failure capture required",
+      "steps": [
+        "Fresh case -> prepare with complete target cache -> genuine F interruption/owner reconciliation.",
+        "Keep the real manager cache containing pnpm11.18/11.20; select a separate empty case-owned pnpm store for cold finalize. Do not delete or corrupt shared warmed cache.",
+        "Actual manager preflight must pass. Actual cold finalize observes already-satisfied, then frozen offline installation fails for missing package content. Retain its real nonzero envelope/diagnostic, target images, absent completion and actual backups/process state.",
+        "This is not a no-CAS admission refusal. Because this live invocation owns already-satisfied, automatic inverse compensation is not expected.",
+        "After owner reconciliation, select the preserved source-warmed store and run explicit restore applied with original preparation. Require real source installation and exact original managed images."
+      ]
+    },
+    {
+      "id": "M2",
+      "name": "Missing target cache -> actual cold forward recovery",
+      "ready": "same external machinery, separate prepared root",
+      "steps": [
+        "Repeat M1 to actual incomplete cold state in its own root; do not duplicate a root-bound forward preparation into another directory.",
+        "Restore availability of the original complete store through ordinary selected environment, without changing proof/consumer bytes.",
+        "Fresh ordinary finalize already-satisfied -> actual target activation/current/completion -> explicit restore applied.",
+        "A first live applied activation failure is a different auto-compensation case and cannot substitute for M1/M2."
+      ]
+    }
+  ],
+  "negativeCases": [
+    {
+      "id": "wrong-controller",
+      "operation": "finalize",
+      "fault": "Launch actual retained CLI under physicalNode26.12.1 instead of required24.22.3.",
+      "ownerDiagnostic": "externally retained controller requires actual Node24.22.3; no engine fallback."
+    },
+    {
+      "id": "wrong-target-runtime",
+      "operation": "finalize",
+      "fault": "Only child's normal target executable selector points to actual physicalNode24.22.3.",
+      "ownerDiagnostic": "DOCS_CONSUMER_UPGRADE_RUNTIME_INVALID; actual Node observation fails before manager/CAS."
+    },
+    {
+      "id": "wrong-manager",
+      "operation": "finalize",
+      "fault": "Separate case-owned genuine Corepack cache/default selects actual signed pnpm11.18; explicitly bounded negative-only stock COREPACK_ENABLE_PROJECT_SPEC=0 and network disabled; unchanged real controller must reject observed11.18 versus target11.20. No fake executable/version output.",
+      "ownerDiagnostic": "Observed pnpm differs from the exact consumer packageManager pin."
+    },
+    {
+      "id": "lock-digest",
+      "operation": "prepare",
+      "fault": "Actual external lock bytes with separately selected wrong nonzero digest.",
+      "ownerDiagnostic": "Target lock SHA256 differs from the selected bytes."
+    },
+    {
+      "id": "lock-foreign-scope",
+      "operation": "prepare",
+      "fault": "Separate valid external YAML lock adds/changes an unmanaged importer while preserving managed closure; select its real recomputed byte digest.",
+      "ownerDiagnostic": "Actual unchanged scope validator must refuse foreign graph changes before preparation publication."
+    },
+    {
+      "id": "foreign-image",
+      "operation": "finalize",
+      "fault": "One owned disposable managed image differs from both actual source/target images; retain and compare its exact fault bytes.",
+      "ownerDiagnostic": "current bytes or mode differ at selected managed path"
+    },
+    {
+      "id": "pin-bytes",
+      "operation": "finalize",
+      "fault": "Only case .node-version bytes changed; proof remains intact.",
+      "ownerDiagnostic": "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED"
+    },
+    {
+      "id": "pin-mode",
+      "operation": "finalize",
+      "fault": "Only case .node-version mode0644->0600, including the Git-invisible mode distinction.",
+      "ownerDiagnostic": "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED"
+    },
+    {
+      "id": "wrong-root",
+      "operation": "finalize",
+      "fault": "Actual valid original preparation selected for a distinct owned root with identical Git source.",
+      "ownerDiagnostic": "preparation belongs to another consumer."
+    },
+    {
+      "id": "build-drift",
+      "operation": "finalize",
+      "fault": "Separate retained-install copy with one inert schema-file whitespace change inside hashed build roots; public CLI executable/code/manifest/lock unchanged; original proof untouched.",
+      "ownerDiagnostic": "retain the exact external controller and kernel builds."
+    },
+    {
+      "id": "stale-preparation-digest",
+      "operation": "finalize",
+      "fault": "Original actual preparation bytes with wrong separately selected nonzero digest.",
+      "ownerDiagnostic": "preparation differs from separately selected digest."
+    },
+    {
+      "id": "stale-current-digest",
+      "operation": "restore-committed",
+      "fault": "Actual existing current selection with wrong separately selected digest.",
+      "ownerDiagnostic": "current selection differs from separately retained digest."
+    },
+    {
+      "id": "host-overlap",
+      "operation": "restore-committed",
+      "fault": "Actual committed Host-overlapping managed bytes from C, before owner reversal.",
+      "ownerDiagnostic": "committed managed postimage changed; reverse overlapping Host changes first."
+    },
+    {
+      "id": "stale-current-head",
+      "operation": "restore-committed",
+      "fault": "Previously observed HEAD/tree tuple after a real owner commit advances HEAD, even if tree is unchanged.",
+      "ownerDiagnostic": "current target HEAD/tree is stale."
+    },
+    {
+      "id": "completed-republish",
+      "operation": "finalize",
+      "fault": "Actual prior completed selection retained after deliberate original restore; exact original images present.",
+      "ownerDiagnostic": "completed selection cannot silently publish again after rollback."
+    }
+  ],
+  "missingOrchestration": [
+    "Prepared finite actual-refusal collector awaits independent source acceptance and actual post-publication runs; strict success is source validation only.",
+    "Root-owned disposable Git clones/commits, origin identity, source/target frozen installation and case-specific valid selections.",
+    "Separately reviewed receipt-loss quarantine with actual-byte custody; no fabricated natural crash.",
+    "Post-CAS incomplete-operation capture and cache selection for M1/M2; no-CAS refusal collector must not claim those states unchanged.",
+    "Existing owner reconciliation of real leftover attempts, detached processes and installation backups; no automatic deletion.",
+    "Host overlap classification and exact owner reversal; independent final managed-head qualification remains separate."
+  ],
+  "stopRules": [
+    "Any missed interruption window, unexpected issue, absent actual runtime/manager witness, changed authority, guard denial, incomplete streams or unreconciled owner state is retained as such, never marked pass.",
+    "No actual cases start until publication/qualification/policy preconditions exist; no source-plan fact creates registry authority.",
+    "Successful disposable campaign does not itself establish hosted EF qualification, merged-main adoption, enrollment observed fields or CANARY."
+  ],
+  "runtimeEvidenceMapping": {
+    "differentPinSourceNative": {
+      "head": "f20e4334843de60969b38920ba2aceac59507934",
+      "runId": 45955993690,
+      "attempt": 1,
+      "jobId": 140362573930,
+      "jobName": "linux-tests-7-8",
+      "officialDecodedLogBytes": 181547,
+      "officialDecodedLogSha256": "6492060d9035733818e66c4e762c65a652c975fdb5deff6fc3142f9d019e0920",
+      "actualController": "24.22.3",
+      "pinCases": [
+        "24.21.0",
+        "26.11.1",
+        "26.12.1"
+      ],
+      "terminalNativeBlock": {
+        "tests": 63,
+        "pass": 63,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "positivesObserved": [
+        "changed-pin committed fresh-root/Host rollback",
+        "changed-pin committed cold resume",
+        "changed-pin forward crash/cold resume/original restore",
+        "changed-pin lost receipt honesty",
+        "changed-pin activation compensation",
+        "changed-pin retained preparation pin custody"
+      ],
+      "explicitLogScope": "TEST activation ports; real native source tests with actual RM/filesystem, not a published-controller offline-install run"
+    },
+    "publishedEfScope": "Real EF8c16 baseline is same-pin26.12.1. The seven chains above supply actual published-controller operation/install evidence for that real source only. Do not rewrite its pin/HEAD or label source/native evidence as published evidence.",
+    "additionalFixtureRule": "ADR0076 separately names both-pin producer qualification and published EF disposable qualification. Existing native proof maps the different-pin source requirement; no extra EF fixture is selected by this plan. If a reviewer specifically requires published different-pin installation evidence, flag that distinct remaining scope and prepare a separate owned genuine committed26.11.1 specimen with its own real preparation/qualified authority; existing hardcoded8c16 drivers remain unchanged."
+  },
+  "refusalSourceReview": {
+    "verdict": "ACCEPT",
+    "reviewer": "root",
+    "sourceSha256": "24504750e79797f5785c8121b9fd3cb4dc22a7f046da9925864fab24e143e80b",
+    "ownerSourceRevision": "1b753d04847c1021dd5a485383c4df0714b27be7",
+    "scope": "Exact source guards before lease/claim; four after-lease guards; RM retained active-owner encoding, mode and UUID path; actual spawned PID/host binding; one new release record and preserved prior evidence; strict TypeScript7.0.2 receipt. No remaining source finding.",
+    "executionClaim": false
+  }
+}

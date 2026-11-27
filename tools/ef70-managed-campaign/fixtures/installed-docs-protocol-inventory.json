@@ -1,0 +1,2149 @@
+{
+  "name": "@agent-teams/docs-protocol",
+  "version": "0.6.9",
+  "archiveSha256": "91eeb8a9de9f2794ca131e6813c418125cbd94b93fabc8806d5372f077fbfb21",
+  "files": [
+    {
+      "path": "LICENSE",
+      "mode": 420,
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "bytes": 11357
+    },
+    {
+      "path": "dist/features/portable-documentation/adapters/outbound/adoption-input.js",
+      "mode": 420,
+      "sha256": "5a9e6b6270dc6b6d058aa2602e750988955823120b13f26a491e8870ff86a2fa",
+      "bytes": 3004
+    },
+    {
+      "path": "dist/features/portable-bootstrap/application.js",
+      "mode": 420,
+      "sha256": "f9ce15633d55b2516b4e678c4a04e1c3427601181044d23c51d8ed2fe7828c51",
+      "bytes": 131
+    },
+    {
+      "path": "dist/features/portable-documentation/application.js",
+      "mode": 420,
+      "sha256": "7c4014fd51039e758e86798dc70d2182e36b8ce3cca27cccb19d1be4b034271b",
+      "bytes": 251
+    },
+    {
+      "path": "dist/features/portable-documentation/application/approve-plan.js",
+      "mode": 420,
+      "sha256": "52f25990b0e344bb5155ed2d5164647724486d3d3facc69ca901b1a45cdd434c",
+      "bytes": 1628
+    },
+    {
+      "path": "dist/features/portable-documentation/application/authoring-observation.js",
+      "mode": 420,
+      "sha256": "75f88131275b3981352767e93395c52d50d9066a8454f4489854ebeeab456273",
+      "bytes": 60
+    },
+    {
+      "path": "dist/features/portable-documentation/application/authority-handshake.js",
+      "mode": 420,
+      "sha256": "7e6da866eb3958491a90bf7328e9fb061f1d14bbe3c992d5534d01325ebd3508",
+      "bytes": 958
+    },
+    {
+      "path": "dist/features/portable-documentation/domain/blocker-policy.js",
+      "mode": 420,
+      "sha256": "1ec8dc31cd3a34ec0ffc49a71deb09e3c0bf0a5b72ce29095dba05f96da6588b",
+      "bytes": 3080
+    },
+    {
+      "path": "dist/features/portable-bootstrap/application/bootstrap-model.js",
+      "mode": 420,
+      "sha256": "e45574dd48aaecaf2117eca092f5960cc59cb0144fa337888dac30fff53e2137",
+      "bytes": 54
+    },
+    {
+      "path": "dist/features/portable-bootstrap/application/bootstrap-policy.js",
+      "mode": 420,
+      "sha256": "82384455677072af259de0d044f42f8c195e4974af20ee92c465c576409fc19a",
+      "bytes": 9586
+    },
+    {
+      "path": "dist/features/docs-command/adapters/inbound/cli-init.js",
+      "mode": 420,
+      "sha256": "e9eae0b3a44e56f4ee5f6206ec95b4b9de4c5cf0c0a4207d44647bf3b4889d1b",
+      "bytes": 6078
+    },
+    {
+      "path": "dist/features/docs-command/adapters/inbound/cli-input.js",
+      "mode": 420,
+      "sha256": "61b8d75829f2f4cc3acbce93800b38927e2e1dbf4c119e312c717a58a9835137",
+      "bytes": 2280
+    },
+    {
+      "path": "dist/cli.js",
+      "mode": 493,
+      "sha256": "d9db07551778fbd537d549570aff7c1ef195cff63490d50dee7583607b53d9af",
+      "bytes": 174
+    },
+    {
+      "path": "dist/features/docs-command/adapters/inbound/cli.js",
+      "mode": 420,
+      "sha256": "ff696f3018fbe8aaef2fd3b001a0367b1ce3ed08550eebf25f4c28ebbc76011a",
+      "bytes": 14861
+    },
+    {
+      "path": "dist/features/docs-command/composition/cli.js",
+      "mode": 420,
+      "sha256": "ede70fa167998096fccb12b3e95d576de9b426edde0a7dc82d0f23e3d3dcba37",
+      "bytes": 639
+    },
+    {
+      "path": "dist/features/docs-command/application/command-operations.js",
+      "mode": 420,
+      "sha256": "d983259e7faddc7445ee0323ab0147dcd633787f84ca24e77aba9820a9613189",
+      "bytes": 329
+    },
+    {
+      "path": "dist/features/docs-command/contracts/command.js",
+      "mode": 420,
+      "sha256": "52b1226d5a617da490bf1363002d81723b225c8b94d363765159876e10ad98c3",
+      "bytes": 46
+    },
+    {
+      "path": "dist/features/portable-documentation/application/community-query.js",
+      "mode": 420,
+      "sha256": "739daebbaf8ede05b631f89e29914e3ce9deaadc44b35c3a9c08fa1e23617d86",
+      "bytes": 13720
+    },
+    {
+      "path": "dist/features/portable-documentation/application/compiled-document.js",
+      "mode": 420,
+      "sha256": "9f58c5ff6a431c2a37e05cc55b74baa608ddd874b04ef8d09f86ec6feae33100",
+      "bytes": 763
+    },
+    {
+      "path": "dist/features/portable-documentation/application/compiled-output-reader.js",
+      "mode": 420,
+      "sha256": "075f45cd6fde6a6a1845f722b51d7a897c658b9a88a71b3463c31bd0490decd2",
+      "bytes": 61
+    },
+    {
+      "path": "dist/features/portable-bootstrap/composition.js",
+      "mode": 420,
+      "sha256": "9aae8ba631f37722925db2af3021c0d5c34b4425d146ac5ead72862c52d8d65f",
+      "bytes": 169
+    },
+    {
+      "path": "dist/features/portable-documentation/composition.js",
+      "mode": 420,
+      "sha256": "e53bbf2bca066a53431a976c8622c2989f31f3646adbd7d8a949f6fd299b93c5",
+      "bytes": 112
+    },
+    {
+      "path": "dist/qualification/composition.js",
+      "mode": 420,
+      "sha256": "43a5a466b15b8d570b1a0b5363f95dbbe8f9908289bf837fdb9389e2a399a161",
+      "bytes": 1029
+    },
+    {
+      "path": "dist/features/portable-documentation/application/context.js",
+      "mode": 420,
+      "sha256": "f2db131f6803586a3b5bf57021aff1e39e695fdd4819d7ae96adc72a584994cf",
+      "bytes": 284
+    },
+    {
+      "path": "dist/features/qualification/adapters/crash-driver.js",
+      "mode": 420,
+      "sha256": "ecdf02a8b37f4156f6a9d06f904560573b968da31307ed90433f20ffe486f3d5",
+      "bytes": 4968
+    },
+    {
+      "path": "dist/features/portable-documentation/application/docs-authoring-policy.js",
+      "mode": 420,
+      "sha256": "078031b7ce3842db092c6108f9aca706619711ff2af329622c808f27f3715e45",
+      "bytes": 6151
+    },
+    {
+      "path": "dist/features/docs-command/adapters/inbound/docs-cli-machine.js",
+      "mode": 420,
+      "sha256": "13c3b041b8f1a0e038441d168857659862cec14d749ae956590037e70dfae551",
+      "bytes": 6017
+    },
+    {
+      "path": "dist/features/docs-command/adapters/outbound/docs-command-envelope-schema-validator.js",
+      "mode": 420,
+      "sha256": "db1ca35a6ef3e2f02fc0ef5e4b585b3a9a253dab8329bf80a1d4ada245e1ff84",
+      "bytes": 1591
+    },
+    {
+      "path": "dist/features/portable-documentation/application/docs-execution.js",
+      "mode": 420,
+      "sha256": "00777500542396a875bcdf099e0a298989f8857e87319659914193af932d119c",
+      "bytes": 561
+    },
+    {
+      "path": "dist/features/docs-command/adapters/inbound/docs-human-renderer.js",
+      "mode": 420,
+      "sha256": "b526ebd42f86ee3b842f05c8b89834aa7e0784d8cbeb38a788a1c7a88dc178b4",
+      "bytes": 6311
+    },
+    {
+      "path": "dist/features/portable-bootstrap/application/docs-init-model.js",
+      "mode": 420,
+      "sha256": "8a42db32f1a367c0d483ab0df1a08e20270b47ae2476202be99a529393cd73da",
+      "bytes": 54
+    },
+    {
+      "path": "dist/features/portable-bootstrap/application/docs-init.js",
+      "mode": 420,
+      "sha256": "d614ea487f353592e5f420977799f6029e84dba98af275e65fdce637d4a1bddc",
+      "bytes": 4377
+    },
+    {
+      "path": "dist/features/portable-documentation/application/docs-new-completion.js",
+      "mode": 420,
+      "sha256": "3401f4d8248eb4cd4068d2fe76698b04cc1a882f9555dc254d1713e1b0f3428d",
+      "bytes": 10486
+    },
+    {
+      "path": "dist/features/portable-documentation/application/docs-new.js",
+      "mode": 420,
+      "sha256": "8435c4d6adb9b83e78d15b3cd90b75517c96639604c45875e3c29933a8b8d6ef",
+      "bytes": 10551
+    },
+    {
+      "path": "dist/features/portable-documentation/adapters/outbound/docs-profile-schema-validator.js",
+      "mode": 420,
+      "sha256": "f5a2ad4a1a00ddaf73388d48ee208d5a8a859f8dcd13d95bfadd41ed080e8fb4",
+      "bytes": 1661
+    },
+    {
+      "path": "dist/features/portable-documentation/application/docs-protocol.js",
+      "mode": 420,
+      "sha256": "bce22036d5b3860f517a877a4b99c829672e11e80e70c878e8dcfb210782065e",
+      "bytes": 11384
+    },
+    {
+      "path": "dist/features/portable-documentation/adapters/outbound/document-authoring-port.js",
+      "mode": 420,
+      "sha256": "9bf95d8eab5cb6200ae23863d59fb44a17e2cdbba9af46f5f192a34e8adc16a4",
+      "bytes": 6323
+    },
+    {
+      "path": "dist/features/portable-documentation/domain/document-semantics.js",
+      "mode": 420,
+      "sha256": "568a8698e9438df20d5260affbfa68378b1cbf2619260c6574c37bb2f66e9810",
+      "bytes": 7074
+    },
+    {
+      "path": "dist/features/portable-documentation/domain/documentation-model.js",
+      "mode": 420,
+      "sha256": "44954ab2c5c26974c884b723a97a59700f7a43935e1c545b09d745b8c6f1c55c",
+      "bytes": 262
+    },
+    {
+      "path": "dist/features/portable-documentation/domain.js",
+      "mode": 420,
+      "sha256": "84c4cdafbcc4c6cb71d51a17167afacfc628b10b1ed8e5f0c0f5a20dfd8619c3",
+      "bytes": 314
+    },
+    {
+      "path": "dist/features/qualification/application/evidence-policy.js",
+      "mode": 420,
+      "sha256": "2875a2e6a074bd8737381b8986516e748b65cf4ff2e3d321fb03ca6a29cf8fa6",
+      "bytes": 2401
+    },
+    {
+      "path": "dist/features/qualification/adapters/filesystem-evidence.js",
+      "mode": 420,
+      "sha256": "abd3a2b29642c947a6be5ec4d384ce0a0732168b9801a7cbddf2940fdae23bc0",
+      "bytes": 13021
+    },
+    {
+      "path": "dist/features/docs-command/index.js",
+      "mode": 420,
+      "sha256": "ec58b0b879fac4b17ac0a50af1d343fd5089f8b637ad2d1a9577a872ee65d6bc",
+      "bytes": 122
+    },
+    {
+      "path": "dist/features/qualification/index.js",
+      "mode": 420,
+      "sha256": "2252c37ce3c35493c1ef74d2cf1bec9cdd7ea954dc112b73a1165a93e7033a80",
+      "bytes": 543
+    },
+    {
+      "path": "dist/index.js",
+      "mode": 420,
+      "sha256": "1bd590710f0b15db0083e0da5c0ceef168151222d61caf817cf9b355612c7994",
+      "bytes": 704
+    },
+    {
+      "path": "dist/qualification/index.js",
+      "mode": 420,
+      "sha256": "ec7590ab953d93214626ae74eda58c8dbc0e3bbcc6038c8d69cd8e04513036ab",
+      "bytes": 440
+    },
+    {
+      "path": "dist/features/portable-documentation/application/llms-text.js",
+      "mode": 420,
+      "sha256": "cafe3b70e6368e7c1d6c191b8b4a620dd87822a5987b7fd0d7c452ac6bd56b71",
+      "bytes": 7253
+    },
+    {
+      "path": "dist/features/portable-documentation/domain/metadata.js",
+      "mode": 420,
+      "sha256": "35108c456f4ee7b517d1bc1be91866606b4276ddf1f524700fc3fca2314fdc63",
+      "bytes": 47
+    },
+    {
+      "path": "dist/features/portable-documentation/adapters/outbound/minisearch-adapter.js",
+      "mode": 420,
+      "sha256": "47b2963b7e9e61cc6c947987471b4a3abe47e6fed060b6669f6cc8cdc77906b6",
+      "bytes": 1749
+    },
+    {
+      "path": "dist/features/portable-documentation/application/model-v2.js",
+      "mode": 420,
+      "sha256": "5095861b8f619415367fd5b46cf7bdad2c93a87e948c8bb6b7b5624c05ccb781",
+      "bytes": 65
+    },
+    {
+      "path": "dist/features/portable-documentation/application/model-v3.js",
+      "mode": 420,
+      "sha256": "4997fdac6959c30f0ce3d859df0f06eebfbda7ca95629e8c7070415d1c3cc742",
+      "bytes": 65
+    },
+    {
+      "path": "dist/features/portable-documentation/application/model.js",
+      "mode": 420,
+      "sha256": "3f370a6f828ddf90e0b082b4e77529b4516373ee86b3ce30e6768e0da0e87db6",
+      "bytes": 190
+    },
+    {
+      "path": "dist/features/qualification/application/model.js",
+      "mode": 420,
+      "sha256": "a3d85b861c2f631080eabc73b2123c963dfc1a11959f7daa9a1015c26ab275cf",
+      "bytes": 44
+    },
+    {
+      "path": "dist/features/portable-documentation/adapters/outbound/node-adoption-inspector.js",
+      "mode": 420,
+      "sha256": "503fdfedce839964c22d5a9cffe520eb99c47a4ca73249561e5803377a6c9276",
+      "bytes": 3980
+    },
+    {
+      "path": "dist/features/portable-bootstrap/adapters/outbound/node-bootstrap-repository.js",
+      "mode": 420,
+      "sha256": "293933a634d7a01842c1a0b699dfd0ee85153e4c76ebfc344edd0ccf69cc3012",
+      "bytes": 5646
+    },
+    {
+      "path": "dist/features/portable-bootstrap/adapters/outbound/node-bootstrap-transactions.js",
+      "mode": 420,
+      "sha256": "a047fd83da43f1091e92df394a9a126b3fb6681fc5857d9ef5f4676e79481a25",
+      "bytes": 2140
+    },
+    {
+      "path": "dist/features/portable-documentation/adapters/outbound/node-code-anchor-matcher.js",
+      "mode": 420,
+      "sha256": "8d9a0f8eef2ed0e0353003650a26f126ff0963e72229bdacacf4eb85592066fd",
+      "bytes": 3126
+    },
+    {
+      "path": "dist/features/docs-command/adapters/inbound/node-docs-api.js",
+      "mode": 420,
+      "sha256": "6d2df574b728d435c96bde363d612a38733627f041758b4f12a10ac771c80b04",
+      "bytes": 1745
+    },
+    {
+      "path": "dist/features/docs-command/composition/node-docs-api.js",
+      "mode": 420,
+      "sha256": "e021218250793582976175181fe937435621c620563703a80eaf0e6431331cd0",
+      "bytes": 414
+    },
+    {
+      "path": "dist/features/portable-bootstrap/composition/node-docs-bootstrap-api.js",
+      "mode": 420,
+      "sha256": "a5f88d4d6814a62fa762161f7792b6c3160fed2c2c08d23a81a210741a05c168",
+      "bytes": 291
+    },
+    {
+      "path": "dist/features/docs-command/adapters/outbound/node-profile-discovery.js",
+      "mode": 420,
+      "sha256": "7c8c20aba144b358d2dd8162490ecc60a30d7b2a48f889ffb09c32379cc00dc4",
+      "bytes": 307
+    },
+    {
+      "path": "dist/features/portable-documentation/adapters/outbound/node-profile-reader.js",
+      "mode": 420,
+      "sha256": "418d4ee627b6d4fa821af2d8f5f184f3c2fc3010690fe07513fbe8284769ee2b",
+      "bytes": 7712
+    },
+    {
+      "path": "dist/features/docs-command/composition/node-protocol.js",
+      "mode": 420,
+      "sha256": "a91734bdf6d0bfc25ebfc997c6e046dc7726c5563d30ffac728dfe1f0d4260dc",
+      "bytes": 317
+    },
+    {
+      "path": "dist/features/portable-documentation/composition/node-protocol.js",
+      "mode": 420,
+      "sha256": "a78a7ae59cc47267b1e8c1d0a3717dfa262811e8ef2cc6fad612066f79bb5523",
+      "bytes": 1046
+    },
+    {
+      "path": "dist/features/docs-command/adapters/outbound/package-version.js",
+      "mode": 420,
+      "sha256": "2ad545020c84e3448e5649f9fe3df1f87671dd2f0eb3fff3fd61de8596d631b7",
+      "bytes": 519
+    },
+    {
+      "path": "dist/features/portable-documentation/domain/plan-approval.js",
+      "mode": 420,
+      "sha256": "01a93e3392467414380bd524b6d877262e888c984e557950a9520ca939d365d2",
+      "bytes": 672
+    },
+    {
+      "path": "dist/features/portable-bootstrap/application/portable-bootstrap-assets.js",
+      "mode": 420,
+      "sha256": "31ef3a882258694958b542b18d1ddcf450a54096482f14536ef406a12faab438",
+      "bytes": 11277
+    },
+    {
+      "path": "dist/features/portable-bootstrap/application/portable-bootstrap.js",
+      "mode": 420,
+      "sha256": "f17bbfadba87bd5f4b56d510ea215bd3caf7c3154afcbf83a8ce9a6cb06364f2",
+      "bytes": 3465
+    },
+    {
+      "path": "dist/features/portable-bootstrap/composition/portable-bootstrap.js",
+      "mode": 420,
+      "sha256": "d719a424873e4aad10928ad28cec5a603d26bc69ef3ddbb85148d561b66e9c5a",
+      "bytes": 831
+    },
+    {
+      "path": "dist/features/portable-documentation/domain/profile-error.js",
+      "mode": 420,
+      "sha256": "103588a1a7d63f7ba981e856145a42bf14ba247ead57ac364ba8b9d991b73f7a",
+      "bytes": 186
+    },
+    {
+      "path": "dist/features/portable-documentation/application/profile-policy.js",
+      "mode": 420,
+      "sha256": "b18e13d9f58df07feb0b5f66496d36cb73cb6e432b07401be39715f244d005d2",
+      "bytes": 9017
+    },
+    {
+      "path": "dist/features/docs-command/adapters/inbound/protocol-api.js",
+      "mode": 420,
+      "sha256": "cca335ae42fe9e497341a50beb3498075fbb7661c4d6bc8c6ba3e60905ccc538",
+      "bytes": 1662
+    },
+    {
+      "path": "dist/features/portable-documentation/composition/qualification-profile.js",
+      "mode": 420,
+      "sha256": "4f31039ded4cd9dab6ab8e1d115561c14955e525e1fc538e987789bfdb7b8442",
+      "bytes": 226
+    },
+    {
+      "path": "dist/features/qualification/adapters/qualification-runtime.js",
+      "mode": 420,
+      "sha256": "9003553679bac679972c674f448c6786b2467c95dde320f5f52c3c6f5e7e392b",
+      "bytes": 5190
+    },
+    {
+      "path": "dist/features/docs-command/qualification.js",
+      "mode": 420,
+      "sha256": "9469cb55600291289789de4bb7be6c2c32e2a3b14b83089941fb1022d1f2f191",
+      "bytes": 132
+    },
+    {
+      "path": "dist/features/portable-documentation/qualification.js",
+      "mode": 420,
+      "sha256": "88fa361c648f90f24c6d081ef1b692d126502f533b5cc93f13d76bb34e3f43bd",
+      "bytes": 211
+    },
+    {
+      "path": "dist/features/portable-documentation/application/ranked-search.js",
+      "mode": 420,
+      "sha256": "e2b235a8f6c26022bf33e775e2aacda7895d0e54743afc86b90dcf5d22a4e343",
+      "bytes": 5444
+    },
+    {
+      "path": "dist/features/qualification/application/recovery.js",
+      "mode": 420,
+      "sha256": "e9be3c60e7dfc606aadd8edb72b2db9e6e5dbd0fb8c6d285c2434e1cf9827a92",
+      "bytes": 3612
+    },
+    {
+      "path": "dist/features/qualification/adapters/run-qualification.js",
+      "mode": 420,
+      "sha256": "190ddf9ce3f586c0344f7debed88b1ba6f099fb57f58103f2378e295c39dd977",
+      "bytes": 2476
+    },
+    {
+      "path": "dist/features/qualification/application/run-qualification.js",
+      "mode": 420,
+      "sha256": "db86984f7d0b5f8a656b9b50f023f38cfb5ef167668dcfca2cacd1ce6d734808",
+      "bytes": 5973
+    },
+    {
+      "path": "dist/features/qualification/application/runtime.js",
+      "mode": 420,
+      "sha256": "a78eef93d6eda879babf72356b02fd08c97635fb940675289d54d43ce1e3060d",
+      "bytes": 1341
+    },
+    {
+      "path": "dist/features/docs-command/sdk.js",
+      "mode": 420,
+      "sha256": "2f8ab1ceca841b6fdf417aad588c8aef59272913da7ebf2d6fcc15ee27753687",
+      "bytes": 202
+    },
+    {
+      "path": "dist/features/portable-bootstrap/sdk.js",
+      "mode": 420,
+      "sha256": "af441d2cb5239ae0c918afa4ef311ce96c922505770604bfed599c6d52d37f7f",
+      "bytes": 137
+    },
+    {
+      "path": "dist/features/portable-documentation/sdk.js",
+      "mode": 420,
+      "sha256": "ec30aef885f2e75678bbb64e1b25c6484581f2b2389d788c55c4f91549fcb75d",
+      "bytes": 475
+    },
+    {
+      "path": "dist/features/qualification/application/skill.js",
+      "mode": 420,
+      "sha256": "541eba6109f8388a9ea39e2431683dfc69c7e7a5997d87365afd8ce11aae7dd9",
+      "bytes": 515
+    },
+    {
+      "path": "dist/features/qualification/application/workspace.js",
+      "mode": 420,
+      "sha256": "ed70b1c3bc303502d07bae9d1c39896d7c2d02f598c211e6b35d033ec14adfa6",
+      "bytes": 48
+    },
+    {
+      "path": "dist/features/portable-documentation/adapters/outbound/yaml-compiled-output-reader.js",
+      "mode": 420,
+      "sha256": "a2d77f9405772b4d5043db30c51e5fce3252143f8cf5ce68867e8f7b87e97439",
+      "bytes": 1501
+    },
+    {
+      "path": "package.json",
+      "mode": 420,
+      "sha256": "2bd174e9a20618273bae65a9ae6a1b6ad04c9d58204b2ccc3262989ad10e234c",
+      "bytes": 2073
+    },
+    {
+      "path": "schemas/docs-protocol-portable-command-envelope/v1.schema.json",
+      "mode": 420,
+      "sha256": "b00207b5484f3bf477909bc8b1272701212eda9dbe1eefd6fb263c6df4a69c11",
+      "bytes": 25378
+    },
+    {
+      "path": "schemas/docs-protocol/v1.schema.json",
+      "mode": 420,
+      "sha256": "8c71e07f9cf9b8980cf5fe68ac80fda85cb1ec0f6ad05c79f029b77e4c67a774",
+      "bytes": 364
+    },
+    {
+      "path": "schemas/docs-protocol-portable-command-envelope/v2.schema.json",
+      "mode": 420,
+      "sha256": "6120aab2431b23a8694c4bfbaf11d90dc7e63fa9cb1d2e97226ed9fb23b31712",
+      "bytes": 29338
+    },
+    {
+      "path": "schemas/docs-protocol-portable-command-envelope/v3.schema.json",
+      "mode": 420,
+      "sha256": "01a20da3d9cdbeef31cad0f937d591e1664fa92e48a4d03cae508e62237e1739",
+      "bytes": 41849
+    },
+    {
+      "path": "schemas/docs-protocol-profile/v3.schema.json",
+      "mode": 420,
+      "sha256": "50e3b1af16d183db5f18334a8aec9128a19c4fa9bebe56aa22a4a2823395f27f",
+      "bytes": 1738
+    },
+    {
+      "path": "schemas/docs-protocol-profile/v4.schema.json",
+      "mode": 420,
+      "sha256": "f0eef9d816401d214bae751d769d70e3d7b5280324b46ba6475ecb90ae4b2282",
+      "bytes": 2662
+    },
+    {
+      "path": "dist/features/portable-documentation/adapters/outbound/adoption-input.d.ts.map",
+      "mode": 420,
+      "sha256": "289a96bbeb9fa9ef524c011eae2c6a4bc7a77e7308d8a6bff666eaff292c9b0a",
+      "bytes": 388
+    },
+    {
+      "path": "dist/features/portable-documentation/adapters/outbound/adoption-input.js.map",
+      "mode": 420,
+      "sha256": "39d5b3f1af57a916e83d5eccc9c9085d7d9ac21be042ab0aa0c2d26c4ccb4c6b",
+      "bytes": 2765
+    },
+    {
+      "path": "dist/features/portable-bootstrap/application.d.ts.map",
+      "mode": 420,
+      "sha256": "7ee6b6b19441c9088a9177411ebfd48d7c55af3d88898bf04eb9d551ce0684c0",
+      "bytes": 261
+    },
+    {
+      "path": "dist/features/portable-documentation/application.d.ts.map",
+      "mode": 420,
+      "sha256": "2096cb07761153e522f6abb0d9ebc1037a07221550e3da1fbc51df6f8dcaf740",
+      "bytes": 623
+    },
+    {
+      "path": "dist/features/portable-bootstrap/application.js.map",
+      "mode": 420,
+      "sha256": "b6c1e5bb6c442c108a65f9241d411d1d23bb445d73965e96116c8ff341efd66b",
+      "bytes": 191
+    },
+    {
+      "path": "dist/features/portable-documentation/application.js.map",
+      "mode": 420,
+      "sha256": "4db25018dd42085df9388aec6d8a11ae28b62abd7893a2e9431ef462826b8ffb",
+      "bytes": 265
+    },
+    {
+      "path": "dist/features/portable-documentation/application/approve-plan.d.ts.map",
+      "mode": 420,
+      "sha256": "fe5cf77f8a30aeec1e0bd48718470366040d8b97fe76f94b6605534ec76e5e85",
+      "bytes": 536
+    },
+    {
+      "path": "dist/features/portable-documentation/application/approve-plan.js.map",
+      "mode": 420,
+      "sha256": "5435586bcc621c4dc8e97a4e0849e1c94c31bcc76e2810424b7c5812c7a13091",
+      "bytes": 1104
+    },
+    {
+      "path": "dist/features/portable-documentation/application/authoring-observation.d.ts.map",
+      "mode": 420,
+      "sha256": "ea9b07528b582d9396e39a16c23705028637704302337bad5beab9b97c809066",
+      "bytes": 2709
+    },
+    {
+      "path": "dist/features/portable-documentation/application/authoring-observation.js.map",
+      "mode": 420,
+      "sha256": "0cfcee729d62dc1a2474d0d90d34f789f807ee13dfb0524f0ad608a1ffd64046",
+      "bytes": 187
+    },
+    {
+      "path": "dist/features/portable-documentation/application/authority-handshake.d.ts.map",
+      "mode": 420,
+      "sha256": "a3c3c2230d8f39e46ca6cf2c33dfe251efbb1032415734ae362ee086c211bcea",
+      "bytes": 778
+    },
+    {
+      "path": "dist/features/portable-documentation/application/authority-handshake.js.map",
+      "mode": 420,
+      "sha256": "fc0a28ac075c9a8e896948379465414e51c6dcba7ce6b0a26bb913d88e4e58a5",
+      "bytes": 945
+    },
+    {
+      "path": "dist/features/portable-documentation/domain/blocker-policy.d.ts.map",
+      "mode": 420,
+      "sha256": "23feb1ed38c3e93f98a9669bbf5d5e479f59ff8b4db2949fb70e66247e3e9c1f",
+      "bytes": 1185
+    },
+    {
+      "path": "dist/features/portable-documentation/domain/blocker-policy.js.map",
+      "mode": 420,
+      "sha256": "e3fd1c3d5dfb3a2438833ab16295511cde5fb6a10ce8645c4c02c11b1f20f019",
+      "bytes": 3209
+    },
+    {
+      "path": "dist/features/portable-bootstrap/application/bootstrap-model.d.ts.map",
+      "mode": 420,
+      "sha256": "181f1f6ef7e834ac5f2f44c020309340d39bbae7be4fca006c4610517fa48c37",
+      "bytes": 3221
+    },
+    {
+      "path": "dist/features/portable-bootstrap/application/bootstrap-model.js.map",
+      "mode": 420,
+      "sha256": "a50e3d5d72841ca3930f1074b668938393a173d494f0e7b1f6fdf8e23f96701d",
+      "bytes": 171
+    },
+    {
+      "path": "dist/features/portable-bootstrap/application/bootstrap-policy.d.ts.map",
+      "mode": 420,
+      "sha256": "a2a5359c9ab0bf39c127e1ce3bb83cc1641169f28485eb87c2224b1fd4d8e67e",
+      "bytes": 1207
+    },
+    {
+      "path": "dist/features/portable-bootstrap/application/bootstrap-policy.js.map",
+      "mode": 420,
+      "sha256": "5616c2ae4645a09f71cc9ef78aae8e6d8172fd5521e00718a4850e7b5dcf722c",
+      "bytes": 8541
+    },
+    {
+      "path": "dist/features/docs-command/adapters/inbound/cli-init.d.ts.map",
+      "mode": 420,
+      "sha256": "20fa0d1e40c2060554c176a4f9e7854ce152fa58557156ab0d46afb161cb23fd",
+      "bytes": 339
+    },
+    {
+      "path": "dist/features/docs-command/adapters/inbound/cli-init.js.map",
+      "mode": 420,
+      "sha256": "697db4e7209207c9c2f24965f46a7e22d78b26c4569fdbbd13a2e81c20768d3f",
+      "bytes": 5067
+    },
+    {
+      "path": "dist/features/docs-command/adapters/inbound/cli-input.d.ts.map",
+      "mode": 420,
+      "sha256": "4066a688082a9e057dfe8d40f3a099e737f365d2b39227e0ca925ee76bf3df1a",
+      "bytes": 499
+    },
+    {
+      "path": "dist/features/docs-command/adapters/inbound/cli-input.js.map",
+      "mode": 420,
+      "sha256": "b1f635c5d5c4db0f09094e72c7bed14ad3849dff68513150006e31869ee64653",
+      "bytes": 2827
+    },
+    {
+      "path": "dist/cli.d.ts.map",
+      "mode": 420,
+      "sha256": "07e1bab322fbea936a00ec149ad924a0d46aa4c8de79147e59c11d25bd0ca9e6",
+      "bytes": 100
+    },
+    {
+      "path": "dist/features/docs-command/adapters/inbound/cli.d.ts.map",
+      "mode": 420,
+      "sha256": "48f4c22a3079969b9b7c982f69b88aa12838baa4e652ffd2347100816592678c",
+      "bytes": 378
+    },
+    {
+      "path": "dist/features/docs-command/composition/cli.d.ts.map",
+      "mode": 420,
+      "sha256": "0586d957c9c37686980c11c90ec7a74997c9d05f6aeaff2050acb75f6761e88f",
+      "bytes": 335
+    },
+    {
+      "path": "dist/cli.js.map",
+      "mode": 420,
+      "sha256": "350cf6f15049158a5497e11b547d536de536c95ed42e1922ff6d16a912832d02",
+      "bytes": 231
+    },
+    {
+      "path": "dist/features/docs-command/adapters/inbound/cli.js.map",
+      "mode": 420,
+      "sha256": "a5b0630a0ccdaeac73f8c1301fc5ee5871490f4afc90ea0b9f5acaa6b3f33c05",
+      "bytes": 14260
+    },
+    {
+      "path": "dist/features/docs-command/composition/cli.js.map",
+      "mode": 420,
+      "sha256": "04e278349c0ead91cd490a4e535c154ffea972ca2bc10105028fec6e0fd2df7d",
+      "bytes": 542
+    },
+    {
+      "path": "dist/features/docs-command/application/command-operations.d.ts.map",
+      "mode": 420,
+      "sha256": "e563f1422864d4bfeadbd18279622737eedb861facc6eba05bc43d35db2aa740",
+      "bytes": 739
+    },
+    {
+      "path": "dist/features/docs-command/application/command-operations.js.map",
+      "mode": 420,
+      "sha256": "46332c1175e271c249f016b5d9af4311744c4351db3b770ddda1d59194173361",
+      "bytes": 314
+    },
+    {
+      "path": "dist/features/docs-command/contracts/command.d.ts.map",
+      "mode": 420,
+      "sha256": "6b6e1a6fe3e44fd620781275d0a88593ab14763b8afd125e17dbcd56ac3779a0",
+      "bytes": 1576
+    },
+    {
+      "path": "dist/features/docs-command/contracts/command.js.map",
+      "mode": 420,
+      "sha256": "20555b2c5dcda1ca235bb81338c604952a5b41d1b169418009a97a0d383e2e33",
+      "bytes": 147
+    },
+    {
+      "path": "dist/features/portable-documentation/application/community-query.d.ts.map",
+      "mode": 420,
+      "sha256": "69764b1b24ffdabcbe021cc37b34350d57aab2a97dbad0d582a1c6b1855c0d89",
+      "bytes": 2164
+    },
+    {
+      "path": "dist/features/portable-documentation/application/community-query.js.map",
+      "mode": 420,
+      "sha256": "af2908a9220fa1dcb872c5d5c390c97e27fee3b390e31ab9c53f07141e14f7d9",
+      "bytes": 12832
+    },
+    {
+      "path": "dist/features/portable-documentation/application/compiled-document.d.ts.map",
+      "mode": 420,
+      "sha256": "42bc9c22fa5e5906a66cab23e006ed0ee820b4ef226c09ed48d20fbe148d8c23",
+      "bytes": 575
+    },
+    {
+      "path": "dist/features/portable-documentation/application/compiled-document.js.map",
+      "mode": 420,
+      "sha256": "029e4d965f324295c36d04f7dfbe3ad2f0cc8b0c13ffff8c0054f82c9d65bffd",
+      "bytes": 923
+    },
+    {
+      "path": "dist/features/portable-documentation/application/compiled-output-reader.d.ts.map",
+      "mode": 420,
+      "sha256": "e4aafcf5c7532f868b09ddf0575e9c5d3f101bfa37ef65e21f19927c742cc73f",
+      "bytes": 597
+    },
+    {
+      "path": "dist/features/portable-documentation/application/compiled-output-reader.js.map",
+      "mode": 420,
+      "sha256": "42a78d368fd9cb50b3a410453ff884ddd8d73a3029d6fbba40aebfed6c834d86",
+      "bytes": 189
+    },
+    {
+      "path": "dist/features/portable-bootstrap/composition.d.ts.map",
+      "mode": 420,
+      "sha256": "00f8fa320ca7a3819105def7793cbdfbe5e532bb7457670d291d3a0bd4ed1dde",
+      "bytes": 225
+    },
+    {
+      "path": "dist/features/portable-documentation/composition.d.ts.map",
+      "mode": 420,
+      "sha256": "d6e650ae9b2dc4546a32287a33ffc5e10e560d3a5180c916f68fc210a61284df",
+      "bytes": 197
+    },
+    {
+      "path": "dist/qualification/composition.d.ts.map",
+      "mode": 420,
+      "sha256": "f43ac45b254814d1d3c92a006a0f47fb74db82867f36771ead94f28c5ae99a56",
+      "bytes": 217
+    },
+    {
+      "path": "dist/features/portable-bootstrap/composition.js.map",
+      "mode": 420,
+      "sha256": "f52e8588d93f25ec52ca45b986af03e330b26e0833dcd830b3021b3f655c44fa",
+      "bytes": 223
+    },
+    {
+      "path": "dist/features/portable-documentation/composition.js.map",
+      "mode": 420,
+      "sha256": "8d9e2d3f5ac7a20baea6e2c82adedc439526f15528b7a6653922349a0f893e5b",
+      "bytes": 195
+    },
+    {
+      "path": "dist/qualification/composition.js.map",
+      "mode": 420,
+      "sha256": "17019c5250ca5a91d8d1629b19b502f414df30c15e639a6fbfc0601f5ffb095f",
+      "bytes": 668
+    },
+    {
+      "path": "dist/features/portable-documentation/application/context.d.ts.map",
+      "mode": 420,
+      "sha256": "81cd73fdc7b886d5b9a768c10425c9b35e01251e69bf3e6cc184fa3c39756e01",
+      "bytes": 529
+    },
+    {
+      "path": "dist/features/portable-documentation/application/context.js.map",
+      "mode": 420,
+      "sha256": "d1d04783b85652bdbbdb73712ab41e7d7ebc87e17620fc7123f22f34c15d3653",
+      "bytes": 331
+    },
+    {
+      "path": "dist/features/qualification/adapters/crash-driver.d.ts.map",
+      "mode": 420,
+      "sha256": "8fc67130350712ffd06bc399dd60f58ef8f3867c10b7665c377062764b623bd5",
+      "bytes": 393
+    },
+    {
+      "path": "dist/features/qualification/adapters/crash-driver.js.map",
+      "mode": 420,
+      "sha256": "dea6009fec0abccaf61628ca78b215b2f498c8974aabf0a1adf37d9626b810c7",
+      "bytes": 4472
+    },
+    {
+      "path": "dist/features/portable-documentation/application/docs-authoring-policy.d.ts.map",
+      "mode": 420,
+      "sha256": "d854e5662127c89a31132e3adf81aada6d2d41d12f51c0c0027b2830bbfe98a3",
+      "bytes": 2059
+    },
+    {
+      "path": "dist/features/portable-documentation/application/docs-authoring-policy.js.map",
+      "mode": 420,
+      "sha256": "5af2f4db2ee2d1161b4427ff50481647b28f7cef43e8d0372bd755dc710e83a9",
+      "bytes": 5989
+    },
+    {
+      "path": "dist/features/docs-command/adapters/inbound/docs-cli-machine.d.ts.map",
+      "mode": 420,
+      "sha256": "8ceb485eade06ec6af75aed5f5bd08a74d2a3e105b751f61748f27431adb9e0d",
+      "bytes": 842
+    },
+    {
+      "path": "dist/features/docs-command/adapters/inbound/docs-cli-machine.js.map",
+      "mode": 420,
+      "sha256": "7ad20e481523f5a594b54d04c70a3efbf722801ac78ec9e1d93bb069242d427d",
+      "bytes": 5067
+    },
+    {
+      "path": "dist/features/docs-command/adapters/outbound/docs-command-envelope-schema-validator.d.ts.map",
+      "mode": 420,
+      "sha256": "813b5aa3e5a88d180e2f5a5559fac9f9736981f73ab025c9cfe82c5675332ac9",
+      "bytes": 293
+    },
+    {
+      "path": "dist/features/docs-command/adapters/outbound/docs-command-envelope-schema-validator.js.map",
+      "mode": 420,
+      "sha256": "ef2e2bba8a96421b902add87250eff9711c98f3efd70ad328dba7183715a373f",
+      "bytes": 1736
+    },
+    {
+      "path": "dist/features/portable-documentation/application/docs-execution.d.ts.map",
+      "mode": 420,
+      "sha256": "c6e338ce40914a06f291db31bf885079f2dbc670b058df0c5b087ea6ea5b764a",
+      "bytes": 859
+    },
+    {
+      "path": "dist/features/portable-documentation/application/docs-execution.js.map",
+      "mode": 420,
+      "sha256": "d2f1d5ffac4b6c4283448838539502d69fbfd968f55000f48d0ff56d942ecd61",
+      "bytes": 640
+    },
+    {
+      "path": "dist/features/docs-command/adapters/inbound/docs-human-renderer.d.ts.map",
+      "mode": 420,
+      "sha256": "25dc2d09ffae3489632f47dcf49f466c513917884e703cd0b64a67db5fb990b6",
+      "bytes": 364
+    },
+    {
+      "path": "dist/features/docs-command/adapters/inbound/docs-human-renderer.js.map",
+      "mode": 420,
+      "sha256": "e339d98d015e6bd02d0188035b3dce4795e529c52a4dead5425df70674a44ce3",
+      "bytes": 6905
+    },
+    {
+      "path": "dist/features/portable-bootstrap/application/docs-init-model.d.ts.map",
+      "mode": 420,
+      "sha256": "fee4e6d11fe39912969748e6b9262b3e91bc6ff4318134e592811d34adc7a803",
+      "bytes": 2299
+    },
+    {
+      "path": "dist/features/portable-bootstrap/application/docs-init-model.js.map",
+      "mode": 420,
+      "sha256": "a6f0f5348c520400b9b8be07699883c96008046e46c54f80b088495ea7fd43fe",
+      "bytes": 171
+    },
+    {
+      "path": "dist/features/portable-bootstrap/application/docs-init.d.ts.map",
+      "mode": 420,
+      "sha256": "89698521493e5970425324000d4845434d19c8e8d422667b51b0a20814e77ac4",
+      "bytes": 603
+    },
+    {
+      "path": "dist/features/portable-bootstrap/application/docs-init.js.map",
+      "mode": 420,
+      "sha256": "bf98bbab1c68cec8cfa2a85d488afb9b4a46867789253eb0a44054b70ef0162a",
+      "bytes": 3051
+    },
+    {
+      "path": "dist/features/portable-documentation/application/docs-new-completion.d.ts.map",
+      "mode": 420,
+      "sha256": "69e513334b1a91f2d577a03d564cd546747f9445cf62e6c4799aa7b917347cc8",
+      "bytes": 1797
+    },
+    {
+      "path": "dist/features/portable-documentation/application/docs-new-completion.js.map",
+      "mode": 420,
+      "sha256": "05b1e11242ffe34fcb9e0f2ead01a69b13042ed4faef2c9d5657ed8c3ed91928",
+      "bytes": 8571
+    },
+    {
+      "path": "dist/features/portable-documentation/application/docs-new.d.ts.map",
+      "mode": 420,
+      "sha256": "ab89098b689eebb702e27fc54e49143581d06eb6c5aca321e1507879de728b19",
+      "bytes": 780
+    },
+    {
+      "path": "dist/features/portable-documentation/application/docs-new.js.map",
+      "mode": 420,
+      "sha256": "2ef049dd4a20c4c888405940d16d56ec66b4cee0ad9cfa26f7c039a157b51269",
+      "bytes": 8720
+    },
+    {
+      "path": "dist/features/portable-documentation/adapters/outbound/docs-profile-schema-validator.d.ts.map",
+      "mode": 420,
+      "sha256": "8cb2e4be528f6af4a2ccb13dabfea7369597d26b1b0a8aac0830af7939ba4ce0",
+      "bytes": 285
+    },
+    {
+      "path": "dist/features/portable-documentation/adapters/outbound/docs-profile-schema-validator.js.map",
+      "mode": 420,
+      "sha256": "a93630689a71e9638eb2ea6b6024bb1794f16722f12d586b18d94e0f905869da",
+      "bytes": 1827
+    },
+    {
+      "path": "dist/features/portable-documentation/application/docs-protocol.d.ts.map",
+      "mode": 420,
+      "sha256": "6d09ee368a89d8f00a994704ebc86872d12423dbca9af73fa52dfb311a7853f1",
+      "bytes": 2367
+    },
+    {
+      "path": "dist/features/portable-documentation/application/docs-protocol.js.map",
+      "mode": 420,
+      "sha256": "835257f285f3f74403dda60b9d5f93146757fb5e39071cc161c3f258bf09ab7e",
+      "bytes": 9230
+    },
+    {
+      "path": "dist/features/portable-documentation/adapters/outbound/document-authoring-port.d.ts.map",
+      "mode": 420,
+      "sha256": "ac0b731f780f897a24ffc3ed49e8fbe2583ef9e83e4279a6db7f4599e2c72332",
+      "bytes": 1263
+    },
+    {
+      "path": "dist/features/portable-documentation/adapters/outbound/document-authoring-port.js.map",
+      "mode": 420,
+      "sha256": "37e30499631b8c288f83f4554cc10bd026ceb0b48305e23c3a1e8a24ddbd2ebc",
+      "bytes": 5764
+    },
+    {
+      "path": "dist/features/portable-documentation/domain/document-semantics.d.ts.map",
+      "mode": 420,
+      "sha256": "52a2f517a79f17e5878634aa24a3238fe094c71d9e4db9b20dc8f6873fd881b5",
+      "bytes": 646
+    },
+    {
+      "path": "dist/features/portable-documentation/domain/document-semantics.js.map",
+      "mode": 420,
+      "sha256": "9a460244f3f16a318bf231d8247822a6b81424feefcb0694d0fa4d23f93952f3",
+      "bytes": 7043
+    },
+    {
+      "path": "dist/features/portable-documentation/domain/documentation-model.d.ts.map",
+      "mode": 420,
+      "sha256": "7b1ee9669d6a082ae7b24be10d8258fda0633bfb9072dfddd8b9c38898b1e90e",
+      "bytes": 2732
+    },
+    {
+      "path": "dist/features/portable-documentation/domain/documentation-model.js.map",
+      "mode": 420,
+      "sha256": "bdc65d748403aad1d9652bbc4c4ede6f05945ccdbeac95f7a4e522fe4f1dd8f8",
+      "bytes": 370
+    },
+    {
+      "path": "dist/features/portable-documentation/domain.d.ts.map",
+      "mode": 420,
+      "sha256": "5280153299378428ea4578b7e3859c7429a0c6b5ef7090dac7274f276d607c9c",
+      "bytes": 372
+    },
+    {
+      "path": "dist/features/portable-documentation/domain.js.map",
+      "mode": 420,
+      "sha256": "95a3545983879e1e17d30044a422a5f9a29836380dd5066fe7798454b11076dd",
+      "bytes": 314
+    },
+    {
+      "path": "dist/features/qualification/application/evidence-policy.d.ts.map",
+      "mode": 420,
+      "sha256": "d00526a882959509da27ba74a753fcbd553bc9fee238c73352434b7ce695d710",
+      "bytes": 833
+    },
+    {
+      "path": "dist/features/qualification/application/evidence-policy.js.map",
+      "mode": 420,
+      "sha256": "19added234b36d567967794aded19d1a4b181e0cb8786a3d5b4b879f56cdb0da",
+      "bytes": 2518
+    },
+    {
+      "path": "dist/features/qualification/adapters/filesystem-evidence.d.ts.map",
+      "mode": 420,
+      "sha256": "0adf7bb978a27f52b2957882c1e1439aa2979f95fe4be8318572671f1ee02cf6",
+      "bytes": 787
+    },
+    {
+      "path": "dist/features/qualification/adapters/filesystem-evidence.js.map",
+      "mode": 420,
+      "sha256": "a415af46187d938397c83e37b9f3ca1fcc0cdc8b6c4fcb8f4d87b4a7db8dae17",
+      "bytes": 12825
+    },
+    {
+      "path": "dist/features/docs-command/index.d.ts.map",
+      "mode": 420,
+      "sha256": "a4143bdb888899313490a7d2f3a90475807c03768cab208b21bdb59bb7b3a567",
+      "bytes": 197
+    },
+    {
+      "path": "dist/features/qualification/index.d.ts.map",
+      "mode": 420,
+      "sha256": "c19a8a0f0531170a10edec64fe867de84b78f3561bc8292c194ebc4434acfc0e",
+      "bytes": 716
+    },
+    {
+      "path": "dist/index.d.ts.map",
+      "mode": 420,
+      "sha256": "979dd2cda008bd971ac8e197d66725411b423685c769948bf5e93c8f9e720fb0",
+      "bytes": 1238
+    },
+    {
+      "path": "dist/qualification/index.d.ts.map",
+      "mode": 420,
+      "sha256": "2786ae2995aaf0cf09651314f55415fcb77013e6433b8b773522b8effd9d1059",
+      "bytes": 501
+    },
+    {
+      "path": "dist/features/docs-command/index.js.map",
+      "mode": 420,
+      "sha256": "cda7ade695aff447180c4027bffb74e34df869da9e16e0c182767ac0a20d09d8",
+      "bytes": 195
+    },
+    {
+      "path": "dist/features/qualification/index.js.map",
+      "mode": 420,
+      "sha256": "5f87e7ebbebc26b3e3d1f6d3a6cd3a1ecb9ed718b2464816050fbfd9db149b7c",
+      "bytes": 440
+    },
+    {
+      "path": "dist/index.js.map",
+      "mode": 420,
+      "sha256": "1ba6d9236387aec019b619a7ec29363a432d86f68ef02b3641e13b8c62e0574a",
+      "bytes": 504
+    },
+    {
+      "path": "dist/qualification/index.js.map",
+      "mode": 420,
+      "sha256": "8ed1f268afc806fe418652f987de60367d6f2dbe5117355b1b8689bc54efd889",
+      "bytes": 355
+    },
+    {
+      "path": "dist/features/portable-documentation/application/llms-text.d.ts.map",
+      "mode": 420,
+      "sha256": "027a904ea2393f702ea0438777cbb721f05ac5c5119fc23b204eec2b77fb7c0d",
+      "bytes": 1287
+    },
+    {
+      "path": "dist/features/portable-documentation/application/llms-text.js.map",
+      "mode": 420,
+      "sha256": "e8c55a085ee6ab41dc0063c31a524956b64889b4f44946515aa2469d54c85be1",
+      "bytes": 6876
+    },
+    {
+      "path": "dist/features/portable-documentation/domain/metadata.d.ts.map",
+      "mode": 420,
+      "sha256": "a81d23dc55fa7fe9e4bbd82bbdcb483c5ccb4af03bd689024e8ca65c8fcdd43b",
+      "bytes": 382
+    },
+    {
+      "path": "dist/features/portable-documentation/domain/metadata.js.map",
+      "mode": 420,
+      "sha256": "02194bac7e42315bf6ca833f969acbbb2c8aba42dec584150f7aa270b5c3f51a",
+      "bytes": 156
+    },
+    {
+      "path": "dist/features/portable-documentation/adapters/outbound/minisearch-adapter.d.ts.map",
+      "mode": 420,
+      "sha256": "bb18bc5714c63dcb69a4381fa4f48073d132227f8091122e192cc7e0f7ebf82b",
+      "bytes": 464
+    },
+    {
+      "path": "dist/features/portable-documentation/adapters/outbound/minisearch-adapter.js.map",
+      "mode": 420,
+      "sha256": "2116f6d2d851731fd7f40fac848ccfd41ea928ccf47f2e8b3ed8f1f6d8861f95",
+      "bytes": 1646
+    },
+    {
+      "path": "dist/features/portable-documentation/application/model-v2.d.ts.map",
+      "mode": 420,
+      "sha256": "620f7ccad24c344c4f5aa16c4eba70958445c329a10d05f92c9e33f42e807031",
+      "bytes": 5106
+    },
+    {
+      "path": "dist/features/portable-documentation/application/model-v2.js.map",
+      "mode": 420,
+      "sha256": "8029993d0847bb3889d8cc33cdc6e9e9c478f2ad823b43fe68bc5d19907d5c3d",
+      "bytes": 190
+    },
+    {
+      "path": "dist/features/portable-documentation/application/model-v3.d.ts.map",
+      "mode": 420,
+      "sha256": "d5f3d132f2d703843d8d908df576da96fe3ddab3be503f838f2fd8b35fa3dae0",
+      "bytes": 2097
+    },
+    {
+      "path": "dist/features/portable-documentation/application/model-v3.js.map",
+      "mode": 420,
+      "sha256": "c1b441daf8dae84067473a6b15088d63013804d0f8d4ad268e11b3206adeef3b",
+      "bytes": 191
+    },
+    {
+      "path": "dist/features/portable-documentation/application/model.d.ts.map",
+      "mode": 420,
+      "sha256": "f28e680d33321ab0123c3b7d5978f14e697c1fbfe95cf79387720c19c1d9db05",
+      "bytes": 4855
+    },
+    {
+      "path": "dist/features/qualification/application/model.d.ts.map",
+      "mode": 420,
+      "sha256": "3200f879eada9f3616438c260639d0e4d7fc4bfe900f747389228fd76060a0b8",
+      "bytes": 927
+    },
+    {
+      "path": "dist/features/portable-documentation/application/model.js.map",
+      "mode": 420,
+      "sha256": "65d768907ccad653f91e38e565785e8a2952e41df4ead11afbe555434b009f59",
+      "bytes": 238
+    },
+    {
+      "path": "dist/features/qualification/application/model.js.map",
+      "mode": 420,
+      "sha256": "0dc1b6ba10fda99bef7f5332f9ec0b86fb47508363291945e1852cca713c200e",
+      "bytes": 146
+    },
+    {
+      "path": "dist/features/portable-documentation/adapters/outbound/node-adoption-inspector.d.ts.map",
+      "mode": 420,
+      "sha256": "b9f4f6eb5686cff0a06971fa10a4c8fa183ad3301745d75700ca1c307138f799",
+      "bytes": 425
+    },
+    {
+      "path": "dist/features/portable-documentation/adapters/outbound/node-adoption-inspector.js.map",
+      "mode": 420,
+      "sha256": "ee82f873b4637599f9cc605b643361816ccf59e86f71a1d8b93a090c50fa100a",
+      "bytes": 3676
+    },
+    {
+      "path": "dist/features/portable-bootstrap/adapters/outbound/node-bootstrap-repository.d.ts.map",
+      "mode": 420,
+      "sha256": "0ba8efd4780b6be4bb6a86069a0ef41b2b0b0f37347e0ec8cb1323be6a29edc2",
+      "bytes": 291
+    },
+    {
+      "path": "dist/features/portable-bootstrap/adapters/outbound/node-bootstrap-repository.js.map",
+      "mode": 420,
+      "sha256": "6ce3f464487b546927dd64b486ecd97a45d20643536b78bf5493a76f2b7451f9",
+      "bytes": 6030
+    },
+    {
+      "path": "dist/features/portable-bootstrap/adapters/outbound/node-bootstrap-transactions.d.ts.map",
+      "mode": 420,
+      "sha256": "3efe7c79be7eb0e893df2ba228d432fa8ca36ce9590f389053e3503ea1909542",
+      "bytes": 296
+    },
+    {
+      "path": "dist/features/portable-bootstrap/adapters/outbound/node-bootstrap-transactions.js.map",
+      "mode": 420,
+      "sha256": "d50bfea601ba1fff08c30b63885c2aafe7d68d6ac6859648b5e858f349e5508e",
+      "bytes": 1885
+    },
+    {
+      "path": "dist/features/portable-documentation/adapters/outbound/node-code-anchor-matcher.d.ts.map",
+      "mode": 420,
+      "sha256": "3883971ac94fa9a409c7087f62b17051dea6a2a1e3ad4dcdf2d44b02d7e0f1dd",
+      "bytes": 413
+    },
+    {
+      "path": "dist/features/portable-documentation/adapters/outbound/node-code-anchor-matcher.js.map",
+      "mode": 420,
+      "sha256": "17b01e03d2b28480bc7a99dd6cd694303f8bb3ecd0b1a623491af9361a697ab3",
+      "bytes": 3277
+    },
+    {
+      "path": "dist/features/docs-command/adapters/inbound/node-docs-api.d.ts.map",
+      "mode": 420,
+      "sha256": "aa7142dc8fcee2e990c163f85bb69a3e6acf7b4e39978d853a11b7ded5888315",
+      "bytes": 1412
+    },
+    {
+      "path": "dist/features/docs-command/composition/node-docs-api.d.ts.map",
+      "mode": 420,
+      "sha256": "ecf18360190098c2e93c82579811b6a5dc632dcd1c9f600f1fb9ed0e7d21df21",
+      "bytes": 478
+    },
+    {
+      "path": "dist/features/docs-command/adapters/inbound/node-docs-api.js.map",
+      "mode": 420,
+      "sha256": "064f40661bdfa439236b1aa8ac2b0f76f20d427152f1f41d30221e6dba4f4805",
+      "bytes": 1576
+    },
+    {
+      "path": "dist/features/docs-command/composition/node-docs-api.js.map",
+      "mode": 420,
+      "sha256": "3824fa1baf42a223850e7a1126aebd7b1f8d19ca063170367408c499efd1a7dd",
+      "bytes": 432
+    },
+    {
+      "path": "dist/features/portable-bootstrap/composition/node-docs-bootstrap-api.d.ts.map",
+      "mode": 420,
+      "sha256": "046662ac202772af2ae85b9bbca513c9b2891984810aa399c328eb329773a179",
+      "bytes": 362
+    },
+    {
+      "path": "dist/features/portable-bootstrap/composition/node-docs-bootstrap-api.js.map",
+      "mode": 420,
+      "sha256": "61af97af841b51633b3970698ed30267bcf1292c748b3a0fd3720a0e7a1555d6",
+      "bytes": 370
+    },
+    {
+      "path": "dist/features/docs-command/adapters/outbound/node-profile-discovery.d.ts.map",
+      "mode": 420,
+      "sha256": "b9324ac31fbfd77288fb34689d6dad1a00aedfddbbf877f9b7de0c57a755fe29",
+      "bytes": 374
+    },
+    {
+      "path": "dist/features/docs-command/adapters/outbound/node-profile-discovery.js.map",
+      "mode": 420,
+      "sha256": "bac8979ccd2b12ed19015d99890b17e3ca3d43fc995fffa7fa9e546ef90d7f52",
+      "bytes": 399
+    },
+    {
+      "path": "dist/features/portable-documentation/adapters/outbound/node-profile-reader.d.ts.map",
+      "mode": 420,
+      "sha256": "550d1444bd1a03cce1425ae4319ae9f82c0a190fa0dba148761c38f22c8d583f",
+      "bytes": 430
+    },
+    {
+      "path": "dist/features/portable-documentation/adapters/outbound/node-profile-reader.js.map",
+      "mode": 420,
+      "sha256": "bc1724f0759e6b4a4123ebefe8126c75d3574e78f1ad2a5ab6a596953da7377a",
+      "bytes": 7842
+    },
+    {
+      "path": "dist/features/docs-command/composition/node-protocol.d.ts.map",
+      "mode": 420,
+      "sha256": "3d5cd149f2f827b9ce1b07bebcc128c301b6a834c53c94bbb99247db553a9768",
+      "bytes": 370
+    },
+    {
+      "path": "dist/features/portable-documentation/composition/node-protocol.d.ts.map",
+      "mode": 420,
+      "sha256": "f59a23965fd8254c8045210d04a3f5375542d1554df7cc28e9264f6fa01faa17",
+      "bytes": 241
+    },
+    {
+      "path": "dist/features/docs-command/composition/node-protocol.js.map",
+      "mode": 420,
+      "sha256": "5d14ef780900d31f570cac9da08c5f321862259748e7e34da2f24ded737645c8",
+      "bytes": 343
+    },
+    {
+      "path": "dist/features/portable-documentation/composition/node-protocol.js.map",
+      "mode": 420,
+      "sha256": "3bf709d3a0f37211857aad255898ffbc6aed07c47f9852dbd9ebacc99224ce88",
+      "bytes": 750
+    },
+    {
+      "path": "dist/features/docs-command/adapters/outbound/package-version.d.ts.map",
+      "mode": 420,
+      "sha256": "05a091cf8186b75b39a6d007e5092514d5d881eb5532d633ddcef2b4404d6c51",
+      "bytes": 225
+    },
+    {
+      "path": "dist/features/docs-command/adapters/outbound/package-version.js.map",
+      "mode": 420,
+      "sha256": "f1a80dae338d7d5387abf5cd9194b7af22e735dfc06e8db24d06649de5d2c466",
+      "bytes": 611
+    },
+    {
+      "path": "dist/features/portable-documentation/domain/plan-approval.d.ts.map",
+      "mode": 420,
+      "sha256": "a2385db0e742da7196c88c0afd1f26daed330ac46c2cd83d2a5d79d5c223a5c3",
+      "bytes": 411
+    },
+    {
+      "path": "dist/features/portable-documentation/domain/plan-approval.js.map",
+      "mode": 420,
+      "sha256": "d1ee1419dca92384ec28002e5ec2a9030083d0371e2617a7b8688ac781f3db85",
+      "bytes": 828
+    },
+    {
+      "path": "dist/features/portable-bootstrap/application/portable-bootstrap-assets.d.ts.map",
+      "mode": 420,
+      "sha256": "5cfe51aaadbb90c681cb547991158c04817401b21185cf71a3f7a85da72446ed",
+      "bytes": 554
+    },
+    {
+      "path": "dist/features/portable-bootstrap/application/portable-bootstrap-assets.js.map",
+      "mode": 420,
+      "sha256": "970e4a1cada5f52b147535b5440b2e0745c8893bef24de9f88597383f2693ad6",
+      "bytes": 5689
+    },
+    {
+      "path": "dist/features/portable-bootstrap/application/portable-bootstrap.d.ts.map",
+      "mode": 420,
+      "sha256": "3439793e713fd76f4aed51a2aa0634d8bd7d4f9df41dbe1fd1322dd44b1227ea",
+      "bytes": 481
+    },
+    {
+      "path": "dist/features/portable-bootstrap/composition/portable-bootstrap.d.ts.map",
+      "mode": 420,
+      "sha256": "791fec08c96cb263aa1082f7408d4d3ffda93af51284b350191fc150437ea8cc",
+      "bytes": 540
+    },
+    {
+      "path": "dist/features/portable-bootstrap/application/portable-bootstrap.js.map",
+      "mode": 420,
+      "sha256": "284bad8c32bb392c96f44737ed8bd3b72affa7f5c6be51e7d0bf04edb1ec4ad1",
+      "bytes": 3841
+    },
+    {
+      "path": "dist/features/portable-bootstrap/composition/portable-bootstrap.js.map",
+      "mode": 420,
+      "sha256": "f10038e8b2d0a5d90a447f2949258cbd947220978bac3deb26aa4b472b1b9787",
+      "bytes": 815
+    },
+    {
+      "path": "dist/features/portable-documentation/domain/profile-error.d.ts.map",
+      "mode": 420,
+      "sha256": "3f86da1e8fa595928a5562a0a983092e0d0ff5d6b0abc8a03d1d10721e9882a2",
+      "bytes": 232
+    },
+    {
+      "path": "dist/features/portable-documentation/domain/profile-error.js.map",
+      "mode": 420,
+      "sha256": "5b2dcda7341c66c36cbca0c33c5b96f65d0cf0af24a6196d5dc96994cafa301a",
+      "bytes": 297
+    },
+    {
+      "path": "dist/features/portable-documentation/application/profile-policy.d.ts.map",
+      "mode": 420,
+      "sha256": "6921b1a09c7ab289a34ec065d5d5ca8dd3a0d7b8f25a6563353513b990fa726e",
+      "bytes": 639
+    },
+    {
+      "path": "dist/features/portable-documentation/application/profile-policy.js.map",
+      "mode": 420,
+      "sha256": "e04dff269b4360b3a5c8bfbfa128b35dcb3f984d132d3bcac1118e67138a9bef",
+      "bytes": 8471
+    },
+    {
+      "path": "dist/features/docs-command/adapters/inbound/protocol-api.d.ts.map",
+      "mode": 420,
+      "sha256": "5ae92803c857ab274ecce99f11cf52365eaac88c71b81011ea0205032bc85810",
+      "bytes": 1137
+    },
+    {
+      "path": "dist/features/docs-command/adapters/inbound/protocol-api.js.map",
+      "mode": 420,
+      "sha256": "1ebce7b1225d55600750f1c7a12e2393c52189844df87e03619953e7f96281cf",
+      "bytes": 1805
+    },
+    {
+      "path": "dist/features/portable-documentation/composition/qualification-profile.d.ts.map",
+      "mode": 420,
+      "sha256": "fddb8e7de7dec71ab349f95c63b49b1ed6fab91a5e1218267d22723496209901",
+      "bytes": 329
+    },
+    {
+      "path": "dist/features/portable-documentation/composition/qualification-profile.js.map",
+      "mode": 420,
+      "sha256": "70b430c1a21fa7211ecc5bd698ed0687d032771a87f55f6eaa742ead5931989e",
+      "bytes": 337
+    },
+    {
+      "path": "dist/features/qualification/adapters/qualification-runtime.d.ts.map",
+      "mode": 420,
+      "sha256": "fa04560a8b7743d6feea0136dd15c489156892dda1d80eeacd161b1393099c09",
+      "bytes": 624
+    },
+    {
+      "path": "dist/features/qualification/adapters/qualification-runtime.js.map",
+      "mode": 420,
+      "sha256": "b0a044c53e251c2cac14dfccba5f2ef936ce4801b5a1a997467ca83688338eb5",
+      "bytes": 4849
+    },
+    {
+      "path": "dist/features/docs-command/qualification.d.ts.map",
+      "mode": 420,
+      "sha256": "d219ba7f03a782c573ce5b8ecc94ac66a7f7063e9e2203a8f7faf6de44ddf20f",
+      "bytes": 201
+    },
+    {
+      "path": "dist/features/portable-documentation/qualification.d.ts.map",
+      "mode": 420,
+      "sha256": "cf2496895c031170f751fa8998a5d9d0acc9c311bbaa7352815ccf94cf993d14",
+      "bytes": 201
+    },
+    {
+      "path": "dist/features/docs-command/qualification.js.map",
+      "mode": 420,
+      "sha256": "1c956d01b5bb0b58c7875a57a3fcd3c61ffb79528036d27472ab45189805e8c5",
+      "bytes": 199
+    },
+    {
+      "path": "dist/features/portable-documentation/qualification.js.map",
+      "mode": 420,
+      "sha256": "d5630e9b5adfd170330c00df77588e0b9de82804eee448e1152c58f40838d7ef",
+      "bytes": 212
+    },
+    {
+      "path": "dist/features/portable-documentation/application/ranked-search.d.ts.map",
+      "mode": 420,
+      "sha256": "910b19cca4d8b8b1a032b223062e8a5a9b556da210e84ab0a3f68568f8b16c0e",
+      "bytes": 1333
+    },
+    {
+      "path": "dist/features/portable-documentation/application/ranked-search.js.map",
+      "mode": 420,
+      "sha256": "a28f86cd1f8518f05c4fafa440afb6656a866411f95ec414451e7a840c4cf1b1",
+      "bytes": 5871
+    },
+    {
+      "path": "dist/features/qualification/application/recovery.d.ts.map",
+      "mode": 420,
+      "sha256": "3e2fa9abf68a4607202d6374282d3156ce4e2a07068067d4ae7ca5429ee7e3f3",
+      "bytes": 1835
+    },
+    {
+      "path": "dist/features/qualification/application/recovery.js.map",
+      "mode": 420,
+      "sha256": "f9b0f25ee4407fba281908f8394d88d086e5f367982ac828796ef5d64fe3fe4e",
+      "bytes": 3210
+    },
+    {
+      "path": "dist/features/qualification/adapters/run-qualification.d.ts.map",
+      "mode": 420,
+      "sha256": "110017eff94e3cca64fd2601707219c3f8cfdc358caa9d4a0ce03d89e3b7c9a2",
+      "bytes": 259
+    },
+    {
+      "path": "dist/features/qualification/application/run-qualification.d.ts.map",
+      "mode": 420,
+      "sha256": "edb68ea546e8f29e03d1533e013618ffcbdc5228aa0043b2530408fa5d525bbf",
+      "bytes": 608
+    },
+    {
+      "path": "dist/features/qualification/adapters/run-qualification.js.map",
+      "mode": 420,
+      "sha256": "915d232217bb5c066d19f2e4871a601d20522065f43afdd95dffead0734064fe",
+      "bytes": 2152
+    },
+    {
+      "path": "dist/features/qualification/application/run-qualification.js.map",
+      "mode": 420,
+      "sha256": "7e039aac0b09b3cfc073e670634e2a03d143702271e362287112c5250e073f4f",
+      "bytes": 4866
+    },
+    {
+      "path": "dist/features/qualification/application/runtime.d.ts.map",
+      "mode": 420,
+      "sha256": "791fa66a1400f24826034038742102eda5fa277169820b2cda6e67761c6a9734",
+      "bytes": 4717
+    },
+    {
+      "path": "dist/features/qualification/application/runtime.js.map",
+      "mode": 420,
+      "sha256": "b96c3f94f32491d25100a3262edbbabfef2194874e6007fbf6ff55e97b9bcada",
+      "bytes": 1438
+    },
+    {
+      "path": "dist/features/docs-command/sdk.d.ts.map",
+      "mode": 420,
+      "sha256": "898a885c7f7bd58ad14c6ee187337d5130a4a7a608d44ad26266d4cdd140b72f",
+      "bytes": 374
+    },
+    {
+      "path": "dist/features/portable-bootstrap/sdk.d.ts.map",
+      "mode": 420,
+      "sha256": "08f2f8eaf81dca98ce9e6e11cfcd8e0f7f56366732cb0b6cc8d124516cb45b7b",
+      "bytes": 361
+    },
+    {
+      "path": "dist/features/portable-documentation/sdk.d.ts.map",
+      "mode": 420,
+      "sha256": "b64028c9810f51b784eb2af3fafec2b7619a049500564f921f0cad85378a80ad",
+      "bytes": 914
+    },
+    {
+      "path": "dist/features/docs-command/sdk.js.map",
+      "mode": 420,
+      "sha256": "d37c148018bf3409ae4b6baf6e2b273dab3e35a25010b67b94f95406dc387b97",
+      "bytes": 247
+    },
+    {
+      "path": "dist/features/portable-bootstrap/sdk.js.map",
+      "mode": 420,
+      "sha256": "11bd6b5f3cc73fe7a2d108f432d0112a24242a44599723d06025310956cfd693",
+      "bytes": 194
+    },
+    {
+      "path": "dist/features/portable-documentation/sdk.js.map",
+      "mode": 420,
+      "sha256": "683ff89083b524b1a779963dfb026155af378e9e4b7ea8e0e4d6fd7e37ac1c92",
+      "bytes": 382
+    },
+    {
+      "path": "dist/features/qualification/application/skill.d.ts.map",
+      "mode": 420,
+      "sha256": "1deb540dc06d5e62b63af718a3f53ee203c352a673db13b167def74003ce1932",
+      "bytes": 182
+    },
+    {
+      "path": "dist/features/qualification/application/skill.js.map",
+      "mode": 420,
+      "sha256": "06b73d74926767f3e8a76a498d094a9713934c634c022effb9746887c39aa8b4",
+      "bytes": 503
+    },
+    {
+      "path": "dist/features/qualification/application/workspace.d.ts.map",
+      "mode": 420,
+      "sha256": "55cb8e2d34422a03132c0dc359f4a9ea835734ade87b08f5b4ccf4273a5f2f3d",
+      "bytes": 964
+    },
+    {
+      "path": "dist/features/qualification/application/workspace.js.map",
+      "mode": 420,
+      "sha256": "839ec5c036f8c4517ed7fcf4b86bf6389b61e021dbb43adb8a2dd19b81071e09",
+      "bytes": 154
+    },
+    {
+      "path": "dist/features/portable-documentation/adapters/outbound/yaml-compiled-output-reader.d.ts.map",
+      "mode": 420,
+      "sha256": "4f929afee6a6c6e1ebf7646c4b2f95d8560a3cf4b14d772f2652a498ea44af44",
+      "bytes": 368
+    },
+    {
+      "path": "dist/features/portable-documentation/adapters/outbound/yaml-compiled-output-reader.js.map",
+      "mode": 420,
+      "sha256": "634841e54a058f0681a55f144ab5d00317a16777611b46c1d6980da9856b1755",
+      "bytes": 1451
+    },
+    {
+      "path": "CHANGELOG.md",
+      "mode": 420,
+      "sha256": "110c55eac83ce19e28c7263b87e5c5b3d70b84b03d1ec2c4e40e42292441baf8",
+      "bytes": 31549
+    },
+    {
+      "path": "docs/feature-boundaries.md",
+      "mode": 420,
+      "sha256": "9efbdf8e9ce5e794a07602eba3266d8329792f7a4b42366eb9da164dbe033278",
+      "bytes": 3070
+    },
+    {
+      "path": "docs/feature-module-example.md",
+      "mode": 420,
+      "sha256": "89b29f8eab5c594f380f755fce59fea85fef1fe116b0ac55941419c3f4eabaa9",
+      "bytes": 3075
+    },
+    {
+      "path": "docs/profile-v4.md",
+      "mode": 420,
+      "sha256": "353609753cccaaf84a3763ce027daab1b7dcc4b11bb529b0d5ae4139aa79a703",
+      "bytes": 8541
+    },
+    {
+      "path": "README.md",
+      "mode": 420,
+      "sha256": "0c337ba1285002555928278d5d4376f9557f3a17812791a0bb0267dc86bf7984",
+      "bytes": 9183
+    },
+    {
+      "path": "dist/features/portable-documentation/adapters/outbound/adoption-input.d.ts",
+      "mode": 420,
+      "sha256": "bcd1acc38abaa9e5794788411861b10c140fa1a80ce405d3c39947da95e93376",
+      "bytes": 267
+    },
+    {
+      "path": "dist/features/portable-bootstrap/application.d.ts",
+      "mode": 420,
+      "sha256": "6a9b7b15e7467fd281d7dd528fd1bc6c2f9e0ab69f2917765ea094fc8da428d0",
+      "bytes": 231
+    },
+    {
+      "path": "dist/features/portable-documentation/application.d.ts",
+      "mode": 420,
+      "sha256": "d02eba92fb1e9034b195820b9a787597c9ab0af53ab7a99d073c6caaff083489",
+      "bytes": 864
+    },
+    {
+      "path": "dist/features/portable-documentation/application/approve-plan.d.ts",
+      "mode": 420,
+      "sha256": "03b95347dc75e51a06c05de49e10ccc7e80525644de60b934cfcc866ba405a3b",
+      "bytes": 475
+    },
+    {
+      "path": "dist/features/portable-documentation/application/authoring-observation.d.ts",
+      "mode": 420,
+      "sha256": "f9a1e3b9d9b63ab9524ac097a8173c26096c494d8a7656ab93a143d0cb6a23b8",
+      "bytes": 3035
+    },
+    {
+      "path": "dist/features/portable-documentation/application/authority-handshake.d.ts",
+      "mode": 420,
+      "sha256": "53aa326dcabf9b303eb5da0cf74027238e88fdb7e79aa9c8967d2cbe58bc7812",
+      "bytes": 669
+    },
+    {
+      "path": "dist/features/portable-documentation/domain/blocker-policy.d.ts",
+      "mode": 420,
+      "sha256": "a73827ad36587d2782093a76e715a84d60dd59400c15b79639c0a432e1aa1f40",
+      "bytes": 1355
+    },
+    {
+      "path": "dist/features/portable-bootstrap/application/bootstrap-model.d.ts",
+      "mode": 420,
+      "sha256": "1e387dee5fb7eb0f1aca2e0d842444324898206b5fc9d57ad5bd396b8fc2a19e",
+      "bytes": 3614
+    },
+    {
+      "path": "dist/features/portable-bootstrap/application/bootstrap-policy.d.ts",
+      "mode": 420,
+      "sha256": "62eb026ae4bc92047fa53481db56bdfaef8075dea1d920d5bfca117e8a901c4d",
+      "bytes": 1321
+    },
+    {
+      "path": "dist/features/docs-command/adapters/inbound/cli-init.d.ts",
+      "mode": 420,
+      "sha256": "4c36658033ed5029a4d41de0f4cdb1c116191e6c9e74ba43a7d68ed241859ae7",
+      "bytes": 355
+    },
+    {
+      "path": "dist/features/docs-command/adapters/inbound/cli-input.d.ts",
+      "mode": 420,
+      "sha256": "2df2309e99aee6f7a104da0ea7e1b2a8c4ad444294a5af8a0f154047cd4abdc9",
+      "bytes": 396
+    },
+    {
+      "path": "dist/cli.d.ts",
+      "mode": 420,
+      "sha256": "6f77e82bfb5dd3b1015dd92c63e427d505f9bbbdaa041cad6c704f41c553a536",
+      "bytes": 64
+    },
+    {
+      "path": "dist/features/docs-command/adapters/inbound/cli.d.ts",
+      "mode": 420,
+      "sha256": "8b4bc9c81144e4e4729b52bb98bd5f45fbfafb79af51a5dfc3047547f71e14eb",
+      "bytes": 320
+    },
+    {
+      "path": "dist/features/docs-command/composition/cli.d.ts",
+      "mode": 420,
+      "sha256": "3705754cded8ad2cfcee36c8fac3e67f5b8731f9eeab92d25c89443826b54404",
+      "bytes": 319
+    },
+    {
+      "path": "dist/features/docs-command/application/command-operations.d.ts",
+      "mode": 420,
+      "sha256": "468b6efb25aef6eafa6eff765288a15d67f0e1e1fb3aefef2cb13b5dce1f471a",
+      "bytes": 997
+    },
+    {
+      "path": "dist/features/docs-command/contracts/command.d.ts",
+      "mode": 420,
+      "sha256": "63858efb14864396ed258898f4ad4cc5584177b50355c1ea7c11f9774a77635b",
+      "bytes": 1516
+    },
+    {
+      "path": "dist/features/portable-documentation/application/community-query.d.ts",
+      "mode": 420,
+      "sha256": "da7ce8b78e35a6d3560954386b2d2f518cf875dde5e0495dc4a9a97483ea45f8",
+      "bytes": 2361
+    },
+    {
+      "path": "dist/features/portable-documentation/application/compiled-document.d.ts",
+      "mode": 420,
+      "sha256": "8a94498dcdeb39800de3fa6b60b02b7a93921c2ee5f7628790cfe1c799af4354",
+      "bytes": 515
+    },
+    {
+      "path": "dist/features/portable-documentation/application/compiled-output-reader.d.ts",
+      "mode": 420,
+      "sha256": "61b0c1795db8d8aec380eb6557c9fcc307cf9269456aed9098d34a3aa35935ba",
+      "bytes": 591
+    },
+    {
+      "path": "dist/features/portable-bootstrap/composition.d.ts",
+      "mode": 420,
+      "sha256": "b9c179a8d752f4a7d31045114462cef1e09d4beca8bf71a0d4be048202484864",
+      "bytes": 171
+    },
+    {
+      "path": "dist/features/portable-documentation/composition.d.ts",
+      "mode": 420,
+      "sha256": "cf7a02e5ff7d3eaa887dcd35a9abdcd15ad5c4992b2623b52b51f50d1311d747",
+      "bytes": 114
+    },
+    {
+      "path": "dist/qualification/composition.d.ts",
+      "mode": 420,
+      "sha256": "8dacce0de24d9d3ae5b9bb0866b5bc1a997e3de4539b1560c9dc68b804a7156e",
+      "bytes": 986
+    },
+    {
+      "path": "dist/features/portable-documentation/application/context.d.ts",
+      "mode": 420,
+      "sha256": "e33ff1b9bd1e707fea05d14ec14824ce49de6ce46d22ec11a5f02a0480c28c70",
+      "bytes": 622
+    },
+    {
+      "path": "dist/features/qualification/adapters/crash-driver.d.ts",
+      "mode": 420,
+      "sha256": "80702128f75ee06de51c972f583bc35615a3c3c846b6eca23c02a4089ce54d4e",
+      "bytes": 294
+    },
+    {
+      "path": "dist/features/portable-documentation/application/docs-authoring-policy.d.ts",
+      "mode": 420,
+      "sha256": "43c1a8093971a810057cc50d560eaaaadd013a6ee443169abd314fa33b3cdd41",
+      "bytes": 3964
+    },
+    {
+      "path": "dist/features/docs-command/adapters/inbound/docs-cli-machine.d.ts",
+      "mode": 420,
+      "sha256": "94bc5af1f07e74438247b57f151746ed85251e520a65c32b0c9cd0942d6ef155",
+      "bytes": 890
+    },
+    {
+      "path": "dist/features/docs-command/adapters/outbound/docs-command-envelope-schema-validator.d.ts",
+      "mode": 420,
+      "sha256": "d475f1c4f07853adbcc8a20d6d420e8d6d77204401853e7bc1ecf84e13afcb9e",
+      "bytes": 156
+    },
+    {
+      "path": "dist/features/portable-documentation/application/docs-execution.d.ts",
+      "mode": 420,
+      "sha256": "080ef72e74def2e79d2cdcf4fe89da67a04f5a16379cde139ad3eea84760ddec",
+      "bytes": 919
+    },
+    {
+      "path": "dist/features/docs-command/adapters/inbound/docs-human-renderer.d.ts",
+      "mode": 420,
+      "sha256": "0ee7b3ab9f1f0094f40bc37db7ed59b68126ced1102c430909aef0e544d7eb40",
+      "bytes": 318
+    },
+    {
+      "path": "dist/features/portable-bootstrap/application/docs-init-model.d.ts",
+      "mode": 420,
+      "sha256": "88d7da028c0cba3902bf1725a0757f89fa0412950a32f275cee86ecc0880e123",
+      "bytes": 2363
+    },
+    {
+      "path": "dist/features/portable-bootstrap/application/docs-init.d.ts",
+      "mode": 420,
+      "sha256": "3d507f176677ae9e3ce8513d50d1cf31429da5cdd1e1c25084f31e79c4372905",
+      "bytes": 719
+    },
+    {
+      "path": "dist/features/portable-documentation/application/docs-new-completion.d.ts",
+      "mode": 420,
+      "sha256": "81f0d1f073336761f1463c9f0bbca7bb17b285029125eb4766ea276140f60fa2",
+      "bytes": 1913
+    },
+    {
+      "path": "dist/features/portable-documentation/application/docs-new.d.ts",
+      "mode": 420,
+      "sha256": "cac53d526c71658b2dd019bf640f50e04c2e85fe7126e808fdef3ca6e38de5aa",
+      "bytes": 847
+    },
+    {
+      "path": "dist/features/portable-documentation/adapters/outbound/docs-profile-schema-validator.d.ts",
+      "mode": 420,
+      "sha256": "51bcd59dbb6c676d93625e63d606fcee0fdb8053c2a3a26c5665eabe4a30d373",
+      "bytes": 147
+    },
+    {
+      "path": "dist/features/portable-documentation/application/docs-protocol.d.ts",
+      "mode": 420,
+      "sha256": "439ce5be59495c72627871acfb9e708ea78414e6b9ccdb94011e7428196d767e",
+      "bytes": 8781
+    },
+    {
+      "path": "dist/features/portable-documentation/adapters/outbound/document-authoring-port.d.ts",
+      "mode": 420,
+      "sha256": "7f157f0b6b4ec2b56ccd571f705c26f024ecb004574a135d82c9dd325c850c9a",
+      "bytes": 3428
+    },
+    {
+      "path": "dist/features/portable-documentation/domain/document-semantics.d.ts",
+      "mode": 420,
+      "sha256": "700f3dbebe583342da28b04832c3a46afa21cbce1bfcd590151b164d159fc080",
+      "bytes": 599
+    },
+    {
+      "path": "dist/features/portable-documentation/domain/documentation-model.d.ts",
+      "mode": 420,
+      "sha256": "277659e5ca28b31c7ad2e7f0375bf2aad07e62296ab1dfab7aa487b81b6db5d4",
+      "bytes": 2970
+    },
+    {
+      "path": "dist/features/portable-documentation/domain.d.ts",
+      "mode": 420,
+      "sha256": "35903e8716be183914b252e180d358e4db2f0bba98d26c159dda858740da682d",
+      "bytes": 476
+    },
+    {
+      "path": "dist/features/qualification/application/evidence-policy.d.ts",
+      "mode": 420,
+      "sha256": "428b3b1990a58f59d56a3e33b8ff66d75a71bbe27f8b31e19b1a37de20eda693",
+      "bytes": 1143
+    },
+    {
+      "path": "dist/features/qualification/adapters/filesystem-evidence.d.ts",
+      "mode": 420,
+      "sha256": "ec8f441888c24156bec1c30c584efa12c4a125a4b77c9397cd2430a11085adff",
+      "bytes": 900
+    },
+    {
+      "path": "dist/features/docs-command/index.d.ts",
+      "mode": 420,
+      "sha256": "a45c114538701ce0e48120ed9571f86c291216090ebb515765add3774422a6bb",
+      "bytes": 124
+    },
+    {
+      "path": "dist/features/qualification/index.d.ts",
+      "mode": 420,
+      "sha256": "022892d0a75e4de07074790b7ee50251e4bc1f5795438ed39e0d1341864ab073",
+      "bytes": 1074
+    },
+    {
+      "path": "dist/index.d.ts",
+      "mode": 420,
+      "sha256": "e9006b169f3ff6219c1da2a2a85daace86a3b21c4b973b853e6efd6c455e3a23",
+      "bytes": 1971
+    },
+    {
+      "path": "dist/qualification/index.d.ts",
+      "mode": 420,
+      "sha256": "901c127a9794b8a77904d98c50e9624955054b2e0c19af1d4f1a9718cbff27bb",
+      "bytes": 746
+    },
+    {
+      "path": "dist/features/portable-documentation/application/llms-text.d.ts",
+      "mode": 420,
+      "sha256": "51e3fa48880510b634b06d5278a124b8a1c9b5ce20ceb7c6908b8e87ee1f72cb",
+      "bytes": 1437
+    },
+    {
+      "path": "dist/features/portable-documentation/domain/metadata.d.ts",
+      "mode": 420,
+      "sha256": "e400f18afb50ca676e256e0789f871349fd8ab98d26b8453defdce7a4c27d161",
+      "bytes": 279
+    },
+    {
+      "path": "dist/features/portable-documentation/adapters/outbound/minisearch-adapter.d.ts",
+      "mode": 420,
+      "sha256": "9b71990252831786f9cb5e1bc1362c20db4e4d4003c259ed306442269dc7b49f",
+      "bytes": 473
+    },
+    {
+      "path": "dist/features/portable-documentation/application/model-v2.d.ts",
+      "mode": 420,
+      "sha256": "04bb55c5f0f93349f23fc155c8874f62ca064e27d9961022846a14d8f27d8bd2",
+      "bytes": 5410
+    },
+    {
+      "path": "dist/features/portable-documentation/application/model-v3.d.ts",
+      "mode": 420,
+      "sha256": "7e92d177f5fd163daafb5f1b82c7abc02d4f96fcf6a38b552459b34576e52663",
+      "bytes": 2148
+    },
+    {
+      "path": "dist/features/portable-documentation/application/model.d.ts",
+      "mode": 420,
+      "sha256": "fad87a6e7473096ee13d71a1af08595294c704d837376e53c983740c357ba6f0",
+      "bytes": 5250
+    },
+    {
+      "path": "dist/features/qualification/application/model.d.ts",
+      "mode": 420,
+      "sha256": "146f9d5da83886e54d405038593691ea7717cded84e9da8fb400e403a8c9f0b8",
+      "bytes": 1039
+    },
+    {
+      "path": "dist/features/portable-documentation/adapters/outbound/node-adoption-inspector.d.ts",
+      "mode": 420,
+      "sha256": "d1e3ee4c4938213760fec4ee30023a0fea940c473671f515c461419328f0b115",
+      "bytes": 336
+    },
+    {
+      "path": "dist/features/portable-bootstrap/adapters/outbound/node-bootstrap-repository.d.ts",
+      "mode": 420,
+      "sha256": "b9a901b6e74533550f98e589a2dc060a2b118388a0de6664e9e90450b0da5431",
+      "bytes": 203
+    },
+    {
+      "path": "dist/features/portable-bootstrap/adapters/outbound/node-bootstrap-transactions.d.ts",
+      "mode": 420,
+      "sha256": "7aa892ad2c2d331cb03912baec1cd27604b4120f8114100e96fdd00701fdefe1",
+      "bytes": 211
+    },
+    {
+      "path": "dist/features/portable-documentation/adapters/outbound/node-code-anchor-matcher.d.ts",
+      "mode": 420,
+      "sha256": "42de1999157c5c793fda70f05ee6aad3ab35de5aa294c56b09f70d1f27951362",
+      "bytes": 308
+    },
+    {
+      "path": "dist/features/docs-command/adapters/inbound/node-docs-api.d.ts",
+      "mode": 420,
+      "sha256": "061cf64f2e035b9348429c5a57df40a94697cad77e8b03c121f694bb49d7695c",
+      "bytes": 8248
+    },
+    {
+      "path": "dist/features/docs-command/composition/node-docs-api.d.ts",
+      "mode": 420,
+      "sha256": "9e853796f795e45b189fc41d87a96700c451f314308ee6a0794d3c6fcf2d7c7e",
+      "bytes": 7484
+    },
+    {
+      "path": "dist/features/portable-bootstrap/composition/node-docs-bootstrap-api.d.ts",
+      "mode": 420,
+      "sha256": "04787fa77b71697711f94efe2691e2da917967a8d4e92412e3e4a46ce7f8d364",
+      "bytes": 927
+    },
+    {
+      "path": "dist/features/docs-command/adapters/outbound/node-profile-discovery.d.ts",
+      "mode": 420,
+      "sha256": "2e8859bb62781ffe296f756996960e4868ea626870540b9fe3f0ccbbeb22afd2",
+      "bytes": 278
+    },
+    {
+      "path": "dist/features/portable-documentation/adapters/outbound/node-profile-reader.d.ts",
+      "mode": 420,
+      "sha256": "b60fc12f3c4a49b0d0a2611fecb8d3e81114d8b0b28b2e989e9f3a3ad9aab672",
+      "bytes": 429
+    },
+    {
+      "path": "dist/features/docs-command/composition/node-protocol.d.ts",
+      "mode": 420,
+      "sha256": "3881ec19bafce0912d4fb2165ebf08450294dbe93ebcaf882f096fbf608ecdb5",
+      "bytes": 8102
+    },
+    {
+      "path": "dist/features/portable-documentation/composition/node-protocol.d.ts",
+      "mode": 420,
+      "sha256": "f63d4b41d31585b41d5937cc487e63f309ef43ff527e5953c5d82a2a28c2ef2c",
+      "bytes": 171
+    },
+    {
+      "path": "dist/features/docs-command/adapters/outbound/package-version.d.ts",
+      "mode": 420,
+      "sha256": "ff4e10ff519dc8fd2bc3c6d436a9598b609ef30ca3773ae36624b8744397cb7b",
+      "bytes": 112
+    },
+    {
+      "path": "dist/features/portable-documentation/domain/plan-approval.d.ts",
+      "mode": 420,
+      "sha256": "f9a6c7b9047a77ad104cf6d67bdbcb253b7b524b36ebe41b511a7fadecf92a77",
+      "bytes": 295
+    },
+    {
+      "path": "dist/features/portable-bootstrap/application/portable-bootstrap-assets.d.ts",
+      "mode": 420,
+      "sha256": "61f129cf786cce19895682ea7b574a8ffb67f736c131cca78aacc917c0684299",
+      "bytes": 623
+    },
+    {
+      "path": "dist/features/portable-bootstrap/application/portable-bootstrap.d.ts",
+      "mode": 420,
+      "sha256": "ef6babdf1403b55a2d75985e270a04ce40ebdb601cd541dddd6c51f8885d8a8d",
+      "bytes": 516
+    },
+    {
+      "path": "dist/features/portable-bootstrap/composition/portable-bootstrap.d.ts",
+      "mode": 420,
+      "sha256": "11e71d91425ae9ca889b7d49ce22a040ef365d33e491cd5a029a9b32c2545d9b",
+      "bytes": 1045
+    },
+    {
+      "path": "dist/features/portable-documentation/domain/profile-error.d.ts",
+      "mode": 420,
+      "sha256": "180b4b51365c19a4ba8abe4249ea0697790db98fb77963e2f1df14f004349a53",
+      "bytes": 133
+    },
+    {
+      "path": "dist/features/portable-documentation/application/profile-policy.d.ts",
+      "mode": 420,
+      "sha256": "16812e5de5d8c4ed278dd6c187e73b79bacc5166c140989c660af3edf484b7e5",
+      "bytes": 672
+    },
+    {
+      "path": "dist/features/docs-command/adapters/inbound/protocol-api.d.ts",
+      "mode": 420,
+      "sha256": "8572e9b1b6e196e9d996bfa426fc12716db83a5034993c87e0232504f8f57e65",
+      "bytes": 7892
+    },
+    {
+      "path": "dist/features/portable-documentation/composition/qualification-profile.d.ts",
+      "mode": 420,
+      "sha256": "bd901637d1675050c3669819acf301761e43094c77ad311441826a5834d8f65c",
+      "bytes": 307
+    },
+    {
+      "path": "dist/features/qualification/adapters/qualification-runtime.d.ts",
+      "mode": 420,
+      "sha256": "8e6b7977728b6d3100fdf3a68f8b421e5deb0a2d2252d478ddd31e8a57d549fe",
+      "bytes": 520
+    },
+    {
+      "path": "dist/features/docs-command/qualification.d.ts",
+      "mode": 420,
+      "sha256": "9003cd4f5ac9354223932d9b91d7030b5453da2b2ce8becabb61ee9b46a3fa9a",
+      "bytes": 134
+    },
+    {
+      "path": "dist/features/portable-documentation/qualification.d.ts",
+      "mode": 420,
+      "sha256": "6cfe5722879791dcbc9d1a885055acdbb60d2e33950f1c314d9d9d9c6e9c9b47",
+      "bytes": 126
+    },
+    {
+      "path": "dist/features/portable-documentation/application/ranked-search.d.ts",
+      "mode": 420,
+      "sha256": "92117a12a0c3862e04804123ab386836504feaf16c0bf40efc447991e20a8629",
+      "bytes": 1426
+    },
+    {
+      "path": "dist/features/qualification/application/recovery.d.ts",
+      "mode": 420,
+      "sha256": "c144ffcb15f69271e1cd66dee1702b30a7b0f31984d20fb27a3d2ef96d21f202",
+      "bytes": 1953
+    },
+    {
+      "path": "dist/features/qualification/adapters/run-qualification.d.ts",
+      "mode": 420,
+      "sha256": "1f24feacae0e1ba17a94d24440a54d7c47bd22c69161915096e4de1ee025d8d0",
+      "bytes": 191
+    },
+    {
+      "path": "dist/features/qualification/application/run-qualification.d.ts",
+      "mode": 420,
+      "sha256": "17c31f6fe2587bf8ac6ba17b974625359092aa2258b1006fb43ba9a09a780672",
+      "bytes": 696
+    },
+    {
+      "path": "dist/features/qualification/application/runtime.d.ts",
+      "mode": 420,
+      "sha256": "0fc57995aca36cacf327ec6f9cbd24956717db963d0dbd4c53f654ce65b93e13",
+      "bytes": 5283
+    },
+    {
+      "path": "dist/features/docs-command/sdk.d.ts",
+      "mode": 420,
+      "sha256": "07e55556c99b26a03de8da02f62a6c4868edc116a1534faeafdbfb286cea20dc",
+      "bytes": 411
+    },
+    {
+      "path": "dist/features/portable-bootstrap/sdk.d.ts",
+      "mode": 420,
+      "sha256": "d344d93521c3459b750fa319aff9f0ad46a3b655390942c7cc6565523d6247a6",
+      "bytes": 408
+    },
+    {
+      "path": "dist/features/portable-documentation/sdk.d.ts",
+      "mode": 420,
+      "sha256": "34f25feaa624aaaec8ef79a9859d1451222ba8ccd5c7cc90bd431d2c5974e36a",
+      "bytes": 1360
+    },
+    {
+      "path": "dist/features/qualification/application/skill.d.ts",
+      "mode": 420,
+      "sha256": "fed30576bde1ab1114a760d7df1d26dbe3ecd1650cae0ee82acce32c653e8e87",
+      "bytes": 97
+    },
+    {
+      "path": "dist/features/qualification/application/workspace.d.ts",
+      "mode": 420,
+      "sha256": "e54feb6eb7dd9951c6e2521de4bdaed538b9393529bcc32d8f0c6c6e6fe02743",
+      "bytes": 764
+    },
+    {
+      "path": "dist/features/portable-documentation/adapters/outbound/yaml-compiled-output-reader.d.ts",
+      "mode": 420,
+      "sha256": "55e2ecc339cf6751e224389c3bdb21fd6e958db216ebe7f914c463e1d3af5372",
+      "bytes": 324
+    }
+  ]
+}

@@ -1,0 +1,4117 @@
+{
+  "name": "@agent-teams/document-authoring",
+  "version": "0.3.9",
+  "archiveSha256": "970859f5d0e36a1c849ad2452df9c9765d156848ae35ed8934f52a44d206212b",
+  "files": [
+    {
+      "path": "LICENSE",
+      "mode": 420,
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "bytes": 11357
+    },
+    {
+      "path": "dist/document-authoring/api.js",
+      "mode": 420,
+      "sha256": "181cb44a833acc45c303a3d27680b4cc2abf71d1efa86e23e4ce2e3bc4471fff",
+      "bytes": 309
+    },
+    {
+      "path": "dist/document-authoring/testing/api.js",
+      "mode": 420,
+      "sha256": "0bc6e748de88ae473c31d99597f1f2a2ba77cad0a155d195edd7a8957bc2683d",
+      "bytes": 296
+    },
+    {
+      "path": "dist/documentation-observation/api.js",
+      "mode": 420,
+      "sha256": "ac92625a85f3a1dd4e16e5b0c8fad77859a43f19930f31adeb3dfa575bb5fba9",
+      "bytes": 387
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/apply-document-plan.js",
+      "mode": 420,
+      "sha256": "94f738d0d7a207054702c516fad262ac7573e5affbd5ac78c94f14ed30a7c283",
+      "bytes": 16363
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/apply-document-recovery-receipt.js",
+      "mode": 420,
+      "sha256": "aebf1dbf0f14bed06bdcef9053925908da7f573687ad2471cc19257873c457c8",
+      "bytes": 772
+    },
+    {
+      "path": "dist/document-authoring/application/policies/assert-artifact-owner-allowed.js",
+      "mode": 420,
+      "sha256": "4c6986a9d13ceffc76dc8902a5cd3c7345b6cb0023345d699718572e07a45624",
+      "bytes": 468
+    },
+    {
+      "path": "dist/document-authoring/application/policies/assert-v2-planning-profile.js",
+      "mode": 420,
+      "sha256": "6c3def4d1e606ef10d21ded779248ef7beb53e6dc475eeec45b02c16cc71cf43",
+      "bytes": 491
+    },
+    {
+      "path": "dist/document-authoring/application/ports/authoring-profile-reader.js",
+      "mode": 420,
+      "sha256": "58c10f049a8fbc8ec2b45a15513c16a00311934217cf9a171692eb44bf4df211",
+      "bytes": 63
+    },
+    {
+      "path": "dist/document-authoring/application/policies/authoring-profile-semantics.js",
+      "mode": 420,
+      "sha256": "29a8a9aa52c8256a1a7198678fa4166a3a8f5ff32e140cca3ef8adc48597254d",
+      "bytes": 5786
+    },
+    {
+      "path": "dist/binary-string-comparator.js",
+      "mode": 420,
+      "sha256": "a550a64fe2995163c2f59b54630f260acca355377f552bd4e15b5fe345413ef0",
+      "bytes": 491
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/build-documentation-catalog.js",
+      "mode": 420,
+      "sha256": "e7afa75ecd9c1f8c5fa1a057126be7b52178b45d9956ff69cd3ea316263bbad4",
+      "bytes": 11963
+    },
+    {
+      "path": "dist/documentation-observation/application/policies/cancellation.js",
+      "mode": 420,
+      "sha256": "813f7645ad08c8e12e5e4b684aca5229a24236118ef33b3a349337e88b405aab",
+      "bytes": 409
+    },
+    {
+      "path": "dist/document-authoring/application/ports/canonical-document-renderer.js",
+      "mode": 420,
+      "sha256": "f34b0fba965dc9dd2678e049bbd62679ae0e2cdfac6da26806d6d67c6b193a6f",
+      "bytes": 66
+    },
+    {
+      "path": "dist/document-authoring/adapters/canonical-markdown.js",
+      "mode": 420,
+      "sha256": "0e184f4c7ee42b7ab57d40365b92107f9d6f168559daa22a521cf451d8c0d12e",
+      "bytes": 13936
+    },
+    {
+      "path": "dist/document-authoring/application/policies/classify-document-recovery.js",
+      "mode": 420,
+      "sha256": "4c208beaf7bee64c96c78d097a23ea859febf13b26ca779066e0a71fef2b136d",
+      "bytes": 5244
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/compile-document-plan.js",
+      "mode": 420,
+      "sha256": "3d282c3a83f8e7cc9ced86c0655737221819912aaa049444176512f3cd6d2dd0",
+      "bytes": 9753
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/contained-file-reader.js",
+      "mode": 420,
+      "sha256": "9e303a5d379795c83e0259c6e9f4f16eecd68f8fe58a268cc39525e48083be60",
+      "bytes": 4238
+    },
+    {
+      "path": "dist/documentation-observation/application/model/contained-file.js",
+      "mode": 420,
+      "sha256": "0b6735d84d076213acc0c8f54080d4e25b7b0278467d13809a3104b059082754",
+      "bytes": 269
+    },
+    {
+      "path": "dist/document-authoring/testing/crash-qualification.js",
+      "mode": 420,
+      "sha256": "702a11b4dbabbb28aec6366323b248fba6a81e7f57f1c155e0a33f5c28b83b04",
+      "bytes": 6591
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/describe-document-authoring-profile-v2.js",
+      "mode": 420,
+      "sha256": "e7002748023770e8a07244bccbffb3c651193d385eefda4c898cfa1fbe15a567",
+      "bytes": 4191
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/describe-document-authoring-profile.js",
+      "mode": 420,
+      "sha256": "b1b62b9266d1c47365631ba179a05cb2dad72287ac7a6f18b15dcabde7ce4af9",
+      "bytes": 742
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-authoring-profile-description.js",
+      "mode": 420,
+      "sha256": "d9f2c1fed73c4fbda04a2e794e40f76e74dc920575f7ed06c37e675d0419c59a",
+      "bytes": 77
+    },
+    {
+      "path": "dist/composition/document-authoring-qualification.js",
+      "mode": 420,
+      "sha256": "dc5addb6c95142a9d6c8f06b8404231babed274d395fe58edb882ba7eb1485ae",
+      "bytes": 953
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-authoring-semantic-digests.js",
+      "mode": 420,
+      "sha256": "56ff36b0e35c889284763d56dc54cd3ecf0f16d7259c8bc5783d6d83d1821325",
+      "bytes": 7790
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-authority-recompiler.js",
+      "mode": 420,
+      "sha256": "76f1aae728ade8d51a99d67a865a6725bb5873e1a6d972ce5081d27855b5cadc",
+      "bytes": 68
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/document-authority-recompiler.js",
+      "mode": 420,
+      "sha256": "ad52b8bf41876c94fcb0648a5bcb88063a37f2c4692aa47af21a34171aed0a14",
+      "bytes": 3610
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-catalog-authority-stability.js",
+      "mode": 420,
+      "sha256": "8495077f5653b8bdf49f857dde057ef3fb6944421679fa003a70316d1a4adb36",
+      "bytes": 957
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-catalog-diagnostics.js",
+      "mode": 420,
+      "sha256": "ded4f99ee441f78b708a48c2347d243fb7287023469e5767d59255004c02ac10",
+      "bytes": 1956
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-catalog-error.js",
+      "mode": 420,
+      "sha256": "6344e3d1aeb5c67583fd5b4634f4e98727ed795077564fc612682251d90a0a58",
+      "bytes": 263
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-catalog-fields.js",
+      "mode": 420,
+      "sha256": "d2e46294b8949827e702641185c233c47ac44d99a5f8690690e67696d23f224d",
+      "bytes": 2453
+    },
+    {
+      "path": "dist/document-authoring/application/projections/document-catalog-projections.js",
+      "mode": 420,
+      "sha256": "432aa47a6ffa0c58c79c83625561f91d6946a01eddf5a38397a5c38fd7429550",
+      "bytes": 1305
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-catalog-sidecar.js",
+      "mode": 420,
+      "sha256": "7bd44d1bc6df35f980f83651f82e608067e95470503ec77bd8106063fad2dda1",
+      "bytes": 3416
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-catalog.js",
+      "mode": 420,
+      "sha256": "91fcc09588da5f939716e72712816b0e673bbd8e0e47431364baea20958963ac",
+      "bytes": 55
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-command-consumer-root.js",
+      "mode": 420,
+      "sha256": "750e4cb1f2a01efe0d847a9e14e9789e2ca49a1a51ae49ab94726df6d76dde20",
+      "bytes": 648
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-command-projection.js",
+      "mode": 420,
+      "sha256": "a9ee7632fd8bd918dc0c5156077cea3b91a2b453a7167edcd58e3bdb11393400",
+      "bytes": 3691
+    },
+    {
+      "path": "dist/document-authoring/adapters/inbound/cli/document-command-renderer.js",
+      "mode": 420,
+      "sha256": "6a265d2077a0c894422e2e8b55545a753ed53f62f9c4cf42fc44fe71b4800f0b",
+      "bytes": 5072
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-command.js",
+      "mode": 420,
+      "sha256": "4bf80af9ba96d20116ab027a7f24d9c8256ba7817dc56af12d978838c334cc60",
+      "bytes": 55
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-contract-digests.js",
+      "mode": 420,
+      "sha256": "b5617374126d0ae311a630560530da0a929144f085c564be0fbb6a97ddecd883",
+      "bytes": 15541
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-contract-validator.js",
+      "mode": 420,
+      "sha256": "c53487c5719449935f3867fd0a428bc9056bea2e565594c21a8e628b726be10b",
+      "bytes": 66
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-description-authority.js",
+      "mode": 420,
+      "sha256": "6aaf3f813c4f91809a00fe31d2e502084973538d52ee89d8afd8e66ef36a5a6a",
+      "bytes": 69
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-environment-inspector.js",
+      "mode": 420,
+      "sha256": "82938bbd183c716bf8080d4431cfe3d1450030d2175c254e0492e68b5180c5dc",
+      "bytes": 69
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-environment-request.js",
+      "mode": 420,
+      "sha256": "e992fd3ddb0944c657acb86c9e59c50f8f5fbbc2d0c4a6dd90053019a4e3c155",
+      "bytes": 67
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-file-read-failure.js",
+      "mode": 420,
+      "sha256": "6f9eaa13bf34fecfd9abe837c6252ef0bc6b3a93f846167173e1f1c6597e6e1a",
+      "bytes": 335
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-file-reader.js",
+      "mode": 420,
+      "sha256": "59e68d05d93f05beccde288786dbc30572153316152f1f75423782ff3268b199",
+      "bytes": 59
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-file-state.js",
+      "mode": 420,
+      "sha256": "483fd478b18196c01ffaa0fb1be33a8339a467f0cfd54b229da36fbdaf8cf56b",
+      "bytes": 58
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-find.js",
+      "mode": 420,
+      "sha256": "45931d25de653aa390021077a28b75e11f1c456d94f970055216d4cbf03e7c8b",
+      "bytes": 52
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-input-failure.js",
+      "mode": 420,
+      "sha256": "993a32e676d6b1bc1875913d5ae964e614b97668720e31cf8234eb287012f53e",
+      "bytes": 585
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/document-journal-reconciliation.js",
+      "mode": 420,
+      "sha256": "44b7aabb909d3ba5d23bf34fe378331de6337de6e5ff409571812b6306804d28",
+      "bytes": 3806
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-journal-store.js",
+      "mode": 420,
+      "sha256": "0fe2d3887c098ce495bdc7dbec7f6d3a211f92027abc14ef7386405f84786843",
+      "bytes": 61
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-logical-preimage.js",
+      "mode": 420,
+      "sha256": "b6f33b6ec425e8aeb3d707bc2da9f311d92db404da06711d8b0da187c7d197ea",
+      "bytes": 3302
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-markdown-repository.js",
+      "mode": 420,
+      "sha256": "53b119b68467beaaa1a422f015aea8bbefa6ced4a2c18bdec1e0595274999cd8",
+      "bytes": 67
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-markdown-syntax-reader.js",
+      "mode": 420,
+      "sha256": "6d6df51fd637e0fe563b6d50bb98ff350465942af2e1561b26922bfbb75281d5",
+      "bytes": 70
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-metadata-sidecar-reader.js",
+      "mode": 420,
+      "sha256": "7d645af781fc3cb423ec903f946111988b1a7ac32467033432df64a6877368ab",
+      "bytes": 71
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-observation.js",
+      "mode": 420,
+      "sha256": "4c0605f14767bfdfc310e91a4cf5b2c29766798bdc48128fc9408da1604d0346",
+      "bytes": 59
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/document-parent-materialization-continuation.js",
+      "mode": 420,
+      "sha256": "f7acf6cee09afcdb13143c2b4999a91be9711ee3059356540ea1d0341cf01c04",
+      "bytes": 3857
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-parent-materialization.js",
+      "mode": 420,
+      "sha256": "b7f70e15478c08de53f794fe2847900571edf1b49ec0282a946ec283ce9e5dbf",
+      "bytes": 70
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-parent-materializer.js",
+      "mode": 420,
+      "sha256": "eed6b0d108f16d6460cc21502bc595b8943945b9c27bc107441f201596e7f10c",
+      "bytes": 67
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-physical-identity.js",
+      "mode": 420,
+      "sha256": "5503b2c8e2a68e27da7ec0327e309b76c869551affed6452549264279ec451c7",
+      "bytes": 1032
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-planning-error.js",
+      "mode": 420,
+      "sha256": "71f37f5f57eaa216c8789dfd4e85528ef5c36bb89d56be7b3a276ef432277077",
+      "bytes": 266
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-planning-policy-error.js",
+      "mode": 420,
+      "sha256": "f9c3877756dbc0128837f7dc1b696c5807f163f25add2d0428283a7449c65eab",
+      "bytes": 279
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-planning-profile-reader.js",
+      "mode": 420,
+      "sha256": "e8af6300d08885c6ad6cdf82673bc992fd38a859d2e8a588dd667017441b4bfd",
+      "bytes": 71
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-planning-state-reader.js",
+      "mode": 420,
+      "sha256": "bc2bcbb0823ddb88f3afb1c770b68aaa55041c2dc98fabe719e214f227cb7c8d",
+      "bytes": 69
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-planning.js",
+      "mode": 420,
+      "sha256": "4e437717e4d32381f8fd9713cdaa844a4160cd42264b2269dc04d85bb651d7bf",
+      "bytes": 56
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-publisher.js",
+      "mode": 420,
+      "sha256": "1af7c5f597acec5a368172bffa3ab1de180c4874fff80ba95839f04b26294a2f",
+      "bytes": 57
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-reachability-projector.js",
+      "mode": 420,
+      "sha256": "1082850e8ccab785f7f9e52c38bc9c68e5d69dbd8c9ea7165195c8ecfeccd4a9",
+      "bytes": 70
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-receipt-policy.js",
+      "mode": 420,
+      "sha256": "2d289801b3f72919114c53316c6c6df69a2bd8cec4b3172c637e44f9e94f9182",
+      "bytes": 4067
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-receipt.js",
+      "mode": 420,
+      "sha256": "e16f8faeeef58a88e7c0b3fe55540e936c9a559f1c0d0ec1d8c9a918bf91ba6c",
+      "bytes": 55
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/document-recovery-observation.js",
+      "mode": 420,
+      "sha256": "27ec71396020f480c0228c0e745ea41081d1d5ce860684e6ea8853b7a0702468",
+      "bytes": 4956
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-repository-path.js",
+      "mode": 420,
+      "sha256": "7919a92468f1e9dd0bb225357e3f7af89104d075c5979d15976b67c7e13f72e2",
+      "bytes": 933
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-schema-validator.js",
+      "mode": 420,
+      "sha256": "98af20b4752c1c896b39c3b6daba1eb3ffea5a4e4101553373e9ead2ab2e238e",
+      "bytes": 64
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-structure-verifier.js",
+      "mode": 420,
+      "sha256": "c358f581becf505c75f5aa4c2d099790957384f42850bd832e1718557a583f9d",
+      "bytes": 66
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-template-reader.js",
+      "mode": 420,
+      "sha256": "46546ea68924e15bca85f387becca6d48866a359a5e45b2b8df7f7492b796257",
+      "bytes": 63
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-temporary-path.js",
+      "mode": 420,
+      "sha256": "0bcd6e0d184cdf80ee98386afef78f2ea1fd69da8010e816c9534927ce26ce3f",
+      "bytes": 1565
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/document-transaction-continuation.js",
+      "mode": 420,
+      "sha256": "716069659d5ed137754e93a4c3fb06888cebc29aa52e589906c29cedac0a492f",
+      "bytes": 12061
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-transaction-coordinator.js",
+      "mode": 420,
+      "sha256": "cf911cec7eaf1dda7815b8ecf323e82f6012a19310ea3a7a636b4349e431e442",
+      "bytes": 71
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-transaction-digests.js",
+      "mode": 420,
+      "sha256": "ba67877fa96fb1eed39e08f2ce7e43dee4fb35baef7e4879da517a8f1b555e4c",
+      "bytes": 426
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-transaction-envelope-body.js",
+      "mode": 420,
+      "sha256": "a8bed041f7125683bfe06605d805d7a2ed090542c3fbab7ae153962a71209661",
+      "bytes": 4729
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-transaction-envelope-policy.js",
+      "mode": 420,
+      "sha256": "31a0354d16eac8ce361b635622eabd7271d3394f405dd4741c8d230e7c67b213",
+      "bytes": 7786
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/document-transaction-error.js",
+      "mode": 420,
+      "sha256": "29031ac9a4e726cab842f47f380366115ead1fe6ddfd845b4bec10f6fc917ed0",
+      "bytes": 289
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/document-transaction-execution.js",
+      "mode": 420,
+      "sha256": "26504fd6bf1946a6f83b3d2f59a33e9d079090fac62e601fe5f87bdfe1d64ab6",
+      "bytes": 1350
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-transaction-inspection.js",
+      "mode": 420,
+      "sha256": "bd6dcb0692816d383a195cc8bd4dcc83e1e6be36b0837ba454d3141404265840",
+      "bytes": 70
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/document-transaction-receipts.js",
+      "mode": 420,
+      "sha256": "23ecfce4de52aedf68c1046478390cdae6fa37e07a8a3ac904d04075cfc974f9",
+      "bytes": 7015
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-transaction.js",
+      "mode": 420,
+      "sha256": "2e551faf3e2d3f565d39dc6871e80f81305998b6af82691791345c9cb307365d",
+      "bytes": 59
+    },
+    {
+      "path": "dist/document-authoring/application/ports/documentation-catalog-reader-v2.js",
+      "mode": 420,
+      "sha256": "abd328f6cf4f45977d529bba369c006945822540067a071600deabecfa740948",
+      "bytes": 70
+    },
+    {
+      "path": "dist/document-authoring/application/ports/documentation-catalog-reader.js",
+      "mode": 420,
+      "sha256": "c46f8bbe22f4e23850ed3457dec58203bfb7bf50166124fd21363e4f23f99efc",
+      "bytes": 67
+    },
+    {
+      "path": "dist/document-authoring/application/ports/documentation-search-catalog-reader-v2.js",
+      "mode": 420,
+      "sha256": "e08ede813bd31737c3e180b782f10218d6ca0671f95043c373b88f280de1bbc6",
+      "bytes": 77
+    },
+    {
+      "path": "dist/document-authoring/application/ports/documentation-search-catalog-reader.js",
+      "mode": 420,
+      "sha256": "622ee142d7ee5b92cd8b7fec4d1804d208621de6076b46738225a1ee0a178317",
+      "bytes": 74
+    },
+    {
+      "path": "dist/document-authoring/application/model/errors.js",
+      "mode": 420,
+      "sha256": "81a83e5b400e19c7d534bee11541732e5d45738fa69e4e087bef3580abf7fa98",
+      "bytes": 251
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-document-reader.js",
+      "mode": 420,
+      "sha256": "62d6e9b2fa663bfd8071b4b045c7b9a8a1baae14704e1864c4d682174512df65",
+      "bytes": 4394
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-filesystem.js",
+      "mode": 420,
+      "sha256": "ec920195489b1e6989609a92cd87ae94f4c127ed958dc83dd3fee093092165a3",
+      "bytes": 2272
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-paths.js",
+      "mode": 420,
+      "sha256": "28ea6efc6daade3a9743f8ab91b18cc3cea9cec94f79d2a64b693178e26fe08e",
+      "bytes": 2005
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-reference-resolver.js",
+      "mode": 420,
+      "sha256": "049a9b6d6dabf61a2f6002f927a6ab60bc34d89c2aae4c48c5066062a5a1e176",
+      "bytes": 6888
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-repository.js",
+      "mode": 420,
+      "sha256": "2d68667199d4de844c1697021bc53acc410bc28f5b13e6ada1562e2d53eb317c",
+      "bytes": 683
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-tree-observer.js",
+      "mode": 420,
+      "sha256": "0773f882a2aa468d1e02de2f32a45a6a15434e0d2b80a7c07e1cd6d99ec9e64d",
+      "bytes": 10481
+    },
+    {
+      "path": "dist/document-authoring/adapters/inbound/cli/find-command.js",
+      "mode": 420,
+      "sha256": "3ef2d402c6f9c08135ba9524a3c9dfa11ed7604a774394f5ddb2556cc9c106dc",
+      "bytes": 5325
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/find-documents.js",
+      "mode": 420,
+      "sha256": "f9f60f02209667ebd64d63e23f6a451fa4e9bd033368f78de83af4bf663808ac",
+      "bytes": 4325
+    },
+    {
+      "path": "dist/index.js",
+      "mode": 420,
+      "sha256": "427982c20eae43ae4f691e32d391209fd3cf7d67d71e8edc30c1569319763225",
+      "bytes": 788
+    },
+    {
+      "path": "dist/qualification/index.js",
+      "mode": 420,
+      "sha256": "089c7af1a0f6e0de3a00a592cd5a095874de68f90968d73aeb92ee929f72d715",
+      "bytes": 284
+    },
+    {
+      "path": "dist/documentation-observation/application/model/input-problem.js",
+      "mode": 420,
+      "sha256": "eb6673e9844f502405075de9b2e285cc3eeff097d2ed78518f87ae1af097ce74",
+      "bytes": 347
+    },
+    {
+      "path": "dist/document-authoring/application/policies/inspect-catalog-document.js",
+      "mode": 420,
+      "sha256": "522e001ba495458d86e5f177283721027a659bb0c853939ee2c01c0d810850c2",
+      "bytes": 5462
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/inspect-document-authoring-environment-v1.js",
+      "mode": 420,
+      "sha256": "e58600de00ab1ee53374b5553060308b72c306d793c0054a6c50ca8ef29ba059",
+      "bytes": 621
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/inspect-document-transaction.js",
+      "mode": 420,
+      "sha256": "365e00d237a3d6b5c649f38bfcfce358a5d53e49f3211fbae4f5f067eb682c31",
+      "bytes": 4712
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/installed-artifact-identity.js",
+      "mode": 420,
+      "sha256": "75d2692dd4de6573a8036942b190cff640177aecade82ec2f5ae042fb189280d",
+      "bytes": 1126
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/load-v2-profile-description.js",
+      "mode": 420,
+      "sha256": "8b4a777b732c7d0dff401b73e0b72b84799149ad9308cbef71a180dacffbbc25",
+      "bytes": 671
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/load-validated-document-authoring-profile-v2.js",
+      "mode": 420,
+      "sha256": "58aa462954bda7e5a65440acbe73b1aceb71f589f49b3ef9bf6050f97dd4d528",
+      "bytes": 3544
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/load-validated-document-authoring-profile.js",
+      "mode": 420,
+      "sha256": "829d098eef6442924557e0cef6a625af1c1a17f75595edd1d453248202c2e88d",
+      "bytes": 1894
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/markdown-document-parser.js",
+      "mode": 420,
+      "sha256": "ad6e24116088af4df8357d7cd1e9ad4fa2216ecb2b0c0a3711daddcccef341cc",
+      "bytes": 8829
+    },
+    {
+      "path": "dist/documentation-observation/application/model/markdown-document.js",
+      "mode": 420,
+      "sha256": "122f9ee1b8ccb2a60dd90f02df5ac83f998911b3b39c23e1f78b8450631f85a9",
+      "bytes": 403
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/markdown-reference-target.js",
+      "mode": 420,
+      "sha256": "a9b0503da5e972bc0340a17b665b83820a4330e99a2236050a383dc2077103a8",
+      "bytes": 2024
+    },
+    {
+      "path": "dist/documentation-observation/application/ports/markdown-repository.js",
+      "mode": 420,
+      "sha256": "375121577727e4ef813f14f7ebb1b755cbb942842764961161d3fc63aba01168",
+      "bytes": 58
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/markdown-runtime.js",
+      "mode": 420,
+      "sha256": "3e05be55e561f95e0fd61e7300ec42bf0cc5ccc537519dcb52c81c32368dd283",
+      "bytes": 234011
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/markdown-syntax-reader.js",
+      "mode": 420,
+      "sha256": "e13bcf50ace598a4bc1628be417d449809d1897b9a9f5f9e7f304631724eca34",
+      "bytes": 901
+    },
+    {
+      "path": "dist/documentation-observation/application/model/markdown-syntax.js",
+      "mode": 420,
+      "sha256": "5d8c207119038212bb8c6f72ea9043595309ed820c5220f3b0486d3bb4d7c80a",
+      "bytes": 54
+    },
+    {
+      "path": "dist/document-authoring/application/ports/metadata-instance-validator.js",
+      "mode": 420,
+      "sha256": "b192aa2a472bac46deff7d8f4a9af0798623a64e689d0863b7324e09d2256af8",
+      "bytes": 66
+    },
+    {
+      "path": "dist/document-authoring/module.js",
+      "mode": 420,
+      "sha256": "0a9feb92493f5951092439a6bae2ff562c4282f879bd98de9b35f49507a2d95d",
+      "bytes": 489
+    },
+    {
+      "path": "dist/documentation-observation/module.js",
+      "mode": 420,
+      "sha256": "f5e19bc3a0c1d2b2e92b4a6e30f3a2a873ec23849fedd6a0dfaff31204b50b2d",
+      "bytes": 342
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-authoring-profile-reader-v2.js",
+      "mode": 420,
+      "sha256": "0c81f1d3580d46f12260e85faf0db21a18c990e5a82e7fc199733991a9e665db",
+      "bytes": 2494
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-authoring-profile-reader.js",
+      "mode": 420,
+      "sha256": "7a5b412f1325bf6f95bedb63f5ba2bdf41e2d21175da3dd859f1d101b6d09e0d",
+      "bytes": 1658
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-api.js",
+      "mode": 420,
+      "sha256": "588183563c0001b23a1df11b0f37c7f6aeac645edcf02ac9aa249feb1375edce",
+      "bytes": 6608
+    },
+    {
+      "path": "dist/composition/node-document-authoring.js",
+      "mode": 420,
+      "sha256": "db30f190cb3fa190b223bb5b480df857e7502e2636e2224c35f2dbfb86c09eba",
+      "bytes": 2104
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-contract-validator.js",
+      "mode": 420,
+      "sha256": "c9f7c112896bbaa64a4dbb5a0554e1439b72e77cb14d77c60ed95a7d53bf64b0",
+      "bytes": 12083
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-environment-inspector.js",
+      "mode": 420,
+      "sha256": "5268527c805d9eead3d479fba72377110d7252bb1fd3bf56ceb8c6d82a9f185d",
+      "bytes": 1916
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-file-state.js",
+      "mode": 420,
+      "sha256": "311a82aaf53563aa14d036f644d8a6b58188fda1fdedfa953deef1a6692e71da",
+      "bytes": 8070
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-journal-store-faults.js",
+      "mode": 420,
+      "sha256": "b6596ac8d46f03799e2db8445c8375b91c28e8ca3b3d0cdb8559a6ac1cbc95e0",
+      "bytes": 73
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-journal-store-private.js",
+      "mode": 420,
+      "sha256": "9aa42d58a40746d1673b71c524e3b4dbe219e3b9c977c3805a50b88792c13280",
+      "bytes": 140
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-journal-store.js",
+      "mode": 420,
+      "sha256": "80e4ad944c40c028e3952a6cece0cb7a8745631330f33dc50be55eba04a950a3",
+      "bytes": 11248
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-metadata-sidecar-reader.js",
+      "mode": 420,
+      "sha256": "f5f4c643852a0a7b20648337545aed3fd5a89824ff562c22037780a49e1931d9",
+      "bytes": 3840
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-parent-materializer.js",
+      "mode": 420,
+      "sha256": "138d321d24f6977d2d49974c5ea778929324d1095c709f19408cdc69ec44e3cb",
+      "bytes": 12903
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-planning-profile-reader.js",
+      "mode": 420,
+      "sha256": "c6834d0b62c80bc5da5fe97ae78fe3afe0c0d8b0715236f0e68ab48dd19ed627",
+      "bytes": 4101
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-planning-state-reader.js",
+      "mode": 420,
+      "sha256": "178ae12fffd7ebc5bd7b085e355d40dccc17822114f8112bb3110fed194addec",
+      "bytes": 8083
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-planning.js",
+      "mode": 420,
+      "sha256": "f2647bc5d39b5b38fb49f56492d02fc0a404e3e27941a295cf86fc2364a808b0",
+      "bytes": 5424
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-publisher-private.js",
+      "mode": 420,
+      "sha256": "a7eac5837a25483ca263e0e11de5d78fd11592144a608b6894d5a2803619762a",
+      "bytes": 129
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-publisher.js",
+      "mode": 420,
+      "sha256": "b0dc12abbd51f34b6f3491ee55fc5b37e5fff219cd141bd4cb5087212df71c56",
+      "bytes": 17457
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-reachability-projector.js",
+      "mode": 420,
+      "sha256": "a8d017925a18e9ce0a39d72b0e208b43440a6122c55bc3b5b1d91c7847d2f66c",
+      "bytes": 1907
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-structure-verifier.js",
+      "mode": 420,
+      "sha256": "1e997a4091eefbbc87f1cff61b4d288a8ee357cd5ee83fb3f17a6eb31bcb3fd7",
+      "bytes": 4317
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-template-reader.js",
+      "mode": 420,
+      "sha256": "62f9a6cf4809a1e9504e1428a358f0454eb3558a1eae71864ab92766403596b8",
+      "bytes": 1799
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-transaction-coordinator.js",
+      "mode": 420,
+      "sha256": "4f65963c03227061d8cf0034377ef4629bac362d84efbc7ee4f5be8e5d045170",
+      "bytes": 2170
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-writing.js",
+      "mode": 420,
+      "sha256": "a7f9168c845275298f9648c08a0b7f4e0b32b88e446420c76a2da2f51ca139b9",
+      "bytes": 3848
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-metadata-instance-validator.js",
+      "mode": 420,
+      "sha256": "491bc7db2c4754a294a200ae01c9e985f492bd5f93e76c2aff5c0089d16eef66",
+      "bytes": 3939
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-owner-membership-reader.js",
+      "mode": 420,
+      "sha256": "5ba87a049979f0f491c33b2c18a1211dd19fd8651e8cddfaebbd12ea1cc277bc",
+      "bytes": 2790
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-path-authority.js",
+      "mode": 420,
+      "sha256": "60f0a956690e56aa703ce5d71d3ca0731d42ea1dbd1023fe72ff504d0b0c16a4",
+      "bytes": 8571
+    },
+    {
+      "path": "dist/document-authoring/application/policies/normalize-document-intent.js",
+      "mode": 420,
+      "sha256": "f83da47e457b92c787e2e3bfbed6847014a06150c596d74124d3191433267495",
+      "bytes": 4011
+    },
+    {
+      "path": "dist/observation.js",
+      "mode": 420,
+      "sha256": "8368719de61aad7dffabff5fd46900d57ca68eca3a80c7bf88851511440694b2",
+      "bytes": 241
+    },
+    {
+      "path": "dist/document-authoring/application/ports/owner-membership-reader.js",
+      "mode": 420,
+      "sha256": "69daaa233a8fe638978fb090fe6fb1cc209bc58dfbdf0e63caa82dff7e130833",
+      "bytes": 62
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/package-version.js",
+      "mode": 420,
+      "sha256": "4777044621dd3b0f883e6f6261886639bcec261161cfd8164e6c95490640425a",
+      "bytes": 490
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/plan-documentation-document.js",
+      "mode": 420,
+      "sha256": "89db4266ec4c450894c6d3f7402d7d51b3548a441fb877241f5a1abf1cb841c3",
+      "bytes": 12618
+    },
+    {
+      "path": "dist/document-authoring/application/policies/project-catalog-metadata.js",
+      "mode": 420,
+      "sha256": "4841b9ccdf2de0622598ed016a4b5d3a8363155fd64589ceb5c49c3d0d7db01c",
+      "bytes": 6638
+    },
+    {
+      "path": "dist/document-authoring/application/policies/project-document-authoring-description.js",
+      "mode": 420,
+      "sha256": "2a0c4eb74dae57e2bb136c44f768d36020fd5ca5e25d2e67e029a497c062e3cd",
+      "bytes": 7565
+    },
+    {
+      "path": "dist/document-authoring/application/policies/project-document-reachability.js",
+      "mode": 420,
+      "sha256": "5f646bc7f0d4c53dcfa7a161c5c372329a4642cd4fbe425f9a3b824bda20500d",
+      "bytes": 2955
+    },
+    {
+      "path": "dist/document-authoring/application/policies/project-document-transaction-inspection.js",
+      "mode": 420,
+      "sha256": "d08135246886e46ad8b8c6195d782cde6dae5d96415444f25798607b5d7916c3",
+      "bytes": 5980
+    },
+    {
+      "path": "dist/document-authoring/application/policies/project-similar-document-advice.js",
+      "mode": 420,
+      "sha256": "056a024473abbc74635f5a969486fc3aaa907e9a983f92aa2edb5c5075c4815f",
+      "bytes": 724
+    },
+    {
+      "path": "dist/document-authoring/testing/qualification.js",
+      "mode": 420,
+      "sha256": "f3c3c3d1fc2e4aedb4aaa24597fc1c87e5c698733f24f41d565e2c95db6c88ea",
+      "bytes": 701
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/read-document-authority-file.js",
+      "mode": 420,
+      "sha256": "3d7727284e7f9782ab1c0ca8d2f28616b792b6b2e340d373e0313e11f6b6d2c3",
+      "bytes": 2939
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/recapture-directory-receipt-evidence.js",
+      "mode": 420,
+      "sha256": "03314011877b92e593e157391a193e11cb24b230695806fec499ae79fbd7f7d0",
+      "bytes": 1326
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/recapture-document-publication-paths.js",
+      "mode": 420,
+      "sha256": "8c9df377d3ba6db8fa72f6890604af46375208fa6d2bf8be97ec5ea78ee9f6eb",
+      "bytes": 1785
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/recover-document-transaction.js",
+      "mode": 420,
+      "sha256": "9caad2b60b54b118423bcce08c84880f72468e2b276765a30fce3d6d45f0d1b5",
+      "bytes": 12901
+    },
+    {
+      "path": "dist/document-authoring/application/policies/resolve-document-authoring.js",
+      "mode": 420,
+      "sha256": "f1a0e3fda79696ad5dc9f44e61761751a05dbe48d5ad8dff32a7f0c7eaeb1c38",
+      "bytes": 7231
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/run-document-doctor.js",
+      "mode": 420,
+      "sha256": "b91f8fd3ffe084cb651d60d6965d644ab36a1be1230d5a46642256b98cade7e5",
+      "bytes": 8555
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/run-document-new.js",
+      "mode": 420,
+      "sha256": "ed2870e07102b06727aaf5c4184fb04a07f2faec19cd9115213628785fc733f8",
+      "bytes": 9382
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/run-document-recover.js",
+      "mode": 420,
+      "sha256": "00de73212ea6d2a8995e45580104f7090238d2b2a138528fce5104126c51b80c",
+      "bytes": 6108
+    },
+    {
+      "path": "dist/document-authoring/application/policies/same-document-catalog-snapshot.js",
+      "mode": 420,
+      "sha256": "d48a2cf9da39516d67949b080e54d73b296fb8bfff81643da272f0aa49d79962",
+      "bytes": 1189
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/schema-catalog.js",
+      "mode": 420,
+      "sha256": "d6f22ade3ef38cdbaec5d38daa5274e65e90d05ff3f779388f8c9fab9a2c20d2",
+      "bytes": 4103
+    },
+    {
+      "path": "dist/document-authoring/application/ports/similar-document-advisor.js",
+      "mode": 420,
+      "sha256": "c62af5a3e17b1687e8e72fc9b973cd4fd6b4c820f7488b41f2b0f9c4f8757855",
+      "bytes": 63
+    },
+    {
+      "path": "dist/document-authoring/application/model/state-contract.js",
+      "mode": 420,
+      "sha256": "22561a0f9ce5c894da7a1145922014111312deb656c9530638c6000760875c51",
+      "bytes": 255
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/strict-yaml.js",
+      "mode": 420,
+      "sha256": "b8c649db0ab51c28c1108c3a7054b0a2fc79ce34f12737de376798adcd6658e8",
+      "bytes": 1734
+    },
+    {
+      "path": "dist/document-authoring/application/model/validated-document-authoring-profile.js",
+      "mode": 420,
+      "sha256": "539178639df809b74da604c02dbf45a0b87bbe814fe6f007fd8692e50f898257",
+      "bytes": 1456
+    },
+    {
+      "path": "dist/markdown-distribution-proof.json",
+      "mode": 420,
+      "sha256": "32cd426e9c8e37aa56fd59f8ce03ca76cbaa5e4ce6c5822fb77c1af113491d86",
+      "bytes": 137476
+    },
+    {
+      "path": "dist/markdown-upstream.cdx.json",
+      "mode": 420,
+      "sha256": "6f46df4dba1815f607d362c1a16772f1d1009655200ee4bf4a86ac9a39980f83",
+      "bytes": 128437
+    },
+    {
+      "path": "package.json",
+      "mode": 420,
+      "sha256": "e74a57ced5e2596240b4fab7d494bdd49c9360d21726613e96d8f429e033099d",
+      "bytes": 1491
+    },
+    {
+      "path": "schemas/document-authoring-profile/v1.schema.json",
+      "mode": 420,
+      "sha256": "0cd6ee5b6a1843c54e40a160720f792b852a467c6a8626183cec6255c6b87110",
+      "bytes": 8731
+    },
+    {
+      "path": "schemas/document-authoring/document-directory-transaction-envelope/v1.schema.json",
+      "mode": 420,
+      "sha256": "b20821c122ef5b020d127c74d07b5d892ddc4c66f6eec4075a9051ac89797b12",
+      "bytes": 9058
+    },
+    {
+      "path": "schemas/document-authoring/document-file-transaction-envelope/v1.schema.json",
+      "mode": 420,
+      "sha256": "8a49fe500c84708094f0a29f9d9b4904c1ab332160a03b0ee176d91b10212bd5",
+      "bytes": 7898
+    },
+    {
+      "path": "schemas/document-authoring/document-plan/v1.schema.json",
+      "mode": 420,
+      "sha256": "9836381822135ef5b394e57fc99ca63f40b2d5da7591acf49c28c837675aba67",
+      "bytes": 6684
+    },
+    {
+      "path": "schemas/document-command-envelope/v1.schema.json",
+      "mode": 420,
+      "sha256": "f274660723f41fe7b62d55480b7004b0527691d97c24adac6dd919df53b03a86",
+      "bytes": 7313
+    },
+    {
+      "path": "schemas/document-intent/v1.schema.json",
+      "mode": 420,
+      "sha256": "4ffee43f8f65524178dd47d4be225a4ffbdfff1627a2206a47ff5b47959b5d79",
+      "bytes": 3972
+    },
+    {
+      "path": "schemas/document-plan/v1.schema.json",
+      "mode": 420,
+      "sha256": "0f6e9e6578dc66b65d7b6432b67bdbf5c3126b1d357815025fb7053d2192a01d",
+      "bytes": 6705
+    },
+    {
+      "path": "schemas/document-receipt/v1.schema.json",
+      "mode": 420,
+      "sha256": "d5e508012eb75afe2cc0f85e0c6c2da4ddb4121da23236d3238856c9748ef40f",
+      "bytes": 5863
+    },
+    {
+      "path": "schemas/document-authoring-profile/v2.schema.json",
+      "mode": 420,
+      "sha256": "f39a4156fba6c8e2102bd6cb4dd75895d11a94ca30bb090a38ebb210b40d25f3",
+      "bytes": 5945
+    },
+    {
+      "path": "schemas/document-authoring/document-plan/v2.schema.json",
+      "mode": 420,
+      "sha256": "9615429c7b237e722bdbd03888933d93a542c96b9e8ec2861054825e29502ffc",
+      "bytes": 4857
+    },
+    {
+      "path": "schemas/document-command-envelope/v2.schema.json",
+      "mode": 420,
+      "sha256": "d1895439abbed517cb64ddf17edd7091299cfdbe78d71345395e382c59a2eb9e",
+      "bytes": 8990
+    },
+    {
+      "path": "schemas/document-parent-materialization/v2.schema.json",
+      "mode": 420,
+      "sha256": "528adeddbea09dd38ce34012f49318e80a99f2cc468cd9bd8a713cc080017004",
+      "bytes": 2487
+    },
+    {
+      "path": "schemas/document-plan/v2.schema.json",
+      "mode": 420,
+      "sha256": "73437548ad22cca5e7ef88e379e583a39549b42ddeaee86721cd50bb1d604939",
+      "bytes": 4439
+    },
+    {
+      "path": "schemas/document-receipt/v2.schema.json",
+      "mode": 420,
+      "sha256": "92a7834a132d47c9e03885fa128dc6b6f3c284896c4f72cebb6190911ecc429a",
+      "bytes": 4343
+    },
+    {
+      "path": "schemas/document-authoring-profile/v3.schema.json",
+      "mode": 420,
+      "sha256": "4166ee42a3d0e0e51fc5f54eee9fcc9f81bec3a2fa0dc485f51ec21db6babc8d",
+      "bytes": 6869
+    },
+    {
+      "path": "schemas/foundation-transaction-envelope/v3.schema.json",
+      "mode": 420,
+      "sha256": "b8e3d531e39327daac9749560007380d32284cfc286ca4125b31256e0ffcd5bd",
+      "bytes": 6089
+    },
+    {
+      "path": "schemas/foundation-transaction-envelope/v4.schema.json",
+      "mode": 420,
+      "sha256": "7850c851a86708f1524497e664ed9ad8198a7495299b8912becab3eb027e7446",
+      "bytes": 6602
+    },
+    {
+      "path": "dist/document-authoring/api.d.ts.map",
+      "mode": 420,
+      "sha256": "d844c7eed1f7870b4aaeb6652832586046872c1bd41da5c3638281d36d807cb8",
+      "bytes": 1994
+    },
+    {
+      "path": "dist/document-authoring/testing/api.d.ts.map",
+      "mode": 420,
+      "sha256": "7b21876814795167b7738a3d5f72b5281b0ffbf26d580689e51a58394d807cc3",
+      "bytes": 815
+    },
+    {
+      "path": "dist/documentation-observation/api.d.ts.map",
+      "mode": 420,
+      "sha256": "3176dd32e5801e0b6d4b889f0ad2ada9b830a0a59ecca601fbc35e3415cb7340",
+      "bytes": 582
+    },
+    {
+      "path": "dist/document-authoring/api.js.map",
+      "mode": 420,
+      "sha256": "876478639864a8d688f67076702091aff3fb9231042456d829b732eef5656231",
+      "bytes": 254
+    },
+    {
+      "path": "dist/document-authoring/testing/api.js.map",
+      "mode": 420,
+      "sha256": "a910d9c8e4c8ba58003effaf12c407bb01dd217ff5fc72826c0e8fef76552d45",
+      "bytes": 265
+    },
+    {
+      "path": "dist/documentation-observation/api.js.map",
+      "mode": 420,
+      "sha256": "f68a71f1d917bee21dfb72c24d904bbb8a2196413de5f38dee0cf61061375f26",
+      "bytes": 320
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/apply-document-plan.d.ts.map",
+      "mode": 420,
+      "sha256": "b87d7de6f1783206cd66a2b7392704b27c8e53eae0c7a031dd6e113dc9e0696c",
+      "bytes": 764
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/apply-document-plan.js.map",
+      "mode": 420,
+      "sha256": "84847f00997bf7984bbd6a0d649e85b33c3ca50f32c97fa37a51d9e09b671476",
+      "bytes": 12580
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/apply-document-recovery-receipt.d.ts.map",
+      "mode": 420,
+      "sha256": "00920d2695547bc1d27a14574283b16b443d8b35916ce413107d4b45257e0d88",
+      "bytes": 880
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/apply-document-recovery-receipt.js.map",
+      "mode": 420,
+      "sha256": "734884a13e55eec667c6cd510ba32ea4454308e2e6b493382007fbb5201ecf6d",
+      "bytes": 871
+    },
+    {
+      "path": "dist/document-authoring/application/policies/assert-artifact-owner-allowed.d.ts.map",
+      "mode": 420,
+      "sha256": "24c44b16e8ae6092ef747cb9271e20425f46168cfd43141b6f37aabf235275be",
+      "bytes": 339
+    },
+    {
+      "path": "dist/document-authoring/application/policies/assert-artifact-owner-allowed.js.map",
+      "mode": 420,
+      "sha256": "e64b1c290468aeb26058d848f50e1cfafee277369d1e42a51e9df0f403a4d8d3",
+      "bytes": 517
+    },
+    {
+      "path": "dist/document-authoring/application/policies/assert-v2-planning-profile.d.ts.map",
+      "mode": 420,
+      "sha256": "bda05b95a5680ec3a127c4992823e8b5163c7caa550d2a22abbba56e28071225",
+      "bytes": 335
+    },
+    {
+      "path": "dist/document-authoring/application/policies/assert-v2-planning-profile.js.map",
+      "mode": 420,
+      "sha256": "a429d1f4891dc32ba1d72c99f6ed54372fad772303f9dfce7ac07ade87a3e0cf",
+      "bytes": 480
+    },
+    {
+      "path": "dist/document-authoring/application/ports/authoring-profile-reader.d.ts.map",
+      "mode": 420,
+      "sha256": "e7c19cf33eae6fe5845ad3cc184bcfec039ec6d0bb8a59a339455be09f8f2166",
+      "bytes": 1353
+    },
+    {
+      "path": "dist/document-authoring/application/ports/authoring-profile-reader.js.map",
+      "mode": 420,
+      "sha256": "3ec0989d092d0e1d0bf5ece947926a6761ec92c00e5cbdd467584e20eebac2cf",
+      "bytes": 186
+    },
+    {
+      "path": "dist/document-authoring/application/policies/authoring-profile-semantics.d.ts.map",
+      "mode": 420,
+      "sha256": "7355a349e8519832373fa54c285d0a32270875c7076fcb7328382dac404b45ef",
+      "bytes": 1706
+    },
+    {
+      "path": "dist/document-authoring/application/policies/authoring-profile-semantics.js.map",
+      "mode": 420,
+      "sha256": "7da9969888013da2b443d7a469ec4a76222e079bfc8b09e5e93f1f4fca272625",
+      "bytes": 5355
+    },
+    {
+      "path": "dist/binary-string-comparator.d.ts.map",
+      "mode": 420,
+      "sha256": "f3c70d95e2d68fcfb9745770049b83305371c3cc0b1bd2585c03cda7428162ad",
+      "bytes": 229
+    },
+    {
+      "path": "dist/binary-string-comparator.js.map",
+      "mode": 420,
+      "sha256": "34158f7b1aa346d95996e2aef731c387acc5f748f41cd1607cdd0f4bde752595",
+      "bytes": 591
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/build-documentation-catalog.d.ts.map",
+      "mode": 420,
+      "sha256": "398c65b85ed1ae3d2d5dab7b3b210383c712fe4b36a41f2da9cd83f2f0f46995",
+      "bytes": 1693
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/build-documentation-catalog.js.map",
+      "mode": 420,
+      "sha256": "c91f63aa123de78720450f98cc8d718f38e673c912fc1278c40c9573c34369b3",
+      "bytes": 11216
+    },
+    {
+      "path": "dist/documentation-observation/application/policies/cancellation.d.ts.map",
+      "mode": 420,
+      "sha256": "9f20ac05e8965a6d0aa0449354154cc01368291049005fe7df12e37d5870cc71",
+      "bytes": 238
+    },
+    {
+      "path": "dist/documentation-observation/application/policies/cancellation.js.map",
+      "mode": 420,
+      "sha256": "3880617910bba98cb8a217ccc8442830d684fa8e5054baa33741b6cb5184d19a",
+      "bytes": 447
+    },
+    {
+      "path": "dist/document-authoring/application/ports/canonical-document-renderer.d.ts.map",
+      "mode": 420,
+      "sha256": "3caccb9ad73d7bb0ce3a4efcf31109989352d28f0232896cc3338827f149e878",
+      "bytes": 1122
+    },
+    {
+      "path": "dist/document-authoring/application/ports/canonical-document-renderer.js.map",
+      "mode": 420,
+      "sha256": "883c1c63215149fed7a7ac8859eacd09afd30b49bce331fb0088359a6fe27a04",
+      "bytes": 192
+    },
+    {
+      "path": "dist/document-authoring/adapters/canonical-markdown.d.ts.map",
+      "mode": 420,
+      "sha256": "df012d4620016d934a7b64f3c739db6a4f5ff7d6fe04824c9ece502137eacabc",
+      "bytes": 892
+    },
+    {
+      "path": "dist/document-authoring/adapters/canonical-markdown.js.map",
+      "mode": 420,
+      "sha256": "51a121dde629ff36ef061167d492bbb52baba8e0b6312d35ec488be4f23b6881",
+      "bytes": 13869
+    },
+    {
+      "path": "dist/document-authoring/application/policies/classify-document-recovery.d.ts.map",
+      "mode": 420,
+      "sha256": "b2f3b0bd1c8acfdf4f392fd58361c3b4a19089f9b3f3a3fce316174c46516659",
+      "bytes": 2365
+    },
+    {
+      "path": "dist/document-authoring/application/policies/classify-document-recovery.js.map",
+      "mode": 420,
+      "sha256": "f1300c4c489296d194d177a9d6c41c31a4399d28181ef6be75f25bf223343e03",
+      "bytes": 4309
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/compile-document-plan.d.ts.map",
+      "mode": 420,
+      "sha256": "a7b9674182747d882af51d8b9636f66e0e00301b25cc0208c3ece46bd8298040",
+      "bytes": 377
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/compile-document-plan.js.map",
+      "mode": 420,
+      "sha256": "ff9612339bffe1e669412b358a7d9013305a31659d50da4ec17f718b938ba3d1",
+      "bytes": 8352
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/contained-file-reader.d.ts.map",
+      "mode": 420,
+      "sha256": "a273f9d69b86199916c9486593dd8330d9e3a07829074c0b13ec529d628d2adc",
+      "bytes": 383
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/contained-file-reader.js.map",
+      "mode": 420,
+      "sha256": "c75a9530b85a490c503b2bde69c93f1120f1b71c86c3ecfc52f819fbbf54b67e",
+      "bytes": 4944
+    },
+    {
+      "path": "dist/documentation-observation/application/model/contained-file.d.ts.map",
+      "mode": 420,
+      "sha256": "b56d138cfd767662ee9f657817a3603d5115dbe3516fbf115f3c0cf6bb5c5e8d",
+      "bytes": 368
+    },
+    {
+      "path": "dist/documentation-observation/application/model/contained-file.js.map",
+      "mode": 420,
+      "sha256": "7f9ae6269376f05f25970c94f8a264b456680f9f21f476c3f48c217663afd275",
+      "bytes": 371
+    },
+    {
+      "path": "dist/document-authoring/testing/crash-qualification.d.ts.map",
+      "mode": 420,
+      "sha256": "66d69b66ccbe4b87df44d5c47c0df82b566a6630c7787bbb83f6ebfe6ef6be2e",
+      "bytes": 697
+    },
+    {
+      "path": "dist/document-authoring/testing/crash-qualification.js.map",
+      "mode": 420,
+      "sha256": "f453dc31aa7eb999f3e293d12ed8d3c3cd607fb52f120e8c79ff6a0cdc9b611a",
+      "bytes": 5490
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/describe-document-authoring-profile-v2.d.ts.map",
+      "mode": 420,
+      "sha256": "d5ed64e98f0a010a6167f0f1c5fd3f5ebe27f156a42f68dd9eb66be45eaf72b2",
+      "bytes": 588
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/describe-document-authoring-profile-v2.js.map",
+      "mode": 420,
+      "sha256": "f2e347c26f981dc82a73c8adcad55a83f920a37f5eadbae5fb331e7070a40240",
+      "bytes": 3687
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/describe-document-authoring-profile.d.ts.map",
+      "mode": 420,
+      "sha256": "ec1abbb9daa886f6b45e8bbec8dfde1ca3018375bf2ed030c0f2bdec4c344300",
+      "bytes": 598
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/describe-document-authoring-profile.js.map",
+      "mode": 420,
+      "sha256": "3b01c9edf87608017622f803883a70a4990f3994217d7df27e552f0f91b61ffa",
+      "bytes": 684
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-authoring-profile-description.d.ts.map",
+      "mode": 420,
+      "sha256": "66011707f3480977715779f618760f1e8cf4ff601bc37b3a35f6bd7ef98c9788",
+      "bytes": 2114
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-authoring-profile-description.js.map",
+      "mode": 420,
+      "sha256": "7245ec05bcd64c1bdd06b6600a319771a23fd4b7e77e2ff61d3fdc13ff1ac58d",
+      "bytes": 214
+    },
+    {
+      "path": "dist/composition/document-authoring-qualification.d.ts.map",
+      "mode": 420,
+      "sha256": "2bc126caf9268af082a9a020d0eefe9fb3dac30642d2eb6b288a4e6fff431309",
+      "bytes": 399
+    },
+    {
+      "path": "dist/composition/document-authoring-qualification.js.map",
+      "mode": 420,
+      "sha256": "ffa23a471d3558b1edb74a10483a6321b538ee70babd6fd6a526134389be5134",
+      "bytes": 718
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-authoring-semantic-digests.d.ts.map",
+      "mode": 420,
+      "sha256": "3a9cb8edf414289fb4e53a9d0c088c9cec08a33ad55cb929debe9e4e4798f6a7",
+      "bytes": 1361
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-authoring-semantic-digests.js.map",
+      "mode": 420,
+      "sha256": "0781399fbab8863e7eee1d08c55f771557010428517f248cf95c0bdaf68b257a",
+      "bytes": 7444
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-authority-recompiler.d.ts.map",
+      "mode": 420,
+      "sha256": "aa25b75d6a1bf8913b7ae3436d723a6f66223cf6a60852bdec306ab0c72d5574",
+      "bytes": 732
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/document-authority-recompiler.d.ts.map",
+      "mode": 420,
+      "sha256": "ac7d733102a7e71bd696ae03648ee8b11ab19d821df29d52184cd1b356411ed6",
+      "bytes": 857
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-authority-recompiler.js.map",
+      "mode": 420,
+      "sha256": "73cb37322cebf72fd30febcc1fd46da40969815d3424ef373459876a9851c4f2",
+      "bytes": 196
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/document-authority-recompiler.js.map",
+      "mode": 420,
+      "sha256": "94d5d1a08e4470902b6dd230e2a9a94b4810491f49b0dbebcb69739edf51793e",
+      "bytes": 2575
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-catalog-authority-stability.d.ts.map",
+      "mode": 420,
+      "sha256": "1584e6e94616d7658d69de117d5f0a6def75a1afdd423c86a03167176c89b34f",
+      "bytes": 680
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-catalog-authority-stability.js.map",
+      "mode": 420,
+      "sha256": "fa281856ce2da8cd4832ab3ef8540fcd51cfdbe19d6bbcfd938f6e28ac53f564",
+      "bytes": 1054
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-catalog-diagnostics.d.ts.map",
+      "mode": 420,
+      "sha256": "71f452ba8300d8dd23481e2e1320b82921c7c49765046ee44394904bba240db9",
+      "bytes": 714
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-catalog-diagnostics.js.map",
+      "mode": 420,
+      "sha256": "052f15fe82044d7e64409e2c32ca060843e85fd76f101fb892b11cdb5d80ef98",
+      "bytes": 2217
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-catalog-error.d.ts.map",
+      "mode": 420,
+      "sha256": "9471abc0103215a9a5b0f034e5c779b82c2a574712488d2ddbb1e14825a6fa8b",
+      "bytes": 400
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-catalog-error.js.map",
+      "mode": 420,
+      "sha256": "61dbb0c0cba4aa5e255e850245ae72461532f800c8c8fa0af951c99c587d8e7b",
+      "bytes": 399
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-catalog-fields.d.ts.map",
+      "mode": 420,
+      "sha256": "1201144bb43b15dbebe99b63da5ddd6407402feb37406631bab115e2345180e2",
+      "bytes": 933
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-catalog-fields.js.map",
+      "mode": 420,
+      "sha256": "8987b718d6b8b2168b4090555cdd67e0021a19763c8f0829944935e22e1f2b3b",
+      "bytes": 2516
+    },
+    {
+      "path": "dist/document-authoring/application/projections/document-catalog-projections.d.ts.map",
+      "mode": 420,
+      "sha256": "60c9b78b7b22bba5f01e98b79c31c0ae10bed2b0f3f1b356f8ec49645363aa8a",
+      "bytes": 358
+    },
+    {
+      "path": "dist/document-authoring/application/projections/document-catalog-projections.js.map",
+      "mode": 420,
+      "sha256": "3483027da8c241be297e9ee4f19b5f6bb90aee156f25695cc10f9ee59afe15ef",
+      "bytes": 1729
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-catalog-sidecar.d.ts.map",
+      "mode": 420,
+      "sha256": "6700626803c7ceb0df82bea5405cc142428a4fc4fac053a49cbe824cf5c63030",
+      "bytes": 895
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-catalog-sidecar.js.map",
+      "mode": 420,
+      "sha256": "86a80b5d0f64b9166553707fa06a9bc83c25d1ceea614a0be224e7208d17bcc7",
+      "bytes": 3304
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-catalog.d.ts.map",
+      "mode": 420,
+      "sha256": "c6c908dd6e084806e253781794a8bce02e44e1d75a5778e26ebab06aaacadd8d",
+      "bytes": 2979
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-catalog.js.map",
+      "mode": 420,
+      "sha256": "14761d0d88933a4b724eaa9aece6da9ae3aec527f39d6da1456044396aeb314b",
+      "bytes": 170
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-command-consumer-root.d.ts.map",
+      "mode": 420,
+      "sha256": "3ed2ffc5b735f408141acb97557b8bb95bd74e524719c7d0a8a210d844eded73",
+      "bytes": 257
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-command-consumer-root.js.map",
+      "mode": 420,
+      "sha256": "c1f469e2fcf07374517aa289c3be6541e6911bc1c600dd888a771f4735554ff8",
+      "bytes": 709
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-command-projection.d.ts.map",
+      "mode": 420,
+      "sha256": "ea9c23d0a384159246a2322018870389a5ab1f2ed6307c360ba05bae32af1777",
+      "bytes": 989
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-command-projection.js.map",
+      "mode": 420,
+      "sha256": "adbb43cd8ab46b27348d8742e24e581b130169f606c2f41d3f9f4555f47cad35",
+      "bytes": 3030
+    },
+    {
+      "path": "dist/document-authoring/adapters/inbound/cli/document-command-renderer.d.ts.map",
+      "mode": 420,
+      "sha256": "8efa36bdcfde3c0bdc29434fba52b5dc6c55a6139db6ff25fecf7411d617b653",
+      "bytes": 496
+    },
+    {
+      "path": "dist/document-authoring/adapters/inbound/cli/document-command-renderer.js.map",
+      "mode": 420,
+      "sha256": "c11124e229088706e7b91a0913a1f6fb9e031b7590bb65b462994c8007e2405a",
+      "bytes": 4980
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-command.d.ts.map",
+      "mode": 420,
+      "sha256": "01cb911b46b6c6c6e2135ba725449077b9571ca66832ed6261a6fd525d9dd6e7",
+      "bytes": 2953
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-command.js.map",
+      "mode": 420,
+      "sha256": "201d00afea34fb9750ed8e8aae5e1e09c027e308cfc3814ccf18a74c97a449e2",
+      "bytes": 170
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-contract-digests.d.ts.map",
+      "mode": 420,
+      "sha256": "be15a85bb952924e772dcbbb330d0d585dad31da83873f1eade4ffbacd16d0dc",
+      "bytes": 1032
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-contract-digests.js.map",
+      "mode": 420,
+      "sha256": "0d64f2a5151842560cb3711efaabddf122d4c89d2d693b6e2a43d168912dbc4e",
+      "bytes": 13215
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-contract-validator.d.ts.map",
+      "mode": 420,
+      "sha256": "b9d5df53c55054dc2a5a10bf64d389021028438f62be688590dc5d50de87d339",
+      "bytes": 414
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-contract-validator.js.map",
+      "mode": 420,
+      "sha256": "b7f20d174b8cddd810b1dd76006e5ff0d02c53985a1565557371ebe2727ed7f9",
+      "bytes": 192
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-description-authority.d.ts.map",
+      "mode": 420,
+      "sha256": "ba58cdbb5d65a7b2419e7fa8bea1ddd22fb96910173b55c0547b0e7bf670d497",
+      "bytes": 1091
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-description-authority.js.map",
+      "mode": 420,
+      "sha256": "a8bc6c8357325ffb0e4588076944887747c3950eca22c3d2b7575bb2ea349923",
+      "bytes": 198
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-environment-inspector.d.ts.map",
+      "mode": 420,
+      "sha256": "fa03079d5d975467cc140be5825eedd2bcd927c64bf7f4f838b58db868d60b72",
+      "bytes": 545
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-environment-inspector.js.map",
+      "mode": 420,
+      "sha256": "6e9288326f92f8b9a40eafc9ae034cb4471d3b1ab56f43d810422beeeb727acd",
+      "bytes": 198
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-environment-request.d.ts.map",
+      "mode": 420,
+      "sha256": "a39fb01e20f878c221b6a5f792f6c2a30d4d3f3a33cb2404c9d4ea6357f5116a",
+      "bytes": 300
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-environment-request.js.map",
+      "mode": 420,
+      "sha256": "90c8bc93727ba25eb132ee73b5ade249782ed3e4b55ba2aef3fccf3c030c5c30",
+      "bytes": 194
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-file-read-failure.d.ts.map",
+      "mode": 420,
+      "sha256": "fbf2d2af56c684fd715a1da269a48a3789a6a8e5508d81de5e80de66fa69ebe8",
+      "bytes": 398
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-file-read-failure.js.map",
+      "mode": 420,
+      "sha256": "4cd73c21fe290433a498dd850db7fab60be122a89c8199de48e01658cea63b31",
+      "bytes": 326
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-file-reader.d.ts.map",
+      "mode": 420,
+      "sha256": "8113aac60427473e9fa6c3a147f5ec46a4d7f0918ebfbc87a6448106cb325010",
+      "bytes": 389
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-file-reader.js.map",
+      "mode": 420,
+      "sha256": "033064eea41f136cc8d5f041e559e20c8db6772cd635d743a6ee6426656ee990",
+      "bytes": 178
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-file-state.d.ts.map",
+      "mode": 420,
+      "sha256": "647a826bd87c0e636981b881e23922778458e0c97163835e3518dc9b49efad0d",
+      "bytes": 1818
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-file-state.js.map",
+      "mode": 420,
+      "sha256": "73ae5fceb23cba59ed0901c34b3558fc6da717fdbc181f024cfdf06aeda9a673",
+      "bytes": 176
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-find.d.ts.map",
+      "mode": 420,
+      "sha256": "fa023e433e00366c1985f7d6a75f04a27f8a1faa0c6281edad813afdabcfda9d",
+      "bytes": 918
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-find.js.map",
+      "mode": 420,
+      "sha256": "1664e2f8c2f02de0a462b48e2facd4f40e7e16cb68aeb27bac7564fb26b21c3a",
+      "bytes": 164
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-input-failure.d.ts.map",
+      "mode": 420,
+      "sha256": "76e3bf2ae2b1d1c784739c324e691701c43acfd4e9e01f02ef80e0545a7a5071",
+      "bytes": 672
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-input-failure.js.map",
+      "mode": 420,
+      "sha256": "a66763b005eb8414c9f8da19d2c508827f5e76c1912c06ea2f194e35554114ca",
+      "bytes": 567
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/document-journal-reconciliation.d.ts.map",
+      "mode": 420,
+      "sha256": "77386ef187909d90150811f6943012d1adb9ce38362b7c4662ab32709cf322c2",
+      "bytes": 986
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/document-journal-reconciliation.js.map",
+      "mode": 420,
+      "sha256": "2a505e9f1aba3c6b11694d41c9a76a92db1d2bc812888141df5691801aa23a1c",
+      "bytes": 3650
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-journal-store.d.ts.map",
+      "mode": 420,
+      "sha256": "43248594a354006385aad2a1ea3deddc15cd5ce7fe68b264a19b81fc073382a4",
+      "bytes": 1074
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-journal-store.js.map",
+      "mode": 420,
+      "sha256": "e6e080d15ce85ea071777eb6f3e5983168b9b41755e0b18ac742fd449b5fd4b0",
+      "bytes": 182
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-logical-preimage.d.ts.map",
+      "mode": 420,
+      "sha256": "20bfc9c649b087b2d314e9c142db153ee43943f9e0edb1e92765affede68bf2a",
+      "bytes": 758
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-logical-preimage.js.map",
+      "mode": 420,
+      "sha256": "39a38b5c461d0a53d8f188ef0d5aff092b716f9696f49a48a9516a07e73bee35",
+      "bytes": 3591
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-markdown-repository.d.ts.map",
+      "mode": 420,
+      "sha256": "abc4ca12c38757d7d454fb2ec89727072b4a53b4139a872a263e0938a4b91a60",
+      "bytes": 512
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-markdown-repository.js.map",
+      "mode": 420,
+      "sha256": "47b00cbffc76f5e01329bfb816a442526bbdcd2043c8ebed53d863eaf3b20205",
+      "bytes": 194
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-markdown-syntax-reader.d.ts.map",
+      "mode": 420,
+      "sha256": "ece475c66d90c850b9fe004ac5b985f10428023cd02e2459482048d79d2d6615",
+      "bytes": 666
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-markdown-syntax-reader.js.map",
+      "mode": 420,
+      "sha256": "b83368b66e17ee9b0b15dd67a4bb314ce48ed60af63032ef8d74d68b28505c0a",
+      "bytes": 200
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-metadata-sidecar-reader.d.ts.map",
+      "mode": 420,
+      "sha256": "dacdb8654ac30547398a245bb7cd75dc93c582910959e1494fc77d19e0ce3af6",
+      "bytes": 615
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-metadata-sidecar-reader.js.map",
+      "mode": 420,
+      "sha256": "d48a5fcbb7a812697dbc52cc06dca1f0e7e86aa75995dc7137d471c90a8f24c1",
+      "bytes": 202
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-observation.d.ts.map",
+      "mode": 420,
+      "sha256": "8ab7029f9e964e202a69c8284f6649ad8e992a7cdcefbdb72185a3fa0c19845c",
+      "bytes": 471
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-observation.js.map",
+      "mode": 420,
+      "sha256": "546ecfe6b37d8189a5d8767b607a8d8d7f564ce49380caca0ccebaf06525c18a",
+      "bytes": 178
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/document-parent-materialization-continuation.d.ts.map",
+      "mode": 420,
+      "sha256": "518f7c2ae5671bbc3032b04605275e998f5fdf852cda7d9980dee20018d0377c",
+      "bytes": 485
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/document-parent-materialization-continuation.js.map",
+      "mode": 420,
+      "sha256": "ef2a62077e9e1a0f3e9d57ab12d74bac078791274f41e217bf65db8abeb16aff",
+      "bytes": 3033
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-parent-materialization.d.ts.map",
+      "mode": 420,
+      "sha256": "53cee799285a881bfe53f54b2afa7a6abc9df657ebfb96d77bc1c79c567e8384",
+      "bytes": 1007
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-parent-materialization.js.map",
+      "mode": 420,
+      "sha256": "88a768f03ca7ad9b5b4b39f6d8f9e6f90bedccaab3b15cac4032bfa11957209d",
+      "bytes": 200
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-parent-materializer.d.ts.map",
+      "mode": 420,
+      "sha256": "c474a7b105d1226898be51f09ee4a5a0e2bc004c03c109bfc584474b7adcc08d",
+      "bytes": 1082
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-parent-materializer.js.map",
+      "mode": 420,
+      "sha256": "501c025e031ff8a700823f80a617f31b73d63d0b2a9bee1f0cabf7d414d3001d",
+      "bytes": 194
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-physical-identity.d.ts.map",
+      "mode": 420,
+      "sha256": "345e9a6a917a30445f905b001712ae480c4a39c4d4f45566617d6f74ab933649",
+      "bytes": 557
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-physical-identity.js.map",
+      "mode": 420,
+      "sha256": "0e460e1b628d6922dd1f9569bb1651e0fc9ab0dfd096874911bdd1f0a157d739",
+      "bytes": 1050
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-planning-error.d.ts.map",
+      "mode": 420,
+      "sha256": "32d5f4a63cd2c3c2374837f538ee82afc77232c25df1abf9f990ce7a01f98e0b",
+      "bytes": 454
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-planning-error.js.map",
+      "mode": 420,
+      "sha256": "733e10877187c563bed5bedf9937ad3e70f53816b83bb50f9d7621fc69893342",
+      "bytes": 401
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-planning-policy-error.d.ts.map",
+      "mode": 420,
+      "sha256": "83ea9339aca744e9fc9695a8f61007aae8af225b8ed6e93bffb778584e46ca74",
+      "bytes": 506
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-planning-policy-error.js.map",
+      "mode": 420,
+      "sha256": "1c847599bb0fff5090e3a30f70ab336f17e90223f8dace8e4fc4ddcd773c468b",
+      "bytes": 396
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-planning-profile-reader.d.ts.map",
+      "mode": 420,
+      "sha256": "b1f16fc161b55023a58355c6d4dd4a6064bfbf17e88776e03fd9951f5643ea1d",
+      "bytes": 457
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-planning-profile-reader.js.map",
+      "mode": 420,
+      "sha256": "74118dad44e5170a5915610fd030511f55afc1901b75b7aabcc9e8040a29ce76",
+      "bytes": 202
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-planning-state-reader.d.ts.map",
+      "mode": 420,
+      "sha256": "9775a089ad7dafd5b01e46500b4b588be25cd3b1ccfdf31a96814e5dd949c805",
+      "bytes": 496
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-planning-state-reader.js.map",
+      "mode": 420,
+      "sha256": "2d26442e03377e96c4eb5a1b204b07c1e1fc48b9eb63e5447a282361984be800",
+      "bytes": 198
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-planning.d.ts.map",
+      "mode": 420,
+      "sha256": "22dce2c5f856cdcb3de83ef6967cb1fe0ff1b4cd78ebf5da82ac72fe09a719bf",
+      "bytes": 6970
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-planning.js.map",
+      "mode": 420,
+      "sha256": "04c1e53bcd6e6a62296da3a4397cceeec9437b1f1e8d29e457cd867abc9857c3",
+      "bytes": 172
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-publisher.d.ts.map",
+      "mode": 420,
+      "sha256": "2b8b807606b3d3cec7164eb9824af173a73daefffb61e3141c8d58f7509ada81",
+      "bytes": 1429
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-publisher.js.map",
+      "mode": 420,
+      "sha256": "70d3ecfa4956771a77c3a8c4b1a0f7933968836f5bc666c6a87fcf3e1d2ba9ec",
+      "bytes": 174
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-reachability-projector.d.ts.map",
+      "mode": 420,
+      "sha256": "6984515b668c02e6547ae712b543b975b60b25e78458f2ff11303189623b2223",
+      "bytes": 486
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-reachability-projector.js.map",
+      "mode": 420,
+      "sha256": "ca8ee16ba8311d2d6f520b6844890e5e7c56a095b2526ecee274bf0bb5c516a3",
+      "bytes": 200
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-receipt-policy.d.ts.map",
+      "mode": 420,
+      "sha256": "cab5f9094ccf1e5f901eae7cb3640100b4f6738131f1a92b23ffec8f5c5c7031",
+      "bytes": 631
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-receipt-policy.js.map",
+      "mode": 420,
+      "sha256": "7c81f508887d1036aef7d281e2b29d673009276e3e8bc8d94c6176e41abcfdc3",
+      "bytes": 3857
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-receipt.d.ts.map",
+      "mode": 420,
+      "sha256": "4bb5f0633d92ecda81cd4682eb3ad4fa521b20fa56caa950bb1a53386162b5cc",
+      "bytes": 3862
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-receipt.js.map",
+      "mode": 420,
+      "sha256": "80f054738a0c81236cb7f4b2e7aa0ec68c514ecfa786eac58c3d28cfb8eed007",
+      "bytes": 170
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/document-recovery-observation.d.ts.map",
+      "mode": 420,
+      "sha256": "b1d0bfe2f68b14ecfa7a0372aa81d4a9076b03f25be7a4f374c501b81bb32ec4",
+      "bytes": 616
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/document-recovery-observation.js.map",
+      "mode": 420,
+      "sha256": "3e8d71172e4a97ed4e82e1d7130a8ad566d7f698db97e2e0a00329451e6c0692",
+      "bytes": 4615
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-repository-path.d.ts.map",
+      "mode": 420,
+      "sha256": "96fbca917684f4361e575c3166bfa30855162ed8b34e6cb63c5f7679f29fca4a",
+      "bytes": 301
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-repository-path.js.map",
+      "mode": 420,
+      "sha256": "b66e1208c9b9b06a725cf8548017cb7fc64436cf9c825c771edbfa503130705a",
+      "bytes": 1131
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-schema-validator.d.ts.map",
+      "mode": 420,
+      "sha256": "a43dd393e9323c1c03da5ca47f601af699354473c6d4cb29d6873959334ef732",
+      "bytes": 582
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-schema-validator.js.map",
+      "mode": 420,
+      "sha256": "7216b61c7028dabfe8c187bf45fd92010500040463f75410ccaf97548831b197",
+      "bytes": 188
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-structure-verifier.d.ts.map",
+      "mode": 420,
+      "sha256": "6c7e5662cbc005c4efd951a6b36ab4706dd1f34388a30f9c9b8b2a6f497ae48b",
+      "bytes": 674
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-structure-verifier.js.map",
+      "mode": 420,
+      "sha256": "119597d915bf074faa153a7503391b880e1fd247978e75d224027367283a218a",
+      "bytes": 192
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-template-reader.d.ts.map",
+      "mode": 420,
+      "sha256": "f243a5ed55ff8960de21f489e2a8ef5bb6ff04d2c1a3c3977f310547a1aab964",
+      "bytes": 441
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-template-reader.js.map",
+      "mode": 420,
+      "sha256": "840f0797f7af37809e9b1d7f7458c6ba4f37d18cd084986a407d6ad7ef0407cb",
+      "bytes": 186
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-temporary-path.d.ts.map",
+      "mode": 420,
+      "sha256": "315e51ce7ad1daa36098ef127582e43ac688b0ababeb84d0fd373fd6f47b500d",
+      "bytes": 277
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-temporary-path.js.map",
+      "mode": 420,
+      "sha256": "af394869f5851c43d0ca03fe787ada3d446de44a1f431f27b92c9541483bcc44",
+      "bytes": 1259
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/document-transaction-continuation.d.ts.map",
+      "mode": 420,
+      "sha256": "26bfc8bf6fd4a57a52b802c53df5d872fb6c252b574e455370ca0b930cef5fc2",
+      "bytes": 2957
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/document-transaction-continuation.js.map",
+      "mode": 420,
+      "sha256": "11cd6f14e19200cfd361bd74dcd101fa138152a53f14fa2b745c5cd01598c865",
+      "bytes": 10550
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-transaction-coordinator.d.ts.map",
+      "mode": 420,
+      "sha256": "d7cbb1ef7f61519cd7838f2850a8be967c4cf59b2a76345263b1eb8bdeb4f7d5",
+      "bytes": 759
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-transaction-coordinator.js.map",
+      "mode": 420,
+      "sha256": "73f8a9b0c3ecbe9097c725fb9119cbba16c5c4596e26ef516209b7fb9bbf4833",
+      "bytes": 202
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-transaction-digests.d.ts.map",
+      "mode": 420,
+      "sha256": "f3b9676d4de500df96119e33933c4395d1e224d6fe9c3c55a01f429d65f2eb25",
+      "bytes": 498
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-transaction-digests.js.map",
+      "mode": 420,
+      "sha256": "6c33491de7aa016ce8d19acb296775da63e4d22fdddafa75012bf7b86ae13c18",
+      "bytes": 510
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-transaction-envelope-body.d.ts.map",
+      "mode": 420,
+      "sha256": "3f9493259b62d4b3b2414ca39d335fd05a00f7ef3be617f92a9a792537a33666",
+      "bytes": 1290
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-transaction-envelope-body.js.map",
+      "mode": 420,
+      "sha256": "1f5d95ab1428b96496bcf92012cf7f5f1f22b89e3efdc3226e6c24e0e6b59d4b",
+      "bytes": 3747
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-transaction-envelope-policy.d.ts.map",
+      "mode": 420,
+      "sha256": "8a0500549d58d095f18788f03618828b8b474622fb3d725c77d71217acfc56c1",
+      "bytes": 525
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-transaction-envelope-policy.js.map",
+      "mode": 420,
+      "sha256": "3f61ab4f72ea12e8b7471416711f6bd46cc085215b1acd1800d94bd41daab350",
+      "bytes": 6313
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/document-transaction-error.d.ts.map",
+      "mode": 420,
+      "sha256": "b84df06848497671af6365d1815e2973493328aaa8252ce5e2b5301d288d150f",
+      "bytes": 393
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/document-transaction-error.js.map",
+      "mode": 420,
+      "sha256": "b9b253a2d1cf7f3bb217646f37a51efa969ea2cad2e48baf3854621455914b94",
+      "bytes": 379
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/document-transaction-execution.d.ts.map",
+      "mode": 420,
+      "sha256": "7fdac56d1a20a3b8046559e729ccac66a78c5f871a8778b00924efd9580e6cff",
+      "bytes": 585
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/document-transaction-execution.js.map",
+      "mode": 420,
+      "sha256": "d311f13ffed1613d273bae3cd0a6d499f5192c54ed0c166074323b0c0a73c6e6",
+      "bytes": 1430
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-transaction-inspection.d.ts.map",
+      "mode": 420,
+      "sha256": "efa2e5dcb33178be5be63b0ca08b5b09b0d2f34463bbb6b1711fb50d7d4c0433",
+      "bytes": 2506
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-transaction-inspection.js.map",
+      "mode": 420,
+      "sha256": "4e98dd9781d3b2045e4fae3ccca8e1097c533d81a42faad46edcd4c15b10052e",
+      "bytes": 200
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/document-transaction-receipts.d.ts.map",
+      "mode": 420,
+      "sha256": "638b08dcfd5e9037b1059ef5f8970caaa4c0c9ecc713cea07028ffd6b3eadaf8",
+      "bytes": 1445
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/document-transaction-receipts.js.map",
+      "mode": 420,
+      "sha256": "98086bb925851f8adfb0834cb36e341f77ecd502e620008219b8685b06b0d5f8",
+      "bytes": 5861
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-transaction.d.ts.map",
+      "mode": 420,
+      "sha256": "ee0a63afc988c2e0a4c136b860acccd6befd1661df5dc790f479209f558a3591",
+      "bytes": 5532
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-transaction.js.map",
+      "mode": 420,
+      "sha256": "fc94393912f7d4314c7341eacc55b43e29286c5bd79b17d80e4b1506e40442ca",
+      "bytes": 178
+    },
+    {
+      "path": "dist/document-authoring/application/ports/documentation-catalog-reader-v2.d.ts.map",
+      "mode": 420,
+      "sha256": "181a7733a04108f6b8127f05be078a997b6000f2514a1d3b6160be4bc4a1f158",
+      "bytes": 480
+    },
+    {
+      "path": "dist/document-authoring/application/ports/documentation-catalog-reader-v2.js.map",
+      "mode": 420,
+      "sha256": "2e5ae8fdec41a7a3f099ddb0062588d00b37fd64338a9f47ba44ce0d43f0f78d",
+      "bytes": 200
+    },
+    {
+      "path": "dist/document-authoring/application/ports/documentation-catalog-reader.d.ts.map",
+      "mode": 420,
+      "sha256": "9373aa08e34339d269eea9f771597ccaa989837cc469b2695fe8731231e69634",
+      "bytes": 474
+    },
+    {
+      "path": "dist/document-authoring/application/ports/documentation-catalog-reader.js.map",
+      "mode": 420,
+      "sha256": "a9196010726e42cd0331238cbd3724e19b781282cc05180de13c7807ac957c2e",
+      "bytes": 194
+    },
+    {
+      "path": "dist/document-authoring/application/ports/documentation-search-catalog-reader-v2.d.ts.map",
+      "mode": 420,
+      "sha256": "e9005b627085b394375669a96b2d265397a450ac3fae270161efa26e9dda8238",
+      "bytes": 469
+    },
+    {
+      "path": "dist/document-authoring/application/ports/documentation-search-catalog-reader-v2.js.map",
+      "mode": 420,
+      "sha256": "4816e42d43d859f4d0e8fdbc403d81829e8585ce1fa3b28a4548049e249d4831",
+      "bytes": 214
+    },
+    {
+      "path": "dist/document-authoring/application/ports/documentation-search-catalog-reader.d.ts.map",
+      "mode": 420,
+      "sha256": "6f3b323815cb2d6cbc3c52fb1cc2f654e30784d3296ade54e7a0041283a40b1f",
+      "bytes": 493
+    },
+    {
+      "path": "dist/document-authoring/application/ports/documentation-search-catalog-reader.js.map",
+      "mode": 420,
+      "sha256": "e5b0802325e6eb9243639d1924c020a3378e3dd4904459444cf97d76b32ef96c",
+      "bytes": 208
+    },
+    {
+      "path": "dist/document-authoring/application/model/errors.d.ts.map",
+      "mode": 420,
+      "sha256": "b93134d75709d2526e41086cd238c7e692aac82f24f015345c338e05694b9658",
+      "bytes": 341
+    },
+    {
+      "path": "dist/document-authoring/application/model/errors.js.map",
+      "mode": 420,
+      "sha256": "a9c426cc9d83b5397f04ba6856d551d35ceb2bf2e626e32b6ac2b46eee71228e",
+      "bytes": 367
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-document-reader.d.ts.map",
+      "mode": 420,
+      "sha256": "1acfde48b8ccebbf24c0cc572a082f7bec28f3731bfa2598b643baae18a97c43",
+      "bytes": 689
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-document-reader.js.map",
+      "mode": 420,
+      "sha256": "5c1fb8c035d8135af74ef8c9ba9fdbf4a74ac8a75d0cd0d10e792d0ef38ce893",
+      "bytes": 3654
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-filesystem.d.ts.map",
+      "mode": 420,
+      "sha256": "45e03a6063e9c399c0294fc2e8717f533fa7efc15aa57446f9ad01f6001e7ad3",
+      "bytes": 886
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-filesystem.js.map",
+      "mode": 420,
+      "sha256": "5e935041e99ea52c3a3f9a9245fb8abe7cfcc0bd1013bd0e28d037b9edda1550",
+      "bytes": 2131
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-paths.d.ts.map",
+      "mode": 420,
+      "sha256": "517c5a6269e7bd96eedd7c3e7f9af7691684f250d997d0b12bd9c4f1f678a73a",
+      "bytes": 599
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-paths.js.map",
+      "mode": 420,
+      "sha256": "8146260b15b897b36cf38200d64ab2765ae9a433482db5018371b17619853270",
+      "bytes": 1725
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-reference-resolver.d.ts.map",
+      "mode": 420,
+      "sha256": "c4da47a257e8c5d7715ddf6621e4a44b57f3fcc25634b6757142fbdc74dbbf0d",
+      "bytes": 556
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-reference-resolver.js.map",
+      "mode": 420,
+      "sha256": "ffad1765958144c8e38a87e903bb659a7ed6407c38799840d31a1b953794e415",
+      "bytes": 6093
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-repository.d.ts.map",
+      "mode": 420,
+      "sha256": "dbd8c6bfef0b11e303bc74e95791554951db1d9feebafe62fa2704c9cc638480",
+      "bytes": 532
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-repository.js.map",
+      "mode": 420,
+      "sha256": "eeb94bfa6167d5b1ed96fd81ea0ea45e89856db84343af19f693dff3f3540a07",
+      "bytes": 622
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-tree-observer.d.ts.map",
+      "mode": 420,
+      "sha256": "487f5224927b13d9c6bdfbf726a5557685447a74f36ad44cfb523ff6255594e7",
+      "bytes": 548
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-tree-observer.js.map",
+      "mode": 420,
+      "sha256": "6a2fdb420c7f99cae8b13e35aeef8dc90664b286f0d0004851d4b24c698c2435",
+      "bytes": 8646
+    },
+    {
+      "path": "dist/document-authoring/adapters/inbound/cli/find-command.d.ts.map",
+      "mode": 420,
+      "sha256": "7a70dfef0ab2af7b778e7151a5adc16ef6a30612963ef00c76f40cd3287e89ca",
+      "bytes": 1152
+    },
+    {
+      "path": "dist/document-authoring/adapters/inbound/cli/find-command.js.map",
+      "mode": 420,
+      "sha256": "44e5b0de1f1f4a14f72912a753eb3d1431a90c742f4b6d26b55c91d9623520b4",
+      "bytes": 4428
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/find-documents.d.ts.map",
+      "mode": 420,
+      "sha256": "5e1dd095206f8da425131057efa9b52360a2afdba65d4c5e15dec35fc259eaa8",
+      "bytes": 775
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/find-documents.js.map",
+      "mode": 420,
+      "sha256": "221f6a62dd61f9a5ef3263433d0ad2b0af55d1eab2d304541687d35f22cdb656",
+      "bytes": 4517
+    },
+    {
+      "path": "dist/index.d.ts.map",
+      "mode": 420,
+      "sha256": "a9ccaeb2b5eb57aa648390e5aa29f379a33286acd0b5930797c78c279128ed64",
+      "bytes": 1519
+    },
+    {
+      "path": "dist/qualification/index.d.ts.map",
+      "mode": 420,
+      "sha256": "304f49253e0a55058847b498079f377ae1092f120f602e1b3e91b9ecea1d83bb",
+      "bytes": 622
+    },
+    {
+      "path": "dist/index.js.map",
+      "mode": 420,
+      "sha256": "4186731bdb665c06abd5e22a27597522f2466cf33bde15b81900fff6cb10d563",
+      "bytes": 460
+    },
+    {
+      "path": "dist/qualification/index.js.map",
+      "mode": 420,
+      "sha256": "8a3a1d8fede51c47bf1f79ec2e7174f9978af34844c920251b46717fd3a3cb45",
+      "bytes": 236
+    },
+    {
+      "path": "dist/documentation-observation/application/model/input-problem.d.ts.map",
+      "mode": 420,
+      "sha256": "48ed9617db62e83b7f74bb116d5492f285fcf8b225b8d5ace6de5ebb425983e3",
+      "bytes": 487
+    },
+    {
+      "path": "dist/documentation-observation/application/model/input-problem.js.map",
+      "mode": 420,
+      "sha256": "e8c229706d83ea8d89a1aafce0f5bd2dd92294bda70e9d920ac69462868a859b",
+      "bytes": 401
+    },
+    {
+      "path": "dist/document-authoring/application/policies/inspect-catalog-document.d.ts.map",
+      "mode": 420,
+      "sha256": "4245173bac948738aa5c22f90d6d7ea376e9b87047764a3ca050b56671d04827",
+      "bytes": 1168
+    },
+    {
+      "path": "dist/document-authoring/application/policies/inspect-catalog-document.js.map",
+      "mode": 420,
+      "sha256": "4bc2b3d2b07bbff25ae2e83015dedc546fea7f6e1504167973d67891c4fdc312",
+      "bytes": 4596
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/inspect-document-authoring-environment-v1.d.ts.map",
+      "mode": 420,
+      "sha256": "4c1c35a752b35b6d95260ce42a4ac3a960b1bf54c13ec34288165989ef7f14fd",
+      "bytes": 393
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/inspect-document-authoring-environment-v1.js.map",
+      "mode": 420,
+      "sha256": "aee714cd970bd388cde8787203e5fca772567763722dc5ff9cc96080343b93b3",
+      "bytes": 550
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/inspect-document-transaction.d.ts.map",
+      "mode": 420,
+      "sha256": "c8a10e99c4f192216de3463f7d47663870afd9070a6be2afb20085a82e851646",
+      "bytes": 404
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/inspect-document-transaction.js.map",
+      "mode": 420,
+      "sha256": "201e58fe0b3e827618c68928ca7085365b5babaabcfaca80fe5dc07d250bfdd7",
+      "bytes": 3620
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/installed-artifact-identity.d.ts.map",
+      "mode": 420,
+      "sha256": "d7243d9de1ae7e8bbd7b41adffa8b113a13770650ba1740d7fc944be0467cc13",
+      "bytes": 369
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/installed-artifact-identity.js.map",
+      "mode": 420,
+      "sha256": "768f58782af864709cdded1155be75a7a7770c9d031006721fc753a2f3bd7a5e",
+      "bytes": 1003
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/load-v2-profile-description.d.ts.map",
+      "mode": 420,
+      "sha256": "01d31a855944c80f9bdf255d06a7198488152fe5ffb92f37454bbf5b2fca7a03",
+      "bytes": 957
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/load-v2-profile-description.js.map",
+      "mode": 420,
+      "sha256": "c8cef7ef29c71e952d9b9b38f8110be05aed85a3e9d0205cdde67d03b2719712",
+      "bytes": 703
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/load-validated-document-authoring-profile-v2.d.ts.map",
+      "mode": 420,
+      "sha256": "f0bf69f57b8ac3046a02e1572e90abce32e2d2322de74a2d00d7b4461b357ced",
+      "bytes": 703
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/load-validated-document-authoring-profile-v2.js.map",
+      "mode": 420,
+      "sha256": "e43413ceb7a8f900534537d58e4f00a4b9dbfcb2652e858d44788fa14f2c507e",
+      "bytes": 2987
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/load-validated-document-authoring-profile.d.ts.map",
+      "mode": 420,
+      "sha256": "7a196fc33ffbe19474d95d26e6959ce680a942a313a5ab2713be0897eb3fe28d",
+      "bytes": 696
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/load-validated-document-authoring-profile.js.map",
+      "mode": 420,
+      "sha256": "45b21b9358f088cae29b99d0555e02d0d5918d56a7b41ec0538884f2d323e440",
+      "bytes": 1601
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/markdown-document-parser.d.ts.map",
+      "mode": 420,
+      "sha256": "bb6d071f24807f61a46a9f8b289eb9be509e2bc14d9b0e3486d1d8fb3e371a90",
+      "bytes": 339
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/markdown-document-parser.js.map",
+      "mode": 420,
+      "sha256": "942ee1cc873909283cc2d2dcf186c10ad963e6790756ee87021a10747b73f13a",
+      "bytes": 9134
+    },
+    {
+      "path": "dist/documentation-observation/application/model/markdown-document.d.ts.map",
+      "mode": 420,
+      "sha256": "1607c30f11d193018df157306cb0af2d000375c84514216106c0319ab180d636",
+      "bytes": 2439
+    },
+    {
+      "path": "dist/documentation-observation/application/model/markdown-document.js.map",
+      "mode": 420,
+      "sha256": "ea786d3a42a18a6757411ee46628a29e155c32f1133cfccc0fd485be3e313791",
+      "bytes": 555
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/markdown-reference-target.d.ts.map",
+      "mode": 420,
+      "sha256": "c32db9616b948793f57b98a19e71bd46a108f0ea9b573cd9108964d9647f3dc5",
+      "bytes": 645
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/markdown-reference-target.js.map",
+      "mode": 420,
+      "sha256": "b0c6156f3a8b6e0cdedf5c510eee6057328873315250b10ab324bbab7bdea006",
+      "bytes": 2241
+    },
+    {
+      "path": "dist/documentation-observation/application/ports/markdown-repository.d.ts.map",
+      "mode": 420,
+      "sha256": "a4922193819daf0a15c15114c6074025db922c3aa2c8e98cf7e9b61797a83dab",
+      "bytes": 804
+    },
+    {
+      "path": "dist/documentation-observation/application/ports/markdown-repository.js.map",
+      "mode": 420,
+      "sha256": "6d16869c571b77f0faaf61922d3597dd4cab15863c85643537572a9fd64d9eec",
+      "bytes": 183
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/markdown-syntax-reader.d.ts.map",
+      "mode": 420,
+      "sha256": "a504ecd5dd9c056c29dce1c64203c3ccbb658bb0f9bbf6c12e00aa0401319afd",
+      "bytes": 295
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/markdown-syntax-reader.js.map",
+      "mode": 420,
+      "sha256": "0f1519979b8a2ea9ac3a08783a526578f5902905a4c0a6df54d8b25ba398aaaa",
+      "bytes": 1220
+    },
+    {
+      "path": "dist/documentation-observation/application/model/markdown-syntax.d.ts.map",
+      "mode": 420,
+      "sha256": "4bf29e2592f3e142a63d450fcc0367d982981f155a0c5dde88218b1dd67ae21f",
+      "bytes": 659
+    },
+    {
+      "path": "dist/documentation-observation/application/model/markdown-syntax.js.map",
+      "mode": 420,
+      "sha256": "9a97f5f95bbe99aa1502f20a647b5846325df5b6ef635740a59e124d0751e400",
+      "bytes": 175
+    },
+    {
+      "path": "dist/document-authoring/application/ports/metadata-instance-validator.d.ts.map",
+      "mode": 420,
+      "sha256": "12a1f99506afdbb35c6c6b896d33db3d3ca0c852d1cef2c7241b41d2b5114c1c",
+      "bytes": 724
+    },
+    {
+      "path": "dist/document-authoring/application/ports/metadata-instance-validator.js.map",
+      "mode": 420,
+      "sha256": "2794ea3f28153fc5f4044d1a91e6e7272ee0ec1075a6e8530db10bf016f21ae8",
+      "bytes": 192
+    },
+    {
+      "path": "dist/document-authoring/module.d.ts.map",
+      "mode": 420,
+      "sha256": "07f85db352119567edac74006fae7dea5093a09a33ff19b7075532e07ac9d01a",
+      "bytes": 347
+    },
+    {
+      "path": "dist/documentation-observation/module.d.ts.map",
+      "mode": 420,
+      "sha256": "2f332caa216af5e8d81d33fff58bd06182ae1d16494ee8940e316db9f8d11053",
+      "bytes": 268
+    },
+    {
+      "path": "dist/document-authoring/module.js.map",
+      "mode": 420,
+      "sha256": "23aa29ee81574a97667876b2defdb65206f61a89a01a2ac1131e4efa3ccb138c",
+      "bytes": 345
+    },
+    {
+      "path": "dist/documentation-observation/module.js.map",
+      "mode": 420,
+      "sha256": "d2619e2f08a3262462d48698edc3c772d2b58f9acef9f680e3aafddee952fdef",
+      "bytes": 266
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-authoring-profile-reader-v2.d.ts.map",
+      "mode": 420,
+      "sha256": "1ebaa8c456cefd3ddfbfe40de5199a65eef7ae46b65a222fa77feed5debfc353",
+      "bytes": 592
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-authoring-profile-reader-v2.js.map",
+      "mode": 420,
+      "sha256": "641ff637e4e9b2d93b9f99d54233191ebc43fab53bcb9cb4225a34841733d9ba",
+      "bytes": 2167
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-authoring-profile-reader.d.ts.map",
+      "mode": 420,
+      "sha256": "d31156c2d7ca04a507b7405e6d32760f9c55b35ffc9014042b2b460a13fcdbfd",
+      "bytes": 586
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-authoring-profile-reader.js.map",
+      "mode": 420,
+      "sha256": "ee3804e810c5a615b00f9f6b3aaea8df528583e91f567f9c9de9d33e392c1f72",
+      "bytes": 1466
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-api.d.ts.map",
+      "mode": 420,
+      "sha256": "c1ba68f98829a9c125a14e0cdff8b448161f5bcbbcf5f2a83ce4c1253bd708c2",
+      "bytes": 1450
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-api.js.map",
+      "mode": 420,
+      "sha256": "fcccfe4668a8ad840d69b2c778e2689f0da093248e9c8b9cbf8d64fe23048283",
+      "bytes": 4256
+    },
+    {
+      "path": "dist/composition/node-document-authoring.d.ts.map",
+      "mode": 420,
+      "sha256": "147d3c435411833f007d23e53a0a2f3b9c8cc3cbe9d6488375f6c515fbbbe1c8",
+      "bytes": 1506
+    },
+    {
+      "path": "dist/composition/node-document-authoring.js.map",
+      "mode": 420,
+      "sha256": "0821d526686eb52e9f29bfbbe63088c8335d23c6a6d8f93054914eea765a6c6e",
+      "bytes": 1632
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-contract-validator.d.ts.map",
+      "mode": 420,
+      "sha256": "76bdea6c11123bfc009f2339f2ec92695246e56db0a0811de4f8c578a92b3630",
+      "bytes": 481
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-contract-validator.js.map",
+      "mode": 420,
+      "sha256": "09f9c4faf00b27f64399f1061443b2c6303a4f83c6d6838fe0db8421754d582f",
+      "bytes": 11333
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-environment-inspector.d.ts.map",
+      "mode": 420,
+      "sha256": "3aae900c57e122bb7e4206dcac93a68506622e310b957abf87e2f938fe63e2a0",
+      "bytes": 883
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-environment-inspector.js.map",
+      "mode": 420,
+      "sha256": "e6eb145698d9b381acd8dbc60dd7205bb706ae63b142c688d1687b60f5279d1c",
+      "bytes": 1616
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-file-state.d.ts.map",
+      "mode": 420,
+      "sha256": "0b21d8caaa6ce45758f0eaf032253a152728b7571b70b29f33ceae921f6f9c52",
+      "bytes": 962
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-file-state.js.map",
+      "mode": 420,
+      "sha256": "3a6809f9a7937b5193146c2a0d37b61df75c09d6a1b96098accbaae1249c4d9b",
+      "bytes": 6663
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-journal-store-faults.d.ts.map",
+      "mode": 420,
+      "sha256": "d42e75a4a2c65ec23678fa4bbe5fc145a88551dbe59dbe1963229cfd48e56331",
+      "bytes": 1359
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-journal-store-faults.js.map",
+      "mode": 420,
+      "sha256": "8b2c4c9730a778e069f65b774adb20cea62fb0c796c8100c80a5ddaef0fa8936",
+      "bytes": 202
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-journal-store-private.d.ts.map",
+      "mode": 420,
+      "sha256": "860e036de83ebfcd646839badf1e24d9de5969c1b6cab859122cda513c3beafd",
+      "bytes": 249
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-journal-store-private.js.map",
+      "mode": 420,
+      "sha256": "d1d55385a9d59242f0a3b986b954eaea6b663c1f1d42503707ff4674205e061f",
+      "bytes": 247
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-journal-store.d.ts.map",
+      "mode": 420,
+      "sha256": "8631876e9d8cd696a031c9fb70a93e028cc176625216013bed1609a9ff18302d",
+      "bytes": 1061
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-journal-store.js.map",
+      "mode": 420,
+      "sha256": "8675e12cfb1abcd6301af5c652fbe61f1311df308e8987ca0f2d738059c22b31",
+      "bytes": 8585
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-metadata-sidecar-reader.d.ts.map",
+      "mode": 420,
+      "sha256": "e0ba8d6a01042eb6a5fec86b4215a26d66b1760aef151d97ecb57749c80ec8da",
+      "bytes": 602
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-metadata-sidecar-reader.js.map",
+      "mode": 420,
+      "sha256": "734eec7facf5eaf38937f0e580665258b07baa4a6202aa3479b83aba1dd56a63",
+      "bytes": 3382
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-parent-materializer.d.ts.map",
+      "mode": 420,
+      "sha256": "ed85641d1874a3de46f1d69f0e2cc2a8e939b3748f8284fab8bbffc5a3082339",
+      "bytes": 1616
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-parent-materializer.js.map",
+      "mode": 420,
+      "sha256": "1ffebd9f81196eae083fc14bf24dfaed2e5d54d444226cb31668e18f150ca32e",
+      "bytes": 10643
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-planning-profile-reader.d.ts.map",
+      "mode": 420,
+      "sha256": "2625cebce3bad5124a15094c9753b220fe4a6aced74143e3f2c621c6d5040833",
+      "bytes": 640
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-planning-profile-reader.js.map",
+      "mode": 420,
+      "sha256": "493c667ed6e3b557d76eb9f518e89237be57150cdff8c14377244f34cd7d9c74",
+      "bytes": 3570
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-planning-state-reader.d.ts.map",
+      "mode": 420,
+      "sha256": "df3713b35a5e23c107fcbb87d80688083462d461b165bd9e3c419cd76a0e04b8",
+      "bytes": 678
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-planning-state-reader.js.map",
+      "mode": 420,
+      "sha256": "b12c44bec89ae24787df368ec7ef4a3571960a55188a32e11e61e2f5cb77d9cd",
+      "bytes": 6704
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-planning.d.ts.map",
+      "mode": 420,
+      "sha256": "47beaf9b3918945d96d1f97835003139ad72fdaee5191a45f3f3f955c18db614",
+      "bytes": 367
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-planning.js.map",
+      "mode": 420,
+      "sha256": "db3d23f664d57c6a993b161294ac377b3fb398f64cfd40aae6ecfdf02630a821",
+      "bytes": 3648
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-publisher-private.d.ts.map",
+      "mode": 420,
+      "sha256": "026403739694fbe55fad6615687643c2027fcafcca68245080b27dff9b94cb69",
+      "bytes": 241
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-publisher-private.js.map",
+      "mode": 420,
+      "sha256": "a97a57fe220cbb48269c09c9665f049caa4e24584640b2e436bdc2a77b7d0a54",
+      "bytes": 239
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-publisher.d.ts.map",
+      "mode": 420,
+      "sha256": "8ae8c2ac025d2b8a7ab3a4fbabeafa34c8bed502e5106892f7127c1ff46454b4",
+      "bytes": 2040
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-publisher.js.map",
+      "mode": 420,
+      "sha256": "73df321d7399787b9f83495acf9249996868c479277ab30ac0f570e94029fdba",
+      "bytes": 12853
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-reachability-projector.d.ts.map",
+      "mode": 420,
+      "sha256": "9924cc85b84c58cf5a674a6cf69d18944490a55c60ad9a880cbcaf6880498694",
+      "bytes": 637
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-reachability-projector.js.map",
+      "mode": 420,
+      "sha256": "40d980d1ea9d9a1f4dbeab70417efcf2067f4c48420c76239cf59ea276dbd67f",
+      "bytes": 1601
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-structure-verifier.d.ts.map",
+      "mode": 420,
+      "sha256": "43074d59cbbc933254ef9e774316cea014dc38279efe7deb7b19cf70576b9b4d",
+      "bytes": 840
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-structure-verifier.js.map",
+      "mode": 420,
+      "sha256": "e880e2a65d91617d542bfb1f8470b0e1f18c0c2782ccb46b52fd21b9e7b3b6ce",
+      "bytes": 4093
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-template-reader.d.ts.map",
+      "mode": 420,
+      "sha256": "eb60cb9f93f894ba822937c402e3c3a55a891f1ae40586124a106ba368a9c0a3",
+      "bytes": 622
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-template-reader.js.map",
+      "mode": 420,
+      "sha256": "ec7923d2d49e917294bf66fcfe44979e394343ac5cd140c7851df9bc53b5d38b",
+      "bytes": 1393
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-transaction-coordinator.d.ts.map",
+      "mode": 420,
+      "sha256": "929de0038078ea5f99b01eb3ab4b8d0ac79bae40b31f6817f225c2185dd40d1a",
+      "bytes": 567
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-transaction-coordinator.js.map",
+      "mode": 420,
+      "sha256": "4934cae54c02b45e51a854900882c493cb65817c487a54aacc6c0cee4a515ddf",
+      "bytes": 1812
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-writing.d.ts.map",
+      "mode": 420,
+      "sha256": "6ca3e40ce0dab1309df2950727ba20348b195fe3bf4493f9cfea59e2a3263e53",
+      "bytes": 1067
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-writing.js.map",
+      "mode": 420,
+      "sha256": "2110fc5a772c55e55156f316246abb81eae7d9b2bf589e8914a0dda5671fa4a3",
+      "bytes": 2976
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-metadata-instance-validator.d.ts.map",
+      "mode": 420,
+      "sha256": "43b5f1a2899d9ae13eff9975a96af498d06e368f7faa69599ea30f6a987449a4",
+      "bytes": 593
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-metadata-instance-validator.js.map",
+      "mode": 420,
+      "sha256": "6c24d623769e6040a510b14d6d1ab2c9d0b85d638802a3287fd00ab134554cf2",
+      "bytes": 3429
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-owner-membership-reader.d.ts.map",
+      "mode": 420,
+      "sha256": "d1729bcc33126b87edf1616c8bc4d5f008d6a420cfc5ce9476d91ecf56a53424",
+      "bytes": 622
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-owner-membership-reader.js.map",
+      "mode": 420,
+      "sha256": "3b3cfb98d069872cec3f0565265153371578ad3fc2b67bbcc0c3ed50248e6e06",
+      "bytes": 2555
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-path-authority.d.ts.map",
+      "mode": 420,
+      "sha256": "68794409d44266af29d1f3adb4cf71e13e5f1aa002af2ec99923b9fbfe44d314",
+      "bytes": 2177
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-path-authority.js.map",
+      "mode": 420,
+      "sha256": "ff48e03cc4f926eb49a18383251a2d2fd7431e28d126cf6a3316888178b182d6",
+      "bytes": 7357
+    },
+    {
+      "path": "dist/document-authoring/application/policies/normalize-document-intent.d.ts.map",
+      "mode": 420,
+      "sha256": "760417a7ff6e1dc24419ad351cfc302152deea77d28344a2b10f03aa89f19aec",
+      "bytes": 297
+    },
+    {
+      "path": "dist/document-authoring/application/policies/normalize-document-intent.js.map",
+      "mode": 420,
+      "sha256": "97831f2c80434098e037bbbf57625cff571b10ea7c15e7296f205c38d345995f",
+      "bytes": 4109
+    },
+    {
+      "path": "dist/observation.d.ts.map",
+      "mode": 420,
+      "sha256": "12b2a00801c4203beabc967574725e008fa6dd5e56c6d4ad283267c999593ed0",
+      "bytes": 479
+    },
+    {
+      "path": "dist/observation.js.map",
+      "mode": 420,
+      "sha256": "b8b2169f1b0d071fb6e494b5820de921e76ac16d59beca910ce02d66c618fa8f",
+      "bytes": 216
+    },
+    {
+      "path": "dist/document-authoring/application/ports/owner-membership-reader.d.ts.map",
+      "mode": 420,
+      "sha256": "57bdda1fb22a5a8d89d791b71def4683bfcd922efa05e60bfa9cd9bcb8fbdfbf",
+      "bytes": 589
+    },
+    {
+      "path": "dist/document-authoring/application/ports/owner-membership-reader.js.map",
+      "mode": 420,
+      "sha256": "3ee11a8c78af683705897d69d0fdf6b7437004ae3687b1a6103fc9f6cf19dfad",
+      "bytes": 184
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/package-version.d.ts.map",
+      "mode": 420,
+      "sha256": "04e6355b17c2ea2e344926c2d5be13d17f5497d75f4092a902d00f1f5e2f177e",
+      "bytes": 215
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/package-version.js.map",
+      "mode": 420,
+      "sha256": "c88353ccecb945247208cc5065b1a9d87f6cbe9332a3395a4789e9c1f608005c",
+      "bytes": 575
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/plan-documentation-document.d.ts.map",
+      "mode": 420,
+      "sha256": "27979527ac5634d790cb501d144a516027864bfbdfe286dacb4725e543fb17b2",
+      "bytes": 2661
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/plan-documentation-document.js.map",
+      "mode": 420,
+      "sha256": "7ec44cd5446c469ab4e151180c2f752b2eb7e2261111590e4729e0e3df090f62",
+      "bytes": 10842
+    },
+    {
+      "path": "dist/document-authoring/application/policies/project-catalog-metadata.d.ts.map",
+      "mode": 420,
+      "sha256": "d6293dd79ece4310d3d5211da397e33901a64cf98d35e2859c3bb9e1d5a57e17",
+      "bytes": 445
+    },
+    {
+      "path": "dist/document-authoring/application/policies/project-catalog-metadata.js.map",
+      "mode": 420,
+      "sha256": "33eabc4c6635476dfc125c0cc3ebbbb535afd1bf18f54fd0b605b946478fea89",
+      "bytes": 6210
+    },
+    {
+      "path": "dist/document-authoring/application/policies/project-document-authoring-description.d.ts.map",
+      "mode": 420,
+      "sha256": "3d79f691b944147083f606557504de7c4acdf06a221dd52762d64eab47b273c9",
+      "bytes": 479
+    },
+    {
+      "path": "dist/document-authoring/application/policies/project-document-authoring-description.js.map",
+      "mode": 420,
+      "sha256": "491826c3e522c3c55b52517a60f84315ba82db70d4e2a7eed71dc4933a280ee2",
+      "bytes": 6843
+    },
+    {
+      "path": "dist/document-authoring/application/policies/project-document-reachability.d.ts.map",
+      "mode": 420,
+      "sha256": "f68e2d8730b19f17a55fb81ed75fc90bf1b69455397fe6413b28ff1f45efe9a3",
+      "bytes": 615
+    },
+    {
+      "path": "dist/document-authoring/application/policies/project-document-reachability.js.map",
+      "mode": 420,
+      "sha256": "900cce8021eaff414344d28828e302ec5d76eec14993ab9ceda9e8e03ef9164d",
+      "bytes": 3023
+    },
+    {
+      "path": "dist/document-authoring/application/policies/project-document-transaction-inspection.d.ts.map",
+      "mode": 420,
+      "sha256": "b2f8c4b3bf27a3f82ef3cb81fa20f269570e85d7303d9f724ccbe96d177fffba",
+      "bytes": 883
+    },
+    {
+      "path": "dist/document-authoring/application/policies/project-document-transaction-inspection.js.map",
+      "mode": 420,
+      "sha256": "ec72d0be8d90fe341bbe79467bb5139db0b5602285830e861a86ff55de8ad81e",
+      "bytes": 4111
+    },
+    {
+      "path": "dist/document-authoring/application/policies/project-similar-document-advice.d.ts.map",
+      "mode": 420,
+      "sha256": "f626ef068a44c661d8a83cddeb7edf988ebb39e1c06159b12c1be501f8dd8c2d",
+      "bytes": 376
+    },
+    {
+      "path": "dist/document-authoring/application/policies/project-similar-document-advice.js.map",
+      "mode": 420,
+      "sha256": "8422bf810d72e04094f552a9ac04ee652dcef335beb4bc14d621a2a318ad30df",
+      "bytes": 724
+    },
+    {
+      "path": "dist/document-authoring/testing/qualification.d.ts.map",
+      "mode": 420,
+      "sha256": "5dcd35417a8893cd8b55c9bec27cd443e67e1cb0767f2f4fa4d07eb52af01a5a",
+      "bytes": 596
+    },
+    {
+      "path": "dist/document-authoring/testing/qualification.js.map",
+      "mode": 420,
+      "sha256": "81738beba86a86c8e7552674e5419c322a0885e368f39c536dfadf5c22183e96",
+      "bytes": 528
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/read-document-authority-file.d.ts.map",
+      "mode": 420,
+      "sha256": "24f77499f249908da6c1087a79fd9a2d7e6a23402e35e126fcf8dde4cb7d6e48",
+      "bytes": 638
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/read-document-authority-file.js.map",
+      "mode": 420,
+      "sha256": "5faf92843e63034985399de035187b94fcf5c88ccecd97134291b133d779b8e0",
+      "bytes": 2699
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/recapture-directory-receipt-evidence.d.ts.map",
+      "mode": 420,
+      "sha256": "c121a28c82a9646ca0060a3c7d981a9b5c00e8b82323da28909fdd6a70a70eb5",
+      "bytes": 565
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/recapture-directory-receipt-evidence.js.map",
+      "mode": 420,
+      "sha256": "7413b1f0514bdef78c3dc406b403b5c1f74d753d6e906f204028820dca98c78d",
+      "bytes": 1208
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/recapture-document-publication-paths.d.ts.map",
+      "mode": 420,
+      "sha256": "7fa12ea04e951227e24392d704cded3a46ff3cc00e1626f4799cb892a1a619de",
+      "bytes": 821
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/recapture-document-publication-paths.js.map",
+      "mode": 420,
+      "sha256": "a463eb9a385d134a41eb820594fd7b741dccbc1954cbf162f387eca1876b2607",
+      "bytes": 1583
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/recover-document-transaction.d.ts.map",
+      "mode": 420,
+      "sha256": "f96372c166f6a5a25fbce692ad0ae463d356a3660d7b3979fd5dc4fb435aae3c",
+      "bytes": 607
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/recover-document-transaction.js.map",
+      "mode": 420,
+      "sha256": "ffd82ab5e1beadf45976cefdec21b885598543bd4af444fd795ecbfd79d9a04d",
+      "bytes": 9323
+    },
+    {
+      "path": "dist/document-authoring/application/policies/resolve-document-authoring.d.ts.map",
+      "mode": 420,
+      "sha256": "31c30270fd455d76d9d2f9c1a3b8a727660217b0603eb5d6875f8a728fe8541c",
+      "bytes": 662
+    },
+    {
+      "path": "dist/document-authoring/application/policies/resolve-document-authoring.js.map",
+      "mode": 420,
+      "sha256": "bd5294d26a5c87f5d3aa1db18a20095fbdec7968255af615da9f0201e306b10e",
+      "bytes": 6692
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/run-document-doctor.d.ts.map",
+      "mode": 420,
+      "sha256": "7c748d55e54970c946c521bf2b8c797b79a8ea4f9cb7d95b2e8a0871b9fc6b47",
+      "bytes": 714
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/run-document-doctor.js.map",
+      "mode": 420,
+      "sha256": "3f8fd80a2f9ec1d41163c35dfdf616deeb56d797eef470acc5e89d65eeee10ab",
+      "bytes": 5325
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/run-document-new.d.ts.map",
+      "mode": 420,
+      "sha256": "e8d6b1bfb30d21c3ef93818ed2506bffb2e97c473ad693f42c702b28279c3842",
+      "bytes": 1259
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/run-document-new.js.map",
+      "mode": 420,
+      "sha256": "0892c1e285cf895b1c3f35b1c23f38b32aa5b605ba22d82db5043b9bfe3ecd01",
+      "bytes": 6614
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/run-document-recover.d.ts.map",
+      "mode": 420,
+      "sha256": "1dac194affd345cafd65d51bfd408e3de2dadc0c2a43f5c742fd835c35089963",
+      "bytes": 825
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/run-document-recover.js.map",
+      "mode": 420,
+      "sha256": "acf2e7159a24d1687e6cbaa13bbb76f46bae70924e0a2e66a419a8c967608dff",
+      "bytes": 4087
+    },
+    {
+      "path": "dist/document-authoring/application/policies/same-document-catalog-snapshot.d.ts.map",
+      "mode": 420,
+      "sha256": "aff1501da5dfbf4e1a8cc41ebf0979c22c20df8a080e68657a57136ba5904f4a",
+      "bytes": 335
+    },
+    {
+      "path": "dist/document-authoring/application/policies/same-document-catalog-snapshot.js.map",
+      "mode": 420,
+      "sha256": "d11c7749588aae535d27ab408e81ef35b4267a6e12843a278589bd3854cee1f2",
+      "bytes": 1427
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/schema-catalog.d.ts.map",
+      "mode": 420,
+      "sha256": "ebb9b2418313e60febc8828fdb1cc3d68bcbfc8fd8d047c001122310ad7a0e6c",
+      "bytes": 398
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/schema-catalog.js.map",
+      "mode": 420,
+      "sha256": "9da93aad5544316a93ded1774f7c7085c0d4a3101399c4e8988bc23e7fa25191",
+      "bytes": 3333
+    },
+    {
+      "path": "dist/document-authoring/application/ports/similar-document-advisor.d.ts.map",
+      "mode": 420,
+      "sha256": "210d4f08a0bc36339da26a9ded9f00cb6f2fbef32ee51ffe66c0eb67bea38f58",
+      "bytes": 622
+    },
+    {
+      "path": "dist/document-authoring/application/ports/similar-document-advisor.js.map",
+      "mode": 420,
+      "sha256": "508df7dbc7fab670261a8d75c09db28016fb0c5a601281f1f422d73923d0069d",
+      "bytes": 186
+    },
+    {
+      "path": "dist/document-authoring/application/model/state-contract.d.ts.map",
+      "mode": 420,
+      "sha256": "a4ccd3df7c0d58cf61c5aa38356f1071290dd3e927ff1a4c5d8b9198fdd52e77",
+      "bytes": 246
+    },
+    {
+      "path": "dist/document-authoring/application/model/state-contract.js.map",
+      "mode": 420,
+      "sha256": "91e411bdcb59e6738a284f4a95bf834eacc15a92e809d23efb66e86b55a1e58f",
+      "bytes": 267
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/strict-yaml.d.ts.map",
+      "mode": 420,
+      "sha256": "defb5739b48d47853b5d1ba77bf9be85800dc1c1849b0bf0425f07a413712979",
+      "bytes": 233
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/strict-yaml.js.map",
+      "mode": 420,
+      "sha256": "2817e5fc564cb3c2b995b3984560633241e1142b98911a3226f9847ec9368587",
+      "bytes": 1878
+    },
+    {
+      "path": "dist/document-authoring/application/model/validated-document-authoring-profile.d.ts.map",
+      "mode": 420,
+      "sha256": "5513486c32c2d80dc681bcbcd151f68ee3221f6b63caa4ac76ed7dc63d6ec52a",
+      "bytes": 2644
+    },
+    {
+      "path": "dist/document-authoring/application/model/validated-document-authoring-profile.js.map",
+      "mode": 420,
+      "sha256": "72335841cc2588c0fa4a8876cc02c9cf829035a7dcd5440ef5c2a08149b0b1be",
+      "bytes": 1584
+    },
+    {
+      "path": "CHANGELOG.md",
+      "mode": 420,
+      "sha256": "6c5138dbb1c15cd405e518de8a09131508e9595b33721da55d3bd7cfa7c628f8",
+      "bytes": 12608
+    },
+    {
+      "path": "README.md",
+      "mode": 420,
+      "sha256": "6506ba1942c1e8fd6000781bfc94b1808c2ebe81ae66d9608ed9d56087bb37ad",
+      "bytes": 1004
+    },
+    {
+      "path": "dist/document-authoring/api.d.ts",
+      "mode": 420,
+      "sha256": "bf2b380111e0adb861df5036b43d403168385e9106fdb7a4b500bf60ec6dfdf3",
+      "bytes": 4198
+    },
+    {
+      "path": "dist/document-authoring/testing/api.d.ts",
+      "mode": 420,
+      "sha256": "5625206849e9d9259c767b09a3f892ae4401163832caadbb336b604336f1c73c",
+      "bytes": 1474
+    },
+    {
+      "path": "dist/documentation-observation/api.d.ts",
+      "mode": 420,
+      "sha256": "23690f75f9a6ce3eb3c24599c16a8aeb09182880296c08c63edaf3b3e5c05007",
+      "bytes": 934
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/apply-document-plan.d.ts",
+      "mode": 420,
+      "sha256": "ccb230ab9fc551e71a62e21461934acf892ed64c49b4beeae7f838157e45043c",
+      "bytes": 1004
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/apply-document-recovery-receipt.d.ts",
+      "mode": 420,
+      "sha256": "4931cac7d5137d23c1f13db022d53b3db25cc51bacf9ab6163fad10f967ca639",
+      "bytes": 1026
+    },
+    {
+      "path": "dist/document-authoring/application/policies/assert-artifact-owner-allowed.d.ts",
+      "mode": 420,
+      "sha256": "400a86556868eab854715c3aca36955c1b5c75b98e8f230e571bcf4f5e66a171",
+      "bytes": 264
+    },
+    {
+      "path": "dist/document-authoring/application/policies/assert-v2-planning-profile.d.ts",
+      "mode": 420,
+      "sha256": "c5370925af0fde62535a4afb400cc3808c3d4a992062717eb941e732cb161713",
+      "bytes": 303
+    },
+    {
+      "path": "dist/document-authoring/application/ports/authoring-profile-reader.d.ts",
+      "mode": 420,
+      "sha256": "efdfafe2d15de4222716c05689c240558c6eddd3542b767af679f47542677fd1",
+      "bytes": 1254
+    },
+    {
+      "path": "dist/document-authoring/application/policies/authoring-profile-semantics.d.ts",
+      "mode": 420,
+      "sha256": "6b0e7c6289efa51de266163d7d7278a4270a45c3cd690a1b615d05a0bec28556",
+      "bytes": 1977
+    },
+    {
+      "path": "dist/binary-string-comparator.d.ts",
+      "mode": 420,
+      "sha256": "ad6b005d500427140eba712792a44f21c29d374d507f21b6d586ada14cc08f82",
+      "bytes": 205
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/build-documentation-catalog.d.ts",
+      "mode": 420,
+      "sha256": "595622c3a034580dcadf01472013b4778e74dd87be374aecc919e8d63ca12d8c",
+      "bytes": 2548
+    },
+    {
+      "path": "dist/documentation-observation/application/policies/cancellation.d.ts",
+      "mode": 420,
+      "sha256": "034b39ed2a84fafcf954423fe80a6d563f17b0cca54e1cfb6f29822c8ef20659",
+      "bytes": 125
+    },
+    {
+      "path": "dist/document-authoring/application/ports/canonical-document-renderer.d.ts",
+      "mode": 420,
+      "sha256": "9e4834dd9dfad45a5428df48ea753b0c3985a1a47578b88b7b0fd5c754c71c22",
+      "bytes": 1137
+    },
+    {
+      "path": "dist/document-authoring/adapters/canonical-markdown.d.ts",
+      "mode": 420,
+      "sha256": "d719460e66ec8e5d7c7048bfe855ac6b37b79787c09d0dcf028ed60715eaea37",
+      "bytes": 1242
+    },
+    {
+      "path": "dist/document-authoring/application/policies/classify-document-recovery.d.ts",
+      "mode": 420,
+      "sha256": "1a4a5f5e71695e6a1f54b49738d416f4eb4b442b1e5f4d7c1d8557bb5ac67f2d",
+      "bytes": 3016
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/compile-document-plan.d.ts",
+      "mode": 420,
+      "sha256": "a8d827346dd848591393114ed55230115b4025573e11399724395f606fe7582d",
+      "bytes": 396
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/contained-file-reader.d.ts",
+      "mode": 420,
+      "sha256": "3c7b550fafc010b660ba3c81f7b9f6786517f5e5e536dbf59c793671a4da34eb",
+      "bytes": 220
+    },
+    {
+      "path": "dist/documentation-observation/application/model/contained-file.d.ts",
+      "mode": 420,
+      "sha256": "512b41e8400626e68b67ada84fb828a29efa65a6089314033997d01634cdd64b",
+      "bytes": 316
+    },
+    {
+      "path": "dist/document-authoring/testing/crash-qualification.d.ts",
+      "mode": 420,
+      "sha256": "b12cf53a04166f985b74630557a14ab3a7a8a56fb1031d2ac0afd0a6d6356d58",
+      "bytes": 1202
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/describe-document-authoring-profile-v2.d.ts",
+      "mode": 420,
+      "sha256": "d55c8439a645f910b5b5bb4e51dab2007c8ba1215e4264b670112b9e316ba7b1",
+      "bytes": 873
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/describe-document-authoring-profile.d.ts",
+      "mode": 420,
+      "sha256": "176c717a0263ceb5d1d1a50efb27f1ada54f4b3988afe637bbcb3639c01ef0c3",
+      "bytes": 719
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-authoring-profile-description.d.ts",
+      "mode": 420,
+      "sha256": "7fbbbe568bdf41144d51201432c9e099c9aae7cfcf676cded3d39408e20760c9",
+      "bytes": 2380
+    },
+    {
+      "path": "dist/composition/document-authoring-qualification.d.ts",
+      "mode": 420,
+      "sha256": "ba2aab3b227dfd090afcccd9a2b69c6f6d54ac56dedc39c5acdaedad2eb52a87",
+      "bytes": 526
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-authoring-semantic-digests.d.ts",
+      "mode": 420,
+      "sha256": "87e4762f358424d781e283498d27539e16e0331a0082b4a5ddf345b94f397d57",
+      "bytes": 2212
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-authority-recompiler.d.ts",
+      "mode": 420,
+      "sha256": "d634d8151c7dab507edaacb46dd625ae8ea029f84c53fb3f69f1abe41b0affa7",
+      "bytes": 628
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/document-authority-recompiler.d.ts",
+      "mode": 420,
+      "sha256": "11fe976c2fc87b01c0d87de500d64099207442cd9e77ad5f003a87560afb01f0",
+      "bytes": 1077
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-catalog-authority-stability.d.ts",
+      "mode": 420,
+      "sha256": "a7c46501d497faaa48578403b6225156591e9fa132ede014422c10c96f8e82c0",
+      "bytes": 790
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-catalog-diagnostics.d.ts",
+      "mode": 420,
+      "sha256": "9c039c74172b2b23098f748a13570d1d1902527f14e6e8ceb747103d9feb4c55",
+      "bytes": 929
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-catalog-error.d.ts",
+      "mode": 420,
+      "sha256": "e58f113cd447074b3777b2f2ec93d27302f61da4168068c103ed03ea33953698",
+      "bytes": 402
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-catalog-fields.d.ts",
+      "mode": 420,
+      "sha256": "9d051b00a1e3ff4375089e7371b81d5f36dadaf15f227eb1335b3132adbab0aa",
+      "bytes": 1067
+    },
+    {
+      "path": "dist/document-authoring/application/projections/document-catalog-projections.d.ts",
+      "mode": 420,
+      "sha256": "fd2d28f312018a8fd2eed416a9d964283637fa12319bd9d77f0b0374351339e1",
+      "bytes": 338
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-catalog-sidecar.d.ts",
+      "mode": 420,
+      "sha256": "b08543dfe86704900ae887394bed597feb5504d99fd954c2f0a93f61e7a29281",
+      "bytes": 1219
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-catalog.d.ts",
+      "mode": 420,
+      "sha256": "21d5e303ee482691298066c117d62290f3570dfd8c938d8952b49beeee8197ba",
+      "bytes": 3585
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-command-consumer-root.d.ts",
+      "mode": 420,
+      "sha256": "ecb83eb5c4586780c8645f4d2efc6d15666792f2fe2807c495cadd754b7b860f",
+      "bytes": 150
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-command-projection.d.ts",
+      "mode": 420,
+      "sha256": "45fbe1acaee461c162f233556901fb97ab09d78555933e129e1fac116f416b0d",
+      "bytes": 1036
+    },
+    {
+      "path": "dist/document-authoring/adapters/inbound/cli/document-command-renderer.d.ts",
+      "mode": 420,
+      "sha256": "cf7d8847932420cddd40c20bd0b2c00d476f30114a452c71e1a1b1d542b9857c",
+      "bytes": 562
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-command.d.ts",
+      "mode": 420,
+      "sha256": "f6a670337a6e822f5fa42bc6257feaa90a513faa3eae926e4909c2932877e048",
+      "bytes": 3282
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-contract-digests.d.ts",
+      "mode": 420,
+      "sha256": "ea7ee7f43d7be6be1b486fe6916c2c08cad4d95c6cb066854ea555f6ef4ecdd5",
+      "bytes": 1110
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-contract-validator.d.ts",
+      "mode": 420,
+      "sha256": "a1132ea4aa7698d8ec986e8d6e57810cca9b2bfa62cb78005cab60d5b036974d",
+      "bytes": 329
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-description-authority.d.ts",
+      "mode": 420,
+      "sha256": "e7bc90e21c35296b438147fe8dcc1025b835c36849298dd238d41f0ebc2ff11f",
+      "bytes": 1411
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-environment-inspector.d.ts",
+      "mode": 420,
+      "sha256": "448b4d37001635002fd6e8bbdd35734c281aa6612a0d065ac8ab8ef63945caa1",
+      "bytes": 532
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-environment-request.d.ts",
+      "mode": 420,
+      "sha256": "9af18f93f78bda28f21d9bdaade7a2c6091fb81a5f308822be2e38549881fef8",
+      "bytes": 194
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-file-read-failure.d.ts",
+      "mode": 420,
+      "sha256": "250038121ca1b631761d844591bc0bd2bed05f6277f3e3b22abafd4c78bafe0f",
+      "bytes": 404
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-file-reader.d.ts",
+      "mode": 420,
+      "sha256": "48157d7652b3940538a3b3ef9d9ec6cb5a019d30ab948cf6e077ae658a83aed9",
+      "bytes": 281
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-file-state.d.ts",
+      "mode": 420,
+      "sha256": "345dc57373c9f3553aa345bf4101972652fc05d24f11748f96b3b471578ff1ae",
+      "bytes": 1805
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-find.d.ts",
+      "mode": 420,
+      "sha256": "632fd7de2ca86a2141351b6277331d7b21024d05063b4e894ee30611f42c5b61",
+      "bytes": 904
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-input-failure.d.ts",
+      "mode": 420,
+      "sha256": "e44f5edd04b65eae107f743239ea39930b7fdc94609924564b8ad9dc18540380",
+      "bytes": 729
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/document-journal-reconciliation.d.ts",
+      "mode": 420,
+      "sha256": "f2996655ea7d172a50ef10acc9e6f8b03609c9807a7be3c8884bae9cbd868426",
+      "bytes": 1211
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-journal-store.d.ts",
+      "mode": 420,
+      "sha256": "ecea419246de05d7cbde2d793f0827ab6c57574dac7808c41d33da79d4b93fdf",
+      "bytes": 1238
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-logical-preimage.d.ts",
+      "mode": 420,
+      "sha256": "3678cf4e06e3e81b5c698dfd79b52782331ddfd961d274102e6afcf5bd29ada3",
+      "bytes": 801
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-markdown-repository.d.ts",
+      "mode": 420,
+      "sha256": "eef7a5e119bac66d3bbf7955dfd223528a2bd9f588530d03fa7a9c2e3abc2133",
+      "bytes": 449
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-markdown-syntax-reader.d.ts",
+      "mode": 420,
+      "sha256": "17cd58963b27bc5c4679b51321e87131f2059022b23e54715630e85e0c6cd801",
+      "bytes": 535
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-metadata-sidecar-reader.d.ts",
+      "mode": 420,
+      "sha256": "b3379dc18fe0467aace3f583ad352f5cd8d850bbe4e251eacbad70eeaeb5b449",
+      "bytes": 572
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-observation.d.ts",
+      "mode": 420,
+      "sha256": "e124150a3753ef44a8eacc6bcfd96730f3385b3e577bf5df1d6e6a09184dd005",
+      "bytes": 494
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/document-parent-materialization-continuation.d.ts",
+      "mode": 420,
+      "sha256": "a55cabd884aa6ae35a5bf19c5cff6663dec3ae92d441b924438f8b4f62c77c11",
+      "bytes": 468
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-parent-materialization.d.ts",
+      "mode": 420,
+      "sha256": "29f97d3ef1ec74fa15f6382a5d5283e98fe0c178aa37949f03bbc7f88442564a",
+      "bytes": 1138
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-parent-materializer.d.ts",
+      "mode": 420,
+      "sha256": "8945e21a5121f7797290dca4f72c9a381e8165857825ba54be87702089eead33",
+      "bytes": 1315
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-physical-identity.d.ts",
+      "mode": 420,
+      "sha256": "da2444f1f23f370b9df9e228b5639fd0c0cc78784866658ac1ac5efc3b6b2ad3",
+      "bytes": 491
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-planning-error.d.ts",
+      "mode": 420,
+      "sha256": "f9793dffbb7efc39f538edc1a686c0a70ae3116d892e3486cff573d58c56b568",
+      "bytes": 557
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-planning-policy-error.d.ts",
+      "mode": 420,
+      "sha256": "5cc2ee65fec087c20791bbe700b8db9ba9e9a69bfdc24fbbe0d7946fb50d04c2",
+      "bytes": 570
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-planning-profile-reader.d.ts",
+      "mode": 420,
+      "sha256": "392ba288c93d7349d1da4034ee2f114a60006ba98a0b876f945ad83c75ebfb0d",
+      "bytes": 378
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-planning-state-reader.d.ts",
+      "mode": 420,
+      "sha256": "2e47d1bf53844493e46f775aacfa34faa6f0ad9040daef42559d8fe2572ed8a2",
+      "bytes": 447
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-planning.d.ts",
+      "mode": 420,
+      "sha256": "3346638eb7a7cb523b1f81e93cb46c81c9fc6ccafb44d4382deef4837ff4b06e",
+      "bytes": 7971
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-publisher.d.ts",
+      "mode": 420,
+      "sha256": "a5aec3db50455613d74cd49d6e0de595c0b19ac9fd6f8940adbcb100e28eb7b2",
+      "bytes": 1547
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-reachability-projector.d.ts",
+      "mode": 420,
+      "sha256": "a40b5740b53865d6ad127c5e0475eeb249ef6b154ba3661d0c5bb7d79b5dbff2",
+      "bytes": 585
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-receipt-policy.d.ts",
+      "mode": 420,
+      "sha256": "a54f933a2fa7f867715a09e71babdf32c456c67c13abea4f3ed5e154b6d56e92",
+      "bytes": 674
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-receipt.d.ts",
+      "mode": 420,
+      "sha256": "795454383b6d818653bf52cb94a96748efdb929cd015d58069718ad74990c5e8",
+      "bytes": 4555
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/document-recovery-observation.d.ts",
+      "mode": 420,
+      "sha256": "97763fa3019a2635e0da345e04b46bfd1fdb6b0ad276f7c3f0fe7721584a1886",
+      "bytes": 730
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-repository-path.d.ts",
+      "mode": 420,
+      "sha256": "90206ef416012326e442838c9bc7760e92ca6ab8d50cb308c4313d6b4067451c",
+      "bytes": 203
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-schema-validator.d.ts",
+      "mode": 420,
+      "sha256": "e9ea5956d1b1fd9557c91dea69adc5063144f0f9cd27e8f664232e4a94232ad8",
+      "bytes": 933
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-structure-verifier.d.ts",
+      "mode": 420,
+      "sha256": "09b93f07b1dd3ee5ffbedefce67e439a7ab2c352a06b902f27f5b77405ad7950",
+      "bytes": 597
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-template-reader.d.ts",
+      "mode": 420,
+      "sha256": "3be2ea8bc505c1c0bad68902e05bb0319da8628d1705941b945a912076af8b84",
+      "bytes": 349
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-temporary-path.d.ts",
+      "mode": 420,
+      "sha256": "1bd3c4ea5455a1dcce915a34bd5575a06b72052806bf160793bcaa62f3a896e7",
+      "bytes": 369
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/document-transaction-continuation.d.ts",
+      "mode": 420,
+      "sha256": "4aa1cd7d5deb522f496c9dac53b48064023d7cf9beae78c03ce28d9e8baad6af",
+      "bytes": 3963
+    },
+    {
+      "path": "dist/document-authoring/application/ports/document-transaction-coordinator.d.ts",
+      "mode": 420,
+      "sha256": "406f8f1aa41c6eb00e787c5dc583d4f64daad5829dc25863ab4a35dc5407170a",
+      "bytes": 666
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-transaction-digests.d.ts",
+      "mode": 420,
+      "sha256": "5235f213452a88d52ffd170994d21c02f257084bd1e37708413f6250b02a490b",
+      "bytes": 606
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-transaction-envelope-body.d.ts",
+      "mode": 420,
+      "sha256": "79c853c0dbfc8e95cc351303b9dcc19c051ad631de2ff60ab0e5b90f2e6c8584",
+      "bytes": 1518
+    },
+    {
+      "path": "dist/document-authoring/application/policies/document-transaction-envelope-policy.d.ts",
+      "mode": 420,
+      "sha256": "0d4101289467dd54d62933c7c096060ec5ab6d7c351bded6ce5f91b4d6a80c90",
+      "bytes": 585
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/document-transaction-error.d.ts",
+      "mode": 420,
+      "sha256": "2bfbbdf64d12840fe5104157fd0ffbf5ca6670de6f3abb8ba054b0e2f348d857",
+      "bytes": 466
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/document-transaction-execution.d.ts",
+      "mode": 420,
+      "sha256": "4d531e589a0a7c5edcb2353bc0b824d75bae38023259ef51e89696981a1dad7a",
+      "bytes": 608
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-transaction-inspection.d.ts",
+      "mode": 420,
+      "sha256": "1d75142451825e7828f442f23159d5e01f299cc107fdbbf73e06aedcb69ecc89",
+      "bytes": 2747
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/document-transaction-receipts.d.ts",
+      "mode": 420,
+      "sha256": "4f5849ff167d882ce01a2c5b1c8ce9da30f0130f607f1491a40bebacbca1acb1",
+      "bytes": 1667
+    },
+    {
+      "path": "dist/document-authoring/application/model/document-transaction.d.ts",
+      "mode": 420,
+      "sha256": "4b00b9d09a88cb369c16480c7492474f2399d36e8fe78ea5dc1799f85643a638",
+      "bytes": 6408
+    },
+    {
+      "path": "dist/document-authoring/application/ports/documentation-catalog-reader-v2.d.ts",
+      "mode": 420,
+      "sha256": "1039a4e041bb980d99790128891a9c2e6161b3b590eaa78c4a6dd4c48f414924",
+      "bytes": 456
+    },
+    {
+      "path": "dist/document-authoring/application/ports/documentation-catalog-reader.d.ts",
+      "mode": 420,
+      "sha256": "93ac61ddabe175ac51bcfda2b3fbb918b4b40fc49665caa02b837a7f365e0b7c",
+      "bytes": 459
+    },
+    {
+      "path": "dist/document-authoring/application/ports/documentation-search-catalog-reader-v2.d.ts",
+      "mode": 420,
+      "sha256": "490060aa2c2cca649591e2271abbf49957570b2214f974c2bd5e04f4a31daea0",
+      "bytes": 405
+    },
+    {
+      "path": "dist/document-authoring/application/ports/documentation-search-catalog-reader.d.ts",
+      "mode": 420,
+      "sha256": "e6240c8366e714bde610eafd5ac83f88cafff8adc26bc89dd25b77e7f9d51d84",
+      "bytes": 461
+    },
+    {
+      "path": "dist/document-authoring/application/model/errors.d.ts",
+      "mode": 420,
+      "sha256": "47e7b922d48444e2cc26965900f779b4982ce27398d255403d572491cadafaf6",
+      "bytes": 298
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-document-reader.d.ts",
+      "mode": 420,
+      "sha256": "46e477d65181990b8d1c9fc970467c0ca372e2f28d71a4114a18d3bba971a7c9",
+      "bytes": 795
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-filesystem.d.ts",
+      "mode": 420,
+      "sha256": "971f9e7fd6e86301a6f829bb55087705cd4aa42de1aa2887606a1f455d57b2ca",
+      "bytes": 908
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-paths.d.ts",
+      "mode": 420,
+      "sha256": "5ebfd89bd089fdd51805174ac0817976c5698e8d12699ec3d8f6a5051ab8e61e",
+      "bytes": 623
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-reference-resolver.d.ts",
+      "mode": 420,
+      "sha256": "33853f19406b68f517430d8b8ddbc7f2dfeb46f7c3100792456919f7990a2ab1",
+      "bytes": 681
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-repository.d.ts",
+      "mode": 420,
+      "sha256": "230d8ea745dde2335c73e4b0d761a2143d1c8b7bc7bd583f4e418851efc197c1",
+      "bytes": 647
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-tree-observer.d.ts",
+      "mode": 420,
+      "sha256": "ffd51b74254df0b8377cd96e14aceb075ffc4d55d490db84d8d60fbed0027a1d",
+      "bytes": 677
+    },
+    {
+      "path": "dist/document-authoring/adapters/inbound/cli/find-command.d.ts",
+      "mode": 420,
+      "sha256": "78efd54174ee1b31b7b090d7964652518a2c3fec40f9e837f4a8f5f2ccaa743d",
+      "bytes": 1202
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/find-documents.d.ts",
+      "mode": 420,
+      "sha256": "a711df0b4b068e5885efa62bfc7a4a8963a181fd92701bd19035616c519b816d",
+      "bytes": 933
+    },
+    {
+      "path": "dist/index.d.ts",
+      "mode": 420,
+      "sha256": "9208565b3a14c2a0f4b7867428d90e322915aff30fd5af8d3168e44c20a2de6a",
+      "bytes": 3116
+    },
+    {
+      "path": "dist/qualification/index.d.ts",
+      "mode": 420,
+      "sha256": "086903b5803fa3291b8c085632b50214550589e726250ca6b0a84a2e12280670",
+      "bytes": 1120
+    },
+    {
+      "path": "dist/documentation-observation/application/model/input-problem.d.ts",
+      "mode": 420,
+      "sha256": "b1220db90bc727616f736b85fbb37aa7add5c4411918699f4efead0fa1d89671",
+      "bytes": 464
+    },
+    {
+      "path": "dist/document-authoring/application/policies/inspect-catalog-document.d.ts",
+      "mode": 420,
+      "sha256": "6d4c8ec066ba417c7203c9a47ed595b5468be45117038cdc90c5ee0a7bd6276f",
+      "bytes": 1481
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/inspect-document-authoring-environment-v1.d.ts",
+      "mode": 420,
+      "sha256": "8a94b57329e078f4b7103acf70126f90aff758899dc1c2437131eb23ad68a3a9",
+      "bytes": 466
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/inspect-document-transaction.d.ts",
+      "mode": 420,
+      "sha256": "307823bd299e799b1ef18c5810948cdd334b3533c599cbdb443d91ebbf414ee7",
+      "bytes": 442
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/installed-artifact-identity.d.ts",
+      "mode": 420,
+      "sha256": "1d5297db072d125dd5d5b1dfff2ea18d0728f3995e9bc35dca55365cf45f53e9",
+      "bytes": 370
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/load-v2-profile-description.d.ts",
+      "mode": 420,
+      "sha256": "e31565353015b0b9120aa15de21c8f532a00ec45bd2fc40e74e05e5665a1bee5",
+      "bytes": 1109
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/load-validated-document-authoring-profile-v2.d.ts",
+      "mode": 420,
+      "sha256": "c555be299931664b191716753711016c202c547978f8578c221c41e8a7438462",
+      "bytes": 751
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/load-validated-document-authoring-profile.d.ts",
+      "mode": 420,
+      "sha256": "9984277e6ca3bfd64af3c77aade74b90283661c342c6820acd38137bd89f8cd6",
+      "bytes": 728
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/markdown-document-parser.d.ts",
+      "mode": 420,
+      "sha256": "c8c2c27241750fbf5c20f2404288ce41517ab441a0311c71b33da9a8bf087596",
+      "bytes": 272
+    },
+    {
+      "path": "dist/documentation-observation/application/model/markdown-document.d.ts",
+      "mode": 420,
+      "sha256": "8afd2917cdd72426cabdd215ebe4d24dc5ba0e03758ac7098cb4c5653b788c91",
+      "bytes": 2662
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/markdown-reference-target.d.ts",
+      "mode": 420,
+      "sha256": "c60f4d4c6b4a31a91ec2fe82692830966ba078d9ef702ecc76206bfe06e8672f",
+      "bytes": 555
+    },
+    {
+      "path": "dist/documentation-observation/application/ports/markdown-repository.d.ts",
+      "mode": 420,
+      "sha256": "83cc8ef255b51bc1015110e470567f63b518f4253104310d820b7dbad7db617e",
+      "bytes": 848
+    },
+    {
+      "path": "dist/documentation-observation/adapters/outbound/filesystem/markdown-syntax-reader.d.ts",
+      "mode": 420,
+      "sha256": "47b9f31cfe3a8e4b434f38ded68a46b45fbd9b7b8426f9edf0fedd79b6bcdc78",
+      "bytes": 206
+    },
+    {
+      "path": "dist/documentation-observation/application/model/markdown-syntax.d.ts",
+      "mode": 420,
+      "sha256": "6f16e54c6c8526ba4c88d42bf80330f6f6a94d31cb3475318c8f86e4a42eb58a",
+      "bytes": 576
+    },
+    {
+      "path": "dist/document-authoring/application/ports/metadata-instance-validator.d.ts",
+      "mode": 420,
+      "sha256": "f27bca602d445c968980cffff26916f7e38cc5614b3a2e3993c62f04ea79ae03",
+      "bytes": 676
+    },
+    {
+      "path": "dist/document-authoring/module.d.ts",
+      "mode": 420,
+      "sha256": "5c623c4efeb0eac6f6e7498e9d4bf4a685052094b2b3444fb6f45c68082162e3",
+      "bytes": 491
+    },
+    {
+      "path": "dist/documentation-observation/module.d.ts",
+      "mode": 420,
+      "sha256": "4f50b6f9d5fcdc6b5bdb317ce614039d78d33f9b30d3ad86f746a28b44aa0a8a",
+      "bytes": 344
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-authoring-profile-reader-v2.d.ts",
+      "mode": 420,
+      "sha256": "1dd780997ebdd1fb845ecf5ac2d1d0eff05481a13b02ee71ea91638de6bc00ee",
+      "bytes": 612
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-authoring-profile-reader.d.ts",
+      "mode": 420,
+      "sha256": "823ff0b989a5f6e833892b1a0440f46525ef502b3a0217bdfde891ff9784146d",
+      "bytes": 607
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-api.d.ts",
+      "mode": 420,
+      "sha256": "8c0744865d36f7ef665422b7a53511e4f141471ab82994f22d61da6932f85969",
+      "bytes": 3484
+    },
+    {
+      "path": "dist/composition/node-document-authoring.d.ts",
+      "mode": 420,
+      "sha256": "36a83df827d312c8a2677e04c71825dc85ca0b9fc2a86720eda9b42e71971477",
+      "bytes": 2516
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-contract-validator.d.ts",
+      "mode": 420,
+      "sha256": "be21ace11598d28e05dcb074b0694f0ebcf2df61ff5abc5104e01e7746f91edb",
+      "bytes": 499
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-environment-inspector.d.ts",
+      "mode": 420,
+      "sha256": "c5bfc2be63aa1bafedd102c2bf311e0da88b889bd2056460e5cb16b2e831ee74",
+      "bytes": 929
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-file-state.d.ts",
+      "mode": 420,
+      "sha256": "5fffe1a8d46d4f4a3527559a4d6bb13f357b022f164b5bd4117cc4584dba67a5",
+      "bytes": 1101
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-journal-store-faults.d.ts",
+      "mode": 420,
+      "sha256": "bcac9f3579a02c2fc9a141bf0262ee9e66053b0d7b28ff0196cbc5e3a62a1643",
+      "bytes": 1321
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-journal-store-private.d.ts",
+      "mode": 420,
+      "sha256": "d2901754ba650c046e5afeefdc1315baf741c9dc83853b4a60888cd3d1d11838",
+      "bytes": 142
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-journal-store.d.ts",
+      "mode": 420,
+      "sha256": "b34641cfdc4185e60a2133440ed9be9a0a29a3f0758c55c0ad9e1457098280e2",
+      "bytes": 1347
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-metadata-sidecar-reader.d.ts",
+      "mode": 420,
+      "sha256": "bed92e8cc7f014466c19a0b190f9dc5bf2a7ad5e173f65fcb8fdb880048eebd8",
+      "bytes": 662
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-parent-materializer.d.ts",
+      "mode": 420,
+      "sha256": "266d0925609deee2813ea261a2b7a293b5eb4a9f15707d9ca802bce0a3e7f1fc",
+      "bytes": 1959
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-planning-profile-reader.d.ts",
+      "mode": 420,
+      "sha256": "71f3a37ee7eeb0c43745b1d1776251f83cf88fca906401b6f697746ce9ab2325",
+      "bytes": 730
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-planning-state-reader.d.ts",
+      "mode": 420,
+      "sha256": "6c5fc22674effc40aa1ae5d8c47334c4d73bdbfb86ceeb7e5c43edebf5a7ede8",
+      "bytes": 793
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-planning.d.ts",
+      "mode": 420,
+      "sha256": "bc3d2e5a8f30b89a3844d5451a3b408464f1d39905592d409db2c49fa415e7de",
+      "bytes": 644
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-publisher-private.d.ts",
+      "mode": 420,
+      "sha256": "349bc8191da1fa68206d720652d79b94a3f546c54694e1eaedbf4dd5d01c2793",
+      "bytes": 131
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-publisher.d.ts",
+      "mode": 420,
+      "sha256": "f2d12eec276466519ad72eee2a228681f7bd0e091d880bd9021cbe9e429bf760",
+      "bytes": 2396
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-reachability-projector.d.ts",
+      "mode": 420,
+      "sha256": "5ba40f45ce0326790975b887c0e86e2f14b53ad8935025736b32970cdecd42de",
+      "bytes": 975
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-structure-verifier.d.ts",
+      "mode": 420,
+      "sha256": "666fcfa7a87e2d87ffe735cf03c3888f119af6ad7605a992604293766d680f42",
+      "bytes": 1136
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-template-reader.d.ts",
+      "mode": 420,
+      "sha256": "7c5a8c04415c9911fb477522dfc5db703d2f7906c6d289bb4b31b4c413f1c2e0",
+      "bytes": 679
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-transaction-coordinator.d.ts",
+      "mode": 420,
+      "sha256": "df9908b76aa17fef514afa927fe27c3465e8c70bdf878a28065b559e89fa7aad",
+      "bytes": 672
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-document-writing.d.ts",
+      "mode": 420,
+      "sha256": "23e35c277e2924c4236f6104e2716cbe925214dd22c73598dfe4797557ee7a8c",
+      "bytes": 1583
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-metadata-instance-validator.d.ts",
+      "mode": 420,
+      "sha256": "cd4971274f5d1eaa3e839c3f79bb8ebed1088409e55e4af809585dd9e32ce3db",
+      "bytes": 622
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-owner-membership-reader.d.ts",
+      "mode": 420,
+      "sha256": "2595f7626d8cf36e18883f5426d2cdfe2385298dd2a10a740eeb3373c73fb626",
+      "bytes": 658
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/node-path-authority.d.ts",
+      "mode": 420,
+      "sha256": "0514c4827bf4e1ca3518d6b27d01b4017e463511bd9dd101cce109b2595b0ef5",
+      "bytes": 2547
+    },
+    {
+      "path": "dist/document-authoring/application/policies/normalize-document-intent.d.ts",
+      "mode": 420,
+      "sha256": "3bd3b09488487d2df9a5fc3ffaa9cc6d69b85ca2c4a7f80915b0aebdc3269444",
+      "bytes": 212
+    },
+    {
+      "path": "dist/observation.d.ts",
+      "mode": 420,
+      "sha256": "bbe873771d9af609b1236164fefbe617b8219cc173c5f2d12d1580120eb6a178",
+      "bytes": 774
+    },
+    {
+      "path": "dist/document-authoring/application/ports/owner-membership-reader.d.ts",
+      "mode": 420,
+      "sha256": "9745ae9449546a052828fab29a58cb401fa7310788e79bc53029fe5c9340d760",
+      "bytes": 532
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/package-version.d.ts",
+      "mode": 420,
+      "sha256": "30d843dc37321309c75a8bed0cf10da796e68808bc1d29b4dbf53fad027ed9cf",
+      "bytes": 123
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/plan-documentation-document.d.ts",
+      "mode": 420,
+      "sha256": "8b2989dbbd882f7f09aea72005adb0586a4f2633e60897065cf2adece3f951f9",
+      "bytes": 3820
+    },
+    {
+      "path": "dist/document-authoring/application/policies/project-catalog-metadata.d.ts",
+      "mode": 420,
+      "sha256": "c87daaa00a07ce5ad511b7624440a92cb0c6cf330fe716c754d7b5add9214d65",
+      "bytes": 442
+    },
+    {
+      "path": "dist/document-authoring/application/policies/project-document-authoring-description.d.ts",
+      "mode": 420,
+      "sha256": "284db8f457cc0f6aa83691d353804ce07a25846d2bdbf275f11d04e76da7e657",
+      "bytes": 600
+    },
+    {
+      "path": "dist/document-authoring/application/policies/project-document-reachability.d.ts",
+      "mode": 420,
+      "sha256": "a7673746401e89279026d09f29b83e091bba20ab8ecf152d8ba2fceda5d6d071",
+      "bytes": 538
+    },
+    {
+      "path": "dist/document-authoring/application/policies/project-document-transaction-inspection.d.ts",
+      "mode": 420,
+      "sha256": "5fbd96f3ce845970d1acfe86d7067b5171dac7b86d4e39a44c2dcb6cc7e9e0bd",
+      "bytes": 1288
+    },
+    {
+      "path": "dist/document-authoring/application/policies/project-similar-document-advice.d.ts",
+      "mode": 420,
+      "sha256": "1526af01a38e6f8cc023e15313e230d7be28a6c106ab4ae0b6fcccda797cad82",
+      "bytes": 346
+    },
+    {
+      "path": "dist/document-authoring/testing/qualification.d.ts",
+      "mode": 420,
+      "sha256": "5496fb96b66682751bccf01efac4558c0a7aef4bd7b2a83a1e4bb8c354b5cb9b",
+      "bytes": 917
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/read-document-authority-file.d.ts",
+      "mode": 420,
+      "sha256": "3b7504dfba715d944313444f4f9a73d08f64d97f9e7906c5bb9fe5419b7f1b76",
+      "bytes": 629
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/recapture-directory-receipt-evidence.d.ts",
+      "mode": 420,
+      "sha256": "77c3be54d0a465b27a1035d1778224fa8565712b78872a02432a253c7369e605",
+      "bytes": 602
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/recapture-document-publication-paths.d.ts",
+      "mode": 420,
+      "sha256": "e02e8e024c8d3b682a8f861bd2a061d9c3c8a473b4165a513857c40e76839c89",
+      "bytes": 987
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/recover-document-transaction.d.ts",
+      "mode": 420,
+      "sha256": "c729c0765c2c27af0f31f44315ccb5f843fb8be78c7559bdf97785c902de4ad6",
+      "bytes": 852
+    },
+    {
+      "path": "dist/document-authoring/application/policies/resolve-document-authoring.d.ts",
+      "mode": 420,
+      "sha256": "d330d8b55752829718b17f7946187b400a504e0c73f21127b0f0b650c1e89834",
+      "bytes": 661
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/run-document-doctor.d.ts",
+      "mode": 420,
+      "sha256": "544dc2464582e3dde6f812a7b6edb7179f6aa59b6eeeaa86e725dafc05b8c8fb",
+      "bytes": 835
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/run-document-new.d.ts",
+      "mode": 420,
+      "sha256": "8eac4d62b99d328de257f94120d46b046a4f0d3d23ff3e188e62a810879f387f",
+      "bytes": 1616
+    },
+    {
+      "path": "dist/document-authoring/application/use-cases/run-document-recover.d.ts",
+      "mode": 420,
+      "sha256": "948ed2898cab699790e93a1858cab0f414dd30cdd7d0a35eacbc2d6aa9f2695c",
+      "bytes": 920
+    },
+    {
+      "path": "dist/document-authoring/application/policies/same-document-catalog-snapshot.d.ts",
+      "mode": 420,
+      "sha256": "fb1911f500d3c3da27982d07dc569355eaa5f884a135b1fd631dd46b27975599",
+      "bytes": 301
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/schema-catalog.d.ts",
+      "mode": 420,
+      "sha256": "8ebff426d1d1d899705172a16130ef30a05f875ad2e9e86c18b3ad3146f6b12e",
+      "bytes": 375
+    },
+    {
+      "path": "dist/document-authoring/application/ports/similar-document-advisor.d.ts",
+      "mode": 420,
+      "sha256": "7771a2696adca6e01fc4303e77ea52e4af447a29600bdb619597f8a62e5b1498",
+      "bytes": 552
+    },
+    {
+      "path": "dist/document-authoring/application/model/state-contract.d.ts",
+      "mode": 420,
+      "sha256": "3c0aa7e0439e4d8b3b230140b75a7da6ecd4b985677f63eaa22009039d78ce6a",
+      "bytes": 192
+    },
+    {
+      "path": "dist/document-authoring/adapters/node/strict-yaml.d.ts",
+      "mode": 420,
+      "sha256": "30f2b14c90b68bea98351241c198f3ee6f51d9c067ade8a00be0c70cdce8efe4",
+      "bytes": 128
+    },
+    {
+      "path": "dist/document-authoring/application/model/validated-document-authoring-profile.d.ts",
+      "mode": 420,
+      "sha256": "20776cbb73390ec0b087a79d5ae86fc2fdc486bc35cec5b5d83d6042d02dc812",
+      "bytes": 3186
+    },
+    {
+      "path": "dist/markdown-upstream-notices.txt",
+      "mode": 420,
+      "sha256": "5cd8851fb6bbf6c80947d232d3844c9f89c844de2e9e2bbbf1fc0ff5d2d48d1a",
+      "bytes": 81378
+    }
+  ]
+}

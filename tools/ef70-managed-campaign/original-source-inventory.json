@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 1,
+  "evidenceClass": "reviewed-source-and-retained-authenticated-input-inventory",
+  "producerBase": "7438b7ee4429dc7798cf2b18c81e6bc7788f0f5b",
+  "originalInputs": [
+    {
+      "path": "stage-a/io.ts",
+      "bytes": 5995,
+      "sha256": "a9bbe70caaffc2c1464b7ed222abd4ee04102ae50b4ff7a2f14990ff8d3904c9"
+    },
+    {
+      "path": "stage-a/publication.ts",
+      "bytes": 11891,
+      "sha256": "b8dc5062447942c995caf8d2d435a3511dd9d159509fdc9fb5f3bb1b14aba064"
+    },
+    {
+      "path": "stage-b/context.ts",
+      "bytes": 12582,
+      "sha256": "b2d8b5809452b22f65290693693d57d0a9e63a871656dd0733aed5fec13a58d1"
+    },
+    {
+      "path": "stage-b/driver.ts",
+      "bytes": 13039,
+      "sha256": "4d0ec8d8dbff4977d09c6fb3e9c9f0ef082f7be3d5ece367c5b4beae7f8884fd"
+    },
+    {
+      "path": "stage-b/refusal.ts",
+      "bytes": 32782,
+      "sha256": "614cec4849a916fc3be4ad349e69c3f065b98ae48fee5377b503f1283ee2c9a7"
+    },
+    {
+      "path": "stage-b/activation-failure.ts",
+      "bytes": 30508,
+      "sha256": "f87846f50136c0d7940b1f26dc5fd3c5c7c9451e0a6f3e08cefeae34ffb205ab"
+    },
+    {
+      "path": "stage-b/cold-interruption.ts",
+      "bytes": 11602,
+      "sha256": "1408163544e8e8bc001029ce3992b8c0452ad0dcf61ac6f617479ce70821405f"
+    },
+    {
+      "path": "stage-b/cold-committed-interruption.ts",
+      "bytes": 17112,
+      "sha256": "c3624a8833261614b836485d3dcc2df68759dace602f9deb16d4e52f28b92266"
+    },
+    {
+      "path": "compiler-guard.ts",
+      "bytes": 2812,
+      "sha256": "d905f774ece6d863a06b867c812b9f6fcc0e47df86e963f306da0e93cd62f3fd"
+    },
+    {
+      "path": "compose-selected-lock.ts",
+      "bytes": 15122,
+      "sha256": "4075d4c02ca686b440bdc210ae482fb1e4fbb4b27dc8933524afb83f9b12516f"
+    },
+    {
+      "path": "fixtures/controller-package.json",
+      "bytes": 210,
+      "sha256": "2f5350a11c52ed8f85d869e303e211a41ac09562d2784f7a830be15644600d36"
+    },
+    {
+      "path": "fixtures/controller-package-lock.json",
+      "bytes": 6559,
+      "sha256": "6fb0e48a6f95dbfb788977fb73d09aeb12c8b9e3a36e29dfede4bd5bbd850e7e"
+    },
+    {
+      "path": "fixtures/controller-archive-integrity.json",
+      "bytes": 1876,
+      "sha256": "05a4d689faed6f0e6b8c0934f127fef64a03655a756cdba8dfb38b283ca146b7"
+    },
+    {
+      "path": "fixtures/installed-repository-mutation-inventory.json",
+      "bytes": 78034,
+      "sha256": "e8f5ff9a95491f6f0be3166861053d9b6535c02eaad2d76dad63c5e0e0089a47"
+    },
+    {
+      "path": "fixtures/installed-document-authoring-inventory.json",
+      "bytes": 154941,
+      "sha256": "79acfbcf31c2bba32c1795a2a9b05a17a2433190d7a8a194bbd7b80a6fc36b91"
+    },
+    {
+      "path": "fixtures/installed-docs-protocol-inventory.json",
+      "bytes": 76812,
+      "sha256": "09a6dfa7774752be31a1c87ce32f9051af8ddef70a085169e73fd60346164e07"
+    },
+    {
+      "path": "fixtures/installed-docs-protocol-agent-teams-inventory.json",
+      "bytes": 127680,
+      "sha256": "d3fca8753c9eaff954b605b2a3e50ccd79391a1aae4ecd362f18d58bc4f69a40"
+    },
+    {
+      "path": "fixtures/finite-execution.review-plan.json",
+      "bytes": 19907,
+      "sha256": "9f8d37e0c16d0f8a3b30237dd2b5274489bc7457149ac61f39289ef4e10d06ee"
+    },
+    {
+      "path": "fixtures/host-checkpoint.patch",
+      "bytes": 24513,
+      "sha256": "e2f0c1635a7a37570cd287003f72039f09fa9247270b8e3e7e0cd7f75b5eae46"
+    }
+  ],
+  "limits": "Historical data is fixture input. Hosted execution must obtain genuine published archives, audit signatures, compare installed bytes, and create fresh actual evidence. No prior local proof is reused as a hosted operation."
+}

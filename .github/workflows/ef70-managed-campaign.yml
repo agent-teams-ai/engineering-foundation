@@ -1,0 +1,268 @@
+name: EF70 published managed campaign
+run-name: EF70 ${{ github.repository }} @${{ github.sha }} attempt ${{ github.run_attempt }}
+
+on:
+  push:
+    branches: [test/ef70-managed-campaign]
+  workflow_call:
+    inputs:
+      harness_revision:
+        description: Reviewed immutable Foundation harness revision
+        required: true
+        type: string
+      preflight_run_id:
+        description: Successful ordinary producer preflight run for this revision
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ef70-harness-${{ github.repository_id }}-${{ github.ref }}-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  producer-preflight:
+    name: ef70-harness-preflight
+    if: ${{ github.repository == 'agent-teams-ai/engineering-foundation' && github.repository_id == '1316243988' && github.event_name == 'push' && github.ref == 'refs/heads/test/ef70-managed-campaign' && github.event.deleted == false }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    env:
+      PNPM_MAX_WORKERS: "1"
+      GOMAXPROCS: "2"
+      RAYON_NUM_THREADS: "2"
+      NX_DAEMON: "false"
+      # Current canonical Q identity, used only by disposable local Git fixtures.
+      GIT_AUTHOR_NAME: iliya
+      GIT_COMMITTER_NAME: iliya
+      GIT_AUTHOR_EMAIL: iliyazelenkog@gmail.com
+      GIT_COMMITTER_EMAIL: iliyazelenkog@gmail.com
+      EF70_PRODUCER_BASE: 7438b7ee4429dc7798cf2b18c81e6bc7788f0f5b
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        id: pnpm
+        env: { pnpm_config_pm_on_fail: ignore }
+        with: { version: "11.20.0", install: false }
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        id: bun
+        with: { bun-version: "1.4.3" }
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: "24.21.0" }
+      - name: Capture the frozen managed Node24 test source
+        run: printf 'MANAGED_TEST_NODE24_SOURCE=%s\n' "$(node -p 'process.execPath')" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: "26.10.0" }
+      - name: Capture the frozen managed Node26 test source
+        run: printf 'MANAGED_TEST_NODE26_SOURCE=%s\n' "$(node -p 'process.execPath')" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: "24.22.3" }
+      - name: Capture the real generation2 controller executable
+        run: |
+          set -Eeuo pipefail
+          selected_node="$(node -p 'process.execPath')"
+          printf 'EF70_NODE24_EXECUTABLE=%s\n' "$selected_node" >> "$GITHUB_ENV"
+          printf 'PACK_TEST_GENERATION2_NODE=%s\n' "$selected_node" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: "26.12.1" }
+      - name: Capture the real driver and producer build executable
+        run: |
+          set -Eeuo pipefail
+          selected_node="$(node -p 'process.execPath')"
+          printf 'EF70_NODE26_EXECUTABLE=%s\n' "$selected_node" >> "$GITHUB_ENV"
+          printf 'AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE=%s\n' "$selected_node" >> "$GITHUB_ENV"
+      - name: Prepare external diagnostics and actual CPU selection
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          runner_temp="$(realpath "$RUNNER_TEMP")"
+          quality_root="${runner_temp}/ef70-quality-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          mkdir -m 700 "$quality_root"
+          printf 'EF70_QUALITY_ROOT=%s\n' "$quality_root" >> "$GITHUB_ENV"
+          selected_cpus="$(python3 -c 'import os; cpus=sorted(os.sched_getaffinity(0)); assert len(cpus)>=2; print(",".join(map(str,cpus[:2])))')"
+          printf '%s\n' "$selected_cpus" > "$quality_root/cpuset.txt"
+          printf 'EF70_CPUSET=%s\n' "$selected_cpus" >> "$GITHUB_ENV"
+      - name: Install the ordinary producer profile
+        env:
+          AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE: ${{ steps.bun.outputs.bun-path }}
+        run: |
+          set -Eeuo pipefail
+          taskset -c "$EF70_CPUSET" bun tools/dev.mts install 2>&1 | tee "$EF70_QUALITY_ROOT/install.log"
+      - name: Build current producer source with its admitted compiler
+        env:
+          AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE: ${{ steps.bun.outputs.bun-path }}
+        run: |
+          set -Eeuo pipefail
+          taskset -c "$EF70_CPUSET" bun tools/dev.mts build 2>&1 | tee "$EF70_QUALITY_ROOT/build.log"
+      - name: Run explicit Stack cleanup and require unchanged source
+        run: |
+          set -Eeuo pipefail
+          cleanup_status=0
+          taskset -c "$EF70_CPUSET" "$EF70_NODE26_EXECUTABLE" packages/stack-toolchain/dist/cli.js fix -- \
+            tools/ef70-managed-campaign/bootstrap-controller.ts \
+            tools/ef70-managed-campaign/bootstrap-io.ts \
+            tools/ef70-managed-campaign/bootstrap-prerequisites.ts \
+            tools/ef70-managed-campaign/bootstrap.ts \
+            tools/ef70-managed-campaign/campaign-host.ts \
+            tools/ef70-managed-campaign/campaign-io.ts \
+            tools/ef70-managed-campaign/campaign-support.ts \
+            tools/ef70-managed-campaign/campaign.ts \
+            tools/ef70-managed-campaign/cold-chains.ts \
+            tools/ef70-managed-campaign/cold-custody.ts \
+            tools/ef70-managed-campaign/cold-processes.ts \
+            tools/ef70-managed-campaign/compiler-guard.ts \
+            tools/ef70-managed-campaign/compose-selected-lock.ts \
+            tools/ef70-managed-campaign/owned-root.ts \
+            tools/ef70-managed-campaign/rate-budget.ts \
+            tools/ef70-managed-campaign/refusal-custody.ts \
+            tools/ef70-managed-campaign/refusals.ts \
+            tools/ef70-managed-campaign/report.ts \
+            tools/ef70-managed-campaign/stage-a/io.ts \
+            tools/ef70-managed-campaign/stage-a/publication.ts \
+            tools/ef70-managed-campaign/stage-b/activation-admission.ts \
+            tools/ef70-managed-campaign/stage-b/activation-failure.ts \
+            tools/ef70-managed-campaign/stage-b/activation-observation.ts \
+            tools/ef70-managed-campaign/stage-b/cold-committed-interruption.ts \
+            tools/ef70-managed-campaign/stage-b/cold-interruption.ts \
+            tools/ef70-managed-campaign/stage-b/cold-process-observation.ts \
+            tools/ef70-managed-campaign/stage-b/context.ts \
+            tools/ef70-managed-campaign/stage-b/driver.ts \
+            tools/ef70-managed-campaign/stage-b/refusal-command.ts \
+            tools/ef70-managed-campaign/stage-b/refusal-contracts.ts \
+            tools/ef70-managed-campaign/stage-b/refusal-evidence.ts \
+            tools/ef70-managed-campaign/stage-b/refusal-preparation.ts \
+            tools/ef70-managed-campaign/stage-b/refusal.ts \
+            2>&1 | tee "$EF70_QUALITY_ROOT/cleanup.log" || cleanup_status=$?
+          git diff --binary > "$EF70_QUALITY_ROOT/cleanup.diff"
+          git diff --exit-code
+          exit "$cleanup_status"
+      - name: Provision the unchanged frozen managed test tools
+        run: |
+          set -Eeuo pipefail
+          taskset -c "$EF70_CPUSET" node scripts/provision-managed-test-tools.mjs 2>&1 | tee "$EF70_QUALITY_ROOT/managed-tools.log"
+      - name: Check the complete actual committed delta
+        env:
+          AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE: ${{ steps.bun.outputs.bun-path }}
+          AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT: ${{ steps.pnpm.outputs.bin-dest }}/pnpm
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$EF70_PRODUCER_BASE"
+          test "$(git merge-base refs/remotes/origin/main HEAD)" = "$EF70_PRODUCER_BASE"
+          git diff --name-status "$EF70_PRODUCER_BASE" HEAD > "$EF70_QUALITY_ROOT/changed-paths.txt"
+          test -s "$EF70_QUALITY_ROOT/changed-paths.txt"
+          git diff --exit-code
+          taskset -c "$EF70_CPUSET" bun tools/dev.mts check:changed 2>&1 | tee "$EF70_QUALITY_ROOT/check-changed.log"
+      - name: Run the unchanged required fast route
+        env:
+          AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE: ${{ steps.bun.outputs.bun-path }}
+        run: |
+          set -Eeuo pipefail
+          taskset -c "$EF70_CPUSET" bun tools/dev.mts check:fast 2>&1 | tee "$EF70_QUALITY_ROOT/check-fast.log"
+      - name: Qualify workflow security
+        run: |
+          set -Eeuo pipefail
+          taskset -c "$EF70_CPUSET" bun tools/dev.mts security:workflows 2>&1 | tee "$EF70_QUALITY_ROOT/workflow-security.log"
+      - name: Retain actual producer preflight diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ef70-harness-preflight-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/ef70-quality-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 14
+
+  actual-campaign:
+    name: ef70-published-controller-campaign
+    if: ${{ github.repository == 'agent-teams-ai/extension-foundation' && github.repository_id == '1333298097' && github.event_name == 'push' && github.ref == 'refs/heads/docs/coordinated-module-foundation-20261126' && github.event.deleted == false }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    env:
+      PNPM_MAX_WORKERS: "1"
+      GOMAXPROCS: "2"
+      RAYON_NUM_THREADS: "2"
+      NX_DAEMON: "false"
+      GIT_AUTHOR_NAME: iliya
+      GIT_COMMITTER_NAME: iliya
+      GIT_AUTHOR_EMAIL: iliyazelenkog@gmail.com
+      GIT_COMMITTER_EMAIL: iliyazelenkog@gmail.com
+      EF70_HARNESS_REVISION: ${{ inputs.harness_revision }}
+      EF70_PREFLIGHT_RUN_ID: ${{ inputs.preflight_run_id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: agent-teams-ai/engineering-foundation
+          ref: ${{ inputs.harness_revision }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        env: { pnpm_config_pm_on_fail: ignore }
+        with: { version: "11.20.0", install: false }
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        id: bun
+        with: { bun-version: "1.4.3" }
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: "24.22.3" }
+      - name: Capture the real generation2 controller executable
+        run: printf 'EF70_NODE24_EXECUTABLE=%s\n' "$(node -p 'process.execPath')" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: "26.12.1" }
+      - name: Capture the real driver and producer install executable
+        run: |
+          set -Eeuo pipefail
+          selected_node="$(node -p 'process.execPath')"
+          printf 'EF70_NODE26_EXECUTABLE=%s\n' "$selected_node" >> "$GITHUB_ENV"
+          printf 'AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE=%s\n' "$selected_node" >> "$GITHUB_ENV"
+      - name: Prepare external diagnostics and actual CPU selection
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          runner_temp="$(realpath "$RUNNER_TEMP")"
+          quality_root="${runner_temp}/ef70-quality-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          mkdir -m 700 "$quality_root"
+          printf 'EF70_QUALITY_ROOT=%s\n' "$quality_root" >> "$GITHUB_ENV"
+          printf 'EF70_EVIDENCE_ROOT=%s/ef70-evidence-%s-%s\n' "$runner_temp" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" >> "$GITHUB_ENV"
+          printf 'EF70_COMPILER_GUARD_LOG=%s/node-driver-guard.jsonl\n' "$quality_root" >> "$GITHUB_ENV"
+          selected_cpus="$(python3 -c 'import os; cpus=sorted(os.sched_getaffinity(0)); assert len(cpus)>=2; print(",".join(map(str,cpus[:2])))')"
+          printf '%s\n' "$selected_cpus" > "$quality_root/cpuset.txt"
+          printf 'EF70_CPUSET=%s\n' "$selected_cpus" >> "$GITHUB_ENV"
+      - name: Install the exact producer harness dependencies
+        env:
+          AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE: ${{ steps.bun.outputs.bun-path }}
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse HEAD)" = "$EF70_HARNESS_REVISION"
+          taskset -c "$EF70_CPUSET" bun tools/dev.mts install 2>&1 | tee "$EF70_QUALITY_ROOT/install.log"
+      - name: Verify actual preflight and authenticate published prerequisites
+        id: bootstrap
+        env:
+          EF70_GITHUB_READ_TOKEN: ${{ github.token }}
+        run: |
+          taskset -c "$EF70_CPUSET" "$EF70_NODE26_EXECUTABLE" --import ./tools/ef70-managed-campaign/compiler-guard.ts tools/ef70-managed-campaign/bootstrap.ts
+      - name: Execute seven actual chains and fifteen refusing boundaries
+        env:
+          EF70_GITHUB_READ_TOKEN: ${{ github.token }}
+          EF70_BOOTSTRAP_RESULT: ${{ steps.bootstrap.outputs.bootstrap-result }}
+        run: |
+          taskset -c "$EF70_CPUSET" "$EF70_NODE26_EXECUTABLE" --import ./tools/ef70-managed-campaign/compiler-guard.ts tools/ef70-managed-campaign/campaign.ts "$EF70_BOOTSTRAP_RESULT"
+      - name: Emit bounded actual evidence for read-only observation
+        if: ${{ always() && env.EF70_NODE26_EXECUTABLE != '' && env.EF70_EVIDENCE_ROOT != '' }}
+        run: taskset -c "$EF70_CPUSET" "$EF70_NODE26_EXECUTABLE" tools/ef70-managed-campaign/report.ts "$EF70_EVIDENCE_ROOT"
+      - name: Retain actual diagnostics and campaign evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ef70-managed-campaign-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/ef70-quality-${{ github.run_id }}-${{ github.run_attempt }}
+            ${{ runner.temp }}/ef70-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 14

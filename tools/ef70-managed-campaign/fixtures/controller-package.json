@@ -1,0 +1,9 @@
+{
+  "name": "ef70-retained-controller",
+  "version": "0.0.0",
+  "private": true,
+  "dependencies": {
+    "@agent-teams/docs-protocol-agent-teams": "0.8.0",
+    "@agent-teams/repository-mutation": "0.5.2"
+  }
+}

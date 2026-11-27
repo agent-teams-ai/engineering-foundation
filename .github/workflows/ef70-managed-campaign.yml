@@ -38,7 +38,7 @@ jobs:
       GIT_COMMITTER_NAME: iliya
       GIT_AUTHOR_EMAIL: iliyazelenkog@gmail.com
       GIT_COMMITTER_EMAIL: iliyazelenkog@gmail.com
-      EF70_PRODUCER_BASE: 072ad02d76071e46e1232fc0b9ec354764413acb
+      EF70_PRODUCER_BASE: 2a70fe1ccc6f223c2da1a9ec0324ac5d071662b6
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -81,6 +81,9 @@ jobs:
         run: |
           set -Eeuo pipefail
           runner_temp="$(realpath "$RUNNER_TEMP")"
+          test_scratch="${runner_temp}/ef70-tests-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          mkdir -m 700 "$test_scratch"
+          printf 'C1_TEST_SCRATCH=%s\nTMPDIR=%s\n' "$test_scratch" "$test_scratch" >> "$GITHUB_ENV"
           quality_root="${runner_temp}/ef70-quality-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           mkdir -m 700 "$quality_root"
           printf 'EF70_QUALITY_ROOT=%s\n' "$quality_root" >> "$GITHUB_ENV"
@@ -104,6 +107,7 @@ jobs:
           set -Eeuo pipefail
           cleanup_status=0
           taskset -c "$EF70_CPUSET" "$EF70_NODE26_EXECUTABLE" packages/stack-toolchain/dist/cli.js fix -- \
+            tests/support/repository-ci-runtime-fixture.ts \
             tools/ef70-managed-campaign/bootstrap-controller.ts \
             tools/ef70-managed-campaign/bootstrap-io.ts \
             tools/ef70-managed-campaign/bootstrap-prerequisites.ts \

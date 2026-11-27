@@ -154,6 +154,8 @@ const strictProjects = [
     "native-release-tooling.ts",
   ],
   ["typecheck:agent-workflow", "tsconfig.agent-workflow-tests.json", "agent-workflow.ts"],
+  // Aggregate Stack project without a separate package script.
+  [null, "tsconfig.ef70-managed-campaign.json", "ef70-managed-campaign.ts"],
   // This required project is invoked as a dispatcher tool, not a package script.
   [
     null,

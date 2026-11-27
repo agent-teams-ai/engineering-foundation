@@ -56,8 +56,8 @@ export interface BootstrapResult {
 }
 export const sourceRevision = "8c16e5dbf24d8a09d9f33fe7c3ee8f38bf74599c";
 export const sourceTree = "026e5c38b568e4a0ff9aa3487f996671accc303a";
-export const authorityRevision = "283c9b8d79580b48be5b1b8d6a94a09b9543185b";
-export const authorityTree = "b835f11c1433c562d3575e7d351697d4cc44f572";
+export const authorityRevision = "8636f328f4ac7b1b6eeb764d1414391849fdc783";
+export const authorityTree = "7b932bebee5dc817e5bc643459972d0fff9c6747";
 export const sourceOrigin = "https://github.com/agent-teams-ai/extension-foundation.git";
 export const authorityOrigin = "https://github.com/agent-teams-ai/.github.git";
 export const cohort = "docs-2026-11-27-stable35";

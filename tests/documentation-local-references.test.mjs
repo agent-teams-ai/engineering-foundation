@@ -14,6 +14,7 @@ import { Ajv2020 } from "ajv/dist/2020.js";
 import { FilesystemMarkdownRepository } from "../packages/document-authoring/dist/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-repository.js";
 import { anchorsForMarkdownDocument } from "../packages/document-authoring/dist/documentation-observation/application/model/markdown-document.js";
 import { analyzeDocumentationLocalReferences } from "../packages/engineering-foundation/dist/capabilities/documentation-local-references/application/use-cases/analyze-documentation-local-references.js";
+import { digestMarkdownSource } from "../packages/engineering-foundation/dist/capabilities/documentation-local-references/adapters/outbound/crypto/node-markdown-source-digest.js";
 import { loadCapabilityConfig as loadWithDependencies } from "../packages/engineering-foundation/dist/capabilities/documentation-local-references/adapters/inbound/configuration/load-capability-config.js";
 import { assertSchema } from "../packages/engineering-foundation/dist/schema-catalog.js";
 import { loadStrictYamlFile } from "../packages/engineering-foundation/dist/features/configuration-input/node.js";
@@ -51,7 +52,7 @@ async function analyze(root) {
   const policy = await loadCapabilityConfig(root, "documentation-local-references.yaml");
   return analyzeDocumentationLocalReferences(
     { consumerRoot: root, policy },
-    { repository: new FilesystemMarkdownRepository() },
+    { repository: new FilesystemMarkdownRepository(), digestSource: digestMarkdownSource },
   );
 }
 
@@ -72,7 +73,7 @@ test("re-reads changed Markdown between observations and checks", async () => {
     const policy = await loadCapabilityConfig(root, "documentation-local-references.yaml");
     const initial = await analyzeDocumentationLocalReferences(
       { consumerRoot: root, policy },
-      { repository },
+      { repository, digestSource: digestMarkdownSource },
     );
     assert.deepEqual(initial, []);
 
@@ -97,7 +98,10 @@ test("re-reads changed Markdown between observations and checks", async () => {
 
     assert.deepEqual(
       ruleIds(
-        await analyzeDocumentationLocalReferences({ consumerRoot: root, policy }, { repository }),
+        await analyzeDocumentationLocalReferences(
+          { consumerRoot: root, policy },
+          { repository, digestSource: digestMarkdownSource },
+        ),
       ),
       ["documentation.local-references.broken-link"],
     );

@@ -205,6 +205,16 @@ The current built-in Composition is a testing-only conformance fixture. Product
 package and feature recipes, structured updates, and Nx integration require
 separate capability qualification before they become available.
 
+## Exact historical Markdown artifacts
+
+The current source adds `documentation-local-references/v2` for explicitly
+declared historical artifacts. It binds exact paths, raw SHA-256 and complete
+absolute-reference occurrences while retaining the configured roots and all
+ordinary checks. Historical information remains in passing reports; changed
+bytes, stale declarations and ordinary errors reject. Version 1 remains
+unchanged. See the [contract and limits](../../docs/reference/documentation-local-references.md).
+Use a published package that includes this schema before explicit consumer adoption.
+
 ## Disposable scaffold crash qualification
 
 Developer tests can import `runScaffoldCrashQualification` and the types

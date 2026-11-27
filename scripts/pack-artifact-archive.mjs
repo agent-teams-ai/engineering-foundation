@@ -75,7 +75,12 @@ const PACKAGE_MAX_ARCHIVE_ENTRIES = Object.freeze({
   // artifacts. Exact census is 2,967; removing only these named tuples restores
   // the qualified 2,935-member digest. Full membership and +1 rejection remain
   // enforced, with no additional headroom or change to the default/byte limits.
-  "@agent-teams/engineering-foundation": 2_967,
+  // Historical Markdown v2: +9 = two private production compiler tuples
+  // (source digest and historical admission) plus the version 2 schema.
+  // Exact census is 2,976; removing these named additions restores all 2,967
+  // previously qualified members. The complete inventory and +1 rejection
+  // remain enforced with no spare headroom or change to other/byte limits.
+  "@agent-teams/engineering-foundation": 2_976,
 });
 
 export function maximumArchiveEntries(packageName) {

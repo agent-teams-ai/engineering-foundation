@@ -1,3 +1,4 @@
+import { verifyInstalledHistoricalMarkdown } from "./packed-documentation-local-references.ts";
 import { createHash } from "node:crypto";
 import { parse } from "yaml";
 import { inspectCompressedTarArchive, readVerifiedArchive } from "./pack-artifact-archive.mjs";
@@ -214,6 +215,10 @@ export async function verifyFoundationFeatures({
   );
   await verifyInstalledBufQualifier(installedRoot);
   await verifyInstalledMandatoryNodeTests(installedRoot, consumerRoot);
+  await verifyInstalledHistoricalMarkdown({
+    cliPath: join(installedRoot, "dist", "cli.js"),
+    consumerRoot,
+  });
   await verifyInstalledTransactionBarrier({
     cliPath: join(installedRoot, "dist", "cli.js"),
     consumerRoot: join(consumerRoot, "transaction-barrier-consumer"),

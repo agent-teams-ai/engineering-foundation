@@ -15,18 +15,32 @@ function rule(
   rationale: string,
   remediation: string,
   requiresArchitectureReview = false,
+  severity: DiagnosticSeverity = "error",
 ): DocumentationLocalReferencesRuleMetadata {
   return Object.freeze({
-    documentation: "docs/architecture/executable-capabilities.md#documentationlocal-references",
+    documentation: "docs/reference/documentation-local-references.md",
     id: `documentation.local-references.${suffix}`,
     rationale,
     remediation,
     requiresArchitectureReview,
-    severity: "error",
+    severity,
   });
 }
 
 export const DOCUMENTATION_LOCAL_REFERENCE_RULES = Object.freeze({
+  historicalArtifactInvalid: rule(
+    "historical-artifact-invalid",
+    "Historical classification requires an observed exact artifact and a complete unchanged occurrence declaration.",
+    "Restore the declared artifact bytes and occurrences, or review the obsolete declaration. Ordinary validation remains active.",
+    true,
+  ),
+  historicalAbsoluteReference: rule(
+    "historical-absolute-reference",
+    "An exact hash-bound historical artifact records this absolute reference without resolving its target.",
+    "Preserve the historical bytes and declaration. This observation does not establish that the historical target exists.",
+    true,
+    "info",
+  ),
   brokenLink: rule(
     "broken-link",
     "A local Markdown target must resolve to a regular repository file.",

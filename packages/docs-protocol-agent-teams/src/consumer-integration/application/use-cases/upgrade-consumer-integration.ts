@@ -245,6 +245,7 @@ async function prepareTransition(input: {
     const current = input.current;
     return {
       prepared: await input.sandbox.prepareManaged({
+        ...(input.targetLockfile === undefined ? {} : { targetLockfile: input.targetLockfile }),
         ...common,
         authority,
         current,

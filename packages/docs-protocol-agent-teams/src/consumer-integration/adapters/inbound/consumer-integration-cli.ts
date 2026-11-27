@@ -201,7 +201,7 @@ Options:
   --consumer PATH               Git repository root (default: .)
   --authority-revision SHA      Optional exact protected .github revision
   --source-generation 1|2 --restoration-proof PATH --prepare  Stage and select before mutation
-  --target-lockfile PATH --target-lockfile-sha256 sha256:HEX  Select exact external lock for 1->2 preparation
+  --target-lockfile PATH --target-lockfile-sha256 sha256:HEX  Select exact external lock for 1->2 or 2->3 preparation
   --json                        Emit one bounded versioned JSON envelope
   --help                        Show this help
 `;
@@ -243,12 +243,14 @@ async function executeUpgradeArguments(
       targetLockfileSha256 === undefined ||
       !SHA256.test(targetLockfileSha256) ||
       !prepare ||
-      sourceGeneration !== "1" ||
-      generation !== "2" ||
+      !(
+        (sourceGeneration === "1" && generation === "2") ||
+        (sourceGeneration === "2" && generation === "3")
+      ) ||
       restorationProofPath === undefined
     ) {
       throw new ConsumerCliInputError(
-        "Target lock requires both flags and explicit 1->2 --prepare with --restoration-proof.",
+        "Target lock requires both flags and explicit 1->2 or 2->3 --prepare with --restoration-proof.",
       );
     }
   }

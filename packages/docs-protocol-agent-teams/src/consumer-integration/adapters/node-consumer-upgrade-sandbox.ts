@@ -8,6 +8,7 @@ import {
   verifyConsumerTargetLockfile,
 } from "./node-consumer-target-lockfile.js";
 import { consumerProcessEnvironment } from "./node-consumer-environment.js";
+import { isPreservedManagedNode26Pin } from "./managed-upgrade-runtime-profile.js";
 import { mkdtemp, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -305,6 +306,7 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
   }
 
   public prepareManaged(options: {
+    readonly targetLockfile?: Uint8Array;
     readonly authority: ConsumerUpgradeAuthorityV2 | ConsumerUpgradeAuthorityV3;
     readonly consumerRoot: string;
     readonly current: ConsumerIntegrationDesiredStateV3 | ManagedSuccessorProfile;
@@ -312,7 +314,13 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
     readonly expectedSourceSnapshot: ConsumerIntegrationSnapshot;
     readonly managedPreimages: ConsumerUpgradeManagedPreimagesV2;
   }): Promise<PreparedConsumerUpgradeV1> {
-    return this.prepareGeneration({ ...options, runtimeTransition: true });
+    const selectedLock =
+      options.targetLockfile === undefined ? undefined : Uint8Array.from(options.targetLockfile);
+    return this.prepareGeneration({
+      ...options,
+      runtimeTransition: true,
+      ...(selectedLock === undefined ? {} : { selectedLock }),
+    });
   }
 
   public verifyManagedRuntime(
@@ -350,7 +358,7 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
     if (
       current.schemaVersion === 3 &&
       sourcePin.state === "file" &&
-      Buffer.from(sourcePin.bytes).equals(Buffer.from("26.11.1\n"))
+      isPreservedManagedNode26Pin(Buffer.from(sourcePin.bytes).toString("utf8"))
     ) {
       const verifier = this.#verifyRetainedSource;
       if (verifier === undefined) {

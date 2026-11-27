@@ -15,7 +15,10 @@ import type {
   ManagedSuccessorProfile,
 } from "../domain/model.js";
 import { assertQualifiedPnpmLockfileV2 } from "./pnpm-lockfile-validator-v2.js";
-import { assertRestorationLockScope } from "./node-consumer-restoration-lock.js";
+import {
+  assertManagedRestorationLockScope,
+  assertRestorationLockScope,
+} from "./node-consumer-restoration-lock.js";
 import {
   MAXIMUM_LOCKFILE_BYTES,
   readStableConsumerFile,
@@ -104,7 +107,7 @@ function stableTargetLock(before: BigIntStats, after: BigIntStats, selected: Big
 
 interface ValidatedTargetLock {
   readonly bytes: Uint8Array;
-  readonly desired: ConsumerIntegrationDesiredStateV3;
+  readonly desired: ConsumerIntegrationDesiredStateV3 | ManagedSuccessorProfile;
 }
 
 export async function validateConsumerTargetLockfile(
@@ -122,9 +125,16 @@ export async function validateConsumerTargetLockfile(
   // The normal projector has already schema-validated these exact profile bytes.
   const desired = JSON.parse(Buffer.from(profile).toString("utf8")) as
     | ConsumerIntegrationDesiredStateV1
-    | ConsumerIntegrationDesiredStateV3;
-  if (source.schemaVersion !== 1 || desired.schemaVersion !== 3) {
-    throw new TypeError("Target lock requires a 1->2 migration.");
+    | ConsumerIntegrationDesiredStateV3
+    | ManagedSuccessorProfile;
+  if (
+    desired.schemaVersion === 1 ||
+    !(
+      (source.schemaVersion === 1 && desired.schemaVersion === 3) ||
+      (source.schemaVersion === 3 && desired.schemaVersion === 4)
+    )
+  ) {
+    throw new TypeError("Target lock requires a 1->2 or 2->3 migration.");
   }
   assertQualifiedPnpmLockfileV2(bytes, desired);
   const original = await readStableConsumerFile(
@@ -136,7 +146,11 @@ export async function validateConsumerTargetLockfile(
   if (original.state !== "file") {
     throw new Error("unreachable");
   }
-  assertRestorationLockScope(original.bytes, bytes, source, desired);
+  if (source.schemaVersion === 1 && desired.schemaVersion === 3) {
+    assertRestorationLockScope(original.bytes, bytes, source, desired);
+  } else if (source.schemaVersion === 3 && desired.schemaVersion === 4) {
+    assertManagedRestorationLockScope(original.bytes, bytes, source, desired);
+  }
   return { bytes, desired };
 }
 

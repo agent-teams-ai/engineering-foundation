@@ -62,6 +62,7 @@ export interface ConsumerUpgradeSandboxPort {
     readonly consumerRoot: string;
   }): Promise<void>;
   prepareManaged(options: {
+    readonly targetLockfile?: Uint8Array;
     readonly authority: ConsumerUpgradeAuthorityV2 | ConsumerUpgradeAuthorityV3;
     readonly consumerRoot: string;
     readonly current: ConsumerIntegrationDesiredStateV3 | ManagedSuccessorProfile;

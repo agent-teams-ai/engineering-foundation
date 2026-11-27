@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 import {
+  assertFrozenClientBootstrap,
   assertFrozenClientInput,
   assertFrozenClientSignature,
   assertFrozenMismatchRejection,
@@ -40,6 +41,37 @@ async function input() {
   const lock = record(JSON.parse(bytes.toString("utf8")));
   return { manifest, lock, bytes };
 }
+
+test("private verifier retains the observed release and ordinary npm bootstrap versions", () => {
+  assert.equal(
+    assertFrozenClientBootstrap({ bootstrapVersion: "11.19.0", verifierVersion: "21.5.1" }),
+    "11.19.0",
+  );
+  assert.equal(
+    assertFrozenClientBootstrap({ bootstrapVersion: "11.20.0", verifierVersion: "21.5.1" }),
+    "11.20.0",
+  );
+});
+
+test("private verifier rejects absent, unqualified and mismatched bootstrap observations", () => {
+  for (const value of [
+    undefined,
+    null,
+    [],
+    {},
+    { bootstrapVersion: "11.19.0" },
+    { verifierVersion: "21.5.1" },
+    { bootstrapVersion: "11.18.0", verifierVersion: "21.5.1" },
+    { bootstrapVersion: "11.19.1", verifierVersion: "21.5.1" },
+    { bootstrapVersion: "11.21.0", verifierVersion: "21.5.1" },
+    { bootstrapVersion: "11.19.0", verifierVersion: "21.5.0" },
+    { bootstrapVersion: "11.20.0", verifierVersion: "21.5.2" },
+    { bootstrapVersion: 11.19, verifierVersion: "21.5.1" },
+    { bootstrapVersion: "11.20.0", verifierVersion: ["21.5.1"] },
+  ]) {
+    assert.throws(() => assertFrozenClientBootstrap(value));
+  }
+});
 
 test("private client input retains the genuine exact npm-generated lock", async () => {
   const { manifest, lock, bytes } = await input();

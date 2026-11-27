@@ -16,7 +16,6 @@ const inputDirectory = new URL(
   "../tests/fixtures/effect-diagnostics/registry-frozen-client/",
   import.meta.url,
 );
-const bootstrapVersion = "11.20.0";
 const verifierVersion = "21.5.1";
 const mismatchVersion = "0.0.0-effect-fixture-mismatch";
 const commandTimeoutMs = 120_000;
@@ -48,6 +47,15 @@ function json(bytes: Buffer): Record<string, unknown> {
 }
 
 const digest = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+
+/** Admit the release and ordinary qualification bootstraps with their exact verifier. */
+export function assertFrozenClientBootstrap(value: unknown): "11.19.0" | "11.20.0" {
+  const observed = record(value);
+  const bootstrapVersion = observed["bootstrapVersion"];
+  assert.ok(bootstrapVersion === "11.19.0" || bootstrapVersion === "11.20.0");
+  assert.equal(observed["verifierVersion"], verifierVersion);
+  return bootstrapVersion;
+}
 
 function signatures(value: unknown): readonly Signature[] {
   assert.ok(Array.isArray(value) && value.length > 0 && value.length <= 16);
@@ -158,7 +166,6 @@ async function trustedVerifier(root: string) {
   assert.equal(cli, join(npmRoot, "bin/npm-cli.js"));
   const npmManifest = json(await readFile(join(npmRoot, "package.json")));
   assert.equal(npmManifest["name"], "npm");
-  assert.equal(npmManifest["version"], bootstrapVersion);
   const fromNpm = createRequire(cli);
   const verifierManifest = await realpath(fromNpm.resolve("pacote/package.json"));
   const entrypoint = await realpath(fromNpm.resolve("pacote"));
@@ -166,10 +173,13 @@ async function trustedVerifier(root: string) {
   contained(dirname(verifierManifest), entrypoint);
   const metadata = json(await readFile(verifierManifest));
   assert.equal(metadata["name"], "pacote");
-  assert.equal(metadata["version"], verifierVersion);
+  const bootstrapVersion = assertFrozenClientBootstrap({
+    bootstrapVersion: npmManifest["version"],
+    verifierVersion: metadata["version"],
+  });
   const api: unknown = fromNpm(entrypoint);
   assert.ok(isManifestVerifier(api));
-  return { api, cli };
+  return { api, cli, bootstrapVersion };
 }
 
 async function registryKeys(signal: AbortSignal) {
@@ -207,7 +217,7 @@ async function registryKeys(signal: AbortSignal) {
 
 async function verifyOfficialSignature(root: string) {
   await verifyQualificationNode(process.execPath);
-  const { api, cli } = await trustedVerifier(root);
+  const { api, cli, bootstrapVersion } = await trustedVerifier(root);
   const signal = AbortSignal.timeout(60_000);
   const keys = await registryKeys(signal);
   const manifest = await api.manifest("npm@" + version, {
@@ -250,7 +260,12 @@ export function assertFrozenMismatchRejection(error: unknown): void {
   );
 }
 
-async function reinstallFrozen(node: string, cli: string, consumer: FrozenConsumer) {
+async function reinstallFrozen(
+  node: string,
+  cli: string,
+  consumer: FrozenConsumer,
+  bootstrapVersion: ReturnType<typeof assertFrozenClientBootstrap>,
+) {
   const filename = join(consumer.consumerRoot, "package-lock.json");
   const original = await readFile(filename);
   const locked = json(original);
@@ -326,8 +341,7 @@ export async function prepareEffectRegistryFrozenClient(
   );
   assert.equal(verified.stderr, "");
   const proof = record(JSON.parse(verified.stdout));
-  assert.equal(proof["bootstrapVersion"], bootstrapVersion);
-  assert.equal(proof["verifierVersion"], verifierVersion);
+  const bootstrapVersion = assertFrozenClientBootstrap(proof);
   assert.equal(proof["integrity"], integrity);
   const bootstrapCli = proof["bootstrapCli"];
   assert.ok(typeof bootstrapCli === "string" && isAbsolute(bootstrapCli));
@@ -367,7 +381,7 @@ export async function prepareEffectRegistryFrozenClient(
   await writeFile(join(root, "receipt.json"), JSON.stringify(receipt, null, 2) + "\n");
   process.stdout.write(JSON.stringify(receipt) + "\n");
   await rm(join(root, "cache"), { recursive: true, force: true });
-  return { reinstall: (consumer) => reinstallFrozen(node, cli, consumer) };
+  return { reinstall: (consumer) => reinstallFrozen(node, cli, consumer, bootstrapVersion) };
 }
 
 if (

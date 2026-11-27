@@ -114,3 +114,25 @@ document rejection, remote-reference rejection, missing artifact and gate
 diagnostics, duplicate binding rejection, symlink rejection, and the optional
 XState topology if it is used. Activation must not fabricate placeholder
 specifications merely to exercise the capability.
+
+## Evolution-readiness evidence (integration guidance)
+
+The organization [evolution-readiness proposal](https://github.com/agent-teams-ai/.github/blob/ea13fbfc7965fce16d9af3c4d7cf8dcca6ff6d29/docs/architecture/evolution-readiness.md)
+routes reusable checks here without expanding this capability's versioned
+contract. Adopt executable specifications only for actual consumer-owned
+schemas and invariant families, not a universal mandatory readiness manifest.
+
+For a concrete new invariant, use the existing catalog and independently
+executed consumer gates: bind the owning ADR, exact schema and scenario,
+positive case, deliberately faulty case and repeatable inputs (including seed
+or fault point when relevant). A static pass proves connectivity, not live
+replacement, authorization, physical cleanup or model quality. Those remain
+behavioral tests in the consumer's selected Host/profile.
+
+Reuse existing FMS/CMS, source-coverage and public API checks rather than
+introducing a parallel checker. If two independent consumer seams establish
+the same technical assertion, qualify the smallest shared fixture or check
+in the appropriate existing Foundation capability and adopt it explicitly.
+Keep domain-specific or provider-specific expected outcomes with their
+owners. No new capability, schema revision, dependency or CI gate is selected
+by this guidance.

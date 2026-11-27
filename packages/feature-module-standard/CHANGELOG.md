@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.4.4
+
+### Patch Changes
+
+- [#481](https://github.com/agent-teams-ai/engineering-foundation/pull/481) [`8432a97`](https://github.com/agent-teams-ai/engineering-foundation/commit/8432a9737486384f894436bfd9242500e422fa5a) Thanks [@777genius](https://github.com/777genius)! - Serialize findings-baseline pruning through the repository mutation lease and
+  reuse owned atomic replacement. Concurrent supported writers can no longer
+  overwrite a completed prune with stale counts, and cleanup preserves foreign
+  temporary files. Preserve failure evidence and report an uncertain result if
+  replacement completes but resource finalization fails.
+
+  Refresh the FMS package version because its canonical packed manifest retains
+  the exact Foundation development dependency, whose bytes change with this patch.
+
 ## 0.4.3
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # Stack Toolchain
 
+## 0.4.0
+
+### Minor Changes
+
+- [#476](https://github.com/agent-teams-ai/engineering-foundation/pull/476) [`2d0a0ff`](https://github.com/agent-teams-ai/engineering-foundation/commit/2d0a0fff14b758cb11a16fd9fc4e87ec9f71f2a8) Thanks [@777genius](https://github.com/777genius)! - Add the optional `stack-toolchain/effect` API and `effect:check` CLI for explicitly selected strict TypeScript projects. The Linux x64 profile verifies a separately installed pinned native Effect compiler and its standard libraries, requires the declared Effect policy, and preserves ordinary diagnostics without a compiler fallback. Existing Stack commands and dependency installation remain unchanged.
+
 ## 0.3.1
 
 ### Patch Changes

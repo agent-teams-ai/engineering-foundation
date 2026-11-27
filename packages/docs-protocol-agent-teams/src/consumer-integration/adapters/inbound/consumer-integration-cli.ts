@@ -215,6 +215,35 @@ function upgradeAuthorityRevision(args: Arguments): string | undefined {
   return authorityRevision;
 }
 
+function upgradeTargetLockfile(options: {
+  readonly path: string | undefined;
+  readonly sha256: string | undefined;
+  readonly prepare: boolean;
+  readonly sourceGeneration: string | undefined;
+  readonly targetGeneration: string;
+  readonly restorationProofPath: string | undefined;
+}): { readonly path: string; readonly sha256: string } | undefined {
+  if (options.path === undefined && options.sha256 === undefined) {
+    return undefined;
+  }
+  if (
+    options.path === undefined ||
+    options.sha256 === undefined ||
+    !SHA256.test(options.sha256) ||
+    !options.prepare ||
+    !(
+      (options.sourceGeneration === "1" && options.targetGeneration === "2") ||
+      (options.sourceGeneration === "2" && options.targetGeneration === "3")
+    ) ||
+    options.restorationProofPath === undefined
+  ) {
+    throw new ConsumerCliInputError(
+      "Target lock requires both flags and explicit 1->2 or 2->3 --prepare with --restoration-proof.",
+    );
+  }
+  return { path: options.path, sha256: options.sha256 };
+}
+
 async function executeUpgradeArguments(
   args: Arguments,
   consumerRoot: string,
@@ -237,30 +266,17 @@ async function executeUpgradeArguments(
   if (sourceGeneration !== undefined && !["1", "2"].includes(sourceGeneration)) {
     throw new ConsumerCliInputError("Restorable upgrade requires --source-generation 1 or 2.");
   }
-  if (targetLockfilePath !== undefined || targetLockfileSha256 !== undefined) {
-    if (
-      targetLockfilePath === undefined ||
-      targetLockfileSha256 === undefined ||
-      !SHA256.test(targetLockfileSha256) ||
-      !prepare ||
-      !(
-        (sourceGeneration === "1" && generation === "2") ||
-        (sourceGeneration === "2" && generation === "3")
-      ) ||
-      restorationProofPath === undefined
-    ) {
-      throw new ConsumerCliInputError(
-        "Target lock requires both flags and explicit 1->2 or 2->3 --prepare with --restoration-proof.",
-      );
-    }
-  }
+  const targetLockfile = upgradeTargetLockfile({
+    path: targetLockfilePath,
+    sha256: targetLockfileSha256,
+    prepare,
+    sourceGeneration,
+    targetGeneration: generation,
+    restorationProofPath,
+  });
   args.assertConsumed();
   return await operations.upgrade({
-    ...(targetLockfilePath === undefined
-      ? {}
-      : {
-          targetLockfile: { path: targetLockfilePath, sha256: targetLockfileSha256! },
-        }),
+    ...(targetLockfile === undefined ? {} : { targetLockfile }),
     consumerRoot,
     to,
     targetGeneration: Number(generation) as 1 | 2 | 3,

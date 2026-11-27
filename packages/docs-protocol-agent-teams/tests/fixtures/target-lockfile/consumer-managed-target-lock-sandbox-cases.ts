@@ -64,7 +64,9 @@ function interceptProcesses(t: TestContext, f: SandboxFixture, effects: Effects)
                 : "26.12.1";
             return JSON.stringify({ node, platform: "linux", architecture: "x64" });
           }
-          if (args[0] === corepack && args.includes("--version")) return "11.20.0\n";
+          if (args[0] === corepack && args.includes("--version")) {
+            return "11.20.0\n";
+          }
           if (args[0] === corepack && args.includes("install")) {
             effects.stagedRoot = cwd;
             effects.installs.push(args.slice(1));
@@ -75,8 +77,9 @@ function interceptProcesses(t: TestContext, f: SandboxFixture, effects: Effects)
             );
             await mkdir(dirname(cli), { recursive: true });
             await writeFile(cli, "// inert fixture CLI; every call is intercepted\n");
-            if (effects.tamper === "install")
+            if (effects.tamper === "install") {
               await writeFile(join(cwd, "pnpm-lock.yaml"), "install drift");
+            }
             return "";
           }
           if (args[1] === "plan") {
@@ -93,8 +96,9 @@ function interceptProcesses(t: TestContext, f: SandboxFixture, effects: Effects)
             ]) {
               await writeFile(join(cwd, path), "fixture target asset\n");
             }
-            if (effects.tamper === "apply")
+            if (effects.tamper === "apply") {
               await writeFile(join(cwd, "pnpm-lock.yaml"), "apply drift");
+            }
             return JSON.stringify({ outcome: "applied" });
           }
           assert.equal(args[1], "check");

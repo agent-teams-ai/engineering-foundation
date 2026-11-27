@@ -199,6 +199,26 @@ async function selectedLockForwarding(t: TestContext): Promise<void> {
   assert.deepEqual(f.calls, ["prepare"]);
 }
 
+function selectedLockArguments(source: number, target: number): string[] {
+  return [
+    "upgrade",
+    "--to",
+    "target",
+    "--source-generation",
+    String(source),
+    "--target-generation",
+    String(target),
+    "--prepare",
+    "--restoration-proof",
+    "/proof",
+    "--target-lockfile",
+    "/selected.yaml",
+    "--target-lockfile-sha256",
+    "sha256:" + "a".repeat(64),
+    "--json",
+  ];
+}
+
 async function selectedLockCli(t: TestContext): Promise<void> {
   const calls: ConsumerUpgradeOptions[] = [];
   const run = createManagedConsumerCommand({
@@ -219,23 +239,6 @@ async function selectedLockCli(t: TestContext): Promise<void> {
       };
     },
   });
-  const argv = (source: number, target: number) => [
-    "upgrade",
-    "--to",
-    "target",
-    "--source-generation",
-    String(source),
-    "--target-generation",
-    String(target),
-    "--prepare",
-    "--restoration-proof",
-    "/proof",
-    "--target-lockfile",
-    "/selected.yaml",
-    "--target-lockfile-sha256",
-    "sha256:" + "a".repeat(64),
-    "--json",
-  ];
   t.mock.method(process.stdout, "write", () => true);
   t.mock.method(process.stderr, "write", () => true);
   try {
@@ -243,7 +246,7 @@ async function selectedLockCli(t: TestContext): Promise<void> {
       [1, 2],
       [2, 3],
     ] as const) {
-      assert.equal(await run(argv(source, target)), 0);
+      assert.equal(await run(selectedLockArguments(source, target)), 0);
     }
     assert.deepEqual(
       calls.map((entry) => [entry.sourceGeneration, entry.targetGeneration]),
@@ -263,7 +266,7 @@ async function selectedLockCli(t: TestContext): Promise<void> {
       [2, 2],
       [3, 3],
     ] as const) {
-      assert.notEqual(await run(argv(source, target)), 0);
+      assert.notEqual(await run(selectedLockArguments(source, target)), 0);
     }
     for (const flag of [
       "--prepare",
@@ -272,7 +275,7 @@ async function selectedLockCli(t: TestContext): Promise<void> {
       "--target-lockfile",
       "--target-lockfile-sha256",
     ]) {
-      const invalid = argv(2, 3);
+      const invalid = selectedLockArguments(2, 3);
       invalid.splice(invalid.indexOf(flag), flag === "--prepare" ? 1 : 2);
       assert.notEqual(await run(invalid), 0);
     }

@@ -328,6 +328,27 @@ async function assertRestoredSourceRevision(
   }
 }
 
+async function assertManagedSourceIdentity(options: {
+  readonly root: string;
+  readonly admission: "consumer" | "generation2-source";
+  readonly restoredSource: { readonly revision: string } | undefined;
+  readonly repositoryHead: string | undefined;
+  readonly profileBytes: Uint8Array;
+  readonly nodeVersion: ConsumerIntegrationFileObservation;
+}): Promise<void> {
+  const { root, restoredSource, repositoryHead, profileBytes, nodeVersion } = options;
+  if (restoredSource !== undefined) {
+    await assertRestoredSourceRevision(root, restoredSource.revision, repositoryHead, profileBytes);
+  }
+  if (
+    options.admission === "generation2-source" &&
+    nodeVersion.state === "file" &&
+    isPreservedManagedNode26Pin(Buffer.from(nodeVersion.bytes).toString("utf8"))
+  ) {
+    await assertPreservedSourcePin(root, restoredSource?.revision ?? repositoryHead, nodeVersion);
+  }
+}
+
 async function readManagedConsumerIntegrationInput(
   options: {
     readonly consumerRoot: string;
@@ -390,21 +411,14 @@ async function readManagedConsumerIntegrationInput(
     assertNestedAgentsAuthority(topology, desired.governedDocsRoots);
     assertGitHubRuntimeIdentity(desired);
     nodeVersion = await assertQualifiedPnpmRoot(root, desired, admission);
-    if (restoredSource !== undefined) {
-      await assertRestoredSourceRevision(
-        root,
-        restoredSource.revision,
-        repositoryHead,
-        profile.bytes,
-      );
-    }
-    if (
-      admission === "generation2-source" &&
-      nodeVersion.state === "file" &&
-      isPreservedManagedNode26Pin(Buffer.from(nodeVersion.bytes).toString("utf8"))
-    ) {
-      await assertPreservedSourcePin(root, restoredSource?.revision ?? repositoryHead, nodeVersion);
-    }
+    await assertManagedSourceIdentity({
+      root,
+      admission,
+      restoredSource,
+      repositoryHead,
+      profileBytes: profile.bytes,
+      nodeVersion,
+    });
     lockfile = await assertQualifiedLockfile(root, desired);
   } catch (error) {
     if (error instanceof ConsumerIntegrationNodeError) {

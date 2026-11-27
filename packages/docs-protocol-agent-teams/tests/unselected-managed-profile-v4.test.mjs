@@ -136,7 +136,7 @@ test("packed successor refs compile and profile4 remains unselected", async () =
   const { stateDigest, ...body } = state;
   assert.equal(
     stateDigest,
-    "sha256:5a770c522f4c642fdb1fb6344b77e5304a8541b8e88d6c4ad04c701c26d2e754",
+    "sha256:4d341bf95670510b9f828c895a3c7013b6bfef9ec7dd755e6249d5a34c7682ca",
   );
   assert.equal(
     stateDigest,

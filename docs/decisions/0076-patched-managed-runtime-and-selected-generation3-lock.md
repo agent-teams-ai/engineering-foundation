@@ -48,9 +48,15 @@ owns published cohort/source/lifecycle authority; EF owns its Host integration.
    and native compatibility test pins coherently. Preserve the independently
    qualified historical managed-runtime custody checkpoint and its old tuple.
 2. Retain structural current-policy 3 / profile 4 / Cohort 3 / managed-state 3 /
-   qualification-receipt 1. Admit the exact scoped literal-policy/runtime changes
-   to the current artifact-protected schemas and public types through a new
-   pre-1.0 minor release and exact observed fingerprints bound to this decision.
+   qualification-receipt 1. Publish the semantic policy 3.1.0 schema at
+   `architecture/contracts/docs-protocol-current-policy/v3.1.schema.json`, with
+   `$id` `https://agent-teams.ai/schemas/docs-protocol-current-policy/v3.1` and
+   structural `schemaVersion: 3`. Preserve the exact historical
+   `architecture/contracts/docs-protocol-current-policy/v3.schema.json` bytes
+   and its `/v3` identifier owned by ADR-0059. Admit the other exact scoped
+   literal-policy/runtime changes to current artifact-protected schemas and
+   public types through a new pre-1.0 minor release and exact observed
+   fingerprints bound to this decision.
    This is not a general permission to mutate versioned schemas or an assertion
    of schema-family support. Historical policy 1/2, package archives, receipts,
    cohort records and release-owned baselines remain unchanged by this PR.

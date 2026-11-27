@@ -480,6 +480,7 @@ boundaries:
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/cohort-authority-lifecycle.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/cohort-rollback-authority.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/managed-generation-projectors.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/managed-upgrade-runtime-profile.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-upgrade-runtime.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-committed-restoration.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-current-selection.ts

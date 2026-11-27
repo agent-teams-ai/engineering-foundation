@@ -8,7 +8,7 @@ import test from "node:test";
 
 const root = new URL("../../../", import.meta.url);
 const policyPath = "architecture/foundation/docs-protocol-current-policy-v3.json";
-const schemaPath = "architecture/contracts/docs-protocol-current-policy/v3.schema.json";
+const schemaPath = "architecture/contracts/docs-protocol-current-policy/v3.1.schema.json";
 const assetPath = "packages/docs-protocol-agent-teams/assets/runtime-policy.v1.json";
 const historicalDigests = new Map([
   [
@@ -27,17 +27,21 @@ const historicalDigests = new Map([
     "architecture/contracts/docs-protocol-current-policy/v2.schema.json",
     "sha256:2c764ddd8065ca06ee55b1e7a09947d4fe8ab70125c1533bc5d9213e79842733",
   ],
+  [
+    "architecture/contracts/docs-protocol-current-policy/v3.schema.json",
+    "sha256:5dc12ffbccfe85cbd82c7718c24cb9f15b01e636c40f5f693ff916244419dd29",
+  ],
 ]);
 const digest = (bytes) => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 
 test("Windows-style CRLF checkout preserves current policy and exact historical bytes", async () => {
   assert.equal(policyPath, "architecture/foundation/docs-protocol-current-policy-v3.json");
-  assert.equal(schemaPath, "architecture/contracts/docs-protocol-current-policy/v3.schema.json");
+  assert.equal(schemaPath, "architecture/contracts/docs-protocol-current-policy/v3.1.schema.json");
   const directory = await mkdtemp(join(tmpdir(), "foundation-policy-checkout-"));
   const git = (...args) => execFileSync("git", args, { cwd: directory, stdio: "pipe" });
   try {
     git("init", "-q");
-    const checkoutPaths = [policyPath, assetPath, ...historicalDigests.keys()];
+    const checkoutPaths = [policyPath, schemaPath, assetPath, ...historicalDigests.keys()];
     for (const path of [".gitattributes", ...checkoutPaths]) {
       await mkdir(join(directory, path, ".."), { recursive: true });
       await writeFile(join(directory, path), await readFile(new URL(path, root)));
@@ -70,6 +74,10 @@ test("Windows-style CRLF checkout preserves current policy and exact historical 
     const checkedOutAsset = JSON.parse(await readFile(join(directory, assetPath), "utf8"));
     assert.equal(digest(checkedOutPolicy), checkedOutAsset.sourceDigest);
     assert.equal(digest(checkedOutPolicy), digest(await readFile(new URL(policyPath, root))));
+    assert.deepEqual(
+      await readFile(join(directory, schemaPath)),
+      await readFile(new URL(schemaPath, root)),
+    );
     for (const [path, expected] of historicalDigests) {
       assert.equal(digest(await readFile(new URL(path, root))), expected, `${path} source digest`);
       assert.equal(

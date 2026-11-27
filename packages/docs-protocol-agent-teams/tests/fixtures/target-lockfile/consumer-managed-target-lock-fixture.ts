@@ -130,8 +130,9 @@ async function seedSourceFiles(
     ["config", "user.name", "TEST fixture"],
     ["add", "."],
     ["commit", "-qm", "test: seed managed selected lock"],
-  ])
+  ]) {
     runGit(consumer, args);
+  }
   return paths;
 }
 

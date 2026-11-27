@@ -307,9 +307,9 @@ test("rendered review prompt preserves Bun default, isolated Node projection and
   const prompt = renderMergeReviewPrompt(binding, diff);
   assert.match(
     prompt,
-    /repository Bun 1\.4\.3 default with its explicit isolated Node 26\.11\.1\/pnpm projection, retained Node 24 compatibility and the explicit historical Node 24 qualification lanes and Node 26 qualification/u,
+    /repository Bun 1\.4\.3 default with its explicit isolated Node 26\.12\.1\/pnpm projection, retained Node 24 compatibility and the explicit historical Node 24 qualification lanes and Node 26 qualification/u,
   );
-  assert.doesNotMatch(prompt, /repository Node 26\.11\.1 default/u);
+  assert.doesNotMatch(prompt, /repository Node 26\.12\.1 default/u);
   assert.doesNotMatch(prompt, /Node 24 default/u);
 });
 test("input traversal, option injection and arbitrary receipt files fail before any IO", async () => {

@@ -200,3 +200,28 @@ installed complete Node projection supports the build and focused diagnostics;
 it is not relabeled as a passing source Bun gate. Full hosted Bun/Node checks,
 native qualification, current-head review and actual-main results remain the
 delivery authority.
+
+The first complete explicit native request was run45932041388, attempt1, bound
+to PR484 head5721eb34f864a8295acfbe4c04e4a4f244b47275 and base8432a9737486384f894436bfd9242500e422fa5a.
+It completed with failures. Its successful lanes are diagnostic observations,
+not a qualification of a successor source. The failures identified ordinary
+lint violations, a missing source-boundary root for the new private runtime
+helper, the Node24 compatibility qualifier reading the historical policy,
+and stale current-policy/public-API test expectations. These were corrected
+without removing lanes, skips, scope checks or the exact compatibility approvals.
+
+Independent review also rejected changing the already published v3 schema
+path. Its original bytes are restored exactly; current3.1 uses the separate
+v3.1 schema identity. The normal asset generator, clean-build staging and CRLF
+qualification now follow the current schema path. ADR0076 and its accepted
+digest were promoted by the ordinary owner command, preserving all72 historical
+accepted entries. Release-owned API baselines remain unchanged.
+
+The successor's complete strict CI-tooling project and ordinary changed-file
+lint passed. All44 focused current-policy, schema, profile and merge-review
+cases passed with no failures, skips, cancellations or todos. Exact typed API
+golden controls passed and independently recomputed the already approved
+ADR0076 fingerprint; unknown signature text and missing approval still refuse.
+Full local source-boundary and API-extractor attempts were killed by executor
+resource pressure and are not recorded as passing. The final published head
+still requires independent review and a new complete hosted full-CI request.

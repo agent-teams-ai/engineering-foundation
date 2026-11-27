@@ -13,5 +13,8 @@
     "noUnusedParameters": true,
     "types": ["node"]
   },
-  "include": ["tools/ef70-managed-campaign/**/*.ts"]
+  "include": [
+    "tools/ef70-managed-campaign/**/*.ts",
+    "tests/ef70-managed-campaign-authority.test.ts"
+  ]
 }

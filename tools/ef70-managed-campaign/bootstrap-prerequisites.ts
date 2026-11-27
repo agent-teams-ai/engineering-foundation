@@ -10,10 +10,9 @@ import {
 } from "node:fs";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
+import type { AuthoritySelection } from "./authority-selection.ts";
 import {
   authorityOrigin,
-  authorityRevision,
-  authorityTree,
   candidateDigest,
   clone,
   cohort,
@@ -114,10 +113,14 @@ export function prepareSourceFixture(host: HostedRuntime, corepackEntrypoint: st
   return { sourceRoot, sourceImages };
 }
 
-export async function prepareAuthority(host: HostedRuntime, corepackEntrypoint: string) {
+export async function prepareAuthority(
+  host: HostedRuntime,
+  corepackEntrypoint: string,
+  authority: AuthoritySelection,
+) {
   const { node26 } = host;
   const centralRoot = join(roots.root, "central-authority-q");
-  clone("central", authorityOrigin, centralRoot, authorityRevision, authorityTree);
+  clone("central", authorityOrigin, centralRoot, authority.revision, authority.tree);
   command("central-metadata-install", node26, [corepackEntrypoint, ...frozen], centralRoot);
   assert.equal(
     git(centralRoot, "central-after-install", ["status", "--porcelain=v1", "--untracked-files=no"]),

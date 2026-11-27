@@ -16,6 +16,12 @@ import {
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  admitAuthoritySelection,
+  assertCurrentAuthority,
+  parseAuthorityRevision,
+  type AuthoritySelection,
+} from "./authority-selection.ts";
+import {
   initializeCampaignRoots,
   observationChildEnvironment,
   observationHeaders,
@@ -42,6 +48,7 @@ export interface BootstrapResult {
   readonly environment: Readonly<Record<string, string>>;
   readonly sourceRevision: string;
   readonly authorityRevision: string;
+  readonly authorityTree: string;
   readonly sourceTree: string;
   readonly sourceOwner: Row;
   readonly controllerArchivesVerification: readonly Row[];
@@ -56,8 +63,7 @@ export interface BootstrapResult {
 }
 export const sourceRevision = "8c16e5dbf24d8a09d9f33fe7c3ee8f38bf74599c";
 export const sourceTree = "026e5c38b568e4a0ff9aa3487f996671accc303a";
-export const authorityRevision = "8636f328f4ac7b1b6eeb764d1414391849fdc783";
-export const authorityTree = "7b932bebee5dc817e5bc643459972d0fff9c6747";
+export const authorityRevision = parseAuthorityRevision(process.env["EF70_AUTHORITY_REVISION"]);
 export const sourceOrigin = "https://github.com/agent-teams-ai/extension-foundation.git";
 export const authorityOrigin = "https://github.com/agent-teams-ai/.github.git";
 export const cohort = "docs-2026-11-27-stable35";
@@ -232,8 +238,25 @@ export async function github(path: string, label: string): Promise<Row> {
 }
 export async function assertAuthority(label: string): Promise<void> {
   const branch = await github(".github/branches/main", label);
-  assert.equal(branch["protected"], true);
-  assert.equal(row(branch["commit"], "Current protected authority")["sha"], authorityRevision);
+  assertCurrentAuthority(authorityRevision, branch);
+}
+export async function selectAuthority(): Promise<AuthoritySelection> {
+  const branch = await github(".github/branches/main", "authority-before");
+  assertCurrentAuthority(authorityRevision, branch);
+  const commit = await github(
+    ".github/git/commits/" + authorityRevision,
+    "authority-selected-commit",
+  );
+  const authority = admitAuthoritySelection(authorityRevision, branch, commit);
+  record("authority-selection", {
+    ...authority,
+    origin: authorityOrigin,
+    currentBranch: selected(join(rawRoot, "authority-before.raw")),
+    immutableCommit: selected(join(rawRoot, "authority-selected-commit.raw")),
+    scope:
+      "Explicit immutable input admitted against protected Central main; fixed for this execution, never rebound.",
+  });
+  return authority;
 }
 export function clone(
   label: string,

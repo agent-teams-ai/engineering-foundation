@@ -26,6 +26,7 @@ import {
   roots,
   row,
   selected,
+  selectAuthority,
   selectedEnvironment,
   sourceRevision,
   sourceTree,
@@ -278,12 +279,13 @@ async function bootstrap(): Promise<BootstrapResult> {
   const { node24, node26, npmEntrypoint, harnessRevision, hostRevision, harnessTree } = host;
   const producerPreflight = await verifyProducerPreflight(harnessRevision);
   await qualifyHarness(host, producerPreflight);
-  await assertAuthority("authority-before");
+  const authority = await selectAuthority();
   const corepackEntrypoint = preparePackageManagers(host);
   const { sourceRoot, sourceImages } = prepareSourceFixture(host, corepackEntrypoint);
   const { centralRoot, candidatePath, qualified, sourceOwner } = await prepareAuthority(
     host,
     corepackEntrypoint,
+    authority,
   );
   const targetLockPath = prepareTargetFixture(host, corepackEntrypoint, sourceRoot, centralRoot);
   const controllerInstallation = join(roots.root, "controller");
@@ -320,6 +322,7 @@ async function bootstrap(): Promise<BootstrapResult> {
     environment: selectedEnvironment,
     sourceRevision,
     authorityRevision,
+    authorityTree: authority.tree,
     sourceTree,
     sourceOwner,
     controllerArchivesVerification: archives,

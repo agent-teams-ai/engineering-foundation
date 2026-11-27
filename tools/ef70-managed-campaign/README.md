@@ -6,12 +6,23 @@ It is a bounded test Host in Engineering Foundation, not a reusable public tool 
 an adoption of consumer policy by a production package. It makes no change to the
 historical M4 lifecycle fixture or to published package implementations.
 
-The job uses the real qualified `docs-2026-11-27-stable35` record at Central
-`8636f328f4ac7b1b6eeb764d1414391849fdc783`, real registry archives and installation
+The job uses the real qualified `docs-2026-11-27-stable35` record at an explicitly
+selected immutable Central revision, real registry archives and installation
 locks, physical Node 24.22.3 and 26.12.1, Corepack 0.36.0, and pnpm 11.18.0/11.20.0.
-Each public operation freshly checks the selected protected Central main. A moved
-authority is an actual failed precondition; the fixture does not follow a new
-revision, rewrite the cohort, or treat cached branch state as current authority.
+The required `authority_revision` input is a nonzero lowercase 40-character commit
+SHA. Bootstrap parses this input once, before its own subprocess calls. It reads
+the fixed official Central `branches/main` and `git/commits/<SHA>` endpoints,
+requires the selected commit to be the current protected main, and obtains that
+exact commit's tree. There is no default, branch-name input, implicit latest selection or fallback.
+
+The selected revision and tree are retained in `bootstrap/authority-selection.json`
+and `bootstrap-result.json`. The first record also binds both retained raw API
+observations by path and SHA256. The canonical Central checkout must match both
+identities. Bootstrap rechecks protected main after preparation, and every public
+operation freshly checks that same selected revision. A moved authority is an
+actual failed precondition; the fixture does not follow a new revision, rebind an existing preparation, rewrite the cohort or treat
+cached branch state as current authority. A new execution requires a fresh owned
+root and a newly reviewed literal input.
 
 ## Scope and results
 
@@ -50,9 +61,13 @@ The ordinary push workflow is restricted to the producer preparation branch
 `test/ef70-managed-campaign` and runs the unchanged producer quality checks.
 After that exact harness commit passes, a minimal caller in the existing EF
 PR #70 invokes the reusable workflow by immutable commit, with the actual
-successful producer preflight run as a second selected input. The campaign
-checks out that producer commit explicitly and retains the real EF caller's
-GitHub repository identity. The caller commit and the producer harness commit
+successful producer preflight run as a second selected input and the then-current
+protected Central commit as `authority_revision`. Source qualification stays bound
+to the immutable harness and all seven ordinary preflight gates; it does not
+preselect Central for a later execution. Changes to caller-selected Central data
+do not change the frozen EF source, candidate digest, target lock or test matrix.
+The campaign checks out that producer commit explicitly and retains the real EF
+caller's GitHub repository identity. The caller commit and the producer harness commit
 are separate recorded identities; GitHub identity variables are never removed
 or substituted. Opening a PR does not trigger another campaign.
 
@@ -78,3 +93,13 @@ the actual advanced EF head after adding the caller. Final EF adoption remains
 in PR #70 and separately requires a newly qualified cohort on the repaired Central
 source, permitted enrollment, actual EF checks and protected merge, merged-main
 checks, archive/LMU reconciliation, observed binding, and the separate CANARY.
+
+## Focused authority admission checks
+
+`tests/ef70-managed-campaign-authority.test.ts` exercises explicit selection,
+protected-main freshness, immutable commit/tree binding and refusal of malformed
+or changed observations without network or managed operations. It belongs to the
+required EF70 strict project and canonical test shard 1. This new suite has no
+historical measured shard timing; all existing test assignments are preserved.
+The ordinary required producer checks and later actual seven-chain campaign
+remain separate evidence.

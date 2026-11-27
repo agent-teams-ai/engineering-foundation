@@ -60,7 +60,8 @@
         "tests/features/release-checks/candidate-checking.test.ts",
         "tests/features/release-checks/conformance.test.ts",
         "tests/release-candidate-host.test.ts",
-        "tests/repository-compiler-admission.test.ts"
+        "tests/repository-compiler-admission.test.ts",
+        "tests/ef70-managed-campaign-authority.test.ts"
       ]
     },
     {

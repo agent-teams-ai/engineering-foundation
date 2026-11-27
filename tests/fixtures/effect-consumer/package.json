@@ -1,0 +1,35 @@
+{
+  "name": "foundation-effect-browser-consumer",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.20.0",
+  "scripts": {
+    "check": "pnpm lint:typed && node scripts/check-full.ts",
+    "check:fast": "pnpm quality:scope",
+    "lint:typed": "agent-teams-foundation quality check --consumer . --format json",
+    "quality:scope": "agent-teams-foundation quality check --consumer . --scope-only --format json",
+    "architecture:check": "agent-teams-foundation check architecture.source-dependencies --consumer . --format json",
+    "typecheck": "stack-toolchain typecheck --json",
+    "effect:check": "node scripts/check-effect.ts",
+    "runtime:check": "node scripts/check-runtime.ts"
+  },
+  "dependencies": {
+    "@get-modular/core": "0.8.0",
+    "@get-modular/assembly": "0.8.0",
+    "@get-modular/effect": "0.1.1",
+    "effect": "4.1.4"
+  },
+  "devDependencies": {
+    "@agent-teams/engineering-foundation": "4.0.2",
+    "stack-toolchain": "0.3.1",
+    "@effect/tsgo-linux-x64": "0.73.4",
+    "@types/node": "24.13.3",
+    "esbuild": "0.28.2",
+    "playwright-core": "1.65.1",
+    "typescript": "7.0.2",
+    "oxlint": "1.83.0",
+    "oxlint-tsgolint": "7.0.2001",
+    "eslint": "10.3.0"
+  }
+}

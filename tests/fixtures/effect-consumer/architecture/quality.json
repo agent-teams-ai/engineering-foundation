@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 5,
+  "budgetMs": 120000,
+  "sourcePolicyPath": "architecture/source.json",
+  "suppressionPolicyPath": "architecture/suppressions.json",
+  "topologyPath": "architecture/topology.json",
+  "lintConfigPath": "lint.json",
+  "toolchainConfigPath": "toolchain.config.json",
+  "scripts": {
+    "fast": "check:fast",
+    "full": "check",
+    "scope": "quality:scope",
+    "typed": "lint:typed"
+  }
+}

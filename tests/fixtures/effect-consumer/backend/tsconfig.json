@@ -1,0 +1,42 @@
+{
+  "files": [
+    "../sdk/codec.ts",
+    "../sdk/contract.ts",
+    "../sdk/index.ts",
+    "../backend/index.ts",
+    "../backend/sessions.ts",
+    "../backend/write-frame.ts"
+  ],
+  "compilerOptions": {
+    "strict": true,
+    "skipLibCheck": false,
+    "noEmit": true,
+    "target": "ES2024",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": [
+      "node"
+    ],
+    "lib": [
+      "ES2024",
+      "ESNext.Disposable",
+      "ESNext.Promise",
+      "DOM"
+    ],
+    "allowImportingTsExtensions": true,
+    "plugins": [
+      {
+        "name": "@effect/language-service",
+        "diagnostics": true,
+        "includeSuggestionsInTsc": false,
+        "ignoreEffectWarningsInTscExitCode": false,
+        "ignoreEffectErrorsInTscExitCode": false,
+        "diagnosticSeverity": {
+          "unstableApiUsage": "error",
+          "apiStabilityLeak": "error"
+        },
+        "allowedUnstableApis": []
+      }
+    ]
+  }
+}

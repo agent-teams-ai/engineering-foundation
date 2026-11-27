@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "profile": "typescript-node",
+  "typecheck": {
+    "projects": [
+      "sdk/tsconfig.json",
+      "backend/tsconfig.json",
+      "frontend/tsconfig.json",
+      "scripts/tsconfig.json"
+    ]
+  },
+  "lint": {
+    "config": "lint.json",
+    "paths": [
+      "sdk",
+      "backend",
+      "frontend"
+    ]
+  },
+  "format": {
+    "paths": [
+      "sdk",
+      "backend",
+      "frontend",
+      "scripts"
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "governedRoots": [
+    "sdk",
+    "backend",
+    "frontend"
+  ],
+  "nonWaivableRulePrefixes": [],
+  "waivers": []
+}

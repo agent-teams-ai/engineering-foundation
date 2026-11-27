@@ -850,3 +850,21 @@ owner. The canonical manifest check passed with 388 tests across eight shards;
 an independent reviewer verified exact inventory unions and both derived-input
 hashes. Final qualification must bind to the new main base, not the earlier
 `fac03920e50ebde038ae415edeb7aa9e3d610ada` runs.
+
+### Release bootstrap compatibility, 2026-11-27
+
+The first publication run from `23acc1283caa576d2303a588eaaeb6ddc2911eb0`
+stopped in the registry prerequisite before ordered publication: the fixture
+required npm `11.20.0`, while the release owner deliberately selects npm
+`11.19.0`. Both official npm distributions bundle the same exact
+[`pacote@21.5.1` in npm 11.19](https://github.com/npm/cli/blob/v11.19.0/node_modules/pacote/package.json)
+and [in npm 11.20](https://github.com/npm/cli/blob/v11.20.0/node_modules/pacote/package.json).
+The fixture admits those two exact bootstrap/verifier pairs and carries the
+observed npm version through signature and reinstall observations. Other npm or
+verifier versions reject before the verifier module executes.
+
+This correction belongs to the private fixture bootstrap. The release publisher
+retains npm `11.19.0`; the frozen client retains its exact signed npm `10.9.11`
+archive, committed manifest/lock, path containment, signature verification and
+required-dependency rejection. Both real bootstrap/signature paths and the
+ordinary release prerequisites still require qualification.

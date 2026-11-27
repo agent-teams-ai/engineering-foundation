@@ -163,7 +163,7 @@ function validateCohortV3Source(
   if (
     !hasExactKeys(policy, ["id", "version", "digest"]) ||
     policy["id"] !== "agent-teams.docs-protocol-current-policy" ||
-    policy["version"] !== "3.0.0"
+    policy["version"] !== "3.1.0"
   ) {
     invalid("Qualification Cohort v3 policy identity is invalid.");
   }
@@ -355,7 +355,7 @@ export function projectCohortV3Binding(
     runtime: {
       policy: {
         id: "agent-teams.docs-protocol-current-policy",
-        version: "3.0.0",
+        version: "3.1.0",
         digest: policy["digest"] as string,
       },
       selectedLane: "node-26-managed-qualified",

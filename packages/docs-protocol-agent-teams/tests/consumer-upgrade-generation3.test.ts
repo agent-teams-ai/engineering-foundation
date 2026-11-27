@@ -41,7 +41,7 @@ import { retainedFixture } from "./managed-restoration-fixture.ts";
 void test("retained source reader independently binds the physical controller runtime", async (t) => {
   const source = await retainedFixture(t, "26.11.1\n");
   const observation = nodeManagedGeneration2SourceInputReader.read({ consumerRoot: source.root });
-  if (process.versions.node === "24.21.0" && process.platform !== "win32") {
+  if (process.versions.node === "24.22.3" && process.platform !== "win32") {
     assert.deepEqual((await observation).desired, source.current);
     t.diagnostic(
       "Exact Node24 source observation; recovery is qualified by its separate Node24 suites.",
@@ -49,7 +49,7 @@ void test("retained source reader independently binds the physical controller ru
   } else {
     assert.notEqual(
       process.versions.node,
-      "24.21.0",
+      "24.22.3",
       "Windows refusal observation uses the default Node26 interpreter.",
     );
     await assert.rejects(observation, { code: "DOCS_CONSUMER_UNSUPPORTED_NODE" });
@@ -221,7 +221,7 @@ void test("managed forward and explicit rollback project only schema/cohort and 
   const projected: unknown = JSON.parse(Buffer.from(forward.profile).toString("utf8"));
   assert.ok(typeof projected === "object" && projected !== null && "schemaVersion" in projected);
   assert.equal(projected.schemaVersion, 4);
-  assert.equal(Buffer.from(forward.nodeVersion!).toString("utf8"), "26.11.1\n");
+  assert.equal(Buffer.from(forward.nodeVersion!).toString("utf8"), "26.12.1\n");
   const authority: ConsumerUpgradeAuthorityV2 = {
     repository: "agent-teams-ai/.github",
     path: "governance/docs-qualified-cohorts.json",
@@ -373,7 +373,7 @@ void test("unselected3-to2 upgrade refuses publication and requires the original
   assert.equal(future.issues[0]?.code, "DOCS_CONSUMER_RESTORATION_PROOF_REQUIRED");
   assert.deepEqual(f.calls, []);
   assert.deepEqual(f.reads, []);
-  assert.equal(await readFile(join(f.root, ".node-version"), "utf8"), "26.11.1\n");
+  assert.equal(await readFile(join(f.root, ".node-version"), "utf8"), "26.12.1\n");
 });
 
 void test("runtime observation rejects the actual wrong Node major before running the manager", async (t) => {

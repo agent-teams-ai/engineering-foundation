@@ -21,8 +21,8 @@ Engineering Foundation as root development dependencies. Repository Mutation
 and Document Authoring remain exact transitive coordinates verified against the
 lockfile. Independent floating package updates are not Cohort authority.
 
-The current runtime policy is policy 3.0.0 with an artifact-protected support
-claim. It records Node 26.11.1 as the production default and Node 24.21.0 as the
+The current runtime policy is policy 3.1.0 with an artifact-protected support
+claim. It records Node 26.12.1 as the production default and Node 24.22.3 as the
 compatibility lane. This nominal default and cutover metadata does not claim
 physical Node 26 qualification, and it does not make the managed candidate
 `QUALIFIED` or `CANARY`.
@@ -30,7 +30,7 @@ physical Node 26 qualification, and it does not make the managed candidate
 The managed runtime projection retains `node-24-production-default` and
 `node-26-managed-qualified` as nominal historical lane IDs. The retained Node 24
 ID has `default: false` and does not claim that Node 24 is the current default.
-The Node 26 lane has `default: true` and records the actual 26.11.1 / pnpm
+The Node 26 lane has `default: true` and records the actual 26.12.1 / pnpm
 11.20.0 / Linux / x64 qualification runtime tuple, but the Cohort v3 candidate
 remains unselected with status `candidate-unqualified` until genuine registry
 qualification. The operational Profile 3 / Cohort 2 / receipt 3 contract remains
@@ -75,7 +75,7 @@ reject it. Review the returned bytes and use the existing known-file transaction
 Plan/Apply workflow with the exact saved v3 preimage. Finish or preserve any
 pending transaction through its exact recorded recovery artifact first. Cohort
 upgrade commands do not automatically invoke this migration. Profile 4 / Cohort 3 / state 3
-uses the sync overload, exact namespace and packed policy 3, and actual Node 26.11.1 / pnpm
+uses the sync overload, exact namespace and packed policy 3, and actual Node 26.12.1 / pnpm
 11.20.0 / Linux / x64 observation; `selected: false` until genuine published `QUALIFIED` authority, and a supporting receipt is not `CANARY`.
 
 The qualification fixture selects portable v4 explicitly and is tested against
@@ -85,11 +85,14 @@ the saved v3 profile is an explicit rollback only while its paths and document
 vocabulary satisfy v3 and no incompatible transaction is pending; downgrading a
 package alone is not recovery. Published versions remain immutable.
 
-For an explicit restorable 1-to-2 preparation, select an exact target lock with
+For an explicit restorable 1-to-2 or retained 2-to-3 preparation, select an exact
+target lock with
 `--target-lockfile /absolute/external/pnpm-lock.yaml --target-lockfile-sha256 sha256:HEX`
 alongside `upgrade --source-generation 1 --target-generation 2 --prepare
---restoration-proof /absolute/external/proof.json --to COHORT`. Both target-lock
-flags are required together. The digest uses 64 lowercase hexadecimal digits.
+--restoration-proof /absolute/external/proof.json --to COHORT`, or the same
+preparation options with `--source-generation 2 --target-generation 3`.
+Both target-lock flags are required together. Other generation pairs are refused.
+The digest uses 64 lowercase hexadecimal digits.
 
 The input must be a nonempty regular file of at most 32 MiB, with canonical
 parents, no symlink or hardlink, outside the consumer, controller and kernel
@@ -122,23 +125,28 @@ The explicit retained generation2-to3 transition and selected rollback follow
 accepted [ADR-0070](../../docs/decisions/0070-bounded-managed-generation3-execution.md).
 The source-preserving amendment follows
 [ADR-0075](../../docs/decisions/0075-retained-upgrade-preserving-source-node26-pin.md).
+The patched physical runtimes, policy 3.1.0 and selected 2-to-3 target lock follow
+[ADR-0076](../../docs/decisions/0076-patched-managed-runtime-and-selected-generation3-lock.md).
 The corrected successor still requires actual publication, retained-controller
 verification and physical consumer qualification. Source tests do not grant
 activation authority.
 
 Retain a separately verified successor controller installation outside the
 consumer and keep its exact package/kernel builds available through restoration.
-Run it with actual Node24.21.0. Supply absolute
+Run it with actual Node24.22.3. Supply absolute
 `AGENT_TEAMS_DOCS_UPGRADE_NODE24_EXECUTABLE`,
 `AGENT_TEAMS_DOCS_UPGRADE_NODE26_EXECUTABLE` and
 `AGENT_TEAMS_DOCS_UPGRADE_COREPACK_ENTRYPOINT` paths. Source/target probes observe
-real Node24.21.0/26.11.1 on Linux/x64 and the exact root pnpm pin; target pnpm
+real Node24.22.3/26.12.1 on Linux/x64 and the exact root pnpm pin; target pnpm
 is11.20.0. Target activation and source restoration install frozen and offline.
+Retain the manager named by the original source `package.json` and its offline
+cache alongside target pnpm11.20.0. Restoration uses that exact source pin.
 No runtime or engine fallback is provided.
 
-For explicitly selected retained2-to3 preparation, the source host pin may already
-be the exact target `26.11.1\n` image. Preserve its bytes and committed Git mode;
-the actual controller still runs on Node24.21.0. The retained controller observes
+For explicitly selected retained2-to3 preparation, preserve the original host pin
+and committed Git mode. An exact `26.11.1\n` source image uses the normal pin CAS
+to `26.12.1\n`; an already matching `26.12.1\n` image remains a read guard.
+The actual controller runs on Node24.22.3. The retained controller observes
 the original and restored managed data through its own historical projections,
 without executing the old consumer Foundation or compiler. This observation does
 not claim that the old installed CLI or full consumer gate passed. Target

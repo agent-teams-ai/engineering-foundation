@@ -45,6 +45,7 @@ test("Agent Teams consumer integration is absent from Core and owned by its adap
       "cohort-authority-lifecycle.ts",
       "cohort-rollback-authority.ts",
       "managed-generation-projectors.ts",
+      "managed-upgrade-runtime-profile.ts",
       "node-consumer-upgrade-runtime.ts",
       "node-managed-committed-restoration.ts",
       "node-managed-current-selection.ts",

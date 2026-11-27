@@ -201,7 +201,7 @@ export async function readRepositoryRuntimePolicy(
     value?.schemaVersion !== 1 ||
     value.defaultProfile !== "bun" ||
     value.toolchain?.bun?.version !== "1.4.3" ||
-    value.toolchain.node?.version !== "26.11.1" ||
+    value.toolchain.node?.version !== "26.12.1" ||
     value.toolchain.pnpm?.version !== "11.20.0"
   ) {
     throw new Error("Repository runtime policy identity is invalid.");

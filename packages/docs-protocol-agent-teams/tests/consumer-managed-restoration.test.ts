@@ -113,7 +113,7 @@ scenario(
     assert.equal(restored.receipt?.outcome, "applied");
     assert.equal(
       restored.receipt?.operations.some(({ path }) => path === ".node-version"),
-      f.sourceNodePin === "24.21.0\n",
+      f.sourceNodePin !== "26.12.1\n",
     );
     await assertImages(f, false);
     assert.deepEqual(f.activation, ["origin"]);
@@ -171,7 +171,7 @@ scenario(
     await writeFile(join(f.root, ".node-version"), "foreign\n");
     await assert.rejects(
       finalizeManagedConsumerRestoration({ ...f.options, expect: prepared.digest }, f),
-      f.sourceNodePin === "26.11.1\n"
+      f.sourceNodePin === "26.12.1\n"
         ? { code: "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED" }
         : /current bytes or mode differ|repository contains unrelated edits/u,
     );
@@ -292,7 +292,7 @@ scenario(
               },
             },
           ),
-          f.sourceNodePin === "26.11.1\n"
+          f.sourceNodePin === "26.12.1\n"
             ? { code: "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED" }
             : /current bytes or mode differ|repository contains unrelated edits/u,
         );

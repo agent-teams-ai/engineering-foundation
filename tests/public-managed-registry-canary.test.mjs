@@ -764,7 +764,7 @@ test("policy createCanaryAuthority accepts packed policy26 and support receipt i
   }
   assert.deepEqual(authority3.cohort.runtime.policy, {
     id: "agent-teams.docs-protocol-current-policy",
-    version: "3.0.0",
+    version: "3.1.0",
     digest: successor.runtimePolicy.sourceDigest,
   });
 
@@ -802,7 +802,7 @@ test("policy createCanaryAuthority accepts packed policy26 and support receipt i
     }
   };
   if (
-    process.versions.node === "26.11.1" &&
+    process.versions.node === "26.12.1" &&
     process.platform === "linux" &&
     process.arch === "x64"
   ) {

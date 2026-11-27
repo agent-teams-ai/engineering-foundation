@@ -54,10 +54,10 @@ export const COHORT_V3_SCHEMA_BINDINGS = Object.freeze({
 });
 export const COHORT_V3_RUNTIME = Object.freeze({
   selectedLane: "node-26-managed-qualified",
-  node: ">=26.0.0 <27",
+  node: ">=26.12.1 <27",
   pnpm: ">=11.17.0 <12",
   qualificationRuntime: Object.freeze({
-    nodeVersion: "26.11.1",
+    nodeVersion: "26.12.1",
     pnpmVersion: "11.20.0",
     platform: "linux",
     architecture: "x64",

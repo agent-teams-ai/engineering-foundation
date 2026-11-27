@@ -6,6 +6,10 @@ import type {
 import { ConsumerIntegrationNodeError } from "./consumer-integration-node-error.js";
 import { parseJsonRecord } from "./strict-json-record.js";
 import {
+  isPreservedManagedNode26Pin,
+  MANAGED_CONTROLLER_NODE_VERSION,
+} from "./managed-upgrade-runtime-profile.js";
+import {
   MAXIMUM_LOCKFILE_BYTES,
   MAXIMUM_MANIFEST_BYTES,
   readStableConsumerFile,
@@ -62,10 +66,10 @@ function assertConsumerRuntime(
         "Retained generation2 source observation requires an explicit profile3/Cohort2 source.",
       );
     }
-    if (process.versions.node !== "24.21.0") {
+    if (process.versions.node !== MANAGED_CONTROLLER_NODE_VERSION) {
       throw new ConsumerIntegrationNodeError(
         "DOCS_CONSUMER_UNSUPPORTED_NODE",
-        "Retained generation2 source observation requires actual Node 24.21.0.",
+        `Retained generation2 source observation requires actual Node ${MANAGED_CONTROLLER_NODE_VERSION}.`,
       );
     }
   } else if (desired.schemaVersion === 4) {
@@ -133,14 +137,14 @@ export async function assertQualifiedPnpmRoot(
       ? nodePin === `${desired.cohort.runtime.qualificationRuntime.nodeVersion}\n`
       : nodePin !== undefined &&
         (/^24\.(?:1[89]|[2-9][0-9])\.[0-9]+\n?$/u.test(nodePin) ||
-          (admission === "generation2-source" && nodePin === "26.11.1\n"));
+          (admission === "generation2-source" && isPreservedManagedNode26Pin(nodePin)));
   if (!validNodePin) {
     throw new ConsumerIntegrationNodeError(
       "DOCS_CONSUMER_NODE_VERSION_GATE_INVALID",
       desired.schemaVersion === 4
         ? ".node-version must pin the exact packed profile4 qualification Node coordinate."
         : admission === "generation2-source"
-          ? "Retained generation2 source requires its historical Node 24 pin or exact preserved Node 26.11.1 pin."
+          ? "Retained generation2 source requires its historical Node 24 pin or exact preserved Node 26.11.1 or 26.12.1 pin."
           : ".node-version must pin one exact Node version within >=24.18.0 <25.",
     );
   }

@@ -45,7 +45,7 @@ export function registerCleanBuildStageTests() {
     const packageName = "@agent-teams/docs-protocol-agent-teams";
     const packageRoot = join(repositoryRoot, "packages", "docs-protocol-agent-teams");
     const policyPath = "architecture/foundation/docs-protocol-current-policy-v3.json";
-    const schemaPath = "architecture/contracts/docs-protocol-current-policy/v3.schema.json";
+    const schemaPath = "architecture/contracts/docs-protocol-current-policy/v3.1.schema.json";
     const copies = [
       policyPath,
       schemaPath,

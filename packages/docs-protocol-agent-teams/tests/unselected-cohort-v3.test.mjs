@@ -21,7 +21,7 @@ const cohortSchema = JSON.parse(await read("schemas/qualified-docs-cohort/v3.sch
 const assetSchema = JSON.parse(await read("schemas/managed-runtime-policy/v1.schema.json"));
 const oldSchema = JSON.parse(await read("schemas/qualified-docs-cohort/v2.schema.json"));
 const policySchema = JSON.parse(
-  await read("../../architecture/contracts/docs-protocol-current-policy/v3.schema.json"),
+  await read("../../architecture/contracts/docs-protocol-current-policy/v3.1.schema.json"),
 );
 const ajv = new Ajv2020({ strict: true, allErrors: true });
 const validatePolicy = ajv.compile(policySchema);
@@ -48,12 +48,35 @@ const insertDuplicateKey = (sourceText, marker, insertion, atRoot = false) => {
 const pkg = { version: "1.0.0", integrity: `sha512-${"A".repeat(86)}==` };
 const valid = () => validCohortV3(hash(source));
 
+test("semantic policy 3.1 uses its own schema identity and preserves historical v3", async () => {
+  const policy = JSON.parse(source);
+  assert.equal(
+    policySchema.$id,
+    "https://agent-teams.ai/schemas/docs-protocol-current-policy/v3.1",
+  );
+  assert.equal(policy.schemaVersion, 3);
+  assert.equal(policy.policyVersion, "3.1.0");
+  const historicalPolicySchema = JSON.parse(
+    await read("../../architecture/contracts/docs-protocol-current-policy/v3.schema.json"),
+  );
+  assert.equal(
+    historicalPolicySchema.$id,
+    "https://agent-teams.ai/schemas/docs-protocol-current-policy/v3",
+  );
+  assert.equal(historicalPolicySchema.properties.policyVersion.const, "3.0.0");
+  assert.equal(ajv.compile(historicalPolicySchema)(policy), false);
+  assert.equal(validatePolicy(policy), true, JSON.stringify(validatePolicy.errors));
+  const previousVersion = structuredClone(policy);
+  previousVersion.policyVersion = "3.0.0";
+  assert.equal(validatePolicy(previousVersion), false);
+});
+
 test("v3 policy is closed and the packed projection binds its exact bytes", async () => {
   const policy = JSON.parse(source);
   await assertPreservedPolicyDocuments(read, hash);
   assert.equal(
     hash(source),
-    "sha256:7af41f44a6e522b8919ace5f85499747215ddd1955199584c34046ec95c4b141",
+    "sha256:18db0135d1d6191ef78c1feb243f5dc672aaed9985f52be1a72af4fdd7e9bb4e",
   );
   assert.equal(validatePolicy(policy), true, JSON.stringify(validatePolicy.errors));
   for (const [family, current] of [
@@ -102,8 +125,8 @@ test("v3 policy is closed and the packed projection binds its exact bytes", asyn
     id: "node-26-production-default",
     status: "production-default",
     nodeMajor: 26,
-    engine: "^26.0.0",
-    qualificationVersion: "26.11.1",
+    engine: "^26.12.1",
+    qualificationVersion: "26.12.1",
     default: true,
     cutoverAuthorized: true,
   });
@@ -111,8 +134,8 @@ test("v3 policy is closed and the packed projection binds its exact bytes", asyn
     id: "node-24-compatibility",
     status: "compatibility-lane",
     nodeMajor: 24,
-    engine: "^24.18.0",
-    qualificationVersion: "24.21.0",
+    engine: "^24.22.3",
+    qualificationVersion: "24.22.3",
     default: false,
     cutoverAuthorized: false,
   });
@@ -135,7 +158,7 @@ test("v3 policy is closed and the packed projection binds its exact bytes", asyn
   assert.equal(policy.managedRuntime.lanes["node-26-managed-qualified"].default, true);
   assert.equal(
     policy.managedRuntime.lanes["node-26-managed-qualified"].qualificationRuntime.nodeVersion,
-    "26.11.1",
+    "26.12.1",
   );
   assert.equal(policy.history.preservedSchemas.length, 15);
   const protectedHistory = new Map(
@@ -243,13 +266,13 @@ test("unselected v3 validates closed tuple, lanes, identity and packed policy re
   assert.equal((await loadUnselectedCohortV3(JSON.stringify(valid()))).schemaVersion, 3);
   const defaultLane = valid();
   defaultLane.runtime.selectedLane = "node-24-production-default";
-  defaultLane.runtime.node = ">=24.18.0 <25";
-  defaultLane.runtime.qualificationRuntime.nodeVersion = "24.21.0";
+  defaultLane.runtime.node = ">=24.22.3 <25";
+  defaultLane.runtime.qualificationRuntime.nodeVersion = "24.22.3";
   assert.equal(
     (await loadUnselectedCohortV3(JSON.stringify(defaultLane))).runtime.selectedLane,
     "node-24-production-default",
   );
-  defaultLane.runtime.qualificationRuntime.nodeVersion = "26.11.1";
+  defaultLane.runtime.qualificationRuntime.nodeVersion = "26.12.1";
   await assert.rejects(loadUnselectedCohortV3(JSON.stringify(defaultLane)));
   for (const change of [
     (c) => {
@@ -259,10 +282,16 @@ test("unselected v3 validates closed tuple, lanes, identity and packed policy re
       delete c.schemas.qualificationReceipt;
     },
     (c) => {
-      c.runtime.node = ">=24.18.0 <25";
+      c.runtime.node = ">=24.22.3 <25";
     },
     (c) => {
-      c.runtime.qualificationRuntime.nodeVersion = "24.21.0";
+      c.runtime.node = ">=26.0.0 <27";
+    },
+    (c) => {
+      c.runtime.qualificationRuntime.nodeVersion = "26.11.1";
+    },
+    (c) => {
+      c.runtime.qualificationRuntime.nodeVersion = "24.22.3";
     },
     (c) => {
       c.runtime.qualificationRuntime.pnpmVersion = "11.19.0";
@@ -272,6 +301,9 @@ test("unselected v3 validates closed tuple, lanes, identity and packed policy re
     },
     (c) => {
       c.runtime.policy.version = "2.0.0";
+    },
+    (c) => {
+      c.runtime.policy.version = "3.0.0";
     },
     (c) => {
       c.candidateDigest = digest("0");

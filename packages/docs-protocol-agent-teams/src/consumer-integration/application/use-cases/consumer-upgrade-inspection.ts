@@ -183,8 +183,10 @@ function targetLockOptionIssue(
   if (
     options.targetLockfile !== undefined &&
     (options.prepare !== true ||
-      options.sourceGeneration !== 1 ||
-      options.targetGeneration !== 2 ||
+      !(
+        (options.sourceGeneration === 1 && options.targetGeneration === 2) ||
+        (options.sourceGeneration === 2 && options.targetGeneration === 3)
+      ) ||
       options.restorationProofPath === undefined ||
       !/^sha256:[a-f0-9]{64}$/.test(options.targetLockfile.sha256))
   ) {
@@ -192,7 +194,7 @@ function targetLockOptionIssue(
       issue(
         "DOCS_CONSUMER_TARGET_LOCK_INVALID",
         options.to,
-        "Target lock requires its SHA256 and explicit 1->2 preparation with restoration proof.",
+        "Target lock requires its SHA256 and explicit 1->2 or 2->3 preparation with restoration proof.",
       ),
     );
   }

@@ -52,6 +52,125 @@ const reviewedGeneration3Signatures = [
   },
 ];
 
+// ADR-0076 approves these five literal successors in both existing entrypoints.
+const reviewedPatchedRuntimeApprovals = [
+  {
+    fingerprint: "sha256:ee676005b5cae772bb6b1d995d9ee74a4659292c5beb6410b937427dae189ad2",
+    decisionId: "ADR-0076",
+  },
+  {
+    fingerprint: "sha256:4801d0cfab99299ac947cbb01032c1151f20e0c1e9d4b2e31fb639c797b9c88c",
+    decisionId: "ADR-0076",
+  },
+];
+const reviewedPatchedRuntimeSignatures = [
+  {
+    reference:
+      "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortEvidenceV3#policy:member",
+    before:
+      'readonly policy: {\n    readonly id: "agent-teams.docs-protocol-current-policy";\n    readonly version: "3.0.0";\n    readonly sourceDigest: `sha256:${string}`;\n};',
+    after:
+      'readonly policy: {\n    readonly id: "agent-teams.docs-protocol-current-policy";\n    readonly version: "3.1.0";\n    readonly sourceDigest: `sha256:${string}`;\n};',
+  },
+  {
+    reference:
+      "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortEvidenceV3#runtime:member",
+    before:
+      'readonly runtime: {\n    readonly selectedLane: "node-26-managed-qualified";\n    readonly node: ">=26.0.0 <27";\n    readonly pnpm: ">=11.17.0 <12";\n    readonly qualificationRuntime: {\n        readonly nodeVersion: "26.11.1";\n        readonly pnpmVersion: "11.20.0";\n        readonly platform: "linux";\n        readonly architecture: "x64";\n    };\n    readonly runtimeClosureDigest: `sha256:${string}`;\n};',
+    after:
+      'readonly runtime: {\n    readonly selectedLane: "node-26-managed-qualified";\n    readonly node: ">=26.12.1 <27";\n    readonly pnpm: ">=11.17.0 <12";\n    readonly qualificationRuntime: {\n        readonly nodeVersion: "26.12.1";\n        readonly pnpmVersion: "11.20.0";\n        readonly platform: "linux";\n        readonly architecture: "x64";\n    };\n    readonly runtimeClosureDigest: `sha256:${string}`;\n};',
+  },
+  {
+    reference:
+      "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt#policy:member",
+    before:
+      'readonly policy: {\n    readonly id: "agent-teams.docs-protocol-current-policy";\n    readonly version: "3.0.0";\n    readonly sourceDigest: `sha256:${string}`;\n};',
+    after:
+      'readonly policy: {\n    readonly id: "agent-teams.docs-protocol-current-policy";\n    readonly version: "3.1.0";\n    readonly sourceDigest: `sha256:${string}`;\n};',
+  },
+  {
+    reference:
+      "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt#runtime:member",
+    before:
+      'readonly runtime: {\n    readonly selectedLane: "node-26-managed-qualified";\n    readonly node: ">=26.0.0 <27";\n    readonly pnpm: ">=11.17.0 <12";\n    readonly qualificationRuntime: {\n        readonly nodeVersion: "26.11.1";\n        readonly pnpmVersion: "11.20.0";\n        readonly platform: "linux";\n        readonly architecture: "x64";\n    };\n    readonly runtimeClosure: {\n        readonly domain: "agent-teams.docs-runtime-closure/v2";\n        readonly digest: `sha256:${string}`;\n    };\n};',
+    after:
+      'readonly runtime: {\n    readonly selectedLane: "node-26-managed-qualified";\n    readonly node: ">=26.12.1 <27";\n    readonly pnpm: ">=11.17.0 <12";\n    readonly qualificationRuntime: {\n        readonly nodeVersion: "26.12.1";\n        readonly pnpmVersion: "11.20.0";\n        readonly platform: "linux";\n        readonly architecture: "x64";\n    };\n    readonly runtimeClosure: {\n        readonly domain: "agent-teams.docs-runtime-closure/v2";\n        readonly digest: `sha256:${string}`;\n    };\n};',
+  },
+  {
+    reference: "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3#runtime:member",
+    before:
+      'readonly runtime: {\n    readonly policy: {\n        readonly id: "agent-teams.docs-protocol-current-policy";\n        readonly version: "3.0.0";\n        readonly digest: string;\n    };\n    readonly selectedLane: "node-24-production-default" | "node-26-managed-qualified";\n    readonly node: string;\n    readonly pnpm: string;\n    readonly qualificationRuntime: {\n        readonly nodeVersion: string;\n        readonly pnpmVersion: string;\n        readonly platform: string;\n        readonly architecture: string;\n    };\n    readonly runtimeClosure: {\n        readonly domain: "agent-teams.docs-runtime-closure/v2";\n        readonly digest: string;\n    };\n};',
+    after:
+      'readonly runtime: {\n    readonly policy: {\n        readonly id: "agent-teams.docs-protocol-current-policy";\n        readonly version: "3.1.0";\n        readonly digest: string;\n    };\n    readonly selectedLane: "node-24-production-default" | "node-26-managed-qualified";\n    readonly node: string;\n    readonly pnpm: string;\n    readonly qualificationRuntime: {\n        readonly nodeVersion: string;\n        readonly pnpmVersion: string;\n        readonly platform: string;\n        readonly architecture: string;\n    };\n    readonly runtimeClosure: {\n        readonly domain: "agent-teams.docs-runtime-closure/v2";\n        readonly digest: string;\n    };\n};',
+  },
+];
+
+function reviewedPatchedRuntimeItem(item, approvals) {
+  const row = reviewedPatchedRuntimeSignatures.find(
+    ({ reference }) => reference === item.canonicalReference,
+  );
+  if (row === undefined) {
+    return item;
+  }
+  assert.deepEqual(
+    approvals.filter(({ decisionId }) => decisionId === "ADR-0076"),
+    reviewedPatchedRuntimeApprovals,
+    "Patched runtime signatures require the exact ADR-0076 compatibility approvals.",
+  );
+  assert.ok(
+    item.signature === row.before || item.signature === row.after,
+    "Patched runtime signature must match the exact reviewed released or promoted form.",
+  );
+  return { ...item, signature: row.after };
+}
+
+test("ADR-0076 runtime signatures bind the exact approved delta and reject unknown text", () => {
+  const changed = reviewedPatchedRuntimeSignatures.map((row) => {
+    const before = {
+      canonicalReference: row.reference,
+      kind: "PropertySignature",
+      parentReference: `${row.reference.split("#")[0]}:interface`,
+      parentKind: "Interface",
+      signature: row.before,
+    };
+    const after = { ...before, signature: row.after };
+    assert.deepEqual(reviewedPatchedRuntimeItem(before, reviewedPatchedRuntimeApprovals), after);
+    assert.deepEqual(reviewedPatchedRuntimeItem(after, reviewedPatchedRuntimeApprovals), after);
+    assert.throws(
+      () =>
+        reviewedPatchedRuntimeItem(
+          { ...after, signature: `${row.after}\n` },
+          reviewedPatchedRuntimeApprovals,
+        ),
+      /exact reviewed released or promoted form/u,
+    );
+    assert.throws(
+      () => reviewedPatchedRuntimeItem(before, reviewedPatchedRuntimeApprovals.slice(0, 1)),
+      /exact ADR-0076 compatibility approvals/u,
+    );
+    return { before, after };
+  });
+  const evidence = {
+    addedEntrypoints: [],
+    removedEntrypoints: [],
+    entrypoints: [".", "./qualification"].map((exportPath) => ({
+      exportPath,
+      added: [],
+      changed,
+      removed: [],
+    })),
+  };
+  assert.equal(
+    `sha256:${new NodeChangeFingerprint().sha256(JSON.stringify(evidence))}`,
+    reviewedPatchedRuntimeApprovals[1].fingerprint,
+  );
+  const historical = {
+    canonicalReference: `${packageName}!QualifiedDocsCohortV1#runtime:member`,
+    signature: 'readonly runtime: { readonly node: ">=26.0.0 <27"; };',
+  };
+  assert.equal(reviewedPatchedRuntimeItem(historical, []), historical);
+});
+
 function reviewedGeneration3Item(item) {
   const row = reviewedGeneration3Signatures.find(
     ({ reference }) => reference === item.canonicalReference,
@@ -168,14 +287,25 @@ test("managed composition preserves published function declarations and planner 
         (change) => change.id === item.canonicalReference,
       );
       if (toolChange) {
+        const reviewedItem = reviewedReleasedItem(
+          toolChange,
+          formatted,
+          releasedIsNative,
+          promotedFormatting,
+        );
         assert.deepEqual(
-          reviewedReleasedItem(toolChange, formatted, releasedIsNative, promotedFormatting),
-          item,
-          "released item must match the exact reviewed side for its extractor identity",
+          releasedIsNative
+            ? reviewedPatchedRuntimeItem(reviewedItem, policy.approvedBreakingChanges)
+            : reviewedItem,
+          releasedIsNative
+            ? reviewedPatchedRuntimeItem(item, policy.approvedBreakingChanges)
+            : item,
+          "released item must match its exact reviewed extractor side and approved successor",
         );
       }
-      const nativeItem = reviewedGeneration3Item(
-        releasedIsNative ? item : (toolChange?.after ?? item),
+      const nativeItem = reviewedPatchedRuntimeItem(
+        reviewedGeneration3Item(releasedIsNative ? item : (toolChange?.after ?? item)),
+        policy.approvedBreakingChanges,
       );
       const acceptedConsumerIntegrationDesiredState =
         item.canonicalReference === `${packageName}!ConsumerIntegrationDesiredState:type`

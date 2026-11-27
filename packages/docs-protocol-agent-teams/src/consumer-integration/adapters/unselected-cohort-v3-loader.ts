@@ -59,7 +59,7 @@ export function parsePackedManagedRuntimePolicy(
   const sourceDigest = asset.sourceDigest;
   if (
     policyId !== "agent-teams.docs-protocol-current-policy" ||
-    policyVersion !== "3.0.0" ||
+    policyVersion !== "3.1.0" ||
     typeof sourceDigest !== "string"
   ) {
     throw new TypeError("Packed runtime policy identity is invalid.");

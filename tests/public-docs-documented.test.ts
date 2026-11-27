@@ -413,7 +413,7 @@ assert.deepEqual({ ...process.env }, before);
       await realpath(join(owner, "node_modules", "packaging-ambient-test", "package.json")),
     );
     assert.equal(control[0]!.esm, "ERR_MODULE_NOT_FOUND");
-    assert.equal(control[0]!.node, "26.11.1");
+    assert.equal(control[0]!.node, "26.12.1");
     assert.equal(await realpath(control[0]!.nodeExecutable), await realpath(node));
     assert.ok(
       control[0]!.nodePath,
@@ -438,7 +438,7 @@ assert.deepEqual({ ...process.env }, before);
       const result = actual[0]!;
       assert.equal(result.commonJs, "MODULE_NOT_FOUND");
       assert.equal(result.esm, "ERR_MODULE_NOT_FOUND");
-      assert.equal(result.node, "26.11.1");
+      assert.equal(result.node, "26.12.1");
       assert.equal(await realpath(result.nodeExecutable), await realpath(node));
       assert.equal(result.nodePath, null);
       assert.equal(result.nodeOptions, null);

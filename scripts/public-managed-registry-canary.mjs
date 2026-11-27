@@ -111,7 +111,7 @@ async function installConsumer(root, authority, manager, runtimeObservation) {
     authority.cohort.schemaVersion === 3 &&
     manager === "pnpm" &&
     (runtimeObservation === undefined ||
-      runtimeObservation.nodeVersion !== "26.11.1" ||
+      runtimeObservation.nodeVersion !== "26.12.1" ||
       runtimeObservation.pnpmVersion !== "11.20.0" ||
       runtimeObservation.platform !== "linux" ||
       runtimeObservation.architecture !== "x64")

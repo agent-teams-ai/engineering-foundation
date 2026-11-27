@@ -382,7 +382,7 @@ capabilities:
     assert.match(records[1]?.managerUserAgent ?? "", /^pnpm\/11\.20\.0/u);
     assert.equal(records[1]?.profile, "node");
     assert.equal(records[1]?.leafBunVersion, null);
-    assert.equal(records[1]?.leafNodeVersion, "26.11.1");
+    assert.equal(records[1]?.leafNodeVersion, "26.12.1");
   } finally {
     await rm(parent, { recursive: true, force: true });
   }

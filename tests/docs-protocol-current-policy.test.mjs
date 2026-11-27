@@ -10,6 +10,7 @@ import { Ajv2020 } from "ajv/dist/2020.js";
 import {
   assertNodeLane,
   importInstalledQualification,
+  readNodeCompatibilityPolicy,
 } from "../scripts/node-engine-compatibility.mjs";
 
 const schemaPath = "architecture/contracts/docs-protocol-current-policy/v1.schema.json";
@@ -144,6 +145,42 @@ test("versioned Docs Protocol current policy validates and freezes its historica
   });
 });
 
+test("Node compatibility qualification selects current policy and rejects historical runtime lanes", async () => {
+  const current = await readNodeCompatibilityPolicy(repositoryRoot);
+  const repositoryDefault = (await readFile(fromRoot(".node-version"), "utf8")).trim();
+  assert.equal(current.policyVersion, "3.1.0");
+  assert.equal(repositoryDefault, "26.12.1");
+  for (const version of ["24.22.3", "26.12.1"]) {
+    assert.doesNotThrow(() => assertNodeLane(version, current, repositoryDefault));
+  }
+  for (const version of [
+    "24.21.0",
+    "24.22.2",
+    "26.10.0",
+    "26.11.1",
+    "26.12.0",
+    "25.0.0",
+    "27.0.0",
+  ]) {
+    assert.throws(
+      () => assertNodeLane(version, current, repositoryDefault),
+      /repository default or a policy-qualified/u,
+      version,
+    );
+  }
+});
+
+test("Node compatibility qualification refuses missing current policy without historical fallback", async () => {
+  const root = await mkdtemp(join(tmpdir(), "foundation-current-runtime-policy-"));
+  try {
+    await mkdir(join(root, "architecture", "foundation"), { recursive: true });
+    await writeFile(join(root, policyPath), JSON.stringify(policy));
+    await assert.rejects(readNodeCompatibilityPolicy(root), { code: "ENOENT" });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("current policy binds package engines, schema generations and the real qualification entrypoint", async () => {
   const manifestPaths = [
     "package.json",
@@ -158,9 +195,9 @@ test("current policy binds package engines, schema generations and the real qual
     const manifest = await json(path);
     assert.equal(manifest.engines.node, policy.runtime.packageEngine, path);
   }
-  // The repository default is Node 26.11.1; the frozen v1 policy keeps its historical 24.21.0 / 26.10.0 tuple.
+  // The repository default is Node 26.12.1; the frozen v1 policy keeps its historical 24.21.0 / 26.10.0 tuple.
   const repositoryDefault = (await readFile(fromRoot(".node-version"), "utf8")).trim();
-  assert.equal(repositoryDefault, "26.11.1");
+  assert.equal(repositoryDefault, "26.12.1");
   assert.equal(Number(repositoryDefault.split(".")[0]), policy.runtime.compatibilityLane.nodeMajor);
   assert.doesNotThrow(() => assertNodeLane(repositoryDefault, policy, repositoryDefault));
   assert.doesNotThrow(() =>

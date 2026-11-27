@@ -154,7 +154,7 @@ test("real process observer reflects the current process and fake injection rema
   assert.equal(child.architecture, process.arch);
   assert.equal(
     child.pnpmVersion,
-    process.versions.node === "26.11.1" && process.platform === "linux" && process.arch === "x64"
+    process.versions.node === "26.12.1" && process.platform === "linux" && process.arch === "x64"
       ? exactRuntime.pnpmVersion
       : undefined,
   );
@@ -389,20 +389,18 @@ test("real process observer refuses caller-spoofed runtime and declared profile 
     writable: true,
   });
   assert.throws(() => qualification(spoofed), /runtime evidence mismatch/u);
-  const wrongObserver = createDocsProtocolQualificationV3(
-    observeLockfile,
-    () => ({
-      nodeVersion: "26.10.0",
-      platform: "linux",
-      architecture: "x64",
-    }),
-    observePackedPolicy,
-  );
-  assert.throws(() => wrongObserver(request), /observed Node runtime mismatch/u);
+  for (const nodeVersion of ["26.10.0", "26.11.1"]) {
+    const wrongObserver = createDocsProtocolQualificationV3(
+      observeLockfile,
+      () => ({ ...exactRuntime, nodeVersion }),
+      observePackedPolicy,
+    );
+    assert.throws(() => wrongObserver(request), /observed Node runtime mismatch/u);
+  }
   const wrongPlatform = createDocsProtocolQualificationV3(
     observeLockfile,
     () => ({
-      nodeVersion: "26.11.1",
+      nodeVersion: "26.12.1",
       platform: "macos",
       architecture: "x64",
     }),
@@ -412,7 +410,7 @@ test("real process observer refuses caller-spoofed runtime and declared profile 
   const missingPnpm = createDocsProtocolQualificationV3(
     observeLockfile,
     () => ({
-      nodeVersion: "26.11.1",
+      nodeVersion: "26.12.1",
       platform: "linux",
       architecture: "x64",
     }),

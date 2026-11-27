@@ -361,6 +361,11 @@
       "id": "ADR-0075",
       "path": "docs/decisions/0075-retained-upgrade-preserving-source-node26-pin.md",
       "immutableDigest": "sha256:b0e1aa02869087b973637cd7ffffcf9dcd3bc97150668d04c184a06090a26544"
+    },
+    {
+      "id": "ADR-0076",
+      "path": "docs/decisions/0076-patched-managed-runtime-and-selected-generation3-lock.md",
+      "immutableDigest": "sha256:ef0d3555c28a916e6df9b99192acfa70f4e130251e2237ef2795b6d9f2f7b9f2"
     }
   ]
 }

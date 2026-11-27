@@ -114,6 +114,7 @@ export async function restoreCommittedManagedConsumer(
   await ports.sandbox.restoreCommittedAndVerifyManaged({
     consumerRoot: root,
     current: bound.current,
+    sourceRevision: preparation.sourceRevision,
   });
   await assertCurrentRestorationBinding(root, options, preparation, selection);
   await assertRestorationImages(root, selection, false);

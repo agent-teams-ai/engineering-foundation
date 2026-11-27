@@ -17,6 +17,7 @@ import { assertQualifiedPnpmLockfileV1 } from "./pnpm-lockfile-validator-v1.js";
 import { observeQualifiedPnpmLockfileV2 } from "./pnpm-lockfile-validator-v2.js";
 import { parseJsonRecord } from "./strict-json-record.js";
 import { assertQualifiedPnpmRoot } from "./node-consumer-integration-runtime.js";
+import { isPreservedManagedNode26Pin } from "./managed-upgrade-runtime-profile.js";
 import {
   scanConsumerRepositoryTopology,
   type ConsumerRepositoryTopology,
@@ -254,9 +255,12 @@ export async function assertPreservedSourcePin(
   revision: string | undefined,
   observation: ConsumerIntegrationFileObservation,
 ): Promise<void> {
+  const nodePin =
+    observation.state === "file" ? Buffer.from(observation.bytes).toString("utf8") : undefined;
   if (
     observation.state !== "file" ||
-    !Buffer.from(observation.bytes).equals(Buffer.from("26.11.1\n"))
+    nodePin === undefined ||
+    !isPreservedManagedNode26Pin(nodePin)
   ) {
     throw new ConsumerIntegrationNodeError(
       "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED",
@@ -279,12 +283,69 @@ export async function assertPreservedSourcePin(
     match === null ||
     observation.mode !== (match[1] === "100755" ? 0o755 : 0o644) ||
     (await executeGit(root, ["--no-replace-objects", "cat-file", "blob", match[2]!], 128)) !==
-      "26.11.1\n"
+      nodePin
   ) {
     throw new ConsumerIntegrationNodeError(
       "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED",
       "Preserved Node 26 pin bytes and mode must match the exact committed source image.",
     );
+  }
+}
+
+async function assertRestoredSourceRevision(
+  root: string,
+  sourceRevision: string,
+  repositoryHead: string | undefined,
+  profile: Uint8Array,
+): Promise<void> {
+  try {
+    if (
+      typeof sourceRevision !== "string" ||
+      !/^(?!0{40}$)[0-9a-f]{40}$/u.test(sourceRevision) ||
+      repositoryHead === undefined
+    ) {
+      throw new TypeError("Restored source and current HEAD require exact Git revisions.");
+    }
+    await executeGit(
+      root,
+      ["--no-replace-objects", "merge-base", "--is-ancestor", sourceRevision, repositoryHead],
+      64 * 1024,
+    );
+    const committedProfile = await executeGit(
+      root,
+      ["--no-replace-objects", "show", `${sourceRevision}:${INTEGRATION_PROFILE_PATH}`],
+      MAXIMUM_PROFILE_BYTES,
+    );
+    if (!Buffer.from(committedProfile).equals(Buffer.from(profile))) {
+      throw new TypeError("Restored profile differs from its exact original Git image.");
+    }
+  } catch (error) {
+    throw new ConsumerIntegrationNodeError(
+      "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED",
+      "Restored source must retain its selected original revision, lineage and profile bytes.",
+      { cause: error },
+    );
+  }
+}
+
+async function assertManagedSourceIdentity(options: {
+  readonly root: string;
+  readonly admission: "consumer" | "generation2-source";
+  readonly restoredSource: { readonly revision: string } | undefined;
+  readonly repositoryHead: string | undefined;
+  readonly profileBytes: Uint8Array;
+  readonly nodeVersion: ConsumerIntegrationFileObservation;
+}): Promise<void> {
+  const { root, restoredSource, repositoryHead, profileBytes, nodeVersion } = options;
+  if (restoredSource !== undefined) {
+    await assertRestoredSourceRevision(root, restoredSource.revision, repositoryHead, profileBytes);
+  }
+  if (
+    options.admission === "generation2-source" &&
+    nodeVersion.state === "file" &&
+    isPreservedManagedNode26Pin(Buffer.from(nodeVersion.bytes).toString("utf8"))
+  ) {
+    await assertPreservedSourcePin(root, restoredSource?.revision ?? repositoryHead, nodeVersion);
   }
 }
 
@@ -294,6 +355,7 @@ async function readManagedConsumerIntegrationInput(
     readonly integrationProfilePath?: string;
   },
   admission: "consumer" | "generation2-source" = "consumer",
+  restoredSource?: { readonly revision: string },
 ): Promise<{
   readonly desired: ConsumerIntegrationDesiredState;
   readonly repositoryHead?: string;
@@ -349,13 +411,14 @@ async function readManagedConsumerIntegrationInput(
     assertNestedAgentsAuthority(topology, desired.governedDocsRoots);
     assertGitHubRuntimeIdentity(desired);
     nodeVersion = await assertQualifiedPnpmRoot(root, desired, admission);
-    if (
-      admission === "generation2-source" &&
-      nodeVersion.state === "file" &&
-      Buffer.from(nodeVersion.bytes).equals(Buffer.from("26.11.1\n"))
-    ) {
-      await assertPreservedSourcePin(root, repositoryHead, nodeVersion);
-    }
+    await assertManagedSourceIdentity({
+      root,
+      admission,
+      restoredSource,
+      repositoryHead,
+      profileBytes: profile.bytes,
+      nodeVersion,
+    });
     lockfile = await assertQualifiedLockfile(root, desired);
   } catch (error) {
     if (error instanceof ConsumerIntegrationNodeError) {
@@ -433,9 +496,21 @@ export const nodeConsumerIntegrationInputReader: ConsumerIntegrationInputReader 
     readManagedConsumerIntegrationInput(options),
 });
 
-/** Selected only by retained 2->3 preparation and its original-source verifier. */
-export const nodeManagedGeneration2SourceInputReader: ConsumerIntegrationInputReader =
+export interface RetainedGeneration2SourceInputReader extends ConsumerIntegrationInputReader {
+  readRestored(
+    options: Parameters<ConsumerIntegrationInputReader["read"]>[0] & {
+      readonly sourceRevision: string;
+    },
+  ): ReturnType<ConsumerIntegrationInputReader["read"]>;
+}
+
+/** Ordinary source admission binds HEAD; committed restoration selects its authenticated original. */
+export const nodeManagedGeneration2SourceInputReader: RetainedGeneration2SourceInputReader =
   Object.freeze({
     read: (options: Parameters<ConsumerIntegrationInputReader["read"]>[0]) =>
       readManagedConsumerIntegrationInput(options, "generation2-source"),
+    readRestored: (options: Parameters<RetainedGeneration2SourceInputReader["readRestored"]>[0]) =>
+      readManagedConsumerIntegrationInput(options, "generation2-source", {
+        revision: options.sourceRevision,
+      }),
   });

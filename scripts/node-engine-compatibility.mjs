@@ -11,13 +11,14 @@ import {
   assertCompatibilityNodeExecutable,
   assertPnpmProfileQualificationRoot,
 } from "../tools/dev.mts";
+import { runtimePolicySourcePath } from "../packages/docs-protocol-agent-teams/scripts/runtime-policy-input-paths.mjs";
 import { PUBLISHABLE_PACKAGES } from "./publishable-packages.mjs";
 
 const execFileAsync = promisify(execFile);
 const repositoryRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 
 // Qualifying runtimes are the repository default (.node-version) and the
-// exact versions pinned by the frozen current policy lanes.
+// exact versions pinned by the selected current policy lanes.
 export function assertNodeLane(version, policy, repositoryDefault) {
   const policyVersions = [policy.runtime.productionDefault, policy.runtime.compatibilityLane].map(
     (lane) => lane.qualificationVersion,
@@ -31,6 +32,10 @@ export function assertNodeLane(version, policy, repositoryDefault) {
 
 async function readManifest(path) {
   return JSON.parse(await readFile(path, "utf8"));
+}
+
+export async function readNodeCompatibilityPolicy(root) {
+  return readManifest(join(root, runtimePolicySourcePath));
 }
 
 async function packPackage(packageEntry, destination) {
@@ -128,9 +133,7 @@ export async function qualifyNodeEngineCompatibility() {
   }
   await assertPnpmProfileQualificationRoot(repositoryRoot, sourceRoot);
   const verifiedCompatibilityExecutable = await assertCompatibilityNodeExecutable();
-  const policy = await readManifest(
-    join(repositoryRoot, "architecture", "foundation", "docs-protocol-current-policy.json"),
-  );
+  const policy = await readNodeCompatibilityPolicy(repositoryRoot);
   const repositoryDefault = (await readFile(join(repositoryRoot, ".node-version"), "utf8")).trim();
   assertNodeLane(nodeVersion, policy, repositoryDefault);
   const rootManifest = await readManifest(join(repositoryRoot, "package.json"));

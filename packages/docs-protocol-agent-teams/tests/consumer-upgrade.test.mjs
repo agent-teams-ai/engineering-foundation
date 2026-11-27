@@ -1,4 +1,6 @@
 import { registerTargetLockfileSandboxTests } from "./fixtures/target-lockfile/consumer-target-lockfile-sandbox-cases.mjs";
+import { registerManagedTargetLockTests } from "./fixtures/target-lockfile/consumer-managed-target-lock-cases.ts";
+import { registerManagedTargetLockSandboxTests } from "./fixtures/target-lockfile/consumer-managed-target-lock-sandbox-cases.ts";
 import { assertConsumerUpgradeExecutionSchema } from "../dist/consumer-integration/adapters/consumer-integration-schema-validator.js";
 /* oxlint-disable max-lines, max-lines-per-function -- Disposable E2E keeps setup and cleanup local. */
 import assert from "node:assert/strict";
@@ -2491,3 +2493,5 @@ test(
 );
 
 registerTargetLockfileSandboxTests({ desired, cohortV2 });
+registerManagedTargetLockTests();
+registerManagedTargetLockSandboxTests();

@@ -31,7 +31,7 @@ export const GENERATION2_LEGACY_TEST_FILES: readonly string[] = Object.freeze([
   "packages/docs-protocol-agent-teams/tests/consumer-integration-e2e.test.mjs",
 ]);
 
-// Retained-controller positive paths require exact Node24.21.0. Windows retains
+// Retained-controller positive paths require exact Node24.22.3. Windows retains
 // explicitly named default-runtime refusal observations; managed mutation is unsupported.
 export const RETAINED_CONTROLLER_TEST_FILES: readonly string[] = Object.freeze([
   "packages/docs-protocol-agent-teams/tests/consumer-managed-restoration.test.ts",

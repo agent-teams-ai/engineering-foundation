@@ -172,6 +172,12 @@ packages:
       # upgradeConsumerIntegration; this approval covers that public signature.
       - fingerprint: sha256:b0f0471b217fc07ea3a927aebf6d4df542928227c8d5b56d1445e4f1295ceede
         decisionId: ADR-0070
+      # ADR-0076 updates the current runtime policy, Cohort v3, and receipt schema artifacts.
+      - fingerprint: sha256:ee676005b5cae772bb6b1d995d9ee74a4659292c5beb6410b937427dae189ad2
+        decisionId: ADR-0076
+      # ADR-0076 updates the current policy and runtime literals in both typed entrypoints.
+      - fingerprint: sha256:4801d0cfab99299ac947cbb01032c1151f20e0c1e9d4b2e31fb639c797b9c88c
+        decisionId: ADR-0076
   - packageName: "@agent-teams/ci-input-proof"
     packageRoot: packages/ci-input-proof
     manifestPath: packages/ci-input-proof/package.json

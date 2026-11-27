@@ -24,30 +24,33 @@ import {
 type Fixture = Awaited<ReturnType<typeof retainedFixture>>;
 
 function sourceScenario(name: string, run: (fixture: Fixture) => Promise<void>): void {
-  void test(
-    process.platform === "win32" ? `${name} [Windows runtime refusal]` : name,
-    async (context) => {
-      const fixture = await retainedFixture(context, "26.11.1\n");
-      if (process.platform === "win32") {
-        assert.equal(process.versions.node.split(".")[0], "26");
-        await assert.rejects(
-          nodeManagedGeneration2SourceInputReader.read({ consumerRoot: fixture.root }),
-          { code: "DOCS_CONSUMER_UNSUPPORTED_NODE" },
+  for (const sourceNodePin of ["26.11.1\n", "26.12.1\n"] as const) {
+    const identity = `${name} [preserved host Node${sourceNodePin.trim()}]`;
+    void test(
+      process.platform === "win32" ? `${identity} [Windows runtime refusal]` : identity,
+      async (context) => {
+        const fixture = await retainedFixture(context, sourceNodePin);
+        if (process.platform === "win32") {
+          assert.equal(process.versions.node.split(".")[0], "26");
+          await assert.rejects(
+            nodeManagedGeneration2SourceInputReader.read({ consumerRoot: fixture.root }),
+            { code: "DOCS_CONSUMER_UNSUPPORTED_NODE" },
+          );
+          await assertUnchanged(fixture);
+          context.diagnostic(
+            "Windows default Node26 refusal only; no positive source observation claim.",
+          );
+          return;
+        }
+        assert.equal(
+          process.versions.node,
+          "24.22.3",
+          "Select the physical retained-controller test runtime.",
         );
-        await assertUnchanged(fixture);
-        context.diagnostic(
-          "Windows default Node26 refusal only; no positive source observation claim.",
-        );
-        return;
-      }
-      assert.equal(
-        process.versions.node,
-        "24.21.0",
-        "Select the physical retained-controller test runtime.",
-      );
-      await run(fixture);
-    },
-  );
+        await run(fixture);
+      },
+    );
+  }
 }
 
 async function assertUnchanged(fixture: Fixture): Promise<void> {
@@ -126,10 +129,22 @@ sourceScenario(
     await assert.rejects(read(), { code: "DOCS_CONSUMER_PROFILE_INVALID" });
     await writeFile(profile, fixture.originals.get(INTEGRATION_PROFILE_PATH)!);
     const pin = join(fixture.root, ".node-version");
-    for (const bytes of ["26.11.1", "26.11.1\r\n", "26.11.2\n", "25.9.0\n", "24.17.0\n"]) {
+    for (const bytes of [
+      "26.11.1",
+      "26.11.1\r\n",
+      "26.11.2\n",
+      "26.12.1",
+      "26.12.1\r\n",
+      "26.12.2\n",
+      "25.9.0\n",
+      "24.17.0\n",
+    ]) {
       await writeFile(pin, bytes);
       await assert.rejects(read(), { code: "DOCS_CONSUMER_NODE_VERSION_GATE_INVALID" });
     }
+    const otherQualifiedPin = fixture.sourceNodePin === "26.11.1\n" ? "26.12.1\n" : "26.11.1\n";
+    await writeFile(pin, otherQualifiedPin);
+    await assert.rejects(read(), { code: "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED" });
     await writeFile(pin, fixture.sourceNodePin);
     assert.deepEqual((await read()).desired, fixture.current);
     await assertUnchanged(fixture);
@@ -170,38 +185,136 @@ test(
       );
       return;
     }
-    assert.equal(process.versions.node, "24.21.0");
+    assert.equal(process.versions.node, "24.22.3");
     const pin = join(fixture.root, ".node-version");
-    await writeFile(pin, "26.11.1\n");
     assert.equal(git(fixture.root, "show", "HEAD:.node-version"), "24.21.0");
-    await assert.rejects(
-      nodeManagedGeneration2SourceInputReader.read({ consumerRoot: fixture.root }),
-      { code: "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED" },
-    );
+    for (const sourceNodePin of ["26.11.1\n", "26.12.1\n"] as const) {
+      await writeFile(pin, sourceNodePin);
+      await assert.rejects(
+        nodeManagedGeneration2SourceInputReader.read({ consumerRoot: fixture.root }),
+        { code: "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED" },
+      );
+    }
     await writeFile(pin, fixture.sourceNodePin);
     await verifier(fixture)({ consumerRoot: fixture.root, current: fixture.current });
     await assertUnchanged(fixture);
   },
 );
 
-test("preserved source restoration requires its verifier before environment resolution or installation", async (context: TestContext) => {
-  const fixture = await retainedFixture(context, "26.11.1\n");
-  let environmentReads = 0;
-  const sandbox = new NodeConsumerUpgradeSandbox(() => {
-    environmentReads += 1;
-    throw new Error("TEST runtime resolution must not start without its verifier");
+for (const sourceNodePin of ["26.11.1\n", "26.12.1\n"] as const) {
+  test(`preserved source restoration requires its verifier before environment resolution or installation [Node${sourceNodePin.trim()}]`, async (context: TestContext) => {
+    const fixture = await retainedFixture(context, sourceNodePin);
+    let environmentReads = 0;
+    const sandbox = new NodeConsumerUpgradeSandbox(() => {
+      environmentReads += 1;
+      throw new Error("TEST runtime resolution must not start without its verifier");
+    });
+    const input = { consumerRoot: fixture.root, current: fixture.current };
+    await assert.rejects(sandbox.restoreAndVerifyManaged(input), {
+      code: "DOCS_CONSUMER_UPGRADE_SOURCE_VERIFIER_REQUIRED",
+    });
+    await assert.rejects(
+      sandbox.restoreCommittedAndVerifyManaged({
+        ...input,
+        sourceRevision: git(fixture.root, "rev-parse", "HEAD"),
+      }),
+      {
+        code: "DOCS_CONSUMER_UPGRADE_SOURCE_VERIFIER_REQUIRED",
+      },
+    );
+    assert.equal(environmentReads, 0);
+    await assert.rejects(lstat(join(fixture.root, "node_modules")), { code: "ENOENT" });
+    await assertUnchanged(fixture);
   });
-  const input = { consumerRoot: fixture.root, current: fixture.current };
-  await assert.rejects(sandbox.restoreAndVerifyManaged(input), {
-    code: "DOCS_CONSUMER_UPGRADE_SOURCE_VERIFIER_REQUIRED",
-  });
-  await assert.rejects(sandbox.restoreCommittedAndVerifyManaged(input), {
-    code: "DOCS_CONSUMER_UPGRADE_SOURCE_VERIFIER_REQUIRED",
-  });
-  assert.equal(environmentReads, 0);
-  await assert.rejects(lstat(join(fixture.root, "node_modules")), { code: "ENOENT" });
-  await assertUnchanged(fixture);
-});
+}
+
+sourceScenario(
+  "restored source selects original Git bytes while ordinary admission stays bound to current HEAD",
+  async (fixture) => {
+    const sourceRevision = git(fixture.root, "rev-parse", "HEAD");
+    const pin = join(fixture.root, ".node-version");
+    const otherPin = fixture.sourceNodePin === "26.11.1\n" ? "26.12.1\n" : "26.11.1\n";
+    await writeFile(pin, otherPin);
+    git(fixture.root, "add", ".node-version");
+    git(fixture.root, "commit", "-qm", "test: commit distinct target pin");
+    const currentRevision = git(fixture.root, "rev-parse", "HEAD");
+    await writeFile(pin, fixture.sourceNodePin);
+    const selected = { consumerRoot: fixture.root, sourceRevision };
+    const read = () => nodeManagedGeneration2SourceInputReader.readRestored(selected);
+    await assert.rejects(
+      Reflect.apply(nodeManagedGeneration2SourceInputReader.read, undefined, [selected]),
+      { code: "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED" },
+    );
+    const observed = await read();
+    assert.equal(observed.repositoryHead, currentRevision);
+    assert.deepEqual(observed.desired, fixture.current);
+    await verifier(fixture)({ ...selected, current: fixture.current });
+    const unrelatedRevision = git(
+      fixture.root,
+      "commit-tree",
+      git(fixture.root, "rev-parse", `${sourceRevision}^{tree}`),
+      "-m",
+      "test: unrelated identical source tree",
+    );
+    for (const invalidRevision of ["HEAD", "0".repeat(40), currentRevision, unrelatedRevision]) {
+      await assert.rejects(
+        nodeManagedGeneration2SourceInputReader.readRestored({
+          ...selected,
+          sourceRevision: invalidRevision,
+        }),
+        { code: "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED" },
+      );
+    }
+    await assert.rejects(
+      Reflect.apply(nodeManagedGeneration2SourceInputReader.readRestored, undefined, [
+        { consumerRoot: fixture.root },
+      ]),
+      { code: "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED" },
+    );
+    await writeFile(pin, otherPin);
+    await assert.rejects(read(), { code: "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED" });
+    await writeFile(pin, fixture.sourceNodePin);
+    await chmod(pin, 0o755);
+    await assert.rejects(read(), { code: "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED" });
+    await chmod(pin, 0o644);
+    const profilePath = join(fixture.root, INTEGRATION_PROFILE_PATH);
+    const profile = fixture.originals.get(INTEGRATION_PROFILE_PATH)!;
+    await writeFile(profilePath, Buffer.concat([Buffer.from(" "), profile]));
+    await assert.rejects(read(), { code: "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED" });
+    await writeFile(profilePath, profile);
+    await verifier(fixture)({ ...selected, current: fixture.current });
+    assert.equal(git(fixture.root, "rev-parse", "HEAD"), currentRevision);
+    await assertUnchanged(fixture);
+  },
+);
+
+sourceScenario(
+  "committed restoration forwards its authenticated source revision before installation",
+  async (fixture) => {
+    const sourceRevision = git(fixture.root, "rev-parse", "HEAD");
+    const observations: string[] = [];
+    const sandbox = new NodeConsumerUpgradeSandbox(
+      () => {
+        throw new Error("TEST stop after retained verification");
+      },
+      async (options) => {
+        assert.equal(options.sourceRevision, sourceRevision);
+        observations.push(options.sourceRevision);
+        await verifier(fixture)(options);
+      },
+    );
+    await assert.rejects(
+      sandbox.restoreCommittedAndVerifyManaged({
+        consumerRoot: fixture.root,
+        current: fixture.current,
+        sourceRevision,
+      }),
+      /TEST stop after retained verification/u,
+    );
+    assert.deepEqual(observations, [sourceRevision]);
+    await assertUnchanged(fixture);
+  },
+);
 
 function inputOperations(f: Fixture) {
   return f.plan.operations.map((operation) => {
@@ -226,7 +339,7 @@ scenario(
   "retained preparation keeps exact pin ownership and rejects a forged no-op pin write",
   async (_t, f) => {
     const writesPin = f.plan.operations.some(({ path }) => path === ".node-version");
-    assert.equal(writesPin, f.sourceNodePin === "24.21.0\n");
+    assert.equal(writesPin, f.sourceNodePin !== "26.12.1\n");
     if (!writesPin) {
       const noop = compileKnownFileTransactionPlan({
         operations: [
@@ -302,7 +415,7 @@ scenario(
           prepare: true,
           restorationProofPath: f.options.proofPath,
         }),
-        f.sourceNodePin === "26.11.1\n"
+        f.sourceNodePin === "26.12.1\n"
           ? { code: "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED" }
           : /current bytes or mode differ/u,
       );

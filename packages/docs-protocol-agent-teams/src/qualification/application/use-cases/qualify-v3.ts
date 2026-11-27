@@ -324,7 +324,7 @@ function freezeObservedQualificationRuntime(
 ) {
   const observedPnpmVersion = observedRuntime.pnpmVersion;
   if (
-    observedRuntime.nodeVersion !== "26.11.1" ||
+    observedRuntime.nodeVersion !== "26.12.1" ||
     observedPnpmVersion !== "11.20.0" ||
     observedRuntime.platform !== "linux" ||
     observedRuntime.architecture !== "x64"
@@ -372,9 +372,9 @@ function qualifyCohortV3(
   const expectedRuntime = cohort.runtime;
   if (
     expectedRuntime.selectedLane !== "node-26-managed-qualified" ||
-    expectedRuntime.node !== ">=26.0.0 <27" ||
+    expectedRuntime.node !== ">=26.12.1 <27" ||
     expectedRuntime.pnpm !== ">=11.17.0 <12" ||
-    expectedRuntime.qualificationRuntime.nodeVersion !== "26.11.1" ||
+    expectedRuntime.qualificationRuntime.nodeVersion !== "26.12.1" ||
     expectedRuntime.qualificationRuntime.pnpmVersion !== "11.20.0" ||
     expectedRuntime.qualificationRuntime.platform !== "linux" ||
     expectedRuntime.qualificationRuntime.architecture !== "x64"

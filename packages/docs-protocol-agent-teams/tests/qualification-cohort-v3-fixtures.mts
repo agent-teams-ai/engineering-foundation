@@ -20,7 +20,7 @@ import type { ManagedSuccessorProfile } from "../dist/consumer-integration/domai
 import type { PackedManagedRuntimePolicy } from "../dist/consumer-integration/application/policies/qualified-docs-cohort-v3.js";
 
 type Node26RuntimeFixture = {
-  readonly nodeVersion: "26.11.1";
+  readonly nodeVersion: "26.12.1";
   readonly pnpmVersion: "11.20.0";
   readonly platform: "linux";
   readonly architecture: "x64";
@@ -33,9 +33,9 @@ export type PackedRuntimePolicyFixture = Omit<
   readonly pnpm: ">=11.17.0 <12";
   readonly lanes: {
     readonly "node-24-production-default": {
-      readonly node: ">=24.18.0 <25";
+      readonly node: ">=24.22.3 <25";
       readonly qualificationRuntime: {
-        readonly nodeVersion: "24.21.0";
+        readonly nodeVersion: "24.22.3";
         readonly pnpmVersion: "11.20.0";
         readonly platform: "linux";
         readonly architecture: "x64";
@@ -43,7 +43,7 @@ export type PackedRuntimePolicyFixture = Omit<
       readonly default: false;
     };
     readonly "node-26-managed-qualified": {
-      readonly node: ">=26.0.0 <27";
+      readonly node: ">=26.12.1 <27";
       readonly qualificationRuntime: Node26RuntimeFixture;
       readonly default: true;
     };
@@ -62,11 +62,11 @@ type CohortFixture = Omit<
   > & {
     readonly policy: {
       readonly id: "agent-teams.docs-protocol-current-policy";
-      readonly version: "3.0.0";
+      readonly version: "3.1.0";
       readonly digest: `sha256:${string}`;
     };
     readonly selectedLane: "node-26-managed-qualified";
-    readonly node: ">=26.0.0 <27";
+    readonly node: ">=26.12.1 <27";
     readonly pnpm: ">=11.17.0 <12";
     readonly qualificationRuntime: Node26RuntimeFixture;
   };
@@ -150,14 +150,14 @@ const lockfileBytes = Buffer.from(stringify(lockfile));
 const sourceDigest = digest("f");
 export const policy: PackedRuntimePolicyFixture = {
   policyId: "agent-teams.docs-protocol-current-policy",
-  policyVersion: "3.0.0",
+  policyVersion: "3.1.0",
   sourceDigest,
   pnpm: ">=11.17.0 <12",
   lanes: {
     "node-24-production-default": {
-      node: ">=24.18.0 <25",
+      node: ">=24.22.3 <25",
       qualificationRuntime: {
-        nodeVersion: "24.21.0",
+        nodeVersion: "24.22.3",
         pnpmVersion: "11.20.0",
         platform: "linux",
         architecture: "x64",
@@ -165,9 +165,9 @@ export const policy: PackedRuntimePolicyFixture = {
       default: false,
     },
     "node-26-managed-qualified": {
-      node: ">=26.0.0 <27",
+      node: ">=26.12.1 <27",
       qualificationRuntime: {
-        nodeVersion: "26.11.1",
+        nodeVersion: "26.12.1",
         pnpmVersion: "11.20.0",
         platform: "linux",
         architecture: "x64",
@@ -283,7 +283,7 @@ export const createRequestFixture = (
 };
 export const request = createRequestFixture(policy);
 export const exactRuntime: DocsProtocolQualificationRuntimeObservation = {
-  nodeVersion: "26.11.1",
+  nodeVersion: "26.12.1",
   pnpmVersion: "11.20.0",
   platform: "linux",
   architecture: "x64",

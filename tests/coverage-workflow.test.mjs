@@ -271,14 +271,15 @@ test("partitioned coverage is the fail-closed blocking coverage authority", asyn
   );
   assert.equal(node24Capture.if, undefined);
   assert.ok(producer.steps.indexOf(node24) < producer.steps.indexOf(node24Capture));
-  const historicalNode24 = producer.steps.find(
-    (step) => step.with?.["node-version"] === "24.21.0",
-  );
-  const historicalCapture = producer.steps.find(
-    (step) => /MANAGED_TEST_NODE24_SOURCE=/u.test(step.run ?? ""),
+  const historicalNode24 = producer.steps.find((step) => step.with?.["node-version"] === "24.21.0");
+  const historicalCapture = producer.steps.find((step) =>
+    /MANAGED_TEST_NODE24_SOURCE=/u.test(step.run ?? ""),
   );
   assert.equal(historicalNode24.if, "${{ matrix.pair.second == '4' }}");
-  assert.equal(producer.steps.indexOf(historicalCapture), producer.steps.indexOf(historicalNode24) + 1);
+  assert.equal(
+    producer.steps.indexOf(historicalCapture),
+    producer.steps.indexOf(historicalNode24) + 1,
+  );
   assert.ok(producer.steps.indexOf(node24Capture) < producer.steps.indexOf(historicalNode24));
   const node26 = producer.steps.find((step) => step.with?.["node-version"] === "26.10.0");
   assert.equal(node26.if, "${{ matrix.pair.second == '4' }}");

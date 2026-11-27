@@ -162,3 +162,28 @@ was lost. The producer patch was reconstructed from its exact immutable base and
 the recorded owned edits and saved through GitHub. Reconstructed code requires
 fresh source review and actual checks; previous static observations do not
 qualify its new source. No release or adoption completion is asserted.
+
+The reconstructed source was rebuilt with the exact TypeScript7.0.2 compiler;
+all package builds and the complete strict CI-tooling project passed. Normal
+runtime-asset generation and accepted-decision baseline promotion completed.
+The selected-lock/legacy restoration suite on physical Node24.22.3 reported
+93 passing tests, zero failures and two explicit filesystem-case skips; this
+focused result does not replace the complete hosted inventory.
+
+The first physical committed-restoration run exposed a concrete different-pin
+defect: inverse publication restored26.11.1 correctly, but its subsequent
+verifier compared that original image with committed target HEAD26.12.1.
+The corrected owner now carries the authenticated preparation source revision
+into a separate retained restoration reader. That reader verifies exact source
+SHA, ancestry, original profile bytes and pin bytes/mode while continuing to
+observe and recheck the actual current HEAD. Ordinary source admission remains
+HEAD-bound. Existing fresh and cold committed cases are the red regressions;
+additional cases reject revision, lineage, profile, pin and mode substitutions.
+Fresh physical reruns and final native CI remain required for this correction.
+
+The source-owned Bun changed/fast/workflow commands were attempted after the
+reconstruction and refused the missing source Bun installation. The separately
+installed complete Node projection supports the build and focused diagnostics;
+it is not relabeled as a passing source Bun gate. Full hosted Bun/Node checks,
+native qualification, current-head review and actual-main results remain the
+delivery authority.

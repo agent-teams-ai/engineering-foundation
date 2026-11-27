@@ -35,6 +35,7 @@ async function published(t: TestContext, sourceNodePin: RetainedSourceNodePin) {
   t.diagnostic(
     `controller=${process.versions.node}; source-pin=${sourceNodePin.trim()}; TEST activation ports`,
   );
+  const sourceRevision = git(f.root, "rev-parse", "HEAD");
   const prepared = await f.prepare();
   const forward = finalizeManagedConsumerRestoration({ ...f.options, expect: prepared.digest }, f);
   const result = await forward;
@@ -44,7 +45,7 @@ async function published(t: TestContext, sourceNodePin: RetainedSourceNodePin) {
     result.receipt.operations.some(({ path }) => path === ".node-version"),
     sourceNodePin !== "26.12.1\n",
   );
-  return { ...f, prepared };
+  return { ...f, prepared, sourceRevision };
 }
 type Fixture = NonNullable<Awaited<ReturnType<typeof published>>>;
 function scenario(
@@ -53,9 +54,7 @@ function scenario(
 ): void {
   for (const sourceNodePin of retainedSourceNodePins) {
     const identity =
-      sourceNodePin === "24.21.0\n"
-        ? name
-        : `${name} [preserved host Node${sourceNodePin.trim()}]`;
+      sourceNodePin === "24.21.0\n" ? name : `${name} [preserved host Node${sourceNodePin.trim()}]`;
     void test(
       process.platform === "win32" ? `${identity} [Windows runtime refusal]` : identity,
       async (context) => {
@@ -138,7 +137,7 @@ function assertSourceChildCompleted(result: Awaited<ReturnType<typeof child>>, f
     diagnostic,
   );
 }
-const freshSourceScript = (root: string, fixture: Fixture) => `
+const freshSourceScript = (root: string, fixture: Fixture, sourceRevision: string) => `
 const assert=(await import('node:assert/strict')).default;
 assert.equal(process.versions.node,'24.22.3');
 ${
@@ -148,7 +147,7 @@ const {createRetainedGeneration2SourceVerifier}=await import(${JSON.stringify(ne
 const {nodeManagedGeneration2SourceInputReader}=await import(${JSON.stringify(new URL("../dist/consumer-integration/adapters/node-consumer-integration-repository.js", import.meta.url).href)});
 const {packageConsumerAssetCatalogReader}=await import(${JSON.stringify(new URL("../dist/consumer-integration/adapters/package-consumer-asset-catalog.js", import.meta.url).href)});
 const {consumerIntegrationPlanningPorts:sourcePlanning}=await import(${JSON.stringify(new URL("../dist/consumer-integration/composition/consumer-integration-planner.js", import.meta.url).href)});
-await createRetainedGeneration2SourceVerifier({input:nodeManagedGeneration2SourceInputReader,assets:packageConsumerAssetCatalogReader,planning:sourcePlanning})({consumerRoot:${JSON.stringify(root)},current:${JSON.stringify(fixture.current)}});
+await createRetainedGeneration2SourceVerifier({input:nodeManagedGeneration2SourceInputReader,assets:packageConsumerAssetCatalogReader,planning:sourcePlanning})({consumerRoot:${JSON.stringify(root)},current:${JSON.stringify(fixture.current)},sourceRevision:${JSON.stringify(sourceRevision)}});
 console.error('TEST_RETAINED_SOURCE_DATA_VERIFIED');
 `
     : `
@@ -226,7 +225,10 @@ scenario(
       sandbox: {
         ...f.sandbox,
         restoreCommittedAndVerifyManaged: async (input) => {
-          const checked = await child(freshSourceScript(input.consumerRoot, f));
+          assert.equal(input.sourceRevision, f.sourceRevision);
+          const checked = await child(
+            freshSourceScript(input.consumerRoot, f, input.sourceRevision),
+          );
           assertSourceChildCompleted(checked, f);
         },
       },
@@ -362,7 +364,7 @@ console.error('TEST_CURRENT_RESTORE_STARTED');
 const result=await restoreCommittedManagedConsumer(${JSON.stringify({ ...selected, ...(selectionExpect === undefined ? {} : { selectionExpect }) })},{
  authority:{readManagedRestoration:async()=>({revision:${JSON.stringify(revision)},target:{repository:'agent-teams-ai/.github',path:'governance/docs-qualified-cohorts.json',revision:${JSON.stringify(revision)},cohort:origin}})},
  planning:consumerIntegrationPlanningPorts,
- sandbox:{verifyManagedRuntime:async()=>{console.error('TEST_CURRENT_RUNTIME_PREFLIGHT');},restoreCommittedAndVerifyManaged:async()=>{console.error('TEST_CURRENT_INVERSE_PUBLISHED');${selectionExpect === undefined ? "process.exit(73);" : freshSourceScript(f.root, f)}}}
+ sandbox:{verifyManagedRuntime:async()=>{console.error('TEST_CURRENT_RUNTIME_PREFLIGHT');},restoreCommittedAndVerifyManaged:async(input)=>{if(input.sourceRevision!==${JSON.stringify(f.sourceRevision)})throw new Error('TEST_CURRENT_ORIGINAL_REVISION_MISSING');console.error('TEST_CURRENT_INVERSE_PUBLISHED');${selectionExpect === undefined ? "process.exit(73);" : freshSourceScript(f.root, f, f.sourceRevision)}}}
 });console.log(JSON.stringify(result));`;
     const first = await child(script());
     assert.equal(first.code, 73, JSON.stringify(first));

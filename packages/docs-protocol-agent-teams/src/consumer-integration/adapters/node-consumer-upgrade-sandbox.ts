@@ -346,6 +346,7 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
   private async restoreManagedInstallation(options: {
     readonly current: ConsumerIntegrationDesiredStateV3 | ManagedSuccessorProfile;
     readonly consumerRoot: string;
+    readonly sourceRevision?: string;
   }): Promise<void> {
     const sourcePin = await readStableConsumerFile(
       options.consumerRoot,
@@ -354,6 +355,7 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
       true,
     );
     const current = options.current;
+    const sourceRevision = options.sourceRevision;
     let verifyRetained: (() => Promise<void>) | undefined;
     if (
       current.schemaVersion === 3 &&
@@ -367,7 +369,12 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
           "Preserved Node 26 source restoration requires its retained-controller verifier.",
         );
       }
-      verifyRetained = () => verifier({ consumerRoot: options.consumerRoot, current });
+      verifyRetained = () =>
+        verifier({
+          consumerRoot: options.consumerRoot,
+          current,
+          ...(sourceRevision === undefined ? {} : { sourceRevision }),
+        });
       await verifyRetained();
     }
     const run = await managedUpgradeRuntime(
@@ -406,6 +413,7 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
   public restoreCommittedAndVerifyManaged(options: {
     readonly current: ConsumerIntegrationDesiredStateV3;
     readonly consumerRoot: string;
+    readonly sourceRevision: string;
   }): Promise<void> {
     // The current-target owner separately proves its selected HEAD and exact inverse images.
     return this.restoreManagedInstallation(options);

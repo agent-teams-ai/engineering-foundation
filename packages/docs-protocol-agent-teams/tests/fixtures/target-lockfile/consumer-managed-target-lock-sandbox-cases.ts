@@ -8,7 +8,10 @@ import test, { type TestContext } from "node:test";
 import { NodeConsumerUpgradeSandbox } from "../../../dist/consumer-integration/adapters/node-consumer-upgrade-sandbox.js";
 import { assertFrozenTargetLockInstall } from "./consumer-target-lock-input-assertions.ts";
 import {
-  at, encoded, record, seedManagedTargetLockSandbox,
+  at,
+  encoded,
+  record,
+  seedManagedTargetLockSandbox,
 } from "./consumer-managed-target-lock-fixture.ts";
 
 type SandboxFixture = Awaited<ReturnType<typeof seedManagedTargetLockSandbox>>;
@@ -20,74 +23,100 @@ interface Effects {
 
 function interceptProcesses(t: TestContext, f: SandboxFixture, effects: Effects): void {
   const original = childProcess.execFile;
-  t.mock.method(childProcess, "execFile", new Proxy(original, {
-    apply(execute, receiver: unknown, parameters: unknown[]) {
-      const [executable, rawArgs, rawOptions, callback] = parameters;
-      assert.ok(typeof executable === "string");
-      assert.ok(Array.isArray(rawArgs) && rawArgs.every((value: unknown) => typeof value === "string"));
-      assert.ok(typeof callback === "function");
-      const args: string[] = rawArgs;
-      if (executable === "git" || executable === "tar") {
-        if (executable === "git" && args[0] === "status" &&
-            effects.tamper === "capture" && effects.stagedRoot !== undefined) {
-          writeFileSync(
-            join(effects.stagedRoot, "pnpm-lock.yaml"),
-            Buffer.concat([f.selectedBytes, Buffer.from("\n")]),
-          );
-        }
-        return Reflect.apply(execute, receiver, parameters);
-      }
-      const cwd = record(rawOptions)["cwd"];
-      assert.ok(typeof cwd === "string");
-      const effect = async (): Promise<string> => {
+  t.mock.method(
+    childProcess,
+    "execFile",
+    new Proxy(original, {
+      apply(execute, receiver: unknown, parameters: unknown[]) {
+        const [executable, rawArgs, rawOptions, callback] = parameters;
+        assert.ok(typeof executable === "string");
         assert.ok(
-          executable === f.environment["AGENT_TEAMS_DOCS_UPGRADE_NODE24_EXECUTABLE"] ||
-          executable === f.environment["AGENT_TEAMS_DOCS_UPGRADE_NODE26_EXECUTABLE"],
+          Array.isArray(rawArgs) && rawArgs.every((value: unknown) => typeof value === "string"),
         );
-        const corepack = f.environment["AGENT_TEAMS_DOCS_UPGRADE_COREPACK_ENTRYPOINT"];
-        if (args.includes("--eval")) {
-          const node = executable === f.environment["AGENT_TEAMS_DOCS_UPGRADE_NODE24_EXECUTABLE"]
-            ? "24.22.3" : "26.12.1";
-          return JSON.stringify({ node, platform: "linux", architecture: "x64" });
-        }
-        if (args[0] === corepack && args.includes("--version")) return "11.20.0\n";
-        if (args[0] === corepack && args.includes("install")) {
-          effects.stagedRoot = cwd;
-          effects.installs.push(args.slice(1));
-          assert.deepEqual(await readFile(join(cwd, "pnpm-lock.yaml")), f.selectedBytes);
-          const cli = join(cwd, "node_modules/@agent-teams/docs-protocol-agent-teams/dist/cli.js");
-          await mkdir(dirname(cli), { recursive: true });
-          await writeFile(cli, "// inert fixture CLI; every call is intercepted\n");
-          if (effects.tamper === "install") await writeFile(join(cwd, "pnpm-lock.yaml"), "install drift");
-          return "";
-        }
-        if (args[1] === "plan") {
-          return JSON.stringify({
-            outcome: "change-required", plan: { planDigest: "sha256:" + "a".repeat(64) },
-          });
-        }
-        if (args[1] === "apply") {
-          for (const path of [f.current.skillPath, f.current.callerWorkflowPath, f.current.managedStatePath]) {
-            await writeFile(join(cwd, path), "fixture target asset\n");
+        assert.ok(typeof callback === "function");
+        const args: string[] = rawArgs;
+        if (executable === "git" || executable === "tar") {
+          if (
+            executable === "git" &&
+            args[0] === "status" &&
+            effects.tamper === "capture" &&
+            effects.stagedRoot !== undefined
+          ) {
+            writeFileSync(
+              join(effects.stagedRoot, "pnpm-lock.yaml"),
+              Buffer.concat([f.selectedBytes, Buffer.from("\n")]),
+            );
           }
-          if (effects.tamper === "apply") await writeFile(join(cwd, "pnpm-lock.yaml"), "apply drift");
-          return JSON.stringify({ outcome: "applied" });
+          return Reflect.apply(execute, receiver, parameters);
         }
-        assert.equal(args[1], "check");
-        return JSON.stringify({ outcome: "current" });
-      };
-      void effect().then(
-        (stdout) => setImmediate(() => Reflect.apply(callback, undefined, [null, stdout, ""])),
-        (error: unknown) => {
-          const failure = error instanceof Error ? error : new Error(String(error));
-          setImmediate(() => Reflect.apply(callback, undefined, [
-            Object.assign(failure, { code: 1 }), "", failure.message,
-          ]));
-        },
-      );
-      return new childProcess.ChildProcess();
-    },
-  }));
+        const cwd = record(rawOptions)["cwd"];
+        assert.ok(typeof cwd === "string");
+        const effect = async (): Promise<string> => {
+          assert.ok(
+            executable === f.environment["AGENT_TEAMS_DOCS_UPGRADE_NODE24_EXECUTABLE"] ||
+              executable === f.environment["AGENT_TEAMS_DOCS_UPGRADE_NODE26_EXECUTABLE"],
+          );
+          const corepack = f.environment["AGENT_TEAMS_DOCS_UPGRADE_COREPACK_ENTRYPOINT"];
+          if (args.includes("--eval")) {
+            const node =
+              executable === f.environment["AGENT_TEAMS_DOCS_UPGRADE_NODE24_EXECUTABLE"]
+                ? "24.22.3"
+                : "26.12.1";
+            return JSON.stringify({ node, platform: "linux", architecture: "x64" });
+          }
+          if (args[0] === corepack && args.includes("--version")) return "11.20.0\n";
+          if (args[0] === corepack && args.includes("install")) {
+            effects.stagedRoot = cwd;
+            effects.installs.push(args.slice(1));
+            assert.deepEqual(await readFile(join(cwd, "pnpm-lock.yaml")), f.selectedBytes);
+            const cli = join(
+              cwd,
+              "node_modules/@agent-teams/docs-protocol-agent-teams/dist/cli.js",
+            );
+            await mkdir(dirname(cli), { recursive: true });
+            await writeFile(cli, "// inert fixture CLI; every call is intercepted\n");
+            if (effects.tamper === "install")
+              await writeFile(join(cwd, "pnpm-lock.yaml"), "install drift");
+            return "";
+          }
+          if (args[1] === "plan") {
+            return JSON.stringify({
+              outcome: "change-required",
+              plan: { planDigest: "sha256:" + "a".repeat(64) },
+            });
+          }
+          if (args[1] === "apply") {
+            for (const path of [
+              f.current.skillPath,
+              f.current.callerWorkflowPath,
+              f.current.managedStatePath,
+            ]) {
+              await writeFile(join(cwd, path), "fixture target asset\n");
+            }
+            if (effects.tamper === "apply")
+              await writeFile(join(cwd, "pnpm-lock.yaml"), "apply drift");
+            return JSON.stringify({ outcome: "applied" });
+          }
+          assert.equal(args[1], "check");
+          return JSON.stringify({ outcome: "current" });
+        };
+        void effect().then(
+          (stdout) => setImmediate(() => Reflect.apply(callback, undefined, [null, stdout, ""])),
+          (error: unknown) => {
+            const failure = error instanceof Error ? error : new Error(String(error));
+            setImmediate(() =>
+              Reflect.apply(callback, undefined, [
+                Object.assign(failure, { code: 1 }),
+                "",
+                failure.message,
+              ]),
+            );
+          },
+        );
+        return new childProcess.ChildProcess();
+      },
+    }),
+  );
   syncBuiltinESMExports();
 }
 
@@ -102,7 +131,8 @@ async function managedSandboxSelection(t: TestContext): Promise<void> {
   };
   try {
     const wrongClosure = structuredClone(f.after);
-    const foundation = "@agent-teams/engineering-foundation@" +
+    const foundation =
+      "@agent-teams/engineering-foundation@" +
       f.successor.cohort.packages.engineeringFoundation.version;
     at(wrongClosure, "snapshots", foundation, "dependencies")["@types/node"] = "24.13.3";
     await assert.rejects(prepare(encoded(wrongClosure)), {
@@ -128,9 +158,14 @@ async function managedSandboxSelection(t: TestContext): Promise<void> {
     await assert.rejects(prepare(f.selectedBytes), /Captured target lock/u);
     assert.deepEqual(await readFile(join(f.consumer, "pnpm-lock.yaml")), f.beforeBytes);
     assert.equal(await readFile(join(f.consumer, ".node-version"), "utf8"), "26.12.1\n");
-    assert.equal(await readFile(join(f.consumer, "packages/host/package.json"), "utf8"), JSON.stringify({
-      name: "TEST-foreign-host", private: true, devDependencies: { "@types/node": "24.13.3" },
-    }));
+    assert.equal(
+      await readFile(join(f.consumer, "packages/host/package.json"), "utf8"),
+      JSON.stringify({
+        name: "TEST-foreign-host",
+        private: true,
+        devDependencies: { "@types/node": "24.13.3" },
+      }),
+    );
   } finally {
     t.mock.restoreAll();
     syncBuiltinESMExports();

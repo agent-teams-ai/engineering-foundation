@@ -21,7 +21,9 @@ export function at(value: unknown, ...keys: readonly string[]): Record<string, u
 }
 
 export const encoded = (value: unknown): Buffer =>
-  Buffer.from("# consumer-owned Node types and retained foreign tool\n" + JSON.stringify(value) + "\n");
+  Buffer.from(
+    "# consumer-owned Node types and retained foreign tool\n" + JSON.stringify(value) + "\n",
+  );
 
 export function managedTargetLockFixture() {
   const current = desired();
@@ -65,19 +67,22 @@ export function managedTargetLockFixture() {
     Object.assign(at(value, "snapshots"), structuredClone(foreignSnapshots));
   }
   return {
-    current, successor, before, after,
-    beforeBytes: encoded(before), selectedBytes: encoded(after),
+    current,
+    successor,
+    before,
+    after,
+    beforeBytes: encoded(before),
+    selectedBytes: encoded(after),
   };
 }
 
 function sourceSnapshot(current: ReturnType<typeof desired>, beforeBytes: Buffer) {
   const initial = currentSnapshot(current);
   assert.equal(initial.packageManifest.state, "file");
-  const manifest = record(
-    JSON.parse(Buffer.from(initial.packageManifest.bytes).toString("utf8")),
-  );
+  const manifest = record(JSON.parse(Buffer.from(initial.packageManifest.bytes).toString("utf8")));
   Object.assign(at(manifest, "devDependencies"), {
-    "@types/node": "24.13.3", "foreign-tool": "1.0.0",
+    "@types/node": "24.13.3",
+    "foreign-tool": "1.0.0",
   });
   return {
     ...initial,
@@ -111,15 +116,22 @@ async function seedSourceFiles(
   await writeFile(join(consumer, ".gitignore"), "node_modules/\n");
   await writeFile(join(consumer, "pnpm-workspace.yaml"), "packages: ['packages/*']\n");
   await mkdir(join(consumer, "packages/host"), { recursive: true });
-  await writeFile(join(consumer, "packages/host/package.json"), JSON.stringify({
-    name: "TEST-foreign-host", private: true,
-    devDependencies: { "@types/node": "24.13.3" },
-  }));
+  await writeFile(
+    join(consumer, "packages/host/package.json"),
+    JSON.stringify({
+      name: "TEST-foreign-host",
+      private: true,
+      devDependencies: { "@types/node": "24.13.3" },
+    }),
+  );
   for (const args of [
-    ["init", "-q"], ["config", "user.email", "test@example.invalid"],
-    ["config", "user.name", "TEST fixture"], ["add", "."],
+    ["init", "-q"],
+    ["config", "user.email", "test@example.invalid"],
+    ["config", "user.name", "TEST fixture"],
+    ["add", "."],
     ["commit", "-qm", "test: seed managed selected lock"],
-  ]) runGit(consumer, args);
+  ])
+    runGit(consumer, args);
   return paths;
 }
 
@@ -146,13 +158,20 @@ export async function seedManagedTargetLockSandbox() {
     environment[key] = path;
   }
   return {
-    ...fixture, root, consumer, environment, snapshot,
+    ...fixture,
+    root,
+    consumer,
+    environment,
+    snapshot,
     options: {
-      consumerRoot: consumer, current, authority: selected(fixture.successor),
+      consumerRoot: consumer,
+      current,
+      authority: selected(fixture.successor),
       expectedSourceRevision: runGit(consumer, ["rev-parse", "HEAD"]),
       expectedSourceSnapshot: snapshot,
       managedPreimages: {
-        skill: proof("skill"), callerWorkflow: proof("callerWorkflow"),
+        skill: proof("skill"),
+        callerWorkflow: proof("callerWorkflow"),
         managedState: proof("managedState"),
       },
     },

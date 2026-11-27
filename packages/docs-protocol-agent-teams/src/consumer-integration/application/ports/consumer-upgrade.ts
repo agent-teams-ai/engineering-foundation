@@ -60,6 +60,7 @@ export interface ConsumerUpgradeSandboxPort {
   restoreCommittedAndVerifyManaged(options: {
     readonly current: ConsumerIntegrationDesiredStateV3;
     readonly consumerRoot: string;
+    readonly sourceRevision: string;
   }): Promise<void>;
   prepareManaged(options: {
     readonly targetLockfile?: Uint8Array;

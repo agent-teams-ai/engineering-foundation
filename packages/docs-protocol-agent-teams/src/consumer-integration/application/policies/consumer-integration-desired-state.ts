@@ -272,7 +272,9 @@ function hasValidCohort3Runtime(value: unknown): boolean {
     (value["selectedLane"] === "node-24-production-default" ||
       value["selectedLane"] === "node-26-managed-qualified") &&
     value["node"] ===
-      (value["selectedLane"] === "node-24-production-default" ? ">=24.22.3 <25" : ">=26.12.1 <27") &&
+      (value["selectedLane"] === "node-24-production-default"
+        ? ">=24.22.3 <25"
+        : ">=26.12.1 <27") &&
     value["pnpm"] === ">=11.17.0 <12"
   );
 }

@@ -319,9 +319,7 @@ export function retainedScenario(
 ): void {
   for (const sourceNodePin of retainedSourceNodePins) {
     const identity =
-      sourceNodePin === "24.21.0\n"
-        ? name
-        : `${name} [preserved host Node${sourceNodePin.trim()}]`;
+      sourceNodePin === "24.21.0\n" ? name : `${name} [preserved host Node${sourceNodePin.trim()}]`;
     void test(
       process.platform === "win32" ? `${identity} [Windows runtime refusal]` : identity,
       async (context) => {

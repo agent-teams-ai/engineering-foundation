@@ -13,5 +13,5 @@
     "noUnusedParameters": true,
     "types": ["node"]
   },
-  "include": ["tools/ef70-managed-campaign/**/*.ts"]
+  "include": ["tools/ef70-managed-campaign/**/*.ts", "tools/ef70-managed-adoption/**/*.ts"]
 }

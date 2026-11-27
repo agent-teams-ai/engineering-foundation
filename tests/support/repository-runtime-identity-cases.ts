@@ -139,10 +139,10 @@ void test("actual Node 24/26 pass public checks while actual Bun named node is r
         await realpath(node24),
       );
       assert.equal(await verifySupportedNode(node24), node24);
-      await assert.rejects(verifyQualificationNode(node24), /admitted Node 26\.11\.1/u);
+      await assert.rejects(verifyQualificationNode(node24), /admitted Node 26\.12\.1/u);
     }
     await assert.rejects(verifySupportedNode(renamedBun), /supported public Node runtime/u);
-    await assert.rejects(verifyQualificationNode(renamedBun), /admitted Node 26\.11\.1/u);
+    await assert.rejects(verifyQualificationNode(renamedBun), /admitted Node 26\.12\.1/u);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -155,7 +155,7 @@ void test("explicit unavailable runtimes reject instead of falling back to ambie
       repositoryRoot,
       "missing-explicit-node",
     );
-    await assert.rejects(resolveQualificationExecutables("node"), /not admitted Node 26\.11\.1/u);
+    await assert.rejects(resolveQualificationExecutables("node"), /not admitted Node 26\.12\.1/u);
   } finally {
     if (previous === undefined) {
       delete process.env["AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE"];

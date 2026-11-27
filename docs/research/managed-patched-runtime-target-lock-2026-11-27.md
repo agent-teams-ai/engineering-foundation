@@ -179,7 +179,20 @@ SHA, ancestry, original profile bytes and pin bytes/mode while continuing to
 observe and recheck the actual current HEAD. Ordinary source admission remains
 HEAD-bound. Existing fresh and cold committed cases are the red regressions;
 additional cases reject revision, lineage, profile, pin and mode substitutions.
-Fresh physical reruns and final native CI remain required for this correction.
+The fresh physical Node24.22.3 run passed all63 committed, original and retained
+source restoration tests, with zero failures, cancellations or skips. This uses
+real controller processes and Git/file transactions; its stated TEST activation
+ports are not a claim of published-controller installation or EF adoption.
+
+The normal complete public-API compatibility check passed under physical
+Node26.12.1 after adding exactly the two actually observed ADR-0076 fingerprints:
+one for the three current schema artifacts and one for the five policy/runtime
+members exposed through both typed entrypoints. No release-owned baseline was
+edited. The actual runtime-identity rejection controls and36 current policy,
+public-canary and workflow tests also passed with exact pnpm11.20.0 on PATH.
+Earlier diagnostic failures from a projection without source Git identity or
+the admitted manager were not counted as passing source-profile checks.
+Final current-head native CI remains required.
 
 The source-owned Bun changed/fast/workflow commands were attempted after the
 reconstruction and refused the missing source Bun installation. The separately

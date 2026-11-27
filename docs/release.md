@@ -397,17 +397,24 @@ removing dependencies from the source manifest.
 After the pre-registration registry E2E has proved all five packages and the
 candidate is explicitly registered in the central Cohort registry, dispatch
 `Public managed registry canary` from the exact protected-main integration
-commit. Supply only the Cohort ID and the exact current protected-main revision
-of `agent-teams-ai/.github`. Trusted code reads and schema-validates the registry
-at that immutable revision, explicitly requests generation 2, and projects the
-single canary-eligible record. The workflow has read-only repository permission,
-receives no secrets or OIDC authority, and never publishes, deprecates,
-unpublishes, or moves a dist-tag.
+commit. Supply that commit as `expected_commit`, the Cohort ID as `cohort_id`,
+and the exact current protected-main revision of `agent-teams-ai/.github` as
+`authority_revision`. Trusted code reads and schema-validates the registry at
+that immutable revision, selects the registered generation 2 or 3, and projects
+the single canary-eligible record. Generation 3 requires a `QUALIFIED` or `CANARY`
+record whose canary repository set includes the workflow's actual GitHub
+repository ID. Consumer-specific Cohorts use their own repository qualification
+route and evidence. The workflow has read-only repository permission, receives
+no secrets or OIDC authority, and never publishes, deprecates, unpublishes, or
+moves a dist-tag.
 
 The private builder profile is installed and built separately with admitted Node
-26.11.1. Only the read-only public canary executes under the cohort-selected
-Node 24.21.0 or 26.11.1; a historical cohort is never checked through Bun, and
-the builder Node is never substituted for the selected public runtime.
+26.12.1 and pnpm 11.20.0. The read-only public canary uses Node 24.21.0 for a
+historical generation 2 cohort, or Node 26.12.1 for a generation 3 cohort under
+policy 3.1.0. The workflow selects that runtime from the registered record and
+rejects other generation 3 policy versions. A historical cohort is never checked
+through Bun, and the builder Node is never substituted for the selected public
+runtime.
 
 The canary installs exactly Foundation, Docs Protocol, and the managed adapter as
 three roots in fresh npm and pnpm projects; Repository Mutation and Document
@@ -415,8 +422,10 @@ Authoring must resolve only as their exact transitives. It cryptographically
 verifies npm signatures, records each package's SLSA provenance commit and its
 ancestor relationship to the integration commit, and re-observes `latest` and
 SRI. On the disposable pnpm lockfile, qualification v3 first observes the actual
-runtime closure digest and then admits the same trusted Cohort v2. It also
-generates managed-state v2 and validates it against the installed schema without
+runtime closure digest and then admits the same trusted Cohort generation.
+The generation 2 path produces managed-state v2; generation 3 produces
+managed-state v3 and binds its receipt to the observed Node 26.12.1, pnpm 11.20.0,
+and Linux x64 tuple. Both validate the state against the installed schema without
 running a real consumer or mutation flow. Cohort authority remains exactly these
 five packages and continues to reject MCP in its npm and pnpm closures.
 
@@ -765,7 +774,7 @@ current source tree, performs its frozen install and build, then executes the
 existing ordered `release:publish` gate there with explicit source Git authority.
 Both Changesets routes bind pnpm to the qualified setup step's physical executable.
 The pinned Changesets action revision,
-`setupGitUser: false`, owner identity, npm 11.19.0, Node 26.11.1, OIDC,
+`setupGitUser: false`, owner identity, npm 11.19.0, Node 26.12.1, OIDC,
 environment, ordered publication, artifact, and consumer gates remain unchanged.
 
 The organization and Foundation disable GitHub Actions pull-request creation

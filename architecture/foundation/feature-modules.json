@@ -1523,7 +1523,8 @@
           ],
           "testRoots": [
             "tests/documentation-local-references.test.mjs",
-            "packages/engineering-foundation/tests/documentation-historical-references.test.ts"
+            "packages/engineering-foundation/tests/documentation-historical-references.test.ts",
+            "packages/engineering-foundation/tests/documentation-historical-references-fixture.ts"
           ]
         },
         {

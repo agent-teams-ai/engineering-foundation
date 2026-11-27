@@ -27,7 +27,9 @@ export function admitHistoricalArtifacts(
   }
   const absoluteReferences = new Map<string, HistoricalMarkdownReference[]>();
   for (const { reference, resolution, sourcePath } of observation.resolvedReferences) {
-    if (resolution.kind !== "unsafe" || resolution.reason !== "absolute-path") continue;
+    if (resolution.kind !== "unsafe" || resolution.reason !== "absolute-path") {
+      continue;
+    }
     const references = absoluteReferences.get(sourcePath) ?? [];
     references.push({
       kind: reference.kind,

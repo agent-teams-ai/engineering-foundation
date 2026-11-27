@@ -139,8 +139,8 @@ export async function verifyInstalledHistoricalMarkdown(input: {
   const drift = await check(input.cliPath, root, 1);
   assert.deepEqual(drift.report["summary"], { errors: 2, warnings: 0, infos: 0 });
   assert.deepEqual(
-    drift.diagnostics.map((entry) => entry["ruleId"]).sort(),
-    [invalidArtifactRule, invalidReferenceRule].sort(),
+    drift.diagnostics.map((entry) => entry["ruleId"]).toSorted(),
+    [invalidArtifactRule, invalidReferenceRule].toSorted(),
   );
 
   const undeclared = Buffer.concat([source, Buffer.from("[New](/mnt/undeclared.txt)\n")]);
@@ -160,7 +160,7 @@ export async function verifyInstalledHistoricalMarkdown(input: {
   const ordinary = await check(input.cliPath, root, 1);
   assert.deepEqual(ordinary.report["summary"], { errors: 1, warnings: 0, infos: 1 });
   assert.deepEqual(
-    ordinary.diagnostics.map((entry) => entry["ruleId"]).sort(),
-    [`${capabilityId}.broken-link`, infoRule].sort(),
+    ordinary.diagnostics.map((entry) => entry["ruleId"]).toSorted(),
+    [`${capabilityId}.broken-link`, infoRule].toSorted(),
   );
 }

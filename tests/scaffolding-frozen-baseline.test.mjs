@@ -221,7 +221,7 @@ test("validates the release-owned public API baseline and freezes the package ex
     },
   );
   // ADR-0067 removes only the relocated preset wildcard; the frozen vector stays unchanged.
-  const { ["./presets/*"]: relocatedPresets, ...retainedExports } = vector.publicApi.exports;
+  const { "./presets/*": relocatedPresets, ...retainedExports } = vector.publicApi.exports;
   assert.equal(relocatedPresets, "./presets/*");
   assert.deepEqual(packageManifest.exports, {
     ...retainedExports,
@@ -255,6 +255,7 @@ test("freezes the runtime, filesystem, and published schema allowlists", async (
   const expectedSchemaFiles = [
     ...vector.schemaFiles,
     "schemas/architecture-source-dependencies/v3.schema.json",
+    "schemas/documentation-local-references/v2.schema.json",
     "schemas/foundation-command-error/v1.schema.json",
     "schemas/package-public-api-audit-report/v1.schema.json",
     "schemas/package-public-api-audit-request/v1.schema.json",

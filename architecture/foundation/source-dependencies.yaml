@@ -4010,6 +4010,32 @@ boundaries:
       packages: []
       builtins: ["node:crypto"]
       runtimeReferences: []
+  - id: capability.documentation-local-references.tests
+    dependencyMode: development
+    roots:
+      - packages/engineering-foundation/tests/documentation-historical-references.test.ts
+      - packages/engineering-foundation/tests/documentation-historical-references-fixture.ts
+    allow:
+      boundaries:
+        - capability.documentation-local-references.application
+        - capability.documentation-local-references.composition
+        - capability.documentation-local-references.config-adapter
+        - capability.documentation-local-references.crypto-adapter
+        - foundation.schema-validation
+        - foundation.validation-reporting.application
+      packages:
+        - "@agent-teams/document-authoring"
+      builtins:
+        - node:assert/strict
+        - node:child_process
+        - node:crypto
+        - node:fs/promises
+        - node:os
+        - node:path
+        - node:test
+        - node:url
+      runtimeReferences: []
+    entrypoints: []
   - id: capability.documentation-local-references.config-adapter
     roots:
       - packages/engineering-foundation/src/capabilities/documentation-local-references/adapters/inbound/configuration/parse-capability-config.ts

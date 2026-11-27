@@ -16,7 +16,10 @@ export interface AnalyzeDocumentationLocalReferencesInput {
 
 export async function analyzeDocumentationLocalReferences(
   input: AnalyzeDocumentationLocalReferencesInput,
-  dependencies: { readonly repository: MarkdownRepository },
+  dependencies: {
+    readonly repository: MarkdownRepository;
+    readonly digestSource: (source: string) => string;
+  },
 ): Promise<readonly FoundationDiagnostic[]> {
   assertNotCancelled(input.signal);
   const observation = await dependencies.repository.observe({
@@ -24,8 +27,15 @@ export async function analyzeDocumentationLocalReferences(
     roots: input.policy.markdownRoots,
     ...(input.signal === undefined ? {} : { signal: input.signal }),
   });
+  const historicalPaths = new Set(
+    (input.policy.historicalArtifacts ?? []).map((artifact) => artifact.path),
+  );
+  const sourceDigests = new Map<string, string>();
   const resolvedReferences: ResolvedMarkdownReferenceObservation[] = [];
   for (const document of observation.documents) {
+    if (historicalPaths.has(document.repositoryPath)) {
+      sourceDigests.set(document.repositoryPath, dependencies.digestSource(document.source));
+    }
     for (const reference of document.references) {
       assertNotCancelled(input.signal);
       const resolution = await dependencies.repository.resolveReference({
@@ -45,6 +55,7 @@ export async function analyzeDocumentationLocalReferences(
   }
   const resolvedObservation: DocumentationLocalReferencesObservation = Object.freeze({
     repository: observation,
+    sourceDigests,
     resolvedReferences: Object.freeze(resolvedReferences),
   });
   return evaluateDocumentationLocalReferences({

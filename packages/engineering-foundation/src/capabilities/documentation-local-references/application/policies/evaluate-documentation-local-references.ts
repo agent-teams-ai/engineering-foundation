@@ -13,6 +13,8 @@ import {
   type DocumentationLocalReferencesRuleMetadata,
 } from "../rules.js";
 
+import { admitHistoricalArtifacts } from "./admit-historical-artifacts.js";
+
 interface EvaluationInput {
   readonly observation: DocumentationLocalReferencesObservation;
   readonly policy: DocumentationLocalReferencesPolicy;
@@ -125,8 +127,58 @@ export function evaluateDocumentationLocalReferences(
   const diagnostics: FoundationDiagnostic[] =
     input.observation.repository.issues.map(issueDiagnostic);
 
+  const historical = admitHistoricalArtifacts(input.policy, input.observation);
+  for (const issue of historical.issues) {
+    diagnostics.push(
+      diagnostic({
+        evidence: [
+          { kind: "historical-artifact-rejection", value: issue.reason },
+          { kind: "expected-sha256", value: issue.artifact.sha256 },
+          ...(issue.actualSha256 === undefined
+            ? []
+            : [{ kind: "observed-sha256", value: issue.actualSha256 }]),
+        ],
+        message:
+          "Historical artifact declaration does not match the observation: " + issue.reason + ".",
+        path: issue.artifact.path,
+        rule: DOCUMENTATION_LOCAL_REFERENCE_RULES.historicalArtifactInvalid,
+        subject: issue.artifact.path,
+      }),
+    );
+  }
+
   for (const observedReference of input.observation.resolvedReferences) {
     const { reference, resolution, sourcePath } = observedReference;
+    const historicalArtifact = historical.admitted.get(sourcePath);
+    if (
+      historicalArtifact !== undefined &&
+      resolution.kind === "unsafe" &&
+      resolution.reason === "absolute-path"
+    ) {
+      diagnostics.push(
+        diagnostic({
+          column: reference.location.column,
+          evidence: [
+            { kind: "raw-target", value: reference.rawTarget },
+            {
+              kind: "original-rule",
+              value: DOCUMENTATION_LOCAL_REFERENCE_RULES.invalidReference.id,
+            },
+            { kind: "original-reason", value: "absolute-path" },
+            { kind: "artifact-sha256", value: historicalArtifact.sha256 },
+          ],
+          line: reference.location.line,
+          message:
+            "Preserved historical absolute reference; its target was not resolved: " +
+            reference.rawTarget +
+            ".",
+          path: sourcePath,
+          rule: DOCUMENTATION_LOCAL_REFERENCE_RULES.historicalAbsoluteReference,
+          subject: sourcePath + ":" + reference.location.line,
+        }),
+      );
+      continue;
+    }
     if (resolution.kind === "external") {
       continue;
     }

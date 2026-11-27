@@ -28,6 +28,7 @@
     "schemas/contract-protobuf-evolution-baseline/v1.schema.json",
     "schemas/contract-protobuf-evolution/v1.schema.json",
     "schemas/documentation-local-references/v1.schema.json",
+    "schemas/documentation-local-references/v2.schema.json",
     "schemas/foundation-command-error/v1.schema.json",
     "schemas/foundation-config/v1.schema.json",
     "schemas/foundation-config/v2.schema.json",

@@ -409,6 +409,14 @@ headings, terminology, code anchors, catalogs, and diagrams remain in the
 consumer repository. A documentation website or visual search surface is not a
 foundation concern and requires explicit product-owner approval.
 
+### Documentation.local-references
+
+The additive [v2 historical-artifact contract](../reference/documentation-local-references.md)
+binds an explicit source path, raw SHA-256 and complete absolute-reference
+occurrence set. Full roots and all ordinary reference checks remain active.
+Only fully matched historical occurrences become visible information; stale
+declarations and changed bytes reject. The v1 schema remains unchanged.
+
 ### Contract evolution
 
 - `contract.protobuf-evolution` validates deterministic Buf release evidence;

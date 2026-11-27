@@ -51,6 +51,13 @@ const EXPECTED_OBSERVATION_ARTIFACTS = Object.freeze(
     "dist/capabilities/public-api-compatibility/application/use-cases/run-sdk-growth-check",
   ].flatMap((stem) => [".d.ts", ".d.ts.map", ".js", ".js.map"].map((suffix) => `${stem}${suffix}`)),
 );
+const EXPECTED_HISTORICAL_REFERENCE_ARTIFACTS = Object.freeze([
+  ...[
+    "dist/capabilities/documentation-local-references/adapters/outbound/crypto/node-markdown-source-digest",
+    "dist/capabilities/documentation-local-references/application/policies/admit-historical-artifacts",
+  ].flatMap((stem) => [".d.ts", ".d.ts.map", ".js", ".js.map"].map((suffix) => `${stem}${suffix}`)),
+  "schemas/documentation-local-references/v2.schema.json",
+]);
 const EXPECTED_NEW_MODULE_ARTIFACTS = Object.freeze([
   "dist/local-mode/application/bun-registry-policy.d.ts",
   "dist/local-mode/application/bun-registry-policy.d.ts.map",
@@ -156,15 +163,15 @@ test("keeps the Foundation archive exception package-specific and bounded", () =
     () => inspectCompressedTarArchive(archiveWithEntries(2_501)),
     /too many entries: 2501/u,
   );
-  const atFoundationLimit = archiveWithEntries(2_967);
+  const atFoundationLimit = archiveWithEntries(2_976);
   assert.throws(() => inspectCompressedTarArchive(atFoundationLimit), /too many entries/u);
   assert.equal(
     inspectCompressedTarArchive(atFoundationLimit, FOUNDATION_PACKAGE).entryCount,
-    2_967,
+    2_976,
   );
   assert.throws(
-    () => inspectCompressedTarArchive(archiveWithEntries(2_968), FOUNDATION_PACKAGE),
-    /too many entries: 2968/u,
+    () => inspectCompressedTarArchive(archiveWithEntries(2_977), FOUNDATION_PACKAGE),
+    /too many entries: 2977/u,
   );
 });
 
@@ -200,7 +207,7 @@ test("applies the same Foundation budget to archive listings", () => {
     "package/package.json",
     "package/LICENSE",
     "package/README.md",
-    ...Array.from({ length: 2_964 }, (_, index) => `package/dist/${index}.js`),
+    ...Array.from({ length: 2_973 }, (_, index) => `package/dist/${index}.js`),
   ];
   const input = {
     archiveBytes: Buffer.from("fixture"),
@@ -218,7 +225,7 @@ test("applies the same Foundation budget to archive listings", () => {
           ...Array.from({ length: 1 }, (_, index) => `package/dist/extra-${index}.js`),
         ].join("\n"),
       }),
-    /too many entries: 2968/u,
+    /too many entries: 2977/u,
   );
 });
 
@@ -244,14 +251,14 @@ test("admits the complete built Foundation package inventory and rejects one add
   }
   assert.equal(
     paths.size,
-    2_967,
+    2_976,
     "Requalify the complete package inventory when its membership changes",
   );
   assert.equal(
     createHash("sha256")
       .update([...paths].toSorted().join("\n") + "\n")
       .digest("hex"),
-    "80f4ed80623e08531e311d946d501d1fbdca0cea0d543306ed61982a1a11b270",
+    "73be87c4bbf24d82bafdb27231c76cebb5a1f6cacbcc515bcf08ff4e30ca14b4",
     "Requalify exact artifact membership, even when the count stays unchanged",
   );
   assert.equal(
@@ -261,9 +268,22 @@ test("admits the complete built Foundation package inventory and rejects one add
   assert.ok(paths.has("schemas/quality-source-coverage/v4.schema.json"));
   assert.ok(paths.has("schemas/quality-source-coverage/v3.schema.json"));
   assert.ok(paths.has("schemas/package-public-api-native-transition/v1.schema.json"));
+  assert.equal(EXPECTED_HISTORICAL_REFERENCE_ARTIFACTS.length, 9);
+  assert.equal(new Set(EXPECTED_HISTORICAL_REFERENCE_ARTIFACTS).size, 9);
+  const beforeHistoricalReferencePaths = [...paths].filter(
+    (path) => !EXPECTED_HISTORICAL_REFERENCE_ARTIFACTS.includes(path),
+  );
+  assert.equal(beforeHistoricalReferencePaths.length, 2_967);
+  assert.equal(
+    createHash("sha256")
+      .update(beforeHistoricalReferencePaths.toSorted().join("\n") + "\n")
+      .digest("hex"),
+    "80f4ed80623e08531e311d946d501d1fbdca0cea0d543306ed61982a1a11b270",
+    "Historical reference policy must retain every previously qualified artifact",
+  );
   assert.equal(EXPECTED_LOCAL_COMMAND_ARTIFACTS.length, 32);
   assert.equal(new Set(EXPECTED_LOCAL_COMMAND_ARTIFACTS).size, 32);
-  const beforeLocalCommandPaths = [...paths].filter(
+  const beforeLocalCommandPaths = beforeHistoricalReferencePaths.filter(
     (path) => !EXPECTED_LOCAL_COMMAND_ARTIFACTS.includes(path),
   );
   assert.equal(beforeLocalCommandPaths.length, 2_935);
@@ -306,6 +326,7 @@ test("admits the complete built Foundation package inventory and rejects one add
     ...EXPECTED_OBSERVATION_ARTIFACTS,
     ...EXPECTED_QUALITY_INPUT_ARTIFACTS,
     ...EXPECTED_LOCAL_COMMAND_ARTIFACTS,
+    ...EXPECTED_HISTORICAL_REFERENCE_ARTIFACTS,
   ]) {
     assert.ok(
       paths.has(path),
@@ -327,7 +348,7 @@ test("admits the complete built Foundation package inventory and rejects one add
         ...input,
         listing: [...listing, "package/dist/over-limit.js"].join("\n"),
       }),
-    /too many entries: 2968/u,
+    /too many entries: 2977/u,
   );
 });
 

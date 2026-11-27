@@ -3048,6 +3048,7 @@ boundaries:
         - foundation.core
         - foundation.validation-reporting.application
         - capability.documentation-local-references.config-adapter
+        - capability.documentation-local-references.crypto-adapter
         - foundation.configuration-input.composition
       packages:
         - "@agent-teams/document-authoring"
@@ -3998,6 +3999,16 @@ boundaries:
         - foundation.transaction-coordination.node
       packages: []
       builtins: []
+      runtimeReferences: []
+  - id: capability.documentation-local-references.crypto-adapter
+    roots:
+      - packages/engineering-foundation/src/capabilities/documentation-local-references/adapters/outbound/crypto/node-markdown-source-digest.ts
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/documentation-local-references/adapters/outbound/crypto/node-markdown-source-digest.ts
+    allow:
+      boundaries: []
+      packages: []
+      builtins: ["node:crypto"]
       runtimeReferences: []
   - id: capability.documentation-local-references.config-adapter
     roots:

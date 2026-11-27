@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/docs-protocol-agent-teams",
-  "packageVersion": "0.7.1",
+  "packageVersion": "0.8.0",
   "extractorVersion": "typescript-native/7.0.2",
   "entrypoints": [
     {
@@ -726,14 +726,14 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortEvidenceV3:interface",
           "parentKind": "Interface",
-          "signature": "readonly policy: {\n    readonly id: \"agent-teams.docs-protocol-current-policy\";\n    readonly version: \"3.0.0\";\n    readonly sourceDigest: `sha256:${string}`;\n};"
+          "signature": "readonly policy: {\n    readonly id: \"agent-teams.docs-protocol-current-policy\";\n    readonly version: \"3.1.0\";\n    readonly sourceDigest: `sha256:${string}`;\n};"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortEvidenceV3#runtime:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortEvidenceV3:interface",
           "parentKind": "Interface",
-          "signature": "readonly runtime: {\n    readonly selectedLane: \"node-26-managed-qualified\";\n    readonly node: \">=26.0.0 <27\";\n    readonly pnpm: \">=11.17.0 <12\";\n    readonly qualificationRuntime: {\n        readonly nodeVersion: \"26.11.1\";\n        readonly pnpmVersion: \"11.20.0\";\n        readonly platform: \"linux\";\n        readonly architecture: \"x64\";\n    };\n    readonly runtimeClosureDigest: `sha256:${string}`;\n};"
+          "signature": "readonly runtime: {\n    readonly selectedLane: \"node-26-managed-qualified\";\n    readonly node: \">=26.12.1 <27\";\n    readonly pnpm: \">=11.17.0 <12\";\n    readonly qualificationRuntime: {\n        readonly nodeVersion: \"26.12.1\";\n        readonly pnpmVersion: \"11.20.0\";\n        readonly platform: \"linux\";\n        readonly architecture: \"x64\";\n    };\n    readonly runtimeClosureDigest: `sha256:${string}`;\n};"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortEvidenceV3#schemas:member",
@@ -789,7 +789,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt:interface",
           "parentKind": "Interface",
-          "signature": "readonly policy: {\n    readonly id: \"agent-teams.docs-protocol-current-policy\";\n    readonly version: \"3.0.0\";\n    readonly sourceDigest: `sha256:${string}`;\n};"
+          "signature": "readonly policy: {\n    readonly id: \"agent-teams.docs-protocol-current-policy\";\n    readonly version: \"3.1.0\";\n    readonly sourceDigest: `sha256:${string}`;\n};"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt#profileSchemaVersion:member",
@@ -810,7 +810,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt:interface",
           "parentKind": "Interface",
-          "signature": "readonly runtime: {\n    readonly selectedLane: \"node-26-managed-qualified\";\n    readonly node: \">=26.0.0 <27\";\n    readonly pnpm: \">=11.17.0 <12\";\n    readonly qualificationRuntime: {\n        readonly nodeVersion: \"26.11.1\";\n        readonly pnpmVersion: \"11.20.0\";\n        readonly platform: \"linux\";\n        readonly architecture: \"x64\";\n    };\n    readonly runtimeClosure: {\n        readonly domain: \"agent-teams.docs-runtime-closure/v2\";\n        readonly digest: `sha256:${string}`;\n    };\n};"
+          "signature": "readonly runtime: {\n    readonly selectedLane: \"node-26-managed-qualified\";\n    readonly node: \">=26.12.1 <27\";\n    readonly pnpm: \">=11.17.0 <12\";\n    readonly qualificationRuntime: {\n        readonly nodeVersion: \"26.12.1\";\n        readonly pnpmVersion: \"11.20.0\";\n        readonly platform: \"linux\";\n        readonly architecture: \"x64\";\n    };\n    readonly runtimeClosure: {\n        readonly domain: \"agent-teams.docs-runtime-closure/v2\";\n        readonly digest: `sha256:${string}`;\n    };\n};"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt#schemaVersion:member",
@@ -1727,7 +1727,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3:interface",
           "parentKind": "Interface",
-          "signature": "readonly runtime: {\n    readonly policy: {\n        readonly id: \"agent-teams.docs-protocol-current-policy\";\n        readonly version: \"3.0.0\";\n        readonly digest: string;\n    };\n    readonly selectedLane: \"node-24-production-default\" | \"node-26-managed-qualified\";\n    readonly node: string;\n    readonly pnpm: string;\n    readonly qualificationRuntime: {\n        readonly nodeVersion: string;\n        readonly pnpmVersion: string;\n        readonly platform: string;\n        readonly architecture: string;\n    };\n    readonly runtimeClosure: {\n        readonly domain: \"agent-teams.docs-runtime-closure/v2\";\n        readonly digest: string;\n    };\n};"
+          "signature": "readonly runtime: {\n    readonly policy: {\n        readonly id: \"agent-teams.docs-protocol-current-policy\";\n        readonly version: \"3.1.0\";\n        readonly digest: string;\n    };\n    readonly selectedLane: \"node-24-production-default\" | \"node-26-managed-qualified\";\n    readonly node: string;\n    readonly pnpm: string;\n    readonly qualificationRuntime: {\n        readonly nodeVersion: string;\n        readonly pnpmVersion: string;\n        readonly platform: string;\n        readonly architecture: string;\n    };\n    readonly runtimeClosure: {\n        readonly domain: \"agent-teams.docs-runtime-closure/v2\";\n        readonly digest: string;\n    };\n};"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3#schemaVersion:member",
@@ -2292,14 +2292,14 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortEvidenceV3:interface",
           "parentKind": "Interface",
-          "signature": "readonly policy: {\n    readonly id: \"agent-teams.docs-protocol-current-policy\";\n    readonly version: \"3.0.0\";\n    readonly sourceDigest: `sha256:${string}`;\n};"
+          "signature": "readonly policy: {\n    readonly id: \"agent-teams.docs-protocol-current-policy\";\n    readonly version: \"3.1.0\";\n    readonly sourceDigest: `sha256:${string}`;\n};"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortEvidenceV3#runtime:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortEvidenceV3:interface",
           "parentKind": "Interface",
-          "signature": "readonly runtime: {\n    readonly selectedLane: \"node-26-managed-qualified\";\n    readonly node: \">=26.0.0 <27\";\n    readonly pnpm: \">=11.17.0 <12\";\n    readonly qualificationRuntime: {\n        readonly nodeVersion: \"26.11.1\";\n        readonly pnpmVersion: \"11.20.0\";\n        readonly platform: \"linux\";\n        readonly architecture: \"x64\";\n    };\n    readonly runtimeClosureDigest: `sha256:${string}`;\n};"
+          "signature": "readonly runtime: {\n    readonly selectedLane: \"node-26-managed-qualified\";\n    readonly node: \">=26.12.1 <27\";\n    readonly pnpm: \">=11.17.0 <12\";\n    readonly qualificationRuntime: {\n        readonly nodeVersion: \"26.12.1\";\n        readonly pnpmVersion: \"11.20.0\";\n        readonly platform: \"linux\";\n        readonly architecture: \"x64\";\n    };\n    readonly runtimeClosureDigest: `sha256:${string}`;\n};"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortEvidenceV3#schemas:member",
@@ -2397,7 +2397,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt:interface",
           "parentKind": "Interface",
-          "signature": "readonly policy: {\n    readonly id: \"agent-teams.docs-protocol-current-policy\";\n    readonly version: \"3.0.0\";\n    readonly sourceDigest: `sha256:${string}`;\n};"
+          "signature": "readonly policy: {\n    readonly id: \"agent-teams.docs-protocol-current-policy\";\n    readonly version: \"3.1.0\";\n    readonly sourceDigest: `sha256:${string}`;\n};"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt#profileSchemaVersion:member",
@@ -2418,7 +2418,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt:interface",
           "parentKind": "Interface",
-          "signature": "readonly runtime: {\n    readonly selectedLane: \"node-26-managed-qualified\";\n    readonly node: \">=26.0.0 <27\";\n    readonly pnpm: \">=11.17.0 <12\";\n    readonly qualificationRuntime: {\n        readonly nodeVersion: \"26.11.1\";\n        readonly pnpmVersion: \"11.20.0\";\n        readonly platform: \"linux\";\n        readonly architecture: \"x64\";\n    };\n    readonly runtimeClosure: {\n        readonly domain: \"agent-teams.docs-runtime-closure/v2\";\n        readonly digest: `sha256:${string}`;\n    };\n};"
+          "signature": "readonly runtime: {\n    readonly selectedLane: \"node-26-managed-qualified\";\n    readonly node: \">=26.12.1 <27\";\n    readonly pnpm: \">=11.17.0 <12\";\n    readonly qualificationRuntime: {\n        readonly nodeVersion: \"26.12.1\";\n        readonly pnpmVersion: \"11.20.0\";\n        readonly platform: \"linux\";\n        readonly architecture: \"x64\";\n    };\n    readonly runtimeClosure: {\n        readonly domain: \"agent-teams.docs-runtime-closure/v2\";\n        readonly digest: `sha256:${string}`;\n    };\n};"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt#schemaVersion:member",
@@ -3524,7 +3524,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3:interface",
           "parentKind": "Interface",
-          "signature": "readonly runtime: {\n    readonly policy: {\n        readonly id: \"agent-teams.docs-protocol-current-policy\";\n        readonly version: \"3.0.0\";\n        readonly digest: string;\n    };\n    readonly selectedLane: \"node-24-production-default\" | \"node-26-managed-qualified\";\n    readonly node: string;\n    readonly pnpm: string;\n    readonly qualificationRuntime: {\n        readonly nodeVersion: string;\n        readonly pnpmVersion: string;\n        readonly platform: string;\n        readonly architecture: string;\n    };\n    readonly runtimeClosure: {\n        readonly domain: \"agent-teams.docs-runtime-closure/v2\";\n        readonly digest: string;\n    };\n};"
+          "signature": "readonly runtime: {\n    readonly policy: {\n        readonly id: \"agent-teams.docs-protocol-current-policy\";\n        readonly version: \"3.1.0\";\n        readonly digest: string;\n    };\n    readonly selectedLane: \"node-24-production-default\" | \"node-26-managed-qualified\";\n    readonly node: string;\n    readonly pnpm: string;\n    readonly qualificationRuntime: {\n        readonly nodeVersion: string;\n        readonly pnpmVersion: string;\n        readonly platform: string;\n        readonly architecture: string;\n    };\n    readonly runtimeClosure: {\n        readonly domain: \"agent-teams.docs-runtime-closure/v2\";\n        readonly digest: string;\n    };\n};"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3#schemaVersion:member",

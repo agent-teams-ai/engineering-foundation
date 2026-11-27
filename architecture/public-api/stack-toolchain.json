@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "stack-toolchain",
-  "packageVersion": "0.3.1",
+  "packageVersion": "0.4.0",
   "extractorVersion": "typescript-native/7.0.2",
   "entrypoints": [
     {
@@ -538,6 +538,221 @@
           "parentReference": "stack-toolchain!",
           "parentKind": "EntryPoint",
           "signature": "export declare function typecheck(input: {\n    readonly projects: readonly string[];\n    readonly signal: AbortSignal;\n    readonly budgetMs?: number;\n    readonly attemptBudgetMs?: number;\n}, dependencies: TypecheckDependencies): Promise<TypecheckResult>;"
+        }
+      ]
+    },
+    {
+      "exportPath": "./effect",
+      "items": [
+        {
+          "canonicalReference": "stack-toolchain!EffectCheckInput#budgetMs:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!EffectCheckInput:interface",
+          "parentKind": "Interface",
+          "signature": "readonly budgetMs?: number;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!EffectCheckInput#cwd:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!EffectCheckInput:interface",
+          "parentKind": "Interface",
+          "signature": "readonly cwd: string;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!EffectCheckInput#projects:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!EffectCheckInput:interface",
+          "parentKind": "Interface",
+          "signature": "readonly projects: readonly string[];"
+        },
+        {
+          "canonicalReference": "stack-toolchain!EffectCheckInput#signal:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!EffectCheckInput:interface",
+          "parentKind": "Interface",
+          "signature": "readonly signal: AbortSignal;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!EffectCheckInput:interface",
+          "kind": "Interface",
+          "parentReference": "stack-toolchain!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface EffectCheckInput"
+        },
+        {
+          "canonicalReference": "stack-toolchain!EffectCheckOutcome:type",
+          "kind": "TypeAlias",
+          "parentReference": "stack-toolchain!",
+          "parentKind": "EntryPoint",
+          "signature": "export type EffectCheckOutcome = \"passed\" | \"diagnostics\" | \"invalid-input\" | \"tool-unavailable\" | \"tool-incompatible\" | \"execution-failed\" | \"cancelled\";"
+        },
+        {
+          "canonicalReference": "stack-toolchain!EffectCheckReport#command:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!EffectCheckReport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly command: \"effect:check\";"
+        },
+        {
+          "canonicalReference": "stack-toolchain!EffectCheckReport#details:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!EffectCheckReport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly details: {\n    readonly outcome: EffectCheckOutcome;\n    readonly selected: readonly string[];\n    readonly projects: readonly EffectProjectResult[];\n    readonly unattempted: readonly string[];\n    readonly reason?: string;\n    readonly stdout?: string;\n    readonly stderr?: string;\n};"
+        },
+        {
+          "canonicalReference": "stack-toolchain!EffectCheckReport#durationMs:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!EffectCheckReport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly durationMs: number;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!EffectCheckReport#exitCode:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!EffectCheckReport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly exitCode: 0 | 1 | 2 | 130;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!EffectCheckReport#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!EffectCheckReport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 1;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!EffectCheckReport#status:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!EffectCheckReport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly status: \"passed\" | \"failed\";"
+        },
+        {
+          "canonicalReference": "stack-toolchain!EffectCheckReport#versions:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!EffectCheckReport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly versions: EffectToolVersions | null;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!EffectCheckReport:interface",
+          "kind": "Interface",
+          "parentReference": "stack-toolchain!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface EffectCheckReport"
+        },
+        {
+          "canonicalReference": "stack-toolchain!EffectProjectResult#diagnosticCodes:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!EffectProjectResult:interface",
+          "parentKind": "Interface",
+          "signature": "readonly diagnosticCodes: readonly number[];"
+        },
+        {
+          "canonicalReference": "stack-toolchain!EffectProjectResult#project:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!EffectProjectResult:interface",
+          "parentKind": "Interface",
+          "signature": "readonly project: string;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!EffectProjectResult#reason:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!EffectProjectResult:interface",
+          "parentKind": "Interface",
+          "signature": "readonly reason?: string;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!EffectProjectResult#sourceFiles:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!EffectProjectResult:interface",
+          "parentKind": "Interface",
+          "signature": "readonly sourceFiles: readonly string[];"
+        },
+        {
+          "canonicalReference": "stack-toolchain!EffectProjectResult#status:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!EffectProjectResult:interface",
+          "parentKind": "Interface",
+          "signature": "readonly status: \"passed\" | \"diagnostics\" | \"failed\";"
+        },
+        {
+          "canonicalReference": "stack-toolchain!EffectProjectResult#stderr:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!EffectProjectResult:interface",
+          "parentKind": "Interface",
+          "signature": "readonly stderr: string;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!EffectProjectResult#stdout:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!EffectProjectResult:interface",
+          "parentKind": "Interface",
+          "signature": "readonly stdout: string;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!EffectProjectResult:interface",
+          "kind": "Interface",
+          "parentReference": "stack-toolchain!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface EffectProjectResult"
+        },
+        {
+          "canonicalReference": "stack-toolchain!EffectToolVersions#binarySha256:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!EffectToolVersions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly binarySha256: string;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!EffectToolVersions#libraryCount:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!EffectToolVersions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly libraryCount: 108;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!EffectToolVersions#package:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!EffectToolVersions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly package: \"@effect/tsgo-linux-x64\";"
+        },
+        {
+          "canonicalReference": "stack-toolchain!EffectToolVersions#typescript:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!EffectToolVersions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly typescript: \"7.0.2\";"
+        },
+        {
+          "canonicalReference": "stack-toolchain!EffectToolVersions#version:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!EffectToolVersions:interface",
+          "parentKind": "Interface",
+          "signature": "readonly version: \"0.73.4\";"
+        },
+        {
+          "canonicalReference": "stack-toolchain!EffectToolVersions:interface",
+          "kind": "Interface",
+          "parentReference": "stack-toolchain!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface EffectToolVersions"
+        },
+        {
+          "canonicalReference": "stack-toolchain!checkEffectProjects:function(1)",
+          "kind": "Function",
+          "parentReference": "stack-toolchain!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function checkEffectProjects(input: EffectCheckInput): Promise<EffectCheckReport>;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!effectDiagnosticsContractVersion:var",
+          "kind": "Variable",
+          "parentReference": "stack-toolchain!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare const effectDiagnosticsContractVersion = 1;"
         }
       ]
     },

@@ -1,0 +1,451 @@
+name: EF70 committed current-selection recovery
+run-name: EF70 recovery ${{ github.repository }} @${{ github.sha }} attempt ${{ github.run_attempt }}
+
+on:
+  push:
+    branches: [test/ef70-committed-recovery]
+  workflow_call:
+    inputs:
+      harness_revision:
+        description: Reviewed immutable Foundation harness revision
+        required: true
+        type: string
+      preflight_run_id:
+        description: Successful ordinary producer preflight run for this revision
+        required: true
+        type: string
+      authority_revision:
+        description: Exact current protected Central revision containing the qualified target
+        required: true
+        type: string
+      adoption_run_id:
+        description: Original successful EF H2 adoption run
+        required: true
+        type: string
+      adoption_run_attempt:
+        description: Exact original successful adoption attempt
+        required: true
+        type: string
+      adoption_artifact_id:
+        description: Exact selected original Actions artifact ID
+        required: true
+        type: string
+      adoption_artifact_digest:
+        description: Separately reviewed sha256 digest of the original raw ZIP
+        required: true
+        type: string
+      preparation_digest:
+        description: Separately reviewed sha256 digest of the unchanged original P
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ef70-recovery-${{ github.repository_id }}-${{ github.ref }}-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  producer-preflight:
+    name: ef70-recovery-preflight
+    if: ${{ github.repository == 'agent-teams-ai/engineering-foundation' && github.repository_id == '1316243988' && github.event_name == 'push' && github.ref == 'refs/heads/test/ef70-committed-recovery' && github.event.deleted == false }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    env:
+      PNPM_MAX_WORKERS: "1"
+      GOMAXPROCS: "2"
+      RAYON_NUM_THREADS: "2"
+      NX_DAEMON: "false"
+      # Current canonical Q identity, used only by disposable local Git fixtures.
+      GIT_AUTHOR_NAME: iliya
+      GIT_COMMITTER_NAME: iliya
+      GIT_AUTHOR_EMAIL: iliyazelenkog@gmail.com
+      GIT_COMMITTER_EMAIL: iliyazelenkog@gmail.com
+      EF70_PRODUCER_BASE: 2a70fe1ccc6f223c2da1a9ec0324ac5d071662b6
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        id: pnpm
+        env: { pnpm_config_pm_on_fail: ignore }
+        with: { version: "11.20.0", install: false }
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        id: bun
+        with: { bun-version: "1.4.3" }
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: "24.21.0" }
+      - name: Capture the frozen managed Node24 test source
+        run: printf 'MANAGED_TEST_NODE24_SOURCE=%s\n' "$(node -p 'process.execPath')" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: "26.10.0" }
+      - name: Capture the frozen managed Node26 test source
+        run: printf 'MANAGED_TEST_NODE26_SOURCE=%s\n' "$(node -p 'process.execPath')" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: "24.22.3" }
+      - name: Capture the real generation2 controller executable
+        run: |
+          set -Eeuo pipefail
+          selected_node="$(node -p 'process.execPath')"
+          printf 'EF70_NODE24_EXECUTABLE=%s\n' "$selected_node" >> "$GITHUB_ENV"
+          printf 'PACK_TEST_GENERATION2_NODE=%s\n' "$selected_node" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: "26.12.1" }
+      - name: Capture the real driver and producer build executable
+        run: |
+          set -Eeuo pipefail
+          selected_node="$(node -p 'process.execPath')"
+          printf 'EF70_NODE26_EXECUTABLE=%s\n' "$selected_node" >> "$GITHUB_ENV"
+          printf 'AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE=%s\n' "$selected_node" >> "$GITHUB_ENV"
+      - name: Prepare external diagnostics and actual CPU selection
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          runner_temp="$(realpath "$RUNNER_TEMP")"
+          test_scratch="${runner_temp}/ef70-tests-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          mkdir -m 700 "$test_scratch"
+          printf 'C1_TEST_SCRATCH=%s\nTMPDIR=%s\n' "$test_scratch" "$test_scratch" >> "$GITHUB_ENV"
+          quality_root="${runner_temp}/ef70-quality-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          mkdir -m 700 "$quality_root"
+          printf 'EF70_QUALITY_ROOT=%s\n' "$quality_root" >> "$GITHUB_ENV"
+          selected_cpus="$(python3 -c 'import os; cpus=sorted(os.sched_getaffinity(0)); assert len(cpus)>=2; print(",".join(map(str,cpus[:2])))')"
+          printf '%s\n' "$selected_cpus" > "$quality_root/cpuset.txt"
+          printf 'EF70_CPUSET=%s\n' "$selected_cpus" >> "$GITHUB_ENV"
+      - name: Install the ordinary producer profile
+        env:
+          AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE: ${{ steps.bun.outputs.bun-path }}
+        run: |
+          set -Eeuo pipefail
+          taskset -c "$EF70_CPUSET" bun tools/dev.mts install 2>&1 | tee "$EF70_QUALITY_ROOT/install.log"
+      - name: Build current producer source with its admitted compiler
+        env:
+          AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE: ${{ steps.bun.outputs.bun-path }}
+        run: |
+          set -Eeuo pipefail
+          taskset -c "$EF70_CPUSET" bun tools/dev.mts build 2>&1 | tee "$EF70_QUALITY_ROOT/build.log"
+      - name: Run explicit Stack cleanup and require unchanged source
+        run: |
+          set -Eeuo pipefail
+          cleanup_status=0
+          taskset -c "$EF70_CPUSET" "$EF70_NODE26_EXECUTABLE" packages/stack-toolchain/dist/cli.js fix -- \
+            tests/support/repository-ci-runtime-fixture.ts \
+            tools/ef70-committed-recovery/admission.test.ts \
+            tools/ef70-committed-recovery/artifact-admission.ts \
+            tools/ef70-committed-recovery/artifact-intake.ts \
+            tools/ef70-committed-recovery/checkouts.ts \
+            tools/ef70-committed-recovery/configuration.ts \
+            tools/ef70-committed-recovery/prerequisites.ts \
+            tools/ef70-committed-recovery/proofs.ts \
+            tools/ef70-committed-recovery/run.ts \
+            tools/ef70-committed-recovery/transition.ts \
+            tools/ef70-managed-adoption/admission.test.ts \
+            tools/ef70-managed-adoption/admission.ts \
+            tools/ef70-managed-adoption/authority.ts \
+            tools/ef70-managed-adoption/configuration.ts \
+            tools/ef70-managed-adoption/evidence.ts \
+            tools/ef70-managed-adoption/files.ts \
+            tools/ef70-managed-adoption/output.ts \
+            tools/ef70-managed-adoption/prerequisites.ts \
+            tools/ef70-managed-adoption/processes.ts \
+            tools/ef70-managed-adoption/proofs.ts \
+            tools/ef70-managed-adoption/public-command.ts \
+            tools/ef70-managed-adoption/run.ts \
+            tools/ef70-managed-adoption/transition.ts \
+            tools/ef70-managed-campaign/bootstrap-controller.ts \
+            tools/ef70-managed-campaign/bootstrap-io.ts \
+            tools/ef70-managed-campaign/bootstrap-prerequisites.ts \
+            tools/ef70-managed-campaign/bootstrap.ts \
+            tools/ef70-managed-campaign/campaign-host.ts \
+            tools/ef70-managed-campaign/campaign-io.ts \
+            tools/ef70-managed-campaign/campaign-support.ts \
+            tools/ef70-managed-campaign/campaign.ts \
+            tools/ef70-managed-campaign/cold-chains.ts \
+            tools/ef70-managed-campaign/cold-custody.ts \
+            tools/ef70-managed-campaign/cold-processes.ts \
+            tools/ef70-managed-campaign/compiler-guard.ts \
+            tools/ef70-managed-campaign/compose-selected-lock.ts \
+            tools/ef70-managed-campaign/controller-authentication.ts \
+            tools/ef70-managed-campaign/owned-root.ts \
+            tools/ef70-managed-campaign/rate-budget.ts \
+            tools/ef70-managed-campaign/refusal-custody.ts \
+            tools/ef70-managed-campaign/refusals.ts \
+            tools/ef70-managed-campaign/report.ts \
+            tools/ef70-managed-campaign/stage-a/io.ts \
+            tools/ef70-managed-campaign/stage-a/publication.ts \
+            tools/ef70-managed-campaign/stage-b/activation-admission.ts \
+            tools/ef70-managed-campaign/stage-b/activation-failure.ts \
+            tools/ef70-managed-campaign/stage-b/activation-observation.ts \
+            tools/ef70-managed-campaign/stage-b/cold-committed-interruption.ts \
+            tools/ef70-managed-campaign/stage-b/cold-interruption.ts \
+            tools/ef70-managed-campaign/stage-b/cold-process-observation.ts \
+            tools/ef70-managed-campaign/stage-b/context.ts \
+            tools/ef70-managed-campaign/stage-b/driver.ts \
+            tools/ef70-managed-campaign/stage-b/refusal-command.ts \
+            tools/ef70-managed-campaign/stage-b/refusal-contracts.ts \
+            tools/ef70-managed-campaign/stage-b/refusal-evidence.ts \
+            tools/ef70-managed-campaign/stage-b/refusal-preparation.ts \
+            tools/ef70-managed-campaign/stage-b/refusal.ts \
+            2>&1 | tee "$EF70_QUALITY_ROOT/cleanup.log" || cleanup_status=$?
+          git diff --binary > "$EF70_QUALITY_ROOT/cleanup.diff"
+          git diff --exit-code
+          exit "$cleanup_status"
+      - name: Provision the unchanged frozen managed test tools
+        run: |
+          set -Eeuo pipefail
+          taskset -c "$EF70_CPUSET" node scripts/provision-managed-test-tools.mjs 2>&1 | tee "$EF70_QUALITY_ROOT/managed-tools.log"
+      - name: Check canonical adoption admission and failure contracts
+        env:
+          EF70_COMPILER_GUARD_LOG: ${{ runner.temp }}/ef70-quality-${{ github.run_id }}-${{ github.run_attempt }}/adoption-test-guard.jsonl
+        run: |
+          set -Eeuo pipefail
+          taskset -c "$EF70_CPUSET" "$EF70_NODE26_EXECUTABLE" --import ./tools/ef70-managed-campaign/compiler-guard.ts --test --test-concurrency=1 tools/ef70-managed-adoption/admission.test.ts 2>&1 | tee "$EF70_QUALITY_ROOT/adoption-contracts.log"
+      - name: Check committed recovery admission and intake contracts
+        env:
+          EF70_COMPILER_GUARD_LOG: ${{ runner.temp }}/ef70-quality-${{ github.run_id }}-${{ github.run_attempt }}/recovery-test-guard.jsonl
+        run: |
+          set -Eeuo pipefail
+          taskset -c "$EF70_CPUSET" "$EF70_NODE26_EXECUTABLE" --import ./tools/ef70-managed-campaign/compiler-guard.ts --test --test-concurrency=1 tools/ef70-committed-recovery/admission.test.ts 2>&1 | tee "$EF70_QUALITY_ROOT/recovery-contracts.log"
+      - name: Check the complete actual committed delta
+        env:
+          AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE: ${{ steps.bun.outputs.bun-path }}
+          AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT: ${{ steps.pnpm.outputs.bin-dest }}/pnpm
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$EF70_PRODUCER_BASE"
+          test "$(git merge-base refs/remotes/origin/main HEAD)" = "$EF70_PRODUCER_BASE"
+          git diff --name-status "$EF70_PRODUCER_BASE" HEAD > "$EF70_QUALITY_ROOT/changed-paths.txt"
+          test -s "$EF70_QUALITY_ROOT/changed-paths.txt"
+          git diff --exit-code
+          taskset -c "$EF70_CPUSET" bun tools/dev.mts check:changed 2>&1 | tee "$EF70_QUALITY_ROOT/check-changed.log"
+      - name: Run the unchanged required fast route
+        env:
+          AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE: ${{ steps.bun.outputs.bun-path }}
+        run: |
+          set -Eeuo pipefail
+          taskset -c "$EF70_CPUSET" bun tools/dev.mts check:fast 2>&1 | tee "$EF70_QUALITY_ROOT/check-fast.log"
+      - name: Qualify workflow security
+        run: |
+          set -Eeuo pipefail
+          taskset -c "$EF70_CPUSET" bun tools/dev.mts security:workflows 2>&1 | tee "$EF70_QUALITY_ROOT/workflow-security.log"
+      - name: Capture bounded owner changed-check diagnostics
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 - <<'PY'
+          import contextlib, hashlib, json, os, pathlib, stat
+
+          if "EF70_QUALITY_ROOT" not in os.environ:
+              print('{"status":"unavailable","reason":"quality root was not initialized"}')
+              raise SystemExit(0)
+          quality = pathlib.Path(os.environ["EF70_QUALITY_ROOT"])
+          expected = pathlib.Path(os.environ["RUNNER_TEMP"]).resolve(strict=True) / (
+              "ef70-quality-" + os.environ["GITHUB_RUN_ID"] + "-" + os.environ["GITHUB_RUN_ATTEMPT"]
+          )
+          if quality != expected or quality.resolve(strict=True) != quality:
+              raise RuntimeError("Unexpected quality diagnostics root")
+          source = pathlib.Path(os.environ["GITHUB_WORKSPACE"]).resolve(strict=True) / ".worker-tmp"
+          limit = 1024 * 1024
+          manifest = {"schemaVersion": 1, "status": "missing", "source": str(source),
+                      "ownerLogLimitBytes": limit, "maximumFiles": 16, "files": [],
+                      "scope": "Post-step byte observations; no stream-closure or qualification claim"}
+          with contextlib.ExitStack() as handles:
+              quality_fd = os.open(quality, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+              handles.callback(os.close, quality_fd)
+              if os.fstat(quality_fd).st_uid != os.geteuid():
+                  raise RuntimeError("Diagnostics root is not owned by this runner user")
+              os.mkdir("owner-changed-check", mode=0o700, dir_fd=quality_fd)
+              output_fd = os.open("owner-changed-check", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                                  dir_fd=quality_fd)
+              handles.callback(os.close, output_fd)
+
+              def retain(name, data):
+                  descriptor = os.open(name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                                       0o600, dir_fd=output_fd)
+                  with os.fdopen(descriptor, "wb") as output:
+                      output.write(data)
+
+              try:
+                  source_fd = os.open(source, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+                  handles.callback(os.close, source_fd)
+                  if os.fstat(source_fd).st_uid != os.geteuid():
+                      raise ValueError("Owner diagnostics directory has a different user")
+                  names = sorted(name for name in os.listdir(source_fd)
+                                 if name.startswith("check-changed-") and name.endswith(".log"))
+                  if len(names) > manifest["maximumFiles"]:
+                      raise ValueError("Owner diagnostics exceed the file-count bound")
+                  for name in names:
+                      record = {"name": name, "status": "unavailable"}
+                      manifest["files"].append(record)
+                      try:
+                          descriptor = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
+                                               dir_fd=source_fd)
+                          with os.fdopen(descriptor, "rb") as owner_log:
+                              before = os.fstat(owner_log.fileno())
+                              if (not stat.S_ISREG(before.st_mode) or before.st_nlink != 1
+                                      or before.st_uid != os.geteuid() or before.st_size > limit):
+                                  raise ValueError("Owner log is not an admitted bounded regular file")
+                              data = owner_log.read(limit + 1)
+                              after = os.fstat(owner_log.fileno())
+                          if len(data) > limit:
+                              raise ValueError("Owner log grew beyond its byte bound")
+                          retain(name, data)
+                          record.update({"status": "captured", "bytes": len(data),
+                                         "sha256": hashlib.sha256(data).hexdigest(),
+                                         "sourceSizeBefore": before.st_size, "sourceSizeAfter": after.st_size,
+                                         "metadataStable": (before.st_size, before.st_mtime_ns, before.st_ctime_ns)
+                                             == (after.st_size, after.st_mtime_ns, after.st_ctime_ns),
+                                         "retentionTruncationMarkerObserved": data.endswith(
+                                             b"\n[Diagnostic output truncated at 1 MiB.]\n")})
+                      except (OSError, ValueError) as error:
+                          record["reason"] = str(error)
+                  if names:
+                      manifest["status"] = "captured" if all(
+                          record["status"] == "captured" for record in manifest["files"]) else "unavailable"
+              except FileNotFoundError:
+                  manifest["reason"] = "Owner diagnostics directory is absent"
+              except (OSError, ValueError) as error:
+                  manifest["status"] = "unavailable"
+                  manifest["reason"] = str(error)
+              retain("manifest.json", (json.dumps(manifest, indent=2) + "\n").encode())
+          print(json.dumps(manifest))
+          PY
+      - name: Retain actual producer preflight diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ef70-recovery-preflight-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/ef70-quality-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 14
+
+  actual-recovery:
+    name: ef70-committed-recovery
+    permissions:
+      contents: read
+      actions: read
+    if: ${{ github.repository == 'agent-teams-ai/extension-foundation' && github.repository_id == '1333298097' && github.event_name == 'push' && github.ref == 'refs/heads/docs/coordinated-module-foundation-20261126' && github.event.deleted == false }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    defaults:
+      run:
+        working-directory: harness
+    env:
+      PNPM_MAX_WORKERS: "1"
+      GOMAXPROCS: "2"
+      RAYON_NUM_THREADS: "2"
+      NX_DAEMON: "false"
+      GIT_AUTHOR_NAME: iliya
+      GIT_COMMITTER_NAME: iliya
+      GIT_AUTHOR_EMAIL: iliyazelenkog@gmail.com
+      GIT_COMMITTER_EMAIL: iliyazelenkog@gmail.com
+      EF70_RECOVERY_HARNESS_REVISION: ${{ inputs.harness_revision }}
+      EF70_HARNESS_REVISION: ${{ inputs.harness_revision }}
+      EF70_RECOVERY_PREFLIGHT_RUN_ID: ${{ inputs.preflight_run_id }}
+      EF70_RECOVERY_AUTHORITY_REVISION: ${{ inputs.authority_revision }}
+      EF70_ADOPTION_RUN_ID: ${{ inputs.adoption_run_id }}
+      EF70_ADOPTION_RUN_ATTEMPT: ${{ inputs.adoption_run_attempt }}
+      EF70_ADOPTION_ARTIFACT_ID: ${{ inputs.adoption_artifact_id }}
+      EF70_ADOPTION_ARTIFACT_DIGEST: ${{ inputs.adoption_artifact_digest }}
+      EF70_ORIGINAL_PREPARATION_DIGEST: ${{ inputs.preparation_digest }}
+      EF70_RECOVERY_CONSUMER_ROOT: ${{ github.workspace }}/consumer
+      EF70_RECOVERY_CENTRAL_ROOT: ${{ github.workspace }}/central
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: agent-teams-ai/engineering-foundation
+          ref: ${{ inputs.harness_revision }}
+          path: harness
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: agent-teams-ai/extension-foundation
+          ref: ${{ github.sha }}
+          path: consumer
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: agent-teams-ai/.github
+          ref: ${{ inputs.authority_revision }}
+          path: central
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        id: pnpm
+        env: { pnpm_config_pm_on_fail: ignore }
+        with: { version: "11.20.0", install: false }
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        id: bun
+        with: { bun-version: "1.4.3" }
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: "24.22.3" }
+      - name: Capture the real generation2 controller executable
+        run: printf 'EF70_NODE24_EXECUTABLE=%s\n' "$(node -p 'process.execPath')" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: "26.12.1" }
+      - name: Capture the real driver and producer install executable
+        run: |
+          set -Eeuo pipefail
+          selected_node="$(node -p 'process.execPath')"
+          printf 'EF70_NODE26_EXECUTABLE=%s\n' "$selected_node" >> "$GITHUB_ENV"
+          printf 'AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE=%s\n' "$selected_node" >> "$GITHUB_ENV"
+      - name: Prepare external diagnostics and actual CPU selection
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          runner_temp="$(realpath "$RUNNER_TEMP")"
+          quality_root="${runner_temp}/ef70-quality-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          mkdir -m 700 "$quality_root"
+          printf 'EF70_QUALITY_ROOT=%s\n' "$quality_root" >> "$GITHUB_ENV"
+          printf 'EF70_EVIDENCE_ROOT=%s/ef70-evidence-%s-%s\n' "$runner_temp" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" >> "$GITHUB_ENV"
+          printf 'EF70_COMPILER_GUARD_LOG=%s/node-driver-guard.jsonl\n' "$quality_root" >> "$GITHUB_ENV"
+          selected_cpus="$(python3 -c 'import os; cpus=sorted(os.sched_getaffinity(0)); assert len(cpus)>=2; print(",".join(map(str,cpus[:2])))')"
+          printf '%s\n' "$selected_cpus" > "$quality_root/cpuset.txt"
+          printf 'EF70_CPUSET=%s\n' "$selected_cpus" >> "$GITHUB_ENV"
+      - name: Require a fresh original artifact download namespace
+        run: test ! -e "$RUNNER_TEMP/ef70-adoption-download-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+      - name: Download the exact original raw adoption artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ inputs.adoption_artifact_id }}
+          repository: agent-teams-ai/extension-foundation
+          run-id: ${{ inputs.adoption_run_id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/ef70-adoption-download-${{ github.run_id }}-${{ github.run_attempt }}
+          skip-decompress: true
+          digest-mismatch: error
+      - name: Install the exact producer harness dependencies
+        env:
+          AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE: ${{ steps.bun.outputs.bun-path }}
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse HEAD)" = "$EF70_RECOVERY_HARNESS_REVISION"
+          taskset -c "$EF70_CPUSET" bun tools/dev.mts install 2>&1 | tee "$EF70_QUALITY_ROOT/install.log"
+      - name: Authenticate and execute one committed current-selection restore
+        env:
+          EF70_GITHUB_READ_TOKEN: ${{ github.token }}
+        run: |
+          taskset -c "$EF70_CPUSET" "$EF70_NODE26_EXECUTABLE" --import ./tools/ef70-managed-campaign/compiler-guard.ts tools/ef70-committed-recovery/run.ts
+      - name: Emit bounded actual evidence for read-only observation
+        if: ${{ always() && env.EF70_NODE26_EXECUTABLE != '' && env.EF70_EVIDENCE_ROOT != '' }}
+        run: taskset -c "$EF70_CPUSET" "$EF70_NODE26_EXECUTABLE" tools/ef70-managed-campaign/report.ts "$EF70_EVIDENCE_ROOT"
+      - name: Retain actual diagnostics and committed recovery evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ef70-committed-recovery-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/ef70-quality-${{ github.run_id }}-${{ github.run_attempt }}
+            ${{ runner.temp }}/ef70-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+            ${{ runner.temp }}/ef70-adoption-download-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 14

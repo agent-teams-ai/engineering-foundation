@@ -197,7 +197,7 @@ export interface PublicCommandResult {
   readonly evidencePath: string;
 }
 interface PublicRequest {
-  readonly label: "prepare" | "finalize" | "check-target";
+  readonly label: "prepare" | "finalize" | "check-target" | "restore-current";
   readonly executable: string;
   readonly cli: string;
   readonly args: readonly string[];

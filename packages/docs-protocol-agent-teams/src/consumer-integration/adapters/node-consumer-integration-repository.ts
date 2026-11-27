@@ -17,6 +17,7 @@ import { assertQualifiedPnpmLockfileV1 } from "./pnpm-lockfile-validator-v1.js";
 import { observeQualifiedPnpmLockfileV2 } from "./pnpm-lockfile-validator-v2.js";
 import { parseJsonRecord } from "./strict-json-record.js";
 import { assertQualifiedPnpmRoot } from "./node-consumer-integration-runtime.js";
+import { isPreservedManagedNode26Pin } from "./managed-upgrade-runtime-profile.js";
 import {
   scanConsumerRepositoryTopology,
   type ConsumerRepositoryTopology,
@@ -254,9 +255,12 @@ export async function assertPreservedSourcePin(
   revision: string | undefined,
   observation: ConsumerIntegrationFileObservation,
 ): Promise<void> {
+  const nodePin =
+    observation.state === "file" ? Buffer.from(observation.bytes).toString("utf8") : undefined;
   if (
     observation.state !== "file" ||
-    !Buffer.from(observation.bytes).equals(Buffer.from("26.11.1\n"))
+    nodePin === undefined ||
+    !isPreservedManagedNode26Pin(nodePin)
   ) {
     throw new ConsumerIntegrationNodeError(
       "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED",
@@ -279,7 +283,7 @@ export async function assertPreservedSourcePin(
     match === null ||
     observation.mode !== (match[1] === "100755" ? 0o755 : 0o644) ||
     (await executeGit(root, ["--no-replace-objects", "cat-file", "blob", match[2]!], 128)) !==
-      "26.11.1\n"
+      nodePin
   ) {
     throw new ConsumerIntegrationNodeError(
       "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED",
@@ -352,7 +356,7 @@ async function readManagedConsumerIntegrationInput(
     if (
       admission === "generation2-source" &&
       nodeVersion.state === "file" &&
-      Buffer.from(nodeVersion.bytes).equals(Buffer.from("26.11.1\n"))
+      isPreservedManagedNode26Pin(Buffer.from(nodeVersion.bytes).toString("utf8"))
     ) {
       await assertPreservedSourcePin(root, repositoryHead, nodeVersion);
     }

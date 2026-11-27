@@ -65,7 +65,7 @@
       "required": ["id", "version", "sourceDigest"],
       "properties": {
         "id": { "const": "agent-teams.docs-protocol-current-policy" },
-        "version": { "const": "3.0.0" },
+        "version": { "const": "3.1.0" },
         "sourceDigest": { "$ref": "#/$defs/digest" }
       }
     },
@@ -75,14 +75,14 @@
       "required": ["selectedLane", "node", "pnpm", "qualificationRuntime", "runtimeClosure"],
       "properties": {
         "selectedLane": { "const": "node-26-managed-qualified" },
-        "node": { "const": ">=26.0.0 <27" },
+        "node": { "const": ">=26.12.1 <27" },
         "pnpm": { "const": ">=11.17.0 <12" },
         "qualificationRuntime": {
           "type": "object",
           "additionalProperties": false,
           "required": ["nodeVersion", "pnpmVersion", "platform", "architecture"],
           "properties": {
-            "nodeVersion": { "const": "26.11.1" },
+            "nodeVersion": { "const": "26.12.1" },
             "pnpmVersion": { "const": "11.20.0" },
             "platform": { "const": "linux" },
             "architecture": { "const": "x64" }

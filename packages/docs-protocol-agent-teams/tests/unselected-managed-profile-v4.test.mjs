@@ -54,7 +54,7 @@ const cohort = () =>
       runtime: {
         policy: { id: policy.policyId, version: policy.policyVersion, digest: policy.sourceDigest },
         selectedLane: "node-26-managed-qualified",
-        node: ">=26.0.0 <27",
+        node: ">=26.12.1 <27",
         pnpm: policy.managedRuntime.pnpm,
         qualificationRuntime:
           policy.managedRuntime.lanes["node-26-managed-qualified"].qualificationRuntime,
@@ -113,7 +113,7 @@ test("packed successor refs compile and profile4 remains unselected", async () =
   const manifest = await read("../package.json");
   assert.equal(manifest.exports["./schemas/*"], "./schemas/*");
   assert.ok(manifest.files.includes("schemas"));
-  assert.equal(policy.policyVersion, "3.0.0");
+  assert.equal(policy.policyVersion, "3.1.0");
   assert.equal(policy.managedCandidate.status, "candidate-unqualified");
   assert.notEqual(policy.productionDefault.status, "QUALIFIED");
   assert.notEqual(policy.productionDefault.status, "CANARY");

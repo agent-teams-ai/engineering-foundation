@@ -138,7 +138,7 @@ export interface UnselectedCohortV3 {
   readonly runtime: {
     readonly policy: {
       readonly id: "agent-teams.docs-protocol-current-policy";
-      readonly version: "3.0.0";
+      readonly version: "3.1.0";
       readonly digest: string;
     };
     readonly selectedLane: "node-24-production-default" | "node-26-managed-qualified";

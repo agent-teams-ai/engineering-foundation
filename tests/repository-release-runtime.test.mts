@@ -175,7 +175,7 @@ void test("public canary keeps builder Node 26 separate from selected public coh
     join(repositoryRoot, ".github/workflows/public-managed-registry-canary.yml"),
     "utf8",
   );
-  const builderNode = source.indexOf('node-version: "26.11.1"');
+  const builderNode = source.indexOf('node-version: "26.12.1"');
   const profileInstall = source.indexOf("node tools/dev.mts --profile node install");
   const profileBuild = source.indexOf("node tools/dev.mts --profile node build");
   const selectedNode = source.indexOf(

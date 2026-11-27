@@ -78,11 +78,16 @@ jobs:
               if (generation !== 2 && generation !== 3) {
                 throw new Error("Selected cohort generation is missing, unknown, or non-exact.");
               }
-              process.stdout.write(generation === 2 ? "24.21.0" : "26.11.1");
+              if (generation === 3 &&
+                  (matches[0].policy_identity?.version !== "3.1.0" ||
+                   matches[0].runtime?.qualification_runtime?.node_version !== "26.12.1")) {
+                throw new Error("Selected Cohort3 must use the exact current patched runtime policy.");
+              }
+              process.stdout.write(generation === 2 ? "24.21.0" : "26.12.1");
             });
           ')"
           case "$node_version" in
-            24.21.0|26.11.1) ;;
+            24.21.0|26.12.1) ;;
             *) echo "Central registry selected an unsupported Node version." >&2; exit 1 ;;
           esac
           printf 'node=%s\n' "$node_version" >> "$GITHUB_OUTPUT"
@@ -92,7 +97,7 @@ jobs:
         with: { version: "11.20.0", install: false }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: "26.11.1"
+          node-version: "26.12.1"
       - name: Retain admitted Node 26 for the private builder profile
         run: printf 'AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE=%s\n' "$(command -v node)" >> "$GITHUB_ENV"
       - name: Install the clean Node/pnpm private builder projection

@@ -233,7 +233,7 @@ function hasValidCohort3Policy(value: unknown): boolean {
   return (
     hasExactKeys(value, ["id", "version", "digest"]) &&
     value["id"] === "agent-teams.docs-protocol-current-policy" &&
-    value["version"] === "3.0.0" &&
+    value["version"] === "3.1.0" &&
     matches(value["digest"], NONZERO_SHA256)
   );
 }
@@ -272,7 +272,7 @@ function hasValidCohort3Runtime(value: unknown): boolean {
     (value["selectedLane"] === "node-24-production-default" ||
       value["selectedLane"] === "node-26-managed-qualified") &&
     value["node"] ===
-      (value["selectedLane"] === "node-24-production-default" ? ">=24.18.0 <25" : ">=26.0.0 <27") &&
+      (value["selectedLane"] === "node-24-production-default" ? ">=24.22.3 <25" : ">=26.12.1 <27") &&
     value["pnpm"] === ">=11.17.0 <12"
   );
 }

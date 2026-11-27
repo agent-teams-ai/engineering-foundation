@@ -10,7 +10,7 @@ const SEMVER =
 
 function isQualifiedNodeRuntime(): boolean {
   return (
-    process.versions.node === "26.11.1" && process.platform === "linux" && process.arch === "x64"
+    process.versions.node === "26.12.1" && process.platform === "linux" && process.arch === "x64"
   );
 }
 

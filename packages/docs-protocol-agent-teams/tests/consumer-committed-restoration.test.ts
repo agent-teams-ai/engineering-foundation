@@ -11,20 +11,26 @@ import {
   restoreManagedConsumerIntegration,
 } from "../dist/consumer-integration/adapters/node-managed-restoration.js";
 import { restoreCommittedManagedConsumer } from "../dist/consumer-integration/adapters/node-managed-committed-restoration.js";
-import { fixtureGit as git, retainedFixture, revision } from "./managed-restoration-fixture.ts";
+import {
+  fixtureGit as git,
+  retainedFixture,
+  retainedSourceNodePins,
+  revision,
+  type RetainedSourceNodePin,
+} from "./managed-restoration-fixture.ts";
 
-async function published(t: TestContext, sourceNodePin: "24.21.0\n" | "26.11.1\n") {
+async function published(t: TestContext, sourceNodePin: RetainedSourceNodePin) {
   const f = await retainedFixture(t, sourceNodePin);
   if (process.platform === "win32") {
     assert.equal(process.versions.node.split(".")[0], "26");
-    await assert.rejects(f.prepare(), /actual Node24\.21\.0/u);
+    await assert.rejects(f.prepare(), /actual Node24\.22\.3/u);
     t.diagnostic("Windows default Node26 refusal only; no positive committed rollback claim.");
     return;
   }
   assert.equal(
     process.versions.node,
-    "24.21.0",
-    "Positive committed rollback requires the physical Node24.21.0 test route.",
+    "24.22.3",
+    "Positive committed rollback requires the physical Node24.22.3 test route.",
   );
   t.diagnostic(
     `controller=${process.versions.node}; source-pin=${sourceNodePin.trim()}; TEST activation ports`,
@@ -36,7 +42,7 @@ async function published(t: TestContext, sourceNodePin: "24.21.0\n" | "26.11.1\n
   assert.ok(result.receipt);
   assert.equal(
     result.receipt.operations.some(({ path }) => path === ".node-version"),
-    sourceNodePin === "24.21.0\n",
+    sourceNodePin !== "26.12.1\n",
   );
   return { ...f, prepared };
 }
@@ -45,8 +51,11 @@ function scenario(
   name: string,
   run: (context: TestContext, fixture: Fixture) => Promise<void>,
 ): void {
-  for (const sourceNodePin of ["24.21.0\n", "26.11.1\n"] as const) {
-    const identity = sourceNodePin === "24.21.0\n" ? name : `${name} [preserved host Node26]`;
+  for (const sourceNodePin of retainedSourceNodePins) {
+    const identity =
+      sourceNodePin === "24.21.0\n"
+        ? name
+        : `${name} [preserved host Node${sourceNodePin.trim()}]`;
     void test(
       process.platform === "win32" ? `${identity} [Windows runtime refusal]` : identity,
       async (context) => {
@@ -120,7 +129,7 @@ function assertSourceChildCompleted(result: Awaited<ReturnType<typeof child>>, f
   assert.equal(result.signal, null, diagnostic);
   assert.equal(result.killed, false, diagnostic);
   const marker =
-    fixture.sourceNodePin === "26.11.1\n"
+    fixture.sourceNodePin !== "24.21.0\n"
       ? "TEST_RETAINED_SOURCE_DATA_VERIFIED"
       : "TEST_LEGACY_SOURCE_CHECK_CURRENT";
   assert.equal(
@@ -131,9 +140,9 @@ function assertSourceChildCompleted(result: Awaited<ReturnType<typeof child>>, f
 }
 const freshSourceScript = (root: string, fixture: Fixture) => `
 const assert=(await import('node:assert/strict')).default;
-assert.equal(process.versions.node,'24.21.0');
+assert.equal(process.versions.node,'24.22.3');
 ${
-  fixture.sourceNodePin === "26.11.1\n"
+  fixture.sourceNodePin !== "24.21.0\n"
     ? `
 const {createRetainedGeneration2SourceVerifier}=await import(${JSON.stringify(new URL("../dist/consumer-integration/adapters/node-retained-source-verifier.js", import.meta.url).href)});
 const {nodeManagedGeneration2SourceInputReader}=await import(${JSON.stringify(new URL("../dist/consumer-integration/adapters/node-consumer-integration-repository.js", import.meta.url).href)});
@@ -226,7 +235,7 @@ scenario(
     assert.equal(result.receipt?.outcome, "applied");
     assert.equal(
       result.receipt?.operations.some(({ path }) => path === ".node-version"),
-      f.sourceNodePin === "24.21.0\n",
+      f.sourceNodePin !== "26.12.1\n",
     );
     await assertBytes(current, f.originals);
     await assertBytes(f.root, untouched);
@@ -286,7 +295,7 @@ scenario(
     commit(f.root, "test: foreign managed postimage");
     await assert.rejects(
       restoreCommittedManagedConsumer(options(f), ports),
-      f.sourceNodePin === "26.11.1\n"
+      f.sourceNodePin === "26.12.1\n"
         ? { code: "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED" }
         : /committed managed postimage changed|committed target runtime pin or mode differs/u,
     );
@@ -299,7 +308,7 @@ scenario(
     assert.equal((await lstat(pin)).mode & 0o777, 0o755);
     await assert.rejects(
       restoreCommittedManagedConsumer(options(f), ports),
-      f.sourceNodePin === "26.11.1\n"
+      f.sourceNodePin === "26.12.1\n"
         ? { code: "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED" }
         : /committed managed postimage changed|committed target runtime pin or mode differs/u,
     );
@@ -314,7 +323,7 @@ scenario(
     );
     await assert.rejects(
       restoreCommittedManagedConsumer(options(f), ports),
-      f.sourceNodePin === "26.11.1\n"
+      f.sourceNodePin === "26.12.1\n"
         ? { code: "DOCS_CONSUMER_UPGRADE_SOURCE_CHANGED" }
         : /committed target runtime pin or mode differs/u,
     );

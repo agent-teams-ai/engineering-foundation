@@ -109,15 +109,15 @@ export interface DocsProtocolQualificationCohortEvidenceV3 {
   };
   readonly policy: {
     readonly id: "agent-teams.docs-protocol-current-policy";
-    readonly version: "3.0.0";
+    readonly version: "3.1.0";
     readonly sourceDigest: `sha256:${string}`;
   };
   readonly runtime: {
     readonly selectedLane: "node-26-managed-qualified";
-    readonly node: ">=26.0.0 <27";
+    readonly node: ">=26.12.1 <27";
     readonly pnpm: ">=11.17.0 <12";
     readonly qualificationRuntime: {
-      readonly nodeVersion: "26.11.1";
+      readonly nodeVersion: "26.12.1";
       readonly pnpmVersion: "11.20.0";
       readonly platform: "linux";
       readonly architecture: "x64";
@@ -154,15 +154,15 @@ export interface DocsProtocolQualificationCohortV3Receipt {
   };
   readonly policy: {
     readonly id: "agent-teams.docs-protocol-current-policy";
-    readonly version: "3.0.0";
+    readonly version: "3.1.0";
     readonly sourceDigest: `sha256:${string}`;
   };
   readonly runtime: {
     readonly selectedLane: "node-26-managed-qualified";
-    readonly node: ">=26.0.0 <27";
+    readonly node: ">=26.12.1 <27";
     readonly pnpm: ">=11.17.0 <12";
     readonly qualificationRuntime: {
-      readonly nodeVersion: "26.11.1";
+      readonly nodeVersion: "26.12.1";
       readonly pnpmVersion: "11.20.0";
       readonly platform: "linux";
       readonly architecture: "x64";

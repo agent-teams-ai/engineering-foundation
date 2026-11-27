@@ -30,6 +30,8 @@ import {
 } from "../dist/consumer-integration/application/policies/consumer-integration-assets.js";
 
 export const revision = "a".repeat(40);
+export const retainedSourceNodePins = ["24.21.0\n", "26.11.1\n", "26.12.1\n"] as const;
+export type RetainedSourceNodePin = (typeof retainedSourceNodePins)[number];
 const names = {
   repositoryMutation: "@agent-teams/repository-mutation",
   documentAuthoring: "@agent-teams/document-authoring",
@@ -106,7 +108,7 @@ const forbidden = async (): Promise<never> => {
 function fixtureSourceImages(
   current: ReturnType<typeof desired>,
   historical: { readonly skill: Uint8Array; readonly callerWorkflow: Uint8Array },
-  sourceNodePin: "24.21.0\n" | "26.11.1\n",
+  sourceNodePin: RetainedSourceNodePin,
 ) {
   const manifest = Buffer.from(
     `${JSON.stringify(
@@ -115,10 +117,11 @@ function fixtureSourceImages(
         private: true,
         packageManager: "pnpm@11.20.0",
         engines: {
-          node:
-            sourceNodePin === "26.11.1\n"
-              ? ">=24.21.0 <25 || >=26.11.1 <27"
-              : current.cohort.runtime.node,
+          node: {
+            "24.21.0\n": current.cohort.runtime.node,
+            "26.11.1\n": ">=24.21.0 <25 || >=26.11.1 <27",
+            "26.12.1\n": ">=24.22.3 <25 || >=26.12.1 <27",
+          }[sourceNodePin],
         },
         scripts: canonicalDocsScripts(current.profilePath),
         devDependencies: Object.fromEntries(
@@ -159,7 +162,7 @@ function fixtureSourceImages(
 
 export async function retainedFixture(
   t: TestContext,
-  sourceNodePin: "24.21.0\n" | "26.11.1\n" = "24.21.0\n",
+  sourceNodePin: RetainedSourceNodePin = "24.21.0\n",
 ) {
   const disposable = await mkdtemp(join(tmpdir(), "TEST-managed-retained3-"));
   const root = join(disposable, "consumer");
@@ -273,7 +276,7 @@ export async function retainedFixture(
     restoreAndVerifyV1: forbidden,
     restoreAndVerifyV2: forbidden,
     activateAndVerifyManaged: async () => {
-      assert.equal(await readFile(join(root, ".node-version"), "utf8"), "26.11.1\n");
+      assert.equal(await readFile(join(root, ".node-version"), "utf8"), "26.12.1\n");
       activation.push("target");
     },
     restoreAndVerifyManaged: async () => {
@@ -314,15 +317,18 @@ export function retainedScenario(
   name: string,
   run: (context: TestContext, fixture: Fixture) => Promise<void>,
 ): void {
-  for (const sourceNodePin of ["24.21.0\n", "26.11.1\n"] as const) {
-    const identity = sourceNodePin === "24.21.0\n" ? name : `${name} [preserved host Node26]`;
+  for (const sourceNodePin of retainedSourceNodePins) {
+    const identity =
+      sourceNodePin === "24.21.0\n"
+        ? name
+        : `${name} [preserved host Node${sourceNodePin.trim()}]`;
     void test(
       process.platform === "win32" ? `${identity} [Windows runtime refusal]` : identity,
       async (context) => {
         const fixture = await retainedFixture(context, sourceNodePin);
         if (process.platform === "win32") {
           assert.equal(process.versions.node.split(".")[0], "26");
-          await assert.rejects(fixture.prepare(), /actual Node24\.21\.0/u);
+          await assert.rejects(fixture.prepare(), /actual Node24\.22\.3/u);
           await assertRetainedImages(fixture, false);
           assert.deepEqual(fixture.activation, []);
           context.diagnostic(
@@ -332,8 +338,8 @@ export function retainedScenario(
         }
         assert.equal(
           process.versions.node,
-          "24.21.0",
-          "Positive retained-controller cases require the selected physical Node24.21.0 test route.",
+          "24.22.3",
+          "Positive retained-controller cases require the selected physical Node24.22.3 test route.",
         );
         context.diagnostic(
           `controller=${process.versions.node}; source-pin=${sourceNodePin.trim()}; TEST activation ports`,

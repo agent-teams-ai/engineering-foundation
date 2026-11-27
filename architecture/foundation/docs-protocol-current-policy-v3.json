@@ -1,7 +1,7 @@
 {
   "schemaVersion": 3,
   "policyId": "agent-teams.docs-protocol-current-policy",
-  "policyVersion": "3.0.0",
+  "policyVersion": "3.1.0",
   "supportClaim": "artifact-protected; family support not claimed",
   "runtime": {
     "packageEngine": "^24.18.0 || ^26.0.0",
@@ -9,8 +9,8 @@
       "id": "node-26-production-default",
       "status": "production-default",
       "nodeMajor": 26,
-      "engine": "^26.0.0",
-      "qualificationVersion": "26.11.1",
+      "engine": "^26.12.1",
+      "qualificationVersion": "26.12.1",
       "default": true,
       "cutoverAuthorized": true
     },
@@ -18,8 +18,8 @@
       "id": "node-24-compatibility",
       "status": "compatibility-lane",
       "nodeMajor": 24,
-      "engine": "^24.18.0",
-      "qualificationVersion": "24.21.0",
+      "engine": "^24.22.3",
+      "qualificationVersion": "24.22.3",
       "default": false,
       "cutoverAuthorized": false
     }
@@ -147,9 +147,9 @@
     "status": "candidate-unqualified",
     "lanes": {
       "node-24-production-default": {
-        "node": ">=24.18.0 <25",
+        "node": ">=24.22.3 <25",
         "qualificationRuntime": {
-          "nodeVersion": "24.21.0",
+          "nodeVersion": "24.22.3",
           "pnpmVersion": "11.20.0",
           "platform": "linux",
           "architecture": "x64"
@@ -157,9 +157,9 @@
         "default": false
       },
       "node-26-managed-qualified": {
-        "node": ">=26.0.0 <27",
+        "node": ">=26.12.1 <27",
         "qualificationRuntime": {
-          "nodeVersion": "26.11.1",
+          "nodeVersion": "26.12.1",
           "pnpmVersion": "11.20.0",
           "platform": "linux",
           "architecture": "x64"

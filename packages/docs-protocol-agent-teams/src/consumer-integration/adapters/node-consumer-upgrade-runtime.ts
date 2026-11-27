@@ -12,6 +12,10 @@ import {
   MAXIMUM_MANIFEST_BYTES,
 } from "./node-consumer-repository-files.js";
 import { execute } from "./consumer-upgrade-sandbox-support.js";
+import {
+  MANAGED_CONTROLLER_NODE_VERSION,
+  MANAGED_TARGET_NODE_VERSION,
+} from "./managed-upgrade-runtime-profile.js";
 
 type ManagedCohort =
   | ConsumerIntegrationDesiredStateV3["cohort"]
@@ -44,11 +48,12 @@ function assertRuntimeObservation(observation: unknown, major: number): void {
     observation.platform !== "linux" ||
     !("architecture" in observation) ||
     observation.architecture !== "x64" ||
-    observation.node !== (major === 26 ? "26.11.1" : "24.21.0")
+    observation.node !==
+      (major === 26 ? MANAGED_TARGET_NODE_VERSION : MANAGED_CONTROLLER_NODE_VERSION)
   ) {
     throw new ConsumerIntegrationNodeError(
       "DOCS_CONSUMER_UPGRADE_RUNTIME_INVALID",
-      "Managed migration requires physical Node24.21.0 or Node26.11.1 on Linux/x64.",
+      `Managed migration requires physical Node${MANAGED_CONTROLLER_NODE_VERSION} or Node${MANAGED_TARGET_NODE_VERSION} on Linux/x64.`,
     );
   }
 }

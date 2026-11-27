@@ -17,7 +17,7 @@
       "linuxX64ArchiveSha256": "3e730528d89775f03f87f05c06787c4df4099d0a37f3f252e7b829cb23816e18"
     },
     "node": {
-      "version": "26.11.1"
+      "version": "26.12.1"
     },
     "pnpm": {
       "version": "11.20.0"

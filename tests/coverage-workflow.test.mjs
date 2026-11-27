@@ -262,8 +262,8 @@ test("partitioned coverage is the fail-closed blocking coverage authority", asyn
   const provision = managed.find((step) => step.run?.includes("provision-managed-test-tools"));
   assert.equal(provision["working-directory"], "b");
   assert.equal(provision.env.RUNNER_TEMP, "${{ runner.temp }}/producer-4");
-  // Managed generation2 tuples stay Node 24.21.0 / 26.10.0; the repository default comes from .node-version.
-  const node24 = producer.steps.find((step) => step.with?.["node-version"] === "24.21.0");
+  // The retained controller uses the patched runtime; independent custody fixtures keep their historical tuple.
+  const node24 = producer.steps.find((step) => step.with?.["node-version"] === "24.22.3");
   // Node 24 is provisioned for every pair: shards 1 and 2 run legacy generation2 suites through it.
   assert.equal(node24.if, undefined);
   const node24Capture = producer.steps.find((step) =>
@@ -271,6 +271,15 @@ test("partitioned coverage is the fail-closed blocking coverage authority", asyn
   );
   assert.equal(node24Capture.if, undefined);
   assert.ok(producer.steps.indexOf(node24) < producer.steps.indexOf(node24Capture));
+  const historicalNode24 = producer.steps.find(
+    (step) => step.with?.["node-version"] === "24.21.0",
+  );
+  const historicalCapture = producer.steps.find(
+    (step) => /MANAGED_TEST_NODE24_SOURCE=/u.test(step.run ?? ""),
+  );
+  assert.equal(historicalNode24.if, "${{ matrix.pair.second == '4' }}");
+  assert.equal(producer.steps.indexOf(historicalCapture), producer.steps.indexOf(historicalNode24) + 1);
+  assert.ok(producer.steps.indexOf(node24Capture) < producer.steps.indexOf(historicalNode24));
   const node26 = producer.steps.find((step) => step.with?.["node-version"] === "26.10.0");
   assert.equal(node26.if, "${{ matrix.pair.second == '4' }}");
   const defaultNode = producer.steps.find((step) => step.with?.["node-version-file"]);
@@ -289,7 +298,7 @@ test("every CI job that reaches generation2 pack-test binds an explicit Node 24 
     const steps = ci.jobs[jobId].steps;
     const node24 = steps.findIndex(
       (step) =>
-        step.uses?.startsWith("actions/setup-node@") && step.with?.["node-version"] === "24.21.0",
+        step.uses?.startsWith("actions/setup-node@") && step.with?.["node-version"] === "24.22.3",
     );
     const capture = steps.findIndex((step) => /PACK_TEST_GENERATION2_NODE=/u.test(step.run ?? ""));
     const defaultNode = steps.findIndex(

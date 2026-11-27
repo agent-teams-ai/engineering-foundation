@@ -126,8 +126,8 @@ async function fixture(
 ) {
   const root = await mkdtemp(join(tmpdir(), "TEST-managed-generation3-"));
   t.after(() => rm(root, { recursive: true, force: true }));
-  const sourceNode = selection?.current.schemaVersion === 4 ? "26.11.1\n" : "24.21.0\n";
-  const targetNode = selection?.authority.cohort.schemaVersion === 2 ? "24.21.0\n" : "26.11.1\n";
+  const sourceNode = selection?.current.schemaVersion === 4 ? "26.12.1\n" : "24.21.0\n";
+  const targetNode = selection?.authority.cohort.schemaVersion === 2 ? "24.21.0\n" : "26.12.1\n";
   await writeFile(join(root, ".node-version"), sourceNode, { mode: 0o644 });
   const mode = (await lstat(join(root, ".node-version"))).mode & 0o777;
   const current = selection?.current ?? desired();

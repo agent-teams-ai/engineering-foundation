@@ -292,7 +292,7 @@ export async function managedQualificationCohortV3(
   const observedRuntime = lockfileEvidence.runtimeObservation;
   if (
     observedRuntime === undefined ||
-    observedRuntime.nodeVersion !== "26.11.1" ||
+    observedRuntime.nodeVersion !== "26.12.1" ||
     observedRuntime.pnpmVersion !== "11.20.0" ||
     observedRuntime.platform !== "linux" ||
     observedRuntime.architecture !== "x64"
@@ -324,13 +324,13 @@ export async function managedQualificationCohortV3(
   const expectedRuntime = cohort.runtime;
   if (
     expectedRuntime.policy.id !== "agent-teams.docs-protocol-current-policy" ||
-    expectedRuntime.policy.version !== "3.0.0" ||
+    expectedRuntime.policy.version !== "3.1.0" ||
     expectedRuntime.selectedLane !== "node-26-managed-qualified" ||
-    expectedRuntime.node !== ">=26.0.0 <27" ||
+    expectedRuntime.node !== ">=26.12.1 <27" ||
     expectedRuntime.pnpm !== ">=11.17.0 <12" ||
     canonicalJson(expectedRuntime.qualificationRuntime) !==
       canonicalJson({
-        nodeVersion: "26.11.1",
+        nodeVersion: "26.12.1",
         pnpmVersion: "11.20.0",
         platform: "linux",
         architecture: "x64",

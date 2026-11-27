@@ -9,7 +9,7 @@ assert.equal(typeof consumerRoot, "string");
 assert.equal(typeof selectedProfileJson, "string");
 assert.equal(typeof compilerAlias, "string");
 assert.ok(consumerRoot && selectedProfileJson && compilerAlias);
-assert.equal(process.versions.node, "24.21.0");
+assert.equal(process.versions.node, "24.22.3");
 
 let caughtDenial = false;
 try {

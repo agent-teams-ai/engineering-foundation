@@ -143,7 +143,7 @@ async function prepareReleaseFixture(
         },
         toolchain: {
           bun: { version: "1.4.3", linuxX64ArchiveSha256: "a".repeat(64) },
-          node: { version: "26.11.1" },
+          node: { version: "26.12.1" },
           pnpm: { version: "11.20.0" },
         },
         install: {

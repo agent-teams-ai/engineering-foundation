@@ -34,14 +34,14 @@ export const validCohortV3 = (policyDigest: string) => ({
   runtime: {
     policy: {
       id: "agent-teams.docs-protocol-current-policy",
-      version: "3.0.0",
+      version: "3.1.0",
       digest: policyDigest,
     },
     selectedLane: "node-26-managed-qualified",
-    node: ">=26.0.0 <27",
+    node: ">=26.12.1 <27",
     pnpm: ">=11.17.0 <12",
     qualificationRuntime: {
-      nodeVersion: "26.11.1",
+      nodeVersion: "26.12.1",
       pnpmVersion: "11.20.0",
       platform: "linux",
       architecture: "x64",

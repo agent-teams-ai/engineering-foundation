@@ -49,9 +49,9 @@ function runtimeVersion(path: string, kind: RepositoryRuntimeProfile): string | 
 export async function verifyQualificationNode(path: string): Promise<string> {
   if (
     !(await verifyRepositoryRuntimeExecutable(path, "node")) ||
-    runtimeVersion(path, "node") !== "26.11.1"
+    runtimeVersion(path, "node") !== "26.12.1"
   ) {
-    throw new Error(`Executable is not admitted Node 26.11.1: ${path}`);
+    throw new Error(`Executable is not admitted Node 26.12.1: ${path}`);
   }
   return path;
 }

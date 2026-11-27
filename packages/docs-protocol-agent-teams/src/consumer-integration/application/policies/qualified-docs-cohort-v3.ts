@@ -4,7 +4,7 @@ export type { UnselectedCohortV3 } from "../../domain/model.js";
 
 export interface PackedManagedRuntimePolicy {
   readonly policyId: "agent-teams.docs-protocol-current-policy";
-  readonly policyVersion: "3.0.0";
+  readonly policyVersion: "3.1.0";
   readonly sourceDigest: string;
   readonly pnpm: string;
   readonly lanes: Readonly<

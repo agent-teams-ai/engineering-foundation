@@ -23,6 +23,7 @@ import { planPnpmManifestV2 } from "./pnpm-manifest-adapter-v2.js";
 import { assertManagedRestorationLockScope } from "./node-consumer-restoration-lock.js";
 import { parseJsonRecord } from "./strict-json-record.js";
 import { INTEGRATION_PROFILE_PATH } from "./node-consumer-repository-files.js";
+import { isPreservedManagedNode26Pin } from "./managed-upgrade-runtime-profile.js";
 
 /** Git preimages and deterministic owner projections authenticate the ninth-file transition. */
 export async function assertManagedRestorationEffects(input: {
@@ -87,8 +88,7 @@ export async function assertManagedRestorationEffects(input: {
         ),
       ) &&
       (/^24\.(?:1[89]|[2-9][0-9])\.[0-9]+\n?$/u.test(original(".node-version").toString("utf8")) ||
-        (projected.nodeVersion !== undefined &&
-          original(".node-version").equals(Buffer.from(projected.nodeVersion)))),
+        isPreservedManagedNode26Pin(original(".node-version").toString("utf8"))),
     "source managed assets or runtime pin are not exact.",
   );
   const sourceManifest = planPnpmManifestV2({

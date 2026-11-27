@@ -105,15 +105,15 @@ export const cohortV3QualificationChecks = [
 
 interface RuntimePolicyFixture {
   readonly policyId: "agent-teams.docs-protocol-current-policy";
-  readonly policyVersion: "3.0.0";
+  readonly policyVersion: "3.1.0";
   readonly sourceDigest: `sha256:${string}`;
   readonly managedRuntime: {
     readonly pnpm: ">=11.17.0 <12";
     readonly status: string;
     readonly lane: {
-      readonly node: ">=26.0.0 <27";
+      readonly node: ">=26.12.1 <27";
       readonly qualificationRuntime: {
-        readonly nodeVersion: "26.11.1";
+        readonly nodeVersion: "26.12.1";
         readonly pnpmVersion: "11.20.0";
         readonly platform: "linux";
         readonly architecture: "x64";
@@ -208,7 +208,7 @@ function readRuntimePolicy(): RuntimePolicyFixture {
       "agent-teams.docs-protocol-current-policy",
       "runtime policy policyId",
     ),
-    policyVersion: requireLiteral(root["policyVersion"], "3.0.0", "runtime policy policyVersion"),
+    policyVersion: requireLiteral(root["policyVersion"], "3.1.0", "runtime policy policyVersion"),
     sourceDigest: requireDigest(root["sourceDigest"], "runtime policy sourceDigest"),
     managedRuntime: {
       pnpm: requireLiteral(
@@ -218,11 +218,11 @@ function readRuntimePolicy(): RuntimePolicyFixture {
       ),
       status: requireString(managedRuntime["status"], "runtime policy managedRuntime.status"),
       lane: {
-        node: requireLiteral(lane["node"], ">=26.0.0 <27", "runtime policy Node 26 lane node"),
+        node: requireLiteral(lane["node"], ">=26.12.1 <27", "runtime policy Node 26 lane node"),
         qualificationRuntime: {
           nodeVersion: requireLiteral(
             qualificationRuntime["nodeVersion"],
-            "26.11.1",
+            "26.12.1",
             "runtime policy qualificationRuntime.nodeVersion",
           ),
           pnpmVersion: requireLiteral(
@@ -496,7 +496,7 @@ export function successorQualificationFixture(): SuccessorQualificationFixture {
         ),
         node: requireLiteral(
           successorCohort.runtime.node,
-          ">=26.0.0 <27",
+          ">=26.12.1 <27",
           "successor cohort Node runtime",
         ),
         pnpm: requireLiteral(
@@ -507,7 +507,7 @@ export function successorQualificationFixture(): SuccessorQualificationFixture {
         qualificationRuntime: {
           nodeVersion: requireLiteral(
             successorCohort.runtime.qualificationRuntime.nodeVersion,
-            "26.11.1",
+            "26.12.1",
             "successor cohort qualification Node version",
           ),
           pnpmVersion: requireLiteral(

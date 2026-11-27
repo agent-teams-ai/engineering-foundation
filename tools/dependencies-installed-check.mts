@@ -391,7 +391,7 @@ function assertSupportedOverrides(overrides: Readonly<Record<string, string>>): 
 
 export async function inspectInstalledDependencies(
   root: string,
-  nodeVersion = "26.11.1",
+  nodeVersion = "26.12.1",
   bunVersion = "1.4.3",
 ): Promise<Inventory> {
   const canonicalRoot = await realpath(resolve(root));

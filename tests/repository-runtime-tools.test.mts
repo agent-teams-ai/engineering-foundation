@@ -688,7 +688,7 @@ void test("Bun quality dispatch binds its admitted PATH Node into the child envi
   assert.deepEqual(JSON.parse(await readFile(join(root, "runtime-binding.json"), "utf8")), {
     node: runtime.node,
     bun: runtime.bun,
-    leafNodeVersion: "26.11.1",
+    leafNodeVersion: "26.12.1",
   });
 });
 
@@ -764,7 +764,7 @@ void test("parser spike qualification dispatch uses pinned Node without a packag
   assert.equal(report.endToEndExtractionBenchmark, undefined);
   assert.deepEqual(JSON.parse(await readFile(observation, "utf8")), {
     execPath: runtime.node,
-    node: "26.11.1",
+    node: "26.12.1",
     bun: null,
   });
 });

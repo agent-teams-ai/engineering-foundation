@@ -102,8 +102,8 @@ test("v3 policy is closed and the packed projection binds its exact bytes", asyn
     id: "node-26-production-default",
     status: "production-default",
     nodeMajor: 26,
-    engine: "^26.0.0",
-    qualificationVersion: "26.11.1",
+    engine: "^26.12.1",
+    qualificationVersion: "26.12.1",
     default: true,
     cutoverAuthorized: true,
   });
@@ -111,8 +111,8 @@ test("v3 policy is closed and the packed projection binds its exact bytes", asyn
     id: "node-24-compatibility",
     status: "compatibility-lane",
     nodeMajor: 24,
-    engine: "^24.18.0",
-    qualificationVersion: "24.21.0",
+    engine: "^24.22.3",
+    qualificationVersion: "24.22.3",
     default: false,
     cutoverAuthorized: false,
   });
@@ -135,7 +135,7 @@ test("v3 policy is closed and the packed projection binds its exact bytes", asyn
   assert.equal(policy.managedRuntime.lanes["node-26-managed-qualified"].default, true);
   assert.equal(
     policy.managedRuntime.lanes["node-26-managed-qualified"].qualificationRuntime.nodeVersion,
-    "26.11.1",
+    "26.12.1",
   );
   assert.equal(policy.history.preservedSchemas.length, 15);
   const protectedHistory = new Map(
@@ -243,13 +243,13 @@ test("unselected v3 validates closed tuple, lanes, identity and packed policy re
   assert.equal((await loadUnselectedCohortV3(JSON.stringify(valid()))).schemaVersion, 3);
   const defaultLane = valid();
   defaultLane.runtime.selectedLane = "node-24-production-default";
-  defaultLane.runtime.node = ">=24.18.0 <25";
-  defaultLane.runtime.qualificationRuntime.nodeVersion = "24.21.0";
+  defaultLane.runtime.node = ">=24.22.3 <25";
+  defaultLane.runtime.qualificationRuntime.nodeVersion = "24.22.3";
   assert.equal(
     (await loadUnselectedCohortV3(JSON.stringify(defaultLane))).runtime.selectedLane,
     "node-24-production-default",
   );
-  defaultLane.runtime.qualificationRuntime.nodeVersion = "26.11.1";
+  defaultLane.runtime.qualificationRuntime.nodeVersion = "26.12.1";
   await assert.rejects(loadUnselectedCohortV3(JSON.stringify(defaultLane)));
   for (const change of [
     (c) => {
@@ -259,10 +259,16 @@ test("unselected v3 validates closed tuple, lanes, identity and packed policy re
       delete c.schemas.qualificationReceipt;
     },
     (c) => {
-      c.runtime.node = ">=24.18.0 <25";
+      c.runtime.node = ">=24.22.3 <25";
     },
     (c) => {
-      c.runtime.qualificationRuntime.nodeVersion = "24.21.0";
+      c.runtime.node = ">=26.0.0 <27";
+    },
+    (c) => {
+      c.runtime.qualificationRuntime.nodeVersion = "26.11.1";
+    },
+    (c) => {
+      c.runtime.qualificationRuntime.nodeVersion = "24.22.3";
     },
     (c) => {
       c.runtime.qualificationRuntime.pnpmVersion = "11.19.0";
@@ -272,6 +278,9 @@ test("unselected v3 validates closed tuple, lanes, identity and packed policy re
     },
     (c) => {
       c.runtime.policy.version = "2.0.0";
+    },
+    (c) => {
+      c.runtime.policy.version = "3.0.0";
     },
     (c) => {
       c.candidateDigest = digest("0");

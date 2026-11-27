@@ -115,7 +115,7 @@ export function assertCohortV3Consistency({
   if (
     observed.runtimeClosureDigest !== cohort.runtime.runtimeClosure.digest ||
     canonicalJson(observedRuntime) !== canonicalJson(runtimeObservation) ||
-    runtimeObservation.nodeVersion !== "26.11.1" ||
+    runtimeObservation.nodeVersion !== "26.12.1" ||
     runtimeObservation.pnpmVersion !== "11.20.0" ||
     runtimeObservation.platform !== "linux" ||
     runtimeObservation.architecture !== "x64" ||
@@ -264,7 +264,7 @@ export function normalizePackedRuntimePolicy(
   const lanes = normalizeLanes(shape.lanes);
   if (
     policyId !== "agent-teams.docs-protocol-current-policy" ||
-    policyVersion !== "3.0.0" ||
+    policyVersion !== "3.1.0" ||
     sourceDigest !== normalization.sourceDigest ||
     pnpm !== normalization.expected.pnpm
   ) {

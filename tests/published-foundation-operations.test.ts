@@ -375,7 +375,7 @@ test(
     ? "guarded retained source observation [Windows runtime refusal]"
     : "retained source observation enforces the compiler floor in its actual child process",
   async (context) => {
-    for (const sourceNodePin of ["24.21.0\n", "26.11.1\n"] as const) {
+    for (const sourceNodePin of ["24.21.0\n", "26.11.1\n", "26.12.1\n"] as const) {
       await context.test(`source pin ${sourceNodePin.trim()}`, async (nested) => {
         const fixture = await retainedFixture(nested, sourceNodePin);
         const sentinel = join(fixture.disposable, "consumer-executable-evaluated.txt");
@@ -424,7 +424,7 @@ test(
             "Windows default Node26 refusal only; no positive retained source qualification.",
           );
         } else {
-          assert.equal(process.versions.node, "24.21.0");
+          assert.equal(process.versions.node, "24.22.3");
           const observed = await retainedSourceChild(fixture, "observe", compilerAlias);
           assert.equal(observed.code, 0, JSON.stringify(observed));
           assert.equal(observed.signal, null, JSON.stringify(observed));
@@ -444,7 +444,7 @@ test(
           );
           await assert.rejects(readFile(sentinel), { code: "ENOENT" });
           await withPublishedCompilerFloor(async () => {
-            if (sourceNodePin === "26.11.1\n") {
+            if (sourceNodePin !== "24.21.0\n") {
               await assert.rejects(
                 nodeConsumerIntegrationInputReader.read({ consumerRoot: fixture.root }),
                 { code: "DOCS_CONSUMER_NODE_VERSION_GATE_INVALID" },

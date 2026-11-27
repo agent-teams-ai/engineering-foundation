@@ -38,6 +38,10 @@ import {
   readStableConsumerFile,
 } from "./node-consumer-repository-files.js";
 import { assertPreservedSourcePin } from "./node-consumer-integration-repository.js";
+import {
+  isPreservedManagedNode26Pin,
+  MANAGED_CONTROLLER_NODE_VERSION,
+} from "./managed-upgrade-runtime-profile.js";
 
 export function isCentralManagedAuthority(value: {
   readonly repository: unknown;
@@ -58,8 +62,8 @@ export function assertManagedGenerations(source: unknown, target: unknown, rever
 
 export function assertManagedControllerRuntime(): void {
   requireRestoration(
-    process.versions.node === "24.21.0",
-    "externally retained controller requires actual Node24.21.0; no engine fallback.",
+    process.versions.node === MANAGED_CONTROLLER_NODE_VERSION,
+    `externally retained controller requires actual Node${MANAGED_CONTROLLER_NODE_VERSION}; no engine fallback.`,
   );
 }
 
@@ -154,7 +158,14 @@ async function assertManagedPlanSource(root: string, preparation: ManagedGenerat
       );
     }
   }
-  if (originals.get(".node-version")?.equals(Buffer.from("26.11.1\n")) === true) {
+  // A changed pin belongs to the authenticated CAS plan and its phase-specific
+  // source/target images. Only an unchanged preserved pin remains a read guard.
+  const sourceNodePin = originals.get(".node-version")?.toString("utf8");
+  if (
+    sourceNodePin !== undefined &&
+    isPreservedManagedNode26Pin(sourceNodePin) &&
+    !preparation.plan.operations.some(({ path }) => path === ".node-version")
+  ) {
     await assertPreservedSourcePin(
       root,
       preparation.sourceRevision,

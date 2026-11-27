@@ -158,9 +158,9 @@ test("current policy binds package engines, schema generations and the real qual
     const manifest = await json(path);
     assert.equal(manifest.engines.node, policy.runtime.packageEngine, path);
   }
-  // The repository default is Node 26.11.1; the frozen v1 policy keeps its historical 24.21.0 / 26.10.0 tuple.
+  // The repository default is Node 26.12.1; the frozen v1 policy keeps its historical 24.21.0 / 26.10.0 tuple.
   const repositoryDefault = (await readFile(fromRoot(".node-version"), "utf8")).trim();
-  assert.equal(repositoryDefault, "26.11.1");
+  assert.equal(repositoryDefault, "26.12.1");
   assert.equal(Number(repositoryDefault.split(".")[0]), policy.runtime.compatibilityLane.nodeMajor);
   assert.doesNotThrow(() => assertNodeLane(repositoryDefault, policy, repositoryDefault));
   assert.doesNotThrow(() =>

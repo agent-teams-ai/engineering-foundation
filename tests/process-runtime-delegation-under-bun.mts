@@ -622,7 +622,7 @@ try {
     runtimeContext,
   );
   const child = JSON.parse(result.stdout) as { execPath: string; versions: Record<string, string> };
-  assert.equal(child.versions["node"], "26.11.1");
+  assert.equal(child.versions["node"], "26.12.1");
   assert.equal("bun" in child.versions, false);
 
   const nonzero = await executeManagedProcess(

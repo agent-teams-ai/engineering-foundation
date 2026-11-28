@@ -3355,6 +3355,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/qualification/ports/buf-qualification-runner.ts
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/qualification/use-cases/qualify-buf-breaking-evidence.ts
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/qualification/use-cases/verify-pinned-buf-version.ts
+      - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/qualification/use-cases/compare-generated-sdk.ts
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/qualification/ports/process-executor.ts
   - id: capability.contract-protobuf.qualification.adapters
     roots:
@@ -3378,6 +3379,7 @@ boundaries:
     entrypoints:
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/qualification/adapters/outbound/filesystem/filesystem-buf-qualification-artifacts.ts
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/qualification/adapters/outbound/process/process-buf-executable.ts
+      - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/qualification/adapters/outbound/filesystem/filesystem-generated-sdk-observation.ts
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/qualification/adapters/outbound/process/process-buf-qualification-runner.ts
   - id: capability.contract-protobuf.qualification.composition
     roots:

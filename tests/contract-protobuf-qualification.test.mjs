@@ -802,3 +802,48 @@ test("qualification observation cancellation precedes parsing and unknown parser
     (error) => error === sentinel,
   );
 });
+
+test("generated SDK drift observes exact file bytes and complete output membership", async () => {
+  const root = await mkdtemp(join(tmpdir(), "foundation-sdk-drift-"));
+  const expectedRoot = join(root, "expected");
+  const regeneratedRoot = join(root, "regenerated");
+  const input = { expectedRoot, regeneratedRoot };
+  try {
+    for (const directory of [expectedRoot, regeneratedRoot]) {
+      await mkdir(join(directory, "go"), { recursive: true });
+      await mkdir(join(directory, "ts"), { recursive: true });
+      await writeFile(join(directory, "go", "record.pb.go"), "go output\n");
+      await writeFile(join(directory, "ts", "record_pb.ts"), "ts output\n");
+    }
+    const identical = await qualificationModule.compareGeneratedSdkDirectories(input);
+    assert.deepEqual(identical.missingPaths, []);
+    assert.deepEqual(identical.unexpectedPaths, []);
+    assert.deepEqual(identical.changedPaths, []);
+    assert.equal(
+      identical.generationDrift.expectedGeneratedOutputDigest,
+      identical.generationDrift.observedGeneratedOutputDigest,
+    );
+
+    await rm(join(regeneratedRoot, "go", "record.pb.go"));
+    await writeFile(join(regeneratedRoot, "ts", "record_pb.ts"), "changed output\n");
+    await writeFile(join(regeneratedRoot, "go", "extra.pb.go"), "unexpected output\n");
+    const drift = await qualificationModule.compareGeneratedSdkDirectories(input);
+    assert.deepEqual(drift.missingPaths, ["go/record.pb.go"]);
+    assert.deepEqual(drift.unexpectedPaths, ["go/extra.pb.go"]);
+    assert.deepEqual(drift.changedPaths, ["ts/record_pb.ts"]);
+    assert.notEqual(
+      drift.generationDrift.expectedGeneratedOutputDigest,
+      drift.generationDrift.observedGeneratedOutputDigest,
+    );
+    assert.equal(await readFile(join(expectedRoot, "ts", "record_pb.ts"), "utf8"), "ts output\n");
+    await assert.rejects(
+      qualificationModule.compareGeneratedSdkDirectories({
+        expectedRoot,
+        regeneratedRoot: join(expectedRoot, "ts"),
+      }),
+      /must not overlap/u,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

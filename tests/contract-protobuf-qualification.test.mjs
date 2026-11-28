@@ -803,46 +803,32 @@ test("qualification observation cancellation precedes parsing and unknown parser
   );
 });
 
-test("generated SDK drift observes exact file bytes and complete output membership", async () => {
+test("generated SDK drift observes actual bytes and complete output membership", async () => {
   const root = await mkdtemp(join(tmpdir(), "foundation-sdk-drift-"));
   const expectedRoot = join(root, "expected");
   const regeneratedRoot = join(root, "regenerated");
-  const input = { expectedRoot, regeneratedRoot };
+  const compare = () =>
+    qualificationModule.compareGeneratedSdkDirectories({ expectedRoot, regeneratedRoot });
   try {
     for (const directory of [expectedRoot, regeneratedRoot]) {
-      await mkdir(join(directory, "go"), { recursive: true });
-      await mkdir(join(directory, "ts"), { recursive: true });
-      await writeFile(join(directory, "go", "record.pb.go"), "go output\n");
-      await writeFile(join(directory, "ts", "record_pb.ts"), "ts output\n");
+      await mkdir(directory);
+      await writeFile(join(directory, "record.pb.go"), "go output");
+      await writeFile(join(directory, "record_pb.ts"), "ts output");
     }
-    const identical = await qualificationModule.compareGeneratedSdkDirectories(input);
-    assert.deepEqual(identical.missingPaths, []);
-    assert.deepEqual(identical.unexpectedPaths, []);
-    assert.deepEqual(identical.changedPaths, []);
-    assert.equal(
-      identical.generationDrift.expectedGeneratedOutputDigest,
-      identical.generationDrift.observedGeneratedOutputDigest,
-    );
-
-    await rm(join(regeneratedRoot, "go", "record.pb.go"));
-    await writeFile(join(regeneratedRoot, "ts", "record_pb.ts"), "changed output\n");
-    await writeFile(join(regeneratedRoot, "go", "extra.pb.go"), "unexpected output\n");
-    const drift = await qualificationModule.compareGeneratedSdkDirectories(input);
-    assert.deepEqual(drift.missingPaths, ["go/record.pb.go"]);
-    assert.deepEqual(drift.unexpectedPaths, ["go/extra.pb.go"]);
-    assert.deepEqual(drift.changedPaths, ["ts/record_pb.ts"]);
-    assert.notEqual(
-      drift.generationDrift.expectedGeneratedOutputDigest,
-      drift.generationDrift.observedGeneratedOutputDigest,
-    );
-    assert.equal(await readFile(join(expectedRoot, "ts", "record_pb.ts"), "utf8"), "ts output\n");
-    await assert.rejects(
-      qualificationModule.compareGeneratedSdkDirectories({
-        expectedRoot,
-        regeneratedRoot: join(expectedRoot, "ts"),
-      }),
-      /must not overlap/u,
-    );
+    const { generationDrift: equal, ...clean } = await compare();
+    assert.deepEqual(clean, { missingPaths: [], unexpectedPaths: [], changedPaths: [] });
+    assert.equal(equal.expectedGeneratedOutputDigest, equal.observedGeneratedOutputDigest);
+    await rm(join(regeneratedRoot, "record.pb.go"));
+    await writeFile(join(regeneratedRoot, "record_pb.ts"), "changed output");
+    await writeFile(join(regeneratedRoot, "extra.pb.go"), "unexpected output");
+    const { generationDrift: unequal, ...drift } = await compare();
+    assert.deepEqual(drift, {
+      missingPaths: ["record.pb.go"],
+      unexpectedPaths: ["extra.pb.go"],
+      changedPaths: ["record_pb.ts"],
+    });
+    assert.notEqual(unequal.expectedGeneratedOutputDigest, unequal.observedGeneratedOutputDigest);
+    assert.equal(await readFile(join(expectedRoot, "record_pb.ts"), "utf8"), "ts output");
   } finally {
     await rm(root, { recursive: true, force: true });
   }

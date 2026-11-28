@@ -1,5 +1,5 @@
 ---
-"@agent-teams/engineering-foundation": patch
+"@agent-teams/engineering-foundation": minor
 ---
 
-Add an internal generated SDK output observation and native generation qualification fixture without changing the public configuration or capability contract.
+Expose a development-only generated SDK output observation entrypoint. Reuse existing contract evidence without changing the normal capability configuration or introducing a generator.

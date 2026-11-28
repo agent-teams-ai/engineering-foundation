@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 
-import { compareGeneratedSdkDirectories } from "../packages/engineering-foundation/dist/capabilities/contract-protobuf-evolution/qualification/module.js";
+import { compareGeneratedSdkDirectories } from "../packages/engineering-foundation/dist/sdk-generation.js";
 
 // This explicit fixture uses the reviewed consumer's own local generator and
 // output inventory. It does not load consumer code into the ordinary checker.

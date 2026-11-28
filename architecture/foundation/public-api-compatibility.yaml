@@ -50,6 +50,8 @@ packages:
         declarationEntryPoint: packages/engineering-foundation/dist/ratchet.d.ts
       - exportPath: "./source-graph"
         declarationEntryPoint: packages/engineering-foundation/dist/source-graph.d.ts
+      - exportPath: "./sdk-generation"
+        declarationEntryPoint: packages/engineering-foundation/dist/sdk-generation.d.ts
       - exportPath: "./sdk-growth-authority"
         declarationEntryPoint: packages/engineering-foundation/dist/sdk-growth-authority.d.ts
     nonTypeExports:

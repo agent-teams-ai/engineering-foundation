@@ -461,10 +461,45 @@ async function assertSdkGrowthAuthorityPublicApi(fixture) {
   }
 }
 
+async function assertGeneratedSdkPublicApi(fixture) {
+  await runCommand(
+    process.execPath,
+    [
+      "--input-type=module",
+      "--eval",
+      `
+      import assert from "node:assert/strict";
+      import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+      import { join } from "node:path";
+      import { tmpdir } from "node:os";
+      import { compareGeneratedSdkDirectories } from "@agent-teams/engineering-foundation/sdk-generation";
+      const root = await mkdtemp(join(tmpdir(), "packed-sdk-generation-"));
+      try {
+        const expectedRoot = join(root, "expected");
+        const regeneratedRoot = join(root, "regenerated");
+        for (const directory of [expectedRoot, regeneratedRoot]) {
+          await mkdir(directory);
+          await writeFile(join(directory, "client.ts"), "generated");
+        }
+        const input = { expectedRoot, regeneratedRoot };
+        const equal = await compareGeneratedSdkDirectories(input);
+        assert.equal(equal.generationDrift.expectedGeneratedOutputDigest, equal.generationDrift.observedGeneratedOutputDigest);
+        await writeFile(join(regeneratedRoot, "client.ts"), "drift");
+        assert.deepEqual((await compareGeneratedSdkDirectories(input)).changedPaths, ["client.ts"]);
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+      `,
+    ],
+    fixture.consumerRoot,
+  );
+}
+
 export async function verifyPackedConsumer(input) {
   const fixture = input.fixture;
   await assertRemovedFoundationPackagePathsRejected(fixture);
   await assertSdkGrowthAuthorityPublicApi(fixture);
+  await assertGeneratedSdkPublicApi(fixture);
   await assertAdrPromotion(fixture);
   await assertPackedLegacyPublicApiBaseline(fixture, expectedCapabilityIds);
   await assertCapabilityCheck(fixture);

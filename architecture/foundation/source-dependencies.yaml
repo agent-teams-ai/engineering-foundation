@@ -914,6 +914,20 @@ boundaries:
       builtins: []
       runtimeReferences: []
     entrypoints: []
+  - id: foundation.sdk-generation
+    roots:
+      - packages/engineering-foundation/src/sdk-generation.ts
+    packageExports:
+      - ./sdk-generation
+    allow:
+      boundaries:
+        - capability.contract-protobuf.qualification.composition
+        - capability.contract-protobuf.qualification.application
+        - capability.contract-protobuf.application
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints: []
   - id: foundation.source-graph
     roots:
       - packages/engineering-foundation/src/source-graph.ts

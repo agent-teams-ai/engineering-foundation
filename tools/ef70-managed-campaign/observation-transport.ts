@@ -172,8 +172,10 @@ export async function observeGet(
     for (const name of responseHeaderNames) {
       responseHeaders[name] = response.headers.get(name);
     }
-    const { body, bodyComplete, bodyTruncated, bodyReadError } =
-      await readObservedBody(response, maximum);
+    const { body, bodyComplete, bodyTruncated, bodyReadError } = await readObservedBody(
+      response,
+      maximum,
+    );
     const successful = response.ok && bodyComplete;
     const observation: ResponseObservation = {
       url: address.href,

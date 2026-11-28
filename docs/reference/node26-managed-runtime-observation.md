@@ -150,7 +150,7 @@ workspace, root and virtual locks, tarball integrity and runtime identity are
 rechecked. Root deletion remains contingent on finite settled process facts
 and independently checked physical custody; facts are not an external settlement service.
 
-Repository test selection explicitly assigns six private managed-runtime suites
+Repository test selection explicitly assigns nine private managed-runtime suites
 to Linux x64 through the finite policy in `scripts/check-test-manifests.mjs`.
 The three restored suites and typed custody suite join observation and process
 in canonical shard 4 and its coverage projection, without changing mandatory

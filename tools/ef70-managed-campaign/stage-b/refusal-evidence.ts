@@ -44,6 +44,9 @@ interface StableLocalFile {
   readonly links: string;
 }
 
+const RETAINED_ATOMIC_TEMPORARY_PATH =
+  /^\\.agent-teams-local\\/.foundation-retired-evidence-\\/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\\/owned-temporary$/u;
+
 function sameLocalFileIdentity(left: BigIntStats, right: BigIntStats): boolean {
   return (
     left.isFile() &&
@@ -70,15 +73,16 @@ function sameLocalFileSnapshot(left: BigIntStats, right: BigIntStats): boolean {
 // Retained atomic-publication evidence may legitimately have multiple hard links:
 // the destination and quarantined evidence preserve the same inode. Do not weaken
 // context.bytes(), which is reserved for single-link selected input files.
-function readStableLocalEvidenceFile(path: string): StableLocalFile {
+function readStableLocalEvidenceFile(path: string, name: string): StableLocalFile {
   const beforePath = lstatSync(path, { bigint: true });
+  const retainedAtomicTemporary = RETAINED_ATOMIC_TEMPORARY_PATH.test(name);
   if (
     !beforePath.isFile() ||
     beforePath.isSymbolicLink() ||
     beforePath.size > 64n * 1024n * 1024n ||
-    beforePath.nlink < 1n
+    (beforePath.nlink !== 1n && !(retainedAtomicTemporary && beforePath.nlink === 2n))
   ) {
-    throw new Error("Local owner evidence is not one bounded regular file.");
+    throw new Error("Local owner evidence is not one bounded regular file with an admitted link count.");
   }
   const noFollow = process.platform === "win32" ? 0 : constants.O_NOFOLLOW;
   const descriptor = openSync(path, constants.O_RDONLY | noFollow);
@@ -138,7 +142,7 @@ export function localEvidence(root: string, label: string): readonly JsonRecord[
         visit(join(path, child), `${name}/${child}`, depth + 1);
       }
     } else {
-      const observed = readStableLocalEvidenceFile(path);
+      const observed = readStableLocalEvidenceFile(path, name);
       const content = observed.bytes;
       total += content.length;
       if (total > 64 * 1024 * 1024) {

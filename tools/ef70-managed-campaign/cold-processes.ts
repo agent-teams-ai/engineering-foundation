@@ -1,9 +1,8 @@
 import assert from "node:assert/strict";
 import { lstatSync, readFileSync, readdirSync, readlinkSync, realpathSync } from "node:fs";
-import { createRequire } from "node:module";
 import { join, sep } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
-import { pathToFileURL } from "node:url";
+import { resolveInstalledPublicKernel } from "./installed-public-kernel.ts";
 import { row, text, type Campaign, type PreparedCase } from "./campaign-support.ts";
 import { absent } from "./cold-custody.ts";
 
@@ -166,10 +165,8 @@ export async function settledProcesses(
   assert.equal(observation.unresolvedCwd.length, 0, "A live owned-user cwd could not be observed");
 }
 export async function idleBarrier(campaign: Campaign, root: string, label: string): Promise<void> {
-  const entrypoint = createRequire(join(campaign.controllerInstallation, "package.json")).resolve(
-    "@agent-teams/repository-mutation",
-  );
-  const exports: unknown = await import(pathToFileURL(entrypoint).href);
+  const { entrypointURL } = resolveInstalledPublicKernel(campaign.controllerInstallation);
+  const exports: unknown = await import(entrypointURL);
   const inspect = row(exports, "public kernel")["inspectKnownFileTransactionBarrier"];
   assert(typeof inspect === "function", "Public barrier inspector required");
   const observed: unknown = await Reflect.apply(inspect, undefined, [{ consumerRoot: root }]);

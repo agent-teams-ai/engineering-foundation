@@ -1,7 +1,5 @@
 import { existsSync, realpathSync } from "node:fs";
-import { createRequire } from "node:module";
-import { dirname, join } from "node:path";
-import { pathToFileURL } from "node:url";
+import { resolveInstalledPublicKernel } from "../installed-public-kernel.ts";
 import { assertOwnedCasePath } from "../owned-root.ts";
 import {
   array,
@@ -193,12 +191,9 @@ export async function observeRefusalBuilds(
   preparation: JsonRecord | undefined,
   refusalCase: RefusalCase,
 ) {
-  const publicRequire = createRequire(join(c.installation, "package.json"));
-  const kernelRoot = dirname(
-    publicRequire.resolve("@agent-teams/repository-mutation/package.json"),
-  );
+  const { kernelRoot, entrypointURL } = resolveInstalledPublicKernel(c.installation);
   const kernel = object(
-    await import(pathToFileURL(publicRequire.resolve("@agent-teams/repository-mutation")).href),
+    await import(entrypointURL),
     "public kernel exports",
   );
   const barrier = async () =>

@@ -8,10 +8,9 @@ import {
 import { spawn } from "node:child_process";
 import { observationChildEnvironment } from "../owned-root.ts";
 import { existsSync, readdirSync, realpathSync } from "node:fs";
-import { createRequire } from "node:module";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
-import { pathToFileURL } from "node:url";
+import { resolveInstalledPublicKernel } from "../installed-public-kernel.ts";
 import {
   array,
   digest,
@@ -153,11 +152,9 @@ requireEqual(
   )["version"],
   "actual target package version",
 );
-const publicKernelEntrypoint = createRequire(join(c.installation, "package.json")).resolve(
-  "@agent-teams/repository-mutation",
-);
+const { entrypointURL } = resolveInstalledPublicKernel(c.installation);
 const publicKernel = object(
-  await import(pathToFileURL(publicKernelEntrypoint).href),
+  await import(entrypointURL),
   "installed public kernel export",
 );
 const observeBarrier = async () =>

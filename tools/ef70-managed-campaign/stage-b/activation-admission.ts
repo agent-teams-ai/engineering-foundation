@@ -1,8 +1,7 @@
 import { assertOwnedCasePath, observationChildEnvironment } from "../owned-root.ts";
 import { lstatSync, mkdirSync, readFileSync, realpathSync } from "node:fs";
-import { createRequire } from "node:module";
 import { dirname, join, sep } from "node:path";
-import { pathToFileURL } from "node:url";
+import { resolveInstalledPublicKernel } from "../installed-public-kernel.ts";
 import {
   array,
   command,
@@ -177,12 +176,9 @@ function sourceState(c: ActivationContext, data: ReturnType<typeof readColdSelec
 
 async function admitArtifacts(c: ActivationContext, data: ReturnType<typeof readColdSelection>) {
   const { preparation, receipt, plan } = data;
-  const publicRequire = createRequire(join(c.installation, "package.json"));
-  const kernelRoot = dirname(
-    publicRequire.resolve("@agent-teams/repository-mutation/package.json"),
-  );
+  const { kernelRoot, entrypointURL } = resolveInstalledPublicKernel(c.installation);
   const kernel = object(
-    await import(pathToFileURL(publicRequire.resolve("@agent-teams/repository-mutation")).href),
+    await import(entrypointURL),
     "public kernel",
   );
   await invoke(kernel, "assertKnownFileTransactionPlan", [plan]);

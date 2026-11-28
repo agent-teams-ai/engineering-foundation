@@ -56,10 +56,7 @@ const root = await mkdtemp(join(tmpdir(), "foundation-native-sdk-"));
 try {
   const input = await generate(root);
   const clean = await compareGeneratedSdkDirectories(input);
-  assert.deepEqual(
-    [clean.missingPaths, clean.unexpectedPaths, clean.changedPaths],
-    [[], [], []],
-  );
+  assert.deepEqual([clean.missingPaths, clean.unexpectedPaths, clean.changedPaths], [[], [], []]);
   assert.equal(
     clean.generationDrift.expectedGeneratedOutputDigest,
     clean.generationDrift.observedGeneratedOutputDigest,

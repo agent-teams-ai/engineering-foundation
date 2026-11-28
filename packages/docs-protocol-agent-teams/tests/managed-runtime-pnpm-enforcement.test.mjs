@@ -37,7 +37,6 @@ async function validInput(x) {
   return { ...x.input, expectedManifestDigest: sha(manifest) };
 }
 
-test(`${process.versions.node}: wrong Corepack default is classified before pnpm reads the consumer manifest`, a
 for (const lane of ["node24", "node26"]) {
   test(`${lane}: actual selected pnpm installs and frozen offline replay preserves both lock bytes`, async () => {
     const x = await setup(

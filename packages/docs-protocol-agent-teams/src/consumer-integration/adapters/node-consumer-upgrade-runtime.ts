@@ -85,7 +85,10 @@ export async function managedUpgradeRuntime(
     root,
   );
   assertRuntimeObservation(JSON.parse(result.stdout), major);
-  const childEnvironment = { ...env, PATH: `${dirname(node)}${delimiter}${env["PATH"] ?? ""}` };
+  const childEnvironment: NodeJS.ProcessEnv = {
+    ...env,
+    PATH: `${dirname(node)}${delimiter}${env["PATH"] ?? ""}`,
+  };
   const run: typeof execute = (executable, args, cwd, codes, childEnv) =>
     execute(
       executable === "corepack" || executable === process.execPath ? node : executable,

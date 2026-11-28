@@ -733,6 +733,7 @@ boundaries:
       - packages/docs-protocol-agent-teams/tests/managed-runtime-probe-fixture.ts
       - packages/docs-protocol-agent-teams/tests/managed-runtime-parent-settings.ts
       - packages/docs-protocol-agent-teams/tests/managed-runtime-install-fixture.ts
+      - packages/docs-protocol-agent-teams/tests/managed-runtime-default-probe.test.mjs
       - packages/docs-protocol-agent-teams/tests/consumer-reconciliation-mutations.ts
       - packages/docs-protocol-agent-teams/tests/consumer-plan-v3-fixture.ts
       - packages/docs-protocol-agent-teams/tests/consumer-plan-fixture.ts

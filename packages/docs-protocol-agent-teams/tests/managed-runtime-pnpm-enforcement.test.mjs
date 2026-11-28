@@ -38,8 +38,11 @@ async function validInput(x) {
   return { ...x.input, expectedManifestDigest: sha(manifest) };
 }
 
-for (const lane of ["node24", "node26"]) {
-  test(`${lane}: wrong Corepack default is classified before pnpm reads the consumer manifest`, async () => {
+test(`${process.versions.node}: wrong Corepack default is classified before pnpm reads the consumer manifest`, async () => {
+    const major = Number(process.versions.node.split(".")[0]);
+    const lane = major === 26 ? "node26" : "node24";
+    assert.ok(major === 24 || major === 26, `Unsupported test Node ${process.versions.node}`);
+    assert.equal(process.versions.node, major === 26 ? "26.12.1" : "24.22.3");
     const x = await setup(
       lane,
       `${lane}: wrong Corepack default is classified before pnpm reads the consumer manifest`,
@@ -60,7 +63,6 @@ for (const lane of ["node24", "node26"]) {
         ].join("\n"),
         { mode: 0o600, flag: "wx" },
       );
-      const major = lane === "node26" ? 26 : 24;
       await assert.rejects(
         managedUpgradeRuntime(
           { schemaVersion: major === 26 ? 3 : 2 },
@@ -84,6 +86,8 @@ for (const lane of ["node24", "node26"]) {
     }
   });
 
+
+for (const lane of ["node24", "node26"]) {
   test(`${lane}: actual selected pnpm installs and frozen offline replay preserves both lock bytes`, async () => {
     const x = await setup(
       lane,

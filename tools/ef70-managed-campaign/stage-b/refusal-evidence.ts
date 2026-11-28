@@ -82,7 +82,9 @@ function readStableLocalEvidenceFile(path: string, name: string): StableLocalFil
     beforePath.size > 64n * 1024n * 1024n ||
     (beforePath.nlink !== 1n && !(retainedAtomicTemporary && beforePath.nlink === 2n))
   ) {
-    throw new Error("Local owner evidence is not one bounded regular file with an admitted link count.");
+    throw new Error(
+      "Local owner evidence is not one bounded regular file with an admitted link count.",
+    );
   }
   const noFollow = process.platform === "win32" ? 0 : constants.O_NOFOLLOW;
   const descriptor = openSync(path, constants.O_RDONLY | noFollow);

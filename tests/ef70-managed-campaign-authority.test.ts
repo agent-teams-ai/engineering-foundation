@@ -582,13 +582,18 @@ test("EF70 snapshots stable retained hard-linked owner evidence without followin
     "03ff0fcf-d214-45db-8e34-133558d5d236",
     "owned-temporary",
   );
-  mkdirSync(join(localRoot, ".foundation-retired-evidence-", "03ff0fcf-d214-45db-8e34-133558d5d236"), { recursive: true });
+  mkdirSync(
+    join(localRoot, ".foundation-retired-evidence-", "03ff0fcf-d214-45db-8e34-133558d5d236"),
+    { recursive: true },
+  );
   writeFileSync(retained, "same immutable inode bytes", { mode: 0o600 });
   linkSync(retained, observed);
 
   const before = localEvidence(root, "before");
   const file = before.find(
-    (entry) => entry["path"] === ".agent-teams-local/.foundation-retired-evidence-/03ff0fcf-d214-45db-8e34-133558d5d236/owned-temporary",
+    (entry) =>
+      entry["path"] ===
+      ".agent-teams-local/.foundation-retired-evidence-/03ff0fcf-d214-45db-8e34-133558d5d236/owned-temporary",
   );
   assert.ok(file);
   assert.equal(file["state"], "file");

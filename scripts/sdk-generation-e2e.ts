@@ -62,14 +62,19 @@ try {
     clean.generationDrift.observedGeneratedOutputDigest,
   );
   const changedPath = "gen/go/identity/v1/identity.pb.go";
-  await appendFile(join(input.regeneratedRoot, changedPath), "\n// changed qualification fixture\n");
+  await appendFile(
+    join(input.regeneratedRoot, changedPath),
+    "\n// changed qualification fixture\n",
+  );
   const drift = await compareGeneratedSdkDirectories(input);
   assert.deepEqual(drift.changedPaths, [changedPath]);
   assert.notEqual(
     drift.generationDrift.expectedGeneratedOutputDigest,
     drift.generationDrift.observedGeneratedOutputDigest,
   );
-  process.stdout.write("Native Identity TypeScript/Go SDK generation and drift comparison passed.\n");
+  process.stdout.write(
+    "Native Identity TypeScript/Go SDK generation and drift comparison passed.\n",
+  );
 } finally {
   await rm(root, { recursive: true, force: true });
 }

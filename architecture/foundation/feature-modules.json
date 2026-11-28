@@ -1040,6 +1040,10 @@
               "owner": "engineering-foundation/contract-protobuf-evolution"
             },
             {
+              "path": "packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/qualification/use-cases/compare-generated-sdk.ts",
+              "owner": "engineering-foundation/contract-protobuf-evolution"
+            },
+            {
               "path": "packages/engineering-foundation/src/capabilities/executable-specifications/adapters/outbound/filesystem/filesystem-executable-specification-inspector.ts",
               "owner": "engineering-foundation/executable-specifications"
             },

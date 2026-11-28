@@ -1,0 +1,135 @@
+name: EF70 existing c223 artifact reader
+on:
+  push:
+    branches: [diagnostics/ef70-h1-c2238-log-20261128]
+    paths: [.github/workflows/ef70-h1-c2238-log-read.yml]
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: ef70-artifact-reader-${{ github.run_id }}-${{ github.run_attempt }}
+  cancel-in-progress: false
+jobs:
+  read-existing-artifact:
+    if: ${{ github.repository == 'agent-teams-ai/engineering-foundation' && github.repository_id == '1316243988' && github.actor_id == '13103045' && github.event_name == 'push' && github.ref == 'refs/heads/diagnostics/ef70-h1-c2238-log-20261128' && github.event.deleted == false }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Download only the fixed original artifact
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_PROMPT_DISABLED: "1"
+          GH_PAGER: cat
+        run: |
+          set -Eeuo pipefail
+          umask 077
+          unset GH_DEBUG GH_FORCE_TTY
+          ulimit -f 1024
+          runner_temp="$(realpath -e "$RUNNER_TEMP")"
+          read_root="$runner_temp/ef70-artifact-read-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          mkdir -m 700 "$read_root"
+          printf 'EF70_ARTIFACT_READ_ROOT=%s\n' "$read_root" >> "$GITHUB_ENV"
+          export GH_CONFIG_DIR="$read_root/gh-config"
+          mkdir -m 700 "$GH_CONFIG_DIR"
+          gh --version
+          python3 --version
+          printf 'EF70_READ_REQUEST original-run\n'
+          timeout 90s gh api --hostname github.com --method GET \
+            repos/agent-teams-ai/engineering-foundation/actions/runs/46084183470/attempts/1 \
+            > "$read_root/run.json" 2> "$read_root/run.stderr"
+          printf 'EF70_READ_REQUEST artifact-metadata\n'
+          timeout 90s gh api --hostname github.com --method GET \
+            repos/agent-teams-ai/engineering-foundation/actions/artifacts/15240274063 \
+            > "$read_root/artifact.json" 2> "$read_root/artifact.stderr"
+          env -u GH_TOKEN python3 - "$read_root" <<'PY'
+          import json, pathlib, sys
+          root = pathlib.Path(sys.argv[1])
+          run = json.loads((root / "run.json").read_bytes())
+          artifact = json.loads((root / "artifact.json").read_bytes())
+          head = "c2238aa924d3188c49061c64470d11c5444f1dad"
+          assert (run["id"], run["run_attempt"], run["head_sha"]) == (46084183470, 1, head)
+          assert run["repository"]["id"] == 1316243988
+          assert run["repository"]["full_name"] == "agent-teams-ai/engineering-foundation"
+          assert (run["event"], run["status"], run["conclusion"]) == ("push", "completed", "failure")
+          assert run["head_branch"] == "test/ef70-managed-campaign"
+          assert run["path"] == ".github/workflows/ef70-managed-campaign.yml"
+          assert (artifact["id"], artifact["size_in_bytes"], artifact["expired"]) == (15240274063, 12547, False)
+          assert artifact["name"] == "ef70-harness-preflight-" + head + "-46084183470-1"
+          assert artifact["digest"] == "sha256:0910f38ac29c57af847fe75124ae0b6ef746e474881805d3e92d2263f6d37ce6"
+          binding = artifact["workflow_run"]
+          assert (binding["id"], binding["head_sha"]) == (46084183470, head)
+          assert binding["head_branch"] == "test/ef70-managed-campaign"
+          assert binding["repository_id"] == binding["head_repository_id"] == 1316243988
+          print("EF70_ORIGINAL_ARTIFACT_BINDING_OK")
+          PY
+          printf 'EF70_READ_REQUEST artifact-zip\n'
+          timeout 90s gh api --hostname github.com --method GET \
+            repos/agent-teams-ai/engineering-foundation/actions/artifacts/15240274063/zip \
+            > "$read_root/artifact.zip" 2> "$read_root/zip.stderr"
+      - name: Verify original bytes and emit the bounded owner log
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 - "$EF70_ARTIFACT_READ_ROOT" <<'PY'
+          import hashlib, io, json, os, pathlib, re, stat, sys, zipfile
+          assert "GH_TOKEN" not in os.environ
+          assert os.environ["GITHUB_REPOSITORY_ID"] == "1316243988"
+          root = pathlib.Path(sys.argv[1])
+          assert not root.is_symlink() and root.resolve(strict=True) == root
+          descriptor = os.open(root / "artifact.zip", os.O_RDONLY | os.O_NOFOLLOW)
+          with os.fdopen(descriptor, "rb") as stream:
+              info = os.fstat(stream.fileno())
+              assert stat.S_ISREG(info.st_mode) and info.st_uid == os.geteuid()
+              assert info.st_nlink == 1 and info.st_size == 12547
+              raw_zip = stream.read(12548)
+          assert len(raw_zip) == 12547
+          zip_sha = hashlib.sha256(raw_zip).hexdigest()
+          assert zip_sha == "0910f38ac29c57af847fe75124ae0b6ef746e474881805d3e92d2263f6d37ce6"
+          archive = zipfile.ZipFile(io.BytesIO(raw_zip))
+          entries = archive.infolist()
+          assert len(entries) <= 32 and sum(item.file_size for item in entries) <= 2097152
+          member = "owner-changed-check/check-changed-P1CUHo.log"
+          assert archive.namelist().count(member) == 1
+          item = archive.getinfo(member)
+          assert not item.is_dir() and not stat.S_ISLNK(item.external_attr >> 16)
+          assert item.file_size == 39680 and not (item.flag_bits & 1)
+          with archive.open(item) as stream:
+              owner = stream.read(39681)
+          owner_sha = hashlib.sha256(owner).hexdigest()
+          assert len(owner) == 39680
+          assert owner_sha == "f559547b7350333238c99cffd28cd4b80808b804eb14189d76a63fd4170591fe"
+          text = owner.decode("utf-8", errors="strict")
+          sensitive_shapes = [
+              r"-----BEGIN (?:[A-Z]+ )*PRIVATE KEY-----",
+              r"-----BEGIN PGP PRIVATE KEY BLOCK-----",
+              r"(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})",
+              r"(?:AKIA|ASIA)[A-Z0-9]{16}",
+          ]
+          assert not any(re.search(pattern, text) for pattern in sensitive_shapes), "Credential-shaped content refused"
+          lines = text.splitlines(keepends=True)
+          encoded = [json.dumps({"index": index, "text": line}, ensure_ascii=True,
+                                separators=(",", ":")) for index, line in enumerate(lines)]
+          assert all(len(line) <= 60000 for line in encoded)
+          assert sum(map(len, encoded)) <= 300000
+          assert "".join(lines).encode("utf-8") == owner
+          proof = {
+              "schemaVersion": 1,
+              "scope": "Read of existing failed-run evidence only; no preflight rerun or qualification",
+              "originalRunId": 46084183470, "originalAttempt": 1,
+              "originalHead": "c2238aa924d3188c49061c64470d11c5444f1dad",
+              "originalJobId": 140789789363, "artifactId": 15240274063,
+              "zipBytes": len(raw_zip), "zipSha256": zip_sha,
+              "member": member, "memberBytes": len(owner), "memberSha256": owner_sha,
+              "lineCount": len(lines),
+              "readerRepository": os.environ["GITHUB_REPOSITORY"],
+              "readerHead": os.environ["GITHUB_SHA"],
+              "readerRunId": os.environ["GITHUB_RUN_ID"],
+              "readerAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
+          }
+          print("EF70_ARTIFACT_READ_PROOF " + json.dumps(proof, ensure_ascii=True, separators=(",", ":")))
+          for line in encoded:
+              print("EF70_OWNER_LOG_JSON " + line)
+          print("EF70_ARTIFACT_READ_END " + json.dumps(
+              {"lineCount": len(lines), "memberSha256": owner_sha}, separators=(",", ":")))
+          PY

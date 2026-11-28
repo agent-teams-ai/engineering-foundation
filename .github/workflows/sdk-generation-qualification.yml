@@ -105,9 +105,11 @@ jobs:
           expected="$(mktemp -d)"
           observed="$(mktemp -d)"
           trap 'rm -rf "$expected" "$observed"' EXIT
-          bindgen="$fixture/target/debug/uniffi-bindgen-cli"
-          "$bindgen" generate --library "$library" --language python --out-dir "$expected"
-          "$bindgen" generate --library "$library" --language python --out-dir "$observed"
+          (
+            cd "$fixture"
+            ./target/debug/uniffi-bindgen-cli generate --library "$library" --language python --out-dir "$expected"
+            ./target/debug/uniffi-bindgen-cli generate --library "$library" --language python --out-dir "$observed"
+          )
           node --input-type=module -e 'import assert from "node:assert/strict"; import { compareGeneratedSdkDirectories } from "./packages/engineering-foundation/dist/sdk-generation.js"; const [expectedRoot, regeneratedRoot] = process.argv.slice(1); const result = await compareGeneratedSdkDirectories({expectedRoot, regeneratedRoot}); assert.deepEqual([result.missingPaths,result.unexpectedPaths,result.changedPaths],[[],[],[]]); assert.equal(result.generationDrift.expectedGeneratedOutputDigest,result.generationDrift.observedGeneratedOutputDigest);' "$expected" "$observed"
           test -f "$expected/arithmeticpm.py"
           cp "$library" "$expected/"

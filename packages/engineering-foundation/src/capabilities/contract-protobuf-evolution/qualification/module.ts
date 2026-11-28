@@ -5,6 +5,8 @@ import {
 } from "../adapters/inbound/configuration/load-capability-config.js";
 import { loadStrictYamlFile } from "../../../features/configuration-input/node.js";
 import { FilesystemBufQualificationArtifacts } from "./adapters/outbound/filesystem/filesystem-buf-qualification-artifacts.js";
+import { observeGeneratedSdkDrift } from "./adapters/outbound/filesystem/filesystem-generated-sdk-observation.js";
+import type { GeneratedSdkDrift } from "./use-cases/compare-generated-sdk.js";
 import { ProcessBufExecutable } from "./adapters/outbound/process/process-buf-executable.js";
 import { ProcessBufQualificationRunner } from "./adapters/outbound/process/process-buf-qualification-runner.js";
 import {
@@ -61,3 +63,16 @@ export type {
 export { qualifyBufBreakingEvidence } from "./use-cases/qualify-buf-breaking-evidence.js";
 export type { QualifyBufBreakingEvidenceResult } from "./use-cases/qualify-buf-breaking-evidence.js";
 export { verifyPinnedBufVersion } from "./use-cases/verify-pinned-buf-version.js";
+
+export interface GeneratedSdkDirectoryInput {
+  readonly expectedRoot: string;
+  readonly regeneratedRoot: string;
+  readonly signal?: AbortSignal;
+}
+
+/** Explicit development-only observation, not a normal static capability. */
+export function compareGeneratedSdkDirectories(
+  input: GeneratedSdkDirectoryInput,
+): Promise<GeneratedSdkDrift> {
+  return observeGeneratedSdkDrift(input, new NodeSha256Digest());
+}

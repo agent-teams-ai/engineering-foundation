@@ -76,7 +76,7 @@
   "derivedFrom": [
     {
       "path": "architecture/foundation/feature-modules.json",
-      "sha256": "688c4227fa20b375065081018be3d70344495340e1891ad80e35b6bd6fd0558e"
+      "sha256": "e49ced1ec165f6462de61820c4fc80d6b858a5180f1ed879112683c39ee97244"
     },
     {
       "path": "architecture/foundation/quality-source-coverage.yaml",

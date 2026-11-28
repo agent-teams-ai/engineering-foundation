@@ -233,6 +233,10 @@ test("validates the release-owned public API baseline and freezes the package ex
       types: "./dist/ratchet.d.ts",
       import: "./dist/ratchet.js",
     },
+    "./sdk-generation": {
+      types: "./dist/sdk-generation.d.ts",
+      import: "./dist/sdk-generation.js",
+    },
     "./sdk-growth-authority": {
       types: "./dist/sdk-growth-authority.d.ts",
       import: "./dist/sdk-growth-authority.js",

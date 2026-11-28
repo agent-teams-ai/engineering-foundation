@@ -80,7 +80,9 @@ const PACKAGE_MAX_ARCHIVE_ENTRIES = Object.freeze({
   // Exact census is 2,976; removing these named additions restores all 2,967
   // previously qualified members. The complete inventory and +1 rejection
   // remain enforced with no spare headroom or change to other/byte limits.
-  "@agent-teams/engineering-foundation": 2_976,
+  // SDK generation: +12 = three named production TS compiler tuples, retaining
+  // the complete 2,976-member historical digest and rejecting entry 2,989.
+  "@agent-teams/engineering-foundation": 2_988,
 });
 
 export function maximumArchiveEntries(packageName) {

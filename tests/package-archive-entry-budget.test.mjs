@@ -151,6 +151,14 @@ const EXPECTED_NEW_MODULE_ARTIFACTS = Object.freeze([
   "dist/process-execution/windows-command-launch.js.map",
 ]);
 
+const EXPECTED_SDK_GENERATION_ARTIFACTS = Object.freeze(
+  [
+    "dist/sdk-generation",
+    "dist/capabilities/contract-protobuf-evolution/qualification/use-cases/compare-generated-sdk",
+    "dist/capabilities/contract-protobuf-evolution/qualification/adapters/outbound/filesystem/filesystem-generated-sdk-observation",
+  ].flatMap((path) => [".js", ".js.map", ".d.ts", ".d.ts.map"].map((suffix) => path + suffix)),
+);
+
 function archiveWithEntries(count) {
   return tarArchive(
     Array.from({ length: count }, (_, index) => ({ name: `package/dist/${index}.js` })),
@@ -163,15 +171,15 @@ test("keeps the Foundation archive exception package-specific and bounded", () =
     () => inspectCompressedTarArchive(archiveWithEntries(2_501)),
     /too many entries: 2501/u,
   );
-  const atFoundationLimit = archiveWithEntries(2_976);
+  const atFoundationLimit = archiveWithEntries(2_988);
   assert.throws(() => inspectCompressedTarArchive(atFoundationLimit), /too many entries/u);
   assert.equal(
     inspectCompressedTarArchive(atFoundationLimit, FOUNDATION_PACKAGE).entryCount,
-    2_976,
+    2_988,
   );
   assert.throws(
-    () => inspectCompressedTarArchive(archiveWithEntries(2_977), FOUNDATION_PACKAGE),
-    /too many entries: 2977/u,
+    () => inspectCompressedTarArchive(archiveWithEntries(2_989), FOUNDATION_PACKAGE),
+    /too many entries: 2989/u,
   );
 });
 
@@ -207,7 +215,7 @@ test("applies the same Foundation budget to archive listings", () => {
     "package/package.json",
     "package/LICENSE",
     "package/README.md",
-    ...Array.from({ length: 2_973 }, (_, index) => `package/dist/${index}.js`),
+    ...Array.from({ length: 2_985 }, (_, index) => `package/dist/${index}.js`),
   ];
   const input = {
     archiveBytes: Buffer.from("fixture"),
@@ -225,7 +233,7 @@ test("applies the same Foundation budget to archive listings", () => {
           ...Array.from({ length: 1 }, (_, index) => `package/dist/extra-${index}.js`),
         ].join("\n"),
       }),
-    /too many entries: 2977/u,
+    /too many entries: 2989/u,
   );
 });
 
@@ -251,15 +259,24 @@ test("admits the complete built Foundation package inventory and rejects one add
   }
   assert.equal(
     paths.size,
-    2_976,
+    2_988,
     "Requalify the complete package inventory when its membership changes",
   );
+  assert.equal(EXPECTED_SDK_GENERATION_ARTIFACTS.length, 12);
+  assert.equal(new Set(EXPECTED_SDK_GENERATION_ARTIFACTS).size, 12);
+  for (const path of EXPECTED_SDK_GENERATION_ARTIFACTS) {
+    assert.ok(paths.has(path), path);
+  }
+  const beforeSdkGenerationPaths = [...paths].filter(
+    (path) => !EXPECTED_SDK_GENERATION_ARTIFACTS.includes(path),
+  );
+  assert.equal(beforeSdkGenerationPaths.length, 2_976);
   assert.equal(
     createHash("sha256")
-      .update([...paths].toSorted().join("\n") + "\n")
+      .update(beforeSdkGenerationPaths.toSorted().join("\n") + "\n")
       .digest("hex"),
     "73be87c4bbf24d82bafdb27231c76cebb5a1f6cacbcc515bcf08ff4e30ca14b4",
-    "Requalify exact artifact membership, even when the count stays unchanged",
+    "SDK generation must retain every previously qualified artifact",
   );
   assert.equal(
     [...paths].some((path) => path.startsWith("presets/")),
@@ -270,7 +287,7 @@ test("admits the complete built Foundation package inventory and rejects one add
   assert.ok(paths.has("schemas/package-public-api-native-transition/v1.schema.json"));
   assert.equal(EXPECTED_HISTORICAL_REFERENCE_ARTIFACTS.length, 9);
   assert.equal(new Set(EXPECTED_HISTORICAL_REFERENCE_ARTIFACTS).size, 9);
-  const beforeHistoricalReferencePaths = [...paths].filter(
+  const beforeHistoricalReferencePaths = beforeSdkGenerationPaths.filter(
     (path) => !EXPECTED_HISTORICAL_REFERENCE_ARTIFACTS.includes(path),
   );
   assert.equal(beforeHistoricalReferencePaths.length, 2_967);
@@ -348,7 +365,7 @@ test("admits the complete built Foundation package inventory and rejects one add
         ...input,
         listing: [...listing, "package/dist/over-limit.js"].join("\n"),
       }),
-    /too many entries: 2977/u,
+    /too many entries: 2989/u,
   );
 });
 

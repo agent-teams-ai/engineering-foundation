@@ -44,10 +44,7 @@ interface StableLocalFile {
   readonly links: string;
 }
 
-function sameLocalFileIdentity(
-  left: BigIntStats,
-  right: BigIntStats,
-): boolean {
+function sameLocalFileIdentity(left: BigIntStats, right: BigIntStats): boolean {
   return (
     left.isFile() &&
     right.isFile() &&
@@ -57,10 +54,7 @@ function sameLocalFileIdentity(
   );
 }
 
-function sameLocalFileSnapshot(
-  left: BigIntStats,
-  right: BigIntStats,
-): boolean {
+function sameLocalFileSnapshot(left: BigIntStats, right: BigIntStats): boolean {
   return (
     sameLocalFileIdentity(left, right) &&
     left.mode === right.mode &&

@@ -154,6 +154,10 @@ jobs:
           git diff --binary > "$EF70_QUALITY_ROOT/cleanup.diff"
           git diff --exit-code
           exit "$cleanup_status"
+      - name: Execute the exact EF70 authority and retained-evidence regressions
+        run: |
+          set -Eeuo pipefail
+          taskset -c "$EF70_CPUSET" "$EF70_NODE26_EXECUTABLE" --test tests/ef70-managed-campaign-authority.test.ts
       - name: Qualify workflow security
         run: |
           set -Eeuo pipefail

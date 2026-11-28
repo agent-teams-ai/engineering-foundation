@@ -594,11 +594,7 @@ test("EF70 snapshots only the exact retained owner hardlink without following li
   const unrelated = join(unrelatedDirectory, "owned-temporary");
   linkSync(retained, unrelated);
   assert.throws(
-    () =>
-      readStableLocalEvidenceFile(
-        unrelated,
-        ".agent-teams-local/unrelated/owned-temporary",
-      ),
+    () => readStableLocalEvidenceFile(unrelated, ".agent-teams-local/unrelated/owned-temporary"),
     /admitted link count/u,
   );
   unlinkSync(unrelated);

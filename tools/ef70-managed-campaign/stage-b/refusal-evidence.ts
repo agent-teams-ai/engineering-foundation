@@ -43,22 +43,33 @@ interface StableLocalFile {
   readonly links: string;
 }
 
-function sameLocalFileIdentity(left: ReturnType<typeof fstatSync>, right: ReturnType<typeof fstatSync>): boolean {
-  return left.isFile() && right.isFile() &&
+function sameLocalFileIdentity(
+  left: ReturnType<typeof fstatSync>,
+  right: ReturnType<typeof fstatSync>,
+): boolean {
+  return (
+    left.isFile() &&
+    right.isFile() &&
     left.dev === right.dev &&
     left.ino === right.ino &&
-    left.birthtimeNs === right.birthtimeNs;
+    left.birthtimeNs === right.birthtimeNs
+  );
 }
 
-function sameLocalFileSnapshot(left: ReturnType<typeof fstatSync>, right: ReturnType<typeof fstatSync>): boolean {
-  return sameLocalFileIdentity(left, right) &&
+function sameLocalFileSnapshot(
+  left: ReturnType<typeof fstatSync>,
+  right: ReturnType<typeof fstatSync>,
+): boolean {
+  return (
+    sameLocalFileIdentity(left, right) &&
     left.mode === right.mode &&
     left.uid === right.uid &&
     left.gid === right.gid &&
     left.nlink === right.nlink &&
     left.size === right.size &&
     left.ctimeNs === right.ctimeNs &&
-    left.mtimeNs === right.mtimeNs;
+    left.mtimeNs === right.mtimeNs
+  );
 }
 
 // Retained atomic-publication evidence may legitimately have multiple hard links:
@@ -66,14 +77,22 @@ function sameLocalFileSnapshot(left: ReturnType<typeof fstatSync>, right: Return
 // context.bytes(), which is reserved for single-link selected input files.
 function readStableLocalEvidenceFile(path: string): StableLocalFile {
   const beforePath = lstatSync(path, { bigint: true });
-  if (!beforePath.isFile() || beforePath.isSymbolicLink() || beforePath.size > 64n * 1024n * 1024n || beforePath.nlink < 1n) {
+  if (
+    !beforePath.isFile() ||
+    beforePath.isSymbolicLink() ||
+    beforePath.size > 64n * 1024n * 1024n ||
+    beforePath.nlink < 1n
+  ) {
     throw new Error("Local owner evidence is not one bounded regular file.");
   }
   const noFollow = process.platform === "win32" ? 0 : constants.O_NOFOLLOW;
   const descriptor = openSync(path, constants.O_RDONLY | noFollow);
   try {
     const beforeRead = fstatSync(descriptor, { bigint: true });
-    if (!sameLocalFileIdentity(beforePath, beforeRead) || !sameLocalFileSnapshot(beforePath, beforeRead)) {
+    if (
+      !sameLocalFileIdentity(beforePath, beforeRead) ||
+      !sameLocalFileSnapshot(beforePath, beforeRead)
+    ) {
       throw new Error("Local owner evidence changed before its read.");
     }
     const content = Buffer.alloc(Number(beforeRead.size));
@@ -87,10 +106,17 @@ function readStableLocalEvidenceFile(path: string): StableLocalFile {
     }
     const afterRead = fstatSync(descriptor, { bigint: true });
     const afterPath = lstatSync(path, { bigint: true });
-    if (!sameLocalFileSnapshot(beforeRead, afterRead) || !sameLocalFileSnapshot(afterRead, afterPath)) {
+    if (
+      !sameLocalFileSnapshot(beforeRead, afterRead) ||
+      !sameLocalFileSnapshot(afterRead, afterPath)
+    ) {
       throw new Error("Local owner evidence changed during its read.");
     }
-    return { bytes: content, mode: Number(afterRead.mode & 0o777n), links: afterRead.nlink.toString() };
+    return {
+      bytes: content,
+      mode: Number(afterRead.mode & 0o777n),
+      links: afterRead.nlink.toString(),
+    };
   } finally {
     closeSync(descriptor);
   }

@@ -28,6 +28,7 @@
     "scripts/packed-release-checks.ts",
     "scripts/packaging-pnpm.ts",
     "scripts/public-docs-quickstart.ts",
+    "scripts/sdk-generation-e2e.ts",
     "scripts/public-docs-documented-e2e.ts",
     "scripts/pack-quality-assets.ts",
     "tools/**/*.mts",

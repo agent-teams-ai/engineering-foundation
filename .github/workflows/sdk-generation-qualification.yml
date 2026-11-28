@@ -1,0 +1,66 @@
+name: SDK generation qualification
+
+on:
+  pull_request:
+    paths:
+      - "packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/qualification/**"
+      - "scripts/sdk-generation-e2e.ts"
+      - ".github/workflows/sdk-generation-qualification.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  sdk-generation:
+    name: native-sdk-generation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: "off"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: "1.4.3"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - name: Bind the existing Foundation Node profile
+        run: |
+          printf 'AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE=%s\n' "$(command -v node)" >> "$GITHUB_ENV"
+      - run: bun tools/dev.mts install
+      - run: bun tools/dev.mts build
+      - name: Verify the generated output observation tests
+        run: node --test tests/contract-protobuf-qualification.test.mjs
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: agent-teams-ai/identity
+          ref: 4624f0cde026d18226da705896b4b1c944e730ce
+          path: .worker-tmp/sdk-identity
+          persist-credentials: false
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        env:
+          pnpm_config_pm_on_fail: ignore
+        with:
+          version: "11.20.0"
+          install: false
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version: "1.27.4"
+          check-latest: false
+          cache: false
+      - name: Install the reviewed consumer tool graph
+        working-directory: .worker-tmp/sdk-identity
+        run: |
+          pnpm install --frozen-lockfile --ignore-scripts
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.12
+          go install connectrpc.com/connect/cmd/protoc-gen-connect-go@v1.21.1
+      - name: Verify the consumer's native contract route
+        working-directory: .worker-tmp/sdk-identity
+        run: pnpm contracts:check
+      - name: Compare actual generated TypeScript and Go outputs
+        run: node scripts/sdk-generation-e2e.ts .worker-tmp/sdk-identity

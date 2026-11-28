@@ -7,11 +7,10 @@ import {
   readlinkSync,
   realpathSync,
 } from "node:fs";
-import { createRequire } from "node:module";
 import { join, sep } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
-import { pathToFileURL } from "node:url";
 import { row, type Row } from "../ef70-managed-campaign/campaign-io.ts";
+import { resolveInstalledPublicKernel } from "../ef70-managed-campaign/installed-public-kernel.ts";
 import { AdoptionEvidence, errorObservation, invoke } from "./evidence.ts";
 import { bytes, inventory, rootIdentity, sha256, text } from "./files.ts";
 
@@ -150,10 +149,8 @@ export async function requireSettled(
   assert.equal(census.unknown.length, 0, "Process custody remains unobservable");
 }
 export async function publicBarrier(installation: string, consumer: string): Promise<Row> {
-  const entrypoint = createRequire(join(installation, "package.json")).resolve(
-    "@agent-teams/repository-mutation",
-  );
-  const kernel = row(await import(pathToFileURL(entrypoint).href), "Authenticated public kernel");
+  const { entrypointURL } = resolveInstalledPublicKernel(installation);
+  const kernel = row(await import(entrypointURL), "Authenticated public kernel");
   return row(
     await invoke(kernel, "inspectKnownFileTransactionBarrier", [{ consumerRoot: consumer }]),
     "Actual public barrier",

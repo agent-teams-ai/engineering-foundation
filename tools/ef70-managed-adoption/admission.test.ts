@@ -1,5 +1,11 @@
 import assert from "node:assert/strict";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
+import { pathToFileURL } from "node:url";
+import { resolveInstalledPublicKernel } from "../ef70-managed-campaign/installed-public-kernel.ts";
 import { controllerText } from "../ef70-managed-campaign/controller-authentication.ts";
 import { preflightSteps, validatePreflight } from "./admission.ts";
 import { assertRepairedWorkflow, repairedReceiptBlob } from "./authority.ts";
@@ -185,4 +191,113 @@ test("only the expected successful public envelope is accepted", () => {
     );
   }
   assert.throws(() => resultEnvelope(Buffer.from("not json"), "consumer.check", "current"));
+});
+
+function installedKernelFixture() {
+  const installation = realpathSync(mkdtempSync(join(tmpdir(), "ef70-public-kernel-")));
+  const kernelRoot = join(installation, "node_modules/@agent-teams/repository-mutation");
+  const entry = join(kernelRoot, "public/runtime.js");
+  mkdirSync(join(kernelRoot, "public"), { recursive: true });
+  writeFileSync(join(installation, "package.json"), '{"private":true,"type":"module"}\n');
+  writeFileSync(entry, 'export const fixtureIdentity = "selected-public-kernel";\n');
+  writeFileSync(join(kernelRoot, "private.cjs"), 'throw new Error("Private fallback executed");\n');
+  const manifest = (publicRoot: unknown) => {
+    writeFileSync(
+      join(kernelRoot, "package.json"),
+      JSON.stringify({
+        name: "@agent-teams/repository-mutation",
+        version: "0.5.2",
+        type: "module",
+        main: "./private.cjs",
+        exports: { ".": publicRoot, "./package.json": "./package.json" },
+      }) + "\n",
+    );
+  };
+  manifest({ types: "./public/runtime.d.ts", import: "./public/runtime.js" });
+  return { installation, kernelRoot, entry, manifest };
+}
+
+test("EF70 loads the declared import-only kernel public entry when CommonJS resolution refuses", async (t) => {
+  const fixture = installedKernelFixture();
+  t.after(() => rmSync(fixture.installation, { recursive: true, force: true }));
+  const legacy = createRequire(join(fixture.installation, "package.json"));
+  assert.throws(() => legacy.resolve("@agent-teams/repository-mutation"), {
+    code: "ERR_PACKAGE_PATH_NOT_EXPORTED",
+  });
+  const selected = resolveInstalledPublicKernel(fixture.installation);
+  assert.equal(selected.kernelRoot, fixture.kernelRoot);
+  assert.equal(selected.entrypointURL, pathToFileURL(fixture.entry).href);
+  const module: unknown = await import(selected.entrypointURL);
+  assert(module !== null && typeof module === "object");
+  assert.equal(Reflect.get(module, "fixtureIdentity"), "selected-public-kernel");
+});
+
+test("EF70 refuses unsupported public conditions instead of bypassing their resolution order", (t) => {
+  const fixture = installedKernelFixture();
+  t.after(() => rmSync(fixture.installation, { recursive: true, force: true }));
+  for (const condition of ["node", "default", "require"]) {
+    fixture.manifest({
+      [condition]: "./private.cjs",
+      types: "./public/runtime.d.ts",
+      import: "./public/runtime.js",
+    });
+    assert.throws(
+      () => resolveInstalledPublicKernel(fixture.installation),
+      /Unsupported installed kernel public export conditions/u,
+    );
+  }
+});
+
+test("EF70 refuses nonliteral and escaping declared public import targets", (t) => {
+  const fixture = installedKernelFixture();
+  t.after(() => rmSync(fixture.installation, { recursive: true, force: true }));
+  const forbidden = join(fixture.kernelRoot, "NODE_MODULES/other");
+  mkdirSync(forbidden, { recursive: true });
+  writeFileSync(join(forbidden, "index.js"), 'throw new Error("Forbidden target executed");\n');
+  for (const target of [
+    "../private.cjs",
+    "./../private.cjs",
+    "/private.cjs",
+    "file:///private.cjs",
+    "./public//runtime.js",
+    "./public/./runtime.js",
+    "./node_modules/other/index.js",
+    "./NODE_MODULES/other/index.js",
+    "./Node_Modules/other/index.js",
+    "./public/%2e%2e/private.cjs",
+    "./public/runtime.js?selection=other",
+    "./public/runtime.js#other",
+  ]) {
+    fixture.manifest({ types: "./public/runtime.d.ts", import: target });
+    assert.throws(() => resolveInstalledPublicKernel(fixture.installation), /Public ESM target/u);
+  }
+});
+
+test("EF70 refuses a public entry that escapes its physical kernel through a directory link", (t) => {
+  const fixture = installedKernelFixture();
+  t.after(() => rmSync(fixture.installation, { recursive: true, force: true }));
+  const outside = join(fixture.installation, "outside-kernel");
+  mkdirSync(outside);
+  writeFileSync(join(outside, "runtime.js"), 'throw new Error("Escaped entry executed");\n');
+  symlinkSync(outside, join(fixture.kernelRoot, "bridge"), "junction");
+  fixture.manifest({ types: "./public/runtime.d.ts", import: "./bridge/runtime.js" });
+  assert.throws(
+    () => resolveInstalledPublicKernel(fixture.installation),
+    /Public ESM entry must remain inside the selected physical kernel/u,
+  );
+});
+
+test("EF70 refuses an ancestor kernel when the selected installation has no kernel", (t) => {
+  const fixture = installedKernelFixture();
+  t.after(() => rmSync(fixture.installation, { recursive: true, force: true }));
+  const child = join(fixture.installation, "different-installation");
+  mkdirSync(child);
+  writeFileSync(join(child, "package.json"), '{"private":true,"type":"module"}\n');
+  assert.equal(
+    createRequire(join(child, "package.json")).resolve(
+      "@agent-teams/repository-mutation/package.json",
+    ),
+    join(fixture.kernelRoot, "package.json"),
+  );
+  assert.throws(() => resolveInstalledPublicKernel(child), { code: "ENOENT" });
 });

@@ -807,21 +807,20 @@ test("generated SDK drift observes actual bytes and complete output membership",
   const root = await mkdtemp(join(tmpdir(), "foundation-sdk-drift-"));
   const expectedRoot = join(root, "expected");
   const regeneratedRoot = join(root, "regenerated");
-  const compare = () =>
-    qualificationModule.compareGeneratedSdkDirectories({ expectedRoot, regeneratedRoot });
+  const compare = qualificationModule.compareGeneratedSdkDirectories;
   try {
     for (const directory of [expectedRoot, regeneratedRoot]) {
       await mkdir(directory);
       await writeFile(join(directory, "record.pb.go"), "go output");
       await writeFile(join(directory, "record_pb.ts"), "ts output");
     }
-    const { generationDrift: equal, ...clean } = await compare();
+    const { generationDrift: equal, ...clean } = await compare({ expectedRoot, regeneratedRoot });
     assert.deepEqual(clean, { missingPaths: [], unexpectedPaths: [], changedPaths: [] });
     assert.equal(equal.expectedGeneratedOutputDigest, equal.observedGeneratedOutputDigest);
     await rm(join(regeneratedRoot, "record.pb.go"));
     await writeFile(join(regeneratedRoot, "record_pb.ts"), "changed output");
     await writeFile(join(regeneratedRoot, "extra.pb.go"), "unexpected output");
-    const { generationDrift: unequal, ...drift } = await compare();
+    const { generationDrift: unequal, ...drift } = await compare({ expectedRoot, regeneratedRoot });
     assert.deepEqual(drift, {
       missingPaths: ["record.pb.go"],
       unexpectedPaths: ["extra.pb.go"],

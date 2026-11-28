@@ -589,6 +589,7 @@ test("EF70 snapshots only the exact retained owner hardlink without following li
   assert.equal(before.links, "2");
   assert.deepEqual(readStableLocalEvidenceFile(observed, relativePath), before);
 
+  unlinkSync(observed);
   const unrelatedDirectory = join(localRoot, "unrelated");
   mkdirSync(unrelatedDirectory);
   const unrelated = join(unrelatedDirectory, "owned-temporary");
@@ -599,6 +600,7 @@ test("EF70 snapshots only the exact retained owner hardlink without following li
   );
   unlinkSync(unrelated);
 
+  linkSync(retained, observed);
   linkSync(retained, unrelated);
   assert.throws(() => readStableLocalEvidenceFile(observed, relativePath), /admitted link count/u);
   unlinkSync(unrelated);

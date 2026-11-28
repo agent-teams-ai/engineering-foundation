@@ -192,10 +192,7 @@ export async function observeRefusalBuilds(
   refusalCase: RefusalCase,
 ) {
   const { kernelRoot, entrypointURL } = resolveInstalledPublicKernel(c.installation);
-  const kernel = object(
-    await import(entrypointURL),
-    "public kernel exports",
-  );
+  const kernel = object(await import(entrypointURL), "public kernel exports");
   const barrier = async () =>
     object(
       await invoke(kernel, "inspectKnownFileTransactionBarrier", [{ consumerRoot: c.consumer }]),

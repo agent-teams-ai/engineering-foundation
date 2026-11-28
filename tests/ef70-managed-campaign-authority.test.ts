@@ -526,10 +526,7 @@ test("EF70 refuses nonliteral and escaping declared public import targets", (t) 
     "./public/runtime.js#other",
   ]) {
     fixture.manifest({ types: "./public/runtime.d.ts", import: target });
-    assert.throws(
-      () => resolveInstalledPublicKernel(fixture.installation),
-      /Public ESM target/u,
-    );
+    assert.throws(() => resolveInstalledPublicKernel(fixture.installation), /Public ESM target/u);
   }
 });
 
@@ -554,7 +551,9 @@ test("EF70 refuses an ancestor kernel when the selected installation has no kern
   mkdirSync(child);
   writeFileSync(join(child, "package.json"), '{"private":true,"type":"module"}\n');
   assert.equal(
-    createRequire(join(child, "package.json")).resolve("@agent-teams/repository-mutation/package.json"),
+    createRequire(join(child, "package.json")).resolve(
+      "@agent-teams/repository-mutation/package.json",
+    ),
     join(fixture.kernelRoot, "package.json"),
   );
   assert.throws(() => resolveInstalledPublicKernel(child), { code: "ENOENT" });

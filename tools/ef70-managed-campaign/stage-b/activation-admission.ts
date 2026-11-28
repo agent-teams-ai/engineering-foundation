@@ -177,10 +177,7 @@ function sourceState(c: ActivationContext, data: ReturnType<typeof readColdSelec
 async function admitArtifacts(c: ActivationContext, data: ReturnType<typeof readColdSelection>) {
   const { preparation, receipt, plan } = data;
   const { kernelRoot, entrypointURL } = resolveInstalledPublicKernel(c.installation);
-  const kernel = object(
-    await import(entrypointURL),
-    "public kernel",
-  );
+  const kernel = object(await import(entrypointURL), "public kernel");
   await invoke(kernel, "assertKnownFileTransactionPlan", [plan]);
   const { receiptDigest, ...receiptBody } = receipt;
   requireEqual(

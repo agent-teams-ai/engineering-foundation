@@ -153,10 +153,7 @@ requireEqual(
   "actual target package version",
 );
 const { entrypointURL } = resolveInstalledPublicKernel(c.installation);
-const publicKernel = object(
-  await import(entrypointURL),
-  "installed public kernel export",
-);
+const publicKernel = object(await import(entrypointURL), "installed public kernel export");
 const observeBarrier = async () =>
   object(
     await invoke(publicKernel, "inspectKnownFileTransactionBarrier", [

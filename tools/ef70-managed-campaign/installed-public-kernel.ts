@@ -38,7 +38,9 @@ export function resolveInstalledPublicKernel(installation: string) {
   assert(typeof target === "string" && target.startsWith("./"), "Public ESM target required");
   const segments = target.slice(2).split("/");
   assert(
-    segments.every((part) => /^[A-Za-z0-9][A-Za-z0-9._-]*$/u.test(part) && part.toLowerCase() !== "node_modules"),
+    segments.every(
+      (part) => /^[A-Za-z0-9][A-Za-z0-9._-]*$/u.test(part) && part.toLowerCase() !== "node_modules",
+    ),
     "Public ESM target must be a literal package-relative path",
   );
   const kernelRoot = dirname(manifestPath);

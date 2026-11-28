@@ -600,12 +600,14 @@ test("EF70 snapshots stable retained hard-linked owner evidence without followin
   );
   assert.deepEqual(localEvidence(root, "after"), before);
 
+  unlinkSync(observed);
   const unrelated = join(localRoot, "unrelated", "owned-temporary");
   mkdirSync(join(localRoot, "unrelated"));
   linkSync(retained, unrelated);
   assert.throws(() => localEvidence(root, "unrelated-hardlink"), /admitted link count/u);
   unlinkSync(unrelated);
 
+  linkSync(retained, observed);
   linkSync(retained, unrelated);
   assert.throws(() => localEvidence(root, "third-link"), /admitted link count/u);
   unlinkSync(unrelated);

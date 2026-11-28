@@ -178,7 +178,11 @@ function readObservation(
   url = observationUrl,
   headers: Readonly<Record<string, string>> = observationHeaders,
 ) {
-  return observeGet(url, headers, "producer-preflight-run", maximum, budget, selected.runtime);
+  return observeGet(
+    { url, headers, label: "producer-preflight-run", maximum },
+    budget,
+    selected.runtime,
+  );
 }
 
 test("EF70 retains an ordinary successful observation with no retry or waiting", async () => {
@@ -362,10 +366,12 @@ test("EF70 refuses another GET until the provider wait deadline elapsed", async 
   ]);
   await assert.rejects(
     observeGet(
-      observationUrl,
-      observationHeaders,
-      "provider-wait",
-      1024,
+      {
+        url: observationUrl,
+        headers: observationHeaders,
+        label: "provider-wait",
+        maximum: 1024,
+      },
       { remainingWaitMs: 68 * 60_000 },
       { ...selected.runtime, wait: async () => {} },
     ),

@@ -196,32 +196,36 @@ export async function fetchObserved(
   maximum = 8 * 1024 * 1024,
 ): Promise<Buffer> {
   const parsed = new URL(url);
-  return observeGet(parsed, observationHeaders(parsed), label, maximum, observationBudget, {
-    request: fetch,
-    now: Date.now,
-    wait: async (milliseconds) => {
-      await wait(milliseconds);
-      console.log(
-        "EF70 bootstrap observation: waited " +
-          milliseconds +
-          " ms for the recorded provider backoff.",
-      );
+  return observeGet(
+    { url: parsed, headers: observationHeaders(parsed), label, maximum },
+    observationBudget,
+    {
+      request: fetch,
+      now: Date.now,
+      wait: async (milliseconds) => {
+        await wait(milliseconds);
+        console.log(
+          "EF70 bootstrap observation: waited " +
+            milliseconds +
+            " ms for the recorded provider backoff.",
+        );
+      },
+      capture: (bytes, observation) => {
+        const stem = observation.successful ? label : label + "-attempt-" + observation.attempt;
+        retain(stem + ".raw", bytes);
+        record(stem + "-transport", { ...observation, sha256: sha256(bytes) });
+      },
+      captureWait: (observation) => {
+        record(label + "-attempt-" + observation.attempt + "-wait", observation);
+        console.log(
+          "EF70 bootstrap observation: " +
+            label +
+            " response retained; waiting until " +
+            observation.notBefore,
+        );
+      },
     },
-    capture: (bytes, observation) => {
-      const stem = observation.successful ? label : label + "-attempt-" + observation.attempt;
-      retain(stem + ".raw", bytes);
-      record(stem + "-transport", { ...observation, sha256: sha256(bytes) });
-    },
-    captureWait: (observation) => {
-      record(label + "-attempt-" + observation.attempt + "-wait", observation);
-      console.log(
-        "EF70 bootstrap observation: " +
-          label +
-          " response retained; waiting until " +
-          observation.notBefore,
-      );
-    },
-  });
+  );
 }
 export async function github(path: string, label: string): Promise<Row> {
   return row(

@@ -1,5 +1,18 @@
 import assert from "node:assert/strict";
 
+export interface ObservationRequest {
+  readonly url: URL;
+  readonly headers: Readonly<Record<string, string>>;
+  readonly label: string;
+  readonly maximum: number;
+}
+interface ObservedBody {
+  readonly body: Buffer;
+  readonly bodyComplete: boolean;
+  readonly bodyTruncated: boolean;
+  readonly bodyReadError: string | null;
+}
+
 export interface ObservationBudget {
   remainingWaitMs: number;
 }
@@ -57,12 +70,11 @@ function decimal(value: string, name: string): number {
 
 function providerWait(
   url: URL,
-  status: number,
-  headers: Readonly<Record<string, string | null>>,
-  receivedAt: number,
+  observation: ResponseObservation,
   now: number,
-  attempt: number,
 ): { notBefore: number; reasons: string[] } {
+  const { status, headers, attempt } = observation;
+  const receivedAt = Date.parse(observation.receivedAt);
   assert(
     url.origin === "https://api.github.com" && (status === 403 || status === 429),
     "HTTP response does not authorize observation backoff",
@@ -92,15 +104,43 @@ function providerWait(
   return { notBefore, reasons };
 }
 
+async function readObservedBody(response: Response, maximum: number): Promise<ObservedBody> {
+  const limit = response.ok ? maximum : 64 * 1024;
+  const chunks: Uint8Array[] = [];
+  let count = 0;
+  let bodyTruncated = false;
+  let bodyReadError: string | null = null;
+  if (response.body === null) {
+    bodyReadError = "Response body is missing";
+  } else {
+    try {
+      for await (const chunk of response.body) {
+        const available = limit - count;
+        if (chunk.byteLength > available) {
+          chunks.push(chunk.subarray(0, available));
+          count += available;
+          bodyTruncated = true;
+          break;
+        }
+        chunks.push(chunk);
+        count += chunk.byteLength;
+      }
+    } catch (error) {
+      bodyReadError = error instanceof Error ? error.message : String(error);
+    }
+  }
+  const body = Buffer.concat(chunks);
+  const bodyComplete = !bodyTruncated && bodyReadError === null;
+  return { body, bodyComplete, bodyTruncated, bodyReadError };
+}
+
 /** Read-only observation retries retain the same request and never invoke managed code. */
 export async function observeGet(
-  url: URL,
-  headers: Readonly<Record<string, string>>,
-  label: string,
-  maximum: number,
+  request: ObservationRequest,
   budget: ObservationBudget,
   runtime: ObservationRuntime,
 ): Promise<Buffer> {
+  const { url, headers, label, maximum } = request;
   assert(url.protocol === "https:" && !url.username && !url.password);
   assert(
     url.origin === "https://registry.npmjs.org" ||
@@ -132,34 +172,10 @@ export async function observeGet(
     for (const name of responseHeaderNames) {
       responseHeaders[name] = response.headers.get(name);
     }
-    const limit = response.ok ? maximum : 64 * 1024;
-    const chunks: Uint8Array[] = [];
-    let count = 0;
-    let bodyTruncated = false;
-    let bodyReadError: string | null = null;
-    if (response.body === null) {
-      bodyReadError = "Response body is missing";
-    } else {
-      try {
-        for await (const chunk of response.body) {
-          const available = limit - count;
-          if (chunk.byteLength > available) {
-            chunks.push(chunk.subarray(0, available));
-            count += available;
-            bodyTruncated = true;
-            break;
-          }
-          chunks.push(chunk);
-          count += chunk.byteLength;
-        }
-      } catch (error) {
-        bodyReadError = error instanceof Error ? error.message : String(error);
-      }
-    }
-    const body = Buffer.concat(chunks);
-    const bodyComplete = !bodyTruncated && bodyReadError === null;
+    const { body, bodyComplete, bodyTruncated, bodyReadError } =
+      await readObservedBody(response, maximum);
     const successful = response.ok && bodyComplete;
-    runtime.capture(body, {
+    const observation: ResponseObservation = {
       url: address.href,
       method: "GET",
       attempt,
@@ -174,21 +190,15 @@ export async function observeGet(
       bodyTruncated,
       bodyReadError,
       successful,
-    });
+    };
+    runtime.capture(body, observation);
     assert(bodyComplete, "Incomplete bounded observation: " + label);
     if (successful) {
       return body;
     }
     assert(attempt < 4, "Observation attempts exhausted: " + label);
     const now = runtime.now();
-    const { notBefore, reasons } = providerWait(
-      address,
-      response.status,
-      responseHeaders,
-      receivedAt,
-      now,
-      attempt,
-    );
+    const { notBefore, reasons } = providerWait(address, observation, now);
     const waitMs = notBefore - now;
     assert(
       Number.isSafeInteger(waitMs) && waitMs <= budget.remainingWaitMs,

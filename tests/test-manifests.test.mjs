@@ -255,7 +255,8 @@ test("managed platform routing preserves complete Linux qualification and every 
     "packages/docs-protocol-agent-teams/tests/managed-runtime-custody.test.mts",
     "packages/docs-protocol-agent-teams/tests/managed-runtime-observation.test.mjs",
     "packages/docs-protocol-agent-teams/tests/managed-runtime-parent-environment.test.mts",
-    "packages/docs-protocol-agent-teams/tests/managed-runtime-pnpm-enforcement.test.mjs",
+    "packages/docs-protocol-agent-teams/tests/managed-runtime-default-probe.test.mjs",
+  "packages/docs-protocol-agent-teams/tests/managed-runtime-pnpm-enforcement.test.mjs",
     "packages/docs-protocol-agent-teams/tests/managed-runtime-process.test.mjs",
   ];
   const ids = ["1", "2", "3", "4", "5", "6", "7", "8"];
@@ -278,7 +279,7 @@ test("managed platform routing preserves complete Linux qualification and every 
       selected,
       requiredShardFiles.filter((path) => !linuxOnly.includes(path)),
     );
-    assert.equal(selected.length, requiredShardFiles.length - 8);
+    assert.equal(selected.length, requiredShardFiles.length - 9);
     assert.ok(
       selected.includes(
         "packages/docs-protocol-agent-teams/tests/managed-portable-profile.test.mjs",

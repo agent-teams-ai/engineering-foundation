@@ -113,6 +113,7 @@ jobs:
           taskset -c "$EF70_CPUSET" "$EF70_NODE26_EXECUTABLE" packages/stack-toolchain/dist/cli.js fix -- \
             tests/support/repository-ci-runtime-fixture.ts \
             tests/ef70-managed-campaign-authority.test.ts \
+            tests/windows-test-partitions.test.mts \
             tools/ef70-managed-campaign/authority-selection.ts \
             tools/ef70-managed-campaign/bootstrap-controller.ts \
             tools/ef70-managed-campaign/bootstrap-io.ts \

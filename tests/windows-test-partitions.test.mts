@@ -164,7 +164,7 @@ void test("five fixed Windows lanes retain exact real canonical inventory and ma
       canonical.indexOf(qualificationCohort),
       canonical.indexOf(canaryGeneration3),
     ],
-    [14, 35, 112, 148, 230],
+    [14, 35, 113, 149, 231],
   );
   const lanePolicy: unknown = JSON.parse(
     await readFile(new URL("../tests/manifests/windows-lanes.v1.json", import.meta.url), "utf8"),

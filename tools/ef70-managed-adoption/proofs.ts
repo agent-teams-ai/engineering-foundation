@@ -1,9 +1,8 @@
 import assert from "node:assert/strict";
 import { existsSync, realpathSync } from "node:fs";
-import { createRequire } from "node:module";
 import { join } from "node:path";
-import { pathToFileURL } from "node:url";
 import { row, type Row } from "../ef70-managed-campaign/campaign-io.ts";
+import { resolveInstalledPublicKernel } from "../ef70-managed-campaign/installed-public-kernel.ts";
 import { sourceCohort } from "./configuration.ts";
 import { assertSourceIdentity, type SourceAdmission } from "./admission.ts";
 import type { QualifiedTarget } from "./authority.ts";
@@ -71,11 +70,8 @@ export async function createProofContext(
   target: QualifiedTarget,
   prerequisites: Prerequisites,
 ): Promise<ProofContext> {
-  const require = createRequire(join(prerequisites.controllerInstallation, "package.json"));
-  const kernel = row(
-    await import(pathToFileURL(require.resolve("@agent-teams/repository-mutation")).href),
-    "Authenticated public kernel",
-  );
+  const { entrypointURL } = resolveInstalledPublicKernel(prerequisites.controllerInstallation);
+  const kernel = row(await import(entrypointURL), "Authenticated public kernel");
   const artifacts: Row[] = [];
   for (const [name, roots] of [
     ["@agent-teams/docs-protocol-agent-teams", ["dist", "assets", "schemas"]],

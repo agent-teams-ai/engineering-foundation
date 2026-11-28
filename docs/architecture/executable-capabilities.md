@@ -762,6 +762,34 @@ rule identifiers and recommends versioned partial fingerprints that avoid
 absolute line numbers. The native foundation report remains smaller and
 agent-oriented until a real SARIF consumer exists.
 
+### Proposed lifecycle and recovery conformance
+
+The [owner-routed research](https://github.com/agent-teams-ai/engineering-research/blob/e2a5f6c47e008f93094dc88ed39ea9618722f28d/docs/lessons/preimplementation-decisions.md#priorities-before-the-affected-implementation)
+identifies reusable development-time test laws for future plugin and fleet
+profiles. This is an extraction candidate, not an implemented capability,
+consumer activation, production dependency or additional release gate.
+
+Use the existing extraction invariant and executable-specification mechanism
+when named consumers demonstrate the same semantics. Keep deterministic
+fixtures and report adapters shared from the start; owners supply their real
+ports, policy, durable stores and expected observations. Do not extract similar
+syntax with different authority, custody or recovery guarantees.
+
+Candidate cases include stale receiver authority, a committed effect with lost
+acknowledgement, expiry while work remains physically alive, duplicate delivery,
+late old-generation cleanup, incompatible state and rollback with fresh
+authority. A shared last-allowance race applies only when the selected quota
+scope spans independently admitted partitions. Observe physical release and
+useful successor work separately from logical completion or readiness.
+
+Reuse existing consumer cases before adding uncovered traces. Each adopted
+fixture records the selected profile, original identity, fault point, actual
+receiver observation and retained obligation; a fake store alone cannot qualify
+a production-store or provider guarantee. Architecture-specific laws remain
+opt-in. Product lifecycle, placement, policy and custody decisions stay with
+their existing owners; Foundation does not implement a runtime scheduler,
+update engine or recovery coordinator.
+
 ## External standards
 
 - [JSON Schema Draft 2020-12](https://json-schema.org/draft/2020-12)

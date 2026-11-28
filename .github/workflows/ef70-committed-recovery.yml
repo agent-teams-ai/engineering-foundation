@@ -62,7 +62,7 @@ jobs:
       GIT_COMMITTER_NAME: iliya
       GIT_AUTHOR_EMAIL: iliyazelenkog@gmail.com
       GIT_COMMITTER_EMAIL: iliyazelenkog@gmail.com
-      EF70_PRODUCER_BASE: 2a70fe1ccc6f223c2da1a9ec0324ac5d071662b6
+      EF70_PRODUCER_BASE: 4d61a25f867d617ec035535cb3fee3153de6071c
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -168,6 +168,7 @@ jobs:
             tools/ef70-managed-campaign/compiler-guard.ts \
             tools/ef70-managed-campaign/compose-selected-lock.ts \
             tools/ef70-managed-campaign/controller-authentication.ts \
+            tools/ef70-managed-campaign/installed-public-kernel.ts \
             tools/ef70-managed-campaign/owned-root.ts \
             tools/ef70-managed-campaign/rate-budget.ts \
             tools/ef70-managed-campaign/refusal-custody.ts \

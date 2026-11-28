@@ -10,7 +10,7 @@ import {
 import { type AdoptionConfig, gitSha } from "../ef70-managed-adoption/configuration.ts";
 import { absolute, regularImage, siblingRoots, text } from "../ef70-managed-adoption/files.ts";
 
-export const adoptionHarness = "f5754319322dc495aea080a679b66ea1994a75c2";
+export const adoptionHarness = "73c2e6b3faff21f1b9374748501f11edf28f40ec";
 export const consumerBranch = "docs/coordinated-module-foundation-20261126";
 export interface ArtifactSelection {
   readonly runId: string;

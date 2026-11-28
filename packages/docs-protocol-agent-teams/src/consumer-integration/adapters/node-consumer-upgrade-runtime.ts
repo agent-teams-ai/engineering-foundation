@@ -85,7 +85,10 @@ export async function managedUpgradeRuntime(
     root,
   );
   assertRuntimeObservation(JSON.parse(result.stdout), major);
-  const childEnvironment = { ...env, PATH: `${dirname(node)}${delimiter}${env["PATH"] ?? ""}` };
+  const childEnvironment: NodeJS.ProcessEnv = {
+    ...env,
+    PATH: `${dirname(node)}${delimiter}${env["PATH"] ?? ""}`,
+  };
   const run: typeof execute = (executable, args, cwd, codes, childEnv) =>
     execute(
       executable === "corepack" || executable === process.execPath ? node : executable,
@@ -120,18 +123,32 @@ export async function managedUpgradeRuntime(
       "Managed migration packageManager does not match its exact qualified pnpm coordinate.",
     );
   }
-  const managerProbe = await run(
-    "corepack",
-    ["pnpm", "--version"],
-    root,
-    [0],
-    offline ? { ...childEnvironment, COREPACK_ENABLE_NETWORK: "0" } : childEnvironment,
-  );
-  if (managerProbe.stdout.trim() !== pin[1]) {
-    throw new ConsumerIntegrationNodeError(
-      "DOCS_CONSUMER_UPGRADE_RUNTIME_INVALID",
-      "Observed pnpm differs from the exact consumer packageManager pin.",
+  // When Corepack's project selection is explicitly disabled, probing pnpm
+  // from the consumer root makes pnpm itself reject the packageManager field
+  // before this adapter can classify the selected runtime mismatch. Observe
+  // Corepack's actual default in an empty, short-lived directory instead.
+  const probeUsesDefault = childEnvironment["COREPACK_ENABLE_PROJECT_SPEC"] === "0";
+  const probeRoot = probeUsesDefault
+    ? await mkdtemp(join(tmpdir(), "docs-managed-pnpm-version-probe-"))
+    : root;
+  try {
+    const managerProbe = await run(
+      "corepack",
+      ["pnpm", "--version"],
+      probeRoot,
+      [0],
+      offline ? { ...childEnvironment, COREPACK_ENABLE_NETWORK: "0" } : childEnvironment,
     );
+    if (managerProbe.stdout.trim() !== pin[1]) {
+      throw new ConsumerIntegrationNodeError(
+        "DOCS_CONSUMER_UPGRADE_RUNTIME_INVALID",
+        "Observed pnpm differs from the exact consumer packageManager pin.",
+      );
+    }
+  } finally {
+    if (probeUsesDefault) {
+      await rm(probeRoot, { recursive: true, force: true });
+    }
   }
   return run;
 }

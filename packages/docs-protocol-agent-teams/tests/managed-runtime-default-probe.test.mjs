@@ -49,8 +49,8 @@ test(
           error?.code === "DOCS_CONSUMER_UPGRADE_RUNTIME_INVALID" &&
           /Observed pnpm differs from the exact consumer packageManager pin/u.test(error.message),
       );
-      } finally {
-        await x.scope.close();
+    } finally {
+      await x.scope.close();
         await x.f.cleanup();
       }
   },

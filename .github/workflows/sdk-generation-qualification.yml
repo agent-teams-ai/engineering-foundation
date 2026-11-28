@@ -64,3 +64,52 @@ jobs:
         run: pnpm contracts:check
       - name: Compare actual generated TypeScript and Go outputs
         run: node scripts/sdk-generation-e2e.ts .worker-tmp/sdk-identity
+
+  native-bindings:
+    name: native-rust-python-sdk
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: "1.4.3"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - name: Bind the existing Foundation Node profile
+        run: |
+          printf 'AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE=%s\n' "$(command -v node)" >> "$GITHUB_ENV"
+      - run: bun tools/dev.mts install
+      - run: bun tools/dev.mts build
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: mozilla/uniffi-rs
+          ref: 5c7b73906358e1a7acdc1bdc7bf5cd86fb27e44c # v0.32.0
+          path: .worker-tmp/sdk-uniffi
+          persist-credentials: false
+      - name: Build the upstream native fixture with its locked toolchain
+        working-directory: .worker-tmp/sdk-uniffi
+        run: |
+          rustup toolchain install 1.90.0 --profile minimal
+          rustc +1.90.0 --version
+          python3 --version
+          cargo +1.90.0 build --locked -p uniffi-example-arithmetic-procmacro -p uniffi-bindgen-cli
+      - name: Generate two native binding outputs and verify actual Python calls
+        run: |
+          set -euo pipefail
+          fixture=".worker-tmp/sdk-uniffi"
+          library="$(realpath "$fixture/target/debug/libarithmeticpm.so")"
+          expected="$(mktemp -d)"
+          observed="$(mktemp -d)"
+          trap 'rm -rf "$expected" "$observed"' EXIT
+          bindgen="$fixture/target/debug/uniffi-bindgen-cli"
+          "$bindgen" generate --library "$library" --language python --out-dir "$expected"
+          "$bindgen" generate --library "$library" --language python --out-dir "$observed"
+          node --input-type=module -e 'import assert from "node:assert/strict"; import { compareGeneratedSdkDirectories } from "./packages/engineering-foundation/dist/sdk-generation.js"; const [expectedRoot, regeneratedRoot] = process.argv.slice(1); const result = await compareGeneratedSdkDirectories({expectedRoot, regeneratedRoot}); assert.deepEqual([result.missingPaths,result.unexpectedPaths,result.changedPaths],[[],[],[]]); assert.equal(result.generationDrift.expectedGeneratedOutputDigest,result.generationDrift.observedGeneratedOutputDigest);' "$expected" "$observed"
+          test -f "$expected/arithmeticpm.py"
+          cp "$library" "$expected/"
+          PYTHONPATH="$expected" python3 -B "$fixture/examples/arithmetic-procmacro/tests/test.py"
+          printf '\nRust/Python native binding generation, deterministic output and typed error passed.\n'

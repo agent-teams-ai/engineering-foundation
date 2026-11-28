@@ -204,7 +204,7 @@ export async function observeGet(
       remainingBudgetMs: budget.remainingWaitMs,
       reasons,
     });
-    for (let remaining = waitMs; remaining > 0; ) {
+    for (let remaining = waitMs; remaining > 0;) {
       const slice = Math.min(60_000, remaining);
       await runtime.wait(slice);
       remaining -= slice;

@@ -66,6 +66,8 @@ export function selectRefusalRuntime(
       COREPACK_ENABLE_PROJECT_SPEC: "0",
       COREPACK_ENABLE_NETWORK: "0",
       COREPACK_DEFAULT_TO_LATEST: "0",
+      // Keep the genuine wrong manager observable to the unchanged owner guard.
+      pnpm_config_pm_on_fail: "warn",
     });
     preservedFiles.set("manager-default", join(home, "lastKnownGood.json"));
   }

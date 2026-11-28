@@ -148,6 +148,7 @@ jobs:
             tools/ef70-managed-campaign/stage-b/refusal-command.ts \
             tools/ef70-managed-campaign/stage-b/refusal-contracts.ts \
             tools/ef70-managed-campaign/stage-b/refusal-evidence.ts \
+            tools/ef70-managed-campaign/stage-b/local-evidence-file.ts \
             tools/ef70-managed-campaign/stage-b/refusal-preparation.ts \
             tools/ef70-managed-campaign/stage-b/refusal.ts \
             2>&1 | tee "$EF70_QUALITY_ROOT/cleanup.log" || cleanup_status=$?
@@ -155,12 +156,9 @@ jobs:
           git diff --exit-code
           exit "$cleanup_status"
       - name: Execute the exact EF70 authority and retained-evidence regressions
-        shell: bash
         run: |
           set -Eeuo pipefail
-          campaign_output="$RUNNER_TEMP/ef70-authority-test-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
-          mkdir -m 700 "$campaign_output"
-          EF_CAMPAIGN_OUTPUT="$campaign_output" taskset -c "$EF70_CPUSET" "$EF70_NODE26_EXECUTABLE" --test tests/ef70-managed-campaign-authority.test.ts
+          taskset -c "$EF70_CPUSET" "$EF70_NODE26_EXECUTABLE" --test tests/ef70-managed-campaign-authority.test.ts
       - name: Qualify workflow security
         run: |
           set -Eeuo pipefail

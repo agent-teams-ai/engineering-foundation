@@ -9,14 +9,13 @@ import {
   unlinkSync,
   writeFileSync,
 } from "node:fs";
-import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { pathToFileURL } from "node:url";
 import { resolveInstalledPublicKernel } from "../tools/ef70-managed-campaign/installed-public-kernel.ts";
-import { localEvidence } from "../tools/ef70-managed-campaign/stage-b/refusal-evidence.ts";
+import { readStableLocalEvidenceFile } from "../tools/ef70-managed-campaign/stage-b/local-evidence-file.ts";
 import {
   observeGet,
   type ObservationBudget,
@@ -570,54 +569,45 @@ test("EF70 refuses an ancestor kernel when the selected installation has no kern
   assert.throws(() => resolveInstalledPublicKernel(child), { code: "ENOENT" });
 });
 
-test("EF70 snapshots stable retained hard-linked owner evidence without following links", (t) => {
+test("EF70 snapshots only the exact retained owner hardlink without following links", (t) => {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "ef70-local-evidence-")));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const localRoot = join(root, ".agent-teams-local");
-  mkdirSync(localRoot);
+  const token = "03ff0fcf-d214-45db-8e34-133558d5d236";
+  const retiredRoot = join(localRoot, ".foundation-retired-evidence-");
+  const retiredDirectory = join(retiredRoot, token);
+  mkdirSync(retiredDirectory, { recursive: true });
   const retained = join(root, "published-image");
-  const observed = join(
-    localRoot,
-    ".foundation-retired-evidence-",
-    "03ff0fcf-d214-45db-8e34-133558d5d236",
-    "owned-temporary",
-  );
-  mkdirSync(
-    join(localRoot, ".foundation-retired-evidence-", "03ff0fcf-d214-45db-8e34-133558d5d236"),
-    { recursive: true },
-  );
+  const observed = join(retiredDirectory, "owned-temporary");
+  const relativePath = `.agent-teams-local/.foundation-retired-evidence-/${token}/owned-temporary`;
   writeFileSync(retained, "same immutable inode bytes", { mode: 0o600 });
   linkSync(retained, observed);
 
-  const before = localEvidence(root, "before");
-  const file = before.find(
-    (entry) =>
-      entry["path"] ===
-      ".agent-teams-local/.foundation-retired-evidence-/03ff0fcf-d214-45db-8e34-133558d5d236/owned-temporary",
-  );
-  assert.ok(file);
-  assert.equal(file["state"], "file");
-  assert.equal(file["links"], "2");
-  assert.equal(file["bytes"], Buffer.byteLength("same immutable inode bytes"));
-  assert.equal(
-    file["sha256"],
-    createHash("sha256").update("same immutable inode bytes").digest("hex"),
-  );
-  assert.deepEqual(localEvidence(root, "after"), before);
+  const before = readStableLocalEvidenceFile(observed, relativePath);
+  assert.equal(before.bytes.toString(), "same immutable inode bytes");
+  assert.equal(before.mode, 0o600);
+  assert.equal(before.links, "2");
+  assert.deepEqual(readStableLocalEvidenceFile(observed, relativePath), before);
 
-  unlinkSync(observed);
-  const unrelated = join(localRoot, "unrelated", "owned-temporary");
-  mkdirSync(join(localRoot, "unrelated"));
+  const unrelatedDirectory = join(localRoot, "unrelated");
+  mkdirSync(unrelatedDirectory);
+  const unrelated = join(unrelatedDirectory, "owned-temporary");
   linkSync(retained, unrelated);
-  assert.throws(() => localEvidence(root, "unrelated-hardlink"), /admitted link count/u);
+  assert.throws(
+    () =>
+      readStableLocalEvidenceFile(
+        unrelated,
+        ".agent-teams-local/unrelated/owned-temporary",
+      ),
+    /admitted link count/u,
+  );
   unlinkSync(unrelated);
 
-  linkSync(retained, observed);
   linkSync(retained, unrelated);
-  assert.throws(() => localEvidence(root, "third-link"), /admitted link count/u);
+  assert.throws(() => readStableLocalEvidenceFile(observed, relativePath), /admitted link count/u);
   unlinkSync(unrelated);
 
   unlinkSync(observed);
   symlinkSync(retained, observed);
-  assert.throws(() => localEvidence(root, "symlink"), /symlink/u);
+  assert.throws(() => readStableLocalEvidenceFile(observed, relativePath), /admitted link count/u);
 });

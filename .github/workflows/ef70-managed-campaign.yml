@@ -148,7 +148,6 @@ jobs:
             tools/ef70-managed-campaign/stage-b/refusal-command.ts \
             tools/ef70-managed-campaign/stage-b/refusal-contracts.ts \
             tools/ef70-managed-campaign/stage-b/refusal-evidence.ts \
-            tools/ef70-managed-campaign/stage-b/refusal-evidence.ts \
             tools/ef70-managed-campaign/stage-b/refusal-preparation.ts \
             tools/ef70-managed-campaign/stage-b/refusal.ts \
             2>&1 | tee "$EF70_QUALITY_ROOT/cleanup.log" || cleanup_status=$?

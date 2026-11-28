@@ -7,6 +7,7 @@ import {
   openSync,
   readSync,
   readdirSync,
+  type BigIntStats,
 } from "node:fs";
 import { hostname } from "node:os";
 import { join } from "node:path";
@@ -44,8 +45,8 @@ interface StableLocalFile {
 }
 
 function sameLocalFileIdentity(
-  left: ReturnType<typeof fstatSync>,
-  right: ReturnType<typeof fstatSync>,
+  left: BigIntStats,
+  right: BigIntStats,
 ): boolean {
   return (
     left.isFile() &&
@@ -57,8 +58,8 @@ function sameLocalFileIdentity(
 }
 
 function sameLocalFileSnapshot(
-  left: ReturnType<typeof fstatSync>,
-  right: ReturnType<typeof fstatSync>,
+  left: BigIntStats,
+  right: BigIntStats,
 ): boolean {
   return (
     sameLocalFileIdentity(left, right) &&

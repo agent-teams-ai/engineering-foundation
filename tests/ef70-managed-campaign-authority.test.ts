@@ -578,7 +578,7 @@ test("EF70 snapshots stable retained hard-linked owner evidence without followin
   const retained = join(root, "published-image");
   const observed = join(localRoot, "retired", "owned-temporary");
   mkdirSync(join(localRoot, "retired"));
-  writeFileSync(retained, "same immutable inode bytes\\n", { mode: 0o600 });
+  writeFileSync(retained, "same immutable inode bytes", { mode: 0o600 });
   linkSync(retained, observed);
 
   const before = localEvidence(root, "before");
@@ -588,10 +588,10 @@ test("EF70 snapshots stable retained hard-linked owner evidence without followin
   assert.ok(file);
   assert.equal(file["state"], "file");
   assert.equal(file["links"], "2");
-  assert.equal(file["bytes"], Buffer.byteLength("same immutable inode bytes\\n"));
+  assert.equal(file["bytes"], Buffer.byteLength("same immutable inode bytes"));
   assert.equal(
     file["sha256"],
-    createHash("sha256").update("same immutable inode bytes\\n").digest("hex"),
+    createHash("sha256").update("same immutable inode bytes").digest("hex"),
   );
   assert.deepEqual(localEvidence(root, "after"), before);
 

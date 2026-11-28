@@ -15,6 +15,8 @@ import {
 } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { setTimeout as wait } from "node:timers/promises";
+import { observeGet, type ObservationBudget } from "./observation-transport.ts";
 import {
   admitAuthoritySelection,
   assertCurrentAuthority,
@@ -76,6 +78,7 @@ export const fixtures = join(toolsRoot, "fixtures");
 export const roots = initializeCampaignRoots();
 export const rawRoot = join(roots.evidenceRoot, "bootstrap");
 mkdirSync(rawRoot, { mode: 0o700 });
+const observationBudget: ObservationBudget = { remainingWaitMs: 68 * 60_000 };
 let commandIndex = 0;
 export const selectedEnvironment: Record<string, string> = {};
 export const frozen = [
@@ -193,38 +196,32 @@ export async function fetchObserved(
   maximum = 8 * 1024 * 1024,
 ): Promise<Buffer> {
   const parsed = new URL(url);
-  assert(parsed.protocol === "https:" && !parsed.username && !parsed.password);
-  assert(
-    parsed.origin === "https://registry.npmjs.org" ||
-      (parsed.origin === "https://api.github.com" &&
-        parsed.pathname.startsWith("/repos/agent-teams-ai/")),
-  );
-  const response = await fetch(parsed, {
-    headers: observationHeaders(parsed),
-    redirect: "error",
-    signal: AbortSignal.timeout(60_000),
+  return observeGet(parsed, observationHeaders(parsed), label, maximum, observationBudget, {
+    request: fetch,
+    now: Date.now,
+    wait: async (milliseconds) => {
+      await wait(milliseconds);
+      console.log(
+        "EF70 bootstrap observation: waited " +
+          milliseconds +
+          " ms for the recorded provider backoff.",
+      );
+    },
+    capture: (bytes, observation) => {
+      const stem = observation.successful ? label : label + "-attempt-" + observation.attempt;
+      retain(stem + ".raw", bytes);
+      record(stem + "-transport", { ...observation, sha256: sha256(bytes) });
+    },
+    captureWait: (observation) => {
+      record(label + "-attempt-" + observation.attempt + "-wait", observation);
+      console.log(
+        "EF70 bootstrap observation: " +
+          label +
+          " response retained; waiting until " +
+          observation.notBefore,
+      );
+    },
   });
-  assert(
-    response.ok && response.body !== null,
-    "Observation failed: " + label + " HTTP " + response.status,
-  );
-  const chunks: Uint8Array[] = [];
-  let count = 0;
-  for await (const chunk of response.body) {
-    count += chunk.byteLength;
-    assert(count <= maximum, "Observation exceeds explicit size bound: " + label);
-    chunks.push(chunk);
-  }
-  const bytes = Buffer.concat(chunks);
-  retain(label + ".raw", bytes);
-  record(label + "-transport", {
-    url: parsed.href,
-    observedAt: new Date().toISOString(),
-    bytes: bytes.length,
-    sha256: sha256(bytes),
-    status: response.status,
-  });
-  return bytes;
 }
 export async function github(path: string, label: string): Promise<Row> {
   return row(

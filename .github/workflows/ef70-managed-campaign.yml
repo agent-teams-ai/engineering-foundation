@@ -128,6 +128,7 @@ jobs:
             tools/ef70-managed-campaign/cold-processes.ts \
             tools/ef70-managed-campaign/compiler-guard.ts \
             tools/ef70-managed-campaign/compose-selected-lock.ts \
+            tools/ef70-managed-campaign/observation-transport.ts \
             tools/ef70-managed-campaign/owned-root.ts \
             tools/ef70-managed-campaign/rate-budget.ts \
             tools/ef70-managed-campaign/refusal-custody.ts \

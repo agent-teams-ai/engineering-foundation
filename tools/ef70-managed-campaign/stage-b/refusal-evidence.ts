@@ -1,4 +1,13 @@
-import { existsSync, lstatSync, readdirSync } from "node:fs";
+import {
+  closeSync,
+  constants,
+  existsSync,
+  fstatSync,
+  lstatSync,
+  openSync,
+  readSync,
+  readdirSync,
+} from "node:fs";
 import { hostname } from "node:os";
 import { join } from "node:path";
 import {
@@ -28,6 +37,65 @@ export function optionalFile(path: string, label: string): JsonRecord {
     sha256: digest(content),
   };
 }
+interface StableLocalFile {
+  readonly bytes: Buffer;
+  readonly mode: number;
+  readonly links: string;
+}
+
+function sameLocalFileIdentity(left: ReturnType<typeof fstatSync>, right: ReturnType<typeof fstatSync>): boolean {
+  return left.isFile() && right.isFile() &&
+    left.dev === right.dev &&
+    left.ino === right.ino &&
+    left.birthtimeNs === right.birthtimeNs;
+}
+
+function sameLocalFileSnapshot(left: ReturnType<typeof fstatSync>, right: ReturnType<typeof fstatSync>): boolean {
+  return sameLocalFileIdentity(left, right) &&
+    left.mode === right.mode &&
+    left.uid === right.uid &&
+    left.gid === right.gid &&
+    left.nlink === right.nlink &&
+    left.size === right.size &&
+    left.ctimeNs === right.ctimeNs &&
+    left.mtimeNs === right.mtimeNs;
+}
+
+// Retained atomic-publication evidence may legitimately have multiple hard links:
+// the destination and quarantined evidence preserve the same inode. Do not weaken
+// context.bytes(), which is reserved for single-link selected input files.
+function readStableLocalEvidenceFile(path: string): StableLocalFile {
+  const beforePath = lstatSync(path, { bigint: true });
+  if (!beforePath.isFile() || beforePath.isSymbolicLink() || beforePath.size > 64n * 1024n * 1024n || beforePath.nlink < 1n) {
+    throw new Error("Local owner evidence is not one bounded regular file.");
+  }
+  const noFollow = process.platform === "win32" ? 0 : constants.O_NOFOLLOW;
+  const descriptor = openSync(path, constants.O_RDONLY | noFollow);
+  try {
+    const beforeRead = fstatSync(descriptor, { bigint: true });
+    if (!sameLocalFileIdentity(beforePath, beforeRead) || !sameLocalFileSnapshot(beforePath, beforeRead)) {
+      throw new Error("Local owner evidence changed before its read.");
+    }
+    const content = Buffer.alloc(Number(beforeRead.size));
+    let offset = 0;
+    while (offset < content.length) {
+      const count = readSync(descriptor, content, offset, content.length - offset, offset);
+      if (count === 0) {
+        throw new Error("Local owner evidence was truncated during its read.");
+      }
+      offset += count;
+    }
+    const afterRead = fstatSync(descriptor, { bigint: true });
+    const afterPath = lstatSync(path, { bigint: true });
+    if (!sameLocalFileSnapshot(beforeRead, afterRead) || !sameLocalFileSnapshot(afterRead, afterPath)) {
+      throw new Error("Local owner evidence changed during its read.");
+    }
+    return { bytes: content, mode: Number(afterRead.mode & 0o777n), links: afterRead.nlink.toString() };
+  } finally {
+    closeSync(descriptor);
+  }
+}
+
 export function localEvidence(root: string, label: string): readonly JsonRecord[] {
   const directory = join(root, ".agent-teams-local");
   if (!existsSync(directory)) {
@@ -49,7 +117,8 @@ export function localEvidence(root: string, label: string): readonly JsonRecord[
         visit(join(path, child), `${name}/${child}`, depth + 1);
       }
     } else {
-      const content = bytes(path);
+      const observed = readStableLocalEvidenceFile(path);
+      const content = observed.bytes;
       total += content.length;
       if (total > 64 * 1024 * 1024) {
         throw new Error("Local owner evidence exceeds byte bound.");
@@ -58,7 +127,8 @@ export function localEvidence(root: string, label: string): readonly JsonRecord[
       entries.push({
         path: name,
         state: "file",
-        mode: stat.mode & 0o777,
+        mode: observed.mode,
+        links: observed.links,
         bytes: content.length,
         sha256: digest(content),
       });

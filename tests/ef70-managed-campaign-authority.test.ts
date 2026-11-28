@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { linkSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { pathToFileURL } from "node:url";
 import { resolveInstalledPublicKernel } from "../tools/ef70-managed-campaign/installed-public-kernel.ts";
+import { localEvidence } from "../tools/ef70-managed-campaign/stage-b/refusal-evidence.ts";
 import {
   observeGet,
   type ObservationBudget,
@@ -557,4 +559,30 @@ test("EF70 refuses an ancestor kernel when the selected installation has no kern
     join(fixture.kernelRoot, "package.json"),
   );
   assert.throws(() => resolveInstalledPublicKernel(child), { code: "ENOENT" });
+});
+
+
+test("EF70 snapshots stable retained hard-linked owner evidence without following links", (t) => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "ef70-local-evidence-")));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const localRoot = join(root, ".agent-teams-local");
+  mkdirSync(localRoot);
+  const retained = join(root, "published-image");
+  const observed = join(localRoot, "retired", "owned-temporary");
+  mkdirSync(join(localRoot, "retired"));
+  writeFileSync(retained, "same immutable inode bytes\\n", { mode: 0o600 });
+  linkSync(retained, observed);
+
+  const before = localEvidence(root, "before");
+  const file = before.find((entry) => entry["path"] === ".agent-teams-local/retired/owned-temporary");
+  assert.ok(file);
+  assert.equal(file["state"], "file");
+  assert.equal(file["links"], "2");
+  assert.equal(file["bytes"], Buffer.byteLength("same immutable inode bytes\\n"));
+  assert.equal(file["sha256"], createHash("sha256").update("same immutable inode bytes\\n").digest("hex"));
+  assert.deepEqual(localEvidence(root, "after"), before);
+
+  unlinkSync(observed);
+  symlinkSync(retained, observed);
+  assert.throws(() => localEvidence(root, "symlink"), /symlink/u);
 });

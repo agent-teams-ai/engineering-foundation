@@ -34,6 +34,11 @@ jobs:
           printf 'AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE=%s\n' "$(command -v node)" >> "$GITHUB_ENV"
       - run: bun tools/dev.mts install
       - run: bun tools/dev.mts build
+      - name: Observe exact formatter output for the new fixture
+        run: |
+          cp scripts/sdk-generation-e2e.ts "${RUNNER_TEMP}/sdk-generation-e2e.ts"
+          bun --cwd packages/stack-toolchain x --no-install oxfmt --config presets/format.json "${RUNNER_TEMP}/sdk-generation-e2e.ts"
+          printf 'SDK_FORMAT_BASE64:%s\n' "$(base64 -w0 "${RUNNER_TEMP}/sdk-generation-e2e.ts")"
       - name: Verify the generated output observation tests
         run: node --test tests/contract-protobuf-qualification.test.mjs
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

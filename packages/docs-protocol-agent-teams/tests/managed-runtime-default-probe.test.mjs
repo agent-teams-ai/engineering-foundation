@@ -51,7 +51,7 @@ test(
       );
     } finally {
       await x.scope.close();
-        await x.f.cleanup();
-      }
+      await x.f.cleanup();
+    }
   },
 );

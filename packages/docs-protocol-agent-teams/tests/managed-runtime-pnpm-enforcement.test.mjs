@@ -55,7 +55,7 @@ for (const lane of ["node24", "node26"]) {
           '  console.error("consumer manifest reached the version-only probe");',
           '  process.exit(23);',
           '}',
-          'process.stdout.write("11.18.0\n");',
+          'process.stdout.write("11.18.0\\n");',
           "",
         ].join("\n"),
         { mode: 0o600, flag: "wx" },

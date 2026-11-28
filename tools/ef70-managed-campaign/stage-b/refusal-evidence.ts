@@ -1,14 +1,4 @@
-import {
-  closeSync,
-  constants,
-  existsSync,
-  fstatSync,
-  lstatSync,
-  openSync,
-  readSync,
-  readdirSync,
-  type BigIntStats,
-} from "node:fs";
+import { existsSync, lstatSync, readdirSync } from "node:fs";
 import { hostname } from "node:os";
 import { join } from "node:path";
 import {

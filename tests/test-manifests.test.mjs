@@ -253,10 +253,10 @@ test("managed platform routing preserves complete Linux qualification and every 
     "packages/docs-protocol-agent-teams/tests/managed-runtime-attempt.test.mjs",
     "packages/docs-protocol-agent-teams/tests/managed-runtime-corrective.test.mts",
     "packages/docs-protocol-agent-teams/tests/managed-runtime-custody.test.mts",
+    "packages/docs-protocol-agent-teams/tests/managed-runtime-default-probe.test.mjs",
     "packages/docs-protocol-agent-teams/tests/managed-runtime-observation.test.mjs",
     "packages/docs-protocol-agent-teams/tests/managed-runtime-parent-environment.test.mts",
-    "packages/docs-protocol-agent-teams/tests/managed-runtime-default-probe.test.mjs",
-  "packages/docs-protocol-agent-teams/tests/managed-runtime-pnpm-enforcement.test.mjs",
+    "packages/docs-protocol-agent-teams/tests/managed-runtime-pnpm-enforcement.test.mjs",
     "packages/docs-protocol-agent-teams/tests/managed-runtime-process.test.mjs",
   ];
   const ids = ["1", "2", "3", "4", "5", "6", "7", "8"];

@@ -37,7 +37,7 @@ jobs:
       - name: Observe exact formatter output for the new fixture
         run: |
           cp scripts/sdk-generation-e2e.ts "${RUNNER_TEMP}/sdk-generation-e2e.ts"
-          bun --cwd packages/stack-toolchain x --no-install oxfmt --config presets/format.json "${RUNNER_TEMP}/sdk-generation-e2e.ts"
+          packages/stack-toolchain/node_modules/.bin/oxfmt --config packages/stack-toolchain/presets/format.json "${RUNNER_TEMP}/sdk-generation-e2e.ts"
           printf 'SDK_FORMAT_BASE64:%s\n' "$(base64 -w0 "${RUNNER_TEMP}/sdk-generation-e2e.ts")"
       - name: Verify the generated output observation tests
         run: node --test tests/contract-protobuf-qualification.test.mjs

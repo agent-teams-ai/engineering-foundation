@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { lstatSync, readFileSync, readdirSync, readlinkSync, realpathSync } from "node:fs";
-import { join, sep } from "node:path";
+import { sep } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { resolveInstalledPublicKernel } from "./installed-public-kernel.ts";
 import { row, text, type Campaign, type PreparedCase } from "./campaign-support.ts";
